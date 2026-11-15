@@ -29,7 +29,12 @@ import {
   type PreparationScopeReviewApproval,
   type PreparationScopeReviewActivate,
   preparationSourceUnitsRequestSchema,
+  preparationSourceUnitDetailRequestSchema,
+  preparationSourceNodeIdSchema,
+  preparationGeneratedCatalogRequestSchema,
+  type PreparationSourceUnitDetailRequest,
   type PreparationSourceUnitsRequest,
+  type PreparationGeneratedCatalogRequest,
 } from "@lcsp/contracts/compliance-rule-set";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
@@ -51,6 +56,7 @@ import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
+import { PreparationGeneratedCatalogReadService } from "../../infrastructure/persistence/preparation-generated-catalog-read.service.js";
 
 /**
  * Operations view of the shared Compliance Rule Sets. Preparation starts automatically with a
@@ -68,6 +74,7 @@ export class ComplianceRuleSetAdminController {
     private readonly scopeReviews: PreparationScopeReviewService,
     private readonly catalogGroups: RuleCatalogGroupsService,
     private readonly sourceAnalysis: PreparationSourceAnalysisReadService,
+    private readonly preparationCatalog: PreparationGeneratedCatalogReadService,
   ) {}
 
   /**
@@ -225,6 +232,91 @@ export class ComplianceRuleSetAdminController {
   ) {
     return resultEnvelope(
       await this.sourceAnalysis.list(
+        preparationRunId,
+        request,
+        req.correlationId || randomUUID(),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Read one source unit's persisted review result for an authorized Admin.
+   *
+   * Business rules:
+   * - Controller-wide Admin RBAC applies; the request identifies one run, one inventory revision, and one source node.
+   * - The read service is authoritative for source-version, frontier, materialization, and review-row consistency.
+   *
+   * Execution flow:
+   * 1. Validate the Preparation UUID, bounded source-node identity, and required inventory revision.
+   * 2. Delegate the pinned read and return the standard success envelope.
+   *
+   * Failure cases:
+   * - Invalid identities use the shared validation problem; missing or stale records use typed service problems.
+   *
+   * Side effects:
+   * - Read-only; no worker, graph materialization, or Preparation command is invoked.
+   */
+  @Get("preparations/:preparationRunId/source-units/:sourceNodeId")
+  async sourceUnitDetail(
+    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
+    @Param(
+      "sourceNodeId",
+      new ZodValidationPipe(
+        preparationSourceNodeIdSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      ),
+    )
+    sourceNodeId: string,
+    @Query(
+      new ZodValidationPipe(
+        preparationSourceUnitDetailRequestSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      ),
+    )
+    request: PreparationSourceUnitDetailRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.sourceAnalysis.detail(
+        preparationRunId,
+        sourceNodeId,
+        request,
+        req.correlationId || randomUUID(),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Expose one bounded read-only Legal Requirement or Assessment Rule catalog page to an authorized Admin.
+   *
+   * Business rules:
+   * - Controller-wide Admin RBAC applies; the selected run, inventory revision, pinned source, and persisted draft or owned submitted version determine the catalog.
+   * - A submitted Rule Set is authoritative over a draft, and pagination cursors cannot cross run, revision, collection, search, or source-version identities.
+   *
+   * Execution flow:
+   * 1. Validate the Preparation run UUID and strict catalog query contract.
+   * 2. Delegate the consistent persisted read and return the shared success envelope.
+   *
+   * Failure cases:
+   * - Invalid requests, missing runs, stale cursors, mismatched ownership, and invalid persisted data use typed shared problem responses.
+   *
+   * Side effects:
+   * - Read-only; no authoring, lifecycle, validation, activation, or worker state is changed.
+   */
+  @Get("preparations/:preparationRunId/catalog")
+  async preparationGeneratedCatalog(
+    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
+    @Query(
+      new ZodValidationPipe(
+        preparationGeneratedCatalogRequestSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.catalogRequestInvalid,
+      ),
+    )
+    request: PreparationGeneratedCatalogRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparationCatalog.list(
         preparationRunId,
         request,
         req.correlationId || randomUUID(),

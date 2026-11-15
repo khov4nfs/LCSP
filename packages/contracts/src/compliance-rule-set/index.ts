@@ -8,6 +8,8 @@ export * from "./preparation-inventory.ts";
 
 export * from "./preparation-frontier.ts";
 export * from "./preparation-source-units.ts";
+export * from "./preparation-source-unit-detail.ts";
+export * from "./preparation-generated-catalog.ts";
 export * from "./claim-file.ts";
 export * from "./direct-draft.ts";
 export * from "./scope-review.ts";

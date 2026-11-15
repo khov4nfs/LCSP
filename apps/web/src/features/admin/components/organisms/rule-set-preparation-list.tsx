@@ -30,13 +30,29 @@ import {
 } from "@/features/workspace/utils/assessment-runtime-formatter";
 import type { RuleSetPreparationListProps } from "../../types/compliance-rule-sets.types";
 import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
-import { RuleSetPreparationActivity } from "../molecules/rule-set-preparation-activity";
 import { RuleSetPreparationDraft } from "../molecules/rule-set-preparation-draft";
+import { RuleSetPreparationActivity } from "../molecules/rule-set-preparation-activity";
+import { PreparationSourceAnalysisExplorer } from "./preparation-source-analysis-explorer";
+import { PreparationGeneratedCatalog } from "./preparation-generated-catalog";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
 /**
- * Rule Set Preparation history, newest first, with run-scoped retry/cancel actions.
+ * Business purpose: Present Admin Preparation history and the selected run's safe observability and source-review views.
+ *
+ * Business rules:
+ * - The selected run controls the revision-pinned Source Analysis Explorer and Generated Rule Set Catalog; lifecycle actions remain bound to their original run IDs.
+ * - Activity remains run-scoped, and the legacy draft output remains explicitly labeled as a bounded preview of the catalog's persisted draft.
+ *
+ * Execution flow:
+ * 1. Select the preferred or explicitly selected Preparation run.
+ * 2. Load its activity and render lifecycle actions, Source Analysis, the catalog, and the bounded draft preview.
+ *
+ * Failure cases:
+ * - Empty history renders the existing empty state; action failures remain visible without changing run status locally.
+ *
+ * Side effects:
+ * - Subscribes to run activity and existing retry, resume, and cancellation mutations; Source Analysis itself is read-only.
  */
 export function RuleSetPreparationList({
   preparations,
@@ -198,33 +214,73 @@ export function RuleSetPreparationList({
           </li>
         ))}
       </ul>
-      {selectedRun?.draft ? (
-        <RuleSetPreparationDraft
-          draft={selectedRun.draft}
-          coverageAvailable={selectedRun.persistedCoverageAvailable}
-          draftAvailable={selectedRun.persistedDraftAvailable}
+      {selectedRun ? (
+        <PreparationSourceAnalysisExplorer
+          key={`${selectedRun.preparationRunId}:${selectedRun.sourceAnalysisInventoryRevision ?? "unavailable"}`}
+          run={selectedRun}
+          activity={{
+            events: activity.events,
+            connected: activity.connected,
+            terminal,
+            executionState: selectedRun.executionState,
+            hasOlder: Boolean(activity.history.hasNextPage),
+            historyError: activity.history.isError,
+            historyLoading: activity.history.isPending,
+            loadingOlder: activity.history.isFetchingNextPage,
+            onLoadOlder: () => {
+              if (activity.history.isError) void activity.history.refetch();
+              else void activity.history.fetchNextPage();
+            },
+            directDraft:
+              selectedRun.executionContract ===
+              PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1,
+          }}
         />
       ) : null}
-      {activeRunId ? (
-        <RuleSetPreparationActivity
-          events={activity.events}
-          connected={activity.connected}
-          terminal={terminal}
-          executionState={selectedRun?.executionState ?? null}
-          key={activeRunId}
-          hasOlder={Boolean(activity.history.hasNextPage)}
-          historyError={activity.history.isError}
-          historyLoading={activity.history.isPending}
-          loadingOlder={activity.history.isFetchingNextPage}
-          onLoadOlder={() => {
-            if (activity.history.isError) void activity.history.refetch();
-            else void activity.history.fetchNextPage();
-          }}
-          directDraft={
-            selectedRun?.executionContract ===
-            PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1
-          }
+      {selectedRun ? (
+        <PreparationGeneratedCatalog
+          key={`${selectedRun.preparationRunId}:${selectedRun.sourceAnalysisInventoryRevision ?? "unavailable"}`}
+          run={selectedRun}
         />
+      ) : null}
+      {selectedRun ? (
+        <details className="rounded-lg border border-border px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            {t("pages.complianceRuleSets.sourceAnalysis.runActivity")}
+          </summary>
+          <div className="pt-3">
+            <RuleSetPreparationActivity
+              events={activity.events}
+              connected={activity.connected}
+              terminal={terminal}
+              executionState={selectedRun.executionState}
+              hasOlder={Boolean(activity.history.hasNextPage)}
+              historyError={activity.history.isError}
+              historyLoading={activity.history.isPending}
+              loadingOlder={activity.history.isFetchingNextPage}
+              onLoadOlder={() => {
+                if (activity.history.isError) void activity.history.refetch();
+                else void activity.history.fetchNextPage();
+              }}
+              directDraft={
+                selectedRun.executionContract ===
+                PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1
+              }
+            />
+          </div>
+        </details>
+      ) : null}
+      {selectedRun?.draft ? (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {t("pages.complianceRuleSets.sourceAnalysis.draftPreviewNote")}
+          </p>
+          <RuleSetPreparationDraft
+            draft={selectedRun.draft}
+            coverageAvailable={selectedRun.persistedCoverageAvailable}
+            draftAvailable={selectedRun.persistedDraftAvailable}
+          />
+        </>
       ) : null}
       {resume.isError ? (
         <Alert variant="destructive">

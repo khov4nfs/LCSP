@@ -20,6 +20,24 @@ import { preparationHistoryStage } from "./preparation-history-stage.js";
 @Injectable()
 export class ComplianceRuleSetHistoryLoader {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Business purpose: Load the canonical Rule Set history and the selected source-review frontier identity for Admin views.
+   *
+   * Business rules:
+   * - Preparation coverage and source-analysis revision come from the newest persisted review frontier for each run.
+   * - A run without a persisted frontier has no source-analysis revision; the loader must not infer one.
+   *
+   * Execution flow:
+   * 1. Read Rule Sets, Preparation runs, each run's latest frontier, and server-derived start availability in one transaction.
+   * 2. Project persisted run, coverage, draft, and frontier revision data through the shared history contract.
+   *
+   * Failure cases:
+   * - Prisma or contract validation failures reject the read; missing frontiers remain explicit null revision and zero display coverage.
+   *
+   * Side effects:
+   * - Read-only database transaction; no lifecycle, review, or authoring state is changed.
+   */
   async load() {
     return this.prisma.$transaction(
       async (tx) => {
@@ -45,6 +63,7 @@ export class ComplianceRuleSetHistoryLoader {
                 orderBy: { inventoryRevision: "desc" },
                 take: 1,
                 select: {
+                  inventoryRevision: true,
                   unitCount: true,
                   reviewedWithClaimsCount: true,
                   reviewedNoClaimsCount: true,
@@ -163,6 +182,8 @@ export class ComplianceRuleSetHistoryLoader {
               startedAt: row.startedAt?.toISOString() ?? null,
               persistedCoverageAvailable: Boolean(frontier),
               persistedDraftAvailable: Boolean(saved || row.ruleSet),
+              sourceAnalysisInventoryRevision:
+                frontier?.inventoryRevision ?? null,
               resumable:
                 row.ruleSet === null &&
                 row.legalSourceVersion.status === approved &&

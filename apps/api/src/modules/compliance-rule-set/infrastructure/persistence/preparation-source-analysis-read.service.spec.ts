@@ -3,8 +3,15 @@ import { HttpException } from "@nestjs/common";
 import { preparationSourceUnitsRequestSchema } from "@lcsp/contracts/compliance-rule-set";
 import {
   LEGAL_DOCUMENT_NODE_TYPES,
+  SOURCE_REVIEW_DISPOSITIONS,
   SOURCE_REVIEW_STATES,
 } from "@lcsp/contracts/legal-source";
+import {
+  LEGAL_SEMANTIC_CLAIM_TYPES,
+  sourceReviewPayloadSchema,
+  SOURCE_UNIT_DETAIL_AVAILABILITY,
+  SOURCE_UNIT_DETAIL_MAPPING_REASONS,
+} from "@lcsp/contracts/compliance-rule-set";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { PreparationSourceAnalysisReadService } from "./preparation-source-analysis-read.service.js";
 
@@ -20,8 +27,12 @@ describe("PreparationSourceAnalysisReadService", () => {
     ruleSetPreparationReviewFrontier: {
       findUnique: ReturnType<typeof jest.fn>;
     };
-    ruleSetPreparationSourceReview: { findMany: ReturnType<typeof jest.fn> };
+    ruleSetPreparationSourceReview: {
+      findMany: ReturnType<typeof jest.fn>;
+      findUnique: ReturnType<typeof jest.fn>;
+    };
     legalDocumentNode: { findMany: ReturnType<typeof jest.fn> };
+    legalSemanticClaim: { findMany: ReturnType<typeof jest.fn> };
   };
   let transaction: ReturnType<typeof jest.fn>;
   let service: PreparationSourceAnalysisReadService;
@@ -79,6 +90,7 @@ describe("PreparationSourceAnalysisReadService", () => {
           Promise.resolve({
             id: runId,
             legalSourceVersionId: versionId,
+            ruleSet: null,
           }),
         ),
       },
@@ -86,16 +98,21 @@ describe("PreparationSourceAnalysisReadService", () => {
         findUnique: jest.fn(() => Promise.resolve(frontier)),
       },
       ruleSetPreparationSourceReview: {
+        findUnique: jest.fn(),
         findMany: jest.fn((args: unknown) => {
           void args;
           return Promise.resolve([row(1, nodeId), row(2, "c".repeat(64))]);
         }),
       },
       legalDocumentNode: {
-        findMany: jest.fn((args: unknown) => {
-          void args;
-          return Promise.resolve([]);
-        }),
+        findMany: jest.fn((args: { where?: { nodeId?: { in?: string[] } } }) =>
+          Promise.resolve(
+            (args.where?.nodeId?.in ?? []).map((nodeId) => ({ nodeId })),
+          ),
+        ),
+      },
+      legalSemanticClaim: {
+        findMany: jest.fn(() => Promise.resolve([])),
       },
     };
     transaction = jest.fn(
@@ -231,5 +248,192 @@ describe("PreparationSourceAnalysisReadService", () => {
       ),
     ).rejects.toMatchObject({ status: 409 });
     expect(tx.ruleSetPreparationSourceReview.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns a valid empty persisted review with exact source and frontier pins", async () => {
+    tx.ruleSetPreparationRun.findUnique.mockResolvedValue({
+      id: runId,
+      legalSourceVersionId: versionId,
+      ruleSet: null,
+    });
+    tx.ruleSetPreparationSourceReview.findUnique.mockResolvedValue({
+      sourceNodeId: nodeId,
+      legalSourceVersionId: versionId,
+      materializationId,
+      structuralPath: "Document/Article 1/Clause 1",
+      ordinal: 4,
+      state: SOURCE_REVIEW_STATES.PENDING,
+      disposition: null,
+      reason: null,
+      claimIds: [],
+      ownedClaimCount: 0,
+      referenceIds: [],
+      blockedReferenceIds: [],
+      payload: {
+        claims: [],
+        identities: {},
+        relations: [],
+        referenceAccounting: [],
+      },
+      completedAt: null,
+      node: {
+        nodeId,
+        nodeType: LEGAL_DOCUMENT_NODE_TYPES.ARTICLE,
+        parentNodeId: null,
+        structuralPath: "Document/Article 1/Clause 1",
+        ordinal: 4,
+        label: "Clause 1",
+        title: "Clause 1 title",
+        documentId: "document-1",
+      },
+    });
+
+    const result = await service.detail(
+      runId,
+      nodeId,
+      { inventoryRevision: 3 },
+      "correlation",
+    );
+
+    expect(result).toMatchObject({
+      preparationRunId: runId,
+      inventoryRevision: 3,
+      legalSourceVersionId: versionId,
+      materializationId,
+      sourceNodeId: nodeId,
+      review: { state: SOURCE_REVIEW_STATES.PENDING, claimCount: 0 },
+      output: {
+        availability: SOURCE_UNIT_DETAIL_AVAILABILITY.EMPTY,
+        claims: [],
+        identities: {},
+      },
+      provenance: {
+        directClaimIds: [],
+        requirementRuleMapping: {
+          availability: "UNAVAILABLE",
+          associations: [],
+        },
+      },
+    });
+    expect(transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ isolationLevel: "RepeatableRead" }),
+    );
+  });
+
+  it("rejects malformed persisted review payloads instead of returning empty output", async () => {
+    tx.ruleSetPreparationSourceReview.findUnique.mockResolvedValue({
+      sourceNodeId: nodeId,
+      legalSourceVersionId: versionId,
+      materializationId,
+      structuralPath: "Document/Article 1",
+      ordinal: 1,
+      state: SOURCE_REVIEW_STATES.PENDING,
+      disposition: null,
+      reason: null,
+      claimIds: [],
+      ownedClaimCount: 0,
+      referenceIds: [],
+      blockedReferenceIds: [],
+      payload: { untrusted: "raw" },
+      completedAt: null,
+      node: {
+        nodeId,
+        nodeType: LEGAL_DOCUMENT_NODE_TYPES.ARTICLE,
+        parentNodeId: null,
+        structuralPath: "Document/Article 1",
+        ordinal: 1,
+        label: "Article 1",
+        title: "Article 1",
+        documentId: "document-1",
+      },
+    });
+
+    await expect(
+      service.detail(runId, nodeId, { inventoryRevision: 3 }, "correlation"),
+    ).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("projects only bounded structured claim output and explicit source links", async () => {
+    const claimId = "claim-unit-1";
+    const statement = "A persisted semantic claim.";
+    const claimState =
+      sourceReviewPayloadSchema.shape.claims.element.shape.state.options[0];
+    const payload = {
+      claims: [
+        {
+          claimId,
+          legalSourceVersionId: versionId,
+          sourceNodeIds: [nodeId],
+          sourceSupport: [
+            {
+              nodeId,
+              startOffset: 0,
+              endOffset: statement.length,
+              contentSha256: "d".repeat(64),
+            },
+          ],
+          claimType: LEGAL_SEMANTIC_CLAIM_TYPES.DUTY,
+          statement,
+          operative: null,
+          state: claimState,
+          nonOperativeReason: null,
+        },
+      ],
+      identities: { [claimId]: "e".repeat(64) },
+      relations: [],
+      referenceAccounting: [],
+    };
+    tx.ruleSetPreparationSourceReview.findUnique.mockResolvedValue({
+      sourceNodeId: nodeId,
+      legalSourceVersionId: versionId,
+      materializationId,
+      structuralPath: "Document/Article 1/Clause 1",
+      ordinal: 4,
+      state: SOURCE_REVIEW_STATES.REVIEWED_WITH_CLAIMS,
+      disposition: SOURCE_REVIEW_DISPOSITIONS.CLAIMS_AUTHORED,
+      reason: "Reviewed against the pinned source.",
+      claimIds: [claimId],
+      ownedClaimCount: 1,
+      referenceIds: [],
+      blockedReferenceIds: [],
+      payload,
+      completedAt: new Date("2026-11-14T00:00:00.000Z"),
+      node: {
+        nodeId,
+        nodeType: LEGAL_DOCUMENT_NODE_TYPES.ARTICLE,
+        parentNodeId: null,
+        structuralPath: "Document/Article 1/Clause 1",
+        ordinal: 4,
+        label: "Clause 1",
+        title: "Clause 1 title",
+        documentId: "document-1",
+      },
+    });
+
+    const result = await service.detail(
+      runId,
+      nodeId,
+      { inventoryRevision: 3 },
+      "correlation",
+    );
+
+    expect(result.output.availability).toBe(
+      SOURCE_UNIT_DETAIL_AVAILABILITY.AVAILABLE,
+    );
+    expect(result.output.claims).toHaveLength(1);
+    expect(result.output.claims[0]).toMatchObject({
+      claimId,
+      sourceNodeIds: [nodeId],
+      statement,
+    });
+    expect(result.provenance.directClaimIds).toEqual([claimId]);
+    expect(result.review.reason).toBe("Reviewed against the pinned source.");
+    expect(result.provenance.requirementRuleMapping).toMatchObject({
+      availability: SOURCE_UNIT_DETAIL_AVAILABILITY.UNAVAILABLE,
+      unavailableReason:
+        SOURCE_UNIT_DETAIL_MAPPING_REASONS.RULE_SET_NOT_SUBMITTED,
+      associations: [],
+    });
   });
 });

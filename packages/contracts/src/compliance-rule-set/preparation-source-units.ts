@@ -27,7 +27,7 @@ export type PreparationSourceUnitsRequest = z.infer<
   typeof preparationSourceUnitsRequestSchema
 >;
 
-const preparationSourceUnitAncestorSchema = z.strictObject({
+export const preparationSourceUnitAncestorSchema = z.strictObject({
   sourceNodeId: opaqueId,
   nodeType: z.enum(LEGAL_DOCUMENT_NODE_TYPES),
   structuralPath: z.string().min(1),

@@ -31,6 +31,7 @@ import { RetryRuleSetPreparationCommand } from "../../application/commands/retry
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
 import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
 import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
+import { PreparationGeneratedCatalogReadService } from "../../infrastructure/persistence/preparation-generated-catalog-read.service.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 describe("Admin preparation HTTP authorization and command boundary", () => {
@@ -97,6 +98,10 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
         {
           provide: PreparationSourceAnalysisReadService,
           useValue: { list: listSourceUnits },
+        },
+        {
+          provide: PreparationGeneratedCatalogReadService,
+          useValue: { list: jest.fn() },
         },
       ],
     })

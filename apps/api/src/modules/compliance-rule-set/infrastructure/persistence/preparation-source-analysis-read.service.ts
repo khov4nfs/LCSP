@@ -1,9 +1,16 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  SOURCE_UNIT_DETAIL_AVAILABILITY,
+  SOURCE_UNIT_DETAIL_ERROR_CODES,
+  SOURCE_UNIT_DETAIL_MAPPING_REASONS,
+  preparationSourceUnitDetailResponseSchema,
   preparationSourceUnitsResponseSchema,
+  type PreparationSourceUnitDetailResponse,
+  type PreparationSourceUnitDetailRequest,
   type PreparationSourceUnitsRequest,
   type PreparationSourceUnitsResponse,
 } from "@lcsp/contracts/compliance-rule-set";
+import { sourceReviewPayloadSchema } from "@lcsp/contracts/compliance-rule-set";
 import { SOURCE_REVIEW_STATES } from "@lcsp/contracts/legal-source";
 import { Prisma } from "@prisma/client";
 import { HttpStatus, Injectable } from "@nestjs/common";
@@ -306,6 +313,487 @@ export class PreparationSourceAnalysisReadService {
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
+
+  /**
+   * Business purpose: Return one persisted Source Review result with its pinned graph identity for an Admin reviewer.
+   *
+   * Business rules:
+   * - The requested run, inventory revision, Legal Source Version, frontier materialization, and source-review row must agree exactly.
+   * - Only the persisted structured review contract is projected; malformed payloads fail as data-integrity errors and are never represented as empty output.
+   * - Requirement and Assessment Rule links are shown only when a submitted semantic graph is pinned to this run's exact source version and materialization.
+   *
+   * Execution flow:
+   * 1. Load the run and requested review frontier in one repeatable-read transaction.
+   * 2. Resolve the exact source-review row and its node hierarchy without materializing or refreshing a graph.
+   * 3. Validate and bound structured review output, then optionally resolve canonical submitted claim-to-requirement-to-rule identifiers.
+   * 4. Validate the complete response against the shared detail DTO before returning it.
+   *
+   * Failure cases:
+   * - Missing run or source unit returns a typed not-found problem; stale or inconsistent pins return a conflict.
+   * - Invalid persisted payload ownership or shape returns a server-side typed integrity problem, never a successful empty result.
+   *
+   * Side effects:
+   * - Read-only PostgreSQL transaction; no graph materialization, worker execution, source-review mutation, or lifecycle change occurs.
+   */
+  async detail(
+    preparationRunId: string,
+    sourceNodeId: string,
+    request: PreparationSourceUnitDetailRequest,
+    correlationId: string,
+  ): Promise<PreparationSourceUnitDetailResponse> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const run = await tx.ruleSetPreparationRun.findUnique({
+          where: { id: preparationRunId },
+          select: {
+            id: true,
+            legalSourceVersionId: true,
+            ruleSet: {
+              select: {
+                id: true,
+                legalSourceVersionId: true,
+                semanticGraph: {
+                  select: {
+                    materializationId: true,
+                    legalSourceVersionId: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (!run)
+          throw problemException(
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
+            correlationId,
+            { status: HttpStatus.NOT_FOUND },
+          );
+
+        const frontier = await tx.ruleSetPreparationReviewFrontier.findUnique({
+          where: {
+            preparationRunId_inventoryRevision: {
+              preparationRunId,
+              inventoryRevision: request.inventoryRevision,
+            },
+          },
+        });
+        if (
+          !frontier ||
+          frontier.legalSourceVersionId !== run.legalSourceVersionId
+        )
+          throw problemException(
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+
+        const row = await tx.ruleSetPreparationSourceReview.findUnique({
+          where: {
+            preparationRunId_inventoryRevision_sourceNodeId: {
+              preparationRunId,
+              inventoryRevision: request.inventoryRevision,
+              sourceNodeId,
+            },
+          },
+          select: {
+            sourceNodeId: true,
+            legalSourceVersionId: true,
+            materializationId: true,
+            structuralPath: true,
+            ordinal: true,
+            state: true,
+            disposition: true,
+            reason: true,
+            claimIds: true,
+            ownedClaimCount: true,
+            referenceIds: true,
+            blockedReferenceIds: true,
+            payload: true,
+            completedAt: true,
+            node: {
+              select: {
+                nodeId: true,
+                nodeType: true,
+                parentNodeId: true,
+                structuralPath: true,
+                ordinal: true,
+                label: true,
+                title: true,
+                documentId: true,
+              },
+            },
+          },
+        });
+        if (!row)
+          throw problemException(
+            SOURCE_UNIT_DETAIL_ERROR_CODES.sourceUnitNotFound,
+            correlationId,
+            { status: HttpStatus.NOT_FOUND },
+          );
+        if (
+          row.legalSourceVersionId !== run.legalSourceVersionId ||
+          row.legalSourceVersionId !== frontier.legalSourceVersionId ||
+          row.materializationId !== frontier.materializationId ||
+          row.node.nodeId !== row.sourceNodeId
+        )
+          throw problemException(
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+
+        const parsedPayload = sourceReviewPayloadSchema.safeParse(row.payload);
+        if (!parsedPayload.success)
+          throw problemException(
+            SOURCE_UNIT_DETAIL_ERROR_CODES.persistedPayloadInvalid,
+            correlationId,
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+          );
+        const payload = parsedPayload.data;
+        const payloadClaimIds = payload.claims.map((claim) => claim.claimId);
+        const storedClaimIds = [...row.claimIds].sort();
+        const parsedClaimIds = [...payloadClaimIds].sort();
+        const identityIds = Object.keys(payload.identities).sort();
+        const supportedNodeIds = [
+          ...new Set(
+            payload.claims.flatMap((claim) => [
+              ...claim.sourceNodeIds,
+              ...(claim.sourceSupport ?? []).map((support) => support.nodeId),
+            ]),
+          ),
+        ];
+        const supportedNodes = supportedNodeIds.length
+          ? await tx.legalDocumentNode.findMany({
+              where: {
+                nodeId: { in: supportedNodeIds },
+                materializationId: frontier.materializationId,
+                legalSourceVersionId: run.legalSourceVersionId,
+              },
+              select: { nodeId: true },
+            })
+          : [];
+        const pinnedNodeIds = new Set(
+          supportedNodes.map((node) => node.nodeId),
+        );
+        if (
+          row.ownedClaimCount !== row.claimIds.length ||
+          new Set(payloadClaimIds).size !== payloadClaimIds.length ||
+          JSON.stringify(storedClaimIds) !== JSON.stringify(parsedClaimIds) ||
+          JSON.stringify(storedClaimIds) !== JSON.stringify(identityIds) ||
+          payload.claims.some(
+            (claim) => claim.legalSourceVersionId !== run.legalSourceVersionId,
+          ) ||
+          supportedNodeIds.some((nodeId) => !pinnedNodeIds.has(nodeId))
+        )
+          throw problemException(
+            SOURCE_UNIT_DETAIL_ERROR_CODES.persistedPayloadInvalid,
+            correlationId,
+            { status: HttpStatus.INTERNAL_SERVER_ERROR },
+          );
+
+        const ancestors = await loadAncestors(
+          tx,
+          [row.node],
+          frontier.materializationId,
+          run.legalSourceVersionId,
+        );
+        const detail = projectSourceUnitDetail({
+          preparationRunId,
+          inventoryRevision: frontier.inventoryRevision,
+          legalSourceVersionId: run.legalSourceVersionId,
+          materializationId: frontier.materializationId,
+          row,
+          ancestors: ancestors.get(sourceNodeId) ?? [],
+          payload,
+          requirementRuleMapping: await loadRequirementRuleMapping(
+            tx,
+            run.ruleSet,
+            frontier.materializationId,
+            run.legalSourceVersionId,
+            sourceNodeId,
+            payloadClaimIds,
+          ),
+        });
+        return preparationSourceUnitDetailResponseSchema.parse(detail);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+}
+
+const DETAIL_LIST_LIMIT = 100;
+
+/**
+ * Business purpose: Bound persisted structured review output into the Admin detail DTO.
+ *
+ * Business rules:
+ * - Preserve canonical identifiers and the validated source-review structure while omitting unapproved payload fields.
+ * - Truncation is explicit; content is never invented, and empty valid results remain distinguishable from unavailable mappings.
+ *
+ * Execution flow:
+ * 1. Select bounded claims, identities, relations, references, reason, and hierarchy data from the validated persisted row.
+ * 2. Add truncation flags and the already pin-checked requirement/rule mapping.
+ *
+ * Failure cases:
+ * - The caller validates persisted payload ownership before projection; response-contract violations propagate as integrity failures.
+ *
+ * Side effects:
+ * - Pure in-memory DTO projection; no database or external state is changed.
+ */
+function projectSourceUnitDetail(input: {
+  preparationRunId: string;
+  inventoryRevision: number;
+  legalSourceVersionId: string;
+  materializationId: string;
+  row: {
+    sourceNodeId: string;
+    structuralPath: string;
+    ordinal: number;
+    state: string;
+    disposition: string | null;
+    reason: string | null;
+    claimIds: string[];
+    ownedClaimCount: number;
+    referenceIds: string[];
+    blockedReferenceIds: string[];
+    completedAt: Date | null;
+    node: NodeProjection & { documentId: string };
+  };
+  ancestors: AncestorProjection[];
+  payload: z.infer<typeof sourceReviewPayloadSchema>;
+  requirementRuleMapping: {
+    availability: PreparationSourceUnitDetailResponse["provenance"]["requirementRuleMapping"]["availability"];
+    unavailableReason: PreparationSourceUnitDetailResponse["provenance"]["requirementRuleMapping"]["unavailableReason"];
+    associations: Array<{
+      claimId: string;
+      legalRequirementId: string;
+      assessmentRuleIds: string[];
+    }>;
+  };
+}) {
+  const { row, payload } = input;
+  const claims = payload.claims.slice(0, DETAIL_LIST_LIMIT).map((claim) => ({
+    claimId: claim.claimId,
+    legalSourceVersionId: claim.legalSourceVersionId,
+    sourceNodeIds: claim.sourceNodeIds.slice(0, 32),
+    sourceNodeIdsTruncated: claim.sourceNodeIds.length > 32,
+    claimType: claim.claimType,
+    statement: claim.statement.slice(0, 4000),
+    state: claim.state,
+    semanticAuthority: claim.semanticAuthority,
+    assessability: claim.assessability,
+    nonOperativeReason: claim.nonOperativeReason?.slice(0, 1000) ?? null,
+    sourceSupport: (claim.sourceSupport ?? []).slice(0, 32).map((support) => ({
+      nodeId: support.nodeId,
+      startOffset: support.startOffset,
+      endOffset: support.endOffset,
+      contentSha256: support.contentSha256,
+    })),
+    sourceSupportTruncated: (claim.sourceSupport?.length ?? 0) > 32,
+  }));
+  const includedClaimIds = new Set(claims.map((claim) => claim.claimId));
+  const identities = Object.fromEntries(
+    Object.entries(payload.identities)
+      .filter(([claimId]) => includedClaimIds.has(claimId))
+      .slice(0, DETAIL_LIST_LIMIT)
+      .map(([claimId, value]) => [claimId, value.slice(0, 256)]),
+  );
+  const relations = payload.relations
+    .slice(0, DETAIL_LIST_LIMIT)
+    .map((relation) => ({
+      relationId: relation.relationId,
+      kind: relation.kind,
+      fromClaimId: relation.fromClaimId,
+      toClaimId: relation.toClaimId,
+      referenceId: relation.referenceId,
+    }));
+  const referenceAccounting = payload.referenceAccounting
+    .slice(0, DETAIL_LIST_LIMIT)
+    .map((item) => ({
+      referenceId: item.referenceId,
+      material: item.material,
+      relationIds: item.relationIds.slice(0, 100),
+      relationIdsTruncated: item.relationIds.length > 100,
+      nonMaterialReason: item.nonMaterialReason?.slice(0, 1000) ?? null,
+    }));
+  const directClaimIds = claims
+    .filter((claim) => claim.sourceNodeIds.includes(row.sourceNodeId))
+    .map((claim) => claim.claimId);
+  const reason = row.reason?.slice(0, 1000) ?? null;
+  return {
+    preparationRunId: input.preparationRunId,
+    inventoryRevision: input.inventoryRevision,
+    legalSourceVersionId: input.legalSourceVersionId,
+    materializationId: input.materializationId,
+    sourceNodeId: row.sourceNodeId,
+    documentId: row.node.documentId,
+    nodeType: row.node.nodeType,
+    parentNodeId: row.node.parentNodeId,
+    structuralPath: row.structuralPath,
+    ordinal: row.ordinal,
+    label: row.node.label.slice(0, 512),
+    title: row.node.title.slice(0, 512),
+    ancestors: input.ancestors,
+    review: {
+      state: row.state,
+      disposition: row.disposition,
+      reason,
+      reasonTruncated: (row.reason?.length ?? 0) > 1000,
+      completedAt: row.completedAt?.toISOString() ?? null,
+      claimCount: row.ownedClaimCount,
+      claimIds: row.claimIds.slice(0, DETAIL_LIST_LIMIT),
+      claimIdsTruncated: row.claimIds.length > DETAIL_LIST_LIMIT,
+      referenceCount: row.referenceIds.length,
+      referenceIds: row.referenceIds.slice(0, DETAIL_LIST_LIMIT),
+      referenceIdsTruncated: row.referenceIds.length > DETAIL_LIST_LIMIT,
+      blockedReferenceCount: row.blockedReferenceIds.length,
+      blockedReferenceIds: row.blockedReferenceIds.slice(0, DETAIL_LIST_LIMIT),
+      blockedReferenceIdsTruncated:
+        row.blockedReferenceIds.length > DETAIL_LIST_LIMIT,
+    },
+    output: {
+      availability:
+        claims.length || relations.length || referenceAccounting.length
+          ? SOURCE_UNIT_DETAIL_AVAILABILITY.AVAILABLE
+          : SOURCE_UNIT_DETAIL_AVAILABILITY.EMPTY,
+      claims,
+      claimsTruncated: payload.claims.length > DETAIL_LIST_LIMIT,
+      identities,
+      identitiesTruncated:
+        Object.keys(payload.identities).length > DETAIL_LIST_LIMIT,
+      relations,
+      relationsTruncated: payload.relations.length > DETAIL_LIST_LIMIT,
+      referenceAccounting,
+      referenceAccountingTruncated:
+        payload.referenceAccounting.length > DETAIL_LIST_LIMIT,
+    },
+    provenance: {
+      directClaimIds,
+      requirementRuleMapping: input.requirementRuleMapping,
+    },
+  };
+}
+
+/**
+ * Business purpose: Resolve only submitted Rule Set provenance that is pinned to this exact source-review snapshot.
+ *
+ * Business rules:
+ * - A relationship is reportable only through persisted semantic-claim source, requirement binding, and assessment-rule link rows under the same Rule Set, materialization, and Legal Source Version.
+ * - Missing submission or a graph pin mismatch is unavailable, never an empty inferred association.
+ *
+ * Execution flow:
+ * 1. Confirm the submitted Rule Set and its semantic graph match the Preparation and frontier pins.
+ * 2. Query only this source unit's persisted semantic claims and traverse canonical requirement and assessment-rule bindings.
+ * 3. Deduplicate and sort identifiers for a stable bounded result.
+ *
+ * Failure cases:
+ * - No submitted Rule Set or no exact semantic graph returns an explicit unavailable reason; database errors propagate.
+ *
+ * Side effects:
+ * - Read-only bounded queries; no rules, assessments, or provenance are changed.
+ */
+async function loadRequirementRuleMapping(
+  tx: Prisma.TransactionClient,
+  ruleSet: {
+    id: string;
+    legalSourceVersionId: string;
+    semanticGraph: {
+      materializationId: string;
+      legalSourceVersionId: string;
+    } | null;
+  } | null,
+  materializationId: string,
+  legalSourceVersionId: string,
+  sourceNodeId: string,
+  claimIds: string[],
+) {
+  if (!ruleSet)
+    return {
+      availability: SOURCE_UNIT_DETAIL_AVAILABILITY.UNAVAILABLE,
+      unavailableReason:
+        SOURCE_UNIT_DETAIL_MAPPING_REASONS.RULE_SET_NOT_SUBMITTED,
+      associations: [],
+      associationsTruncated: false,
+    };
+  if (
+    ruleSet.legalSourceVersionId !== legalSourceVersionId ||
+    !ruleSet.semanticGraph ||
+    ruleSet.semanticGraph.legalSourceVersionId !== legalSourceVersionId ||
+    ruleSet.semanticGraph.materializationId !== materializationId
+  )
+    return {
+      availability: SOURCE_UNIT_DETAIL_AVAILABILITY.UNAVAILABLE,
+      unavailableReason:
+        SOURCE_UNIT_DETAIL_MAPPING_REASONS.PINNED_SEMANTIC_GRAPH_UNAVAILABLE,
+      associations: [],
+      associationsTruncated: false,
+    };
+
+  const rows = claimIds.length
+    ? await tx.legalSemanticClaim.findMany({
+        where: {
+          ruleSetVersionId: ruleSet.id,
+          materializationId,
+          legalSourceVersionId,
+          claimId: { in: claimIds },
+          sources: { some: { sourceNodeId } },
+        },
+        select: {
+          claimId: true,
+          bindings: {
+            select: {
+              requirement: {
+                select: {
+                  legalRequirementId: true,
+                  assessmentRuleLinks: {
+                    select: {
+                      assessmentRule: { select: { assessmentRuleId: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+    : [];
+  const associationIndex = new Map<
+    string,
+    {
+      claimId: string;
+      legalRequirementId: string;
+      assessmentRuleIds: Set<string>;
+    }
+  >();
+  for (const row of rows) {
+    for (const binding of row.bindings) {
+      const key = `${row.claimId}:${binding.requirement.legalRequirementId}`;
+      const association = associationIndex.get(key) ?? {
+        claimId: row.claimId,
+        legalRequirementId: binding.requirement.legalRequirementId,
+        assessmentRuleIds: new Set<string>(),
+      };
+      for (const link of binding.requirement.assessmentRuleLinks)
+        association.assessmentRuleIds.add(link.assessmentRule.assessmentRuleId);
+      associationIndex.set(key, association);
+    }
+  }
+  const associations = [...associationIndex.values()].map((association) => ({
+    claimId: association.claimId,
+    legalRequirementId: association.legalRequirementId,
+    assessmentRuleIds: [...association.assessmentRuleIds].sort(),
+  }));
+  associations.sort(
+    (left, right) =>
+      left.claimId.localeCompare(right.claimId) ||
+      left.legalRequirementId.localeCompare(right.legalRequirementId),
+  );
+  return {
+    availability: SOURCE_UNIT_DETAIL_AVAILABILITY.AVAILABLE,
+    unavailableReason: null,
+    associations: associations.slice(0, DETAIL_LIST_LIMIT),
+    associationsTruncated: associations.length > DETAIL_LIST_LIMIT,
+  };
 }
 
 /**

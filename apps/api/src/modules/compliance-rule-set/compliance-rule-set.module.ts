@@ -12,6 +12,7 @@ import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { ComplianceRuleSetAdminController } from "./presentation/http/compliance-rule-set-admin.controller.js";
 import { PreparationScopeReviewService } from "./infrastructure/persistence/preparation-scope-review.service.js";
 import { PreparationSourceAnalysisReadService } from "./infrastructure/persistence/preparation-source-analysis-read.service.js";
+import { PreparationGeneratedCatalogReadService } from "./infrastructure/persistence/preparation-generated-catalog-read.service.js";
 import { RuleCatalogGroupsService } from "./infrastructure/persistence/rule-catalog-groups.service.js";
 import { ListComplianceRuleSetHistoryHandler } from "./application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.handler.js";
 import { ComplianceRuleSetHistoryLoader } from "./infrastructure/persistence/compliance-rule-set-history.loader.js";
@@ -59,6 +60,7 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
     ComplianceRuleSetActivation,
     PreparationScopeReviewService,
     PreparationSourceAnalysisReadService,
+    PreparationGeneratedCatalogReadService,
     RuleCatalogGroupsService,
     ReactivateComplianceRuleSetHandler,
     ComplianceRuleSetReadModelLoader,
