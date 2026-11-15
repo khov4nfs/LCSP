@@ -226,296 +226,299 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
     command: SubmitAssessmentFinalReportCommand,
   ): Promise<AssessmentFinalReportResult> {
     const requestDigest = sha256Hex(canonicalJson(command.request));
-    return this.prisma.$transaction(async (tx) => {
-      const run = await this.authority.authorizeInTx(tx, {
-        assessmentId: command.assessmentId,
-        leaseToken: command.leaseToken,
-        correlationId: command.correlationId,
-        requireActive: false,
-      });
-      const existing = await tx.assessmentArtifact.findUnique({
-        where: {
-          assessmentId_kind: {
-            assessmentId: command.assessmentId,
-            kind: AssessmentArtifactKind.FINAL_REPORT,
+    return this.prisma.$transaction(
+      async (tx) => {
+        const run = await this.authority.authorizeInTx(tx, {
+          assessmentId: command.assessmentId,
+          leaseToken: command.leaseToken,
+          correlationId: command.correlationId,
+          requireActive: false,
+        });
+        const existing = await tx.assessmentArtifact.findUnique({
+          where: {
+            assessmentId_kind: {
+              assessmentId: command.assessmentId,
+              kind: AssessmentArtifactKind.FINAL_REPORT,
+            },
           },
-        },
-      });
-      if (existing) {
-        if (
-          existing.reportRequestDigest !== requestDigest ||
-          existing.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
-          !existing.contentSha256 ||
-          existing.sizeBytes === null ||
-          !existing.storageRef
-        ) {
+        });
+        if (existing) {
+          if (
+            existing.reportRequestDigest !== requestDigest ||
+            existing.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
+            !existing.contentSha256 ||
+            existing.sizeBytes === null ||
+            !existing.storageRef
+          ) {
+            throw problemException(
+              ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_ALREADY_CREATED,
+              command.correlationId,
+              { status: HttpStatus.CONFLICT },
+            );
+          }
+          const manifest = chunkedManifestSchema.parse(
+            JSON.parse(existing.storageRef) as unknown,
+          );
+          const stored = await this.storage.readAndReconstruct(manifest);
+          const report = assessmentFinalReportArtifactVersionedSchema.parse(
+            JSON.parse(stored) as unknown,
+          );
+          if ("identity" in report) {
+            const pinnedRuleSet = await tx.complianceRuleSetVersion.findUnique({
+              where: { id: existing.ruleSetVersionId },
+              select: {
+                id: true,
+                version: true,
+                ruleSetDigest: true,
+                legalSourceVersion: { select: { id: true, version: true } },
+              },
+            });
+            if (
+              !pinnedRuleSet ||
+              report.identity.repositorySnapshotId !==
+                report.pins.repositorySnapshotId ||
+              report.identity.repositoryCommit.toLowerCase() !==
+                report.pins.repositoryCommit.toLowerCase() ||
+              report.pins.ruleSetVersionId !== pinnedRuleSet.id ||
+              report.pins.ruleSetVersion !== pinnedRuleSet.version ||
+              report.pins.ruleSetDigest !== pinnedRuleSet.ruleSetDigest ||
+              report.pins.legalSourceVersionId !==
+                pinnedRuleSet.legalSourceVersion.id ||
+              report.pins.legalSourceVersion !==
+                pinnedRuleSet.legalSourceVersion.version
+            ) {
+              throw new Error("Persisted final report pin mismatch");
+            }
+          }
+          if (
+            report.schemaVersion ===
+              ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION &&
+            "pins" in report &&
+            "sourcePathPrefix" in report.pins
+          ) {
+            const snapshotRecord = await tx.repositorySnapshot.findUnique({
+              where: { id: existing.repositorySnapshotId },
+              select: { sourcePathPrefix: true },
+            });
+            if (
+              (snapshotRecord?.sourcePathPrefix ?? null) !==
+              (report.pins.sourcePathPrefix ?? null)
+            ) {
+              throw new Error(
+                "Persisted final report sourcePathPrefix pin mismatch",
+              );
+            }
+          }
+          const expectedFingerprint = decisionFingerprintForReport(report);
+          if (
+            manifest.artifact_id !== existing.artifactId ||
+            report.artifactId !== existing.artifactId ||
+            report.assessmentId !== existing.assessmentId ||
+            report.kind !== ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT ||
+            report.schemaVersion !== existing.schemaVersion ||
+            report.pins.ruleSetVersionId !== existing.ruleSetVersionId ||
+            report.pins.repositorySnapshotId !==
+              existing.repositorySnapshotId ||
+            report.pins.repositoryCommit.toLowerCase() !==
+              existing.repositoryCommit.toLowerCase() ||
+            report.caseRevision !== existing.caseRevision ||
+            report.decisionFingerprint !== expectedFingerprint ||
+            sha256Hex(stored) !==
+              existing.contentSha256.replace(/^sha256:/u, "") ||
+            Buffer.byteLength(stored, "utf8") !== existing.sizeBytes
+          ) {
+            throw new Error(
+              "Persisted final report failed integrity verification",
+            );
+          }
+          rejectUnresolvedLanguage(report, command.correlationId);
+          return assessmentFinalReportResultSchema.parse({
+            artifactId: existing.artifactId,
+            contentSha256: existing.contentSha256.replace(/^sha256:/u, ""),
+            sizeBytes: existing.sizeBytes,
+            lifecycleState: run.lifecycleState,
+            replayed: true,
+          });
+        }
+
+        if (run.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.FINALIZING) {
           throw problemException(
-            ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_ALREADY_CREATED,
+            ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
             command.correlationId,
             { status: HttpStatus.CONFLICT },
           );
         }
-        const manifest = chunkedManifestSchema.parse(
-          JSON.parse(existing.storageRef) as unknown,
+        const inspection = await this.completionGate.inspectInTx(
+          tx,
+          command.assessmentId,
         );
-        const stored = await this.storage.readAndReconstruct(manifest);
-        const report = assessmentFinalReportArtifactVersionedSchema.parse(
-          JSON.parse(stored) as unknown,
-        );
-        if ("identity" in report) {
-          const pinnedRuleSet = await tx.complianceRuleSetVersion.findUnique({
-            where: { id: existing.ruleSetVersionId },
-            select: {
-              id: true,
-              version: true,
-              ruleSetDigest: true,
-              legalSourceVersion: { select: { id: true, version: true } },
+        if (inspection.blockers.length > 0 || !inspection.snapshot) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.COMPLETION_GATE_BLOCKED,
+            command.correlationId,
+            {
+              status: HttpStatus.CONFLICT,
+              meta: {
+                blockers: inspection.blockers
+                  .map(({ code, reference }) => `${code}:${reference ?? ""}`)
+                  .join(",")
+                  .slice(0, 2000),
+              },
             },
-          });
-          if (
-            !pinnedRuleSet ||
-            report.identity.repositorySnapshotId !==
-              report.pins.repositorySnapshotId ||
-            report.identity.repositoryCommit.toLowerCase() !==
-              report.pins.repositoryCommit.toLowerCase() ||
-            report.pins.ruleSetVersionId !== pinnedRuleSet.id ||
-            report.pins.ruleSetVersion !== pinnedRuleSet.version ||
-            report.pins.ruleSetDigest !== pinnedRuleSet.ruleSetDigest ||
-            report.pins.legalSourceVersionId !==
-              pinnedRuleSet.legalSourceVersion.id ||
-            report.pins.legalSourceVersion !==
-              pinnedRuleSet.legalSourceVersion.version
-          ) {
-            throw new Error("Persisted final report pin mismatch");
-          }
+          );
         }
+
+        const snapshot = inspection.snapshot;
+        const narratives = new Map(
+          command.request.findings.map((finding) => [
+            finding.assessmentRuleId,
+            finding,
+          ]),
+        );
+        const decisionRuleIds = snapshot.decisions
+          .map(({ decision }) => decision.assessmentRuleId)
+          .sort();
+        const narrativeRuleIds = [...narratives.keys()].sort();
         if (
-          report.schemaVersion === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION &&
-          "pins" in report &&
-          "sourcePathPrefix" in report.pins
+          decisionRuleIds.length !== narrativeRuleIds.length ||
+          decisionRuleIds.some(
+            (ruleId, index) => ruleId !== narrativeRuleIds[index],
+          )
         ) {
-          const snapshotRecord = await tx.repositorySnapshot.findUnique({
-            where: { id: existing.repositorySnapshotId },
-            select: { sourcePathPrefix: true },
-          });
-          if (
-            (snapshotRecord?.sourcePathPrefix ?? null) !==
-            (report.pins.sourcePathPrefix ?? null)
-          ) {
-            throw new Error(
-              "Persisted final report sourcePathPrefix pin mismatch",
-            );
-          }
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+            command.correlationId,
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+          );
         }
-        const expectedFingerprint = decisionFingerprintForReport(report);
-        if (
-          manifest.artifact_id !== existing.artifactId ||
-          report.artifactId !== existing.artifactId ||
-          report.assessmentId !== existing.assessmentId ||
-          report.kind !== ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT ||
-          report.schemaVersion !== existing.schemaVersion ||
-          report.pins.ruleSetVersionId !== existing.ruleSetVersionId ||
-          report.pins.repositorySnapshotId !== existing.repositorySnapshotId ||
-          report.pins.repositoryCommit.toLowerCase() !==
-            existing.repositoryCommit.toLowerCase() ||
-          report.caseRevision !== existing.caseRevision ||
-          report.decisionFingerprint !== expectedFingerprint ||
-          sha256Hex(stored) !==
-            existing.contentSha256.replace(/^sha256:/u, "") ||
-          Buffer.byteLength(stored, "utf8") !== existing.sizeBytes
-        ) {
-          throw new Error(
-            "Persisted final report failed integrity verification",
+
+        const artifactId = deterministicUuid(
+          `${command.assessmentId}:${requestDigest}`,
+        );
+        rejectUnresolvedLanguage(command.request, command.correlationId);
+        let report: AssessmentFinalReportV3;
+        try {
+          report = await buildAssessmentFinalReportV3({
+            tx,
+            assessmentId: command.assessmentId,
+            artifactId,
+            request: command.request,
+            snapshot,
+          });
+        } catch (error) {
+          this.logger.error(
+            `Failed to build final report v3 for assessment ${command.assessmentId}: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+          );
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+            command.correlationId,
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
           );
         }
         rejectUnresolvedLanguage(report, command.correlationId);
-        return assessmentFinalReportResultSchema.parse({
-          artifactId: existing.artifactId,
-          contentSha256: existing.contentSha256.replace(/^sha256:/u, ""),
-          sizeBytes: existing.sizeBytes,
-          lifecycleState: run.lifecycleState,
-          replayed: true,
-        });
-      }
 
-      if (run.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.FINALIZING) {
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
-          command.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
-      }
-      const inspection = await this.completionGate.inspectInTx(
-        tx,
-        command.assessmentId,
-      );
-      if (inspection.blockers.length > 0 || !inspection.snapshot) {
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.COMPLETION_GATE_BLOCKED,
-          command.correlationId,
-          {
-            status: HttpStatus.CONFLICT,
-            meta: {
-              blockers: inspection.blockers
-                .map(({ code, reference }) => `${code}:${reference ?? ""}`)
-                .join(",")
-                .slice(0, 2000),
-            },
-          },
-        );
-      }
+        const content = canonicalJson(report);
+        const hash = sha256Hex(content);
+        const { manifest, sizeBytes } =
+          await this.storage.writeImmutableArtifact(artifactId, content);
+        if (manifest.hash !== hash) {
+          throw new Error("Final report hash changed during persistence");
+        }
 
-      const snapshot = inspection.snapshot;
-      const narratives = new Map(
-        command.request.findings.map((finding) => [
-          finding.assessmentRuleId,
-          finding,
-        ]),
-      );
-      const decisionRuleIds = snapshot.decisions
-        .map(({ decision }) => decision.assessmentRuleId)
-        .sort();
-      const narrativeRuleIds = [...narratives.keys()].sort();
-      if (
-        decisionRuleIds.length !== narrativeRuleIds.length ||
-        decisionRuleIds.some(
-          (ruleId, index) => ruleId !== narrativeRuleIds[index],
-        )
-      ) {
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
-          command.correlationId,
-          { status: HttpStatus.UNPROCESSABLE_ENTITY },
-        );
-      }
-
-      const artifactId = deterministicUuid(
-        `${command.assessmentId}:${requestDigest}`,
-      );
-      rejectUnresolvedLanguage(command.request, command.correlationId);
-      let report: AssessmentFinalReportV3;
-      try {
-        report = await buildAssessmentFinalReportV3({
-          tx,
-          assessmentId: command.assessmentId,
-          artifactId,
-          request: command.request,
-          snapshot,
-        });
-      } catch (error) {
-        this.logger.error(
-          `Failed to build final report v3 for assessment ${command.assessmentId}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`,
-        );
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
-          command.correlationId,
-          { status: HttpStatus.UNPROCESSABLE_ENTITY },
-        );
-      }
-      rejectUnresolvedLanguage(report, command.correlationId);
-
-      const content = canonicalJson(report);
-      const hash = sha256Hex(content);
-      const { manifest, sizeBytes } = await this.storage.writeImmutableArtifact(
-        artifactId,
-        content,
-      );
-      if (manifest.hash !== hash) {
-        throw new Error("Final report hash changed during persistence");
-      }
-
-      await tx.assessmentArtifact.create({
-        data: {
-          artifactId,
-          assessmentId: command.assessmentId,
-          kind: AssessmentArtifactKind.FINAL_REPORT,
-          lifecycleState: ArtifactLifecycleState.BUILDING,
-          ruleSetVersionId: snapshot.pins.ruleSetVersionId,
-          repositorySnapshotId: snapshot.pins.repositorySnapshotId,
-          repositoryCommit: snapshot.pins.repositoryCommit,
-          caseRevision: snapshot.caseRevision,
-          schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
-          reportRequestDigest: requestDigest,
-        },
-      });
-      await this.events.appendInTx(tx, {
-        assessmentId: command.assessmentId,
-        correlationId: command.correlationId,
-        eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED,
-        actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
-        executionId: run.executionId,
-        payload: {
-          artifactId,
-          fromState: null,
-          toState: ArtifactLifecycleState.BUILDING,
-        },
-        auditActor: ROOT_AUDIT_ACTOR,
-      });
-      const { enqueueAuthoredDocument } =
-        await import("../../../../../platform/localization/authored-localization.service.js");
-      const { AUTHORED_LOCALIZATION_ENTITIES } =
-        await import("@lcsp/contracts/assessment-domain");
-      await enqueueAuthoredDocument(tx, {
-        // No reviewed upstream field-language declaration exists at this writer boundary.
-        sourceLanguages: {},
-        scopeId: command.assessmentId,
-        entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
-        entityId: artifactId,
-        canonicalRevision: hash,
-        document: report,
-      });
-      await tx.assessmentArtifact.update({
-        where: { artifactId },
-        data: {
-          lifecycleState: ArtifactLifecycleState.ACTIVE,
-          contentSha256: `sha256:${hash}`,
-          sizeBytes,
-          storageRef: JSON.stringify(manifest),
-          activatedAt: new Date(),
-        },
-      });
-      await this.events.appendInTx(tx, {
-        assessmentId: command.assessmentId,
-        correlationId: command.correlationId,
-        eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED,
-        actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
-        executionId: run.executionId,
-        payload: {
-          artifactId,
-          fromState: ArtifactLifecycleState.BUILDING,
-          toState: ArtifactLifecycleState.ACTIVE,
-        },
-        auditActor: ROOT_AUDIT_ACTOR,
-      });
-      await this.coordinator.transitionVerifiedInTx(
-        {
-          assessmentId: command.assessmentId,
-          expectedRevision: run.lifecycleRevision,
-          toState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-          correlationId: command.correlationId,
-          actorId: ORCHESTRATOR.id,
-        },
-        tx,
-        [AGENTIC_RUNTIME_TRANSITION_GUARDS.ARTIFACT_PERSISTED_AND_VALIDATED],
-        ORCHESTRATOR,
-      );
-      if (run.auditRequestId) {
-        await tx.assessmentRuleAuditRequest.update({
-          where: { requestId: run.auditRequestId },
+        await tx.assessmentArtifact.create({
           data: {
-            status: RULE_AUDIT_STATUSES.COMPLETED,
-            completedAt: new Date(),
+            artifactId,
+            assessmentId: command.assessmentId,
+            kind: AssessmentArtifactKind.FINAL_REPORT,
+            lifecycleState: ArtifactLifecycleState.BUILDING,
+            ruleSetVersionId: snapshot.pins.ruleSetVersionId,
+            repositorySnapshotId: snapshot.pins.repositorySnapshotId,
+            repositoryCommit: snapshot.pins.repositoryCommit,
+            caseRevision: snapshot.caseRevision,
+            schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+            reportRequestDigest: requestDigest,
           },
         });
-      }
+        await this.events.appendInTx(tx, {
+          assessmentId: command.assessmentId,
+          correlationId: command.correlationId,
+          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED,
+          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+          executionId: run.executionId,
+          payload: {
+            artifactId,
+            fromState: null,
+            toState: ArtifactLifecycleState.BUILDING,
+          },
+          auditActor: ROOT_AUDIT_ACTOR,
+        });
+        const { enqueueAuthoredDocument } =
+          await import("../../../../../platform/localization/authored-localization.service.js");
+        const { AUTHORED_LOCALIZATION_ENTITIES } =
+          await import("@lcsp/contracts/assessment-domain");
+        await enqueueAuthoredDocument(tx, {
+          // No reviewed upstream field-language declaration exists at this writer boundary.
+          sourceLanguages: {},
+          scopeId: command.assessmentId,
+          entityType: AUTHORED_LOCALIZATION_ENTITIES.REPORT,
+          entityId: artifactId,
+          canonicalRevision: hash,
+          document: report,
+        });
+        await tx.assessmentArtifact.update({
+          where: { artifactId },
+          data: {
+            lifecycleState: ArtifactLifecycleState.ACTIVE,
+            contentSha256: `sha256:${hash}`,
+            sizeBytes,
+            storageRef: JSON.stringify(manifest),
+            activatedAt: new Date(),
+          },
+        });
+        await this.events.appendInTx(tx, {
+          assessmentId: command.assessmentId,
+          correlationId: command.correlationId,
+          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED,
+          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+          executionId: run.executionId,
+          payload: {
+            artifactId,
+            fromState: ArtifactLifecycleState.BUILDING,
+            toState: ArtifactLifecycleState.ACTIVE,
+          },
+          auditActor: ROOT_AUDIT_ACTOR,
+        });
+        await this.coordinator.transitionVerifiedInTx(
+          {
+            assessmentId: command.assessmentId,
+            expectedRevision: run.lifecycleRevision,
+            toState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+            correlationId: command.correlationId,
+            actorId: ORCHESTRATOR.id,
+          },
+          tx,
+          [AGENTIC_RUNTIME_TRANSITION_GUARDS.ARTIFACT_PERSISTED_AND_VALIDATED],
+          ORCHESTRATOR,
+        );
+        if (run.auditRequestId) {
+          await tx.assessmentRuleAuditRequest.update({
+            where: { requestId: run.auditRequestId },
+            data: {
+              status: RULE_AUDIT_STATUSES.COMPLETED,
+              completedAt: new Date(),
+            },
+          });
+        }
 
-      return assessmentFinalReportResultSchema.parse({
-        artifactId,
-        contentSha256: hash,
-        sizeBytes,
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-        replayed: false,
-      });
-    }, { timeout: 60_000, maxWait: 10_000 });
+        return assessmentFinalReportResultSchema.parse({
+          artifactId,
+          contentSha256: hash,
+          sizeBytes,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+          replayed: false,
+        });
+      },
+      { timeout: 60_000, maxWait: 10_000 },
+    );
   }
 }
