@@ -275,6 +275,47 @@ FRAMEWORK_CATALOG: Mapping[str, tuple[str, str]] = {
     "pino": ("Pino", "LOGGING"),
 }
 
+# Ecosystem-specific AI aliases prevent an unrelated package with the same name
+# from being classified as an AI dependency in another package registry.
+NPM_AI_FRAMEWORK_CATALOG: Mapping[str, tuple[str, str]] = {
+    "openai": ("OpenAI SDK", "AI_PROVIDER_SDK"),
+    "@anthropic-ai/sdk": ("Anthropic SDK", "AI_PROVIDER_SDK"),
+    "@google/generative-ai": ("Google Generative AI SDK", "AI_PROVIDER_SDK"),
+    "@google/genai": ("Google Gen AI SDK", "AI_PROVIDER_SDK"),
+    "@ai-sdk/openai": ("Vercel AI SDK OpenAI Provider", "AI_PROVIDER_SDK"),
+    "@ai-sdk/anthropic": ("Vercel AI SDK Anthropic Provider", "AI_PROVIDER_SDK"),
+    "@ai-sdk/google": ("Vercel AI SDK Google Provider", "AI_PROVIDER_SDK"),
+    "ai": ("Vercel AI SDK", "AI_ORCHESTRATION"),
+    "langchain": ("LangChain", "AI_ORCHESTRATION"),
+    "@langchain/core": ("LangChain Core", "AI_ORCHESTRATION"),
+    "@langchain/openai": ("LangChain OpenAI", "AI_ORCHESTRATION"),
+    "@langchain/anthropic": ("LangChain Anthropic", "AI_ORCHESTRATION"),
+    "@tensorflow/tfjs": ("TensorFlow.js", "ML_FRAMEWORK"),
+    "@huggingface/transformers": ("Transformers.js", "ML_FRAMEWORK"),
+}
+
+PYTHON_AI_FRAMEWORK_CATALOG: Mapping[str, tuple[str, str]] = {
+    "openai": ("OpenAI SDK", "AI_PROVIDER_SDK"),
+    "anthropic": ("Anthropic SDK", "AI_PROVIDER_SDK"),
+    "google-generativeai": ("Google Generative AI SDK", "AI_PROVIDER_SDK"),
+    "google-genai": ("Google Gen AI SDK", "AI_PROVIDER_SDK"),
+    "langchain": ("LangChain", "AI_ORCHESTRATION"),
+    "langchain-core": ("LangChain Core", "AI_ORCHESTRATION"),
+    "langchain-openai": ("LangChain OpenAI", "AI_ORCHESTRATION"),
+    "langchain-anthropic": ("LangChain Anthropic", "AI_ORCHESTRATION"),
+    "llama-index": ("LlamaIndex", "AI_ORCHESTRATION"),
+    "tensorflow": ("TensorFlow", "ML_FRAMEWORK"),
+    "torch": ("PyTorch", "ML_FRAMEWORK"),
+    "transformers": ("Hugging Face Transformers", "ML_FRAMEWORK"),
+    "scikit-learn": ("scikit-learn", "ML_FRAMEWORK"),
+}
+
+AI_DEPENDENCY_CATEGORIES = frozenset({
+    "AI_PROVIDER_SDK",
+    "AI_ORCHESTRATION",
+    "ML_FRAMEWORK",
+})
+
 SECRET_PATTERNS = [
     re.compile(r"sk-[a-zA-Z0-9]{20,}"),
     re.compile(r"ghp_[a-zA-Z0-9]{20,}"),
@@ -676,8 +717,6 @@ class RepositoryScanner:
             return
 
         lines = content.splitlines()
-        line_lookup = self._index_lines(lines)
-
         dependencies: list[dict[str, Any]] = []
         name = data.get("name")
         version = data.get("version")
@@ -696,7 +735,7 @@ class RepositoryScanner:
             for dep_name, version_val in section.items():
                 dep_name_str = str(dep_name)
                 v_range = str(version_val) if version_val is not None else None
-                line_no = self._find_line_in_section(lines, section_key, dep_name_str, line_lookup)
+                line_no = self._find_line_in_section(lines, section_key, dep_name_str)
 
                 dependencies.append({
                     "name": dep_name_str,
@@ -705,8 +744,9 @@ class RepositoryScanner:
                     "line": line_no,
                 })
 
-                if dep_name_str in FRAMEWORK_CATALOG:
-                    fw_name, fw_cat = FRAMEWORK_CATALOG[dep_name_str]
+                framework = NPM_AI_FRAMEWORK_CATALOG.get(dep_name_str) or FRAMEWORK_CATALOG.get(dep_name_str)
+                if framework:
+                    fw_name, fw_cat = framework
                     line_text = lines[line_no - 1] if 0 < line_no <= len(lines) else f'"{dep_name_str}": "{v_range}"'
                     self.frameworks.append({
                         "name": fw_name,
@@ -716,8 +756,14 @@ class RepositoryScanner:
                         "evidenceExcerpt": _redact_secret_text(line_text.strip()),
                     })
                     # Add candidate fact
+                    statement = (
+                        f"Manifest declares {fw_name} dependency ({fw_cat}) in {rel_path}:{line_no}; "
+                        "the declaration alone does not establish runtime AI use"
+                        if fw_cat in AI_DEPENDENCY_CATEGORIES
+                        else f"Repository utilizes {fw_name} ({fw_cat}) configured in {rel_path}:{line_no}"
+                    )
                     self.candidate_facts.append({
-                        "statement": f"Repository utilizes {fw_name} ({fw_cat}) configured in {rel_path}:{line_no}",
+                        "statement": statement,
                         "kind": "FACT",
                         "authority": "EVIDENCE_CITED",
                         "evidence": {
@@ -738,13 +784,81 @@ class RepositoryScanner:
             "dependencies": dependencies,
         })
 
+    def _record_python_dependency(
+        self,
+        dependencies: list[dict[str, Any]],
+        *,
+        raw_name: str,
+        version_range: str | None,
+        kind: str,
+        line: int,
+        rel_path: str,
+        evidence_excerpt: str,
+    ) -> None:
+        """Business purpose:
+        Record one declared Python dependency and any evidence-backed framework hint.
+
+        Business rules:
+        - Normalize distribution names according to PEP 503 before catalogue matching.
+        - Use only the Python AI catalogue so registry name collisions cannot fabricate AI facts.
+        - AI candidate facts describe the declaration only and never imply runtime use.
+
+        Execution flow:
+        1. Normalize the declared distribution name and append it to the manifest dependencies.
+        2. Resolve a matching common or Python-specific framework catalogue entry.
+        3. Append exact-line framework evidence and a declaration-only candidate fact.
+
+        Failure cases:
+        - Uncatalogued packages remain manifest dependencies without a framework observation or fact.
+
+        Side effects:
+        - Appends dependency, framework, and candidate-fact observations to scanner state.
+        """
+        package_name = re.sub(r"[-_.]+", "-", raw_name.lower())
+        dependencies.append({
+            "name": package_name,
+            "versionRange": version_range,
+            "kind": kind,
+            "line": line,
+        })
+
+        framework = PYTHON_AI_FRAMEWORK_CATALOG.get(package_name) or FRAMEWORK_CATALOG.get(package_name)
+        if not framework:
+            return
+
+        fw_name, fw_cat = framework
+        self.frameworks.append({
+            "name": fw_name,
+            "category": fw_cat,
+            "path": rel_path,
+            "line": line,
+            "evidenceExcerpt": _redact_secret_text(evidence_excerpt),
+        })
+        statement = (
+            f"Manifest declares {fw_name} dependency ({fw_cat}) in {rel_path}:{line}; "
+            "the declaration alone does not establish runtime AI use"
+            if fw_cat in AI_DEPENDENCY_CATEGORIES
+            else f"Repository utilizes Python package {fw_name} ({fw_cat}) in {rel_path}:{line}"
+        )
+        self.candidate_facts.append({
+            "statement": statement,
+            "kind": "FACT",
+            "authority": "EVIDENCE_CITED",
+            "evidence": {
+                "path": rel_path,
+                "startLine": line,
+                "endLine": line,
+                "excerptSha256": _excerpt_sha256(evidence_excerpt),
+            },
+        })
+
     def _parse_requirements_txt(self, full_path: Path, rel_path: str) -> None:
         """Business purpose:
         Parse Python requirements.txt file and extract declared dependencies.
 
         Business rules:
-        - Skip comments and command options; extract package names and version specifiers.
-        - Map packages to framework categories and candidate facts.
+        - Skip comments and command options; accept PEP 508 extras, direct references, and spacing.
+        - Normalize Python distribution names before framework matching.
 
         Execution flow:
         1. Read requirements.txt lines.
@@ -770,7 +884,7 @@ class RepositoryScanner:
         lines = content.splitlines()
         dependencies: list[dict[str, Any]] = []
 
-        req_re = re.compile(r"^([a-zA-Z0-9_\-\.]+)(?:([=<>!~]+.*))?$")
+        req_re = re.compile(r"^([a-zA-Z0-9][a-zA-Z0-9_\-\.]*)(?:\[[^\]]+\])?\s*(.*)$")
 
         for idx, line in enumerate(lines, start=1):
             stripped = line.strip()
@@ -781,36 +895,16 @@ class RepositoryScanner:
             if not match:
                 continue
 
-            pkg_name = match.group(1).lower()
-            ver_spec = match.group(2)
-
-            dependencies.append({
-                "name": pkg_name,
-                "versionRange": ver_spec.strip() if ver_spec else None,
-                "kind": "PRODUCTION",
-                "line": idx,
-            })
-
-            if pkg_name in FRAMEWORK_CATALOG:
-                fw_name, fw_cat = FRAMEWORK_CATALOG[pkg_name]
-                self.frameworks.append({
-                    "name": fw_name,
-                    "category": fw_cat,
-                    "path": rel_path,
-                    "line": idx,
-                    "evidenceExcerpt": _redact_secret_text(stripped),
-                })
-                self.candidate_facts.append({
-                    "statement": f"Repository utilizes Python package {fw_name} ({fw_cat}) in {rel_path}:{idx}",
-                    "kind": "FACT",
-                    "authority": "EVIDENCE_CITED",
-                    "evidence": {
-                        "path": rel_path,
-                        "startLine": idx,
-                        "endLine": idx,
-                        "excerptSha256": _excerpt_sha256(stripped),
-                    },
-                })
+            ver_spec = match.group(2).strip()
+            self._record_python_dependency(
+                dependencies,
+                raw_name=match.group(1),
+                version_range=ver_spec or None,
+                kind="PRODUCTION",
+                line=idx,
+                rel_path=rel_path,
+                evidence_excerpt=stripped,
+            )
 
         self.manifests.append({
             "path": rel_path,
@@ -827,19 +921,22 @@ class RepositoryScanner:
         Parse Python pyproject.toml manifest and extract declared project dependencies.
 
         Business rules:
-        - Extract dependencies from [project.dependencies] or [tool.poetry.dependencies].
-        - Map matched libraries to framework categories.
+        - Support PEP 621 project arrays, optional-dependency arrays, and Poetry dependency tables.
+        - Treat optional and Poetry group dependencies as non-production declarations.
+        - Match only exact dependency table shapes; unrelated TOML tables never emit facts.
+        - Normalize Python distribution names before framework matching.
 
         Execution flow:
         1. Read TOML text lines.
-        2. Identify dependencies section headers.
-        3. Parse key-value package declarations with line numbers.
+        2. Track the exact TOML section and any active dependency array.
+        3. Parse requirement strings or Poetry key-value declarations with exact line numbers.
+        4. Record each dependency through the Python ecosystem catalogue.
 
         Failure cases:
         - Unreadable or malformed files record knownGaps and exit parser.
 
         Side effects:
-        - Appends manifest and framework observations to internal lists.
+        - Appends manifest, framework, and candidate-fact observations to internal lists.
         """
         try:
             content = full_path.read_text(encoding="utf-8", errors="replace")
@@ -853,36 +950,79 @@ class RepositoryScanner:
 
         lines = content.splitlines()
         dependencies: list[dict[str, Any]] = []
-        in_deps = False
+        current_section = ""
+        active_array_kind: str | None = None
+        requirement_re = re.compile(
+            r"^([a-zA-Z0-9][a-zA-Z0-9_\-\.]*)(?:\[[^\]]+\])?\s*(.*)$"
+        )
+        poetry_section_re = re.compile(
+            r"^tool\.poetry(?:\.group\.([a-zA-Z0-9_-]+))?\.dependencies$"
+        )
 
         for idx, line in enumerate(lines, start=1):
             stripped = line.strip()
-            if stripped.startswith("["):
-                in_deps = "dependencies" in stripped
+            section_match = re.match(r"^\[([^\]]+)\]$", stripped)
+            if section_match:
+                current_section = section_match.group(1)
+                active_array_kind = None
                 continue
-            if not in_deps or not stripped or stripped.startswith("#"):
+            if not stripped or stripped.startswith("#"):
                 continue
 
-            # Key-value or list item
-            match = re.match(r"^['\"]?([a-zA-Z0-9_\-\.]+)['\"]?\s*[:=]\s*['\"]?([^'\"#,\n]+)?['\"]?", stripped)
-            if match:
-                pkg_name = match.group(1).lower()
-                ver = match.group(2)
-                dependencies.append({
-                    "name": pkg_name,
-                    "versionRange": ver.strip() if ver else None,
-                    "kind": "PRODUCTION",
-                    "line": idx,
-                })
-                if pkg_name in FRAMEWORK_CATALOG:
-                    fw_name, fw_cat = FRAMEWORK_CATALOG[pkg_name]
-                    self.frameworks.append({
-                        "name": fw_name,
-                        "category": fw_cat,
-                        "path": rel_path,
-                        "line": idx,
-                        "evidenceExcerpt": _redact_secret_text(stripped),
-                    })
+            poetry_section = poetry_section_re.match(current_section)
+            if poetry_section:
+                match = re.match(
+                    r"^['\"]?([a-zA-Z0-9_\-\.]+)['\"]?\s*=\s*(.+)$",
+                    stripped,
+                )
+                if not match or match.group(1).lower() == "python":
+                    continue
+                group_name = poetry_section.group(1)
+                dependency_kind = (
+                    "PRODUCTION"
+                    if group_name is None
+                    else "DEVELOPMENT"
+                    if group_name.lower() == "dev"
+                    else "OPTIONAL"
+                )
+                self._record_python_dependency(
+                    dependencies,
+                    raw_name=match.group(1),
+                    version_range=match.group(2).strip().strip("'\""),
+                    kind=dependency_kind,
+                    line=idx,
+                    rel_path=rel_path,
+                    evidence_excerpt=stripped,
+                )
+                continue
+
+            if current_section == "project" and re.match(r"^dependencies\s*=\s*\[", stripped):
+                active_array_kind = "PRODUCTION"
+            elif current_section == "project.optional-dependencies":
+                optional_group = re.match(r"^[a-zA-Z0-9_-]+\s*=\s*\[", stripped)
+                if optional_group:
+                    active_array_kind = "OPTIONAL"
+
+            if active_array_kind is None:
+                continue
+
+            for requirement in re.findall(r"['\"]([^'\"]+)['\"]", stripped):
+                match = requirement_re.match(requirement.strip())
+                if not match:
+                    continue
+                version_range = match.group(2).strip()
+                self._record_python_dependency(
+                    dependencies,
+                    raw_name=match.group(1),
+                    version_range=version_range or None,
+                    kind=active_array_kind,
+                    line=idx,
+                    rel_path=rel_path,
+                    evidence_excerpt=stripped,
+                )
+
+            if "]" in stripped:
+                active_array_kind = None
 
         self.manifests.append({
             "path": rel_path,
@@ -1133,17 +1273,18 @@ class RepositoryScanner:
         lines: list[str],
         section_key: str,
         dep_name: str,
-        index: dict[str, list[int]],
     ) -> int:
         """Business purpose:
-        Locate the 1-indexed line number of a specific dependency name in file lines.
+        Locate a package declaration within its exact package.json dependency section.
 
         Business rules:
+        - Ignore matching package names in metadata and other dependency sections.
         - Defaults to line 1 if token is not found.
 
         Execution flow:
-        1. Search for quoted dependency name across file lines.
-        2. Return 1-indexed line number on match, or 1 as fallback.
+        1. Locate the requested dependency section object.
+        2. Track its object depth while searching for the quoted package key.
+        3. Return the matching line, or line 1 as a defensive fallback.
 
         Failure cases:
         - None: fallback to line 1 on search miss.
@@ -1151,10 +1292,25 @@ class RepositoryScanner:
         Side effects:
         - Pure calculation without I/O.
         """
-        target = f'"{dep_name}"'
+        section_target = f'"{section_key}"'
+        dependency_target = f'"{dep_name}"'
+        in_section = False
+        object_depth = 0
+
         for idx, line in enumerate(lines, start=1):
-            if target in line:
+            if not in_section:
+                if section_target not in line:
+                    continue
+                in_section = True
+                object_depth = line.count("{") - line.count("}")
+                continue
+
+            if dependency_target in line:
                 return idx
+
+            object_depth += line.count("{") - line.count("}")
+            if object_depth <= 0:
+                break
         return 1
 
 
