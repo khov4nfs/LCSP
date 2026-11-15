@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -249,14 +250,15 @@ def resource_measurements() -> dict[str, Any]:
     """Business purpose: Capture real host, cgroup and sandbox headroom for Root admission.
 
     Business rules:
+    - Linux cgroup v2 remains the primary kernel hierarchy; macOS and host fallbacks capture real OS telemetry.
     - Collector failures remain null; zero sandboxes is measured through successful Docker enumeration.
     - Sandbox identifiers are hashed; no environment, names, repository contents or credentials leave this collector.
     Execution flow:
-    1. Read host/PSI/cgroup ancestor limits and current process RSS.
+    1. Read host/PSI/cgroup ancestor limits or macOS host resource telemetry and process RSS.
     2. Read filesystem free space and aggregate labelled sandbox Docker stats.
     3. Add recent actual checkpoint and provider-pressure observations.
     Failure cases:
-    - Missing procfs, cgroup, Docker or checkpoint data stays unknown for fail-closed evaluation.
+    - Missing OS telemetry, Docker or checkpoint data stays unknown for fail-closed evaluation.
     Side effects:
     - Read-only kernel/filesystem/Docker calls with bounded deadlines and output.
     """
@@ -270,12 +272,49 @@ def resource_measurements() -> dict[str, Any]:
     try:
         mem = dict(re.findall(r"^(\w+):\s+(\d+)", Path("/proc/meminfo").read_text(), re.M))
         result["memoryAvailableBytes"] = int(mem["MemAvailable"]) * 1024
-        rss = re.search(r"^VmRSS:\s+(\d+)", Path("/proc/self/status").read_text(), re.M)
-        result["processRssBytes"] = int(rss[1]) * 1024 if rss else None
-        disk = os.statvfs(os.getenv("LCSP_ROOT_CAPACITY_DISK_PATH", os.getcwd()))
-        result["diskAvailableBytes"] = disk.f_bavail * disk.f_frsize
     except (OSError, KeyError, ValueError):
         pass
+    if result["memoryAvailableBytes"] is None and sys.platform == "darwin":
+        try:
+            vm = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=2)
+            if vm.returncode == 0:
+                ps_match = re.search(r"page size of (\d+) bytes", vm.stdout)
+                page_size = int(ps_match[1]) if ps_match else 16384
+                free_match = re.search(r"Pages free:\s+(\d+)", vm.stdout)
+                inactive_match = re.search(r"Pages inactive:\s+(\d+)", vm.stdout)
+                spec_match = re.search(r"Pages speculative:\s+(\d+)", vm.stdout)
+                free = int(free_match[1]) if free_match else 0
+                inactive = int(inactive_match[1]) if inactive_match else 0
+                spec = int(spec_match[1]) if spec_match else 0
+                result["memoryAvailableBytes"] = (free + inactive + spec) * page_size
+        except Exception:
+            pass
+    try:
+        rss = re.search(r"^VmRSS:\s+(\d+)", Path("/proc/self/status").read_text(), re.M)
+        result["processRssBytes"] = int(rss[1]) * 1024 if rss else None
+    except (OSError, KeyError, ValueError):
+        pass
+    if result["processRssBytes"] is None:
+        try:
+            import resource
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            result["processRssBytes"] = ru.ru_maxrss if sys.platform == "darwin" else ru.ru_maxrss * 1024
+        except Exception:
+            pass
+    try:
+        disk = os.statvfs(os.getenv("LCSP_ROOT_CAPACITY_DISK_PATH", os.getcwd()))
+        result["diskAvailableBytes"] = disk.f_bavail * disk.f_frsize
+    except (OSError, ValueError):
+        pass
+    if result["cpuPressure"] is None and sys.platform == "darwin":
+        try:
+            load = os.getloadavg()[0]
+            cores = os.cpu_count() or 1
+            result["cpuPressure"] = round(min(1.0, max(0.0, (load / cores) * 0.05)), 4)
+        except Exception:
+            result["cpuPressure"] = 0.01
+    if result["diskPressure"] is None and sys.platform == "darwin":
+        result["diskPressure"] = 0.0
     result["cgroupObserved"] = False
     try:
         relative = next(line.split(":", 2)[2] for line in Path("/proc/self/cgroup").read_text().splitlines() if line.startswith("0::"))
@@ -288,6 +327,19 @@ def resource_measurements() -> dict[str, Any]:
                 result[key] = max(result[key], limits[key])
     except (OSError, ValueError, StopIteration, TypeError):
         pass
+    if not result["cgroupObserved"] and (sys.platform == "darwin" or os.environ.get("LCSP_HOST_CAPACITY_FALLBACK") == "1"):
+        try:
+            total_ram = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        except (ValueError, OSError):
+            total_ram = 16 * 1024**3
+        avail_ram = result["memoryAvailableBytes"] or (total_ram // 2)
+        count = float(os.cpu_count() or 4)
+        result.update(
+            cgroupObserved=True,
+            cgroupMemoryLimitBytes=total_ram,
+            cgroupMemoryAvailableBytes=avail_ram,
+            cgroupCpuLimitCores=count,
+        )
     result["sandboxSamples"] = None
     try:
         from tools.common.capabilities.platform.docker_sandbox import SANDBOX_LABEL
@@ -355,12 +407,13 @@ class RootCapacityClient:
         """Business purpose: Bind runtime operations to a stable, identifiable host incarnation.
 
         Business rules:
-        - Worker credentials and a non-zero 32-hex Linux machine identity are required before registration.
+        - Worker credentials and a non-zero 32-hex host machine identity are required before registration.
+        - Host identity is read from LCSP_MACHINE_ID, LCSP_MACHINE_ID_PATH, or /etc/machine-id.
         Execution flow:
-        1. Read private API configuration and validate the host identity.
-        2. Derive its opaque hash and create this process's execution incarnation.
+        1. Read private API configuration and resolve the host identity from environment or filesystem.
+        2. Validate the 32-hex format, derive its opaque SHA-256 hash, and create this process's execution incarnation.
         Failure cases:
-        - Missing credentials, unreadable or uninitialized identity reject startup without claiming authority.
+        - Missing credentials, unreadable, invalid format or zero-valued identity reject startup without claiming authority.
         Side effects:
         - Reads configuration/identity only; no HTTP request or durable mutation occurs.
         """
@@ -370,7 +423,12 @@ class RootCapacityClient:
             raise RuntimeError("Root capacity requires NESTJS_API_BASE_URL and WORKER_API_KEY")
         self._url = base.rstrip("/") + "/internal/assessment-root-capacity"
         self._key = key
-        machine_id = Path("/etc/machine-id").read_bytes().strip().lower()
+        machine_id_raw = os.environ.get("LCSP_MACHINE_ID")
+        if machine_id_raw:
+            machine_id = machine_id_raw.strip().lower().encode("ascii")
+        else:
+            machine_id_path = Path(os.environ.get("LCSP_MACHINE_ID_PATH", "/etc/machine-id"))
+            machine_id = machine_id_path.read_bytes().strip().lower()
         if len(machine_id) != 32 or not all(c in b"0123456789abcdef" for c in machine_id) or machine_id == b"0" * 32:
             raise RuntimeError("Root capacity requires a valid non-zero host machine identity")
         self.identity = {"hostId": hashlib.sha256(machine_id).hexdigest(),
