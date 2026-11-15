@@ -15,7 +15,7 @@ import {
   type AssessmentFinalReportResult,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
-import { HttpStatus } from "@nestjs/common";
+import { HttpStatus, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { ArtifactLifecycleState, AssessmentArtifactKind } from "@prisma/client";
 
@@ -180,6 +180,8 @@ function decisionFingerprintForReport(report: unknown): string {
 
 @CommandHandler(SubmitAssessmentFinalReportCommand)
 export class SubmitAssessmentFinalReportHandler implements ICommandHandler<SubmitAssessmentFinalReportCommand> {
+  private readonly logger = new Logger(SubmitAssessmentFinalReportHandler.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly authority: AssessmentRuntimeAuthority,
@@ -400,7 +402,10 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           request: command.request,
           snapshot,
         });
-      } catch {
+      } catch (error) {
+        this.logger.error(
+          `Failed to build final report v3 for assessment ${command.assessmentId}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`,
+        );
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
           command.correlationId,
@@ -511,6 +516,6 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
         replayed: false,
       });
-    });
+    }, { timeout: 60_000, maxWait: 10_000 });
   }
 }

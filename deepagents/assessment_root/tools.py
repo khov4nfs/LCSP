@@ -321,7 +321,12 @@ class RecordSearchCoverageArgs(_Args):
     )
     known_gaps: list[str] = Field(
         default_factory=list,
-        description="Root-authored caveats about what searches could not cover; not proof a search ran.",
+        description=(
+            "Root-authored caveats about what searches could not cover. "
+            "IMPORTANT: Leave this empty [] when recording search coverage to support a rule decision. "
+            "Any entry in known_gaps marks coverage as incomplete and causes submit_rule_decision "
+            "to reject the decision with SEARCH_COVERAGE_INCOMPLETE. Put negative findings into rule rationale or accept_case_fact, not here."
+        ),
     )
     direct_source_fallbacks: list[dict[str, str]] = Field(
         default_factory=list,
@@ -536,18 +541,41 @@ class SubmitFinalReportArgs(_Args):
 
 
 def _failure(error: AssessmentApiError) -> dict[str, Any]:
+    """Business purpose: Transform an API error into structured model feedback with actionable remediation hints.
+
+    Business rules:
+    - Retain authoritative API error code, failures, and correlation metadata without leaking credentials.
+    - Provide specific correction hints for domain validation failures like SEARCH_COVERAGE_INCOMPLETE.
+
+    Execution flow:
+    1. Parse reported validation failure codes and items from the error metadata.
+    2. Construct specific hints for known domain validator rejections or default to context reload.
+    3. Return the standard structured failure envelope.
+
+    Failure cases:
+    - Malformed or missing failure metadata falls back to the generic non-retryable hint.
+
+    Side effects:
+    - Pure dictionary construction; no external state mutations.
+    """
     failures = [
         item for item in str(error.meta.get("failures", "")).split(",") if item
     ]
+    hint = "Call get_assessment_context to reload server state, then correct and resubmit."
+    if any("SEARCH_COVERAGE_INCOMPLETE" in f for f in failures):
+        hint = (
+            "Evidence is rejected with SEARCH_COVERAGE_INCOMPLETE because knownGaps was not empty or queries were truncated. "
+            "Re-record search coverage with known_gaps=[] after running complete searches across the scoped codebase, then cite the new evidence ID."
+        )
+    elif error.retryable:
+        hint = "Transient server error; retry the same call."
     return {
         "ok": False,
         "code": error.code,
         "retryable": error.retryable,
         **({"failures": failures} if failures else {}),
         **{k: v for k, v in error.meta.items() if k != "failures"},
-        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
-        if not error.retryable
-        else "Transient server error; retry the same call.",
+        "hint": hint,
     }
 
 
