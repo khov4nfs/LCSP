@@ -528,20 +528,26 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
         }),
       );
     }
-    await act(async () => {
+    const findDetailButton = () =>
+      [
+        ...dom.window.document.querySelectorAll<HTMLButtonElement>("button"),
+      ].find((button) => /view details|xem/iu.test(button.textContent ?? ""));
+
+    await act(async () =>
       root.render(
         createElement(
           QueryClientProvider,
           { client: queryClient },
           createElement(Harness),
         ),
+      ),
+    );
+    await act(async () => {
+      await waitForUiCondition(
+        () => findDetailButton() !== undefined,
+        "source detail action after source units load",
       );
-      await new Promise((resolve) => setTimeout(resolve, 40));
     });
-    const findDetailButton = () =>
-      [
-        ...dom.window.document.querySelectorAll<HTMLButtonElement>("button"),
-      ].find((button) => /view details|xem/iu.test(button.textContent ?? ""));
     const openA = findDetailButton();
     assert.ok(openA);
     await act(async () => openA.click());
@@ -582,7 +588,7 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
     const activePanel = () =>
       dom.window.document.querySelector<HTMLElement>("[role='tabpanel']")
         ?.textContent ?? "";
-    assert.match(activePanel(), /API|unavailable/iu);
+    assert.match(activePanel(), /A persisted semantic claim\./u);
     assert.doesNotMatch(
       activePanel(),
       /analysis complete|completed successfully/iu,
@@ -599,13 +605,21 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
     });
     assert.equal(dom.window.document.querySelector("[role='dialog']"), null);
 
-    await act(async () => {
+    await act(async () =>
       (
         dom.window.document.querySelector(
           "[data-testid='switch-run']",
         ) as HTMLButtonElement
-      ).click();
-      await new Promise((resolve) => setTimeout(resolve, 40));
+      ).click(),
+    );
+    await act(async () => {
+      await waitForUiCondition(
+        () =>
+          rootElement.textContent?.includes("source-node-b") === true &&
+          rootElement.textContent.includes("source-node-a") === false &&
+          dom.window.document.querySelector("[role='dialog']") === null,
+        "run switch to clear prior source selection",
+      );
     });
     assert.equal(dom.window.document.querySelector("[role='dialog']"), null);
     assert.equal(rootElement.textContent?.includes("source-node-a"), false);
@@ -657,6 +671,19 @@ test("Explorer selection opens a modal, labels run events, and resets on run swi
     dom.window.close();
   }
 });
+
+async function waitForUiCondition(
+  predicate: () => boolean,
+  description: string,
+  timeoutMs = 2_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.fail(`Timed out waiting for ${description}.`);
+}
 
 function makeRun(
   preparationRunId: string,
