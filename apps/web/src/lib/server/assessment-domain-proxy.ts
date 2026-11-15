@@ -2,6 +2,9 @@ import type { NextRequest } from "next/server";
 import type { z } from "zod";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  AUTHORED_LOCALIZATION_CODES,
+  AUTHORED_LOCALIZATION_STATES,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
   claimAssessmentRootRequestSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { isSupportedResponseLanguage } from "@lcsp/contracts/shared/locale";
@@ -21,7 +24,19 @@ export function getAuthoritativeRequestLocale(
   return isSupportedResponseLanguage(rawLocale) ? rawLocale : undefined;
 }
 
-/** Shared transport/session validation for canonical assessment consumers. */
+/**
+ * Business purpose: Read owner-authorized assessment data even while a presentation translation is pending.
+ * Business rules:
+ * - Only opted-in GET projections may retry without locale, and only for a pending field-level localization conflict.
+ * - The fallback is explicitly marked; catalog fallback remains pending for selection eligibility.
+ * Execution flow:
+ * 1. Validate session, assessment ID and any command body, then request the selected locale.
+ * 2. For eligible pending localization conflicts, read the canonical projection and mark it before response validation.
+ * Failure cases:
+ * - Authentication, validation, failed translation, conflicts without a field path and upstream errors remain explicit failures.
+ * Side effects:
+ * - Makes one or two authenticated upstream requests; no content or translation records are modified.
+ */
 export async function proxyAssessmentJson(
   request: NextRequest,
   id: string,
@@ -30,6 +45,8 @@ export async function proxyAssessmentJson(
     method?: string;
     bodySchema?: z.ZodType;
     responseSchema?: z.ZodType;
+    allowPendingLocalizationFallback?: boolean;
+    preservePendingCatalogReadiness?: boolean;
   } = {},
 ) {
   const session = requireSessionToken(request);
@@ -48,7 +65,7 @@ export async function proxyAssessmentJson(
       status: 422,
     });
   const locale = getAuthoritativeRequestLocale(request);
-  const upstream = await upstreamRequest(
+  let upstream = await upstreamRequest(
     `/assessments/${encodeURIComponent(id)}${suffix}`,
     {
       bearerToken: session.token,
@@ -62,8 +79,44 @@ export async function proxyAssessmentJson(
         : {}),
     },
   );
+  let usedFallback = false;
+  const problem =
+    upstream.result && !upstream.result.ok
+      ? upstream.result.problem
+      : undefined;
+  if (
+    options.allowPendingLocalizationFallback &&
+    (options.method ?? "GET") === "GET" &&
+    locale &&
+    upstream.status === 409 &&
+    upstream.problemCode === AUTHORED_LOCALIZATION_CODES.INCOMPLETE &&
+    problem?.meta?.state === AUTHORED_LOCALIZATION_STATES.PENDING &&
+    typeof problem.meta.fieldPath === "string"
+  ) {
+    upstream = await upstreamRequest(
+      `/assessments/${encodeURIComponent(id)}${suffix}`,
+      {
+        bearerToken: session.token,
+        method: "GET",
+      },
+    );
+    usedFallback = upstream.ok;
+  }
   if (!upstream.ok || !options.responseSchema) return upstreamJson(upstream);
-  const parsed = options.responseSchema.safeParse(upstream.data);
+  const parsed = options.responseSchema.safeParse(
+    usedFallback && upstream.data && typeof upstream.data === "object"
+      ? {
+          ...upstream.data,
+          localizationFallback: true,
+          ...(options.preservePendingCatalogReadiness
+            ? {
+                localizationState:
+                  AUTHORED_LOCALIZATION_READINESS_STATES.PENDING,
+              }
+            : {}),
+        }
+      : upstream.data,
+  );
   return parsed.success
     ? successJson(parsed.data, { status: upstream.status })
     : problemJson(SHARED_ERROR_CODES.upstreamResponseInvalid, { status: 502 });

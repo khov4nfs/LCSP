@@ -214,6 +214,11 @@ function Ensure-Caddyfile {
         reverse_proxy 127.0.0.1:6006
     }
 
+    @sepay_webhook path /billing/sepay/webhook
+    handle @sepay_webhook {
+        reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
+    }
+
     @api path /api /api/*
     handle @api {
         reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}

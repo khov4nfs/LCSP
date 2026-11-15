@@ -12,6 +12,11 @@
 		reverse_proxy 127.0.0.1:6006
 	}
 
+	@sepay_webhook path /billing/sepay/webhook
+	handle @sepay_webhook {
+		reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
+	}
+
 	@backend path /backend /backend/*
 	handle @backend {
 		reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
