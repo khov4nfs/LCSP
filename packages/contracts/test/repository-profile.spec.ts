@@ -142,6 +142,36 @@ describe("RepositoryProfile contract", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts AI dependency framework categories while retaining scanner V1", () => {
+    expect(REPOSITORY_SCANNER_VERSIONS).toEqual({
+      v1: "LCSP_PRE_SCAN_V1",
+    });
+
+    const profileWithAiFrameworks = {
+      ...validProfileInput,
+      frameworks: [
+        {
+          ...validProfileInput.frameworks[0],
+          name: "OpenAI SDK",
+          category: PRE_SCAN_FRAMEWORK_CATEGORIES.aiProviderSdk,
+        },
+        {
+          ...validProfileInput.frameworks[0],
+          name: "LangChain",
+          category: PRE_SCAN_FRAMEWORK_CATEGORIES.aiOrchestration,
+        },
+        {
+          ...validProfileInput.frameworks[0],
+          name: "PyTorch",
+          category: PRE_SCAN_FRAMEWORK_CATEGORIES.mlFramework,
+        },
+      ],
+    };
+
+    const result = repositoryProfileSchema.safeParse(profileWithAiFrameworks);
+    expect(result.success).toBe(true);
+  });
+
   it("accepts workspaceNotFound and workspaceNotDirectory gap reasons", () => {
     const profileWithWorkspaceGaps = {
       ...validProfileInput,
