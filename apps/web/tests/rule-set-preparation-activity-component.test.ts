@@ -7,6 +7,7 @@ import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES as T,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
+import type { PreparationSourceUnitsResponse } from "@lcsp/contracts/compliance-rule-set";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import type { Root } from "react-dom/client";
@@ -69,7 +70,14 @@ function event(
   };
 }
 
-function render(events: AssessmentAgentStreamEvent[]) {
+function render(
+  events: AssessmentAgentStreamEvent[],
+  options: {
+    frontierCoverage?: PreparationSourceUnitsResponse["frontier"]["coverage"];
+    runStatusLabel?: string;
+    preparationRunId?: string;
+  } = {},
+) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -79,6 +87,9 @@ function render(events: AssessmentAgentStreamEvent[]) {
       root.render(
         React.createElement(RuleSetPreparationActivity, {
           events: nextEvents,
+          frontierCoverage: options.frontierCoverage ?? null,
+          runStatusLabel: options.runStatusLabel ?? null,
+          preparationRunId: options.preparationRunId ?? null,
           terminal: false,
           executionState: null,
           connected: true,
@@ -88,6 +99,61 @@ function render(events: AssessmentAgentStreamEvent[]) {
   renderActivity(events);
   return { container, renderActivity };
 }
+
+test("canonical progress is independent of local activity filters and usage remains run-scoped", () => {
+  const { container } = render(
+    [
+      event(1, T.modelCallCompleted, {
+        status: "COMPLETED",
+        data: {
+          model_step_id: "step-a",
+          usage: { input_tokens: 4, output_tokens: 5, total_tokens: 9 },
+        },
+      }),
+      event(2, T.modelCallCompleted, {
+        status: "COMPLETED",
+        data: {
+          model_step_id: "step-b",
+          usage: { input_tokens: 3, output_tokens: 6, total_tokens: 9 },
+        },
+      }),
+    ],
+    {
+      preparationRunId: "preparation-1",
+      runStatusLabel: "Running",
+      frontierCoverage: {
+        total: 8,
+        pending: 2,
+        inReview: 1,
+        reviewedWithClaims: 3,
+        reviewedNoClaims: 2,
+        blockedReferences: 4,
+        persistedClaims: 4,
+      },
+    },
+  );
+  const progress = container.querySelector('[role="progressbar"]');
+  assert.equal(progress?.getAttribute("aria-valuenow"), "5");
+  assert.equal(progress?.getAttribute("aria-valuemax"), "8");
+  assert.match(
+    container.querySelector('[aria-labelledby="preparation-usage-heading"]')
+      ?.textContent ?? "",
+    /18/u,
+  );
+
+  const filters = container.querySelectorAll<HTMLButtonElement>(
+    "button[aria-pressed]",
+  );
+  assert.equal(filters.length, 5);
+  act(() => filters[3]?.click());
+  assert.equal(progress?.getAttribute("aria-valuenow"), "5");
+  assert.match(
+    container.querySelector('[aria-labelledby="preparation-usage-heading"]')
+      ?.textContent ?? "",
+    /18/u,
+  );
+  assert.equal(container.querySelectorAll("ol > li").length, 0);
+});
 
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());
@@ -157,12 +223,16 @@ test("article files expose committed and rejection counts through the disclosure
     ),
   );
   const { container } = render([event(1, T.customProgress, { data })]);
-  const summary = container.querySelector("summary")!;
+  const summary = container.querySelector(
+    '[data-slot="work-disclosure"] summary',
+  )!;
   assert.match(
     summary.textContent ?? "",
     /Đã lưu tệp Điều: luat-134\/dieu-5.json/u,
   );
-  const details = container.querySelector<HTMLDetailsElement>("details")!;
+  const details = container.querySelector<HTMLDetailsElement>(
+    '[data-slot="work-disclosure"]',
+  )!;
   act(() => {
     details.open = true;
     details.dispatchEvent(new Event("toggle"));

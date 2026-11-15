@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useAppLocale } from "@/components/providers/locale-provider";
 import { resolveAppMessage } from "@/lib/i18n";
 import { usePreparationSourceUnitsQuery } from "@/lib/api/compliance-rule-set-queries";
+import { formatPreparationLegalSourceNodeLabel } from "../molecules/preparation-source-content-reader";
 import type { RuleSetPreparationRow } from "../../types/compliance-rule-sets.types";
 import {
   PreparationSourceAnalysisModal,
@@ -65,9 +66,9 @@ export function groupPreparationSourceUnits(
     const title = [
       document?.title ||
         t("pages.complianceRuleSets.sourceAnalysis.sourceDocumentFallback"),
-      root?.label ||
-        root?.title ||
-        t("pages.complianceRuleSets.sourceAnalysis.documentGroup"),
+      root
+        ? formatPreparationLegalSourceNodeLabel(root)
+        : t("pages.complianceRuleSets.sourceAnalysis.documentGroup"),
     ].join(" · ");
     const group = grouped.get(key);
     if (group) group.units.push(unit);
@@ -332,7 +333,7 @@ export function PreparationSourceAnalysisExplorer({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 space-y-1">
                       <h4 className="wrap-break-word font-medium">
-                        {unit.title || unit.label || unit.structuralPath}
+                        {formatPreparationLegalSourceNodeLabel(unit)}
                       </h4>
                       <p className="wrap-break-word text-xs text-muted-foreground">
                         <span className="font-medium">

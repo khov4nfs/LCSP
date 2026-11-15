@@ -180,6 +180,8 @@ test("catalog selection opens bounded details and collection switching clears st
       ...dom.window.document.querySelectorAll("button"),
     ].find((button) => button.textContent?.includes("Requirement req-a"));
     assert.ok(requirementButton);
+    assert.match(requirementButton.textContent ?? "", /Draft/u);
+    assert.ok(requirementButton.querySelector(".line-clamp-2"));
     await act(async () =>
       requirementButton.dispatchEvent(
         new dom.window.MouseEvent("click", { bubbles: true }),

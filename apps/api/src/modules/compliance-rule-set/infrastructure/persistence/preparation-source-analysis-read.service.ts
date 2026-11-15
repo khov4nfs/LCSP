@@ -1,17 +1,25 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  PREPARATION_SOURCE_CONTENT,
+  PREPARATION_SOURCE_CONTENT_AVAILABILITY,
   SOURCE_UNIT_DETAIL_AVAILABILITY,
   SOURCE_UNIT_DETAIL_ERROR_CODES,
   SOURCE_UNIT_DETAIL_MAPPING_REASONS,
+  preparationSourceContentResponseSchema,
   preparationSourceUnitDetailResponseSchema,
   preparationSourceUnitsResponseSchema,
+  type PreparationSourceContentRequest,
+  type PreparationSourceContentResponse,
   type PreparationSourceUnitDetailResponse,
   type PreparationSourceUnitDetailRequest,
   type PreparationSourceUnitsRequest,
   type PreparationSourceUnitsResponse,
 } from "@lcsp/contracts/compliance-rule-set";
 import { sourceReviewPayloadSchema } from "@lcsp/contracts/compliance-rule-set";
-import { SOURCE_REVIEW_STATES } from "@lcsp/contracts/legal-source";
+import {
+  LEGAL_GRAPH_ERROR_CODES,
+  SOURCE_REVIEW_STATES,
+} from "@lcsp/contracts/legal-source";
 import { Prisma } from "@prisma/client";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { z } from "zod";
@@ -37,6 +45,20 @@ const cursorSchema = z.strictObject({
 });
 type Cursor = z.infer<typeof cursorSchema>;
 
+const contentCursorSchema = z.strictObject({
+  version: z.literal(1),
+  preparationRunId: z.string().uuid(),
+  inventoryRevision: z.number().int().positive(),
+  legalSourceVersionId: z.string().uuid(),
+  materializationId: z.string().min(1).max(256),
+  frontierRevision: z.number().int().positive(),
+  frontierFingerprint: z.string().min(1).max(256),
+  sourceNodeId: z.string().min(1).max(256),
+  contentFingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
+  offset: z.number().int().positive(),
+});
+type ContentCursor = z.infer<typeof contentCursorSchema>;
+
 type NodeProjection = {
   nodeId: string;
   nodeType: string;
@@ -59,6 +81,229 @@ type AncestorProjection = {
 @Injectable()
 export class PreparationSourceAnalysisReadService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Business purpose: Read one bounded page of the exact legal-source node text pinned by a Preparation frontier.
+   *
+   * Business rules:
+   * - The run owns the Legal Source Version and the requested persisted frontier owns the materialization; the node must match both identities.
+   * - Continuation cursors bind the exact run, inventory frontier, source version, materialization, node, content fingerprint, and UTF-16 offset.
+   * - Any node in the pinned materialization may be viewed as legal text, whether or not that node has a SourceReview row.
+   *
+   * Execution flow:
+   * 1. Load the exact run and inventory frontier in a repeatable-read transaction.
+   * 2. Resolve the node only within the frontier materialization and run Legal Source Version.
+   * 3. Validate every cursor pin, return one bounded text slice, and project pinned ancestors and persisted children for navigation.
+   * 4. Validate the bounded response against the shared contract.
+   *
+   * Failure cases:
+   * - Missing run/frontier or mismatched version/materialization returns a typed conflict; a node absent from the pinned graph returns typed not-found.
+   * - A malformed, stale, or identity-mismatched cursor, invalid offset boundary, or offset beyond stored text is rejected rather than restarting.
+   *
+   * Side effects:
+   * - Read-only repeatable-read transaction; no graph materialization, legal-source mutation, SourceReview mutation, or worker action occurs.
+   */
+  async content(
+    preparationRunId: string,
+    sourceNodeId: string,
+    request: PreparationSourceContentRequest,
+    correlationId: string,
+  ): Promise<PreparationSourceContentResponse> {
+    const cursor = request.cursor
+      ? decodeContentCursor(request.cursor, correlationId)
+      : null;
+    return this.prisma.$transaction(
+      async (tx) => {
+        const run = await tx.ruleSetPreparationRun.findUnique({
+          where: { id: preparationRunId },
+          select: { id: true, legalSourceVersionId: true },
+        });
+        if (!run) {
+          throw problemException(
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
+            correlationId,
+            { status: HttpStatus.NOT_FOUND },
+          );
+        }
+
+        const frontier = await tx.ruleSetPreparationReviewFrontier.findUnique({
+          where: {
+            preparationRunId_inventoryRevision: {
+              preparationRunId,
+              inventoryRevision: request.inventoryRevision,
+            },
+          },
+        });
+        if (
+          !frontier ||
+          frontier.legalSourceVersionId !== run.legalSourceVersionId
+        ) {
+          throw problemException(
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        const node = await tx.legalDocumentNode.findUnique({
+          where: {
+            nodeId_materializationId: {
+              nodeId: sourceNodeId,
+              materializationId: frontier.materializationId,
+            },
+          },
+          select: {
+            nodeId: true,
+            legalSourceVersionId: true,
+            materializationId: true,
+            documentId: true,
+            nodeType: true,
+            parentNodeId: true,
+            structuralPath: true,
+            sourcePath: true,
+            ordinal: true,
+            label: true,
+            title: true,
+            pageStart: true,
+            pageEnd: true,
+            charStart: true,
+            charEnd: true,
+            content: true,
+            contentFingerprint: true,
+          },
+        });
+        if (!node) {
+          throw problemException(
+            LEGAL_GRAPH_ERROR_CODES.nodeNotFound,
+            correlationId,
+            {
+              status: HttpStatus.NOT_FOUND,
+            },
+          );
+        }
+        if (
+          node.legalSourceVersionId !== run.legalSourceVersionId ||
+          node.legalSourceVersionId !== frontier.legalSourceVersionId ||
+          node.materializationId !== frontier.materializationId
+        ) {
+          throw problemException(
+            LEGAL_GRAPH_ERROR_CODES.revisionConflict,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        const offset = cursor?.offset ?? 0;
+        const { limit } = request;
+        if (
+          (cursor !== null &&
+            (cursor.preparationRunId !== preparationRunId ||
+              cursor.inventoryRevision !== request.inventoryRevision ||
+              cursor.legalSourceVersionId !== run.legalSourceVersionId ||
+              cursor.materializationId !== frontier.materializationId ||
+              cursor.frontierRevision !== frontier.revision ||
+              cursor.frontierFingerprint !== frontier.fingerprint ||
+              cursor.sourceNodeId !== sourceNodeId ||
+              cursor.contentFingerprint !== node.contentFingerprint)) ||
+          offset > node.content.length ||
+          (offset > 0 &&
+            node.content.charCodeAt(offset) >= 0xdc00 &&
+            node.content.charCodeAt(offset) <= 0xdfff &&
+            node.content.charCodeAt(offset - 1) >= 0xd800 &&
+            node.content.charCodeAt(offset - 1) <= 0xdbff)
+        ) {
+          throw problemException(
+            LEGAL_GRAPH_ERROR_CODES.revisionConflict,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        const page = slicePinnedContent(node.content, offset, limit);
+        const nextCursor = page.nextOffset
+          ? encodeContentCursor({
+              version: 1,
+              preparationRunId,
+              inventoryRevision: frontier.inventoryRevision,
+              legalSourceVersionId: run.legalSourceVersionId,
+              materializationId: frontier.materializationId,
+              frontierRevision: frontier.revision,
+              frontierFingerprint: frontier.fingerprint,
+              sourceNodeId: node.nodeId,
+              contentFingerprint: node.contentFingerprint,
+              offset: page.nextOffset,
+            })
+          : null;
+        const ancestors = await loadAncestors(
+          tx,
+          [node],
+          frontier.materializationId,
+          run.legalSourceVersionId,
+        );
+        const childRows = await tx.legalDocumentNode.findMany({
+          where: {
+            parentNodeId: node.nodeId,
+            materializationId: frontier.materializationId,
+            legalSourceVersionId: run.legalSourceVersionId,
+          },
+          orderBy: [{ ordinal: "asc" }, { nodeId: "asc" }],
+          take: PREPARATION_SOURCE_CONTENT.MAX_CHILDREN + 1,
+          select: {
+            nodeId: true,
+            nodeType: true,
+            structuralPath: true,
+            ordinal: true,
+            label: true,
+            title: true,
+          },
+        });
+
+        return preparationSourceContentResponseSchema.parse({
+          preparationRunId,
+          inventoryRevision: frontier.inventoryRevision,
+          legalSourceVersionId: run.legalSourceVersionId,
+          materializationId: frontier.materializationId,
+          sourceNodeId: node.nodeId,
+          documentId: node.documentId,
+          nodeType: node.nodeType,
+          parentNodeId: node.parentNodeId,
+          structuralPath: node.structuralPath,
+          sourcePath: node.sourcePath,
+          ordinal: node.ordinal,
+          label: node.label.slice(0, 512),
+          title: node.title.slice(0, 512),
+          pageStart: node.pageStart,
+          pageEnd: node.pageEnd,
+          charStart: node.charStart,
+          charEnd: node.charEnd,
+          ancestors: ancestors.get(node.nodeId) ?? [],
+          children: childRows
+            .slice(0, PREPARATION_SOURCE_CONTENT.MAX_CHILDREN)
+            .map((child) => ({
+              sourceNodeId: child.nodeId,
+              nodeType: child.nodeType,
+              structuralPath: child.structuralPath,
+              ordinal: child.ordinal,
+              label: child.label.slice(0, 512),
+              title: child.title.slice(0, 512),
+            })),
+          childrenTruncated:
+            childRows.length > PREPARATION_SOURCE_CONTENT.MAX_CHILDREN,
+          contentFingerprint: node.contentFingerprint,
+          contentLength: node.content.length,
+          availability:
+            node.content.length > 0
+              ? PREPARATION_SOURCE_CONTENT_AVAILABILITY.AVAILABLE
+              : PREPARATION_SOURCE_CONTENT_AVAILABILITY.EMPTY,
+          offset,
+          content: page.content,
+          nextCursor,
+          complete: page.nextOffset === null,
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
 
   /**
    * Business purpose: Return one Admin page from the exact persisted Source Review frontier of a Preparation run.
@@ -519,6 +764,110 @@ export class PreparationSourceAnalysisReadService {
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
+}
+
+/**
+ * Business purpose: Preserve the complete source-read identity across bounded legal-text pages.
+ *
+ * Business rules:
+ * - The token includes the exact run, inventory frontier, source version, materialization, node, content fingerprint, and next offset.
+ * - Tokens are encoded only after the current persisted pins have been verified.
+ *
+ * Execution flow:
+ * 1. Serialize the validated identity object as UTF-8 JSON.
+ * 2. Encode it as base64url for safe use as one query parameter.
+ *
+ * Failure cases:
+ * - The caller supplies only values validated by the content cursor schema.
+ *
+ * Side effects:
+ * - Pure token encoding; no database or external state is changed.
+ */
+function encodeContentCursor(cursor: ContentCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+/**
+ * Business purpose: Reject content continuations that cannot be tied to a valid pinned source snapshot.
+ *
+ * Business rules:
+ * - A cursor must decode to the strict, versioned identity contract; malformed or extra fields are rejected.
+ * - The content service later compares every cursor pin with the selected run, frontier, node, and persisted fingerprint.
+ *
+ * Execution flow:
+ * 1. Decode base64url UTF-8 JSON.
+ * 2. Validate the decoded object against the strict content cursor schema.
+ * 3. Return only the validated cursor value.
+ *
+ * Failure cases:
+ * - Invalid encoding, JSON, shape, or identity fields produce a typed stale-source conflict.
+ *
+ * Side effects:
+ * - Pure token validation; no database or external state is changed.
+ */
+function decodeContentCursor(
+  value: string,
+  correlationId: string,
+): ContentCursor {
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+  } catch {
+    throw problemException(
+      LEGAL_GRAPH_ERROR_CODES.revisionConflict,
+      correlationId,
+      {
+        status: HttpStatus.CONFLICT,
+      },
+    );
+  }
+  const parsed = contentCursorSchema.safeParse(decoded);
+  if (!parsed.success) {
+    throw problemException(
+      LEGAL_GRAPH_ERROR_CODES.revisionConflict,
+      correlationId,
+      {
+        status: HttpStatus.CONFLICT,
+      },
+    );
+  }
+  return parsed.data;
+}
+
+/**
+ * Business purpose: Return one exact, bounded UTF-16 slice of immutable pinned legal-source content.
+ *
+ * Business rules:
+ * - The requested offset is preserved, and a page boundary must not split a Unicode surrogate pair.
+ * - The content is neither normalized nor summarized; the returned chunks concatenate to the persisted text.
+ *
+ * Execution flow:
+ * 1. Calculate a tentative end from the requested offset and bounded page size.
+ * 2. Move the end back one code unit only when it would divide a surrogate pair.
+ * 3. Return the exact slice and its next continuation offset, if any.
+ *
+ * Failure cases:
+ * - The caller rejects out-of-range or mid-surrogate offsets before invoking this pure projection.
+ *
+ * Side effects:
+ * - Pure string projection; no database or external state is changed.
+ */
+function slicePinnedContent(content: string, offset: number, limit: number) {
+  let end = Math.min(offset + limit, content.length);
+  if (
+    end < content.length &&
+    end > offset &&
+    content.charCodeAt(end - 1) >= 0xd800 &&
+    content.charCodeAt(end - 1) <= 0xdbff &&
+    content.charCodeAt(end) >= 0xdc00 &&
+    content.charCodeAt(end) <= 0xdfff
+  ) {
+    end -= 1;
+  }
+  return {
+    content: content.slice(offset, end),
+    nextOffset: end < content.length ? end : null,
+  };
 }
 
 const DETAIL_LIST_LIMIT = 100;

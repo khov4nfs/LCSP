@@ -16,12 +16,15 @@ import {
   preparationSourceUnitsResponseSchema,
   preparationSourceUnitDetailRequestSchema,
   preparationSourceUnitDetailResponseSchema,
+  preparationSourceContentRequestSchema,
+  preparationSourceContentResponseSchema,
   preparationGeneratedCatalogRequestSchema,
   preparationGeneratedCatalogResponseSchema,
   type PreparationGeneratedCatalogRequest,
   type PreparationGeneratedCatalogResponse,
   type PreparationSourceUnitsRequest,
   type PreparationSourceUnitDetailResponse,
+  type PreparationSourceContentResponse,
   type RuleSetPreparationAdminRequest,
 } from "@lcsp/contracts/compliance-rule-set";
 import { apiValidated } from "./api-request";
@@ -312,6 +315,128 @@ export function preparationSourceUnitDetailQueryKey(
   return [
     ...historyKey,
     "source-unit-detail",
+    preparationRunId,
+    inventoryRevision,
+    sourceNodeId,
+  ] as const;
+}
+
+/**
+ * Business purpose: Fetch paginated legal-source text for one explicitly selected node in a pinned Preparation snapshot.
+ *
+ * Business rules:
+ * - Cache identity includes the run, inventory revision, and viewed source node; fetching is disabled until all are known.
+ * - Continuations use the server-issued cursor bound to the complete pinned source identity, never client-side text slicing.
+ *
+ * Execution flow:
+ * 1. Register an infinite query scoped to the selected run/revision/node.
+ * 2. Validate each bounded request and call the authenticated source-content BFF.
+ * 3. Continue only when the server returns a pinned continuation cursor.
+ *
+ * Failure cases:
+ * - Missing identity disables fetching; stale content, invalid pins, authorization and transport errors remain query errors.
+ *
+ * Side effects:
+ * - Read-only BFF requests and scoped query-cache entries; no SourceReview or Preparation state is changed.
+ */
+export function usePreparationSourceNodeContentQuery(
+  preparationRunId: string | null,
+  inventoryRevision: number | null,
+  sourceNodeId: string | null,
+) {
+  return useInfiniteQuery({
+    queryKey: preparationSourceNodeContentQueryKey(
+      preparationRunId,
+      inventoryRevision,
+      sourceNodeId,
+    ),
+    enabled: Boolean(
+      preparationRunId && inventoryRevision !== null && sourceNodeId,
+    ),
+    initialPageParam: undefined as string | undefined,
+    /**
+     * Business purpose: Load one continuation page for the exact selected legal-source node.
+     *
+     * Business rules:
+     * - Run, revision, and node identity are mandatory; every noninitial page uses the server-issued pinned cursor.
+     * - Only the shared response schema is accepted from the authenticated BFF.
+     *
+     * Execution flow:
+     * 1. Validate the bounded page request.
+     * 2. Encode the server page parameter and fetch the pinned content route with cancellation support.
+     *
+     * Failure cases:
+     * - Missing identity or invalid request rejects instead of silently restarting the source reader.
+     *
+     * Side effects:
+     * - One read-only BFF request; the returned page is stored under the selected source identity.
+     */
+    queryFn: ({ pageParam, signal }) => {
+      if (!preparationRunId || inventoryRevision === null || !sourceNodeId) {
+        throw new Error("Legal source content identity is unavailable");
+      }
+      const request = preparationSourceContentRequestSchema.parse({
+        inventoryRevision,
+        ...(pageParam ? { cursor: pageParam } : {}),
+      });
+      const params = new URLSearchParams({
+        inventoryRevision: String(request.inventoryRevision),
+        limit: String(request.limit),
+      });
+      if (request.cursor) {
+        params.set("cursor", request.cursor);
+      }
+      return apiValidated<PreparationSourceContentResponse>(
+        `/api/admin/compliance-rule-sets/preparations/${encodeURIComponent(preparationRunId)}/source-units/${encodeURIComponent(sourceNodeId)}/content?${params}`,
+        preparationSourceContentResponseSchema,
+        { signal },
+      );
+    },
+    /**
+     * Business purpose: Continue reading one pinned Legal Source node without mixing text versions.
+     *
+     * Business rules:
+     * - A next page is available only when the response supplies a continuation cursor.
+     * - The cursor binds the run, revision, source version, materialization, node, frontier, and content fingerprint.
+     *
+     * Execution flow:
+     * 1. Stop when the server marks the current page complete.
+     * 2. Otherwise pass the exact opaque cursor returned by the server.
+     *
+     * Failure cases:
+     * - Returning no page parameter prevents a request beyond the persisted content boundary.
+     * - A stale or mismatched cursor is rejected by the server instead of silently restarting the read.
+     *
+     * Side effects:
+     * - Pure pagination-parameter selection; no request or persistence mutation occurs here.
+     */
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+/**
+ * Business purpose: Isolate legal-source content pages by their complete selected-view identity.
+ *
+ * Business rules:
+ * - Run, revision, and source-node identities are always represented; no missing pin is inferred.
+ *
+ * Execution flow:
+ * 1. Return a stable key under the shared Admin Rule Set history namespace.
+ *
+ * Failure cases:
+ * - Incomplete identities remain visible in the key while the query is disabled.
+ *
+ * Side effects:
+ * - Pure cache-key construction.
+ */
+export function preparationSourceNodeContentQueryKey(
+  preparationRunId: string | null,
+  inventoryRevision: number | null,
+  sourceNodeId: string | null,
+) {
+  return [
+    ...historyKey,
+    "source-node-content",
     preparationRunId,
     inventoryRevision,
     sourceNodeId,

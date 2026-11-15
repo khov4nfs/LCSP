@@ -347,6 +347,26 @@ export const viPages = {
       },
       unitIdentity: "Định danh đơn vị nguồn",
       nodeType: "Loại node",
+      nodeTypes: {
+        DOCUMENT: "Văn bản",
+        PART: "Phần",
+        TITLE: "Tiêu đề",
+        CHAPTER: "Chương",
+        SUBCHAPTER: "Chương phụ",
+        SECTION: "Mục",
+        SUBSECTION: "Tiểu mục",
+        ARTICLE: "Điều",
+        CLAUSE: "Khoản",
+        PARAGRAPH: "Đoạn",
+        SUBPARAGRAPH: "Đoạn phụ",
+        POINT: "Điểm",
+        ITEM: "Khoản mục",
+        ANNEX: "Phụ lục",
+        SCHEDULE: "Biểu",
+        TABLE: "Bảng",
+        DEFINITION_BLOCK: "Khối định nghĩa",
+        UNSTRUCTURED_BLOCK: "Quy định chưa phân loại",
+      },
       label: "Nhãn hoặc tiêu đề",
       path: "Đường dẫn cấu trúc",
       documentId: "Mã tài liệu nguồn",
@@ -367,6 +387,26 @@ export const viPages = {
         "Các định danh này lấy từ lượt chạy được chọn và review frontier đã ghim.",
       ancestors: "Cấu trúc nguồn pháp lý",
       noAncestors: "Đơn vị này không có node tổ tiên đã lưu.",
+      viewLegalSourceContent: "Xem nội dung nguồn",
+      sourceContentTitle: "Nội dung nguồn pháp lý đã ghim",
+      sourceContentAuthority:
+        "Đây là văn bản pháp lý đã lưu từ phiên bản nguồn và đồ thị được ghim cho lượt chạy này, tách biệt với nội dung Claim được tạo ra.",
+      selectSourceContentNode:
+        "Chọn đơn vị này hoặc một node tổ tiên đã lưu để xem văn bản nguồn.",
+      sourceContentLoading: "Đang tải nội dung nguồn pháp lý đã ghim…",
+      sourceContentUnavailable:
+        "Không có nội dung của node này trong đồ thị nguồn đã ghim được chọn.",
+      retrySourceContent: "Tải lại nội dung nguồn",
+      sourceContentEmpty: "Node nguồn đã lưu không có nội dung.",
+      sourceContentIncomplete:
+        "Còn nội dung nguồn ở phần tiếp theo. Tải phần giới hạn tiếp theo để đọc tiếp.",
+      loadMoreSourceContent: "Tải thêm nội dung nguồn",
+      relatedSourceNodes: "Các node nguồn con đã lưu",
+      relatedNodesTruncated: "Chỉ hiển thị số lượng node con trong giới hạn.",
+      sourceContentTechnicalIdentity: "Định danh và vị trí nội dung nguồn",
+      contentFingerprint: "Dấu vân tay nội dung đã lưu",
+      contentLocation: "Vị trí nguồn",
+      locationNotRecorded: "Chưa ghi nhận vị trí",
       claimIds: "Các mã Claim đã lưu",
       noClaims: "Không có mã Claim nào gắn với đơn vị rà soát này.",
       claimIdsTruncated:
@@ -536,8 +576,39 @@ export const viPages = {
       title: "Hoạt động chuẩn bị",
       live: "Trực tiếp",
       reconnecting: "Đang kết nối lại",
+      streamConnected: "Luồng hoạt động trực tiếp đang kết nối",
+      streamReconnecting: "Luồng hoạt động đang kết nối lại",
       empty: "Chưa ghi nhận hoạt động nào.",
       technicalDetails: "Chi tiết kỹ thuật",
+      runStatus: "Tr\u1ea1ng th\u00e1i l\u01b0\u1ee3t chu\u1ea9n b\u1ecb",
+      canonicalProgress:
+        "Ti\u1ebfn \u0111\u1ed9 R\u00e0 so\u00e1t ngu\u1ed3n t\u1eeb b\u1ea3n ghi nh\u1eadn chu\u1ea9n",
+      observedProgress:
+        "Ti\u1ebfn \u0111\u1ed9 ghi nh\u1eadn trong l\u1ecbch s\u1eed ho\u1ea1t \u0111\u1ed9ng \u0111\u00e3 t\u1ea3i",
+      frontierLoading:
+        "\u0110ang t\u1ea3i s\u1ed1 li\u1ec7u bao ph\u1ee7 R\u00e0 so\u00e1t ngu\u1ed3n chu\u1ea9n.",
+      frontierUnavailable:
+        "S\u1ed1 li\u1ec7u R\u00e0 so\u00e1t ngu\u1ed3n chu\u1ea9n kh\u00f4ng kh\u1ea3 d\u1ee5ng. C\u00e1c ch\u1ec9 s\u1ed1 b\u00ean d\u01b0\u1edbi, n\u1ebfu c\u00f3, \u0111\u01b0\u1ee3c ghi nh\u1eadn t\u1eeb ho\u1ea1t \u0111\u1ed9ng.",
+      observedUsageTitle:
+        "S\u1eed d\u1ee5ng m\u00f4 h\u00ecnh \u0111\u01b0\u1ee3c ghi nh\u1eadn \u1edf c\u1ea5p l\u01b0\u1ee3t ch\u1ea1y",
+      timeline: "D\u00f2ng th\u1eddi gian ho\u1ea1t \u0111\u1ed9ng",
+      emittedAt: "Th\u1eddi \u0111i\u1ec3m s\u1ef1 ki\u1ec7n",
+      unclassifiedGroup:
+        "S\u1ef1 ki\u1ec7n ch\u01b0a c\u00f3 giai \u0111o\u1ea1n \u0111\u01b0\u1ee3c x\u00e1c minh",
+      attemptAttributionUnavailable:
+        "Kh\u00f4ng c\u00f3 d\u1eef li\u1ec7u x\u00e1c minh giai \u0111o\u1ea1n v\u00e0 l\u1ea7n th\u1eed cho c\u00e1c s\u1ef1 ki\u1ec7n n\u00e0y. Th\u1ee9 t\u1ef1 ghi nh\u1eadn \u0111\u01b0\u1ee3c gi\u1eef nguy\u00ean.",
+      emptyHistoryMayContinue:
+        "Ch\u01b0a c\u00f3 s\u1ef1 ki\u1ec7n n\u00e0o \u0111\u01b0\u1ee3c t\u1ea3i. C\u00f3 th\u1ec3 c\u00f2n l\u1ecbch s\u1eed c\u0169 h\u01a1n.",
+      noFilterMatches:
+        "Kh\u00f4ng c\u00f3 s\u1ef1 ki\u1ec7n \u0111\u00e3 t\u1ea3i n\u00e0o kh\u1edbp b\u1ed9 l\u1ecdc n\u00e0y.",
+      filters: {
+        label: "L\u1ecdc ho\u1ea1t \u0111\u1ed9ng \u0111\u00e3 t\u1ea3i",
+        ALL: "T\u1ea5t c\u1ea3",
+        RUNNING: "\u0110ang ch\u1ea1y",
+        COMPLETED: "\u0110\u00e3 ho\u00e0n t\u1ea5t",
+        FAILED: "Th\u1ea5t b\u1ea1i",
+        OTHER: "Kh\u00e1c / ch\u01b0a \u0111\u01b0\u1ee3c b\u00e1o c\u00e1o",
+      },
       statuses: {
         RUNNING: "Đang chạy",
         COMPLETED: "Đã hoàn tất",

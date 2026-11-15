@@ -30,9 +30,12 @@ import {
   type PreparationScopeReviewActivate,
   preparationSourceUnitsRequestSchema,
   preparationSourceUnitDetailRequestSchema,
+  preparationSourceContentRequestSchema,
+  preparationSourceContentResponseSchema,
   preparationSourceNodeIdSchema,
   preparationGeneratedCatalogRequestSchema,
   type PreparationSourceUnitDetailRequest,
+  type PreparationSourceContentRequest,
   type PreparationSourceUnitsRequest,
   type PreparationGeneratedCatalogRequest,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -284,6 +287,52 @@ export class ComplianceRuleSetAdminController {
         req.correlationId || randomUUID(),
       ),
     );
+  }
+
+  /**
+   * Business purpose: Expose a bounded page of pinned LegalDocumentNode content to an authenticated Admin reviewer.
+   *
+   * Business rules:
+   * - Controller-wide Admin RBAC applies; the run and inventory revision select the authoritative source version and materialization.
+   * - A source node may be read only from that pinned materialization, and continuation requests must retain its content fingerprint.
+   *
+   * Execution flow:
+   * 1. Validate the run UUID, bounded node identity, and strict content-page query contract.
+   * 2. Delegate the consistent pinned read and return the standard JSON envelope.
+   *
+   * Failure cases:
+   * - Invalid input uses the shared validation problem; missing nodes and stale source identities use typed service problems.
+   *
+   * Side effects:
+   * - Read-only; no graph materialization, Preparation operation, SourceReview mutation, or worker call occurs.
+   */
+  @Get("preparations/:preparationRunId/source-units/:sourceNodeId/content")
+  async sourceNodeContent(
+    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
+    @Param(
+      "sourceNodeId",
+      new ZodValidationPipe(
+        preparationSourceNodeIdSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      ),
+    )
+    sourceNodeId: string,
+    @Query(
+      new ZodValidationPipe(
+        preparationSourceContentRequestSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      ),
+    )
+    request: PreparationSourceContentRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const data = await this.sourceAnalysis.content(
+      preparationRunId,
+      sourceNodeId,
+      request,
+      req.correlationId || randomUUID(),
+    );
+    return resultEnvelope(preparationSourceContentResponseSchema.parse(data));
   }
 
   /**

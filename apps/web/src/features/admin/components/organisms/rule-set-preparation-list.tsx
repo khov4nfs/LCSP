@@ -7,6 +7,8 @@ import { useRef, useState } from "react";
 import {
   RULE_SET_PREPARATION_SYSTEM_ACTOR,
   PREPARATION_EXECUTION_CONTRACTS,
+  RULE_SET_PREPARATION_STAGES,
+  CLAIM_PREPARATION_PHASES,
 } from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ import {
   useCancelRuleSetPreparationMutation,
   useRetryRuleSetPreparationMutation,
   useResumeRuleSetPreparationMutation,
+  usePreparationSourceUnitsQuery,
 } from "@/lib/api/compliance-rule-set-queries";
 import {
   canonicalExecutionLabel,
@@ -44,10 +47,42 @@ const PREPARATION_SECTIONS = [
 type PreparationSection = (typeof PREPARATION_SECTIONS)[number];
 
 /**
+ * Business purpose: Present a known Preparation stage using its localized business label.
+ *
+ * Business rules:
+ * - Only values in the shared Rule Set Preparation stage or Claim Preparation phase sets receive localized labels; unknown persisted values remain visible for diagnosis.
+ *
+ * Execution flow:
+ * 1. Match the recorded stage against the shared stage constants.
+ * 2. Resolve the matching translation key or preserve the unknown value, and use the localized not-recorded label when absent.
+ *
+ * Failure cases:
+ * - An unknown stage is shown as recorded instead of being mapped to a different lifecycle outcome.
+ *
+ * Side effects:
+ * - None: pure presentation mapping of an existing stage value.
+ */
+function localizedPreparationStageLabel(stage: string | null | undefined) {
+  if (!stage) return t("pages.complianceRuleSets.sourceAnalysis.notRecorded");
+  const stageEntry = Object.entries(RULE_SET_PREPARATION_STAGES).find(
+    ([, value]) => value === stage,
+  );
+  if (stageEntry)
+    return t(`pages.complianceRuleSets.stages.${stageEntry[0]}` as MessageKey);
+  const phaseEntry = Object.entries(CLAIM_PREPARATION_PHASES).find(
+    ([, value]) => value === stage,
+  );
+  return phaseEntry
+    ? t(`pages.preparationOps.stages.${phaseEntry[0]}` as MessageKey)
+    : stage;
+}
+
+/**
  * Business purpose: Present Admin Preparation history and the selected run's safe observability and source-review views.
  *
  * Business rules:
  * - The selected run controls the revision-pinned Source Analysis Explorer and Generated Rule Set Catalog; lifecycle actions remain bound to their original run IDs.
+ * - A succeeded run with neither a persisted draft nor a Rule Set Version is labeled as historical success without an artifact, not as an Assessment-ready result.
  * - Page navigation changes only which read surface is presented; activity remains subscribed at the selected-run level and the draft remains a bounded preview.
  *
  * Execution flow:
@@ -96,6 +131,11 @@ export function RuleSetPreparationList({
     selectedRun.executionState !== AGENT_EXECUTION_STATES.RUNNING &&
     selectedRun.executionState !== AGENT_EXECUTION_STATES.QUEUED;
   const activity = useRuleSetPreparationActivity(activeRunId, terminal);
+  const sourceUnits = usePreparationSourceUnitsQuery(
+    activeSection === "run-activity" ? activeRunId : null,
+    selectedRun?.sourceAnalysisInventoryRevision ?? null,
+    {},
+  );
   const sectionLabelKeys: Record<PreparationSection, MessageKey> = {
     "source-analysis":
       "pages.complianceRuleSets.sourceAnalysis.sections.sourceAnalysis",
@@ -107,9 +147,14 @@ export function RuleSetPreparationList({
   const activityProps = selectedRun
     ? {
         events: activity.events,
+        frontierCoverage: sourceUnits.data?.pages[0]?.frontier.coverage ?? null,
+        frontierCoverageError: sourceUnits.isError,
+        frontierCoverageLoading: sourceUnits.isPending,
         connected: activity.connected,
         terminal,
         executionState: selectedRun.executionState,
+        runStatusLabel: canonicalExecutionLabel(selectedRun.executionState),
+        preparationRunId: selectedRun.preparationRunId,
         hasOlder: Boolean(activity.history.hasNextPage),
         historyError: activity.history.isError,
         historyLoading: activity.history.isPending,
@@ -287,9 +332,9 @@ export function RuleSetPreparationList({
                   {t("pages.complianceRuleSets.sourceAnalysis.currentStage")}
                 </dt>
                 <dd className="wrap-break-word">
-                  {selectedRun.draft?.stage ??
-                    selectedRun.claimPhase ??
-                    t("pages.complianceRuleSets.sourceAnalysis.notRecorded")}
+                  {localizedPreparationStageLabel(
+                    selectedRun.draft?.stage ?? selectedRun.claimPhase,
+                  )}
                 </dd>
               </div>
               <div className="min-w-0">
@@ -304,6 +349,28 @@ export function RuleSetPreparationList({
                 </dd>
               </div>
             </dl>
+            {selectedRun.executionState === AGENT_EXECUTION_STATES.SUCCEEDED &&
+            selectedRun.persistedDraftAvailable === false &&
+            selectedRun.ruleSetVersionId === null ? (
+              <p
+                className="text-sm text-amber-700 dark:text-amber-300"
+                role="status"
+              >
+                {t(
+                  "pages.complianceRuleSets.draft.historicalSuccessWithoutArtifact",
+                )}
+              </p>
+            ) : null}
+            {selectedRun.executionState === AGENT_EXECUTION_STATES.RUNNING ||
+            selectedRun.executionState === AGENT_EXECUTION_STATES.QUEUED ? (
+              <p role="status" className="text-xs text-muted-foreground">
+                {t(
+                  activity.connected
+                    ? "pages.complianceRuleSets.activity.streamConnected"
+                    : "pages.complianceRuleSets.activity.streamReconnecting",
+                )}
+              </p>
+            ) : null}
             <details>
               <summary className="cursor-pointer text-xs text-muted-foreground">
                 {t("pages.complianceRuleSets.sourceAnalysis.runIdentity")}
@@ -408,11 +475,21 @@ export function RuleSetPreparationList({
               section === "run-activity" &&
               activityProps ? (
                 <div className="space-y-4">
-                  <PreparationObservability
-                    run={selectedRun}
-                    events={activity.events}
+                  <RuleSetPreparationActivity
+                    key={`${selectedRun.preparationRunId}:${selectedRun.sourceAnalysisInventoryRevision ?? "unavailable"}`}
+                    {...activityProps}
                   />
-                  <RuleSetPreparationActivity {...activityProps} />
+                  <details className="rounded-lg border border-border px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-medium">
+                      {t("pages.complianceRuleSets.activity.technicalDetails")}
+                    </summary>
+                    <div className="pt-3">
+                      <PreparationObservability
+                        run={selectedRun}
+                        events={activity.events}
+                      />
+                    </div>
+                  </details>
                 </div>
               ) : null}
             </div>

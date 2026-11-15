@@ -29,6 +29,10 @@ import {
   preparationUsageEvidence,
 } from "../../utils/rule-set-preparation-activity";
 import { RuleSetPreparationActivity } from "./rule-set-preparation-activity";
+import {
+  PreparationSourceContentReader,
+  formatPreparationLegalSourceNodeLabel,
+} from "./preparation-source-content-reader";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 const SOURCE_ANALYSIS_TABS = [
@@ -99,12 +103,10 @@ export function PreparationSourceAnalysisModal({
 
   if (!unit || !context) return null;
 
-  const label = unit.title || unit.label || unit.structuralPath;
+  const label = formatPreparationLegalSourceNodeLabel(unit);
   const ancestors = detail.data?.ancestors ?? unit.ancestors;
   const hierarchy = [
-    ...ancestors.map(
-      (ancestor) => ancestor.label || ancestor.title || ancestor.structuralPath,
-    ),
+    ...ancestors.map(formatPreparationLegalSourceNodeLabel),
     label,
   ]
     .filter(Boolean)
@@ -186,7 +188,7 @@ export function PreparationSourceAnalysisModal({
             {label}
           </DialogTitle>
           <DialogDescription className="wrap-break-word">
-            {hierarchy} · {unit.nodeType}
+            {hierarchy}
           </DialogDescription>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium">
@@ -373,7 +375,11 @@ export function PreparationSourceAnalysisModal({
                       </h3>
                       <p className="wrap-break-word text-sm">{hierarchy}</p>
                       <p className="text-xs text-muted-foreground">
-                        {unit.nodeType}
+                        {formatPreparationLegalSourceNodeLabel({
+                          nodeType: unit.nodeType,
+                          label: "",
+                          title: "",
+                        })}
                       </p>
                     </section>
 
@@ -499,9 +505,9 @@ export function PreparationSourceAnalysisModal({
                                 </span>
                               ) : null}
                               <span className="wrap-break-word font-medium">
-                                {ancestor.label ||
-                                  ancestor.title ||
-                                  ancestor.structuralPath}
+                                {formatPreparationLegalSourceNodeLabel(
+                                  ancestor,
+                                )}
                               </span>
                             </li>
                           ))}
@@ -537,9 +543,9 @@ export function PreparationSourceAnalysisModal({
                               className="min-w-0 rounded-md bg-muted/50 p-3"
                             >
                               <p className="wrap-break-word text-sm font-medium">
-                                {ancestor.label ||
-                                  ancestor.title ||
-                                  ancestor.structuralPath}
+                                {formatPreparationLegalSourceNodeLabel(
+                                  ancestor,
+                                )}
                               </p>
                               <p className="wrap-break-word text-xs text-muted-foreground">
                                 <code>{ancestor.structuralPath}</code>
@@ -563,6 +569,13 @@ export function PreparationSourceAnalysisModal({
                         </ul>
                       </details>
                     </section>
+                    <PreparationSourceContentReader
+                      key={`${context.preparationRunId}:${context.inventoryRevision}:${unit.sourceNodeId}`}
+                      preparationRunId={context.preparationRunId}
+                      inventoryRevision={context.inventoryRevision}
+                      unit={unit}
+                      ancestors={ancestors}
+                    />
                     <section className="space-y-2">
                       <h3 className="font-semibold">
                         {t("pages.complianceRuleSets.sourceAnalysis.claimIds")}
@@ -748,9 +761,20 @@ export function PreparationSourceAnalysisModal({
                             <p className="wrap-break-word whitespace-pre-wrap text-base font-medium">
                               {claim.statement}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {claim.claimType} Â· {claim.state}
-                            </p>
+                            <dl className="grid gap-2 text-xs sm:grid-cols-2">
+                              <Info
+                                label={t(
+                                  "pages.complianceRuleSets.sourceAnalysis.claimType",
+                                )}
+                                value={claim.claimType}
+                              />
+                              <Info
+                                label={t(
+                                  "pages.complianceRuleSets.sourceAnalysis.claimState",
+                                )}
+                                value={claim.state}
+                              />
+                            </dl>{" "}
                             {claim.sourceNodeIds.length ? (
                               <section className="space-y-1">
                                 <h4 className="text-xs font-medium">

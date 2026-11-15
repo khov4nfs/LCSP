@@ -69,6 +69,12 @@ export function PreparationGeneratedCatalog({
       COMPLIANCE_RULE_SET_ERROR_CODES.catalogCursorStale ||
     getProblemCode(query.error) ===
       COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict;
+  const entryAuthorityLabel =
+    firstPage?.source === PREPARATION_CATALOG_SOURCES.DRAFT
+      ? `${t("pages.complianceRuleSets.catalog.draftSource")} ${firstPage.draftVersion ?? ""}`
+      : firstPage?.source === PREPARATION_CATALOG_SOURCES.SUBMITTED
+        ? t("pages.complianceRuleSets.catalog.submittedSource")
+        : null;
 
   return (
     <section
@@ -234,6 +240,11 @@ export function PreparationGeneratedCatalog({
                     ? entry.data.proposition
                     : entry.data.legalIntent}
                 </span>
+                {entryAuthorityLabel ? (
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {entryAuthorityLabel}
+                  </span>
+                ) : null}
                 <span className="text-xs text-muted-foreground">
                   {entry.ordinal === null
                     ? t("pages.complianceRuleSets.catalog.draftEntry")
