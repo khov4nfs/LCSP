@@ -72,6 +72,182 @@ def test_small_python_fixture(tmp_path: Path) -> None:
         assert "jurisdiction" not in fact["statement"].lower()
 
 
+def test_package_json_classifies_ai_dependencies_without_runtime_overclaim(
+    tmp_path: Path,
+) -> None:
+    package_json = tmp_path / "package.json"
+    package_json.write_text(
+        json.dumps(
+            {
+                "name": "ai-web-app",
+                "dependencies": {
+                    "openai": "^4.0.0",
+                    "@anthropic-ai/sdk": "^0.30.0",
+                    "@google/genai": "^1.0.0",
+                    "@ai-sdk/openai": "^1.0.0",
+                    "ai": "^4.0.0",
+                    "langchain": "^0.3.0",
+                    "@tensorflow/tfjs": "^4.0.0",
+                    "@huggingface/transformers": "^3.0.0",
+                    "unlisted-ai-helper": "^1.0.0",
+                    "torch": "^1.0.0",
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    profile = scan_repository_workspace(
+        tmp_path,
+        repository_id="repo-ai-js-1",
+        commit_sha="1" * 40,
+    )
+
+    frameworks = {item["name"]: item for item in profile["frameworks"]}
+    assert frameworks["OpenAI SDK"]["category"] == "AI_PROVIDER_SDK"
+    assert frameworks["Anthropic SDK"]["category"] == "AI_PROVIDER_SDK"
+    assert frameworks["Google Gen AI SDK"]["category"] == "AI_PROVIDER_SDK"
+    assert frameworks["Vercel AI SDK OpenAI Provider"]["category"] == "AI_PROVIDER_SDK"
+    assert frameworks["Vercel AI SDK"]["category"] == "AI_ORCHESTRATION"
+    assert frameworks["LangChain"]["category"] == "AI_ORCHESTRATION"
+    assert frameworks["TensorFlow.js"]["category"] == "ML_FRAMEWORK"
+    assert frameworks["Transformers.js"]["category"] == "ML_FRAMEWORK"
+    assert all(item["name"] != "unlisted-ai-helper" for item in profile["frameworks"])
+    assert all(item["name"] != "PyTorch" for item in profile["frameworks"])
+
+    manifest = profile["manifests"][0]
+    dependency_lines = {item["name"]: item["line"] for item in manifest["dependencies"]}
+    assert frameworks["OpenAI SDK"]["line"] == dependency_lines["openai"]
+    assert frameworks["Anthropic SDK"]["line"] == dependency_lines["@anthropic-ai/sdk"]
+
+    ai_facts = [
+        fact
+        for fact in profile["candidateFacts"]
+        if "AI_" in fact["statement"] or "ML_FRAMEWORK" in fact["statement"]
+    ]
+    assert len(ai_facts) == 8
+    for fact in ai_facts:
+        statement = fact["statement"].lower()
+        assert "manifest declares" in statement
+        assert "does not establish runtime ai use" in statement
+        assert "uses ai in production" not in statement
+        assert "reachable" not in statement
+        assert fact["evidence"]["path"] == "package.json"
+        assert fact["evidence"]["startLine"] == fact["evidence"]["endLine"]
+
+
+def test_python_manifests_classify_ai_and_ml_dependencies(tmp_path: Path) -> None:
+    (tmp_path / "requirements.txt").write_text(
+        "openai[realtime] >= 1.0.0\n"
+        "anthropic @ https://example.invalid/anthropic.whl\n"
+        "langchain>=0.3.0\n"
+        "torch>=2.0.0\n"
+        "tensorflow>=2.0.0\n"
+        "scikit_learn>=1.0.0\n"
+        "ai>=1.0.0\n"
+        "unknown-model-client>=1.0.0\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.poetry.dependencies]\n"
+        'python = "^3.11"\n'
+        'google-genai = "^1.0"\n'
+        'transformers = "^4.0"\n',
+        encoding="utf-8",
+    )
+
+    profile = scan_repository_workspace(
+        tmp_path,
+        repository_id="repo-ai-python-1",
+        commit_sha="2" * 40,
+    )
+
+    categories = {item["name"]: item["category"] for item in profile["frameworks"]}
+    assert categories["OpenAI SDK"] == "AI_PROVIDER_SDK"
+    assert categories["Anthropic SDK"] == "AI_PROVIDER_SDK"
+    assert categories["LangChain"] == "AI_ORCHESTRATION"
+    assert categories["PyTorch"] == "ML_FRAMEWORK"
+    assert categories["TensorFlow"] == "ML_FRAMEWORK"
+    assert categories["scikit-learn"] == "ML_FRAMEWORK"
+    assert categories["Google Gen AI SDK"] == "AI_PROVIDER_SDK"
+    assert categories["Hugging Face Transformers"] == "ML_FRAMEWORK"
+    assert all(item["name"] != "unknown-model-client" for item in profile["frameworks"])
+    assert all(item["name"] != "Vercel AI SDK" for item in profile["frameworks"])
+
+    facts_by_path: dict[str, list[dict[str, object]]] = {}
+    for fact in profile["candidateFacts"]:
+        facts_by_path.setdefault(fact["evidence"]["path"], []).append(fact)
+
+    assert len(facts_by_path["requirements.txt"]) == 6
+    assert len(facts_by_path["pyproject.toml"]) == 2
+    for facts in facts_by_path.values():
+        for fact in facts:
+            assert "does not establish runtime AI use" in fact["statement"]
+            assert fact["evidence"]["startLine"] == fact["evidence"]["endLine"]
+            assert fact["evidence"]["excerptSha256"].startswith("sha256:")
+
+
+def test_pyproject_pep621_arrays_do_not_classify_optional_group_names(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\n"
+        'dependencies = ["openai>=1", "torch>=2"]\n'
+        "\n"
+        "[project.optional-dependencies]\n"
+        "ai = [\n"
+        '  "anthropic>=0.30",\n'
+        "]\n",
+        encoding="utf-8",
+    )
+
+    profile = scan_repository_workspace(
+        tmp_path,
+        repository_id="repo-pep621-1",
+        commit_sha="3" * 40,
+    )
+
+    frameworks = profile["frameworks"]
+    assert {(item["name"], item["category"]) for item in frameworks} == {
+        ("OpenAI SDK", "AI_PROVIDER_SDK"),
+        ("PyTorch", "ML_FRAMEWORK"),
+        ("Anthropic SDK", "AI_PROVIDER_SDK"),
+    }
+    assert all(item["name"] != "Vercel AI SDK" for item in frameworks)
+    facts = profile["candidateFacts"]
+    assert len(facts) == 3
+    assert {fact["evidence"]["startLine"] for fact in facts} == {2, 6}
+
+
+def test_package_json_framework_provenance_is_scoped_to_dependency_section(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "package.json").write_text(
+        "{\n"
+        '  "keywords": ["openai"],\n'
+        '  "dependencies": {\n'
+        '    "openai": "^4.0.0"\n'
+        "  },\n"
+        '  "devDependencies": {\n'
+        '    "openai": "^4.1.0"\n'
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    profile = scan_repository_workspace(
+        tmp_path,
+        repository_id="repo-json-provenance-1",
+        commit_sha="4" * 40,
+    )
+
+    observations = [item for item in profile["frameworks"] if item["name"] == "OpenAI SDK"]
+    assert [item["line"] for item in observations] == [4, 7]
+    facts = [fact for fact in profile["candidateFacts"] if "OpenAI SDK" in fact["statement"]]
+    assert [fact["evidence"]["startLine"] for fact in facts] == [4, 7]
+
+
 def test_monorepo_fixture_with_prefix_scoping(tmp_path: Path) -> None:
     (tmp_path / "pnpm-workspace.yaml").write_text("packages:\n  - 'apps/*'\n", encoding="utf-8")
 
