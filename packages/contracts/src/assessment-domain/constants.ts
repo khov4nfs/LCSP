@@ -353,3 +353,11 @@ export const HUMAN_FACT_GUARD_FAILURES = {
 } as const;
 export type HumanFactGuardFailure =
   (typeof HUMAN_FACT_GUARD_FAILURES)[keyof typeof HUMAN_FACT_GUARD_FAILURES];
+
+/** Lifecycle of one immutable human fact proposal derived from a submitted answer. */
+export const HUMAN_FACT_PROPOSAL_STATUSES = {
+  pendingReview: "PENDING_REVIEW",
+  accepted: "ACCEPTED",
+} as const;
+export type HumanFactProposalStatus =
+  (typeof HUMAN_FACT_PROPOSAL_STATUSES)[keyof typeof HUMAN_FACT_PROPOSAL_STATUSES];
