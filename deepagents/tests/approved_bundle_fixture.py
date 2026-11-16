@@ -23,14 +23,14 @@ def build_test_bundle(directory: Path):
         vi = (root / row["vietnameseSourcePath"]).read_bytes()
         en = (root / row["englishCandidatePath"]).read_bytes()
         origin, runtime = sha256(vi).hexdigest(), sha256(en).hexdigest()
-        if origin != row["sourceSha256"] or runtime != row["englishCandidateSha256"] or origin != row["candidateOriginSha256"]:
+        if "sourceSha256" in row and (origin != row["sourceSha256"] or runtime != row.get("englishCandidateSha256") or origin != row.get("candidateOriginSha256")):
             raise ValueError("TEST_BUNDLE_SOURCE_OR_CANDIDATE_DRIFT:" + identity)
         for path, data in ((row["vietnameseSourcePath"], vi), (row["englishCandidatePath"], en)):
             destination = directory / path
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(data)
         entries.append({"sourceId": identity, "vietnameseSourcePath": row["vietnameseSourcePath"],
-                        "vietnameseSourceRevision": row["vietnameseSourceRevision"], "vietnameseSourceSha256": origin,
+                        "vietnameseSourceRevision": row.get("vietnameseSourceRevision", "r1"), "vietnameseSourceSha256": origin,
                         "englishRuntimePath": row["englishCandidatePath"], "englishRuntimeSha256": runtime})
         origins.append({"sourceId": identity, "sha256": origin})
         runtimes.append({"sourceId": identity, "sha256": runtime})

@@ -128,6 +128,10 @@ export const COMPLIANCE_RULE_SET_ERROR_CODES = {
   activeRuleSetNotFound: "ACTIVE_COMPLIANCE_RULE_SET_NOT_FOUND",
   sourceVersionNotFound: "RULE_SET_PREPARATION_SOURCE_VERSION_NOT_FOUND",
   preparationNotAllowed: "RULE_SET_PREPARATION_NOT_ALLOWED",
+  catalogRequestInvalid: "RULE_SET_PREPARATION_CATALOG_REQUEST_INVALID",
+  catalogCursorStale: "RULE_SET_PREPARATION_CATALOG_CURSOR_STALE",
+  catalogPersistedDataInvalid:
+    "RULE_SET_PREPARATION_CATALOG_PERSISTED_DATA_INVALID",
 } as const;
 
 /** Closed reasons a Rule Set Preparation retry or automatic start is refused. */

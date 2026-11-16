@@ -46,10 +46,11 @@ def provider_pauses(monkeypatch):
 
 
 ALPHA, GAMMA, FUTURE, DELTA = "model-alpha", "model-gamma", "future-model-v99", "model-delta"
-MODEL_FOR = {"openai": ALPHA, "apx": GAMMA, "google_genai": FUTURE, "inception": DELTA}
+MODEL_FOR = {"openai": ALPHA, "apx": GAMMA, "google_genai": FUTURE, "inception": DELTA,
+             "miraiapi": GAMMA}
 
 
-def _routes(monkeypatch, primary: str, *fallbacks: str) -> None:
+def _routes(monkeypatch, primary: str, *fallbacks: str, extra_roles: tuple[str, ...] = ()) -> None:
     """Configure the model routes file: ``primary`` bound as default, ``fallbacks`` its ordered chain."""
     chain = (primary, *fallbacks)
     use_model_routes(
@@ -64,7 +65,7 @@ def _routes(monkeypatch, primary: str, *fallbacks: str) -> None:
                     }
                     for i, provider in enumerate(chain)
                 },
-                "roles": {"default": "r0"},
+                "roles": {"default": "r0", **{role: "r0" for role in extra_roles}},
                 "fallbacks": {"r0": [f"r{i}" for i in range(1, len(chain))]},
             }
         ),
@@ -221,9 +222,8 @@ async def test_configured_workflow_chain_rotates_only_own_keys_in_provider_order
 ):
     import model_policy as policy
 
-    monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
-    policy.load_model_routes.cache_clear()
     providers = ["miraiapi", "inception", "google_genai", "apx"]
+    _routes(monkeypatch, *providers, extra_roles=("root",))
     for provider, name in zip(providers, ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]):
         monkeypatch.setenv(name, f"offline-{provider}-a,offline-{provider}-b")
     calls = []

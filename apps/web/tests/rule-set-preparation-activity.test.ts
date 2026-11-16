@@ -13,9 +13,55 @@ import { CLAIM_DISCOVERY_ACTIVITY_KINDS } from "@lcsp/contracts/compliance-rule-
 
 import {
   preparationTokenUsage,
+  preparationCanonicalProgress,
   preparationProgress,
   projectPreparationActivity,
 } from "../src/features/admin/utils/rule-set-preparation-activity";
+
+test("canonical Source Review progress comes from persisted frontier counts", () => {
+  assert.deepEqual(
+    preparationCanonicalProgress({
+      total: 10,
+      pending: 2,
+      inReview: 1,
+      reviewedWithClaims: 4,
+      reviewedNoClaims: 3,
+      blockedReferences: 5,
+      persistedClaims: 7,
+    }),
+    {
+      reviewed: 7,
+      total: 10,
+      inconsistent: false,
+      partial: false,
+      remaining: 3,
+      reviewedWithClaims: 4,
+      reviewedNoClaims: 3,
+      inReview: 1,
+      pending: 2,
+      blocked: null,
+      blockedReferences: 5,
+      persistedClaims: 7,
+      claims: null,
+      requirements: null,
+      rules: null,
+    },
+  );
+});
+
+test("inconsistent canonical counters do not define remaining units", () => {
+  const progress = preparationCanonicalProgress({
+    total: 9,
+    pending: 2,
+    inReview: 1,
+    reviewedWithClaims: 4,
+    reviewedNoClaims: 3,
+    blockedReferences: 0,
+    persistedClaims: 2,
+  });
+  assert.equal(progress.inconsistent, true);
+  assert.equal(progress.remaining, null);
+});
 
 test("frontier counters use the latest recorded progress without inventing missing values", () => {
   assert.equal(preparationProgress([event(1, T.boundaryStarted)]), null);
@@ -44,6 +90,7 @@ test("frontier counters use the latest recorded progress without inventing missi
       inReview: null,
       pending: null,
       blocked: null,
+      blockedReferences: null,
       persistedClaims: null,
       claims: 7,
       requirements: null,

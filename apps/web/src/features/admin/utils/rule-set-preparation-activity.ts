@@ -12,6 +12,8 @@ import type { MessageKey } from "@lcsp/i18n";
 import {
   CLAIM_DISCOVERY_ACTIVITY_KINDS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES,
+  PREPARATION_STAGE_OBSERVATIONS,
+  type PreparationSourceUnitsResponse,
 } from "@lcsp/contracts/compliance-rule-set";
 
 const ACTIVITY_KEYS = {
@@ -44,7 +46,7 @@ const ACTIVITY_STATUSES = {
   failed: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
   cancelled: AGENT_EXECUTION_STATES.CANCELLED,
   paused: AGENT_EXECUTION_STATES.PAUSED,
-  unreported: "NOT_REPORTED",
+  unreported: PREPARATION_STAGE_OBSERVATIONS.NOT_REPORTED,
 } as const;
 type PreparationActivityStatus =
   (typeof ACTIVITY_STATUSES)[keyof typeof ACTIVITY_STATUSES];
@@ -343,11 +345,60 @@ export type PreparationProgressSummary = {
   inReview: number | null;
   pending: number | null;
   blocked: number | null;
+  blockedReferences: number | null;
   persistedClaims: number | null;
   claims: number | null;
   requirements: number | null;
   rules: number | null;
 };
+
+/**
+ * Business purpose: Project the selected run's persisted frontier counters into canonical Source Review progress.
+ *
+ * Business rules:
+ * - The frontier total and its four mutually exclusive review-state counters define the denominator; blocked references remain a separate reference count.
+ * - A progress bar is trustworthy only when the review-state counters sum exactly to the persisted total.
+ *
+ * Execution flow:
+ * 1. Sum reviewed-with-claims and reviewed-without-claims units.
+ * 2. Validate the pending, in-review, and reviewed unit counters against the persisted total.
+ * 3. Return canonical counts and suppress remaining-unit arithmetic when those counters disagree.
+ *
+ * Failure cases:
+ * - Inconsistent counters remain visible but are marked inconsistent and cannot support a percentage bar.
+ *
+ * Side effects:
+ * - None: pure projection of a validated read response.
+ */
+export function preparationCanonicalProgress(
+  coverage: PreparationSourceUnitsResponse["frontier"]["coverage"],
+): PreparationProgressSummary {
+  const reviewed = coverage.reviewedWithClaims + coverage.reviewedNoClaims;
+  const classified =
+    coverage.pending +
+    coverage.inReview +
+    coverage.reviewedWithClaims +
+    coverage.reviewedNoClaims;
+  const inconsistent =
+    classified !== coverage.total || reviewed > coverage.total;
+  return {
+    reviewed,
+    total: coverage.total,
+    inconsistent,
+    partial: false,
+    remaining: inconsistent ? null : coverage.total - reviewed,
+    reviewedWithClaims: coverage.reviewedWithClaims,
+    reviewedNoClaims: coverage.reviewedNoClaims,
+    inReview: coverage.inReview,
+    pending: coverage.pending,
+    blocked: null,
+    blockedReferences: coverage.blockedReferences,
+    persistedClaims: coverage.persistedClaims,
+    claims: null,
+    requirements: null,
+    rules: null,
+  };
+}
 
 /**
  * Business purpose: Display the latest usable run-emitted frontier snapshot using the existing
@@ -417,6 +468,7 @@ export function preparationProgress(
       inReview: numberOrNull(progress?.inReview),
       pending: numberOrNull(progress?.pending),
       blocked: numberOrNull(progress?.blocked),
+      blockedReferences: null,
       persistedClaims: numberOrNull(progress?.persistedClaims),
       claims: numberOrNull(data?.claim_count),
       requirements: numberOrNull(data?.requirement_count),

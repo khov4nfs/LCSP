@@ -12,8 +12,10 @@ import {
 } from "@jest/globals";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
+import { LEGAL_DOCUMENT_NODE_TYPES } from "@lcsp/contracts/legal-source";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  PREPARATION_SOURCE_CONTENT_AVAILABILITY,
   RULE_SET_REACTIVATION_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
 import type { INestApplication } from "@nestjs/common";
@@ -30,10 +32,58 @@ import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
 import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
+import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
+import { PreparationGeneratedCatalogReadService } from "../../infrastructure/persistence/preparation-generated-catalog-read.service.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 describe("Admin preparation HTTP authorization and command boundary", () => {
   let app: INestApplication<Server>;
+  const listSourceUnits = jest.fn(
+    (runId: string, request: unknown, correlationId: string) => {
+      void runId;
+      void request;
+      void correlationId;
+      return Promise.resolve({ units: [] as unknown[] });
+    },
+  );
+  const readSourceContent = jest
+    .fn<
+      (
+        runId: string,
+        sourceNodeId: string,
+        request: unknown,
+        correlationId: string,
+      ) => Promise<unknown>
+    >()
+    .mockResolvedValue({
+      preparationRunId: "31e042e8-6b91-4bfd-8853-108bb4436efd",
+      inventoryRevision: 3,
+      legalSourceVersionId: "5ae8f595-1ae6-44a4-b7c1-ef9d4da37598",
+      materializationId: "a".repeat(64),
+      sourceNodeId: "b".repeat(64),
+      documentId: "document-1",
+      nodeType: LEGAL_DOCUMENT_NODE_TYPES.ARTICLE,
+      parentNodeId: null,
+      structuralPath: "Document/Article 3",
+      sourcePath: "source/document-1",
+      ordinal: 3,
+      label: "3",
+      title: "3",
+      pageStart: null,
+      pageEnd: null,
+      charStart: null,
+      charEnd: null,
+      ancestors: [],
+      children: [],
+      childrenTruncated: false,
+      contentFingerprint: "c".repeat(64),
+      contentLength: 0,
+      availability: PREPARATION_SOURCE_CONTENT_AVAILABILITY.EMPTY,
+      offset: 0,
+      content: "",
+      nextCursor: null,
+      complete: true,
+    });
   const execute = jest.fn<CommandBus["execute"]>().mockResolvedValue({
     preparationRunId: "31e042e8-6b91-4bfd-8853-108bb4436efd",
     legalSourceVersionId: "5ae8f595-1ae6-44a4-b7c1-ef9d4da37598",
@@ -85,6 +135,18 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
             activate: jest.fn(),
           },
         },
+        {
+          provide: PreparationSourceAnalysisReadService,
+          useValue: {
+            list: listSourceUnits,
+            detail: jest.fn(),
+            content: readSourceContent,
+          },
+        },
+        {
+          provide: PreparationGeneratedCatalogReadService,
+          useValue: { list: jest.fn() },
+        },
       ],
     })
       .overrideGuard(RbacGuard)
@@ -95,6 +157,7 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
   });
   beforeEach(() => {
     execute.mockClear();
+    listSourceUnits.mockClear();
   });
   afterAll(async () => {
     await app.close();
@@ -130,6 +193,81 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
       .post("/admin/compliance-rule-sets/prepare")
       .expect(401);
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("serves the pinned source-unit read to Admin and rejects non-Admin access", async () => {
+    const runId = "31e042e8-6b91-4bfd-8853-108bb4436efd";
+    const response = await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units?inventoryRevision=3&limit=20`,
+      )
+      .set("Authorization", "Bearer admin")
+      .expect(200);
+    expect(response.body).toMatchObject({ ok: true, data: { units: [] } });
+    expect(listSourceUnits).toHaveBeenCalledWith(
+      runId,
+      expect.objectContaining({ inventoryRevision: 3, limit: 20 }),
+      expect.any(String),
+    );
+
+    await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units?inventoryRevision=3`,
+      )
+      .set("Authorization", "Bearer customer")
+      .expect(403);
+  });
+
+  it("rejects invalid Source Analysis query values", async () => {
+    await supertest(app.getHttpServer())
+      .get(
+        "/admin/compliance-rule-sets/preparations/31e042e8-6b91-4bfd-8853-108bb4436efd/source-units?inventoryRevision=0&limit=101",
+      )
+      .set("Authorization", "Bearer admin")
+      .expect(400);
+    expect(listSourceUnits).not.toHaveBeenCalled();
+  });
+
+  it("serves bounded pinned source content to Admin and rejects invalid continuation or non-Admin access", async () => {
+    const runId = "31e042e8-6b91-4bfd-8853-108bb4436efd";
+    const sourceNodeId = "b".repeat(64);
+    const response = await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units/${sourceNodeId}/content?inventoryRevision=3&limit=256`,
+      )
+      .set("Authorization", "Bearer admin")
+      .expect(200);
+    expect(response.body).toMatchObject({
+      ok: true,
+      data: {
+        preparationRunId: runId,
+        inventoryRevision: 3,
+        sourceNodeId,
+        availability: PREPARATION_SOURCE_CONTENT_AVAILABILITY.EMPTY,
+      },
+    });
+    expect(readSourceContent).toHaveBeenCalledWith(
+      runId,
+      sourceNodeId,
+      expect.objectContaining({ inventoryRevision: 3, limit: 256 }),
+      expect.any(String),
+    );
+
+    await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units/${sourceNodeId}/content?inventoryRevision=3&cursor=&limit=256`,
+      )
+      .set("Authorization", "Bearer admin")
+      .expect(400);
+    expect(readSourceContent).toHaveBeenCalledTimes(1);
+
+    await supertest(app.getHttpServer())
+      .get(
+        `/admin/compliance-rule-sets/preparations/${runId}/source-units/${sourceNodeId}/content?inventoryRevision=3&limit=256`,
+      )
+      .set("Authorization", "Bearer customer")
+      .expect(403);
+    expect(readSourceContent).toHaveBeenCalledTimes(1);
   });
 
   it("ADMIN resumes the same preparation through the canonical envelope", async () => {

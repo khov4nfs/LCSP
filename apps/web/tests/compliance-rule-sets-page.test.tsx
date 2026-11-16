@@ -137,8 +137,16 @@ test("Compliance Rule Sets shows Prepare and canonical Retry after a failed prep
     assert.match(text, /No rule set|Rule Set Preparation/);
     // An ACTIVE rule set never blocks improvement: an explicit "Prepare new version" is offered next
     // to "View result". Retry remains scoped to the latest failed run.
+    assert.ok(page.querySelector("#source-analysis-state"));
+    assert.ok(page.querySelector("#source-analysis-document"));
+    const preparationEntryPoint = page.querySelector(
+      "[data-testid='rule-set-preparation-entry-point']",
+    );
+    assert.ok(preparationEntryPoint);
     assert.equal(
-      page.querySelectorAll("form, select, [role='combobox']").length,
+      preparationEntryPoint.querySelectorAll(
+        "select, [role='combobox'], [name='legalSourceVersionId'], [name='sourceNodeId']",
+      ).length,
       0,
     );
     assert.equal(byText(page, "button", "Prepare rule set"), null);
