@@ -50,7 +50,11 @@ import {
 } from "./constants.ts";
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
 import { assessmentBudgetStateSchema } from "./budget.ts";
-import { factNeedInputSchema, factNeedViewSchema } from "./fact-needs.ts";
+import {
+  factNeedInputSchema,
+  factNeedViewSchema,
+  normalizedFactNeedAnswerSchema,
+} from "./fact-needs.ts";
 import {
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_NAME_MAX_LENGTH,
@@ -336,6 +340,7 @@ export const humanAnswerAuditSchema = z.strictObject({
   requestRevision: revisionSchema,
   doesNotKnow: z.boolean(),
   answer: privateTextSchema.nullable(),
+  normalizedAnswer: normalizedFactNeedAnswerSchema.nullable().optional(),
   selectedChoice: z
     .strictObject({
       value: identifierSchema,
