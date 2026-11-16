@@ -21,6 +21,34 @@ export async function handleLegalRuleCatalog(
   { success, problem, readJson },
 ) {
   const root = "/admin/legal-rule-catalog";
+  const activity =
+    /^\/admin\/compliance-rule-sets\/preparations\/([^/]+)\/activity$/.exec(
+      url.pathname,
+    );
+  const streamRunId =
+    url.pathname === "/workspace/runtime-events"
+      ? url.searchParams.get("preparation_run_id")
+      : null;
+  if (request.method === "GET" && (activity || streamRunId)) {
+    const runId = activity?.[1] ?? streamRunId;
+    const state = accounts.get(account);
+    if (
+      !state ||
+      ![...state.history.values()]
+        .flat()
+        .some((result) => result.preparationRunId === runId)
+    )
+      problem(response, 404, "LEGAL_RULE_CATALOG_NOT_FOUND");
+    else if (activity) success(response, fixture.emptyActivity);
+    else {
+      response.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+      });
+      response.end(fixture.emptyActivityStream);
+    }
+    return true;
+  }
   if (
     request.method === "GET" &&
     url.pathname === "/admin/compliance-rule-sets/groups/pending"

@@ -92,10 +92,14 @@ const server = createServer(async (request, response) => {
   if (
     url.pathname.startsWith("/admin/legal-rule-catalog") ||
     (token.startsWith(catalogFixtureAdminPrefix) &&
-      [
+      ([
         "/admin/localization",
         "/admin/compliance-rule-sets/groups/pending",
-      ].includes(url.pathname))
+        "/workspace/runtime-events",
+      ].includes(url.pathname) ||
+        /^\/admin\/compliance-rule-sets\/preparations\/[^/]+\/activity$/.test(
+          url.pathname,
+        )))
   ) {
     if (role !== "ADMIN") return problem(response, 403, "RBAC_DENIED");
     if (

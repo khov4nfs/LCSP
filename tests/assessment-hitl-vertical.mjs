@@ -45,7 +45,7 @@ const {
   post,
   stop,
   seedLegalSource,
-  activateLegalSource,
+  startPreparationFixture,
   checkpointDatabaseUrl,
 } = stack;
 let checks = 0;
@@ -140,7 +140,7 @@ try {
   });
   const seed = path.join(dir, "seed.json");
   writeFileSync(seed, JSON.stringify({ hashes }));
-  const prep = await activateLegalSource(legalSource);
+  const prep = await startPreparationFixture(legalSource);
   eq(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
   const prepared = await runPython(
     path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),

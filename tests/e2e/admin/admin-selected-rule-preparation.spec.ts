@@ -166,8 +166,19 @@ test("bulk build shows partial results, retries only failure, and regenerates on
   await expect(
     batch.getByText(en.preparedCount, { exact: true }).locator(".."),
   ).toContainText("51");
+  const activityResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname ===
+      `/api/admin/compliance-rule-sets/preparations/${retried.items[0].preparationRunId}/activity`,
+  );
   const first = batch.getByRole("listitem").filter({ hasText: "LR001" });
   await first.getByRole("button", { name: en.viewResult, exact: true }).click();
+  expect((await activityResponse).status()).toBe(200);
+  await page
+    .getByRole("dialog")
+    .getByText(en.activity, { exact: true })
+    .click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
   await expect(
     page
       .getByRole("dialog")

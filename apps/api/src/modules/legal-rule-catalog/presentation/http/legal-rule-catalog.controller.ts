@@ -203,7 +203,12 @@ export class PreparationRuleWorkerController {
     @Req() req: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.preparation.claim(request.preparationRunId, correlation(req)),
+      C.preparationRuleClaimResponseSchema.parse(
+        await this.preparation.claim(
+          request.preparationRunId,
+          correlation(req),
+        ),
+      ),
     );
   }
 

@@ -52,7 +52,7 @@ try {
     }
     sourceId = mode === "full" ? await importDirectLegalSource(stack, token, corpus, evidence) : await stack.seedLegalDocuments(corpus);
     await admin(`/admin/legal-source-versions/${sourceId}/activate`);
-    const activated = await stack.activateLegalSource(sourceId);
+    const activated = await stack.startPreparationFixture(sourceId);
     preparationRunId = activated.preparationRunId;
     assert.ok(preparationRunId);
     writeFileSync(path.join(evidence, "identity.json"), JSON.stringify({ database, sourceId, preparationRunId, mode, apiPort: Number(process.env.LCSP_LIVE_API_PORT ?? 3427) }, null, 2));

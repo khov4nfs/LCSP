@@ -15,6 +15,7 @@ import {
   LEGAL_RULE_SELECTION_MODES as MODES,
   LEGAL_RULE_LIMITS,
   legalRuleCitationSchema,
+  legalRuleListItemSchema,
   preparationRuleInputSchema,
   type LegalRuleWrite,
   type LegalRuleList,
@@ -50,7 +51,12 @@ export function preparationInputFingerprint(
   return sha256Hex(
     canonicalJson({
       ...input,
-      citations: input.citations.map(({ content: _content, ...ref }) => ref),
+      citations: input.citations.map((ref) => ({
+        chunkId: ref.chunkId,
+        documentId: ref.documentId,
+        locator: ref.locator,
+        contentSha256: ref.contentSha256,
+      })),
     }),
   );
 }
@@ -449,7 +455,7 @@ export class LegalRuleCatalogService {
           limit: query.limit,
           items: matching
             .slice((query.page - 1) * query.limit, query.page * query.limit)
-            .map(({ input: _input, ...item }) => item),
+            .map((item) => legalRuleListItemSchema.parse(item)),
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },

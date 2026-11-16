@@ -29,7 +29,6 @@ import { User } from "../../../auth/domain/entities/user.entity.js";
 import type { RbacContextLoader } from "../../../../platform/rbac/rbac-context.loader.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
-import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
 import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";

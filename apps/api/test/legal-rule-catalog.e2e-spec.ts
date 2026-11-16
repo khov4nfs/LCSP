@@ -1,4 +1,7 @@
 import "reflect-metadata";
+import type { Server } from "node:http";
+import { z } from "zod";
+import * as C from "@lcsp/contracts/legal-rule-catalog";
 import { ensureMigratedSchema } from "./support/auth-workspace-test-helpers.js";
 import { randomUUID, createHash } from "node:crypto";
 import { beforeAll, afterAll, describe, it, expect, jest } from "@jest/globals";
@@ -12,14 +15,12 @@ import {
   LegalSourceLifecycleStatus,
   LegalRetrievalIndexStatus,
   LegalEffectStatus,
-  Prisma,
 } from "@prisma/client";
 import { LEGAL_SOURCE_DELETION_BLOCKERS } from "@lcsp/contracts/legal-source";
 import { LegalSourceDeletionService } from "../src/modules/legal-source/application/services/legal-source-deletion.service.js";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   LEGAL_RULE_SELECTION_MODES as M,
-  LEGAL_RULE_CATALOG_ERRORS as E,
   LEGAL_RULE_PREPARATION_STATES as S,
   preparationRuleOutputSchema,
   preparationRuleInputSchema,
@@ -57,6 +58,11 @@ const workerRoot = "/internal/legal-rule-preparation";
 const key = "lcsp369-provider-free-worker-key";
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
+function responseData<T>(response: { body: unknown }, schema: z.ZodType<T>): T {
+  return z.object({ ok: z.literal(true), data: schema }).parse(response.body)
+    .data;
+}
+
 database(
   "LCSP-369 complete selected Preparation Rule Set API flow (no provider/broker)",
   () => {
@@ -72,16 +78,16 @@ database(
     const tag = randomUUID();
     const actor = `lcsp369-admin-${tag}`;
     const post = (path: string, body: object, token = "admin") =>
-      request(app.getHttpServer())
+      request(app.getHttpServer() as Server)
         .post(`${root}${path}`)
         .set("Authorization", `Bearer ${token}`)
         .send(body);
     const get = (path: string, token = "admin") =>
-      request(app.getHttpServer())
+      request(app.getHttpServer() as Server)
         .get(`${root}${path}`)
         .set("Authorization", `Bearer ${token}`);
     const worker = (path: string, body: object) =>
-      request(app.getHttpServer())
+      request(app.getHttpServer() as Server)
         .post(`${workerRoot}${path}`)
         .set("x-worker-api-key", key)
         .send(body);
@@ -168,34 +174,36 @@ database(
           },
           {
             provide: CommandBus,
-            useValue: { execute: jest.fn(async () => ({})) },
+            useValue: { execute: jest.fn(() => Promise.resolve({})) },
           },
           {
             provide: AUTHORIZATION_DECISION_REPOSITORY,
-            useValue: { append: jest.fn(async () => undefined) },
+            useValue: { append: jest.fn(() => Promise.resolve(undefined)) },
           },
           {
             provide: RbacContextLoader,
             useValue: {
-              load: async (token: string) =>
-                token === "invalid"
-                  ? { ok: false, reason: "SESSION_INVALID" }
-                  : {
-                      ok: true,
-                      session: {
-                        id: randomUUID(),
-                        userId:
-                          token === "other-admin" ? `${actor}-other` : actor,
-                        mfaGenerationId: "generation",
+              load: (token: string) =>
+                Promise.resolve(
+                  token === "invalid"
+                    ? { ok: false, reason: "SESSION_INVALID" }
+                    : {
+                        ok: true,
+                        session: {
+                          id: randomUUID(),
+                          userId:
+                            token === "other-admin" ? `${actor}-other` : actor,
+                          mfaGenerationId: "generation",
+                        },
+                        user: {
+                          role:
+                            token === "customer"
+                              ? AUTH_USER_ROLES.customer
+                              : AUTH_USER_ROLES.admin,
+                          mfaGenerationId: "generation",
+                        },
                       },
-                      user: {
-                        role:
-                          token === "customer"
-                            ? AUTH_USER_ROLES.customer
-                            : AUTH_USER_ROLES.admin,
-                        mfaGenerationId: "generation",
-                      },
-                    },
+                ),
             },
           },
         ],
@@ -260,8 +268,8 @@ database(
         version: `catalog-${tag}`,
         legalSourceVersionId: sourceId,
       }).expect(201);
-      catalogId = created.body.data.id;
-      revision = created.body.data.revision;
+      catalogId = responseData(created, C.legalRuleCatalogSchema).id;
+      revision = responseData(created, C.legalRuleCatalogSchema).revision;
       ruleIds = [];
       for (let index = 1; index <= 52; index++) {
         const saved = await post(`/${catalogId}/rules`, {
@@ -274,8 +282,8 @@ database(
           ],
           expectedRevision: revision,
         }).expect(200);
-        revision = saved.body.data.catalogRevision;
-        ruleIds.push(saved.body.data.rule.id);
+        revision = responseData(saved, C.legalRuleSavedSchema).catalogRevision;
+        ruleIds.push(responseData(saved, C.legalRuleSavedSchema).rule.id);
       }
       // Simulate a pre-existing imported reference that no longer resolves, to prove it remains visible but unselectable.
       await db.legalRule.create({
@@ -344,14 +352,16 @@ database(
     });
 
     it("enforces Admin/session and worker authentication independently", async () => {
-      await request(app.getHttpServer()).get(root).expect(401);
+      await request(app.getHttpServer() as Server)
+        .get(root)
+        .expect(401);
       await get("", "customer").expect(403);
       await post(
         "/selections",
         { catalogVersionId: catalogId },
         "invalid",
       ).expect(401);
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as Server)
         .post(`${workerRoot}/claim`)
         .send({ preparationRunId: randomUUID() })
         .expect(401);
@@ -364,10 +374,10 @@ database(
       const second = await get(
         `/${catalogId}/rules?limit=50&page=2&search=Notice`,
       ).expect(200);
-      expect(first.body.data.items).toHaveLength(50);
-      expect(second.body.data.items).toHaveLength(2);
-      expect(first.body.data.total).toBe(52);
-      expect(first.body.data.eligibleTotal).toBe(51);
+      expect(responseData(first, C.legalRulePageSchema).items).toHaveLength(50);
+      expect(responseData(second, C.legalRulePageSchema).items).toHaveLength(2);
+      expect(responseData(first, C.legalRulePageSchema).total).toBe(52);
+      expect(responseData(first, C.legalRulePageSchema).eligibleTotal).toBe(51);
       const all = await post("/selections", {
         catalogVersionId: catalogId,
         expectedRevision: revision,
@@ -375,10 +385,12 @@ database(
         filters: { search: "Notice" },
         ruleIds: [],
       }).expect(201);
-      expect(all.body.data.selectedCount).toBe(51);
-      expect(new Set(all.body.data.ruleIds)).toEqual(
-        new Set(ruleIds.slice(0, 51)),
-      );
+      expect(
+        responseData(all, C.legalRuleSelectionResultSchema).selectedCount,
+      ).toBe(51);
+      expect(
+        new Set(responseData(all, C.legalRuleSelectionResultSchema).ruleIds),
+      ).toEqual(new Set(ruleIds.slice(0, 51)));
       expect(
         await db.preparationRule.count({
           where: { legalRule: { catalogVersionId: catalogId } },
@@ -388,7 +400,7 @@ database(
         `/${catalogId}/rules?state=${S.INELIGIBLE}`,
       ).expect(200);
       expect(
-        invalid.body.data.items.map(
+        responseData(invalid, C.legalRulePageSchema).items.map(
           (item: { legalRuleId: string }) => item.legalRuleId,
         ),
       ).toEqual(["LRBAD"]);
@@ -407,7 +419,10 @@ database(
         },
       });
       await select([invalid.id]).expect(409);
-      const preview = (await select([ruleIds[0]]).expect(201)).body.data;
+      const preview = responseData(
+        await select([ruleIds[0]]).expect(201),
+        C.legalRuleSelectionResultSchema,
+      );
       await post(
         "/preparations",
         { selectionId: preview.selectionId, idempotencyKey: randomUUID() },
@@ -436,7 +451,10 @@ database(
     });
 
     it("atomically persists exact IDs/pins and idempotently dispatches only two selected rules under concurrent duplicate submission", async () => {
-      const preview = (await select(ruleIds.slice(0, 2)).expect(201)).body.data;
+      const preview = responseData(
+        await select(ruleIds.slice(0, 2)).expect(201),
+        C.legalRuleSelectionResultSchema,
+      );
       const command = {
         selectionId: preview.selectionId,
         idempotencyKey: randomUUID(),
@@ -446,8 +464,10 @@ database(
         post("/preparations", command),
       ]);
       responses.forEach((response) => expect(response.status).toBe(202));
-      expect(responses[0].body.data.id).toBe(responses[1].body.data.id);
-      batch = responses[0].body.data;
+      expect(responseData(responses[0], C.preparationRuleBatchSchema).id).toBe(
+        responseData(responses[1], C.preparationRuleBatchSchema).id,
+      );
+      batch = responseData(responses[0], C.preparationRuleBatchSchema);
       expect(batch.selected).toBe(2);
       expect(batch.items.map((item) => item.ruleId)).toEqual(
         ruleIds.slice(0, 2),
@@ -465,7 +485,10 @@ database(
           },
         }),
       ).toBe(2);
-      const other = (await select([ruleIds[2]]).expect(201)).body.data;
+      const other = responseData(
+        await select([ruleIds[2]]).expect(201),
+        C.legalRuleSelectionResultSchema,
+      );
       await post("/preparations", {
         ...command,
         selectionId: other.selectionId,
@@ -522,12 +545,15 @@ database(
         failureCode: RULE_SET_PREPARATION_FAILURE_REASONS.RUNTIME_ERROR,
       }).expect(200);
       const detail = await get(`/preparations/${batch.id}`).expect(200);
-      expect(detail.body.data).toMatchObject({
+      expect(responseData(detail, C.preparationRuleBatchSchema)).toMatchObject({
         prepared: 1,
         failed: 1,
         complete: true,
       });
-      expect(detail.body.data.items[0].output.analysis).toBe(output().analysis);
+      expect(
+        responseData(detail, C.preparationRuleBatchSchema).items[0].output
+          ?.analysis,
+      ).toBe(output().analysis);
       await expect(
         db.preparationRuleResult.update({
           where: { id: batch.items[0].resultId },
@@ -546,12 +572,18 @@ database(
         `/preparations/${batch.id}/retries`,
         command,
       ).expect(202);
-      expect(replayed.body.data.id).toBe(retried.body.data.id);
-      expect(retried.body.data.items[0]).toMatchObject({
+      expect(responseData(replayed, C.preparationRuleBatchSchema).id).toBe(
+        responseData(retried, C.preparationRuleBatchSchema).id,
+      );
+      expect(
+        responseData(retried, C.preparationRuleBatchSchema).items[0],
+      ).toMatchObject({
         resultId: batch.items[0].resultId,
         skipped: true,
       });
-      expect(retried.body.data.items[1].revision).toBe(2);
+      expect(
+        responseData(retried, C.preparationRuleBatchSchema).items[1].revision,
+      ).toBe(2);
       expect(
         await db.ruleSetPreparationRun.count({
           where: { legalSourceVersionId: sourceId },
@@ -560,7 +592,10 @@ database(
     });
 
     it("rejects a catalog edit race and exposes stale prepared inputs", async () => {
-      const preview = (await select([ruleIds[2]]).expect(201)).body.data;
+      const preview = responseData(
+        await select([ruleIds[2]]).expect(201),
+        C.legalRuleSelectionResultSchema,
+      );
       const saved = await post(`/${catalogId}/rules`, {
         legalRuleId: "LR001",
         title: "Changed selected rule title",
@@ -571,7 +606,7 @@ database(
         ],
         expectedRevision: revision,
       }).expect(200);
-      revision = saved.body.data.catalogRevision;
+      revision = responseData(saved, C.legalRuleSavedSchema).catalogRevision;
       await post("/preparations", {
         selectionId: preview.selectionId,
         idempotencyKey: randomUUID(),
@@ -580,15 +615,17 @@ database(
         200,
       );
       expect(
-        stale.body.data.items.some(
+        responseData(stale, C.legalRulePageSchema).items.some(
           (item: { id: string }) => item.id === ruleIds[0],
         ),
       ).toBe(true);
     });
 
     it("regenerates exactly one rule with a new instruction fingerprint while preserving default input pins and both result revisions", async () => {
-      const before = (await get(`/rules/${ruleIds[0]}/results`).expect(200))
-        .body.data;
+      const before = responseData(
+        await get(`/rules/${ruleIds[0]}/results`).expect(200),
+        C.preparationRuleHistorySchema,
+      );
       const command = {
         idempotencyKey: randomUUID(),
         expectedResultId: before.latestResultId,
@@ -600,22 +637,31 @@ database(
       ]);
       expect(first.status).toBe(202);
       expect(duplicate.status).toBe(202);
-      expect(first.body.data.id).toBe(duplicate.body.data.id);
-      expect(first.body.data.selected).toBe(1);
-      expect(first.body.data.scope.ruleIds).toEqual([ruleIds[0]]);
-      const item = first.body.data.items[0];
+      expect(responseData(first, C.preparationRuleBatchSchema).id).toBe(
+        responseData(duplicate, C.preparationRuleBatchSchema).id,
+      );
+      expect(responseData(first, C.preparationRuleBatchSchema).selected).toBe(
+        1,
+      );
+      expect(
+        responseData(first, C.preparationRuleBatchSchema).scope.ruleIds,
+      ).toEqual([ruleIds[0]]);
+      const item = responseData(first, C.preparationRuleBatchSchema).items[0];
       const claim = await worker("/claim", {
         preparationRunId: item.preparationRunId,
       }).expect(200);
-      expect(claim.body.data.input.citations[0].content.startsWith("\n ")).toBe(
-        true,
-      );
-      expect(claim.body.data.inputFingerprint).toBe(
-        before.results[0].inputFingerprint,
-      );
-      expect(claim.body.data.input.title).not.toBe(
-        "Changed selected rule title",
-      );
+      expect(
+        responseData(
+          claim,
+          C.preparationRuleClaimedSchema,
+        ).input.citations[0].content.startsWith("\n "),
+      ).toBe(true);
+      expect(
+        responseData(claim, C.preparationRuleClaimedSchema).inputFingerprint,
+      ).toBe(before.results[0].inputFingerprint);
+      expect(
+        responseData(claim, C.preparationRuleClaimedSchema).input.title,
+      ).not.toBe("Changed selected rule title");
       await worker("/instructions", {
         preparationRunId: item.preparationRunId,
         receipt: receipt("instruction-v2"),
@@ -626,18 +672,21 @@ database(
         output: output("New instruction result"),
         failureCode: null,
       }).expect(200);
-      const after = (await get(`/rules/${ruleIds[0]}/results`).expect(200)).body
-        .data;
+      const after = responseData(
+        await get(`/rules/${ruleIds[0]}/results`).expect(200),
+        C.preparationRuleHistorySchema,
+      );
       expect(after.results).toHaveLength(2);
       expect(after.currentResultId).toBe(item.resultId);
-      expect(after.results[0].instructionReceipt.fingerprint).not.toBe(
-        after.results[1].instructionReceipt.fingerprint,
+      expect(after.results[0].instructionReceipt?.fingerprint).not.toBe(
+        after.results[1].instructionReceipt?.fingerprint,
       );
       expect(after.results[0].input).toEqual(after.results[1].input);
       expect(after.results[1].output).toEqual(before.results[0].output);
-      const older = (
-        await get(`/rules/${ruleIds[0]}/results?beforeRevision=2`).expect(200)
-      ).body.data;
+      const older = responseData(
+        await get(`/rules/${ruleIds[0]}/results?beforeRevision=2`).expect(200),
+        C.preparationRuleHistorySchema,
+      );
       expect(
         older.results.map((row: { revision: number }) => row.revision),
       ).toEqual([1]);
@@ -655,22 +704,30 @@ database(
     });
 
     it("changes pinned inputs only on an explicit latest-input regeneration choice", async () => {
-      const history = (await get(`/rules/${ruleIds[0]}/results`).expect(200))
-        .body.data;
+      const history = responseData(
+        await get(`/rules/${ruleIds[0]}/results`).expect(200),
+        C.preparationRuleHistorySchema,
+      );
       const next = await post(`/rules/${ruleIds[0]}/regenerate`, {
         idempotencyKey: randomUUID(),
         expectedResultId: history.latestResultId,
         useLatestInputs: true,
       }).expect(202);
-      const runId = next.body.data.items[0].preparationRunId;
+      const runId = responseData(next, C.preparationRuleBatchSchema).items[0]
+        .preparationRunId;
       const claim = await worker("/claim", { preparationRunId: runId }).expect(
         200,
       );
-      expect(claim.body.data.input.catalogRevision).toBe(revision);
-      expect(claim.body.data.input.title).toBe("Changed selected rule title");
-      expect(claim.body.data.inputFingerprint).not.toBe(
-        history.results[0].inputFingerprint,
-      );
+      expect(
+        responseData(claim, C.preparationRuleClaimedSchema).input
+          .catalogRevision,
+      ).toBe(revision);
+      expect(
+        responseData(claim, C.preparationRuleClaimedSchema).input.title,
+      ).toBe("Changed selected rule title");
+      expect(
+        responseData(claim, C.preparationRuleClaimedSchema).inputFingerprint,
+      ).not.toBe(history.results[0].inputFingerprint);
       await worker("/complete", {
         preparationRunId: runId,
         executionState: A.INTERRUPTED,
@@ -686,13 +743,17 @@ database(
       expect(audits).toBeGreaterThan(52);
     });
     it("refuses invalidated pinned sources at claim without model work or instruction receipts", async () => {
-      const preview = (await select([ruleIds[2]]).expect(201)).body.data;
-      const queued = (
+      const preview = responseData(
+        await select([ruleIds[2]]).expect(201),
+        C.legalRuleSelectionResultSchema,
+      );
+      const queued = responseData(
         await post("/preparations", {
           selectionId: preview.selectionId,
           idempotencyKey: randomUUID(),
-        }).expect(202)
-      ).body.data;
+        }).expect(202),
+        C.preparationRuleBatchSchema,
+      );
       await db.legalRetrievalIndex.update({
         where: { id: indexId },
         data: { status: LegalRetrievalIndexStatus.INVALID },
@@ -700,9 +761,14 @@ database(
       const refused = await worker("/claim", {
         preparationRunId: queued.items[0].preparationRunId,
       }).expect(200);
-      expect(refused.body.data.refused).toBe(true);
       expect(
-        (await get(`/preparations/${queued.id}`).expect(200)).body.data,
+        responseData(refused, C.preparationRuleRefusedSchema).refused,
+      ).toBe(true);
+      expect(
+        responseData(
+          await get(`/preparations/${queued.id}`).expect(200),
+          C.preparationRuleBatchSchema,
+        ),
       ).toMatchObject({ failed: 1, prepared: 0 });
       const result = await db.preparationRuleResult.findUniqueOrThrow({
         where: { id: queued.items[0].resultId },
@@ -731,21 +797,23 @@ database(
         output: null,
         failureCode: RULE_SET_PREPARATION_FAILURE_REASONS.RUNTIME_ERROR,
       }).expect(200);
-      const preview = (
+      const preview = responseData(
         await post("/selections", {
           catalogVersionId: catalogId,
           expectedRevision: revision,
           mode: M.ALL_MATCHING,
           filters: { search: "Notice" },
           ruleIds: [],
-        }).expect(201)
-      ).body.data;
-      const result = (
+        }).expect(201),
+        C.legalRuleSelectionResultSchema,
+      );
+      const result = responseData(
         await post("/preparations", {
           selectionId: preview.selectionId,
           idempotencyKey: randomUUID(),
-        }).expect(202)
-      ).body.data;
+        }).expect(202),
+        C.preparationRuleBatchSchema,
+      );
       expect(result.selected).toBe(preview.selectedCount);
       expect(
         new Set(result.items.map((item: { ruleId: string }) => item.ruleId)),

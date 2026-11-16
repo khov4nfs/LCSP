@@ -993,5 +993,11 @@
     "scopes": [],
     "nextAfterScopeId": null,
     "hasMore": false
-  }
+  },
+  "emptyActivity": {
+    "events": [],
+    "nextCursor": null,
+    "hasMore": false
+  },
+  "emptyActivityStream": ": selected preparation fixture\n\n"
 }

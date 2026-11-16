@@ -34,7 +34,7 @@ export class LegalSourceActivatedConsumer implements OnModuleInit {
    * Side effects:
    * - A safe availability log only; no database writes, preparation artifacts or model calls.
    */
-  async handle(payload: Record<string, unknown>): Promise<void> {
+  handle(payload: Record<string, unknown>): Promise<void> {
     const parsed = z
       .object({ legalSourceVersionId: z.string().uuid() })
       .safeParse(payload);
@@ -42,10 +42,11 @@ export class LegalSourceActivatedConsumer implements OnModuleInit {
       this.logger.error(
         "Legal Source activation event has no legalSourceVersionId",
       );
-      return;
+      return Promise.resolve();
     }
     this.logger.log(
       `Source ${parsed.data.legalSourceVersionId} is available for explicit Legal Rule selection`,
     );
+    return Promise.resolve();
   }
 }

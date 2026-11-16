@@ -189,6 +189,23 @@ export type PreparationRuleComplete = z.infer<
 export const preparationRuleClaimSchema = z.strictObject({
   preparationRunId: id,
 });
+export const preparationRuleClaimedSchema = z.strictObject({
+  preparationRunId: id,
+  resultId: id,
+  revision: z.number().int().positive(),
+  input: preparationRuleInputSchema,
+  inputFingerprint: fingerprint,
+});
+export const preparationRuleRefusedSchema = z.strictObject({
+  preparationRunId: id,
+  resultId: id,
+  refused: z.literal(true),
+  failureCode: z.literal(LEGAL_RULE_CATALOG_ERRORS.INELIGIBLE),
+});
+export const preparationRuleClaimResponseSchema = z.union([
+  preparationRuleClaimedSchema,
+  preparationRuleRefusedSchema,
+]);
 export const preparationRuleInstructionsSchema = z.strictObject({
   preparationRunId: id,
   receipt: preparationInstructionReceiptSchema,

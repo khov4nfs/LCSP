@@ -22,7 +22,7 @@ const { PrismaPg } = require("@prisma/adapter-pg");
 const prisma = new PrismaClient({ adapter: new PrismaPg(stack.databaseUrl) });
 try {
   const source = await legalSourceFactory(prisma, randomUUID())();
-  const activation = await stack.activateLegalSource(source.id);
+  const activation = await stack.startPreparationFixture(source.id);
   assert.equal(activation.runs.length, 1);
   const run = activation.preparationRunId;
   assert.equal(

@@ -214,7 +214,7 @@ const twentyRulePacket = () => {
 };
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl, checkpointDatabaseUrl, admission, server, apiEnv } = await startStack({
+const { q, base, post, stop, seedLegalSource, startPreparationFixture, databaseUrl, checkpointDatabaseUrl, admission, server, apiEnv } = await startStack({
   database,
   apiPort,
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
@@ -298,7 +298,7 @@ try {
       }),
     );
     // The activation event (delivered to the real consumer) starts the one automatic run.
-    const started = await activateLegalSource(legalSourceId);
+    const started = await startPreparationFixture(legalSourceId);
     eq(started.runs.length, 1, "one Legal Source -> one automatic preparation");
     const result = await runPython(
       path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
