@@ -8,6 +8,7 @@ import {
   describe,
   expect,
   it,
+  jest,
 } from "@jest/globals";
 import { randomUUID } from "node:crypto";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
@@ -25,6 +26,9 @@ const dbUrl =
   process.env.DATABASE_URL ??
   process.env.PHASE25_DATABASE_URL ??
   "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public";
+
+// Real PostgreSQL fixture writes, cascades and canonical reads use an integration deadline.
+jest.setTimeout(30_000);
 
 describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", () => {
   let prisma: PrismaClient;
