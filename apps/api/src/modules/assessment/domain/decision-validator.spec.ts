@@ -405,6 +405,33 @@ describe("validateRuleDecision (identity and provenance only)", () => {
     );
   });
 
+  it("accepts only an older dependency-verified revision when explicitly authorized", () => {
+    const evidenceOnlyCriteria = applicable().criteria.map((criterion) => ({
+      ...criterion,
+      references: [evidenceRef],
+    }));
+    const older = applicable({
+      caseRevision: 2,
+      criteria: evidenceOnlyCriteria,
+    });
+    expect(
+      validateRuleDecision(older, {
+        ...context(),
+        allowHistoricalCaseRevision: true,
+      }),
+    ).toEqual([]);
+    const future = applicable({
+      caseRevision: 4,
+      criteria: evidenceOnlyCriteria,
+    });
+    expect(
+      codes(future, {
+        ...context(),
+        allowHistoricalCaseRevision: true,
+      }),
+    ).toContain(FAIL.CASE_REVISION_STALE);
+  });
+
   it("rejects references that are unknown, invalidated, mispinned or from the future", () => {
     const unknown = {
       type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,

@@ -72,14 +72,14 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 | Raw answer -> proposal -> accepted fact | PARTIALLY_IMPLEMENTED | FactNeed answers now require typed normalization and material ambiguity/conflict guards before acceptance, with raw and normalized values retained. A durable pending proposal/review state for rejected answers remains pending. |
 | Explainable candidate AssessmentRule matching | NOT_IMPLEMENTED | Rule catalog selection exists, but no discovery-driven recommendation stage or recommendation-state contract exists. |
 | Evidence/discovery reuse before rule investigation | PARTIALLY_IMPLEMENTED | Root reloads accepted facts/evidence and decisions, but there is no discovery handoff or governed range reuse plan. |
-| Direct/indirect selective invalidation | PARTIALLY_IMPLEMENTED | Evidence-to-fact invalidation exists, but answer acceptance still invalidates all older case-revision decisions and dependency search relies on serialized decision text. |
+| Direct/indirect selective invalidation | IMPLEMENTED | New decisions persist exact evidence/fact edges; evidence invalidation follows direct and fact-mediated edges, dependency-incomplete history fails closed, human answers preserve unrelated dependency-complete decisions, and affected final reports become INVALID without changing historical bytes. |
 | Reproducible quality/efficiency evaluation | PARTIALLY_IMPLEMENTED | Mechanical scanner/HITL tests exist; no pinned before/after corpus measures recommendation quality, source-range recall, question quality, evidence reuse or legal-regression accuracy. |
 
 ## Code Map
 
 - `deepagents/instructions/inventory.json` and `deepagents/scripts/snapshot_instruction_migration.py` -- governed CI drift reconciliation.
 - `apps/api/src/modules/assessment/application/commands/answer-human-request/*` -- answer evidence, integrity and fact acceptance.
-- `apps/api/src/modules/assessment/application/services/assessment-evidence-invalidation.service.ts` -- current broad invalidation.
+- `apps/api/src/modules/assessment/application/services/assessment-evidence-invalidation.service.ts` and `apps/api/src/modules/assessment/domain/decision-dependencies.ts` -- normalized direct/indirect dependency integrity, selective invalidation, and fail-closed historical fallback.
 - `apps/api/src/modules/assessment/infrastructure/persistence/assessment-human-request-dependencies.ts` and `apps/api/prisma/schema.prisma` -- request identity/dependencies and FactNeed persistence.
 - `packages/contracts/src/assessment-domain/*` -- canonical value sets and DTO schemas.
 - `deepagents/tools/common/capabilities/platform/repository_scanner.py` and `deepagents/assessment_root/*` -- relevance generation and bounded research context.
@@ -100,7 +100,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - [x] Design and test additive compatibility for existing HumanRequests, accepted facts, decisions, checkpoints and audit history before adding canonical FactNeed/value/proposal contracts and persistence.
 - [x] Define FactNeed identity with tenant, assessment, subject/entity, predicate, operational scope, environment, timeframe and value schema as applicable; deduplicate wording/locales and union shared rule dependencies without cross-entity/time merging.
 - [ ] Refactor answer handling to persist raw evidence, validate/normalize, detect ambiguity/conflict, and create facts only after acceptance.
-- [ ] Replace answer-triggered case-wide invalidation with fail-closed traversal across direct/indirect evidence, facts, decisions and report findings while retaining history and caseRevision for CAS/audit.
+- [x] Replace answer-triggered case-wide invalidation with fail-closed traversal across direct/indirect evidence, facts, decisions and report findings while retaining history and caseRevision for CAS/audit.
 - [ ] Reuse repository scanner and Codebase Memory to build rule-aware RelevanceMap priorities from AssessmentRule criteria/goals/evidence needs plus technology signals; cover DI/interfaces, jobs/events, dynamic config and unresolved edges with bounded traversal and explicit gaps.
 - [ ] Separate file classification from verified reachability; preserve commit/scope/version cache pins and invalidate changed/renamed/deleted/new connections; use ranked ranges as priorities with audited expansion, never an absolute allowlist.
 - [ ] Align backend/web control types and canonical EN/VI semantic policy without overwriting unrelated UI/i18n work.
@@ -124,6 +124,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - 2026-11-16: Added API-owned deterministic candidate matching against the pinned AssessmentRules and ACCEPTED facts. Worker-authored recommendations are rejected, non-AI control terms remain matchable, missing matches never become negative legal conclusions, and candidate revisions remain immutable and non-authoritative.
 - 2026-11-16: Added additive canonical FactNeed persistence and Root/API contracts. Historical HumanRequests remain nullable and uninterpreted; equivalent wording/locales and same-batch questions reuse one need, material deployment/timeframe/value differences remain distinct, and a known accepted answer resolves its linked need atomically while UNKNOWN remains open.
 - 2026-11-16: Added typed FactNeed answer normalization for text, boolean, integer, number, date, date-time, enum and JSON values, and connected the existing high-impact ambiguity/conflict guard to production answer acceptance. Invalid values are rejected before case/fact/evidence mutation; accepted evidence retains both the raw and normalized value.
+- 2026-11-16: Added an additive immutable decision dependency ledger. New decisions record exact evidence/fact edges; evidence invalidation traverses direct and fact-mediated support, historical decisions without a ledger fail closed, and unrelated dependency-complete decisions may survive a later case revision while caseRevision remains the CAS/audit clock. Active final reports are marked INVALID when their case/support changes.
 
 ## Reproducible Pre-Change Baseline — 2026-11-16
 
@@ -164,6 +165,15 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - Contracts: `13` suites, `153` tests passed, including historical answer audits without `normalizedAnswer`; the new field is optional and does not reinterpret stored answer history.
 - API lint, contracts/API TypeScript compilation, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
 - Rejected ambiguous/conflicting answers currently return `HUMAN_ANSWER_INVALID` before persistence. Durable raw rejected-attempt/proposal review and explicit reviewed acceptance remain pending, so the full proposal pipeline task is intentionally not marked complete.
+
+## Phase 5 Verification — Dependency-Selective Invalidation
+
+- The migration is additive: historical decisions default to `dependencyGraphComplete=false`, no historical JSON packet is backfilled or reinterpreted, and exact evidence/fact edges use assessment-bound foreign keys. The completeness marker is immutable after decision creation.
+- New accepted decisions atomically persist their deduplicated direct evidence and fact references. Evidence invalidation follows direct edges plus evidence -> fact -> decision edges; any accepted historical decision with incomplete dependency metadata is invalidated fail-closed instead of being assumed unrelated.
+- Human answer acceptance no longer invalidates every older accepted decision. Rules affected by the question were already invalidated when the request opened; unrelated older decisions survive only when their persisted ledger exactly matches the immutable packet and current evidence/facts still validate. Generic facts without a declared rule scope retain case-wide fail-closed invalidation.
+- Any case-changing human answer invalidates an ACTIVE final-report projection; evidence invalidation does the same when it invalidates a supporting decision. Artifact bytes, hashes, pins, decisions, and audit history remain unchanged.
+- Focused dependency, decision, answer, completion, selected-finalization, audit-reuse and migration regression: `9` suites, `114` tests passed. API lint, TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates, and `git diff --check` passed.
+- The repository-wide API command completed `224` suites / `1887` tests successfully, with `22` suites skipped. Its remaining `12` failing integration suites (`108` tests) all report PostgreSQL `P1001` at `127.0.0.1:55432`; no non-database suite failed. A live migration remains unverified locally for the same environment reason.
 
 ## Design Notes
 
