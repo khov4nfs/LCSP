@@ -18,6 +18,7 @@ import {
   startStack,
   workerKey,
 } from "./support/compliance-rule-set-stack.mjs";
+import { selectedPreparationVertical } from "./support/selected-preparation-vertical.mjs";
 
 const database = "lcsp_compliance_rule_set_vertical";
 const apiPort = Number(
@@ -476,6 +477,8 @@ try {
     0,
     "no approval row is written or required",
   );
+
+  await selectedPreparationVertical({ q, base, sourceId: legalSourceA });
 
   console.log(
     `PASS: ${checks} COMPLIANCE_RULE_SET vertical checks (real API + PostgreSQL + Python agent; model scripted) on ${database}`,
