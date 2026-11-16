@@ -7,6 +7,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, settle, click, byText, installFetch } from "./support/dom.ts";
 import { setAppLocale } from "../src/lib/locale.ts";
 import { RuleAuditPicker } from "../src/features/assessment-runtime/components/organisms/rule-audit-picker.tsx";
+import { copy } from "../src/features/assessment-runtime/utils/conversation-copy.ts";
+import { ruleAuditKeys } from "../src/lib/api/rule-audit-queries.ts";
+import {
+  AUTHORED_LOCALIZATION_READINESS_STATES,
+  type RuleAuditCatalog,
+} from "@lcsp/contracts/assessment-domain";
 
 const catalog = JSON.parse(
   readFileSync(
@@ -27,6 +33,67 @@ const request = JSON.parse(
   ),
 );
 setAppLocale("en");
+
+for (const locale of ["en", "vi"] as const) {
+  test(`${locale}: fallback on a later catalog page keeps the full catalog visible and blocks audit`, async () => {
+    const id = catalog.assessmentId as string;
+    const originalFetch = globalThis.fetch;
+    const offsets: number[] = [];
+    globalThis.fetch = async (input) => {
+      const offset = Number(
+        new URL(String(input), "http://localhost").searchParams.get("offset"),
+      );
+      offsets.push(offset);
+      return Response.json({
+        ok: true,
+        data: {
+          ...catalog,
+          offset,
+          nextOffset: offset === 0 ? 10 : null,
+          rules: catalog.rules.slice(offset, offset + 10),
+          localizationFallback: offset !== 0,
+          localizationState:
+            offset === 0
+              ? AUTHORED_LOCALIZATION_READINESS_STATES.READY
+              : AUTHORED_LOCALIZATION_READINESS_STATES.PENDING,
+        },
+      });
+    };
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    try {
+      setAppLocale(locale);
+      const view = render(
+        <QueryClientProvider client={client}>
+          <RuleAuditPicker assessmentId={id} />
+        </QueryClientProvider>,
+      );
+      await settle();
+      const data = client.getQueryData<RuleAuditCatalog>([
+        ...ruleAuditKeys.catalog(id),
+        locale,
+      ]);
+      assert.deepEqual(offsets, [0, 10]);
+      assert.equal(data?.rules.length, catalog.total);
+      assert.equal(data?.localizationFallback, true);
+      assert.equal(
+        data?.localizationState,
+        AUTHORED_LOCALIZATION_READINESS_STATES.PENDING,
+      );
+      assert.ok(view.textContent?.includes(copy("localizationFallback")));
+      assert.equal(
+        byText<HTMLButtonElement>(view, "button", copy("ruleAudit.selectAll"))
+          ?.disabled,
+        true,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      client.clear();
+      act(() => setAppLocale("en"));
+    }
+  });
+}
 
 test("explicit selection starts only Rule 3 from twenty pinned rules", async () => {
   const id = catalog.assessmentId as string;

@@ -20,9 +20,11 @@ const inventory = JSON.parse(
   readFileSync(path.join(root, "instructions/inventory.json"), "utf8"),
 );
 const manifestBytes = readFileSync(
-  path.join(root, "instructions/candidates/r1/manifest.pending.json"),
+  path.join(root, "instructions/candidates/r3/manifest.pending.json"),
 );
 const manifest = JSON.parse(manifestBytes);
+if (manifest.bundleId !== inventory.bundleId)
+  throw Error("Inventory and candidate bundle identity disagree");
 if (
   !Array.isArray(inventory.entries) ||
   !Array.isArray(manifest.entries) ||

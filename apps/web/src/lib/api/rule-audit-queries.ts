@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ruleAuditCatalogSchema,
+  AUTHORED_LOCALIZATION_READINESS_STATES,
   ruleAuditRequestViewSchema,
   type SubmitRuleAudit,
 } from "@lcsp/contracts/assessment-domain";
@@ -78,6 +79,7 @@ export function useRuleAuditCatalogQuery(id: string) {
       const rules: Awaited<ReturnType<typeof loadPage>>["rules"] = [];
       const seen = new Set<number>();
       const ruleIds = new Set<string>();
+      let hasFallback = false;
       while (true) {
         signal.throwIfAborted();
         if (getAppLocaleSnapshot() !== locale)
@@ -85,6 +87,7 @@ export function useRuleAuditCatalogQuery(id: string) {
         if (seen.has(offset)) throw new Error("Rule catalog cursor repeated");
         seen.add(offset);
         const page = await loadPage(id, offset, locale, signal);
+        hasFallback ||= page.localizationFallback === true;
         signal.throwIfAborted();
         if (getAppLocaleSnapshot() !== locale)
           throw new Error("Rule catalog locale changed during pagination");
@@ -116,6 +119,13 @@ export function useRuleAuditCatalogQuery(id: string) {
               throw new Error("Group catalog incomplete");
           return ruleAuditCatalogSchema.parse({
             ...first,
+            ...(hasFallback
+              ? {
+                  localizationFallback: true,
+                  localizationState:
+                    AUTHORED_LOCALIZATION_READINESS_STATES.PENDING,
+                }
+              : {}),
             rules,
             nextOffset: null,
           });

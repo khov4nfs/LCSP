@@ -983,6 +983,65 @@ class LocaleProjectionRequest(BaseModel):
     targetLocale: str = Field(pattern=r"^[a-z]{2}(?:-[A-Z]{2})?$")
 
 
+class AuthoredTranslationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    content: str = Field(min_length=1, max_length=100_000)
+    locale: str = Field(pattern=r"^(en|vi)$")
+    originalLanguage: str = Field(pattern=r"^(EN|VI)$")
+    originSha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+async def authored_translation(request: Request) -> JSONResponse:
+    """Business purpose: Produce a hash-bound translation candidate for durable EN/VI review.
+
+    Business rules:
+    - Only authenticated internal workers may invoke the configured response-transform model.
+    - A model fallback is never represented as a successful translation or an approved revision.
+    Execution flow:
+    1. Authenticate the worker and validate the locale, reviewed source language and source hash.
+    2. Await the bounded model transform and return a candidate with adapter provenance on success.
+    Failure cases:
+    - Invalid credentials/body/hash return 403/400; unavailable or failed transforms return 503.
+    Side effects:
+    - May call the configured model; does not persist content or grant language review approval.
+    """
+    key = os.environ.get("WORKER_API_KEY", "")
+    if not key or not hmac.compare_digest(
+        request.headers.get("x-worker-api-key", ""), key
+    ):
+        return JSONResponse({"ok": False}, status_code=403)
+    try:
+        payload = AuthoredTranslationRequest.model_validate(await request.json())
+    except (ValueError, ValidationError):
+        return JSONResponse({"ok": False}, status_code=400)
+    if (
+        hashlib.sha256(payload.content.encode("utf-8")).hexdigest()
+        != payload.originSha256
+    ):
+        return JSONResponse({"ok": False}, status_code=400)
+    from orchestration.localization import atransform_response_text
+
+    try:
+        content, telemetry = await atransform_response_text(payload.content, payload.locale)
+    except Exception:
+        return JSONResponse({"ok": False}, status_code=503)
+    if (
+        telemetry.get("status") != "APPLIED"
+        or telemetry.get("fallback_used")
+        or not content.strip()
+    ):
+        return JSONResponse({"ok": False}, status_code=503)
+    return JSONResponse(
+        {
+            "locale": payload.locale,
+            "originSha256": payload.originSha256,
+            "content": content,
+            "engine": str(telemetry.get("model") or "response-transform"),
+            "engineVersion": "lcsp-authored-adapter-v1",
+        }
+    )
+
+
 class ExecutionDrainRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     draining: bool
@@ -1070,6 +1129,7 @@ app = Starlette(
         Route("/health", ok, methods=["GET"]),
         Route("/internal/assessment-erasure", erase_assessment, methods=["POST"]),
         Route("/internal/project-locale", project_locale, methods=["POST"]),
+        Route("/internal/authored-translation", authored_translation, methods=["POST"]),
         Route("/internal/execution-capacity", execution_capacity, methods=["GET", "POST"]),
         Route("/threads", create_thread, methods=["POST"]),
         Route("/threads/{thread_id}", get_thread, methods=["GET"]),

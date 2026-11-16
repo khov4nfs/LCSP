@@ -459,6 +459,8 @@ export const enPages = {
     },
   },
   assessmentConversation: {
+    localizationFallback:
+      "Some content does not yet have an approved translation. Original content is shown and may be in another language.",
     ruleAudit: {
       selectGroup: "Select group: {name}",
       clearGroup: "Clear group: {name}",

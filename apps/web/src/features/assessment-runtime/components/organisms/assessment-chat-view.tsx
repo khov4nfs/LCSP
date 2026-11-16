@@ -56,9 +56,7 @@ export function AssessmentChatView({
       )
     : null;
   const openRequest =
-    (targetRequest && targetRequest.status === "OPEN"
-      ? targetRequest
-      : null) ??
+    (targetRequest && targetRequest.status === "OPEN" ? targetRequest : null) ??
     requests.data?.requests.find(
       (request) => request.requestId === projection.openRequestId,
     );
@@ -108,6 +106,16 @@ export function AssessmentChatView({
       data-execution-state={assessment.runtime.executionState}
       data-customer-state={state}
     >
+      {(detail.data.localizationFallback ||
+        requests.data?.localizationFallback) && (
+        <Alert role="status">
+          <AlertDescription>
+            {resolveAppMessage(
+              "pages.assessmentConversation.localizationFallback",
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Announces state changes and a new question, never the technical event stream. */}
       <p role="status" aria-live="polite" className="sr-only">
         {copy(`state.${state}`)}

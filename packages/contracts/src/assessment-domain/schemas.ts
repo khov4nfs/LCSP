@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { ASSESSMENT_AUDIT_MODES, RULE_AUDIT_SCOPE_MODES, RULE_AUDIT_STATUSES } from "./rule-audits.ts";
+import {
+  ASSESSMENT_AUDIT_MODES,
+  RULE_AUDIT_SCOPE_MODES,
+  RULE_AUDIT_STATUSES,
+} from "./rule-audits.ts";
 import { repositorySourcePathPrefixSchema } from "../github-integration/source-scope.ts";
 import {
   LEGAL_SOURCE_CHUNK_STATUSES,
@@ -337,6 +341,7 @@ export type AssessmentHumanRequestView = z.infer<
 export const assessmentHumanRequestsResultSchema = z.strictObject({
   caseRevision: revisionSchema,
   requests: z.array(assessmentHumanRequestViewSchema),
+  localizationFallback: z.boolean().optional(),
 });
 export type AssessmentHumanRequestsResult = z.infer<
   typeof assessmentHumanRequestsResultSchema
@@ -449,12 +454,15 @@ export const assessmentRootContextSchema = z.strictObject({
   repositoryCommit: commitSchema,
   sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),
   decisionScopeId: identifierSchema,
-  auditRequest: z.strictObject({
-    requestId: uuidSchema,
-    scopeMode: z.enum(RULE_AUDIT_SCOPE_MODES),
-    status: z.enum(RULE_AUDIT_STATUSES),
-    selectedRuleIds: z.array(identifierSchema).min(1),
-  }).nullable().default(null),
+  auditRequest: z
+    .strictObject({
+      requestId: uuidSchema,
+      scopeMode: z.enum(RULE_AUDIT_SCOPE_MODES),
+      status: z.enum(RULE_AUDIT_STATUSES),
+      selectedRuleIds: z.array(identifierSchema).min(1),
+    })
+    .nullable()
+    .default(null),
   coverage: z.array(decisionCoverageSchema),
   facts: z.array(assessmentCaseFactSchema),
   evidence: z.array(assessmentEvidenceSchema),
@@ -676,6 +684,7 @@ export type AssessmentUsageSummary = z.infer<
 >;
 
 export const assessmentDetailSchema = z.strictObject({
+  localizationFallback: z.boolean().optional(),
   assessment_id: uuidSchema,
   name: z.string().trim().min(1).max(ASSESSMENT_NAME_MAX_LENGTH),
   owner_id: z.string().min(1),
