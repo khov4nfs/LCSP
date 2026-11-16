@@ -4,7 +4,11 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   FACT_NEED_VALUE_KINDS,
   HUMAN_RESOLUTION_CONTROL_TYPES,
+  computeRepositoryDiscoveryDigest,
+  factNeedDiscoveryRefSchema,
   factNeedViewSchema,
+  repositoryDiscoverySchema,
+  type FactNeedDiscoveryRef,
   type FactNeedInput,
   type FactNeedView,
 } from "@lcsp/contracts/assessment-domain";
@@ -34,6 +38,7 @@ type FactNeedRow = {
   allowedValues: unknown;
   sourceInvestigationAttempts: unknown;
   acceptedEvidenceIds: unknown;
+  investigationDiscoveryRefs?: unknown;
   investigatedRangeIds: unknown;
   status: string;
   resolvedFactId: string | null;
@@ -104,6 +109,131 @@ function persistedStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+/**
+ * Business purpose: Canonicalize immutable discovery references used to justify one source investigation.
+ *
+ * Business rules:
+ * - Exact record/digest pairs are deduplicated and deterministically sorted.
+ * - Invalid persisted or caller values fail closed and never become trusted provenance.
+ *
+ * Execution flow:
+ * 1. Parse every candidate through the strict discovery-reference contract.
+ * 2. Deduplicate exact pairs and sort by record identity and digest.
+ * 3. Return the bounded canonical references.
+ *
+ * Failure cases:
+ * - Malformed non-null entries throw before projection or persistence can continue.
+ *
+ * Side effects:
+ * - Pure in-memory parsing without persistence or assessment authority.
+ */
+function canonicalDiscoveryRefs(value: unknown): FactNeedDiscoveryRef[] {
+  if (value === null || value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error("invalid persisted FactNeed discovery references");
+  }
+  const refs = new Map<string, FactNeedDiscoveryRef>();
+  for (const candidate of value) {
+    const parsed = factNeedDiscoveryRefSchema.safeParse(candidate);
+    if (!parsed.success) {
+      throw new Error("invalid persisted FactNeed discovery reference");
+    }
+    refs.set(
+      `${parsed.data.recordId}:${parsed.data.contentDigest}`,
+      parsed.data,
+    );
+  }
+  return [...refs.values()].sort(
+    (left, right) =>
+      left.recordId.localeCompare(right.recordId) ||
+      left.contentDigest.localeCompare(right.contentDigest),
+  );
+}
+
+/**
+ * Business purpose: Prove that source ranges claimed in a FactNeed came from immutable Discovery records at the assessment's current repository pins.
+ *
+ * Business rules:
+ * - Every investigated range requires at least one exact assessment-owned discovery record/digest reference.
+ * - Discovery records must match the pinned snapshot, commit and source scope, retain valid payload integrity, and contain every claimed range ID.
+ * - Discovery findings remain investigation provenance only; validation never accepts a source fact or legal conclusion.
+ *
+ * Execution flow:
+ * 1. Canonicalize supplied references and reject unbound range identifiers.
+ * 2. Load only exact referenced records under current assessment repository pins.
+ * 3. Revalidate each immutable payload digest and collect its source-range identities.
+ * 4. Reject missing/foreign ranges and return canonical references for persistence.
+ *
+ * Failure cases:
+ * - Missing records, stale pins, malformed payloads, digest mismatch or absent ranges fail atomically with PROVENANCE_INTEGRITY_MISMATCH.
+ *
+ * Side effects:
+ * - Read-only discovery queries; creates no FactNeed, evidence, fact, decision or audit scope.
+ */
+export async function validateFactNeedDiscoveryProvenanceInTx(
+  tx: Prisma.TransactionClient,
+  input: {
+    assessmentId: string;
+    repositorySnapshotId: string;
+    repositoryCommit: string;
+    sourcePathPrefix: string | null;
+    investigationDiscoveryRefs?: readonly FactNeedDiscoveryRef[];
+    investigatedRangeIds: readonly string[];
+    correlationId: string;
+  },
+): Promise<FactNeedDiscoveryRef[]> {
+  const refs = canonicalDiscoveryRefs(input.investigationDiscoveryRefs ?? []);
+  const fail = () =>
+    problemException(
+      ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+      input.correlationId,
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+    );
+  if (input.investigatedRangeIds.length > 0 && refs.length === 0) {
+    throw fail();
+  }
+  if (refs.length === 0) return [];
+
+  const rows = await tx.assessmentRepositoryDiscovery.findMany({
+    where: {
+      assessmentId: input.assessmentId,
+      repositorySnapshotId: input.repositorySnapshotId,
+      repositoryCommit: input.repositoryCommit.toLowerCase(),
+      sourcePathPrefix: input.sourcePathPrefix,
+      OR: refs.map((ref) => ({
+        recordId: ref.recordId,
+        contentDigest: ref.contentDigest,
+      })),
+    },
+    select: { recordId: true, contentDigest: true, payload: true },
+  });
+  if (rows.length !== refs.length) throw fail();
+
+  const expectedRefs = new Set(
+    refs.map((ref) => `${ref.recordId}:${ref.contentDigest}`),
+  );
+  const rangeIds = new Set<string>();
+  for (const row of rows) {
+    if (!expectedRefs.has(`${row.recordId}:${row.contentDigest}`)) throw fail();
+    const parsed = repositoryDiscoverySchema.safeParse(row.payload);
+    if (
+      !parsed.success ||
+      parsed.data.contentDigest !== row.contentDigest ||
+      parsed.data.discoveryId !== row.contentDigest ||
+      parsed.data.commitSha !== input.repositoryCommit.toLowerCase() ||
+      parsed.data.sourcePathPrefix !== input.sourcePathPrefix ||
+      computeRepositoryDiscoveryDigest(parsed.data) !== row.contentDigest
+    ) {
+      throw fail();
+    }
+    for (const range of parsed.data.sourceRanges) rangeIds.add(range.rangeId);
+  }
+  if (input.investigatedRangeIds.some((rangeId) => !rangeIds.has(rangeId))) {
+    throw fail();
+  }
+  return refs;
 }
 
 /**
@@ -248,17 +378,18 @@ export function assertFactNeedControlCompatibility(input: {
  * Business rules:
  * - Identity is scoped by tenant owner and assessment and cannot merge different subjects, deployments, environments, timeframes or value schemas.
  * - Only ACCEPTED evidence from the same assessment and pinned repository commit may be recorded as supporting evidence.
+ * - Claimed discovery ranges must resolve through exact immutable discovery record/digest references at current repository pins.
  * - Equivalent identity reuses the existing need and unions notes/evidence/ranges without changing its immutable semantic coordinates.
  * - A resolved or superseded need is never reopened or silently reinterpreted.
  *
  * Execution flow:
- * 1. Validate control/value compatibility and accepted evidence provenance.
+ * 1. Validate control/value compatibility plus accepted evidence and discovery-range provenance.
  * 2. Compute the canonical digest and load the assessment-owned need.
  * 3. Merge bounded investigation provenance when it exists, otherwise append a new OPEN need.
  * 4. Return its identity and any already-linked request for governed reuse.
  *
  * Failure cases:
- * - Foreign, invalidated or commit-mismatched evidence rejects the whole transaction.
+ * - Foreign, invalidated, commit-mismatched or provenance-overflow evidence/discovery data rejects the whole transaction.
  * - Tenant mismatch or malformed persisted arrays fails closed as HUMAN_REQUEST_INVALID.
  *
  * Side effects:
@@ -269,7 +400,9 @@ export async function resolveAssessmentFactNeedInTx(
   input: {
     assessmentId: string;
     tenantOwnerId: string;
+    repositorySnapshotId: string;
     repositoryCommit: string;
+    sourcePathPrefix: string | null;
     factNeed: FactNeedInput;
     controlType: string;
     choices: readonly { value: string }[];
@@ -277,6 +410,15 @@ export async function resolveAssessmentFactNeedInTx(
   },
 ): Promise<{ factNeedId: string; linkedRequestId: string | null }> {
   assertFactNeedControlCompatibility(input);
+  const discoveryRefs = await validateFactNeedDiscoveryProvenanceInTx(tx, {
+    assessmentId: input.assessmentId,
+    repositorySnapshotId: input.repositorySnapshotId,
+    repositoryCommit: input.repositoryCommit,
+    sourcePathPrefix: input.sourcePathPrefix,
+    investigationDiscoveryRefs: input.factNeed.investigationDiscoveryRefs,
+    investigatedRangeIds: input.factNeed.investigatedRangeIds,
+    correlationId: input.correlationId,
+  });
   const evidenceIds = [...new Set(input.factNeed.acceptedEvidenceIds)].sort();
   if (evidenceIds.length > 0) {
     const accepted = await tx.assessmentEvidence.count({
@@ -314,6 +456,23 @@ export async function resolveAssessmentFactNeedInTx(
         { status: HttpStatus.UNPROCESSABLE_ENTITY },
       );
     }
+    const mergedDiscoveryRefs = canonicalDiscoveryRefs([
+      ...canonicalDiscoveryRefs(existing.investigationDiscoveryRefs),
+      ...discoveryRefs,
+    ]);
+    const mergedRangeIds = [
+      ...new Set([
+        ...persistedStringArray(existing.investigatedRangeIds),
+        ...input.factNeed.investigatedRangeIds,
+      ]),
+    ];
+    if (mergedDiscoveryRefs.length > 20 || mergedRangeIds.length > 500) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
     await tx.assessmentFactNeed.update({
       where: { factNeedId: existing.factNeedId },
       data: {
@@ -329,12 +488,8 @@ export async function resolveAssessmentFactNeedInTx(
             ...evidenceIds,
           ]),
         ].slice(0, 100),
-        investigatedRangeIds: [
-          ...new Set([
-            ...persistedStringArray(existing.investigatedRangeIds),
-            ...input.factNeed.investigatedRangeIds,
-          ]),
-        ].slice(0, 500),
+        investigationDiscoveryRefs: mergedDiscoveryRefs,
+        investigatedRangeIds: mergedRangeIds,
       },
     });
     return {
@@ -368,6 +523,7 @@ export async function resolveAssessmentFactNeedInTx(
       allowedValues: input.factNeed.valueSchema.allowedValues,
       sourceInvestigationAttempts: input.factNeed.sourceInvestigationAttempts,
       acceptedEvidenceIds: evidenceIds,
+      investigationDiscoveryRefs: discoveryRefs,
       investigatedRangeIds: input.factNeed.investigatedRangeIds,
       status: AssessmentFactNeedStatus.OPEN,
     },
@@ -380,11 +536,12 @@ export async function resolveAssessmentFactNeedInTx(
  *
  * Business rules:
  * - Persisted semantic coordinates and provenance lists are returned exactly under the typed contract.
+ * - Historical rows without discovery references project an empty reference list without reinterpreting their stored attempts or ranges.
  * - The status reports lifecycle only; OPEN is not a negative fact and RESOLVED points to an accepted fact identity.
  *
  * Execution flow:
  * 1. Convert temporal values to ISO text.
- * 2. Reconstruct the typed identity and provenance collections.
+ * 2. Reconstruct the typed identity and provenance collections, defaulting only the new nullable discovery-reference field.
  * 3. Validate and return the strict view.
  *
  * Failure cases:
@@ -418,6 +575,9 @@ export function factNeedViewOf(row: FactNeedRow): FactNeedView {
     },
     sourceInvestigationAttempts: row.sourceInvestigationAttempts,
     acceptedEvidenceIds: row.acceptedEvidenceIds,
+    investigationDiscoveryRefs: canonicalDiscoveryRefs(
+      row.investigationDiscoveryRefs,
+    ),
     investigatedRangeIds: row.investigatedRangeIds,
   });
 }

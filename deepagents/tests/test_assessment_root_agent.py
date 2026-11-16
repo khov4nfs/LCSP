@@ -2115,6 +2115,11 @@ def test_human_request_sharing_maps_dependencies_and_resolved_source_skips_inter
             "timeframe": {"kind": "CURRENT", "from_time": None, "to_time": None},
             "value_schema": {"kind": "TEXT", "schema_version": "legal_entity.v1"},
             "source_investigation_attempts": ["Reviewed repository ownership metadata"],
+            "investigation_discovery_refs": [{
+                "record_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                "content_digest": f"sha256:{'c' * 64}",
+            }],
+            "investigated_range_ids": [f"sha256:{'d' * 64}"],
         },
         "source_request_id": "source-request"})
     body = next(body for kind, body in client.calls if kind == "human")
@@ -2129,7 +2134,11 @@ def test_human_request_sharing_maps_dependencies_and_resolved_source_skips_inter
         "valueSchema": {"kind": "TEXT", "schemaVersion": "legal_entity.v1", "allowedValues": []},
         "sourceInvestigationAttempts": ["Reviewed repository ownership metadata"],
         "acceptedEvidenceIds": [],
-        "investigatedRangeIds": [],
+        "investigationDiscoveryRefs": [{
+            "recordId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "contentDigest": f"sha256:{'c' * 64}",
+        }],
+        "investigatedRangeIds": [f"sha256:{'d' * 64}"],
     }
     assert json.loads(result)["resolved"] is True
 

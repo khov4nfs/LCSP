@@ -19,8 +19,13 @@ class InstructionRepairTests(unittest.TestCase):
         for row in evidence['changes']:
             with self.subTest(source=row['sourceId']):
                 entry = entries[row['sourceId']]
+                source_path = (
+                    'instructions/revisions/r4/before/tool-schema-guidance.json'
+                    if row['sourceId'] == 'tools.schema-guidance'
+                    else entry['vietnameseSourcePath']
+                )
                 for path, expected in [
-                    (entry['vietnameseSourcePath'], row['sourceSha256']),
+                    (source_path, row['sourceSha256']),
                     (row['candidatePath'], row['candidateSha256']),
                     (row['previousCandidatePath'], row['previousCandidateSha256']),
                 ]:
@@ -33,7 +38,6 @@ class InstructionRepairTests(unittest.TestCase):
 
     def test_schema_and_upstream_key_sets_are_complete(self):
         for source, target in [
-            ('tool-schema-guidance.json', 'tools.schema-guidance.txt'),
             ('upstream-assessment-tools.json', 'assessment-tools.upstream.txt'),
             ('budget-finalization.json', 'runtime.budget-finalization.txt'),
         ]:
@@ -42,6 +46,13 @@ class InstructionRepairTests(unittest.TestCase):
                 en = json.loads((REVISION / target).read_text(encoding='utf-8'))
                 self.assertEqual(set(vi), set(en))
                 self.assertTrue(all(isinstance(value, str) and value.strip() for value in en.values()))
+        historical_schema = json.loads(
+            (ROOT / 'instructions/revisions/r4/before/tool-schema-guidance.json').read_text(encoding='utf-8')
+        )
+        historical_candidate = json.loads(
+            (REVISION / 'tools.schema-guidance.txt').read_text(encoding='utf-8')
+        )
+        self.assertEqual(set(historical_schema), set(historical_candidate))
 
     def test_budget_guards_are_explicit_in_the_revised_candidate(self):
         budget = json.loads((REVISION / 'runtime.budget-finalization.txt').read_text(encoding='utf-8'))

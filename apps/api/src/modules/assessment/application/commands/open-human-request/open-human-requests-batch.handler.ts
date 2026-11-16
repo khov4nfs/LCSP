@@ -69,19 +69,20 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
    * - All batch requests must target the exact pinned case revision; revision mismatch rejects the entire batch.
    * - Each request is verified for anchor validity (criterion or condition), customer-safe text, and control type consistency.
    * - Typed FactNeeds deduplicate wording/locales, including duplicates inside one batch, but never merge different tenant, assessment, subject, deployment, scope, timeframe or value schemas.
+   * - Every investigated discovery range must bind to an integrity-valid immutable discovery record at current repository pins.
    * - If any request is an open blocker and the assessment is currently ACTIVE, transition to WAITING_FOR_HUMAN occurs once.
    * - Replayed requests with matching idempotency return identical request identities without duplicate creation.
    *
    * Execution flow:
    * 1. Authorize the agent lease and load pins under a single transaction.
    * 2. Lock the assessment case and verify the case revision against every request.
-   * 3. For each request, check idempotency receipts, validate criteria/customer-safe text, and persist or reuse its FactNeed and dependencies.
+   * 3. For each request, check idempotency receipts, validate criteria/customer-safe text and discovery provenance, then persist or reuse its FactNeed and dependencies.
    * 4. Move affected coverage rows to WAITING_FOR_INPUT.
    * 5. If at least one request remains open and the assessment is ACTIVE, transition to WAITING_FOR_HUMAN once.
    * 6. Return the array of open request results.
    *
    * Failure cases:
-   * - Stale case revisions, unauthorized dependencies, unsafe wording, or conflicting idempotency keys reject the batch atomically.
+   * - Stale case revisions, unauthorized dependencies, invented discovery provenance, unsafe wording, or conflicting idempotency keys reject the batch atomically.
    *
    * Side effects:
    * - Atomically persists human requests, dependency links, coverage state updates, audit records, and events; creates no compliance verdicts.
@@ -252,7 +253,9 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
             ? await resolveAssessmentFactNeedInTx(tx, {
                 assessmentId: input.assessmentId,
                 tenantOwnerId: assessmentOwner.ownerId,
+                repositorySnapshotId: pins.repositorySnapshotId,
                 repositoryCommit: pins.repositoryCommit,
+                sourcePathPrefix: pins.sourcePathPrefix,
                 factNeed: request.factNeed,
                 controlType: request.controlType,
                 choices: request.choices,

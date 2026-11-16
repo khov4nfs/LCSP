@@ -59,5 +59,10 @@
   "ReportExistingUnresolvableHumanFactArgs.unavailability_rationale": "Lý do bằng chứng đã chấp nhận chứng minh không thể thu thập fact vĩnh viễn; UNKNOWN đơn thuần chưa đủ.",
   "ReportExistingUnresolvableHumanFactArgs.evidence_ids": "Các evidence ID đã được chấp nhận chứng minh sự không thể thu thập vĩnh viễn.",
   "OpenHumanRequestArgs.dependencies": "Các rule/criterion khác phụ thuộc cùng material fact này; không mở rộng selected scope.",
-  "OpenHumanRequestArgs.source_request_id": "Identity request có sẵn để server xác thực việc chia sẻ đúng cùng fact."
+  "OpenHumanRequestArgs.source_request_id": "Identity request có sẵn để server xác thực việc chia sẻ đúng cùng fact.",
+  "RecordRepositoryDiscoveryExpansionArgs.record_id": "recordId chính xác của repositoryDiscovery bất biến đang được mở rộng.",
+  "RecordRepositoryDiscoveryExpansionArgs.content_digest": "contentDigest chính xác của repositoryDiscovery bất biến đang được mở rộng.",
+  "FactNeedDiscoveryRefArgs.record_id": "recordId chính xác do công cụ repositoryDiscovery được quản trị trả về.",
+  "FactNeedDiscoveryRefArgs.content_digest": "contentDigest chính xác gắn với record repositoryDiscovery bất biến.",
+  "FactNeedArgs.investigation_discovery_refs": "Các recordId và contentDigest bất biến chứa investigatedRangeIds; bắt buộc khi khai báo range IDs."
 }
