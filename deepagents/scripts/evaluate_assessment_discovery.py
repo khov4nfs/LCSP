@@ -445,10 +445,15 @@ def main() -> int:
     - May write one caller-selected JSON result; otherwise writes stdout only.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS)
+    parser.add_argument(
+        "--corpus",
+        dest="dataset",
+        type=Path,
+        default=DEFAULT_CORPUS,
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    result = run_evaluation(args.corpus.resolve())
+    result = run_evaluation(args.dataset.resolve())
     rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
