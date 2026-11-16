@@ -61,11 +61,11 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 |---|---|---|
 | Branch integration and governed instruction repair | IMPLEMENTED | PR is rebased and mergeable; all GitHub checks passed on exact pushed HEAD `caf06e5e3b611be2536111587cf5b7719b773bc9` on 2026-11-16. |
 | Existing selected/full/legacy audit compatibility | IMPLEMENTED | API-owned immutable audit requests and direct selected-rule execution already operate without discovery. |
-| Deterministic repository inventory and dependency signals | PARTIALLY_IMPLEMENTED | V1 scans bounded manifests, languages, frameworks, containers and gaps; AI catalogue exists, but no use-case/call-site discovery. |
+| Deterministic repository inventory and dependency signals | PARTIALLY_IMPLEMENTED | V1 scans bounded manifests, languages, frameworks, containers and gaps, then discovers direct AI calls, raw provider HTTP, model-like wrappers and nearby control/data-flow signals. Measured recall/precision and connection-aware incremental invalidation remain pending. |
 | Durable versioned Discovery result | IMPLEMENTED | `LCSP_DISCOVERY_V1` is an immutable assessment-owned API record bound to snapshot/repository/commit/scope/scanner/graph/cache/digest coordinates; V1 RepositoryProfile remains compatible. |
-| Runtime call sites, raw HTTP, wrappers and business callers | PARTIALLY_IMPLEMENTED | Deterministic source discovery covers direct SDK calls, raw provider HTTP, model-like wrappers, configuration and nearby controls/data-flow signals; verified cross-file callers and graph traversal remain pending. |
+| Runtime call sites, raw HTTP, wrappers and business callers | PARTIALLY_IMPLEMENTED | Deterministic source discovery covers direct SDK calls, raw provider HTTP, model-like wrappers, configuration and nearby controls/data-flow signals. The existing pinned Codebase Memory index now adds bounded cross-file caller/callee priorities with explicit graph gaps; verified production reachability remains pending. |
 | Source classification versus verified reachability | PARTIALLY_IMPLEMENTED | Discovery represents the required source contexts separately from conservative reachability; no path is promoted to reachable production without a verified call path. Reachability verification remains pending. |
-| Technology and rule-specific RelevanceMap | PARTIALLY_IMPLEMENTED | Technology ranges are digest-bound, deterministically prioritized and exposed as a bounded Root preview; rule relevance and audited expansion execution remain pending. |
+| Technology and rule-specific RelevanceMap | PARTIALLY_IMPLEMENTED | Technology ranges are digest-bound, deterministically prioritized and exposed as a bounded Root preview; API-owned matching applies the pinned rules and accepted facts without authorizing assessment. Audited rule-targeted expansion execution remains pending. |
 | Explicit coverage limits and pin/cache identity | PARTIALLY_IMPLEMENTED | Discovery records limits, truncation, unsupported languages, skipped paths, unresolved calls, total resource budgets, scanner signature and graph index identity. Cross-file connection-aware incremental invalidation remains pending. |
 | Canonical FactNeed and cross-locale deduplication | IMPLEMENTED | Additive FactNeed persistence distinguishes tenant owner, assessment, subject, predicate, operational scope, environment/deployment, timeframe and value schema; wording/locale and shared rule dependencies reuse one need. |
 | Minimal, batched human questions with native interrupt | PARTIALLY_IMPLEMENTED | Atomic batch questions and native checkpoints reuse canonical FactNeeds, including equivalent needs inside one batch; discovery-completeness/materiality gating remains pending. |
@@ -127,6 +127,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - 2026-11-16: Added typed FactNeed answer normalization for text, boolean, integer, number, date, date-time, enum and JSON values, and connected the existing high-impact ambiguity/conflict guard to production answer acceptance. Invalid values are rejected before case/fact/evidence mutation; accepted evidence retains both the raw and normalized value.
 - 2026-11-16: Added an additive immutable decision dependency ledger. New decisions record exact evidence/fact edges; evidence invalidation traverses direct and fact-mediated support, historical decisions without a ledger fail closed, and unrelated dependency-complete decisions may survive a later case revision while caseRevision remains the CAS/audit clock. Active final reports are marked INVALID when their case/support changes.
 - 2026-11-16: Exposed immutable repository-discovery details and ranked source ranges to Assessment Root through bounded exact-pin pages. The governed EN/VI contracts keep candidates/ranges non-authoritative, require exact source citation before evidence acceptance, preserve explicit gaps, and permit investigation beyond ranked priorities.
+- 2026-11-16: Reused the pinned Codebase Memory graph to enrich discovered invocation symbols with bounded caller/callee priorities. Trace failures, ambiguity, empty results, row/output budgets and unsupported runtime edges remain explicit coverage gaps; static topology never upgrades production reachability.
 
 ## Reproducible Pre-Change Baseline — 2026-11-16
 
@@ -184,6 +185,15 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - The runtime instruction boundary resolves a newly registered Assessment tool from its exact governed per-tool entry only when the legacy aggregate catalog lacks that name. Unknown tools still fail closed; a regression covers this path.
 - Discovery ranges, use cases and rule candidates remain investigation priorities only. They do not authorize audit scope, establish applicability/compliance, or become accepted evidence until the exact pinned source is read and cited. No source-recall, latency, token or legal-accuracy improvement is claimed from this mechanical handoff.
 - Durable recording of controlled expansion reasons/resource use is still pending, so the broader evidence-reuse task remains partially implemented.
+
+## Phase 7 Verification — Bounded Codebase Memory Enrichment
+
+- Focused repository scanner regression: `35` tests passed, including caller/callee enrichment, graph-query failure, trace-budget truncation, exact cache-pin persistence and reuse.
+- Assessment Root, Codebase Memory lifecycle and repository sandbox regression: `200` tests passed. Instruction inventory/tool lifecycle regression: `46` tests passed with strict inventory result `PASS`, zero unresolved paths and no missing EN/VI sources.
+- Each graph trace is bounded to 50 unique invocation symbols per discovery, depth 3, 100 rows and a 4,000-token output budget. Exact graph totals and truncation metadata are checked; excess or unrecognized results become explicit gaps instead of absence claims.
+- Codebase Memory output supplies investigation priorities only. `reachability` remains `NOT_ESTABLISHED`; dependency injection, interfaces, async jobs, events, dynamic configuration and deployed runtime use remain unresolved until separately verified.
+- The scanner source signature changed while `LCSP_DISCOVERY_V1` stayed stable. Exact scanner-signature and graph-index pins therefore refresh old cache artifacts without introducing a V2 contract or reinterpreting historical discovery records.
+- Business-logic documentation gates, contract-literal policy, Python compilation and `git diff --check` passed. Ruff and graphify remain unavailable in the local environment; no performance, recall, precision, token, latency or legal-accuracy improvement is claimed.
 
 ## Design Notes
 
