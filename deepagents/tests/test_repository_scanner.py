@@ -11,6 +11,7 @@ from tools.common.capabilities.platform.repository_scanner import (
     REPOSITORY_DISCOVERY_PATH,
     SCANNER_VERSION,
     RepositoryScanner,
+    _enrich_repository_discovery_from_graph,
     compute_discovery_digest,
     compute_profile_digest,
     ensure_repository_discovery,
@@ -418,6 +419,157 @@ def test_discovery_finds_direct_sdk_raw_http_and_nearby_controls(tmp_path: Path)
     assert all(item["reachability"] == "NOT_ESTABLISHED" for item in discovery["sourceRanges"])
 
 
+def test_discovery_reuses_codebase_memory_call_edges_without_claiming_reachability(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "model.py").write_text(
+        "def summarize(prompt):\n"
+        "    return client.responses.create(input=prompt)\n",
+        encoding="utf-8",
+    )
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-graph-enrichment",
+        commit_sha="1" * 40,
+        graph_index_version="sha256:" + "2" * 64,
+    )
+    commands: list[str] = []
+
+    def execute(command: str, timeout: int | None = None):
+        commands.append(command)
+        assert timeout == 30
+        return SimpleNamespace(
+            exit_code=0,
+            output=json.dumps(
+                {
+                    "function": "summarize",
+                    "direction": "both",
+                    "callers_total": 1,
+                    "callers": {
+                        "cols": ["name", "hop"],
+                        "groups": [
+                            {"qn_prefix": "app.routes", "rows": [["run_summary", 1]]}
+                        ],
+                    },
+                    "callees_total": 1,
+                    "callees": {
+                        "cols": ["name", "hop"],
+                        "groups": [
+                            {"qn_prefix": "openai.responses", "rows": [["create", 1]]}
+                        ],
+                    },
+                }
+            ),
+        )
+
+    enriched = _enrich_repository_discovery_from_graph(discovery, execute=execute)
+
+    invocation = next(
+        item for item in enriched["sourceRanges"] if item["signalType"] == "AI_SDK_CALL"
+    )
+    assert invocation["callers"] == ["app.routes.run_summary"]
+    assert invocation["callees"] == ["openai.responses.create"]
+    assert invocation["reachability"] == "NOT_ESTABLISHED"
+    assert "production-runtime reachability" in invocation["unresolvedEdges"][0]
+    assert enriched["contentDigest"] == compute_discovery_digest(enriched)
+    assert enriched["cacheIdentity"] == discovery["cacheIdentity"]
+    assert len(commands) == 1
+    assert "codebase-memory-graph cli --quiet trace_path" in commands[0]
+    assert '\"file_path\":\"model.py\"' in commands[0]
+    assert '\"depth\":3' in commands[0]
+    assert '\"limit\":100' in commands[0]
+    assert '\"max_output_tokens\":4000' in commands[0]
+
+
+def test_discovery_records_graph_query_failure_as_unresolved_coverage(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "model.py").write_text(
+        "def summarize(prompt):\n"
+        "    return client.responses.create(input=prompt)\n",
+        encoding="utf-8",
+    )
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-graph-failure",
+        commit_sha="2" * 40,
+        graph_index_version="sha256:" + "3" * 64,
+    )
+
+    def execute(_command: str, timeout: int | None = None):
+        assert timeout == 30
+        return SimpleNamespace(exit_code=1, output="ambiguous symbol")
+
+    enriched = _enrich_repository_discovery_from_graph(discovery, execute=execute)
+
+    invocation = next(
+        item for item in enriched["sourceRanges"] if item["signalType"] == "AI_SDK_CALL"
+    )
+    assert invocation["callers"] == []
+    assert invocation["callees"] == []
+    assert any("runtime reachability remains unresolved" in gap for gap in invocation["coverageGaps"])
+    assert any(
+        gap["reason"] == "UNRESOLVED_REACHABILITY" and gap["path"] == "model.py"
+        for gap in enriched["knownGaps"]
+    )
+    assert enriched["resourceLedger"]["coverageImpact"]["knownGapCount"] >= 1
+    assert enriched["resourceLedger"]["coverageImpact"]["truncated"] is False
+
+
+def test_discovery_records_bounded_graph_trace_budget(tmp_path: Path) -> None:
+    for index in range(2):
+        (tmp_path / f"model_{index}.py").write_text(
+            f"def summarize_{index}(prompt):\n"
+            "    return client.responses.create(input=prompt)\n",
+            encoding="utf-8",
+        )
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-graph-budget",
+        commit_sha="3" * 40,
+        graph_index_version="sha256:" + "4" * 64,
+    )
+    commands: list[str] = []
+
+    def execute(command: str, timeout: int | None = None):
+        commands.append(command)
+        return SimpleNamespace(
+            exit_code=0,
+            output=json.dumps(
+                {
+                    "callers_total": 101,
+                    "callers_total_relation": "eq",
+                    "callers": {
+                        "cols": ["name", "hop"],
+                        "groups": [{"qn_prefix": "app", "rows": [["entry", 1]]}],
+                    },
+                    "callees": {"cols": ["name", "hop"], "groups": []},
+                }
+            ),
+        )
+
+    enriched = _enrich_repository_discovery_from_graph(
+        discovery,
+        execute=execute,
+        max_traces=1,
+    )
+
+    assert len(commands) == 1
+    assert any(
+        gap["reason"] == "INCOMPLETE_COVERAGE" and "trace budget 1" in gap["detail"]
+        for gap in enriched["knownGaps"]
+    )
+    assert sum(
+        any("trace budget 1" in gap for gap in item["coverageGaps"])
+        for item in enriched["sourceRanges"]
+    ) == 1
+    assert any(
+        gap["reason"] == "INCOMPLETE_COVERAGE"
+        and "caller/callee results" in gap["detail"]
+        for gap in enriched["knownGaps"]
+    )
+
+
 def test_discovery_marks_wrapper_as_indirect_candidate_without_confirming_reachability(
     tmp_path: Path,
 ) -> None:
@@ -734,6 +886,84 @@ def test_ensure_repository_discovery_cache_binds_scanner_graph_and_pins(tmp_path
         graph_index_version="graph-two",
     ) == "graphIndexVersion mismatch"
     assert changed_graph["discoveryVersion"] == DISCOVERY_VERSION
+
+
+def test_ensure_repository_discovery_persists_graph_enrichment_for_exact_cache_pins(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "model.py").write_text(
+        "def summarize(prompt):\n"
+        "    return client.responses.create(input=prompt)\n",
+        encoding="utf-8",
+    )
+    graph_version = "sha256:" + "5" * 64
+    scanner_result = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-sandbox-graph",
+        commit_sha="4" * 40,
+        graph_index_version=graph_version,
+    )
+
+    class ExecutingDiscoveryBackend:
+        def __init__(self):
+            self.storage: dict[str, str] = {}
+            self.commands: list[str] = []
+
+        def read(self, path: str):
+            if path in self.storage:
+                return self.storage[path]
+            return SimpleNamespace(error="NOT_FOUND")
+
+        def write(self, path: str, content: str):
+            self.storage[path] = content
+            return SimpleNamespace(error=None)
+
+        def execute(self, command: str, timeout: int | None = None):
+            self.commands.append(command)
+            if "python3 -I" in command:
+                assert timeout == 300
+                return SimpleNamespace(exit_code=0, output=json.dumps(scanner_result))
+            assert "codebase-memory-graph cli --quiet trace_path" in command
+            assert timeout == 30
+            return SimpleNamespace(
+                exit_code=0,
+                output=json.dumps(
+                    {
+                        "callers": {
+                            "cols": ["name", "hop"],
+                            "groups": [
+                                {"qn_prefix": "app.jobs", "rows": [["summarize_job", 1]]}
+                            ],
+                        },
+                        "callees": {"cols": ["name", "hop"], "groups": []},
+                    }
+                ),
+            )
+
+    backend = ExecutingDiscoveryBackend()
+    first = ensure_repository_discovery(
+        backend,
+        repository_id="repo-sandbox-graph",
+        commit_sha="4" * 40,
+        workspace_path="/workspace/repository",
+        graph_index_version=graph_version,
+    )
+    command_count = len(backend.commands)
+    second = ensure_repository_discovery(
+        backend,
+        repository_id="repo-sandbox-graph",
+        commit_sha="4" * 40,
+        workspace_path="/workspace/repository",
+        graph_index_version=graph_version,
+    )
+
+    invocation = next(
+        item for item in first["sourceRanges"] if item["signalType"] == "AI_SDK_CALL"
+    )
+    assert invocation["callers"] == ["app.jobs.summarize_job"]
+    assert first == second
+    assert len(backend.commands) == command_count
+    assert json.loads(backend.storage[REPOSITORY_DISCOVERY_PATH]) == first
 
 
 def test_ensure_repository_profile_cache_reuse_and_invalidation(tmp_path: Path) -> None:
