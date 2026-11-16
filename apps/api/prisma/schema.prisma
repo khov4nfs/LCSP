@@ -2017,6 +2017,17 @@ enum AssessmentFactNeedStatus {
   SUPERSEDED
 }
 
+enum AssessmentHumanFactProposalStatus {
+  PENDING_REVIEW
+  ACCEPTED
+}
+
+enum AssessmentHumanFactProposalGuardFailure {
+  UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW
+  AMBIGUOUS_HUMAN_ANSWER
+  CONTRADICTS_PRIOR_HUMAN_FACT
+}
+
 enum AssessmentFactKind {
   FACT
   USE_CASE
@@ -2088,6 +2099,7 @@ model AssessmentCase {
   repositoryDiscoveries AssessmentRepositoryDiscovery[]
   repositoryDiscoveryExpansions AssessmentRepositoryDiscoveryExpansion[]
   factNeeds             AssessmentFactNeed[]
+  humanFactProposals    AssessmentHumanFactProposal[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
   @@unique([assessmentId, ruleSetVersionId])
@@ -2299,11 +2311,42 @@ model AssessmentFactNeed {
   tenantOwner                 User                            @relation("AssessmentFactNeedTenantOwner", fields: [tenantOwnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   resolvedFact                AssessmentCaseFact?             @relation(fields: [resolvedFactId, assessmentId], references: [factId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
   humanRequest                AssessmentHumanRequest?
+  proposals                   AssessmentHumanFactProposal[]
 
   @@unique([factNeedId, assessmentId])
   @@unique([assessmentId, identityDigest])
   @@index([assessmentId, status])
   @@index([tenantOwnerId, assessmentId])
+}
+
+/// Immutable candidate interpretation of one submitted human answer.
+/// Only ACCEPTED proposals may reference accepted evidence/facts; pending proposals keep the request open.
+model AssessmentHumanFactProposal {
+  proposalId        String                                   @id @db.Uuid
+  assessmentId      String
+  requestId         String                                   @db.Uuid
+  factNeedId        String?                                  @db.Uuid
+  caseRevision      Int
+  requestRevision   Int
+  checkpointId      String                                   @db.Uuid
+  idempotencyKey    String
+  requestDigest     String
+  actorId           String
+  rawAnswer         Json
+  normalizedAnswer  Json?
+  status            AssessmentHumanFactProposalStatus
+  guardFailure      AssessmentHumanFactProposalGuardFailure?
+  acceptedEvidenceId String?                                 @db.Uuid
+  acceptedFactId     String?                                 @db.Uuid
+  createdAt         DateTime                                 @default(now()) @db.Timestamptz(3)
+  assessmentCase    AssessmentCase                           @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  humanRequest      AssessmentHumanRequest                   @relation(fields: [requestId, assessmentId], references: [requestId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  factNeed          AssessmentFactNeed?                      @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([proposalId, assessmentId])
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, requestId, createdAt])
+  @@index([assessmentId, status, createdAt])
 }
 
 model AssessmentCaseFactEvidence {
@@ -2432,6 +2475,7 @@ model AssessmentHumanRequest {
   dependencies       AssessmentHumanRequestDependency[]
   registrations      AssessmentHumanRequestRegistration[]
   factNeed           AssessmentFactNeed?          @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  factProposals      AssessmentHumanFactProposal[]
 
   @@unique([requestId, assessmentId])
   @@unique([assessmentId, idempotencyKey])

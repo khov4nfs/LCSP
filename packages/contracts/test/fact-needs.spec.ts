@@ -4,6 +4,8 @@ import {
   FACT_NEED_SUBJECT_KINDS,
   FACT_NEED_TIMEFRAME_KINDS,
   FACT_NEED_VALUE_KINDS,
+  HUMAN_FACT_GUARD_FAILURES,
+  HUMAN_FACT_PROPOSAL_STATUSES,
   factNeedInputSchema,
   humanAnswerAuditSchema,
   normalizedFactNeedAnswerSchema,
@@ -116,5 +118,50 @@ describe("FactNeed contracts", () => {
         value: true,
       }),
     ).toEqual({ kind: FACT_NEED_VALUE_KINDS.boolean, value: true });
+  });
+
+  it("represents pending and accepted proposals without changing historical answer shape", () => {
+    const proposalId = "11111111-1111-4111-8111-111111111111";
+    const base = {
+      idempotencyKey: "answer-proposal-idempotency",
+      requestDigest: "c".repeat(64),
+      actorId: "customer-owner",
+      answeredAt: "2026-11-16T11:00:00.000Z",
+      caseRevision: 2,
+      requestRevision: 2,
+      doesNotKnow: false,
+      answer: "The incident status remains unknown.",
+      selectedChoice: null,
+      proposalId,
+    };
+
+    expect(
+      humanAnswerAuditSchema.parse({
+        ...base,
+        proposalStatus: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+        guardFailure: HUMAN_FACT_GUARD_FAILURES.AMBIGUOUS_HUMAN_ANSWER,
+      }),
+    ).toMatchObject({
+      proposalId,
+      proposalStatus: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+      guardFailure: HUMAN_FACT_GUARD_FAILURES.AMBIGUOUS_HUMAN_ANSWER,
+    });
+    expect(
+      humanAnswerAuditSchema.parse({
+        ...base,
+        proposalStatus: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+        guardFailure: null,
+      }),
+    ).toMatchObject({
+      proposalStatus: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+      guardFailure: null,
+    });
+    expect(() =>
+      humanAnswerAuditSchema.parse({
+        ...base,
+        proposalStatus: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+        guardFailure: HUMAN_FACT_GUARD_FAILURES.CONTRADICTS_PRIOR_HUMAN_FACT,
+      }),
+    ).toThrow();
   });
 });

@@ -17,9 +17,11 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  HUMAN_FACT_PROPOSAL_STATUSES,
   HUMAN_RESOLUTION_CONTROL_TYPES,
   humanAnswerAuditSchema,
   type AnswerAssessmentHumanRequestResult,
+  type HumanFactGuardFailure,
   type NormalizedFactNeedAnswer,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -80,7 +82,8 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - Exact idempotent replays preserve the original result; a conflicting payload or actor is rejected.
    * - A known answer supplies human-owned text, while the agent-authored question remains explicitly labelled context rather than a customer assertion.
    * - Typed choice answers snapshot their canonical value and label in immutable evidence while preserving raw answer value.
-   * - Typed FactNeed answers are normalized against their declared value schema before acceptance; ambiguous or conflicting high-impact legacy answers are rejected before mutation.
+   * - Typed FactNeed answers are normalized against their declared value schema before proposal creation.
+   * - Clear proposals are accepted with their evidence/fact atomically; ambiguous or conflicting proposals remain pending without case mutation.
    * - Unknown answers keep the request open and create no accepted fact or case revision.
    * - Once every open dependency has an unknown response at the current checkpoint, enqueue one review-only continuation while preserving WAITING_FOR_HUMAN.
    * - A shared request resolves one fact; only dependencies in the current audit return to investigation after their other open requests resolve, while unrelated dependency-complete decisions remain accepted.
@@ -88,16 +91,18 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - Historical requests outside selected membership neither authorize an answer nor block this audit's continuation.
    *
    * Execution flow:
-   * 1. Lock the owned Assessment, validate replay identity, revisions, checkpoint, selected choice, typed value and material answer conflicts.
-   * 2. For a known answer, advance the case revision, invalidate any whole-case final report, snapshot choice meaning, persist answer evidence/fact, and resolve any linked FactNeed; dependent decisions were invalidated when the question opened.
-   * 3. Append checkpoint-bound answer history, update each dependent rule's coverage, and enqueue normal resume after all blockers resolve or a review-only continuation after all open dependencies have replied UNKNOWN.
+   * 1. Lock the owned Assessment and validate replay identity, revisions, checkpoint, selected choice and typed value.
+   * 2. Normalize the answer and classify material ambiguity/conflict into an immutable pending or accepted fact proposal.
+   * 3. For an accepted proposal, advance the case revision, invalidate any whole-case final report, persist answer evidence/fact, and resolve any linked FactNeed.
+   * 4. Append checkpoint-bound answer history, update dependent coverage only for acceptance, and enqueue continuation only after blockers resolve or all open dependencies have replied UNKNOWN.
    *
    * Failure cases:
    * - Missing, closed, stale, conflicting or checkpoint-mismatched requests are rejected with the existing domain problem codes.
-   * - An invalid typed value, choice, ambiguous material answer or conflict with accepted human history is rejected; transaction failure rolls back facts, history, lifecycle and outbox effects together.
+   * - Invalid typed values and choices reject before proposal persistence; ambiguous/conflicting material answers remain pending and non-authoritative.
+   * - Transaction failure rolls back proposals, facts, history, lifecycle and outbox effects together.
    *
    * Side effects:
-   * - Atomically persists the answer and audit history; a known answer also writes evidence/fact links, invalidates a stale final-report projection, and may transition the lifecycle and enqueue Root continuation.
+   * - Atomically persists a non-unknown answer proposal and answer audit history; only an accepted proposal writes evidence/fact links, invalidates a stale final-report projection, and may transition the lifecycle.
    * - Preserves historical answers and decision packets; it does not interpret the answer or author a compliance decision.
    */
   execute(
@@ -151,16 +156,26 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           replay.requestDigest !== requestDigest
         )
           throw reject(ASSESSMENT_DOMAIN_ERROR_CODES.IDEMPOTENCY_CONFLICT);
+        const unresolvedReplay =
+          replay.doesNotKnow ||
+          replay.proposalStatus === HUMAN_FACT_PROPOSAL_STATUSES.pendingReview;
         return {
           requestId: row.requestId,
           requestRevision: replay.requestRevision,
           caseRevision: replay.caseRevision,
-          status: replay.doesNotKnow
+          status: unresolvedReplay
             ? HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN
             : HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
-          factId: replay.doesNotKnow ? null : row.resolvedFactId,
+          factId: unresolvedReplay ? null : row.resolvedFactId,
           resumed: false,
           replayed: true,
+          ...(replay.proposalId ? { proposalId: replay.proposalId } : {}),
+          ...(replay.proposalStatus
+            ? { proposalStatus: replay.proposalStatus }
+            : {}),
+          ...(replay.guardFailure !== undefined
+            ? { guardFailure: replay.guardFailure }
+            : {}),
         };
       }
       if (row.status !== HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN)
@@ -206,6 +221,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         );
       }
       let factId: string | null = null;
+      let evidenceId: string | null = null;
       let caseRevision = pins.caseRevision;
       const requestRevision = row.requestRevision + 1;
       const choicesList = Array.isArray(row.choices)
@@ -228,6 +244,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         }
       }
       const answerTopic = answer !== null ? topicOf(row.question) : null;
+      let guardFailure: HumanFactGuardFailure | null = null;
       if (answer !== null && answerTopic) {
         const priorRows = await tx.assessmentHumanRequest.findMany({
           where: {
@@ -258,23 +275,20 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
             }
           }
         }
-        const guardFailure = inspectHumanFactAnswer(
+        guardFailure = inspectHumanFactAnswer(
           row.question,
           answer,
           priorAnswers,
         );
-        if (guardFailure) {
-          throw problemException(
-            ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_ANSWER_INVALID,
-            input.correlationId,
-            {
-              status: HttpStatus.UNPROCESSABLE_ENTITY,
-              meta: { guardFailure },
-            },
-          );
-        }
       }
-      if (answer !== null) {
+      const proposalId = answer !== null ? randomUUID() : null;
+      const proposalStatus =
+        answer === null
+          ? null
+          : guardFailure
+            ? HUMAN_FACT_PROPOSAL_STATUSES.pendingReview
+            : HUMAN_FACT_PROPOSAL_STATUSES.accepted;
+      if (answer !== null && guardFailure === null) {
         caseRevision += 1;
         await tx.assessmentCase.update({
           where: { assessmentId: input.assessmentId },
@@ -284,7 +298,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           tx,
           input.assessmentId,
         );
-        const evidenceId = randomUUID();
+        evidenceId = randomUUID();
         const payload = {
           requestId: row.requestId,
           actorId: actor.id,
@@ -357,10 +371,41 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           auditActor: actor,
         });
       }
+      if (answer !== null && proposalId && proposalStatus) {
+        await tx.assessmentHumanFactProposal.create({
+          data: {
+            proposalId,
+            assessmentId: input.assessmentId,
+            requestId: row.requestId,
+            factNeedId: row.factNeedId,
+            caseRevision,
+            requestRevision,
+            checkpointId: row.checkpointId,
+            idempotencyKey: input.request.idempotencyKey,
+            requestDigest,
+            actorId: actor.id,
+            rawAnswer: {
+              answer,
+              selectedChoice: selectedChoice
+                ? {
+                    value: selectedChoice.value,
+                    label: selectedChoice.label,
+                  }
+                : null,
+              controlType: row.controlType,
+            },
+            ...(normalizedAnswer ? { normalizedAnswer } : {}),
+            status: proposalStatus,
+            guardFailure,
+            acceptedEvidenceId: evidenceId,
+            acceptedFactId: factId,
+          },
+        });
+      }
       const status =
-        answer === null
-          ? HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN
-          : HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED;
+        answer !== null && guardFailure === null
+          ? HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED
+          : HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN;
       await tx.assessmentHumanRequest.update({
         where: { requestId: row.requestId },
         data: {
@@ -382,6 +427,9 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
                 ? { value: selectedChoice.value, label: selectedChoice.label }
                 : null,
               checkpointId: row.checkpointId,
+              ...(proposalId ? { proposalId } : {}),
+              ...(proposalStatus ? { proposalStatus } : {}),
+              ...(guardFailure ? { guardFailure } : {}),
             },
           ],
           ...(factId ? { resolvedFactId: factId, resolvedAt: new Date() } : {}),
@@ -440,6 +488,8 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
             requestRevision,
             caseRevision,
             doesNotKnow: answer === null,
+            proposalStatus,
+            guardFailure,
           },
         },
         tx,
@@ -579,6 +629,9 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         factId,
         resumed,
         replayed: false,
+        ...(proposalId ? { proposalId } : {}),
+        ...(proposalStatus ? { proposalStatus } : {}),
+        ...(guardFailure ? { guardFailure } : {}),
       };
     });
   }
