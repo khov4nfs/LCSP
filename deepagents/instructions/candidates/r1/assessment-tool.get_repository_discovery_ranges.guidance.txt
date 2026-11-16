@@ -1,0 +1,3 @@
+Reuse pin-bound ranked ranges as investigation priorities, never as evidence or an absolute source allowlist; verify exact source and preserve coverage gaps.
+
+WHEN: repositoryDiscovery is available and source investigation is needed. READ: ranked paths/ranges, reachability state, rule relevance and gaps. NEXT: inspect and cite exact pinned source, then expand/search only for unresolved support or counterevidence. FAILURE: a missing/low-ranked range never proves absence.

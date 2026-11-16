@@ -553,6 +553,32 @@ def test_assessment_context_preserves_explicit_discovery_absence(tmp_path) -> No
     assert ("discovery_summary", None) in client.calls
 
 
+def test_repository_discovery_pages_are_reused_as_non_authoritative_priorities(tmp_path) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+
+    ranges = json.loads(tools["get_repository_discovery_ranges"].invoke({
+        "record_id": "7bf9ef1d-5666-4f44-b340-4d7e5b597ed5",
+        "offset": 25,
+        "limit": 10,
+    }))
+    details = json.loads(tools["get_repository_discovery_details"].invoke({
+        "record_id": "7bf9ef1d-5666-4f44-b340-4d7e5b597ed5",
+        "collection": "KNOWN_GAPS",
+        "offset": 0,
+        "limit": 5,
+    }))
+
+    assert ranges["ok"] is True and ranges["ranges"] == []
+    assert details["ok"] is True and details["items"] == []
+    assert ("discovery_ranges", ("7bf9ef1d-5666-4f44-b340-4d7e5b597ed5", 25, 10)) in client.calls
+    assert (
+        "discovery_details",
+        ("7bf9ef1d-5666-4f44-b340-4d7e5b597ed5", "KNOWN_GAPS", 0, 5),
+    ) in client.calls
+
+
 # ---- the agent graph ------------------------------------------------------------------------------
 
 
