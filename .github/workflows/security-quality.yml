@@ -60,7 +60,7 @@ jobs:
 
       - name: Scan AI/LLM/MCP/RAG boundaries
         continue-on-error: true
-        uses: akanthed/SecureAI-Scan@v0.12.0
+        uses: akanthed/SecureAI-Scan@v0.13.0
         with:
           scanner-version: 0.12.0
           path: .
@@ -79,7 +79,7 @@ jobs:
 
       - name: Scan agent framework reliability
         continue-on-error: true
-        uses: trustabl/trustabl-action@v0.4.3
+        uses: trustabl/trustabl-action@v0.5.0
         with:
           target: .
           detectors: mcp,langchain
