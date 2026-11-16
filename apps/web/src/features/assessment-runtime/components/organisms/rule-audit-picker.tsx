@@ -350,6 +350,13 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
           </CardContent>
         ) : null}
         <CardContent>
+          {data.localizationFallback ? (
+            <Alert role="status">
+              <AlertDescription>
+                {copy("localizationFallback")}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {data.excludedRuleCount > 0 ? (
             <Alert>
               <AlertDescription>

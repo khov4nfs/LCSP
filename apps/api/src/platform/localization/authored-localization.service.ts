@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { authoredTranslationProvider } from "./authored-translation-provider.js";
 import {
   Injectable,
   type OnModuleInit,
@@ -843,10 +844,7 @@ export class AuthoredLocalizationService
         ),
         workerEnabled:
           process.env.LCSP_AUTHORED_TRANSLATION_WORKER_ENABLED === "1",
-        providerConfigured: Boolean(
-          process.env.LCSP_AUTHORED_TRANSLATION_URL &&
-          process.env.LCSP_AUTHORED_TRANSLATION_KEY,
-        ),
+        providerConfigured: Boolean(authoredTranslationProvider()),
         batchLimit: 50,
         workerLeaseLimit: 5,
         maxAttempts: 5,
@@ -1646,7 +1644,8 @@ export class AuthoredLocalizationService
    * Business rules:
    * - Only the current lease may accept output; exact origin/locale and provider metadata are required; READY revisions are immutable.
    * Execution flow:
-   * 1. Load the claimed job, obtain verified output, then commit READY plus revision or record retry/failure.
+   * 1. Load the claimed job and resolve the configured external provider or existing private Agent Server.
+   * 2. Preserve translated output as a candidate awaiting independent review; source-locale originals may become READY.
    * Failure cases:
    * - Provider configuration, timeout, schema or digest failures retain explicit PENDING/FAILED state with bounded retries.
    * Side effects:
@@ -1685,15 +1684,14 @@ export class AuthoredLocalizationService
           engineVersion: "1",
         };
       else {
-        const url = process.env.LCSP_AUTHORED_TRANSLATION_URL;
-        const key = process.env.LCSP_AUTHORED_TRANSLATION_KEY;
-        if (!url || !key)
+        const provider = authoredTranslationProvider();
+        if (!provider)
           throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE);
-        const response = await fetch(url, {
+        const response = await fetch(provider.url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${key}`,
+            ...provider.headers,
           },
           signal: AbortSignal.timeout(30_000),
           body: JSON.stringify({

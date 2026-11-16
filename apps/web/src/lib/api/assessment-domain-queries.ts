@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ASSESSMENT_EVENTS_PAGE_LIMIT,
+  AUTHORED_LOCALIZATION_CODES,
   assessmentDetailSchema,
   assessmentEventsPageSchema,
   assessmentHumanRequestsResultSchema,
@@ -16,7 +17,7 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
-import { apiValidated } from "./api-request";
+import { ApiRequestError, apiValidated } from "./api-request";
 
 export const assessmentDomainKeys = {
   detail: (id: string) => ["assessment", id, "detail"] as const,
@@ -26,13 +27,32 @@ export const assessmentDomainKeys = {
   provenance: (id: string) => ["assessment", id, "provenance"] as const,
 };
 /**
+ * Business purpose: Avoid repeatedly requesting assessment content that awaits translation review.
+ * Business rules:
+ * - Localization conflicts need a review rather than an automatic retry; other failures retain one retry.
+ * Execution flow:
+ * 1. Inspect the problem code and retry count to decide whether another read is useful.
+ * Failure cases:
+ * - An incomplete localization conflict or exhausted retry returns false.
+ * Side effects:
+ * - Pure decision; no requests or state changes.
+ */
+function retryAssessmentRead(count: number, error: Error): boolean {
+  return (
+    !(
+      error instanceof ApiRequestError &&
+      error.problemCode === AUTHORED_LOCALIZATION_CODES.INCOMPLETE
+    ) && count < 1
+  );
+}
+/**
  * Business purpose: Read Assessment detail in the actively selected presentation language.
  * Business rules:
  * - Keep assessment-prefix invalidation and isolate locale caches without cross-language placeholder data.
  * Execution flow:
  * 1. Subscribe to locale changes, fetch with the captured locale and discard superseded requests.
  * Failure cases:
- * - Invalid responses, localization problems and locale changes reject without narrative fallback.
+ * - Invalid responses and locale changes reject; the BFF marks any pending-translation fallback.
  * Side effects:
  * - Performs an owner-authorized BFF read and updates only the captured locale's cache.
  */
@@ -69,6 +89,7 @@ export function useAssessmentDetailQuery(id: string) {
       return result;
     },
     placeholderData: undefined,
+    retry: retryAssessmentRead,
     enabled: Boolean(id),
   });
 }
@@ -150,7 +171,7 @@ export function useReconcileOrphanedAssessment(id: string) {
  * Execution flow:
  * 1. Subscribe to the active app locale, send x-lcsp-locale and AbortSignal, and validate the response.
  * Failure cases:
- * - Cancellation, locale changes and localization readiness conflicts reject without cross-language fallback.
+ * - Cancellation and locale changes reject; pending translation fallback is identified by the BFF.
  * Side effects:
  * - Performs an owner-authorized BFF read and updates only the captured locale's cache.
  */
@@ -187,6 +208,7 @@ export function useHumanRequestsQuery(id: string) {
       return result;
     },
     placeholderData: undefined,
+    retry: retryAssessmentRead,
     enabled: Boolean(id),
   });
 }

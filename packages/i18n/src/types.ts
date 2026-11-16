@@ -447,6 +447,7 @@ export type PagesMessages = {
     };
   };
   assessmentConversation: {
+    localizationFallback: string;
     ruleAudit: {
       selectGroup: string;
       clearGroup: string;
