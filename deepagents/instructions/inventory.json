@@ -906,10 +906,10 @@
       "runtimeEntryId": "assessment-tools.upstream",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "sourceSha256": "37a815ba859e7b8c8414e4ce5cea4442c9a6cfc2ed5d23d96bc37da5dbdc247a",
+      "sourceSha256": "a0474d6c7f9aa245b4e5e7946a2dcd5d27ef7c721460e5b8b507f8cdc6b43283",
       "englishCandidatePath": "instructions/candidates/r3/assessment-tools.upstream.txt",
-      "englishCandidateSha256": "2e8e17f3153abcfab83466b3028feac2a2ec9fa219c72596a16b2366718604ac",
-      "candidateOriginSha256": "37a815ba859e7b8c8414e4ce5cea4442c9a6cfc2ed5d23d96bc37da5dbdc247a",
+      "englishCandidateSha256": "9a54a13a7bfcde817abc0a2ab971adc07d7a97e3297020bf8faf5c6935789dc9",
+      "candidateOriginSha256": "a0474d6c7f9aa245b4e5e7946a2dcd5d27ef7c721460e5b8b507f8cdc6b43283",
       "migrationReferences": [
         "assessment_root/tools.py"
       ],
@@ -2318,9 +2318,9 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "114b1364704555c597b869062ab1a8846c2dea07d43a31ad9e32c7e4cb89be54",
-      "englishCandidateSha256": "4fcc4134202b0f74c0a805a92897f8fd010c84a1a7442835487758409a8335d7",
-      "candidateOriginSha256": "114b1364704555c597b869062ab1a8846c2dea07d43a31ad9e32c7e4cb89be54",
+      "sourceSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
+      "englishCandidateSha256": "44cdd0632401f32e1eec51a158ad4aa34dc299d54424a56f138641f39d48001e",
+      "candidateOriginSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
       "translationProvenance": {
         "translator": "Codex session-authorized source repair; full bundle review remains pending",
         "translationRevision": "r3"
@@ -7888,9 +7888,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::1456:1f44fa73cce7637e",
+      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::1612:1f44fa73cce7637e",
       "filePath": "tools/common/capabilities/platform/repository_scanner.py",
-      "lineNumber": 1456,
+      "lineNumber": 1612,
       "symbolName": "<module>",
       "constructionSha256": "1f44fa73cce7637ebd70b5dc86cdeaa4c9cdbb93f81e9084b9c1d7db8da18d31",
       "evidence": "\"Deterministic offline repository pre-scan\"",
@@ -9142,7 +9142,7 @@
     {
       "siteId": "tools/common/capabilities/platform/repository_scanner.py::<module>::685d9c993d7675b9::1",
       "filePath": "tools/common/capabilities/platform/repository_scanner.py",
-      "lineNumber": 1456,
+      "lineNumber": 1612,
       "symbolName": "<module>",
       "constructionSha256": "685d9c993d7675b9058d6aaf3e454ed4aeb4f6ecff20fbc0a7bf77208c8f3fc7",
       "evidence": "parser = argparse.ArgumentParser(description=\"Deterministic offline repository pre-scan\")",
