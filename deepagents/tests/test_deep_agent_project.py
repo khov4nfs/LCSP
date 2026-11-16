@@ -79,6 +79,7 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
                       if path.name != "__pycache__"}
     assert operator_files == {
         "run_resume_turn.py", "run_t31_scoped_pilot.py", "t31_native_runtime.py",
+        "evaluate_assessment_discovery.py",
         "prepare_english_candidates.py", "snapshot_instruction_migration.py", "verify_instruction_inventory.py", "wire_instruction_templates.py",
     }
     for filename in operator_files:
