@@ -75,10 +75,41 @@ test("run-scoped durable history survives replay/reconnect, pages older events a
     );
     await settle();
     assert.match(node.textContent!, new RegExp(run.preparationRunId));
+    const sectionTabs = [
+      ...node.querySelectorAll<HTMLButtonElement>("[role='tab']"),
+    ];
+    assert.equal(sectionTabs.length, 3);
+    assert.equal(sectionTabs[0].getAttribute("aria-selected"), "true");
+    for (const tab of sectionTabs) {
+      assert(node.querySelector(`#${tab.getAttribute("aria-controls")}`));
+    }
+    assert(!node.textContent!.includes("Observed input tokens: 100"));
+    const catalogTab = sectionTabs[1];
+    act(() =>
+      sectionTabs[0].dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          bubbles: true,
+        }),
+      ),
+    );
+    assert.equal(catalogTab.getAttribute("aria-selected"), "true");
+    const activityTab = sectionTabs[2];
+    act(() =>
+      catalogTab.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "ArrowRight",
+          bubbles: true,
+        }),
+      ),
+    );
+    assert.equal(activityTab.getAttribute("aria-selected"), "true");
+    await settle();
     assert.match(node.textContent!, /DEVELOPMENT_ONLY/);
     assert.match(node.textContent!, /MODEL_EXECUTION/);
     assert.match(node.textContent!, /Observed input tokens: 100/);
     assert(!node.textContent!.includes("DO_NOT_RENDER"));
+    assert.equal(es.instances.length, 1);
     const source = es.instances[0];
     act(() => source.open());
     act(() => source.onerror?.(new window.Event("error")));
@@ -116,6 +147,10 @@ test("run-scoped durable history survives replay/reconnect, pages older events a
       node.querySelectorAll('[data-slot="work-disclosure"]').length > before,
     );
     assert(!node.textContent!.includes("foreign"));
+    click(sectionTabs[0]);
+    click(activityTab);
+    assert.match(node.textContent!, /Observed input tokens: 100/);
+    assert.equal(es.instances.length, 1);
   } finally {
     client.clear();
     es.restore();

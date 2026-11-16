@@ -950,6 +950,12 @@ export const complianceRuleSetHistorySchema = z.strictObject({
       claimPhase: z.enum(CLAIM_PREPARATION_PHASES).optional(),
       persistedCoverageAvailable: z.boolean().optional(),
       persistedDraftAvailable: z.boolean().optional(),
+      sourceAnalysisInventoryRevision: z
+        .number()
+        .int()
+        .positive()
+        .nullable()
+        .optional(),
       resumable: z.boolean().optional(),
       draft: z
         .strictObject({

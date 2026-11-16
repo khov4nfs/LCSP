@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 from conftest import use_model_routes
 from deepagents.backends import StateBackend
 from langchain_anthropic import ChatAnthropic
@@ -31,9 +30,20 @@ class AllowanceExhausted(Exception):
 
 
 def configured_fallback_chain(monkeypatch):
-    config = yaml.safe_load((Path(__file__).parents[1] / "config/model_routes.yaml").read_text())
-    config['roles']['rule-set-preparation'] = 'primary'
-    config['roles']['claim-author'] = 'primary'
+    config = {
+        "routes": {
+            "primary": {"provider": "miraiapi", "model": "model-gamma"},
+            "inception": {"provider": "inception", "model": "model-delta"},
+            "gemini": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
+            "apx": {"provider": "apx", "protocol": "anthropic", "model": "claude-sonnet-4-6-free"},
+        },
+        "roles": {
+            "default": "primary",
+            "rule-set-preparation": "primary",
+            "claim-author": "primary",
+        },
+        "fallbacks": {"primary": ["inception", "gemini", "apx"]},
+    }
     use_model_routes(monkeypatch, config)
 
 
