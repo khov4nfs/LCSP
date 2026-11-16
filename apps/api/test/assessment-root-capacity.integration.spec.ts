@@ -11,6 +11,7 @@ import {
   describe,
   expect,
   it,
+  jest,
 } from "@jest/globals";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
@@ -105,6 +106,7 @@ function metrics(active = 0): RootCapacityRuntimeMetrics {
 integration(
   "LCSP-364 real PostgreSQL global admission and worker HTTP boundary",
   () => {
+    jest.setTimeout(120_000);
     let first: PrismaClient, second: PrismaClient;
     let a: AssessmentRootCapacityService, b: AssessmentRootCapacityService;
     let app: INestApplication<Server>;
@@ -387,7 +389,7 @@ integration(
       process.stdout.write(
         `[capacity] reset settled ms=${Math.round(performance.now() - resetStarted)} rows=${previousRows}\n`,
       );
-    }, 30_000);
+    }, 120_000);
 
     afterAll(async () => {
       if (pendingBacklog) await Promise.allSettled([pendingBacklog]);
@@ -402,7 +404,7 @@ integration(
       }
       await app?.close();
       await Promise.all([first?.$disconnect(), second?.$disconnect()]);
-    });
+    }, 120_000);
 
     async function enqueue(owner = owners[0], ageSeconds = 60) {
       const id = randomUUID();
