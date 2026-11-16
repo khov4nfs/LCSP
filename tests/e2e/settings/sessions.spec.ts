@@ -4,7 +4,7 @@ import { AUTH_ERROR_CODES, REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import {
   authenticateBillingE2e,
   BILLING_E2E_TOKENS,
-} from "../fixtures/billing-auth";
+} from "../fixtures/billing-auth.js";
 
 const fixture = JSON.parse(
   await readFile(

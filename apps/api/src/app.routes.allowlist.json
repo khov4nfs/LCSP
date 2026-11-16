@@ -4,6 +4,7 @@
   "DELETE /admin/legal-sources/:sourceId",
   "DELETE /assessments/:assessmentId",
   "DELETE /auth/mfa",
+  "DELETE /auth/sessions",
   "DELETE /auth/sessions/:sessionId",
   "DELETE /internal/outbox/dlq/:id",
   "GET /",
