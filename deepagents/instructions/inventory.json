@@ -1,6 +1,6 @@
 {
   "schemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
-  "bundleId": "lcsp-instruction-repair-r3-2026-11-15",
+  "bundleId": "lcsp-fact-need-provenance-r4-2026-11-16",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -2274,11 +2274,11 @@
       "runtimeRole": "shared-runtime",
       "instructionKind": "TOOL_SCHEMA",
       "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
-      "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
+      "vietnameseSourceRevision": "r4-fact-need-provenance-2026-11-16",
       "runtimeEntryId": "tools.schema-guidance",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r3/tools.schema-guidance.txt",
+      "englishCandidatePath": "instructions/candidates/r4/tools.schema-guidance.txt",
       "migrationReferences": [
         "assessment_root/tools.py"
       ],
@@ -2443,14 +2443,24 @@
           "filePath": "assessment_root/tools.py",
           "symbolName": "RecordRepositoryDiscoveryExpansionArgs",
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
+        },
+        {
+          "filePath": "assessment_root/tools.py",
+          "symbolName": "FactNeedArgs",
+          "integrationStatus": "PENDING_RUNTIME_CUTOVER"
+        },
+        {
+          "filePath": "assessment_root/tools.py",
+          "symbolName": "FactNeedDiscoveryRefArgs",
+          "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
-      "englishCandidateSha256": "44cdd0632401f32e1eec51a158ad4aa34dc299d54424a56f138641f39d48001e",
-      "candidateOriginSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
+      "sourceSha256": "3a61063f918d309ef6ddbc21c89a46c737730fa19317d5369203ffd63e354770",
+      "englishCandidateSha256": "a20e5c94bb502ec6da07cf7b30f3ff3a5084878139512fada96a5f92305be631",
+      "candidateOriginSha256": "3a61063f918d309ef6ddbc21c89a46c737730fa19317d5369203ffd63e354770",
       "translationProvenance": {
-        "translator": "Codex session-authorized source repair; full bundle review remains pending",
-        "translationRevision": "r3"
+        "translator": "Codex session-authored schema translation; independent bundle review remains pending",
+        "translationRevision": "r4"
       }
     }
   ],
@@ -2893,6 +2903,63 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
+      "siteId": "assessment_root/tools.py::FactNeedArgs::9000cc2456a9d67b::1",
+      "filePath": "assessment_root/tools.py",
+      "lineNumber": 608,
+      "symbolName": "FactNeedArgs",
+      "constructionSha256": "9000cc2456a9d67bdcc5c17316512796bdf5573c09d5d549601af10880d87f78",
+      "evidence": "description=(",
+      "constructionType": "MAINTAINED_TOOL_DESCRIPTION",
+      "modelFacingConsumer": "assessment_root/tools.py::FactNeedArgs",
+      "runtimeRole": "assessment-root",
+      "runtimePhase": "ASSESSMENT",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "tools.schema-guidance",
+      "existingSourcePath": "assessment_root/tools.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "assessment_root/tools.py::FactNeedDiscoveryRefArgs::012f7b44db6081d1::1",
+      "filePath": "assessment_root/tools.py",
+      "lineNumber": 592,
+      "symbolName": "FactNeedDiscoveryRefArgs",
+      "constructionSha256": "012f7b44db6081d195809a85770b46e29a4f7360a3ef3330f608dad19d7562f3",
+      "evidence": "description=\"Exact contentDigest for the immutable discovery record.\",",
+      "constructionType": "MAINTAINED_TOOL_DESCRIPTION",
+      "modelFacingConsumer": "assessment_root/tools.py::FactNeedDiscoveryRefArgs",
+      "runtimeRole": "assessment-root",
+      "runtimePhase": "ASSESSMENT",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "tools.schema-guidance",
+      "existingSourcePath": "assessment_root/tools.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "assessment_root/tools.py::FactNeedDiscoveryRefArgs::6127da1bca97dbed::1",
+      "filePath": "assessment_root/tools.py",
+      "lineNumber": 589,
+      "symbolName": "FactNeedDiscoveryRefArgs",
+      "constructionSha256": "6127da1bca97dbeda266442c0828c7c31f3df0627b39ff7c976059da65554264",
+      "evidence": "record_id: str = Field(description=\"Exact recordId from repositoryDiscovery.\")",
+      "constructionType": "MAINTAINED_TOOL_DESCRIPTION",
+      "modelFacingConsumer": "assessment_root/tools.py::FactNeedDiscoveryRefArgs",
+      "runtimeRole": "assessment-root",
+      "runtimePhase": "ASSESSMENT",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "tools.schema-guidance",
+      "existingSourcePath": "assessment_root/tools.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
       "siteId": "assessment_root/tools.py::GetAssessmentContextDetailArgs::1f169f6beb6fcf79::1",
       "filePath": "assessment_root/tools.py",
       "lineNumber": 423,
@@ -3199,7 +3266,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::00bfda52989cba2c::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 612,
+      "lineNumber": 627,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "00bfda52989cba2c290e280c8233e495e3dc503aa03b349ca4f48b4d524c93ff",
       "evidence": "question: str = Field(min_length=1, description=\"Customer-safe wording; no file paths, hashes or internal IDs.\")",
@@ -3218,7 +3285,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::620338c36783dbad::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 610,
+      "lineNumber": 625,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "620338c36783dbaded486ae39bff560bf94f9e31aed14f86a2d9d13d4b386b2c",
       "evidence": "source_request_id: str | None = Field(default=None, description=\"Explicit existing request identity for server-validated sharing of the exact same fact.\")",
@@ -3237,7 +3304,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::86ae51b560b4b4e3::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 615,
+      "lineNumber": 630,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "86ae51b560b4b4e3de0d31f994601a5dd98b6dc661f0ed0625bacc8a4c4e53c3",
       "evidence": "resolution_attempts: list[str] = Field(min_length=1, description=\"How you already tried to settle it from sources.\")",
@@ -3256,7 +3323,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::9000cc2456a9d67b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 620,
+      "lineNumber": 635,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "9000cc2456a9d67bdcc5c17316512796bdf5573c09d5d549601af10880d87f78",
       "evidence": "description=(",
@@ -3275,7 +3342,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::cb5603b6d061385b::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 609,
+      "lineNumber": 624,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "cb5603b6d061385bff1f7adc957ffdcf6e1d1abe415e26decefadef79e11e890",
       "evidence": "dependencies: list[HumanRequestDependencyArgs] = Field(default_factory=list, description=\"Other rule/criterion dependencies on this same material fact.\")",
@@ -3294,7 +3361,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestArgs::d93445deaf925576::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 617,
+      "lineNumber": 632,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "d93445deaf9255761f2a1436521668c92d55f6ae533c9137d6758fff27806513",
       "evidence": "choices: list[dict[str, str]] = Field(default_factory=list, description=\"[{value, label}] when a fixed set applies.\")",
@@ -3313,7 +3380,7 @@
     {
       "siteId": "assessment_root/tools.py::OpenHumanRequestsBatchArgs::21e901bfb2a2e6b9::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 631,
+      "lineNumber": 646,
       "symbolName": "OpenHumanRequestsBatchArgs",
       "constructionSha256": "21e901bfb2a2e6b9fb737d8d93a2ac81f80d5e2b05c7adb59d267f53d33e6a10",
       "evidence": "description=\"Batch of 1 to 20 material missing fact questions to open atomically.\",",
@@ -3465,7 +3532,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::3888d8dac84b201a::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 602,
+      "lineNumber": 617,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "3888d8dac84b201a35c2c4d7b8a3bc54cc7b65e160eef013fddcc762b10b679e",
       "evidence": "unavailability_rationale: str = Field(min_length=1, description=\"Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.\")",
@@ -3484,7 +3551,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::a74238b3604dc6b5::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 603,
+      "lineNumber": 618,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "a74238b3604dc6b562ff854eb90e65744fad968297b72ccf0c294820e529c66c",
       "evidence": "evidence_ids: list[str] = Field(min_length=1, description=\"Accepted evidence supporting permanent unavailability.\")",
@@ -3503,7 +3570,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::eb3f185453683f38::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 601,
+      "lineNumber": 616,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "eb3f185453683f38c0e19eebf8089e4b49ab0c4fdb94f735e0d1b5ae442a77ed",
       "evidence": "request_id: str = Field(min_length=1, description=\"Existing requestId from governed humanRequests context.\")",
@@ -3522,7 +3589,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportUnresolvableHumanFactArgs::63e51ce42cc358ad::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 637,
+      "lineNumber": 652,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "63e51ce42cc358adfd31d50b67eacaaf34587743cd4670a0b0046f378ee1002a",
       "evidence": "evidence_ids: list[str] = Field(min_length=1, description=\"Accepted evidence IDs supporting the unavailability claim.\")",
@@ -3541,7 +3608,7 @@
     {
       "siteId": "assessment_root/tools.py::ReportUnresolvableHumanFactArgs::c03b21f16d0dcdaf::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 636,
+      "lineNumber": 651,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "c03b21f16d0dcdaf29f172ad8a6071f2037af1d5bd7b18fc25fd7b4fa72d1a13",
       "evidence": "unavailability_rationale: str = Field(min_length=1, description=\"Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.\")",
@@ -3636,7 +3703,7 @@
     {
       "siteId": "assessment_root/tools.py::tool::e667016ac9bbb396::1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2935,
+      "lineNumber": 2959,
       "symbolName": "tool",
       "constructionSha256": "e667016ac9bbb39667c86fd4ca4783d4d2bb22dcf5236ba02de2bea50ed87dc7",
       "evidence": "description=description,",
@@ -4173,6 +4240,66 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
+      "siteId": "ast:assessment_root/tools.py::FactNeedArgs::KEYWORD_DESCRIPTION::609:aa56c3ad146ffc85",
+      "filePath": "assessment_root/tools.py",
+      "lineNumber": 609,
+      "symbolName": "FactNeedArgs",
+      "constructionSha256": "aa56c3ad146ffc85f7e79c76c58d7951b176e9d39fc238e23650ac987d645d70",
+      "evidence": "\"Immutable discovery records containing investigated_range_ids; required when range IDs are supplied.\"",
+      "astKind": "KEYWORD_DESCRIPTION",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "assessment_root/tools.py::FactNeedArgs",
+      "runtimeRole": "assessment-root",
+      "runtimePhase": "ASSESSMENT",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "tools.schema-guidance",
+      "existingSourcePath": "assessment_root/tools.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:assessment_root/tools.py::FactNeedDiscoveryRefArgs::KEYWORD_DESCRIPTION::589:acffb8b5a7c97f57",
+      "filePath": "assessment_root/tools.py",
+      "lineNumber": 589,
+      "symbolName": "FactNeedDiscoveryRefArgs",
+      "constructionSha256": "acffb8b5a7c97f57551815a614e7110fcfd3142a0658a37708176df4e364cd61",
+      "evidence": "\"Exact recordId from repositoryDiscovery.\"",
+      "astKind": "KEYWORD_DESCRIPTION",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "assessment_root/tools.py::FactNeedDiscoveryRefArgs",
+      "runtimeRole": "assessment-root",
+      "runtimePhase": "ASSESSMENT",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "tools.schema-guidance",
+      "existingSourcePath": "assessment_root/tools.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
+      "siteId": "ast:assessment_root/tools.py::FactNeedDiscoveryRefArgs::KEYWORD_DESCRIPTION::592:c5096eeef2192dc1",
+      "filePath": "assessment_root/tools.py",
+      "lineNumber": 592,
+      "symbolName": "FactNeedDiscoveryRefArgs",
+      "constructionSha256": "c5096eeef2192dc184ff277280727adb6cc61e4a62a5928bae8e9549052dca57",
+      "evidence": "\"Exact contentDigest for the immutable discovery record.\"",
+      "astKind": "KEYWORD_DESCRIPTION",
+      "constructionType": "DUPLICATE_REFERENCE",
+      "modelFacingConsumer": "assessment_root/tools.py::FactNeedDiscoveryRefArgs",
+      "runtimeRole": "assessment-root",
+      "runtimePhase": "ASSESSMENT",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "tools.schema-guidance",
+      "existingSourcePath": "assessment_root/tools.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
+    },
+    {
       "siteId": "ast:assessment_root/tools.py::GetAssessmentContextDetailArgs::KEYWORD_DESCRIPTION::423:6ccc51fef1f5eea9",
       "filePath": "assessment_root/tools.py",
       "lineNumber": 423,
@@ -4493,9 +4620,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::609:f94c57a3c30bc362",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::624:f94c57a3c30bc362",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 609,
+      "lineNumber": 624,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "f94c57a3c30bc362e216fcc01bfccf412391e9129c49702147560173995f2f93",
       "evidence": "\"Other rule/criterion dependencies on this same material fact.\"",
@@ -4513,9 +4640,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::610:6753b264e965c3d9",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::625:6753b264e965c3d9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 610,
+      "lineNumber": 625,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "6753b264e965c3d966d7c9c6a305b1ed421a97e9bb3a9d2b22aa2409d564a89c",
       "evidence": "\"Explicit existing request identity for server-validated sharing of the exact same fact.\"",
@@ -4533,9 +4660,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::612:ce1d27f72d6aee52",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::627:ce1d27f72d6aee52",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 612,
+      "lineNumber": 627,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "ce1d27f72d6aee52888f21c0034d9d82c61d3506630c80e7d4da1f173e242b67",
       "evidence": "\"Customer-safe wording; no file paths, hashes or internal IDs.\"",
@@ -4553,9 +4680,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::615:2d2e0adbc0e2599c",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::630:2d2e0adbc0e2599c",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 615,
+      "lineNumber": 630,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "2d2e0adbc0e2599cfeee1e280658d1e77a2f892837e5bf8c4e64604c1cb505ab",
       "evidence": "\"How you already tried to settle it from sources.\"",
@@ -4573,9 +4700,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::617:6c1cdeee7b67c7b1",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::632:6c1cdeee7b67c7b1",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 617,
+      "lineNumber": 632,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "6c1cdeee7b67c7b172a7d3de22a8b1927cc017153129bf10067f38c4b729e91b",
       "evidence": "\"[{value, label}] when a fixed set applies.\"",
@@ -4593,9 +4720,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::621:e9f430fe62316e57",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestArgs::KEYWORD_DESCRIPTION::636:e9f430fe62316e57",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 621,
+      "lineNumber": 636,
       "symbolName": "OpenHumanRequestArgs",
       "constructionSha256": "e9f430fe62316e575caf6724a7ff1cbcbf6eeba4bdecd5f524a59c517564c876",
       "evidence": "\"The source-stated element of this rule the fact bears on. A request needs this or criterion_ids: \"\n            \"ask for a fact that settles that element, never for a legal verdict.\"",
@@ -4613,9 +4740,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestsBatchArgs::KEYWORD_DESCRIPTION::631:93fc35bc0cdf97c8",
+      "siteId": "ast:assessment_root/tools.py::OpenHumanRequestsBatchArgs::KEYWORD_DESCRIPTION::646:93fc35bc0cdf97c8",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 631,
+      "lineNumber": 646,
       "symbolName": "OpenHumanRequestsBatchArgs",
       "constructionSha256": "93fc35bc0cdf97c855330a75bddcca54184f07c7c3e1ce309cbacc286f55a62b",
       "evidence": "\"Batch of 1 to 20 material missing fact questions to open atomically.\"",
@@ -4773,9 +4900,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::601:442145576dd9a2dc",
+      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::616:442145576dd9a2dc",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 601,
+      "lineNumber": 616,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "442145576dd9a2dc63107952e5900917610a4f2b97f3bb54d73e1f2829bcb9dd",
       "evidence": "\"Existing requestId from governed humanRequests context.\"",
@@ -4793,9 +4920,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::602:1466c9f2b8e6be00",
+      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::617:1466c9f2b8e6be00",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 602,
+      "lineNumber": 617,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "1466c9f2b8e6be00f1eca4eeac96c6ae13c688ecd371e694153ed6df928ab8ad",
       "evidence": "\"Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.\"",
@@ -4813,9 +4940,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::603:be5df9c3c743e77e",
+      "siteId": "ast:assessment_root/tools.py::ReportExistingUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::618:be5df9c3c743e77e",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 603,
+      "lineNumber": 618,
       "symbolName": "ReportExistingUnresolvableHumanFactArgs",
       "constructionSha256": "be5df9c3c743e77e8b208aed84c58e313024a6ea7c939477184723f70f693b92",
       "evidence": "\"Accepted evidence supporting permanent unavailability.\"",
@@ -4833,9 +4960,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::636:297c430a657fb5bd",
+      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::651:297c430a657fb5bd",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 636,
+      "lineNumber": 651,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "297c430a657fb5bdfc00164ea20fe352ae3007a09ee948089f48333d23ecc533",
       "evidence": "\"Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.\"",
@@ -4853,9 +4980,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::637:dbc8c42fb76e9227",
+      "siteId": "ast:assessment_root/tools.py::ReportUnresolvableHumanFactArgs::KEYWORD_DESCRIPTION::652:dbc8c42fb76e9227",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 637,
+      "lineNumber": 652,
       "symbolName": "ReportUnresolvableHumanFactArgs",
       "constructionSha256": "dbc8c42fb76e9227b22ec9faab810f30d1204352caf355e4ca979a338b9a86c6",
       "evidence": "\"Accepted evidence IDs supporting the unavailability claim.\"",
@@ -4953,9 +5080,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::accept_case_fact::PROMOTED_TOOL_DOCSTRING::2048:78fe06ee5d6b63b9",
+      "siteId": "ast:assessment_root/tools.py::accept_case_fact::PROMOTED_TOOL_DOCSTRING::2070:78fe06ee5d6b63b9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2048,
+      "lineNumber": 2070,
       "symbolName": "accept_case_fact",
       "constructionSha256": "78fe06ee5d6b63b98ba5cd8e4ecff66ff81222f7fdbd12fc572b3edbdfae8249",
       "evidence": "\"\"\"Business purpose: Preserve the Root's evidence-backed observation or use-case description in the assessment case.\n\n        Business rules:\n        - Cite accepted source evidence and state only what it supports, including any uncertainty or scope limitation.\n        - A documentation claim, implementation capability or hypothesis does not establish actual operator practice.\n        - The API checks authority, source references and the current case revision; acceptance does not certify semantic truth.\n\n        Execution flow:\n        1. Submit the Root-authored statement and evidence links at the current case revision.\n        2. Adopt the new case revision returned by the server.\n\n        Failure cases:\n        - Stale revisions or invalid evidence remain API rejections; no local revision is advanced on failure.\n\n        Side effects:\n        - Appends the fact and advances the case revision; the API invalidates decisions made against an older case revision.\n        \"\"\"",
@@ -4973,9 +5100,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::cite_repository_source::PROMOTED_TOOL_DOCSTRING::1897:2e5fa38039de2f5a",
+      "siteId": "ast:assessment_root/tools.py::cite_repository_source::PROMOTED_TOOL_DOCSTRING::1919:2e5fa38039de2f5a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1897,
+      "lineNumber": 1919,
       "symbolName": "cite_repository_source",
       "constructionSha256": "2e5fa38039de2f5ac08501c6dcfe3770be37c461d100f6ec374e5c9ea4e58a8e",
       "evidence": "\"\"\"Business purpose: Accept an exact source excerpt from the assessment's selected repository view.\n\n        Business rules:\n        - Scoped paths must be canonical and remain under the API-owned immutable prefix.\n        - The runtime reads and hashes the actual line range; the model cannot supply its evidence hash.\n\n        Execution flow:\n        1. Bind context, reject paths outside the selection and verify scoped runtime metadata.\n        2. Read the source range, compute its digest and submit the pinned evidence to the API.\n\n        Failure cases:\n        - Invalid scope, missing source and invalid ranges never create evidence.\n        - Conflicting runtime scope metadata stops investigation before reading source.\n\n        Side effects:\n        - Reads permitted source, records the read trace and asks the API to accept source evidence.\n        \"\"\"",
@@ -4993,9 +5120,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_context::PROMOTED_TOOL_DOCSTRING::1326:3c40df306453155c",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_context::PROMOTED_TOOL_DOCSTRING::1348:3c40df306453155c",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1326,
+      "lineNumber": 1348,
       "symbolName": "get_assessment_context",
       "constructionSha256": "3c40df306453155ccf7424a8aaefdecce02cc7f35469b22426a0574d7eeec959",
       "evidence": "\"\"\"Business purpose:\n        Reload the accepted assessment state and source-view limits before continuing an investigation.\n\n        Business rules:\n        - Case pins, coverage, facts and evidence come from the API, not the model's memory.\n        - Preserve each fact's authority so evidence-derived claims remain distinguishable from human-provided context.\n        - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.\n        - Repository discovery is a bounded non-authoritative priority view; absence or gaps never prove that behavior is absent.\n        - Coverage counts describe the authorized audit request, never a completion verdict; every visible row remains available through snapshot-bound pages.\n\n        Execution flow:\n        1. Load and adopt the API's complete case context, including every coverage row for revision caches.\n        2. Verify the runtime source view and retain the authorized audit request, accepted evidence, fact authority and human audit feedback.\n        3. Load the exact-pin discovery overview, including only its bounded server projection.\n        4. Return coverage counts and content-bound page tokens without repeating full inventories in model history.\n\n        Failure cases:\n        - API failures remain rejection feedback; conflicting sandbox pins fail context retrieval.\n\n        Side effects:\n        - Updates in-memory Root pins and revision caches; does not persist decisions or facts.\n        \"\"\"",
@@ -5013,9 +5140,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_context_detail::PROMOTED_TOOL_DOCSTRING::1585:1c07bb086df87f9f",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_context_detail::PROMOTED_TOOL_DOCSTRING::1607:1c07bb086df87f9f",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1585,
+      "lineNumber": 1607,
       "symbolName": "get_assessment_context_detail",
       "constructionSha256": "1c07bb086df87f9f735e8ee4d14a025ff52eaccb25dd3f3178633bea37e7ad97",
       "evidence": "\"\"\"Business purpose: Retrieve one exact large fact/evidence/HITL record through bounded detail pages.\n        Business rules:\n        - Detail reads require the same current context token and never change fact/evidence authority.\n        Execution flow:\n        1. Reload context and reject stale/foreign tokens.\n        2. Select the exact indexed record and return a bounded value/index/lossless fragment.\n        Failure cases:\n        - Invalid indexes/pointers/offsets return typed feedback.\n        Side effects:\n        - Read-only API access.\n        \"\"\"",
@@ -5033,9 +5160,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_context_page::PROMOTED_TOOL_DOCSTRING::1560:7a8651bd6a4b5183",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_context_page::PROMOTED_TOOL_DOCSTRING::1582:7a8651bd6a4b5183",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1560,
+      "lineNumber": 1582,
       "symbolName": "get_assessment_context_page",
       "constructionSha256": "7a8651bd6a4b518380c2cd04d6aeea5536afd4697a50d9eb1d60ecb77633ff0a",
       "evidence": "\"\"\"Business purpose: Page facts, evidence and HITL history without copying unbounded context into model history.\n        Business rules:\n        - The token binds the complete current context; large records are represented by identity-only rows.\n        Execution flow:\n        1. Reload and bind the current context.\n        2. Reject stale tokens, then return a byte-bounded page.\n        Failure cases:\n        - Stale tokens and invalid offsets return typed feedback.\n        Side effects:\n        - Read-only API access and in-memory context refresh.\n        \"\"\"",
@@ -5053,9 +5180,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_coverage::PROMOTED_TOOL_DOCSTRING::1634:08c25ab1ec56c7fe",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_coverage::PROMOTED_TOOL_DOCSTRING::1656:08c25ab1ec56c7fe",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1634,
+      "lineNumber": 1656,
       "symbolName": "get_assessment_coverage",
       "constructionSha256": "08c25ab1ec56c7fe438d80291ce33c04690297bee889eeed1d999e24afcb7d02",
       "evidence": "\"\"\"Business purpose: Retrieve complete per-rule coverage incrementally without mixing assessment snapshots.\n\n        Business rules:\n        - The supplied token must match the current leased API context for this assessment and thread.\n        - Any audit-request, coverage, case revision, pin or source-scope change requires a fresh context summary.\n        - Pages retain every row field and expose the total and continuation; a page is never proof of completion.\n\n        Execution flow:\n        1. Reload complete authoritative context and recompute its ordered coverage snapshot.\n        2. Reject a stale token or an offset past the inventory before returning any coverage rows.\n        3. Adopt the full context for revision caches and return the requested bounded page.\n\n        Failure cases:\n        - A changed or foreign token returns COVERAGE_SNAPSHOT_STALE; an excessive offset returns INVALID_COVERAGE_OFFSET.\n        - Schema validation rejects malformed tokens and page limits outside the supported range.\n\n        Side effects:\n        - Read-only API access and in-memory revision-cache refresh; no evidence, fact, decision or lifecycle writes.\n        \"\"\"",
@@ -5073,9 +5200,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_rule::PROMOTED_TOOL_DOCSTRING::1811:c994673932982d9e",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_rule::PROMOTED_TOOL_DOCSTRING::1833:c994673932982d9e",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1811,
+      "lineNumber": 1833,
       "symbolName": "get_assessment_rule",
       "constructionSha256": "c994673932982d9eea856f4c333dc9a8626eb00cf93dd7dab6713ae1c0b70433",
       "evidence": "\"\"\"Business purpose: Load a pinned rule without forcing its complete legal contract into one model turn.\n\n        Business rules:\n        - Small results retain the complete prior projection; large results expose every field through governed detail reads.\n        - The full authoritative payload still populates applicability anchors; an index cannot support a legal verdict.\n\n        Execution flow:\n        1. Load the rule and all linked legal context through the existing governed API.\n        2. Return its full payload when it fits, otherwise return a content-bound navigation index.\n\n        Failure cases:\n        - Missing rules retain RULE_NOT_IN_RULE_SET; invalid legal metadata fails without inventing a substitute rule.\n\n        Side effects:\n        - Read-only API access and in-memory applicability caches; no domain or filesystem writes.\n        \"\"\"",
@@ -5093,9 +5220,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_assessment_rule_detail::PROMOTED_TOOL_DOCSTRING::1836:c38673a1675a9c76",
+      "siteId": "ast:assessment_root/tools.py::get_assessment_rule_detail::PROMOTED_TOOL_DOCSTRING::1858:c38673a1675a9c76",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1836,
+      "lineNumber": 1858,
       "symbolName": "get_assessment_rule_detail",
       "constructionSha256": "c38673a1675a9c76c586b8c153bd13c820ceb17ef2e6c21927b3f41c711bfa26",
       "evidence": "\"\"\"Business purpose: Read complete selected legal fields incrementally from the pinned rule authority.\n\n        Business rules:\n        - Each read reloads and validates the current audit-request scope before returning any legal content.\n        - The token must match the same case, thread, audit request, pins and exact complete rule projection.\n        - Indexes and fragments are incomplete; reconstruct the selected normative value before interpreting it.\n        - All fields remain available, including criteria, inherited requirements, applicability elements and source references.\n\n        Execution flow:\n        1. Revalidate current audit membership, then reload the full pinned projection and its applicability anchors from the API.\n        2. Reject a changed token or return the requested bounded node, index or exact text fragment.\n\n        Failure cases:\n        - Unauthorized or missing rules, stale tokens and invalid pointers or offsets produce feedback without partial legal content.\n\n        Side effects:\n        - Read-only API access and in-memory applicability caches; never writes customer facts, verdicts or scratch files.\n        \"\"\"",
@@ -5113,9 +5240,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_human_request_resume_page::PROMOTED_TOOL_DOCSTRING::2559:066d6dd7656c5604",
+      "siteId": "ast:assessment_root/tools.py::get_human_request_resume_page::PROMOTED_TOOL_DOCSTRING::2581:066d6dd7656c5604",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2559,
+      "lineNumber": 2581,
       "symbolName": "get_human_request_resume_page",
       "constructionSha256": "066d6dd7656c5604886f6eee59a1644f5124c7f4c7840c2987089bc041ae2f61",
       "evidence": "\"\"\"Business purpose:\n        Continue reading a bounded aggregate HITL resume list after wait_for_human_requests.\n\n        Business rules:\n        - The supplied token must match the current authoritative context.\n        - The reviewed request set is fixed by server-authorized review identity for this execution.\n\n        Execution flow:\n        1. Reload/adopt context and recompute its snapshot token.\n        2. Reject stale tokens.\n        3. Return the requested bounded page of reviewed request identities.\n\n        Failure cases:\n        - Stale tokens and invalid offsets return typed feedback.\n\n        Side effects:\n        - Read-only API access and in-memory context refresh.\n        \"\"\"",
@@ -5133,9 +5260,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_pinned_rule_set::PROMOTED_TOOL_DOCSTRING::1694:5dba0122666a0dd7",
+      "siteId": "ast:assessment_root/tools.py::get_pinned_rule_set::PROMOTED_TOOL_DOCSTRING::1716:5dba0122666a0dd7",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1694,
+      "lineNumber": 1716,
       "symbolName": "get_pinned_rule_set",
       "constructionSha256": "5dba0122666a0dd77087c70c3583541b0b0fd784ec1c46394b0095aa2b40afe7",
       "evidence": "\"\"\"Business purpose: Discover every authorized AssessmentRule through complete, bounded catalog pages.\n\n        Business rules:\n        - The API owns the immutable Rule Set and current audit request; pagination never expands the authorized rule selection.\n        - Follow nextOffset until null for all selected rules; totalPinnedRuleCount is informational, not additional audit authority.\n        - The requested row limit is an upper bound; the complete serialized reply must also fit 4,096 UTF-8 bytes.\n        - A summary too large for one page retains its rule identity and an explicit link to complete governed details.\n\n        Execution flow:\n        1. Refresh the leased request context, select its authorized rules and cache their server-provided versions and criteria.\n        2. Add complete summaries while both the row and reply-byte limits permit.\n        3. Return the actual continuation, or a detail link when a single summary needs bounded retrieval.\n\n        Failure cases:\n        - API failures remain structured feedback; an offset past the catalog returns an empty final page.\n        - An identity envelope that cannot fit returns RULE_CATALOG_METADATA_TOO_LARGE without skipping the rule.\n\n        Side effects:\n        - Read-only API access and in-memory identity caches; no domain state or legal judgments are changed.\n        \"\"\"",
@@ -5153,9 +5280,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_repository_discovery_details::PROMOTED_TOOL_DOCSTRING::1415:23cf44396e2cc2b0",
+      "siteId": "ast:assessment_root/tools.py::get_repository_discovery_details::PROMOTED_TOOL_DOCSTRING::1437:23cf44396e2cc2b0",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1415,
+      "lineNumber": 1437,
       "symbolName": "get_repository_discovery_details",
       "constructionSha256": "23cf44396e2cc2b0bbf37f6207b0cf2cd637c5775619c5b2a213ce415210d7e2",
       "evidence": "\"\"\"Business purpose: Reuse discovered use cases, rule priorities and explicit coverage caveats during targeted assessment planning.\n\n        Business rules:\n        - Rule candidates never authorize scope or decide applicability/compliance; unknowns and gaps remain explicit.\n        - The selected immutable record and collection are validated by the API against current repository pins.\n        - Metadata can prioritize source verification but cannot become accepted evidence or an operational customer fact.\n\n        Execution flow:\n        1. Request one bounded page for the selected discovery collection.\n        2. Return the API-verified page and continuation offset without interpreting candidate state.\n\n        Failure cases:\n        - Unsupported collections, stale/foreign records, excessive offsets, integrity failures and transport errors remain visible rejection feedback.\n\n        Side effects:\n        - Read-only API access; no recommendation, evidence, fact, decision or audit authorization is persisted.\n        \"\"\"",
@@ -5173,9 +5300,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_repository_discovery_ranges::PROMOTED_TOOL_DOCSTRING::1387:928de59dac1f4087",
+      "siteId": "ast:assessment_root/tools.py::get_repository_discovery_ranges::PROMOTED_TOOL_DOCSTRING::1409:928de59dac1f4087",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1387,
+      "lineNumber": 1409,
       "symbolName": "get_repository_discovery_ranges",
       "constructionSha256": "928de59dac1f408799ac15c8fcc93adca59fde390548efaa6b23b95674918cc5",
       "evidence": "\"\"\"Business purpose: Reuse immutable discovery source-range priorities before repeating broad repository searches.\n\n        Business rules:\n        - The API must bind the discovery record to this assessment's current snapshot, commit, source scope, scanner, graph index and content digest.\n        - Returned ranges are investigation leads only; the Root must read pinned source and call cite_repository_source before using one as accepted evidence.\n        - Pagination limits model context but never acts as an allowlist or proof that omitted behavior is absent.\n\n        Execution flow:\n        1. Request one bounded range page from the governed discovery artifact.\n        2. Return its immutable content digest, priorities, coverage gaps and continuation offset unchanged.\n\n        Failure cases:\n        - Foreign/stale record IDs, invalid offsets, integrity failures and transport errors remain API rejection feedback.\n\n        Side effects:\n        - Read-only API access; no repository bytes, evidence, facts, decisions or audit scope are changed.\n        \"\"\"",
@@ -5193,9 +5320,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::get_rule_decision::PROMOTED_TOOL_DOCSTRING::1674:d6b8f69900b6f9bc",
+      "siteId": "ast:assessment_root/tools.py::get_rule_decision::PROMOTED_TOOL_DOCSTRING::1696:d6b8f69900b6f9bc",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1674,
+      "lineNumber": 1696,
       "symbolName": "get_rule_decision",
       "constructionSha256": "d6b8f69900b6f9bc5fc0a31195dea823bc673c53c2ac2c490e702736d494e022",
       "evidence": "\"\"\"Business purpose: Recover a prior model decision's reasoning and references before re-investigating one rule.\n\n        Business rules:\n        - Retrieve only the requested rule's newest or exact historical revision through the leased API.\n        - Structural acceptance is not proof of semantic correctness; the Root evaluates support using current sources and facts.\n        - Reading an older packet must not roll back the current revision used for a later submission.\n\n        Execution flow:\n        1. Ask the API for the bounded rule decision record, preserving its identity, state, packet and revision.\n        2. Return that immutable record without accepting or revising a decision.\n\n        Failure cases:\n        - Missing records return an empty collection; API authorization or query failures remain structured rejection feedback.\n\n        Side effects:\n        - Read-only API access; no domain mutations or local revision-cache changes.\n        \"\"\"",
@@ -5213,9 +5340,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::list_assessment_skills::PROMOTED_TOOL_DOCSTRING::1287:e002672d21aa4b51",
+      "siteId": "ast:assessment_root/tools.py::list_assessment_skills::PROMOTED_TOOL_DOCSTRING::1309:e002672d21aa4b51",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1287,
+      "lineNumber": 1309,
       "symbolName": "list_assessment_skills",
       "constructionSha256": "e002672d21aa4b51fa1b137ef828492c0537f1616fcfddd3ff149115a7633b78",
       "evidence": "\"\"\"Business purpose:\n        Expose available generic investigation skill names to the Assessment Root.\n\n        Business rules:\n        - Skill metadata does not prove a repository feature or extend selected legal scope.\n\n        Execution flow:\n        1. Return the source-controlled allowlist and relevance hints.\n\n        Failure cases:\n        - There are no runtime lookups; an empty catalog would return empty options.\n\n        Side effects:\n        - Read-only response; no evidence or legal decisions are persisted.\n        \"\"\"",
@@ -5233,9 +5360,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::load_assessment_skill::PROMOTED_TOOL_DOCSTRING::1305:8910ed02d32a9efe",
+      "siteId": "ast:assessment_root/tools.py::load_assessment_skill::PROMOTED_TOOL_DOCSTRING::1327:8910ed02d32a9efe",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1305,
+      "lineNumber": 1327,
       "symbolName": "load_assessment_skill",
       "constructionSha256": "8910ed02d32a9efe4fa2c643706f0573e2e67a155128442b51e361639f4e03d4",
       "evidence": "\"\"\"Business purpose:\n        Retrieve one optional investigation method for the current selected-rule work.\n\n        Business rules:\n        - Only registered skill names, never arbitrary paths; skills remain non-normative.\n\n        Execution flow:\n        1. Validate the name and load versioned source-controlled instructions with hash.\n\n        Failure cases:\n        - Invalid names return a typed result; missing checked-in content raises a visible error.\n\n        Side effects:\n        - May publish the existing skill usage event; no Assessment domain writes.\n        \"\"\"",
@@ -5253,12 +5380,12 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::open_human_request::PROMOTED_TOOL_DOCSTRING::2708:797465cc511e6137",
+      "siteId": "ast:assessment_root/tools.py::open_human_request::PROMOTED_TOOL_DOCSTRING::2730:f0584d82b0481c4a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2708,
+      "lineNumber": 2730,
       "symbolName": "open_human_request",
-      "constructionSha256": "797465cc511e6137a5ba43e04cb08b9755f1c95c3c74640f1335b8c5b6a02c53",
-      "evidence": "\"\"\"Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.\n\n        Business rules:\n        - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.\n        - Typed FactNeed sharing and extra dependencies require server validation; an accepted resolved need needs no new wait.\n        Execution flow:\n        1. Verify the question’s criterion or condition anchor.\n        2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.\n        3. On an authorized resume, return the server-owned resolution of that same request.\n        Failure cases:\n        - Invalid anchors return feedback; an open request keeps the assessment waiting instead of forcing completion.\n        Side effects:\n        - Persists a human-resolution request and a native checkpoint dependency; creates no assumed customer fact.\n        \"\"\"",
+      "constructionSha256": "f0584d82b0481c4a8d8f25138260860ce69bb0eb2e3a0ab4f23cd655c62a0d2a",
+      "evidence": "\"\"\"Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.\n\n        Business rules:\n        - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.\n        - Typed FactNeed sharing and extra dependencies require server validation; an accepted resolved need needs no new wait.\n        - Any investigated discovery range must include the exact immutable discovery record ID and digest returned by governed discovery tools.\n        Execution flow:\n        1. Verify the question’s criterion or condition anchor.\n        2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.\n        3. On an authorized resume, return the server-owned resolution of that same request.\n        Failure cases:\n        - Invalid anchors or unbound discovery ranges return feedback; an open request keeps the assessment waiting instead of forcing completion.\n        Side effects:\n        - Persists a human-resolution request and a native checkpoint dependency; creates no assumed customer fact.\n        \"\"\"",
       "astKind": "PROMOTED_TOOL_DOCSTRING",
       "constructionType": "MAINTAINED_TOOL_DESCRIPTION",
       "modelFacingConsumer": "assessment_root/tools.py::open_human_request",
@@ -5273,12 +5400,12 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::open_human_requests_batch::PROMOTED_TOOL_DOCSTRING::2736:3bb54146363f11e1",
+      "siteId": "ast:assessment_root/tools.py::open_human_requests_batch::PROMOTED_TOOL_DOCSTRING::2759:e4b194520abfc15c",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2736,
+      "lineNumber": 2759,
       "symbolName": "open_human_requests_batch",
-      "constructionSha256": "3bb54146363f11e1ec7c47f1bd6cbae3df538f10a856d6f034324a6b99005b6b",
-      "evidence": "\"\"\"Business purpose: Ask the customer for multiple material missing facts atomically across rules or criteria.\n\n        Business rules:\n        - Every question must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.\n        - All batch items must pass legal anchor validation before any server mutation.\n        - Batch size is bounded between 1 and 20 items.\n        - The native interrupt pauses atomically for all open requests in the batch.\n\n        Execution flow:\n        1. Validate anchors and build idempotent request payloads for all batch items.\n        2. Submit the batch to the governed API.\n        3. Check authoritative context for open requests and atomically interrupt if any remain open.\n        4. On resume, return bounded batch continuation metadata.\n\n        Failure cases:\n        - Any invalid anchor or empty/exceeded batch returns typed validation feedback before network calls.\n\n        Side effects:\n        - Persists human-resolution requests and a native checkpoint dependency for open items; creates no assumed customer facts.\n        \"\"\"",
+      "constructionSha256": "e4b194520abfc15cee21bd4fc6d7e0a68c96e3f69e871e543f9653dae1e72d2c",
+      "evidence": "\"\"\"Business purpose: Ask the customer for multiple material missing facts atomically across rules or criteria.\n\n        Business rules:\n        - Every question must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.\n        - All batch items must pass legal anchor validation before any server mutation.\n        - Claimed discovery ranges require exact immutable record/digest references for API pin and integrity validation.\n        - Batch size is bounded between 1 and 20 items.\n        - The native interrupt pauses atomically for all open requests in the batch.\n\n        Execution flow:\n        1. Validate anchors and build idempotent request payloads for all batch items.\n        2. Submit the batch to the governed API.\n        3. Check authoritative context for open requests and atomically interrupt if any remain open.\n        4. On resume, return bounded batch continuation metadata.\n\n        Failure cases:\n        - Any invalid anchor or empty/exceeded batch returns typed validation feedback before network calls.\n\n        Side effects:\n        - Persists human-resolution requests and a native checkpoint dependency for open items; creates no assumed customer facts.\n        \"\"\"",
       "astKind": "PROMOTED_TOOL_DOCSTRING",
       "constructionType": "MAINTAINED_TOOL_DESCRIPTION",
       "modelFacingConsumer": "assessment_root/tools.py::open_human_requests_batch",
@@ -5293,9 +5420,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::read_legal_source::PROMOTED_TOOL_DOCSTRING::1863:f8a0d19a99d4bf70",
+      "siteId": "ast:assessment_root/tools.py::read_legal_source::PROMOTED_TOOL_DOCSTRING::1885:f8a0d19a99d4bf70",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1863,
+      "lineNumber": 1885,
       "symbolName": "read_legal_source",
       "constructionSha256": "f8a0d19a99d4bf70b41fb02ed8c132eadcc05f0fa45dca1134eca2cdfb3eed20",
       "evidence": "\"\"\"Business purpose: Read one original provision from the legal source pinned by this assessment’s Rule Set.\n\n        Business rules:\n        - The requested document and locator must be available through the assessment’s pinned legal authority.\n        Execution flow:\n        1. Request the provision from the governed legal-source API.\n        2. Return its source text and provenance to the investigator.\n        Failure cases:\n        - Unavailable or invalid provision references return the API’s failure feedback.\n        Side effects:\n        - Read-only legal-source retrieval; no source text, pins or decisions are changed.\n        \"\"\"",
@@ -5313,9 +5440,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::record_repository_discovery_expansion::PROMOTED_TOOL_DOCSTRING::1447:8a8d5a52f4c856cd",
+      "siteId": "ast:assessment_root/tools.py::record_repository_discovery_expansion::PROMOTED_TOOL_DOCSTRING::1469:8a8d5a52f4c856cd",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1447,
+      "lineNumber": 1469,
       "symbolName": "record_repository_discovery_expansion",
       "constructionSha256": "8a8d5a52f4c856cddc433124e6c3ba24f7fdd3414a69d402a5a0fd18c9b31fd5",
       "evidence": "\"\"\"Business purpose:\n        Audit why selected-rule investigation searched beyond the immutable discovery priorities.\n\n        Business rules:\n        - Only repository searches/reads actually captured by the runtime trace may support an event.\n        - Raw query/source text is never submitted; the API receives bounded query digests, counts and scoped paths.\n        - The event does not authorize a rule, prove absence, accept evidence, or confirm production reachability.\n\n        Execution flow:\n        1. Snapshot executed repository activity without consuming the later search-coverage record.\n        2. Validate every attributable path against the pinned source scope and derive bounded gaps.\n        3. Bind discovery coordinates, semantic reason, related rule/range IDs and deterministic idempotency.\n        4. Submit the immutable expansion event through the governed API.\n\n        Failure cases:\n        - No activity, out-of-scope paths or unsupported trace tools return repair feedback without persistence.\n        - API pin, digest, range or lease rejection remains visible and does not alter discovery.\n\n        Side effects:\n        - Reads execution-local trace and may append one API expansion audit event; trace entries remain available for search coverage.\n        \"\"\"",
@@ -5333,9 +5460,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::record_search_coverage::PROMOTED_TOOL_DOCSTRING::1953:e1149808011db084",
+      "siteId": "ast:assessment_root/tools.py::record_search_coverage::PROMOTED_TOOL_DOCSTRING::1975:e1149808011db084",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1953,
+      "lineNumber": 1975,
       "symbolName": "record_search_coverage",
       "constructionSha256": "e1149808011db084f630d0239e011f2f536406875dc8d8e6abd787140b5211e1",
       "evidence": "\"\"\"Business purpose: Record only searches and reads attributable to the selected source view.\n\n        Business rules:\n        - Paths come from runtime tool traces; Root-authored caveats do not prove a search occurred.\n        - Scoped native searches must explicitly target the selected prefix or a descendant.\n        - Graph coverage uses the same verified, scope-stamped hydrated view and retains original source paths.\n\n        Execution flow:\n        1. Bind the source scope and reject explicit caveat paths outside it.\n        2. Verify scoped runtime metadata and convert executed reads/searches into bounded source observations.\n        3. Reject an out-of-scope trace before submitting the authenticated coverage record.\n\n        Failure cases:\n        - Missing activity or out-of-scope paths produce feedback without accepting coverage.\n        - Runtime scope conflicts stop the operation; truncated traces remain explicit limitations.\n\n        Side effects:\n        - Consumes the execution-local trace and submits a coverage record only after all scope guards pass.\n        \"\"\"",
@@ -5353,9 +5480,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::report_existing_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2661:8387524af14a68a9",
+      "siteId": "ast:assessment_root/tools.py::report_existing_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2683:8387524af14a68a9",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2661,
+      "lineNumber": 2683,
       "symbolName": "report_existing_human_fact_unresolvable",
       "constructionSha256": "8387524af14a68a9a56fa2824e15471e201d1e3949103701156c82571e39727b",
       "evidence": "\"\"\"Business purpose: Report proven permanent unavailability for an existing question without creating a duplicate.\n\n        Business rules:\n        - Only a current server-owned OPEN request may be classified; unknown alone is insufficient.\n        - Accepted evidence and the API validate permanent unavailability and retain the unresolved dependency.\n        Execution flow:\n        1. Reload the exact request and its current revision from governed context.\n        2. Submit evidence and rationale against that request at the current case revision.\n        3. Preserve all open dependencies in a native wait even when the claim is rejected.\n        Failure cases:\n        - A missing request returns HUMAN_REQUEST_NOT_FOUND; rejected unavailability evidence remains checkpoint feedback and never creates a fact.\n        Side effects:\n        - May persist the API's unavailable-fact classification and a native checkpoint; creates no duplicate question.\n        \"\"\"",
@@ -5373,9 +5500,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::report_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2838:7e2000b0308917f3",
+      "siteId": "ast:assessment_root/tools.py::report_human_fact_unresolvable::PROMOTED_TOOL_DOCSTRING::2862:7e2000b0308917f3",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2838,
+      "lineNumber": 2862,
       "symbolName": "report_human_fact_unresolvable",
       "constructionSha256": "7e2000b0308917f3fc4d701550d79b7423e5fbe5cc0716bfe2b9f42b56ac6fbe",
       "evidence": "\"\"\"Business purpose: Record evidence that a material customer fact is permanently unavailable without inventing an unknown verdict.\n\n        Business rules:\n        - The question remains attached to a valid criterion or condition; only the API can accept permanent-unavailability evidence.\n        - A later valid answer clears the prior dependency instead of replaying the old unavailability claim.\n        Execution flow:\n        1. Validate the legal anchor and persist the unresolved customer question.\n        2. Reload its authoritative state and submit the unavailability rationale and evidence while still open.\n        3. Interrupt with the durable request identity even if the unavailability claim is rejected.\n        Failure cases:\n        - Rejected unavailability claims are retained as checkpoint feedback; they never silently close the human dependency.\n        Side effects:\n        - May persist the API’s unavailable-fact classification and always preserves the native human-resolution lifecycle.\n        \"\"\"",
@@ -5393,9 +5520,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::request_finalization::PROMOTED_TOOL_DOCSTRING::2878:53184d8995eb5981",
+      "siteId": "ast:assessment_root/tools.py::request_finalization::PROMOTED_TOOL_DOCSTRING::2902:53184d8995eb5981",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2878,
+      "lineNumber": 2902,
       "symbolName": "request_finalization",
       "constructionSha256": "53184d8995eb5981b910392fe6585ae3f3d9d92b81860670c8f9ea9785627a84",
       "evidence": "\"\"\"Ask the mechanical Completion Gate to inventory blockers and enter FINALIZING when none remain.\"\"\"",
@@ -5413,9 +5540,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::search_legal_source::PROMOTED_TOOL_DOCSTRING::1878:996c721f40367da2",
+      "siteId": "ast:assessment_root/tools.py::search_legal_source::PROMOTED_TOOL_DOCSTRING::1900:996c721f40367da2",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1878,
+      "lineNumber": 1900,
       "symbolName": "search_legal_source",
       "constructionSha256": "996c721f40367da285ef2159e926406d5fda5ade51a25f25debcc074ff2add2f",
       "evidence": "\"\"\"Business purpose: Find pinned provisions that can define or limit the legal terms relevant to an investigation.\n\n        Business rules:\n        - Search results remain legal-source evidence; a textual match does not decide applicability or compliance.\n        Execution flow:\n        1. Send the requested words to the assessment-scoped legal-source search API.\n        2. Return its matches and truncation metadata.\n        Failure cases:\n        - Invalid queries or unavailable pinned sources retain the API’s problem feedback.\n        Side effects:\n        - Read-only search; creates no legal requirements, evidence acceptance or customer facts.\n        \"\"\"",
@@ -5433,9 +5560,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::start_rule_investigation::PROMOTED_TOOL_DOCSTRING::1893:e665d4f1fe341c2a",
+      "siteId": "ast:assessment_root/tools.py::start_rule_investigation::PROMOTED_TOOL_DOCSTRING::1915:e665d4f1fe341c2a",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 1893,
+      "lineNumber": 1915,
       "symbolName": "start_rule_investigation",
       "constructionSha256": "e665d4f1fe341c2ac0eb41adafdb51eff028751689e96d3822c3aec45c661ae2",
       "evidence": "\"\"\"Mark that you are now investigating this AssessmentRule.\"\"\"",
@@ -5453,9 +5580,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::submit_final_report::PROMOTED_TOOL_DOCSTRING::2882:e10eb3a08a325815",
+      "siteId": "ast:assessment_root/tools.py::submit_final_report::PROMOTED_TOOL_DOCSTRING::2906:e10eb3a08a325815",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2882,
+      "lineNumber": 2906,
       "symbolName": "submit_final_report",
       "constructionSha256": "e10eb3a08a325815776547f5c37d6d524ab91662a6354fa1ad8b76cc14ce88aa",
       "evidence": "\"\"\"Business purpose: Submit the Root's authored findings without inventing verified controls.\n\n        Business rules:\n        - The API binds accepted decisions, pins and provenance; omitted findings must remain omissions.\n        - Narrative is authored by the Root and must not substitute for accepted compliance evidence.\n        Execution flow:\n        1. Validate the narrative arguments and serialize the supplied per-rule findings.\n        2. Submit those findings unchanged to the authoritative report validation endpoint.\n        Failure cases:\n        - Invalid arguments or incomplete report coverage return repair feedback; no positive fallback is added.\n        Side effects:\n        - A valid API submission persists the final report and completes its supported lifecycle.\n        \"\"\"",
@@ -5473,9 +5600,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::submit_rule_decision::PROMOTED_TOOL_DOCSTRING::2091:67f1574a4f788ab3",
+      "siteId": "ast:assessment_root/tools.py::submit_rule_decision::PROMOTED_TOOL_DOCSTRING::2113:67f1574a4f788ab3",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2091,
+      "lineNumber": 2113,
       "symbolName": "submit_rule_decision",
       "constructionSha256": "67f1574a4f788ab35e1798c51d6349a3131460e422acc6af49bfdddbbe595b24",
       "evidence": "\"\"\"Business purpose: Submit the investigator’s actual applicability and criterion findings for one pinned assessment rule.\n\n        Business rules:\n        - The API validates legal context, evidence, criteria and applicability basis; semantic choices remain the investigator’s.\n        - Use current pins, case revision and expected decision revision; an exact retry keeps a stable payload digest.\n        Execution flow:\n        1. Refresh run authority when the rule version is not known and validate the supplied decision arguments.\n        2. Bind the decision to the pinned Rule Set, repository snapshot, commit and case revision.\n        3. Submit with the expected decision revision and update the cache only from the accepted API response.\n        Failure cases:\n        - Invalid arguments or rejected evidence, applicability and revision checks do not become accepted decisions.\n        Side effects:\n        - A successful API call persists the decision and coverage revision; the run caches that accepted revision.\n        \"\"\"",
@@ -5493,9 +5620,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::tool::KEYWORD_DESCRIPTION::2935:ad1daf7c2f8db096",
+      "siteId": "ast:assessment_root/tools.py::tool::KEYWORD_DESCRIPTION::2959:ad1daf7c2f8db096",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2935,
+      "lineNumber": 2959,
       "symbolName": "tool",
       "constructionSha256": "ad1daf7c2f8db096898b538b2b8c597304089f8313fdbb1940457d59c9e9b647",
       "evidence": "description",
@@ -5513,9 +5640,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:assessment_root/tools.py::wait_for_human_requests::PROMOTED_TOOL_DOCSTRING::2614:dd5d618aadaa0aaa",
+      "siteId": "ast:assessment_root/tools.py::wait_for_human_requests::PROMOTED_TOOL_DOCSTRING::2636:dd5d618aadaa0aaa",
       "filePath": "assessment_root/tools.py",
-      "lineNumber": 2614,
+      "lineNumber": 2636,
       "symbolName": "wait_for_human_requests",
       "constructionSha256": "dd5d618aadaa0aaa2f654d30015ce4cef7c8d5dbecea6be06feb021493e24eb7",
       "evidence": "\"\"\"Business purpose: Retain unresolved human dependencies after reviewing an unknown response.\n\n        Business rules:\n        - Unknown responses do not close requests or authorize compliance decisions.\n        - The next wait uses the complete authoritative open-request set and a native checkpoint.\n        Execution flow:\n        1. Reload the authoritative open dependencies.\n        2. Interrupt when any remain, preserving their identities without creating another question.\n        3. On authorized resume, return the server-owned resolution or unknown feedback.\n        Failure cases:\n        - An unauthorized resume of an open dependency fails rather than accepting a fabricated fact.\n        Side effects:\n        - Persists a native interrupt checkpoint; no question, fact, answer or lifecycle writes.\n        \"\"\"",
@@ -8153,9 +8280,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::3048:1f44fa73cce7637e",
+      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::3242:1f44fa73cce7637e",
       "filePath": "tools/common/capabilities/platform/repository_scanner.py",
-      "lineNumber": 3048,
+      "lineNumber": 3242,
       "symbolName": "<module>",
       "constructionSha256": "1f44fa73cce7637ebd70b5dc86cdeaa4c9cdbb93f81e9084b9c1d7db8da18d31",
       "evidence": "\"Deterministic offline repository pre-scan\"",
@@ -9407,7 +9534,7 @@
     {
       "siteId": "tools/common/capabilities/platform/repository_scanner.py::<module>::685d9c993d7675b9::1",
       "filePath": "tools/common/capabilities/platform/repository_scanner.py",
-      "lineNumber": 3048,
+      "lineNumber": 3242,
       "symbolName": "<module>",
       "constructionSha256": "685d9c993d7675b9058d6aaf3e454ed4aeb4f6ecff20fbc0a7bf77208c8f3fc7",
       "evidence": "parser = argparse.ArgumentParser(description=\"Deterministic offline repository pre-scan\")",

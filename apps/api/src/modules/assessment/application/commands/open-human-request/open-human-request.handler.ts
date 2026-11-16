@@ -65,15 +65,16 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
    * Business rules:
    * - Every declared dependency must belong to the selected request, even on replay; legacy full audits retain their full pinned scope.
    * - Typed FactNeeds deduplicate independently of wording/locale while preserving tenant, assessment, entity, deployment, scope, timeframe and value schema.
+   * - Investigated discovery ranges must bind to integrity-valid immutable discovery records at the current snapshot, commit and source scope.
    * - Legacy source reuse requires the same assessment, thread and factual scope; typed resolved needs may reuse accepted facts across audit threads.
    * - Resolved reuse requires accepted human fact and evidence authority; historical dependencies outside this audit are preserved without mutation.
    * - Registration receipts reject conflicting idempotency payloads without duplicating customer questions.
    * Execution flow:
    * 1. Authorize the lease and every dependency, then validate replay identity, current pins and rule criteria.
-   * 2. Create or reuse the canonical FactNeed/question and attach only this audit's declared dependencies.
+   * 2. Validate FactNeed evidence/discovery provenance, then create or reuse the canonical need/question and attach only this audit's declared dependencies.
    * 3. Reopen affected coverage, persist registration and audit, and enter human waiting for an open question.
    * Failure cases:
-   * - Nonmembers, stale revisions, invalid criteria, foreign factual scopes and invalidated evidence reject atomically.
+   * - Nonmembers, stale revisions, invalid criteria, foreign factual scopes, invented discovery ranges and invalidated evidence reject atomically.
    * Side effects:
    * - Persists the request, dependencies and audit history; updates only authorized coverage and creates no compliance verdict or fact.
    */
@@ -262,7 +263,9 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           ? await resolveAssessmentFactNeedInTx(tx, {
               assessmentId: input.assessmentId,
               tenantOwnerId: assessmentOwner.ownerId,
+              repositorySnapshotId: pins.repositorySnapshotId,
               repositoryCommit: pins.repositoryCommit,
+              sourcePathPrefix: pins.sourcePathPrefix,
               factNeed: request.factNeed,
               controlType: request.controlType,
               choices: request.choices,

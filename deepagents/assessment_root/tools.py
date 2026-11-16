@@ -585,6 +585,14 @@ class FactNeedValueSchemaArgs(_Args):
     allowed_values: list[str] = Field(default_factory=list, max_length=100)
 
 
+class FactNeedDiscoveryRefArgs(_Args):
+    record_id: str = Field(description="Exact recordId from repositoryDiscovery.")
+    content_digest: str = Field(
+        pattern=r"^sha256:[a-f0-9]{64}$",
+        description="Exact contentDigest for the immutable discovery record.",
+    )
+
+
 class FactNeedArgs(_Args):
     subject: FactNeedSubjectArgs
     predicate: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
@@ -594,6 +602,13 @@ class FactNeedArgs(_Args):
     value_schema: FactNeedValueSchemaArgs
     source_investigation_attempts: list[str] = Field(min_length=1, max_length=100)
     accepted_evidence_ids: list[str] = Field(default_factory=list, max_length=100)
+    investigation_discovery_refs: list[FactNeedDiscoveryRefArgs] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Immutable discovery records containing investigated_range_ids; required when range IDs are supplied."
+        ),
+    )
     investigated_range_ids: list[str] = Field(default_factory=list, max_length=500)
 
 
@@ -643,11 +658,11 @@ def _fact_need_payload(value: FactNeedArgs | dict[str, Any] | None) -> dict[str,
 
     Business rules:
     - Every tenant/assessment boundary is added by the API; the model supplies only typed subject, scope, environment, timeframe and value schema.
-    - Investigation attempts and accepted references remain provenance, not semantic identity or accepted facts.
+    - Investigation attempts, immutable discovery coordinates and accepted references remain provenance, not semantic identity or accepted facts.
 
     Execution flow:
     1. Validate the complete model value through the FactNeed argument schema.
-    2. Translate snake-case tool fields into the API's canonical field names.
+    2. Translate snake-case tool fields and discovery coordinates into the API's canonical field names.
     3. Return None only when the legacy-compatible caller omitted a FactNeed.
 
     Failure cases:
@@ -679,6 +694,13 @@ def _fact_need_payload(value: FactNeedArgs | dict[str, Any] | None) -> dict[str,
         },
         "sourceInvestigationAttempts": need.source_investigation_attempts,
         "acceptedEvidenceIds": need.accepted_evidence_ids,
+        "investigationDiscoveryRefs": [
+            {
+                "recordId": ref.record_id,
+                "contentDigest": ref.content_digest,
+            }
+            for ref in need.investigation_discovery_refs
+        ],
         "investigatedRangeIds": need.investigated_range_ids,
     }
 
@@ -2710,12 +2732,13 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         Business rules:
         - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
         - Typed FactNeed sharing and extra dependencies require server validation; an accepted resolved need needs no new wait.
+        - Any investigated discovery range must include the exact immutable discovery record ID and digest returned by governed discovery tools.
         Execution flow:
         1. Verify the question’s criterion or condition anchor.
         2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.
         3. On an authorized resume, return the server-owned resolution of that same request.
         Failure cases:
-        - Invalid anchors return feedback; an open request keeps the assessment waiting instead of forcing completion.
+        - Invalid anchors or unbound discovery ranges return feedback; an open request keeps the assessment waiting instead of forcing completion.
         Side effects:
         - Persists a human-resolution request and a native checkpoint dependency; creates no assumed customer fact.
         """
@@ -2738,6 +2761,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         Business rules:
         - Every question must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
         - All batch items must pass legal anchor validation before any server mutation.
+        - Claimed discovery ranges require exact immutable record/digest references for API pin and integrity validation.
         - Batch size is bounded between 1 and 20 items.
         - The native interrupt pauses atomically for all open requests in the batch.
 

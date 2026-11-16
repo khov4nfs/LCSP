@@ -12,6 +12,8 @@ import {
 } from "../src/assessment-domain/index.js";
 
 const rangeId = `sha256:${"a".repeat(64)}`;
+const discoveryContentDigest = `sha256:${"b".repeat(64)}`;
+const discoveryRecordId = "11111111-1111-4111-8111-111111111111";
 
 function validFactNeed() {
   return {
@@ -39,6 +41,12 @@ function validFactNeed() {
       "Inspected deployment configuration and ownership metadata.",
     ],
     acceptedEvidenceIds: [],
+    investigationDiscoveryRefs: [
+      {
+        recordId: discoveryRecordId,
+        contentDigest: discoveryContentDigest,
+      },
+    ],
     investigatedRangeIds: [rangeId],
   };
 }
@@ -46,6 +54,15 @@ function validFactNeed() {
 describe("FactNeed contracts", () => {
   it("accepts a fully scoped current text need", () => {
     expect(factNeedInputSchema.parse(validFactNeed())).toEqual(validFactNeed());
+  });
+
+  it("rejects unbound investigated range identifiers", () => {
+    expect(() =>
+      factNeedInputSchema.parse({
+        ...validFactNeed(),
+        investigationDiscoveryRefs: [],
+      }),
+    ).toThrow(/immutable repository discovery reference/);
   });
 
   it("requires canonical values for an enum need", () => {
