@@ -487,6 +487,40 @@ class HumanRequestDependencyArgs(_Args):
     criterion_ids: list[str] = Field(default_factory=list)
 
 
+class FactNeedSubjectArgs(_Args):
+    kind: Literal["ORGANIZATION", "DEPLOYMENT", "AI_SYSTEM", "USE_CASE", "MODEL", "DATASET", "CONTROL", "OTHER"]
+    key: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+
+
+class FactNeedEnvironmentArgs(_Args):
+    kind: Literal["PRODUCTION", "STAGING", "DEVELOPMENT", "TEST", "ALL", "UNKNOWN"]
+    deployment_key: str | None = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+
+
+class FactNeedTimeframeArgs(_Args):
+    kind: Literal["CURRENT", "AT_TIME", "RANGE", "ALL_TIME"]
+    from_time: str | None = None
+    to_time: str | None = None
+
+
+class FactNeedValueSchemaArgs(_Args):
+    kind: Literal["TEXT", "BOOLEAN", "INTEGER", "NUMBER", "DATE", "DATE_TIME", "ENUM", "JSON"]
+    schema_version: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+    allowed_values: list[str] = Field(default_factory=list, max_length=100)
+
+
+class FactNeedArgs(_Args):
+    subject: FactNeedSubjectArgs
+    predicate: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+    operational_scope: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+    environment: FactNeedEnvironmentArgs
+    timeframe: FactNeedTimeframeArgs
+    value_schema: FactNeedValueSchemaArgs
+    source_investigation_attempts: list[str] = Field(min_length=1, max_length=100)
+    accepted_evidence_ids: list[str] = Field(default_factory=list, max_length=100)
+    investigated_range_ids: list[str] = Field(default_factory=list, max_length=500)
+
+
 class ReportExistingUnresolvableHumanFactArgs(_Args):
     request_id: str = Field(min_length=1, description="Existing requestId from governed humanRequests context.")
     unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.")
@@ -498,6 +532,7 @@ class OpenHumanRequestArgs(_Args):
     criterion_ids: list[str] = Field(default_factory=list)
     dependencies: list[HumanRequestDependencyArgs] = Field(default_factory=list, description="Other rule/criterion dependencies on this same material fact.")
     source_request_id: str | None = Field(default=None, description="Explicit existing request identity for server-validated sharing of the exact same fact.")
+    fact_need: FactNeedArgs | None = Field(default=None, description="Canonical semantic identity for cross-rule and cross-locale reuse; scope/time/value differences must use a different need.")
     question: str = Field(min_length=1, description="Customer-safe wording; no file paths, hashes or internal IDs.")
     unresolved_fact: str = Field(min_length=1)
     decision_impact: list[str] = Field(min_length=1)
@@ -524,6 +559,52 @@ class OpenHumanRequestsBatchArgs(_Args):
 class ReportUnresolvableHumanFactArgs(OpenHumanRequestArgs):
     unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.")
     evidence_ids: list[str] = Field(min_length=1, description="Accepted evidence IDs supporting the unavailability claim.")
+
+
+def _fact_need_payload(value: FactNeedArgs | dict[str, Any] | None) -> dict[str, Any] | None:
+    """Business purpose:
+    Convert one model-facing semantic FactNeed into the strict API contract without using question wording as identity.
+
+    Business rules:
+    - Every tenant/assessment boundary is added by the API; the model supplies only typed subject, scope, environment, timeframe and value schema.
+    - Investigation attempts and accepted references remain provenance, not semantic identity or accepted facts.
+
+    Execution flow:
+    1. Validate the complete model value through the FactNeed argument schema.
+    2. Translate snake-case tool fields into the API's canonical field names.
+    3. Return None only when the legacy-compatible caller omitted a FactNeed.
+
+    Failure cases:
+    - Malformed subject keys, missing investigation attempts or invalid nested values raise ordinary tool validation feedback.
+
+    Side effects:
+    - Pure in-memory projection; creates no question, fact, evidence or audit scope.
+    """
+    if value is None:
+        return None
+    need = value if isinstance(value, FactNeedArgs) else FactNeedArgs.model_validate(value)
+    return {
+        "subject": {"kind": need.subject.kind, "key": need.subject.key},
+        "predicate": need.predicate,
+        "operationalScope": need.operational_scope,
+        "environment": {
+            "kind": need.environment.kind,
+            "deploymentKey": need.environment.deployment_key,
+        },
+        "timeframe": {
+            "kind": need.timeframe.kind,
+            "from": need.timeframe.from_time,
+            "to": need.timeframe.to_time,
+        },
+        "valueSchema": {
+            "kind": need.value_schema.kind,
+            "schemaVersion": need.value_schema.schema_version,
+            "allowedValues": need.value_schema.allowed_values,
+        },
+        "sourceInvestigationAttempts": need.source_investigation_attempts,
+        "acceptedEvidenceIds": need.accepted_evidence_ids,
+        "investigatedRangeIds": need.investigated_range_ids,
+    }
 
 
 class FinalReportFindingArgs(_Args):
@@ -1893,11 +1974,13 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
         dependencies: list[dict[str, Any]] | None = None,
         source_request_id: str | None = None,
+        fact_need: FactNeedArgs | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Persist one idempotent material question and its shared rule dependencies.
 
         Business rules:
         - Server validation owns source-request equivalence, accepted facts and dependency eligibility.
+        - A typed FactNeed provides semantic reuse across wording/locales; legacy callers retain exact-content sharing.
         - Exact semantic content and explicit source identity determine replay identity on this Root thread.
         Execution flow:
         1. Serialize the question and optional dependency/source references.
@@ -1922,6 +2005,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 for dependency in (HumanRequestDependencyArgs.model_validate(row) for row in dependencies)
             ]} if dependencies else {}),
             **({"sourceRequestId": source_request_id} if source_request_id else {}),
+            **({"factNeed": payload} if (payload := _fact_need_payload(fact_need)) else {}),
         }
         # Native interrupt replays this tool. Stable server-thread/content identity makes the
         # pre-interrupt request write idempotent across new processes and execution attempts.
@@ -2370,12 +2454,13 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         condition_ref: dict[str, Any] | None = None,
         dependencies: list[dict[str, Any]] | None = None,
         source_request_id: str | None = None,
+        fact_need: FactNeedArgs | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.
 
         Business rules:
         - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
-        - Explicit source sharing and extra dependencies require server validation; an accepted resolved source needs no new wait.
+        - Typed FactNeed sharing and extra dependencies require server validation; an accepted resolved need needs no new wait.
         Execution flow:
         1. Verify the question’s criterion or condition anchor.
         2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.
@@ -2389,9 +2474,9 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         if isinstance(impact, dict):
             return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
-            impact, resolution_attempts, criterion_ids, control_type, choices, dependencies, source_request_id)
+            impact, resolution_attempts, criterion_ids, control_type, choices, dependencies, source_request_id, fact_need)
         context = client.context()
-        if source_request_id and result["requestId"] not in context["openHumanRequestIds"]:
+        if (source_request_id or fact_need) and result["requestId"] not in context["openHumanRequestIds"]:
             return resolved_human_request(result)
         interrupt({"requestIds": [result["requestId"]]})
         return resolved_human_request(result)
@@ -2458,6 +2543,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                     for dep in item.dependencies
                 ]} if item.dependencies else {}),
                 **({"sourceRequestId": item.source_request_id} if item.source_request_id else {}),
+                **({"factNeed": payload} if (payload := _fact_need_payload(item.fact_need)) else {}),
             }
             digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()[:32]
             prepared_payloads.append({
@@ -2498,6 +2584,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         condition_ref: dict[str, Any] | None = None,
         dependencies: list[dict[str, Any]] | None = None,
         source_request_id: str | None = None,
+        fact_need: FactNeedArgs | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Record evidence that a material customer fact is permanently unavailable without inventing an unknown verdict.
 
@@ -2518,7 +2605,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
             impact, [*resolution_attempts, unavailability_rationale],
-            criterion_ids, control_type, choices, dependencies, source_request_id)
+            criterion_ids, control_type, choices, dependencies, source_request_id, fact_need)
         # A later valid answer replays this native tool. Resolution is server-owned and must
         # clear the old dependency instead of reapplying the historical blocker claim.
         context = client.context()

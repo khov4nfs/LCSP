@@ -1999,10 +1999,30 @@ def test_human_request_sharing_maps_dependencies_and_resolved_source_skips_inter
         "question": "Who owns the policy?", "unresolved_fact": "Policy owner",
         "decision_impact": ["Determines responsibility"], "resolution_attempts": ["Reviewed sources"],
         "dependencies": [{"assessment_rule_id": "ER-2", "criterion_ids": ["C-2"]}],
+        "fact_need": {
+            "subject": {"kind": "DEPLOYMENT", "key": "chatbot.production"},
+            "predicate": "operator.legal_entity",
+            "operational_scope": "customer_support",
+            "environment": {"kind": "PRODUCTION", "deployment_key": "prod.eu.1"},
+            "timeframe": {"kind": "CURRENT", "from_time": None, "to_time": None},
+            "value_schema": {"kind": "TEXT", "schema_version": "legal_entity.v1"},
+            "source_investigation_attempts": ["Reviewed repository ownership metadata"],
+        },
         "source_request_id": "source-request"})
     body = next(body for kind, body in client.calls if kind == "human")
     assert body["sourceRequestId"] == "source-request"
     assert body["dependencies"] == [{"assessmentRuleId": "ER-2", "criterionIds": ["C-2"]}]
+    assert body["factNeed"] == {
+        "subject": {"kind": "DEPLOYMENT", "key": "chatbot.production"},
+        "predicate": "operator.legal_entity",
+        "operationalScope": "customer_support",
+        "environment": {"kind": "PRODUCTION", "deploymentKey": "prod.eu.1"},
+        "timeframe": {"kind": "CURRENT", "from": None, "to": None},
+        "valueSchema": {"kind": "TEXT", "schemaVersion": "legal_entity.v1", "allowedValues": []},
+        "sourceInvestigationAttempts": ["Reviewed repository ownership metadata"],
+        "acceptedEvidenceIds": [],
+        "investigatedRangeIds": [],
+    }
     assert json.loads(result)["resolved"] is True
 
 
