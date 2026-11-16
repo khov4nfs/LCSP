@@ -158,3 +158,41 @@ export const factNeedViewSchema = factNeedInputSchema.extend({
   resolvedFactId: z.uuid().nullable(),
 });
 export type FactNeedView = z.infer<typeof factNeedViewSchema>;
+
+export const normalizedFactNeedAnswerSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.text),
+    value: z.string().min(1),
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.boolean),
+    value: z.boolean(),
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.integer),
+    value: z.number().int().safe(),
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.number),
+    value: z.number().finite(),
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.date),
+    value: z.iso.date(),
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.dateTime),
+    value: z.iso.datetime(),
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.enumeration),
+    value: canonicalSemanticKeySchema,
+  }),
+  z.strictObject({
+    kind: z.literal(FACT_NEED_VALUE_KINDS.json),
+    value: z.json(),
+  }),
+]);
+export type NormalizedFactNeedAnswer = z.infer<
+  typeof normalizedFactNeedAnswerSchema
+>;
