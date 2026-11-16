@@ -95,7 +95,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - [x] Classify every discovery-first requirement as implemented, partial, missing or blocked against the current HEAD; record the reproducible baseline before behavioral changes.
 - [x] Add versioned discovery contracts and additive persistence for pin-bound observed source facts, candidates, hypotheses, confirmed facts, unknowns, coverage gaps and cache identity while preserving direct selected-rule audits.
 - [ ] Build deterministic AI use-case discovery and a two-dimensional RelevanceMap by reusing RepositoryProfile and Codebase Memory; include raw HTTP/custom providers, wrappers, indirect callers, source classification, verified reachability and controlled expansion.
-- [ ] Add explainable candidate AssessmentRule matching from verified findings and accepted facts without authorizing scope or emitting applicability/compliance verdicts.
+- [x] Add explainable candidate AssessmentRule matching from verified findings and accepted facts without authorizing scope or emitting applicability/compliance verdicts.
 - [ ] Reuse compatible discovery evidence/ranges and existing accepted evidence/facts before targeted rule-specific investigation; record why any expansion was required.
 - [ ] Design and test additive compatibility for existing HumanRequests, accepted facts, decisions, checkpoints and audit history before adding canonical FactNeed/value/proposal contracts and persistence.
 - [ ] Define FactNeed identity with tenant, assessment, subject/entity, predicate, operational scope, environment, timeframe and value schema as applicable; deduplicate wording/locales and union shared rule dependencies without cross-entity/time merging.
@@ -121,6 +121,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - 2026-11-16: Added the human-requested discovery-first workflow amendment, compatibility modes, durable discovery result, explainable rule recommendation boundary, evidence reuse order, cache evolution and measured evaluation requirements. Frozen intent remains unchanged.
 - 2026-11-16: Recorded the green exact-HEAD CI baseline and the focused deterministic scanner regression baseline before discovery behavior changes.
 - 2026-11-16: Implemented the first additive discovery slice: deterministic static AI-use-case signals, conservative source/reachability classification, explicit coverage/resource gaps, immutable pin-bound API persistence, leased Root submission, and a bounded non-authoritative discovery preview in the existing governed assessment context.
+- 2026-11-16: Added API-owned deterministic candidate matching against the pinned AssessmentRules and ACCEPTED facts. Worker-authored recommendations are rejected, non-AI control terms remain matchable, missing matches never become negative legal conclusions, and candidate revisions remain immutable and non-authoritative.
 
 ## Reproducible Pre-Change Baseline — 2026-11-16
 
@@ -138,6 +139,14 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - API lint, Prisma schema validation, contracts/API TypeScript compilation, Python compilation, contract-literal policy, business-logic documentation gates and `git diff --check`: passed.
 - Governed instruction inventory: strict result `PASS`, zero unresolved mappings and zero missing English candidates.
 - No quality, recall, precision, token, latency or legal-accuracy improvement is claimed yet; the reproducible evaluation corpus remains a later phase.
+
+## Phase 2 Verification — Non-Authoritative Rule Candidates
+
+- API-focused regression: `4` suites, `45` tests passed, including deterministic replay, accepted-fact recommendation revision, non-AI retention-control relevance, bounded preview, and rejection of worker-authored candidates.
+- Contracts: `12` suites, `148` tests passed; scanner and Assessment Root regression: `167` tests passed (`31` scanner, `136` Root).
+- API lint, contracts/API TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates and `git diff --check`: passed.
+- Candidate states are limited by implementation to `CANDIDATE` or `NEEDS_CONTEXT`; every candidate is `authorizesAssessment=false`. No rule is automatically emitted as `NOT_SELECTED`, `SELECTED`, or a legal applicability/compliance outcome.
+- Candidate matching is deterministic lexical engineering prioritization over current discovery ranges/use cases and accepted facts. Cross-file rule-targeted expansion, legal actor/scope resolution and measured recommendation recall/precision remain later work; no performance or legal-accuracy improvement is claimed.
 
 ## Design Notes
 

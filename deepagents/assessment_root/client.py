@@ -292,10 +292,11 @@ class AssessmentRuntimeClient:
         offset: int = 0,
         limit: int = 25,
     ) -> dict[str, Any]:
-        """Business purpose: Read bounded AI-use-case or coverage-caveat pages from an immutable discovery artifact.
+        """Business purpose: Read bounded AI-use-case, rule-candidate or coverage-caveat pages from an immutable discovery artifact.
 
         Business rules:
         - Only server-supported collection names are eligible and every page remains bound to the artifact digest.
+        - Rule candidates remain non-authoritative priorities and never grant assessment scope.
 
         Execution flow:
         1. Send record, collection and page coordinates through the leased discovery endpoint.

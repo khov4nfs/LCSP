@@ -6,11 +6,11 @@ import {
   REPOSITORY_SCANNER_VERSIONS,
   computeRepositoryDiscoveryCacheIdentity,
   computeRepositoryDiscoveryDigest,
-  type RepositoryDiscovery,
   type RepositoryDiscoveryDetailPage,
   type RepositoryDiscoveryRangePage,
   type RepositoryDiscoverySaveResult,
   type RepositoryDiscoverySummary,
+  type SubmitRepositoryDiscovery,
 } from "@lcsp/contracts/assessment-domain";
 import { describe, expect, it, jest } from "@jest/globals";
 import type { ExecutionContext } from "@nestjs/common";
@@ -22,7 +22,7 @@ import { AssessmentLeaseGuard } from "./assessment-lease.guard.js";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 
-function artifact(): RepositoryDiscovery {
+function artifact(): SubmitRepositoryDiscovery {
   const withoutIdentity = {
     repositoryId: "repository-1",
     commitSha: "a".repeat(40),
@@ -53,7 +53,7 @@ function artifact(): RepositoryDiscovery {
     },
     scannedFileCount: 0,
     generatedAt: "2026-11-16T10:00:00.000Z",
-  } satisfies Omit<RepositoryDiscovery, "discoveryId" | "contentDigest">;
+  } satisfies Omit<SubmitRepositoryDiscovery, "discoveryId" | "contentDigest">;
   const cacheIdentity =
     computeRepositoryDiscoveryCacheIdentity(withoutIdentity);
   const contentDigest = computeRepositoryDiscoveryDigest({

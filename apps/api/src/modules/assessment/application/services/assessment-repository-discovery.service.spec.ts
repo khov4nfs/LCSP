@@ -3,9 +3,11 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   DISCOVERY_EVIDENCE_STRENGTHS,
+  DISCOVERY_DETAIL_COLLECTIONS,
   DISCOVERY_EXPANSION_STATES,
   DISCOVERY_OBSERVATION_STATUSES,
   DISCOVERY_REACHABILITY_STATES,
+  DISCOVERY_RULE_CANDIDATE_STATES,
   DISCOVERY_SIGNAL_TYPES,
   DISCOVERY_SOURCE_CLASSIFICATIONS,
   DISCOVERY_TECHNOLOGY_RELEVANCE,
@@ -14,15 +16,18 @@ import {
   computeRepositoryDiscoveryCacheIdentity,
   computeRepositoryDiscoveryDigest,
   type RepositoryDiscovery,
+  type SubmitRepositoryDiscovery,
 } from "@lcsp/contracts/assessment-domain";
 
 import { AssessmentRepositoryDiscoveryService } from "./assessment-repository-discovery.service.js";
+import type { DiscoveryRuleMatchRule } from "./repository-discovery-rule-matcher.js";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const repositorySnapshotId = "snapshot-1";
 const repositoryId = "repository-1";
 const repositoryCommit = "a".repeat(40);
+const acceptedFactId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 const pins = {
   assessmentId,
@@ -36,8 +41,8 @@ const pins = {
 };
 
 function discovery(
-  overrides: Partial<RepositoryDiscovery> = {},
-): RepositoryDiscovery {
+  overrides: Partial<SubmitRepositoryDiscovery> = {},
+): SubmitRepositoryDiscovery {
   const base = {
     repositoryId,
     commitSha: repositoryCommit,
@@ -105,7 +110,7 @@ function discovery(
     },
     scannedFileCount: 1,
     generatedAt: "2026-11-16T10:00:00.000Z",
-  } satisfies Omit<RepositoryDiscovery, "discoveryId" | "contentDigest">;
+  } satisfies Omit<SubmitRepositoryDiscovery, "discoveryId" | "contentDigest">;
   const merged = { ...base, ...overrides };
   const cacheIdentity = computeRepositoryDiscoveryCacheIdentity(merged);
   const contentDigest = computeRepositoryDiscoveryDigest({
@@ -139,10 +144,55 @@ type StoredDiscoveryRow = {
 
 type StoredDiscoveryInput = Omit<StoredDiscoveryRow, "createdAt">;
 
-function fixture() {
+const defaultRules: DiscoveryRuleMatchRule[] = [
+  {
+    assessmentRuleId: "AI-PROVIDER-1",
+    assessmentRuleVersion: "2026.1",
+    concept: "OpenAI provider governance",
+    applicabilityGuidance: "Confirm whether OpenAI is used in production.",
+    criteria: [{ criterionId: "provider-identified" }],
+    contract: {
+      commonLibraries: ["openai"],
+      requiredEvidence: ["Verified OpenAI invocation and runtime scope."],
+      unresolvedConditions: ["Production deployment remains unconfirmed."],
+    },
+    ordinal: 0,
+  },
+  {
+    assessmentRuleId: "UNRELATED-ENCRYPTION-1",
+    assessmentRuleVersion: "2026.1",
+    concept: "Encryption key rotation",
+    applicabilityGuidance: "Confirm managed encryption key rotation.",
+    criteria: [{ criterionId: "key-rotation" }],
+    contract: { keywords: ["encryption", "kms", "rotation"] },
+    ordinal: 1,
+  },
+];
+
+function fixture(
+  options: {
+    rules?: DiscoveryRuleMatchRule[];
+    acceptedFacts?: { factId: string; statement: string }[];
+  } = {},
+) {
   const rows = new Map<string, StoredDiscoveryRow>();
   let latest: StoredDiscoveryRow | null = null;
   const tx = {
+    assessmentRule: {
+      findMany: jest.fn(() => Promise.resolve(options.rules ?? defaultRules)),
+    },
+    assessmentCaseFact: {
+      findMany: jest.fn(() =>
+        Promise.resolve(
+          options.acceptedFacts ?? [
+            {
+              factId: acceptedFactId,
+              statement: "OpenAI production deployment is not yet confirmed.",
+            },
+          ],
+        ),
+      ),
+    },
     assessmentRepositoryDiscovery: {
       createMany: jest.fn(({ data }: { data: StoredDiscoveryInput[] }) => {
         const row = data[0];
@@ -270,7 +320,8 @@ describe("AssessmentRepositoryDiscoveryService", () => {
       correlationId: "corr-latest",
     });
     expect(latest.discovery?.recordId).toBe(secondReceipt.recordId);
-    expect(latest.discovery?.contentDigest).toBe(second.contentDigest);
+    expect(latest.discovery?.contentDigest).toBe(secondReceipt.contentDigest);
+    expect(secondReceipt.contentDigest).not.toBe(second.contentDigest);
   });
 
   it("rejects tampered content and server-owned repository pin mismatches", async () => {
@@ -322,8 +373,17 @@ describe("AssessmentRepositoryDiscoveryService", () => {
     expect(summary.available).toBe(true);
     expect(summary.discovery?.recordId).toBe(receipt.recordId);
     expect(summary.discovery?.sourceRangeCount).toBe(1);
+    expect(summary.discovery?.ruleCandidateCount).toBe(1);
     expect(summary.discovery?.preview.ranges).toHaveLength(1);
     expect(summary.discovery?.preview.aiUseCases).toHaveLength(1);
+    expect(summary.discovery?.preview.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "AI-PROVIDER-1",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
+        supportingFactIds: [acceptedFactId],
+        authorizesAssessment: false,
+      }),
+    ]);
     expect(summary.discovery?.preview.unresolvedCalls).toEqual([
       "Runtime caller unresolved.",
     ]);
@@ -344,12 +404,29 @@ describe("AssessmentRepositoryDiscoveryService", () => {
       leaseToken: randomUUID(),
       correlationId: "corr-details",
       recordId: receipt.recordId,
-      collection: "AI_USE_CASES",
+      collection: DISCOVERY_DETAIL_COLLECTIONS.aiUseCases,
       offset: 0,
       limit: 1,
     });
     expect(useCases.items).toHaveLength(1);
     expect(useCases.contentDigest).toBe(summary.discovery?.contentDigest);
+
+    const candidates = await service.getDetailPage({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-candidate-details",
+      recordId: receipt.recordId,
+      collection: DISCOVERY_DETAIL_COLLECTIONS.ruleCandidates,
+      offset: 0,
+      limit: 1,
+    });
+    expect(candidates.items).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "AI-PROVIDER-1",
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(candidates.contentDigest).toBe(summary.discovery?.contentDigest);
   });
 
   it("fails closed when persisted payload no longer matches its immutable metadata", async () => {
@@ -379,5 +456,173 @@ describe("AssessmentRepositoryDiscoveryService", () => {
         correlationId: "corr-persisted-tamper",
       }),
     ).rejects.toThrow();
+  });
+
+  it("matches pinned rules conservatively and never turns a missing match into NOT_SELECTED", async () => {
+    const { service, rows } = fixture();
+    const scannerArtifact = discovery();
+
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-candidate",
+      discovery: scannerArtifact,
+    });
+
+    const stored = [...rows.values()].find(
+      (row) => row.recordId === receipt.recordId,
+    );
+    expect(stored?.payload.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "AI-PROVIDER-1",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
+        supportingUseCaseIds: [sha("5")],
+        supportingRangeIds: [sha("3")],
+        supportingFactIds: [acceptedFactId],
+        matchedTerms: expect.arrayContaining(["openai"]),
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(
+      stored?.payload.ruleCandidates.some(
+        (candidate) =>
+          candidate.state === DISCOVERY_RULE_CANDIDATE_STATES.notSelected,
+      ),
+    ).toBe(false);
+    expect(stored?.payload.sourceRanges[0]?.ruleRelevance).toEqual([
+      expect.objectContaining({ assessmentRuleId: "AI-PROVIDER-1" }),
+    ]);
+  });
+
+  it("creates a new immutable recommendation revision when accepted facts change", async () => {
+    const fixtureState = fixture({ acceptedFacts: [] });
+    const artifact = discovery();
+    const first = await fixtureState.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-no-fact",
+      discovery: artifact,
+    });
+    fixtureState.tx.assessmentCaseFact.findMany.mockResolvedValue([
+      {
+        factId: acceptedFactId,
+        statement: "OpenAI production deployment is not yet confirmed.",
+      },
+    ]);
+    const second = await fixtureState.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-with-fact",
+      discovery: artifact,
+    });
+
+    expect(second.recordId).not.toBe(first.recordId);
+    expect(second.contentDigest).not.toBe(first.contentDigest);
+    expect(fixtureState.rows.size).toBe(2);
+  });
+
+  it("discovers non-AI retention controls through rule-specific relevance", async () => {
+    const retentionRule = {
+      assessmentRuleId: "RETENTION-1",
+      assessmentRuleVersion: "2026.1",
+      concept: "Retention deletion control",
+      applicabilityGuidance: "Confirm the applicable retention period.",
+      criteria: [{ criterionId: "retention-enforced" }],
+      contract: {
+        keywords: ["retention", "delete", "expiry"],
+        requiredEvidence: ["Verified retention deletion control."],
+      },
+      ordinal: 0,
+    };
+    const { service, rows } = fixture({
+      rules: [retentionRule],
+      acceptedFacts: [
+        {
+          factId: acceptedFactId,
+          statement: "The production retention period is 30 days.",
+        },
+      ],
+    });
+    const artifact = discovery({
+      sourceRanges: [
+        {
+          rangeId: sha("7"),
+          path: "apps/api/retention-policy.ts",
+          startLine: 10,
+          endLine: 20,
+          sourceDigest: sha("8"),
+          symbol: "deleteExpiredRecords",
+          signalType: DISCOVERY_SIGNAL_TYPES.control,
+          sourceClassification:
+            DISCOVERY_SOURCE_CLASSIFICATIONS.reachableProduction,
+          reachability: DISCOVERY_REACHABILITY_STATES.confirmed,
+          observationStatus: DISCOVERY_OBSERVATION_STATUSES.observedSourceFact,
+          technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.relatedLogic],
+          useCaseIds: [],
+          ruleRelevance: [],
+          evidenceStrength: DISCOVERY_EVIDENCE_STRENGTHS.directSource,
+          explanation: "Deletes records after the configured retention expiry.",
+          callers: ["scheduledCleanup"],
+          callees: [],
+          unresolvedEdges: [],
+          coverageGaps: [],
+          expansionState: DISCOVERY_EXPANSION_STATES.permitted,
+        },
+      ],
+      aiUseCases: [],
+      unresolvedCalls: [],
+      unsupportedLanguages: [],
+    });
+
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-retention",
+      discovery: artifact,
+    });
+
+    const stored = [...rows.values()][0];
+    expect(stored?.payload.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "RETENTION-1",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.candidate,
+        supportingRangeIds: [sha("7")],
+        supportingFactIds: [acceptedFactId],
+        authorizesAssessment: false,
+      }),
+    ]);
+  });
+
+  it("rejects worker-authored candidates before persistence", async () => {
+    const { service, tx } = fixture();
+    const artifact = discovery();
+
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-worker-candidate",
+        discovery: {
+          ...artifact,
+          ruleCandidates: [
+            {
+              assessmentRuleId: "WORKER-RULE",
+              assessmentRuleVersion: "1",
+              state: DISCOVERY_RULE_CANDIDATE_STATES.selected,
+              supportingUseCaseIds: [],
+              supportingRangeIds: [],
+              supportingFactIds: [],
+              matchedTerms: [],
+              applicabilityElements: [],
+              unresolvedConditions: [],
+              rationale: "Worker tried to authorize scope.",
+              limitations: [],
+              authorizesAssessment: false,
+            },
+          ],
+        } as never,
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
   });
 });

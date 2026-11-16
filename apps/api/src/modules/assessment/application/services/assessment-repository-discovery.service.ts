@@ -12,15 +12,18 @@ import {
   repositoryDiscoverySaveResultSchema,
   repositoryDiscoverySchema,
   repositoryDiscoverySummarySchema,
+  submitRepositoryDiscoverySchema,
   type RepositoryDiscovery,
   type RepositoryDiscoveryRangePage,
   type RepositoryDiscoveryDetailPage,
   type RepositoryDiscoveryDetailPageQuery,
   type RepositoryDiscoverySaveResult,
   type RepositoryDiscoverySummary,
+  type SubmitRepositoryDiscovery,
 } from "@lcsp/contracts/assessment-domain";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
+  AssessmentRecordState,
   RepositoryDiscoveryVersion as PrismaRepositoryDiscoveryVersion,
   RepositoryScannerVersion as PrismaRepositoryScannerVersion,
 } from "@prisma/client";
@@ -32,6 +35,7 @@ import {
   type PinnedCase,
 } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { AssessmentRuntimeAuthority } from "./assessment-runtime-authority.service.js";
+import { buildRepositoryDiscoveryRuleCandidates } from "./repository-discovery-rule-matcher.js";
 
 type DiscoveryRow = {
   recordId: string;
@@ -65,29 +69,31 @@ export class AssessmentRepositoryDiscoveryService {
    * Business rules:
    * - A live Root lease and the server-owned assessment snapshot authorize the write.
    * - Repository, snapshot commit, source scope, versions, cache identity, and content digest must all match exactly.
-   * - The strict discovery contract contains hashes and metadata only; raw source fields are rejected.
+   * - The strict worker contract contains hashes and metadata only; raw source fields and worker-authored rule recommendations are rejected.
+   * - The API enriches the verified artifact from the pinned rule set and ACCEPTED case facts without authorizing audit scope.
    * - Replaying the same assessment/cache/content coordinates returns the original record without a second insert.
    *
    * Execution flow:
    * 1. Validate the strict schema, deterministic digest, discovery identity, and cache identity.
    * 2. Authorize the lease and load immutable repository pins in one transaction.
    * 3. Reject any worker coordinate that differs from the server-owned snapshot.
-   * 4. Insert with conflict-safe idempotency, reload the immutable row, and return its receipt.
+   * 4. Build non-authoritative rule candidates and rule-specific range priorities from pinned API data.
+   * 5. Recompute the enriched digest, insert with conflict-safe idempotency, reload the immutable row, and return its receipt.
    *
    * Failure cases:
    * - Malformed payloads, tampered digests/cache identities, invalid leases, or pin/scope mismatches reject before persistence.
    * - A missing post-insert row fails as an integrity error rather than fabricating a receipt.
    *
    * Side effects:
-   * - May append one AssessmentRepositoryDiscovery row; valid replays are read-only.
+   * - Reads pinned rules and accepted facts and may append one AssessmentRepositoryDiscovery row; valid replays are read-only.
    */
   async save(input: {
     assessmentId: string;
     leaseToken: string;
     correlationId: string;
-    discovery: RepositoryDiscovery;
+    discovery: SubmitRepositoryDiscovery;
   }): Promise<RepositoryDiscoverySaveResult> {
-    const parsed = repositoryDiscoverySchema.safeParse(input.discovery);
+    const parsed = submitRepositoryDiscoverySchema.safeParse(input.discovery);
     if (!parsed.success) {
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
@@ -126,6 +132,35 @@ export class AssessmentRepositoryDiscoveryService {
       );
       this.assertArtifactPins(discovery, pins, input.correlationId);
 
+      const [rules, acceptedFacts] = await Promise.all([
+        tx.assessmentRule.findMany({
+          where: { ruleSetVersionId: pins.ruleSetVersionId },
+          orderBy: [{ ordinal: "asc" }, { assessmentRuleId: "asc" }],
+          select: {
+            assessmentRuleId: true,
+            assessmentRuleVersion: true,
+            concept: true,
+            applicabilityGuidance: true,
+            criteria: true,
+            contract: true,
+            ordinal: true,
+          },
+        }),
+        tx.assessmentCaseFact.findMany({
+          where: {
+            assessmentId: input.assessmentId,
+            state: AssessmentRecordState.ACCEPTED,
+          },
+          orderBy: [{ caseRevision: "asc" }, { factId: "asc" }],
+          select: { factId: true, statement: true },
+        }),
+      ]);
+      const enriched = buildRepositoryDiscoveryRuleCandidates({
+        discovery,
+        rules,
+        acceptedFacts,
+      });
+
       const inserted = await tx.assessmentRepositoryDiscovery.createMany({
         data: [
           {
@@ -138,11 +173,11 @@ export class AssessmentRepositoryDiscoveryService {
             scannerVersion: PrismaRepositoryScannerVersion.LCSP_PRE_SCAN_V1,
             discoveryVersion:
               PrismaRepositoryDiscoveryVersion.LCSP_DISCOVERY_V1,
-            scannerSignature: discovery.scannerSignature,
-            graphIndexVersion: discovery.graphIndexVersion,
-            cacheIdentity: discovery.cacheIdentity,
-            contentDigest: discovery.contentDigest,
-            payload: discovery,
+            scannerSignature: enriched.scannerSignature,
+            graphIndexVersion: enriched.graphIndexVersion,
+            cacheIdentity: enriched.cacheIdentity,
+            contentDigest: enriched.contentDigest,
+            payload: enriched,
           },
         ],
         skipDuplicates: true,
@@ -151,8 +186,8 @@ export class AssessmentRepositoryDiscoveryService {
         where: {
           assessmentId_cacheIdentity_contentDigest: {
             assessmentId: input.assessmentId,
-            cacheIdentity: discovery.cacheIdentity,
-            contentDigest: discovery.contentDigest,
+            cacheIdentity: enriched.cacheIdentity,
+            contentDigest: enriched.contentDigest,
           },
         },
       });
@@ -234,6 +269,7 @@ export class AssessmentRepositoryDiscoveryService {
           contentDigest: row.contentDigest,
           sourceRangeCount: discovery.sourceRanges.length,
           aiUseCaseCount: discovery.aiUseCases.length,
+          ruleCandidateCount: discovery.ruleCandidates.length,
           knownGapCount: discovery.knownGaps.length,
           unsupportedLanguageCount: discovery.unsupportedLanguages.length,
           unresolvedCallCount: discovery.unresolvedCalls.length,
@@ -265,6 +301,31 @@ export class AssessmentRepositoryDiscoveryService {
               invocationRangeIds: useCase.invocationRangeIds.slice(0, 10),
               unresolvedQuestions: useCase.unresolvedQuestions.slice(0, 5),
             })),
+            ruleCandidates: discovery.ruleCandidates
+              .slice(0, 5)
+              .map((candidate) => ({
+                assessmentRuleId: candidate.assessmentRuleId,
+                assessmentRuleVersion: candidate.assessmentRuleVersion,
+                state: candidate.state,
+                supportingUseCaseIds: candidate.supportingUseCaseIds.slice(
+                  0,
+                  10,
+                ),
+                supportingRangeIds: candidate.supportingRangeIds.slice(0, 10),
+                supportingFactIds: candidate.supportingFactIds.slice(0, 10),
+                matchedTerms: candidate.matchedTerms.slice(0, 20),
+                applicabilityElements: candidate.applicabilityElements.slice(
+                  0,
+                  5,
+                ),
+                unresolvedConditions: candidate.unresolvedConditions.slice(
+                  0,
+                  5,
+                ),
+                rationale: candidate.rationale.slice(0, 1_000),
+                limitations: candidate.limitations.slice(0, 5),
+                authorizesAssessment: candidate.authorizesAssessment,
+              })),
             knownGaps: discovery.knownGaps.slice(0, 5),
             unsupportedLanguages: discovery.unsupportedLanguages.slice(0, 5),
             unresolvedCalls: discovery.unresolvedCalls.slice(0, 5),
@@ -360,7 +421,7 @@ export class AssessmentRepositoryDiscoveryService {
    *
    * Business rules:
    * - The immutable record must match the current assessment snapshot and pass full digest/cache validation.
-   * - Only AI use cases, known gaps, unsupported languages, and unresolved-call caveats are exposed.
+   * - Only AI use cases, non-authoritative rule candidates, known gaps, unsupported languages, and unresolved-call caveats are exposed.
    * - Each page is capped at one hundred items and carries the artifact content digest; no raw source is returned.
    *
    * Execution flow:
@@ -413,12 +474,14 @@ export class AssessmentRepositoryDiscoveryService {
       const items =
         input.collection === DISCOVERY_DETAIL_COLLECTIONS.aiUseCases
           ? discovery.aiUseCases
-          : input.collection === DISCOVERY_DETAIL_COLLECTIONS.knownGaps
-            ? discovery.knownGaps
-            : input.collection ===
-                DISCOVERY_DETAIL_COLLECTIONS.unsupportedLanguages
-              ? discovery.unsupportedLanguages
-              : discovery.unresolvedCalls;
+          : input.collection === DISCOVERY_DETAIL_COLLECTIONS.ruleCandidates
+            ? discovery.ruleCandidates
+            : input.collection === DISCOVERY_DETAIL_COLLECTIONS.knownGaps
+              ? discovery.knownGaps
+              : input.collection ===
+                  DISCOVERY_DETAIL_COLLECTIONS.unsupportedLanguages
+                ? discovery.unsupportedLanguages
+                : discovery.unresolvedCalls;
       if (input.offset > items.length) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,

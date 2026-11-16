@@ -95,6 +95,7 @@ export const DISCOVERY_GAP_REASONS = {
 
 export const DISCOVERY_DETAIL_COLLECTIONS = {
   aiUseCases: "AI_USE_CASES",
+  ruleCandidates: "RULE_CANDIDATES",
   knownGaps: "KNOWN_GAPS",
   unsupportedLanguages: "UNSUPPORTED_LANGUAGES",
   unresolvedCalls: "UNRESOLVED_CALLS",
@@ -219,7 +220,11 @@ export const repositoryRuleCandidateSchema = z.strictObject({
   state: z.enum(DISCOVERY_RULE_CANDIDATE_STATES),
   supportingUseCaseIds: z.array(sha256Schema).max(500),
   supportingRangeIds: z.array(sha256Schema).max(1000),
+  supportingFactIds: z.array(z.uuid()).max(500),
   matchedTerms: z.array(z.string().trim().min(1).max(200)).max(100),
+  applicabilityElements: z
+    .array(z.string().trim().min(1).max(1000))
+    .max(100),
   unresolvedConditions: z.array(z.string().trim().min(1).max(1000)).max(100),
   rationale: z.string().trim().min(1).max(4000),
   limitations: z.array(z.string().trim().min(1).max(1000)).max(100),
@@ -250,7 +255,18 @@ export const repositoryDiscoverySchema = z.strictObject({
 });
 export type RepositoryDiscovery = z.infer<typeof repositoryDiscoverySchema>;
 
-export const submitRepositoryDiscoverySchema = repositoryDiscoverySchema;
+export const submitRepositoryDiscoverySchema = repositoryDiscoverySchema.extend(
+  {
+    sourceRanges: z
+      .array(
+        repositoryDiscoverySourceRangeSchema.extend({
+          ruleRelevance: z.array(z.never()).max(0),
+        }),
+      )
+      .max(10_000),
+    ruleCandidates: z.array(z.never()).max(0),
+  },
+);
 export type SubmitRepositoryDiscovery = z.infer<
   typeof submitRepositoryDiscoverySchema
 >;
@@ -279,6 +295,7 @@ const repositoryDiscoverySummaryDetailSchema = z.strictObject({
   contentDigest: sha256Schema,
   sourceRangeCount: z.number().int().nonnegative(),
   aiUseCaseCount: z.number().int().nonnegative(),
+  ruleCandidateCount: z.number().int().nonnegative(),
   knownGapCount: z.number().int().nonnegative(),
   unsupportedLanguageCount: z.number().int().nonnegative(),
   unresolvedCallCount: z.number().int().nonnegative(),
@@ -317,6 +334,32 @@ const repositoryDiscoverySummaryDetailSchema = z.strictObject({
           unresolvedQuestions: z
             .array(z.string().trim().min(1).max(1000))
             .max(5),
+        }),
+      )
+      .max(5),
+    ruleCandidates: z
+      .array(
+        z.strictObject({
+          assessmentRuleId: z.string().trim().min(1).max(500),
+          assessmentRuleVersion: z.string().trim().min(1).max(200),
+          state: z.enum(DISCOVERY_RULE_CANDIDATE_STATES),
+          supportingUseCaseIds: z.array(sha256Schema).max(10),
+          supportingRangeIds: z.array(sha256Schema).max(10),
+          supportingFactIds: z.array(z.uuid()).max(10),
+          matchedTerms: z
+            .array(z.string().trim().min(1).max(200))
+            .max(20),
+          applicabilityElements: z
+            .array(z.string().trim().min(1).max(1000))
+            .max(5),
+          unresolvedConditions: z
+            .array(z.string().trim().min(1).max(1000))
+            .max(5),
+          rationale: z.string().trim().min(1).max(1000),
+          limitations: z
+            .array(z.string().trim().min(1).max(1000))
+            .max(5),
+          authorizesAssessment: z.literal(false),
         }),
       )
       .max(5),
@@ -392,6 +435,10 @@ export const repositoryDiscoveryDetailPageSchema = z.discriminatedUnion(
     repositoryDiscoveryDetailPageBaseSchema.extend({
       collection: z.literal(DISCOVERY_DETAIL_COLLECTIONS.aiUseCases),
       items: z.array(repositoryAiUseCaseSchema).max(100),
+    }),
+    repositoryDiscoveryDetailPageBaseSchema.extend({
+      collection: z.literal(DISCOVERY_DETAIL_COLLECTIONS.ruleCandidates),
+      items: z.array(repositoryRuleCandidateSchema).max(100),
     }),
     repositoryDiscoveryDetailPageBaseSchema.extend({
       collection: z.literal(DISCOVERY_DETAIL_COLLECTIONS.knownGaps),
