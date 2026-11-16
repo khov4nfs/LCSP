@@ -186,7 +186,7 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
         }),
     } as never,
     { appendInTx: () => Promise.resolve(undefined) } as never,
-    { invalidateCaseRevisionInTx: () => Promise.resolve([]) } as never,
+    { invalidateFinalReportInTx: () => Promise.resolve(undefined) } as never,
     coordinator as never,
     outbox as never,
     { writeInTx: () => Promise.resolve(undefined) } as never,

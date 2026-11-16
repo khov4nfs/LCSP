@@ -83,13 +83,13 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - Typed FactNeed answers are normalized against their declared value schema before acceptance; ambiguous or conflicting high-impact legacy answers are rejected before mutation.
    * - Unknown answers keep the request open and create no accepted fact or case revision.
    * - Once every open dependency has an unknown response at the current checkpoint, enqueue one review-only continuation while preserving WAITING_FOR_HUMAN.
-   * - A shared request resolves one fact; only dependencies in the current audit return to investigation after their other open requests resolve.
+   * - A shared request resolves one fact; only dependencies in the current audit return to investigation after their other open requests resolve, while unrelated dependency-complete decisions remain accepted.
    * - A typed FactNeed resolves to the same accepted human fact atomically; legacy requests without a FactNeed keep their historical behavior.
    * - Historical requests outside selected membership neither authorize an answer nor block this audit's continuation.
    *
    * Execution flow:
    * 1. Lock the owned Assessment, validate replay identity, revisions, checkpoint, selected choice, typed value and material answer conflicts.
-   * 2. For a known answer, advance the case revision, invalidate affected current decisions, snapshot choice meaning, persist answer evidence/fact, and resolve any linked FactNeed.
+   * 2. For a known answer, advance the case revision, invalidate any whole-case final report, snapshot choice meaning, persist answer evidence/fact, and resolve any linked FactNeed; dependent decisions were invalidated when the question opened.
    * 3. Append checkpoint-bound answer history, update each dependent rule's coverage, and enqueue normal resume after all blockers resolve or a review-only continuation after all open dependencies have replied UNKNOWN.
    *
    * Failure cases:
@@ -97,7 +97,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - An invalid typed value, choice, ambiguous material answer or conflict with accepted human history is rejected; transaction failure rolls back facts, history, lifecycle and outbox effects together.
    *
    * Side effects:
-   * - Atomically persists the answer and audit history; a known answer also writes evidence/fact links and may transition the lifecycle and enqueue Root continuation.
+   * - Atomically persists the answer and audit history; a known answer also writes evidence/fact links, invalidates a stale final-report projection, and may transition the lifecycle and enqueue Root continuation.
    * - Preserves historical answers and decision packets; it does not interpret the answer or author a compliance decision.
    */
   execute(
@@ -280,10 +280,9 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           where: { assessmentId: input.assessmentId },
           data: { caseRevision },
         });
-        await this.invalidation.invalidateCaseRevisionInTx(
+        await this.invalidation.invalidateFinalReportInTx(
           tx,
           input.assessmentId,
-          caseRevision,
         );
         const evidenceId = randomUUID();
         const payload = {

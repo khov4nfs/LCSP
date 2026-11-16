@@ -2208,6 +2208,7 @@ model AssessmentEvidence {
   invalidatedAt    DateTime?                    @db.Timestamptz(3)
   assessmentCase   AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   factLinks        AssessmentCaseFactEvidence[]
+  decisionDependencies AssessmentDecisionEvidenceDependency[]
 
   @@unique([evidenceId, assessmentId])
   @@index([assessmentId, state])
@@ -2226,6 +2227,7 @@ model AssessmentCaseFact {
   assessmentCase AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   evidenceLinks  AssessmentCaseFactEvidence[]
   resolvedFactNeeds AssessmentFactNeed[]
+  decisionDependencies AssessmentDecisionFactDependency[]
 
   // Every accepted fact is exactly one case revision.
   @@unique([assessmentId, caseRevision])
@@ -2301,6 +2303,7 @@ model AssessmentRuleDecision {
   idempotencyKey        String
   requestDigest         String
   decision              Json
+  dependencyGraphComplete Boolean                        @default(false)
   createdAt             DateTime                       @default(now()) @db.Timestamptz(3)
   supersededAt          DateTime?                      @db.Timestamptz(3)
   invalidatedAt         DateTime?                      @db.Timestamptz(3)
@@ -2308,11 +2311,39 @@ model AssessmentRuleDecision {
   auditRequest          AssessmentRuleAuditRequest?    @relation(fields: [auditRequestId], references: [requestId], onDelete: Restrict, onUpdate: Restrict)
   assessmentRule        AssessmentRule                 @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
   currentFor            AssessmentDecisionCoverage[]
+  evidenceDependencies  AssessmentDecisionEvidenceDependency[]
+  factDependencies      AssessmentDecisionFactDependency[]
 
   @@unique([assessmentId, assessmentRuleId, scopeId, decisionRevision])
   @@unique([assessmentId, idempotencyKey])
   @@unique([decisionId, assessmentId])
   @@index([assessmentId, state])
+}
+
+/// Exact accepted-evidence references used by a decision. Historical decisions intentionally
+/// have dependencyGraphComplete=false instead of receiving a guessed backfill.
+model AssessmentDecisionEvidenceDependency {
+  assessmentId String
+  decisionId   String @db.Uuid
+  evidenceId   String @db.Uuid
+  decision     AssessmentRuleDecision @relation(fields: [decisionId, assessmentId], references: [decisionId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  evidence     AssessmentEvidence     @relation(fields: [evidenceId, assessmentId], references: [evidenceId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([decisionId, evidenceId])
+  @@index([assessmentId, evidenceId])
+}
+
+/// Exact accepted-fact references used by a decision. Evidence supporting one of these facts
+/// remains an indirect decision dependency through AssessmentCaseFactEvidence.
+model AssessmentDecisionFactDependency {
+  assessmentId String
+  decisionId   String @db.Uuid
+  factId       String @db.Uuid
+  decision     AssessmentRuleDecision @relation(fields: [decisionId, assessmentId], references: [decisionId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  fact         AssessmentCaseFact     @relation(fields: [factId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([decisionId, factId])
+  @@index([assessmentId, factId])
 }
 
 /// Decision-resolution coverage: one row per AssessmentRule of the pinned rule set, created in
