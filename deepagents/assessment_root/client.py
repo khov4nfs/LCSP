@@ -343,6 +343,27 @@ class AssessmentRuntimeClient:
         """
         return self._call("POST", "/discovery", body)
 
+    def post_repository_discovery_expansion(
+        self, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Business purpose: Persist the runtime-authenticated reason and bounded trace for investigation beyond discovery priorities.
+
+        Business rules:
+        - The current lease and API-owned discovery pins govern acceptance.
+        - Trace metadata is bounded and contains digests instead of raw query/source text.
+
+        Execution flow:
+        1. Submit the expansion packet to the discovery subresource.
+        2. Return the immutable event receipt or its idempotent replay receipt.
+
+        Failure cases:
+        - Invalid pins, ranges, trace metadata or transport failures propagate without changing discovery authority.
+
+        Side effects:
+        - May append one immutable expansion audit event; it does not mutate discovery, evidence, facts or decisions.
+        """
+        return self._call("POST", "/discovery/expansions", body)
+
     def post_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/facts", body)
 
