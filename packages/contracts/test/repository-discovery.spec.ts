@@ -1,6 +1,8 @@
 import {
   DISCOVERY_EVIDENCE_STRENGTHS,
   DISCOVERY_EXPANSION_STATES,
+  DISCOVERY_EXPANSION_REASONS,
+  DISCOVERY_EXPANSION_TRACE_TOOLS,
   DISCOVERY_OBSERVATION_STATUSES,
   DISCOVERY_REACHABILITY_STATES,
   DISCOVERY_RULE_CANDIDATE_STATES,
@@ -10,6 +12,7 @@ import {
   REPOSITORY_DISCOVERY_VERSIONS,
   computeRepositoryDiscoveryDigest,
   repositoryDiscoverySchema,
+  repositoryDiscoveryExpansionRequestSchema,
   repositoryDiscoverySummarySchema,
   submitRepositoryDiscoverySchema,
   type RepositoryDiscovery,
@@ -216,6 +219,51 @@ describe("repository discovery contract", () => {
     expect(computeRepositoryDiscoveryDigest(expanded)).not.toBe(
       discovery.contentDigest,
     );
+  });
+
+  it("accepts only bounded runtime-traced expansion audit metadata", () => {
+    const valid = {
+      recordId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      contentDigest: sha("1"),
+      reasonCode: DISCOVERY_EXPANSION_REASONS.counterEvidenceSearch,
+      reason: "A selected rule required counterevidence outside ranked ranges.",
+      assessmentRuleIds: ["RULE-1"],
+      priorityRangeIds: [sha("2")],
+      trace: {
+        queries: [
+          {
+            tool: DISCOVERY_EXPANSION_TRACE_TOOLS.searchCodeGraph,
+            queryDigest: sha("3"),
+            resultCount: 2,
+            truncated: false,
+            failed: false,
+          },
+        ],
+        inspectedPaths: ["apps/api"],
+        droppedTraceCount: 0,
+        knownGaps: [],
+      },
+      idempotencyKey: `discovery-expansion:${"d".repeat(64)}`,
+    };
+
+    expect(repositoryDiscoveryExpansionRequestSchema.parse(valid)).toEqual(
+      valid,
+    );
+    expect(
+      repositoryDiscoveryExpansionRequestSchema.safeParse({
+        ...valid,
+        trace: { ...valid.trace, queries: [] },
+      }).success,
+    ).toBe(false);
+    expect(
+      repositoryDiscoveryExpansionRequestSchema.safeParse({
+        ...valid,
+        trace: {
+          ...valid.trace,
+          queries: [{ ...valid.trace.queries[0], query: "raw customer text" }],
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("keeps summary availability structurally consistent", () => {

@@ -34,6 +34,16 @@ from tools.common.capabilities.platform.repository_sandbox import (
 # Native/search tool names whose executions authenticate a search-coverage record.
 _SEARCH_TOOLS = {"ls", "glob", "grep", "search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
 _READ_TOOLS = {"read_file"}
+_DISCOVERY_EXPANSION_TRACE_TOOLS = {
+    "ls": "LIST_DIRECTORY",
+    "glob": "GLOB",
+    "grep": "GREP",
+    "search_code_graph": "SEARCH_CODE_GRAPH",
+    "trace_call_path": "TRACE_CALL_PATH",
+    "search_code_text": "SEARCH_CODE_TEXT",
+    "get_repository_architecture": "GET_REPOSITORY_ARCHITECTURE",
+    "read_file": "READ_FILE",
+}
 _SCOPE_DIRECTORY = "SOURCE_DIRECTORY"
 _SCOPE_FILE = "SOURCE_FILE"
 _SCOPE_GRAPH = "GRAPH_INDEX"
@@ -190,6 +200,28 @@ class SearchTrace(BaseCallbackHandler):
             taken, self.entries = self.entries, []
             dropped, self.dropped_entries = self.dropped_entries, 0
             return taken, dropped
+
+    def snapshot(self) -> tuple[list[dict[str, Any]], int]:
+        """Business purpose:
+        Copy executed repository activity for a durable expansion audit without consuming search coverage.
+
+        Business rules:
+        - Preserve recorded order and the dropped-entry count under the same trace lock.
+        - The returned dictionaries are isolated from later trace mutation.
+
+        Execution flow:
+        1. Acquire the trace lock.
+        2. Copy every bounded entry and the dropped counter.
+        3. Return without resetting either collection.
+
+        Failure cases:
+        - An empty trace returns an empty list and zero rather than inventing activity.
+
+        Side effects:
+        - Read-only snapshot of execution-local memory.
+        """
+        with self._lock:
+            return [dict(entry) for entry in self.entries], self.dropped_entries
 
 
 @dataclass
@@ -416,6 +448,25 @@ class GetRepositoryDiscoveryDetailsArgs(_Args):
         ge=1,
         le=_DISCOVERY_MAX_PAGE_SIZE,
     )
+
+
+class RecordRepositoryDiscoveryExpansionArgs(_Args):
+    record_id: str = Field(description="recordId from repositoryDiscovery.")
+    content_digest: str = Field(
+        pattern=r"^sha256:[a-f0-9]{64}$",
+        description="Exact contentDigest returned for the immutable discovery record.",
+    )
+    reason_code: Literal[
+        "MISSING_SUPPORT",
+        "INCOMPLETE_CALL_CHAIN",
+        "COUNTER_EVIDENCE_SEARCH",
+        "UNKNOWN_RUNTIME_CONFIGURATION",
+        "BOUNDED_NEGATIVE_CLAIM",
+        "SCANNER_COVERAGE_GAP",
+    ]
+    reason: str = Field(min_length=1, max_length=1000)
+    assessment_rule_ids: list[str] = Field(default_factory=list, max_length=100)
+    priority_range_ids: list[str] = Field(default_factory=list, max_length=1000)
 
 
 class GetHumanRequestResumePageArgs(_Args):
@@ -1384,6 +1435,124 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 record_id, collection, offset=offset, limit=limit,
             ),
         }
+
+    def record_repository_discovery_expansion(
+        record_id: str,
+        content_digest: str,
+        reason_code: str,
+        reason: str,
+        assessment_rule_ids: list[str] | None = None,
+        priority_range_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Business purpose:
+        Audit why selected-rule investigation searched beyond the immutable discovery priorities.
+
+        Business rules:
+        - Only repository searches/reads actually captured by the runtime trace may support an event.
+        - Raw query/source text is never submitted; the API receives bounded query digests, counts and scoped paths.
+        - The event does not authorize a rule, prove absence, accept evidence, or confirm production reachability.
+
+        Execution flow:
+        1. Snapshot executed repository activity without consuming the later search-coverage record.
+        2. Validate every attributable path against the pinned source scope and derive bounded gaps.
+        3. Bind discovery coordinates, semantic reason, related rule/range IDs and deterministic idempotency.
+        4. Submit the immutable expansion event through the governed API.
+
+        Failure cases:
+        - No activity, out-of-scope paths or unsupported trace tools return repair feedback without persistence.
+        - API pin, digest, range or lease rejection remains visible and does not alter discovery.
+
+        Side effects:
+        - Reads execution-local trace and may append one API expansion audit event; trace entries remain available for search coverage.
+        """
+        if not run.pins:
+            run.adopt_context(client.context())
+        entries, dropped_count = run.trace.snapshot()
+        if not entries:
+            return {
+                "ok": False,
+                "code": "NO_SEARCH_ACTIVITY",
+                "hint": "Run the justified repository expansion before recording it.",
+            }
+        queries: list[dict[str, Any]] = []
+        inspected_paths: set[str] = set()
+        known_gaps: list[str] = []
+        for entry in entries:
+            tool_name = str(entry.get("tool") or "")
+            governed_tool = _DISCOVERY_EXPANSION_TRACE_TOOLS.get(tool_name)
+            if governed_tool is None:
+                return {"ok": False, "code": "UNSUPPORTED_EXPANSION_TRACE_TOOL"}
+            args = entry.get("args") if isinstance(entry.get("args"), dict) else {}
+            if tool_name in _READ_TOOLS or tool_name in {"ls", "glob", "grep"}:
+                candidate_path = args.get("file_path") or args.get("path") or args.get("directory") or "."
+                scoped_path = _source_evidence_path(run, candidate_path)
+                if scoped_path is None:
+                    return {
+                        "ok": False,
+                        "code": "SOURCE_PATH_OUTSIDE_SCOPE",
+                        "sourcePathPrefix": run.source_path_prefix,
+                    }
+                inspected_paths.add(scoped_path)
+            else:
+                inspected_paths.add(run.source_path_prefix or ".")
+            query = str(
+                args.get("pattern")
+                or args.get("query")
+                or args.get("name_pattern")
+                or args.get("function_name")
+                or entry.get("input")
+                or tool_name
+            )
+            queries.append(
+                {
+                    "tool": governed_tool,
+                    "queryDigest": "sha256:"
+                    + hashlib.sha256(query.encode("utf-8")).hexdigest(),
+                    "resultCount": max(0, int(entry.get("resultCount", 0))),
+                    "truncated": bool(entry.get("truncated", False)),
+                    "failed": bool(entry.get("failed", False)),
+                }
+            )
+            if entry.get("truncated"):
+                known_gaps.append(f"The {tool_name} result was truncated.")
+            if entry.get("failed"):
+                known_gaps.append(f"The {tool_name} operation failed.")
+        if dropped_count:
+            known_gaps.append(
+                f"Runtime trace omitted {dropped_count} operation(s) after its bound."
+            )
+        bounded_trace_omissions = dropped_count + max(0, len(queries) - 200)
+        if len(queries) > 200:
+            known_gaps.append(
+                f"Expansion audit retained 200 of {len(queries)} traced operations."
+            )
+        if len(inspected_paths) > 200:
+            known_gaps.append(
+                f"Expansion audit retained 200 of {len(inspected_paths)} inspected paths."
+            )
+        payload = {
+            "recordId": record_id,
+            "contentDigest": content_digest,
+            "reasonCode": reason_code,
+            "reason": reason,
+            "assessmentRuleIds": assessment_rule_ids or [],
+            "priorityRangeIds": priority_range_ids or [],
+            "trace": {
+                "queries": queries[:200],
+                "inspectedPaths": sorted(inspected_paths)[:200],
+                "droppedTraceCount": bounded_trace_omissions,
+                "knownGaps": known_gaps[:200],
+            },
+        }
+        digest = hashlib.sha256(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        ).hexdigest()
+        result = client.post_repository_discovery_expansion(
+            {**payload, "idempotencyKey": f"discovery-expansion:{digest}"}
+        )
+        return {"ok": True, **result}
 
     def get_assessment_context_page(
         snapshot_token: str, collection: str, offset: int = 0, limit: int = _CONTEXT_DEFAULT_PAGE_SIZE,
@@ -2782,6 +2951,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
              "Page immutable prioritized source ranges from repositoryDiscovery before broad searching. Leads and scores are not evidence: verify exact pinned lines with cite_repository_source, retain gaps, and expand when recall requires it."),
         tool(get_repository_discovery_details, GetRepositoryDiscoveryDetailsArgs, "get_repository_discovery_details",
              "Page discovered AI use cases, non-authoritative rule candidates, known gaps, unsupported languages or unresolved calls. These prioritize investigation only and never authorize scope or decide legal outcomes."),
+        tool(record_repository_discovery_expansion, RecordRepositoryDiscoveryExpansionArgs, "record_repository_discovery_expansion",
+             "Record why runtime-traced investigation expanded beyond discovery priorities. This immutable audit event grants no scope, evidence authority, reachability or legal conclusion; record truncation and unresolved gaps."),
         tool(get_assessment_context_page, GetAssessmentContextPageArgs, "get_assessment_context_page",
              "Read a byte-bounded page of facts, evidence, humanRequests or openHumanRequestIds using contextCollections.snapshotToken. Large records return detailRequired/detailIndex; use get_assessment_context_detail. A stale token requires reloading context."),
         tool(get_assessment_context_detail, GetAssessmentContextDetailArgs, "get_assessment_context_detail",
@@ -2836,6 +3007,7 @@ ROOT_TOOL_NAMES = (
     "get_assessment_context",
     "get_repository_discovery_ranges",
     "get_repository_discovery_details",
+    "record_repository_discovery_expansion",
     "get_assessment_context_page",
     "get_assessment_context_detail",
     "get_assessment_coverage",

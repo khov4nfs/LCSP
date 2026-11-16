@@ -2086,6 +2086,7 @@ model AssessmentCase {
   artifacts            AssessmentArtifact[]
   auditRequests        AssessmentRuleAuditRequest[]
   repositoryDiscoveries AssessmentRepositoryDiscovery[]
+  repositoryDiscoveryExpansions AssessmentRepositoryDiscoveryExpansion[]
   factNeeds             AssessmentFactNeed[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
@@ -2098,6 +2099,15 @@ enum RepositoryScannerVersion {
 
 enum RepositoryDiscoveryVersion {
   LCSP_DISCOVERY_V1
+}
+
+enum RepositoryDiscoveryExpansionReason {
+  MISSING_SUPPORT
+  INCOMPLETE_CALL_CHAIN
+  COUNTER_EVIDENCE_SEARCH
+  UNKNOWN_RUNTIME_CONFIGURATION
+  BOUNDED_NEGATIVE_CLAIM
+  SCANNER_COVERAGE_GAP
 }
 
 /// Immutable, versioned repository discovery input bound to one assessment snapshot.
@@ -2117,9 +2127,31 @@ model AssessmentRepositoryDiscovery {
   payload              Json
   createdAt            DateTime                   @default(now()) @db.Timestamptz(3)
   assessmentCase       AssessmentCase             @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  expansions           AssessmentRepositoryDiscoveryExpansion[]
 
+  @@unique([recordId, assessmentId])
   @@unique([assessmentId, cacheIdentity, contentDigest])
   @@index([assessmentId, repositorySnapshotId, createdAt(sort: Desc)])
+}
+
+/// Immutable audit record explaining why investigation expanded beyond discovery priorities.
+model AssessmentRepositoryDiscoveryExpansion {
+  expansionId            String                             @id @db.Uuid
+  assessmentId           String
+  repositoryDiscoveryId  String                             @db.Uuid
+  discoveryContentDigest String
+  reasonCode             RepositoryDiscoveryExpansionReason
+  reason                 String
+  assessmentRuleIds      Json
+  priorityRangeIds       Json
+  trace                  Json
+  idempotencyKey         String
+  createdAt              DateTime                           @default(now()) @db.Timestamptz(3)
+  assessmentCase         AssessmentCase                     @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  repositoryDiscovery    AssessmentRepositoryDiscovery      @relation(fields: [repositoryDiscoveryId, assessmentId], references: [recordId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, repositoryDiscoveryId, createdAt(sort: Asc)])
 }
 
 enum AssessmentAuditMode {

@@ -71,6 +71,26 @@ export const DISCOVERY_EXPANSION_STATES = {
   blocked: "BLOCKED",
 } as const;
 
+export const DISCOVERY_EXPANSION_REASONS = {
+  missingSupport: "MISSING_SUPPORT",
+  incompleteCallChain: "INCOMPLETE_CALL_CHAIN",
+  counterEvidenceSearch: "COUNTER_EVIDENCE_SEARCH",
+  unknownRuntimeConfiguration: "UNKNOWN_RUNTIME_CONFIGURATION",
+  boundedNegativeClaim: "BOUNDED_NEGATIVE_CLAIM",
+  scannerCoverageGap: "SCANNER_COVERAGE_GAP",
+} as const;
+
+export const DISCOVERY_EXPANSION_TRACE_TOOLS = {
+  listDirectory: "LIST_DIRECTORY",
+  glob: "GLOB",
+  grep: "GREP",
+  searchCodeGraph: "SEARCH_CODE_GRAPH",
+  traceCallPath: "TRACE_CALL_PATH",
+  searchCodeText: "SEARCH_CODE_TEXT",
+  getRepositoryArchitecture: "GET_REPOSITORY_ARCHITECTURE",
+  readFile: "READ_FILE",
+} as const;
+
 export const DISCOVERY_RULE_CANDIDATE_STATES = {
   candidate: "CANDIDATE",
   needsContext: "NEEDS_CONTEXT",
@@ -279,6 +299,46 @@ export const repositoryDiscoverySaveResultSchema = z.strictObject({
 });
 export type RepositoryDiscoverySaveResult = z.infer<
   typeof repositoryDiscoverySaveResultSchema
+>;
+
+export const repositoryDiscoveryExpansionRequestSchema = z.strictObject({
+  recordId: z.uuid(),
+  contentDigest: sha256Schema,
+  reasonCode: z.enum(DISCOVERY_EXPANSION_REASONS),
+  reason: z.string().trim().min(1).max(1000),
+  assessmentRuleIds: z.array(z.string().trim().min(1).max(500)).max(100),
+  priorityRangeIds: z.array(sha256Schema).max(1000),
+  trace: z.strictObject({
+    queries: z
+      .array(
+        z.strictObject({
+          tool: z.enum(DISCOVERY_EXPANSION_TRACE_TOOLS),
+          queryDigest: sha256Schema,
+          resultCount: z.number().int().nonnegative(),
+          truncated: z.boolean(),
+          failed: z.boolean(),
+        }),
+      )
+      .min(1)
+      .max(200),
+    inspectedPaths: z.array(pathSchema).max(200),
+    droppedTraceCount: z.number().int().nonnegative(),
+    knownGaps: z.array(z.string().trim().min(1).max(1000)).max(200),
+  }),
+  idempotencyKey: z.string().regex(/^discovery-expansion:[a-f0-9]{64}$/),
+});
+export type RepositoryDiscoveryExpansionRequest = z.infer<
+  typeof repositoryDiscoveryExpansionRequestSchema
+>;
+
+export const repositoryDiscoveryExpansionResultSchema = z.strictObject({
+  expansionId: z.uuid(),
+  recordId: z.uuid(),
+  replayed: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type RepositoryDiscoveryExpansionResult = z.infer<
+  typeof repositoryDiscoveryExpansionResultSchema
 >;
 
 const repositoryDiscoverySummaryDetailSchema = z.strictObject({

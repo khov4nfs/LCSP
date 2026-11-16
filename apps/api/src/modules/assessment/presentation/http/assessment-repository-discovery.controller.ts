@@ -5,9 +5,11 @@ import {
   assessmentRootClaimSchema,
   repositoryDiscoveryRangePageQuerySchema,
   repositoryDiscoveryDetailPageQuerySchema,
+  repositoryDiscoveryExpansionRequestSchema,
   submitRepositoryDiscoverySchema,
   type RepositoryDiscoveryRangePageQuery,
   type RepositoryDiscoveryDetailPageQuery,
+  type RepositoryDiscoveryExpansionRequest,
   type SubmitRepositoryDiscovery,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -73,6 +75,40 @@ export class AssessmentRepositoryDiscoveryController {
         leaseToken,
         correlationId: this.correlation(request),
         discovery: body,
+      }),
+    );
+  }
+
+  /**
+   * Business purpose: Accept one governed audit record for investigation beyond discovery priorities.
+   *
+   * Business rules: The shared worker and lease guards authenticate the request; the service validates exact discovery pins and trace metadata.
+   *
+   * Execution flow: 1. Validate route, lease and body contracts. 2. Delegate immutable expansion persistence. 3. Return the standard success envelope.
+   *
+   * Failure cases: Guard, schema, provenance and integrity failures use the global problem envelope and matching HTTP status.
+   *
+   * Side effects: May append one immutable discovery-expansion record; it does not mutate discovery, evidence, facts or decisions.
+   */
+  @Post("expansions")
+  @HttpCode(200)
+  async recordExpansion(
+    @Param(
+      "assessmentId",
+      requestPipe(assessmentRootClaimSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) leaseToken: string,
+    @Body(requestPipe(repositoryDiscoveryExpansionRequestSchema))
+    body: RepositoryDiscoveryExpansionRequest,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.discovery.recordExpansion({
+        assessmentId,
+        leaseToken,
+        correlationId: this.correlation(request),
+        expansion: body,
       }),
     );
   }
