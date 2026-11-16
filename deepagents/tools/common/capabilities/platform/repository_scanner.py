@@ -81,6 +81,19 @@ _DISCOVERY_DIRECT_CALL_PATTERN = re.compile(
     re.I,
 )
 
+_DISCOVERY_HTTP_CLIENT_PATTERN = re.compile(
+    r"(?:\bfetch\s*\(|\baxios\.(?:post|request)\s*\(|"
+    r"\brequests\.(?:post|request)\s*\(|\bhttpx\.(?:post|request)\s*\()",
+    re.I,
+)
+
+_DISCOVERY_CUSTOM_AI_ENDPOINT_PATTERN = re.compile(
+    r"(?:AI[_-]?GATEWAY|LLM[_-]?GATEWAY|MODEL[_-]?ENDPOINT|"
+    r"/v\d+/(?:chat/)?completions|/v\d+/responses|/v\d+/messages|"
+    r"/(?:generate|inference)(?:/|['\"`]))",
+    re.I,
+)
+
 _DISCOVERY_WRAPPER_CALL_PATTERN = re.compile(
     r"(?:llm|model|chain|agent|gateway|completion|inference)[\w.$]*\."
     r"(?:invoke|ainvoke|predict|generate)\s*\(",
@@ -97,7 +110,14 @@ _DISCOVERY_CONTROL_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("DATA_PROTECTION", re.compile(r"\b(?:redact|mask|sanitize|anonymi[sz]e|pseudonymi[sz]e)\b", re.I), "AI_CONTROL"),
     ("ACCESS_CONTROL", re.compile(r"\b(?:authori[sz]e|permission|access[_ -]?control|rbac|pbac)\b", re.I), "AI_CONTROL"),
     ("AUDIT_LOGGING", re.compile(r"\b(?:audit|logger?|telemetry|trace)\b", re.I), "AI_CONTROL"),
-    ("RETENTION", re.compile(r"\b(?:retention|time[_ -]?to[_ -]?live|ttl|delete|purge)\b", re.I), "AI_CONTROL"),
+    (
+        "RETENTION",
+        re.compile(
+            r"\b(?:retention\w*|time[_ -]?to[_ -]?live|ttl|delete\w*|purge\w*)\b",
+            re.I,
+        ),
+        "AI_CONTROL",
+    ),
     ("HUMAN_OVERSIGHT", re.compile(r"\b(?:human[_ -]?review|approval|moderation|escalat)\w*\b", re.I), "AI_CONTROL"),
 )
 
@@ -2167,7 +2187,14 @@ def scan_repository_discovery(
                     matching_providers = [
                         provider for provider, pattern in _DISCOVERY_PROVIDER_PATTERNS if pattern.search(line)
                     ]
-                    is_direct_call = bool(_DISCOVERY_DIRECT_CALL_PATTERN.search(line))
+                    is_custom_ai_http_call = bool(
+                        _DISCOVERY_HTTP_CLIENT_PATTERN.search(line)
+                        and _DISCOVERY_CUSTOM_AI_ENDPOINT_PATTERN.search(line)
+                    )
+                    is_direct_call = bool(
+                        _DISCOVERY_DIRECT_CALL_PATTERN.search(line)
+                        or is_custom_ai_http_call
+                    )
                     is_wrapper_call = bool(_DISCOVERY_WRAPPER_CALL_PATTERN.search(line))
                     is_call = is_direct_call or is_wrapper_call
                     if not matching_providers and not is_call:
@@ -2175,7 +2202,9 @@ def scan_repository_discovery(
                     signal_type = "AI_WRAPPER" if is_wrapper_call and not is_direct_call else (
                         "AI_SDK_CALL" if is_call else "AI_SDK_IMPORT"
                     )
-                    if is_direct_call and re.search(r"https?://", line, re.I):
+                    if is_custom_ai_http_call or (
+                        is_direct_call and re.search(r"https?://", line, re.I)
+                    ):
                         signal_type = "RAW_AI_HTTP_CALL"
                     provider_text = ", ".join(matching_providers or providers) or "an unresolved AI provider"
                     wrapper_without_provider = is_wrapper_call and not is_direct_call and not providers
@@ -2216,6 +2245,33 @@ def scan_repository_discovery(
                         invocation_range_ids.append(source_range["rangeId"])
 
                 if not invocation_range_ids:
+                    for line_number, line in enumerate(lines, start=1):
+                        control_match = next(
+                            (
+                                label
+                                for label, pattern, _ in _DISCOVERY_CONTROL_PATTERNS
+                                if pattern.search(line)
+                            ),
+                            None,
+                        )
+                        if not control_match:
+                            continue
+                        related = _discovery_range(
+                            path=rel_path,
+                            line_number=line_number,
+                            line=line,
+                            symbol=_discovery_symbol(lines, line_number),
+                            signal_type="CONTROL",
+                            classification=classification,
+                            technology_relevance=["RELATED_LOGIC"],
+                            explanation=(
+                                f"Source contains a {control_match} signal that may be relevant to "
+                                "rule-specific investigation; it is not proof of AI use or compliance."
+                            ),
+                            evidence_strength="HEURISTIC",
+                        )
+                        related["observationStatus"] = "CANDIDATE_FINDING"
+                        source_ranges.append(related)
                     continue
 
                 use_case_id = _discovery_sha256(
