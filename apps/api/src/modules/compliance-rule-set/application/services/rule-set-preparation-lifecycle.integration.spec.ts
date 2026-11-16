@@ -774,7 +774,10 @@ describeDatabase(
                 assessmentRuleId: rule.assessmentRuleId,
               },
             },
-            data: { resolutionState: DecisionResolutionState.INVESTIGATING },
+            data: {
+              resolutionState: DecisionResolutionState.INVESTIGATING,
+              currentDecisionId: decisionId,
+            },
           });
           const result =
             await new AssessmentEvidenceInvalidation().invalidateEvidenceInTx(

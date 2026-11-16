@@ -1657,6 +1657,7 @@ model LegalRequirement {
   operativePropositions   Json?
   semanticContext         Json?
   applicabilityConditions Json
+  applicabilityLogic      Json?
   qualifiers              Json
   exceptions              Json
   nonRepositoryDuty       Boolean
@@ -2310,7 +2311,7 @@ model AssessmentFactNeed {
   supersededAt                DateTime?                        @db.Timestamptz(3)
   assessmentCase              AssessmentCase                  @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   tenantOwner                 User                            @relation("AssessmentFactNeedTenantOwner", fields: [tenantOwnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  resolvedFact                AssessmentCaseFact?             @relation(fields: [resolvedFactId, assessmentId], references: [factId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  resolvedFact                AssessmentCaseFact?             @relation(fields: [resolvedFactId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
   humanRequest                AssessmentHumanRequest?
   proposals                   AssessmentHumanFactProposal[]
 
@@ -2341,8 +2342,8 @@ model AssessmentHumanFactProposal {
   acceptedFactId     String?                                 @db.Uuid
   createdAt         DateTime                                 @default(now()) @db.Timestamptz(3)
   assessmentCase    AssessmentCase                           @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
-  humanRequest      AssessmentHumanRequest                   @relation(fields: [requestId, assessmentId], references: [requestId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
-  factNeed          AssessmentFactNeed?                      @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  humanRequest      AssessmentHumanRequest                   @relation(fields: [requestId, assessmentId], references: [requestId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+  factNeed          AssessmentFactNeed?                      @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
 
   @@unique([proposalId, assessmentId])
   @@unique([assessmentId, idempotencyKey])
@@ -2475,7 +2476,7 @@ model AssessmentHumanRequest {
 
   dependencies       AssessmentHumanRequestDependency[]
   registrations      AssessmentHumanRequestRegistration[]
-  factNeed           AssessmentFactNeed?          @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  factNeed           AssessmentFactNeed?          @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
   factProposals      AssessmentHumanFactProposal[]
 
   @@unique([requestId, assessmentId])

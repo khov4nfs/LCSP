@@ -123,20 +123,21 @@ def test_resolve_working_context_policy_env_overrides(monkeypatch):
     assert policy.output_headroom_tokens == 12000
 
 
-def test_governed_summarization_middleware_integration():
+@pytest.mark.parametrize("role", [ROLE_ASSESSMENT_ROOT, ROLE_REPOSITORY_RESEARCHER, ROLE_RULE_SET_PREPARATION])
+def test_governed_summarization_middleware_integration(role):
     model = ChatOpenAI(model="gpt-4o", api_key="fake-test-key")
     backend = StateBackend()
 
     raw_middleware = governed_summarization_middleware(
         model,
         backend=backend,
-        role=ROLE_ASSESSMENT_ROOT,
+        role=role,
     )
-    middleware = apply_working_context_policy(raw_middleware, role=ROLE_ASSESSMENT_ROOT, model=model)
+    middleware = raw_middleware
 
     assert hasattr(middleware, "working_context_policy")
     assert isinstance(middleware.working_context_policy, WorkingContextPolicy)
-    assert middleware.working_context_policy.role == ROLE_ASSESSMENT_ROOT
+    assert middleware.working_context_policy.role == role
     assert middleware._lc_helper.trigger == middleware.working_context_policy.trigger
     assert middleware._lc_helper.keep == middleware.working_context_policy.keep
 

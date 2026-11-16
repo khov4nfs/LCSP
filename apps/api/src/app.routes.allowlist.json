@@ -163,6 +163,7 @@
   "POST /internal/assessment-runtime/:assessmentId/claim",
   "POST /internal/assessment-runtime/:assessmentId/decisions",
   "POST /internal/assessment-runtime/:assessmentId/discovery",
+  "POST /internal/assessment-runtime/:assessmentId/discovery/expansions",
   "POST /internal/assessment-runtime/:assessmentId/evidence",
   "POST /internal/assessment-runtime/:assessmentId/facts",
   "POST /internal/assessment-runtime/:assessmentId/final-report",

@@ -113,6 +113,9 @@ jobs:
       - name: Check contract literals
         run: pnpm run check:contracts
 
+      - name: Test assessment report contracts and historical readers
+        run: pnpm run test:assessment-report
+
       - name: Check billing production data sources
         run: pnpm run check:billing-release-gate
 

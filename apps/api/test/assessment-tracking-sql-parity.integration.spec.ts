@@ -398,9 +398,13 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       unresolvedCount: 0,
       affectedAssessmentCount: 1,
     });
+    // A shared active set may contain additional rules without coverage in this fixture.
+    const expectedRuleCount = await prisma.assessmentRule.count({
+      where: { ruleSetVersionId },
+    });
     expect(obligations.evaluationSummary).toEqual({
-      evaluatedAssessmentCount: 1,
-      notEvaluatedAssessmentCount: 0,
+      evaluatedAssessmentCount: expectedRuleCount === 1 ? 1 : 0,
+      notEvaluatedAssessmentCount: expectedRuleCount === 1 ? 0 : 1,
     });
     expect(obligations.items[0].assessments[0].freshnessStatus).toBe(
       TRACKING_FRESHNESS_STATUSES.UNKNOWN,
@@ -3808,10 +3812,14 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         caseRevision: 2,
         idempotencyKey: `idemp-${decisionId}`,
         requestDigest: "digest-older-fact",
+        dependencyGraphComplete: true,
         decision: decisionCitingOlderFact,
       },
     });
 
+    await prisma.assessmentDecisionFactDependency.create({
+      data: { assessmentId, decisionId, factId },
+    });
     await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
 
     const result = await loader.loadCustomerOverview({
@@ -3830,5 +3838,36 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(asmt).toBeDefined();
     expect(asmt?.compliance.compliantCount).toBe(1);
     expect(asmt?.compliance.unresolvedCount).toBe(0);
+    await prisma.assessmentCase.update({
+      where: { assessmentId },
+      data: { caseRevision: 3 },
+    });
+    const preserved = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: randomUUID(),
+    });
+    expect(preserved.complianceSummary.compliantCount).toBe(1);
+    expect(
+      preserved.assessments.find((a) => a.assessmentId === assessmentId)
+        ?.compliance.compliantCount,
+    ).toBe(1);
+    // Deferred checks still protect a support row while its decision edge survives.
+    await expect(
+      prisma.assessmentCaseFact.delete({ where: { factId } }),
+    ).rejects.toMatchObject({ code: "P2003" });
+    await prisma.assessmentDecisionFactDependency.deleteMany({
+      where: { assessmentId, decisionId },
+    });
+    const incomplete = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: randomUUID(),
+    });
+    expect(incomplete.complianceSummary.unresolvedCount).toBe(1);
+    expect(
+      incomplete.assessments.find((a) => a.assessmentId === assessmentId)
+        ?.compliance.unresolvedCount,
+    ).toBe(1);
   });
 });

@@ -570,6 +570,44 @@ test("canonical consistency: accepts valid COMPLIANT, NON_COMPLIANT, and NOT_APP
   assert.equal(notApplicable.ruleDetails[0].criteriaDecisions.length, 0);
 });
 
+test("historical decisions require exact dependency revalidation at the report revision", () => {
+  const report = createV3Fixture();
+  report.caseRevision += 1;
+  assert.equal(assessmentFinalReportV3Schema.safeParse(report).success, false);
+  for (const rule of report.ruleDetails) {
+    const refs = [
+      ...rule.decision.references,
+      ...rule.decision.criteria.flatMap((c) => c.references),
+      ...(rule.decision.applicabilityBasis ?? []).flatMap((b) => b.references),
+    ];
+    rule.dependencyValidation = {
+      caseRevision: report.caseRevision,
+      dependencyGraphComplete: true,
+      evidenceDependencies: [
+        ...new Set(
+          refs.flatMap((r) =>
+            r.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+              ? [r.evidenceId]
+              : [],
+          ),
+        ),
+      ].map((evidenceId) => ({ evidenceId })),
+      factDependencies: [
+        ...new Set(
+          refs.flatMap((r) =>
+            r.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT
+              ? [r.factId]
+              : [],
+          ),
+        ),
+      ].map((factId) => ({ factId })),
+    };
+  }
+  assert.equal(assessmentFinalReportV3Schema.safeParse(report).success, true);
+  report.ruleDetails[0].dependencyValidation!.evidenceDependencies = [];
+  assert.equal(assessmentFinalReportV3Schema.safeParse(report).success, false);
+});
+
 test("canonical consistency: rejects arbitrary or mismatched criterion outcomes", () => {
   const arbitrary = createV3Fixture();
   (arbitrary.ruleDetails[0].criteriaDecisions[0] as { outcome: string }).outcome =
@@ -1094,20 +1132,28 @@ test("size boundaries: distinguishes UTF-8 byte length from JS UTF-16 string len
   assert.equal(emojiText.length, 200);
   assert.equal(utf8ByteLength(emojiText), 400);
 
-  // Fits within MAX_TEXT_CHARS (10,000) and MAX_TEXT_UTF8_BYTES (24,000)
+  const maxViCharacters = Math.floor(
+    ASSESSMENT_REPORT_V3_LIMITS.MAX_TEXT_UTF8_BYTES / 3,
+  );
+  // A BMP Vietnamese character uses one UTF-16 code unit and three UTF-8 bytes.
   const validViReport = createV3Fixture();
-  validViReport.boundedNarrative.summary = "ệ".repeat(8_000);
+  validViReport.boundedNarrative.summary = "ệ".repeat(maxViCharacters);
   const parsedVi = assessmentFinalReportV3Schema.parse(validViReport);
   const measurement = measureAssessmentFinalReportV3Size(parsedVi);
   assert.ok(measurement.utf8Bytes > measurement.jsLength);
 
-  // Within JS char limit (8,001 <= 10,000) but exceeds UTF-8 byte limit (24,003 > 24,000) -> rejected
+  // The next character exceeds the configured UTF-8 boundary.
   const oversizedUtf8Report = createV3Fixture();
-  oversizedUtf8Report.boundedNarrative.summary = "ệ".repeat(8_001);
-  assert.equal(oversizedUtf8Report.boundedNarrative.summary.length, 8_001);
+  oversizedUtf8Report.boundedNarrative.summary = "ệ".repeat(
+    maxViCharacters + 1,
+  );
+  assert.equal(
+    oversizedUtf8Report.boundedNarrative.summary.length,
+    maxViCharacters + 1,
+  );
   assert.equal(
     utf8ByteLength(oversizedUtf8Report.boundedNarrative.summary),
-    24_003,
+    (maxViCharacters + 1) * 3,
   );
   assert.equal(
     assessmentFinalReportV3Schema.safeParse(oversizedUtf8Report).success,
