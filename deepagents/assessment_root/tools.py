@@ -43,6 +43,8 @@ _COVERAGE_MAX_PAGE_SIZE = 25
 _CONTEXT_DEFAULT_PAGE_SIZE = 5
 _CONTEXT_MAX_PAGE_SIZE = 10
 _CONTEXT_DETAIL_MAX_BYTES = 4096
+_DISCOVERY_DEFAULT_PAGE_SIZE = 25
+_DISCOVERY_MAX_PAGE_SIZE = 100
 _HITL_RESUME_MAX_BYTES = 4096
 _HITL_RESUME_DEFAULT_PAGE_SIZE = 10
 _HITL_RESUME_MAX_PAGE_SIZE = 50
@@ -393,6 +395,29 @@ class GetAssessmentContextDetailArgs(_Args):
     max_chars: int = Field(default=2000, ge=1, le=4000)
 
 
+class GetRepositoryDiscoveryRangesArgs(_Args):
+    record_id: str
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
+        default=_DISCOVERY_DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=_DISCOVERY_MAX_PAGE_SIZE,
+    )
+
+
+class GetRepositoryDiscoveryDetailsArgs(_Args):
+    record_id: str
+    collection: Literal[
+        "AI_USE_CASES", "RULE_CANDIDATES", "KNOWN_GAPS", "UNSUPPORTED_LANGUAGES", "UNRESOLVED_CALLS"
+    ]
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
+        default=_DISCOVERY_DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=_DISCOVERY_MAX_PAGE_SIZE,
+    )
+
+
 class GetHumanRequestResumePageArgs(_Args):
     snapshot_token: str = Field(
         pattern=r"^[0-9a-f]{64}$",
@@ -532,7 +557,7 @@ class OpenHumanRequestArgs(_Args):
     criterion_ids: list[str] = Field(default_factory=list)
     dependencies: list[HumanRequestDependencyArgs] = Field(default_factory=list, description="Other rule/criterion dependencies on this same material fact.")
     source_request_id: str | None = Field(default=None, description="Explicit existing request identity for server-validated sharing of the exact same fact.")
-    fact_need: FactNeedArgs | None = Field(default=None, description="Canonical semantic identity for cross-rule and cross-locale reuse; scope/time/value differences must use a different need.")
+    fact_need: FactNeedArgs | None = None
     question: str = Field(min_length=1, description="Customer-safe wording; no file paths, hashes or internal IDs.")
     unresolved_fact: str = Field(min_length=1)
     decision_impact: list[str] = Field(min_length=1)
@@ -1303,6 +1328,61 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "maxPageSize": _CONTEXT_MAX_PAGE_SIZE,
                 "counts": {name: len(items) for name, items in context_collections.items()},
             },
+        }
+
+    def get_repository_discovery_ranges(
+        record_id: str, offset: int = 0, limit: int = _DISCOVERY_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose: Reuse immutable discovery source-range priorities before repeating broad repository searches.
+
+        Business rules:
+        - The API must bind the discovery record to this assessment's current snapshot, commit, source scope, scanner, graph index and content digest.
+        - Returned ranges are investigation leads only; the Root must read pinned source and call cite_repository_source before using one as accepted evidence.
+        - Pagination limits model context but never acts as an allowlist or proof that omitted behavior is absent.
+
+        Execution flow:
+        1. Request one bounded range page from the governed discovery artifact.
+        2. Return its immutable content digest, priorities, coverage gaps and continuation offset unchanged.
+
+        Failure cases:
+        - Foreign/stale record IDs, invalid offsets, integrity failures and transport errors remain API rejection feedback.
+
+        Side effects:
+        - Read-only API access; no repository bytes, evidence, facts, decisions or audit scope are changed.
+        """
+        return {
+            "ok": True,
+            **client.repository_discovery_ranges(record_id, offset=offset, limit=limit),
+        }
+
+    def get_repository_discovery_details(
+        record_id: str,
+        collection: str,
+        offset: int = 0,
+        limit: int = _DISCOVERY_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose: Reuse discovered use cases, rule priorities and explicit coverage caveats during targeted assessment planning.
+
+        Business rules:
+        - Rule candidates never authorize scope or decide applicability/compliance; unknowns and gaps remain explicit.
+        - The selected immutable record and collection are validated by the API against current repository pins.
+        - Metadata can prioritize source verification but cannot become accepted evidence or an operational customer fact.
+
+        Execution flow:
+        1. Request one bounded page for the selected discovery collection.
+        2. Return the API-verified page and continuation offset without interpreting candidate state.
+
+        Failure cases:
+        - Unsupported collections, stale/foreign records, excessive offsets, integrity failures and transport errors remain visible rejection feedback.
+
+        Side effects:
+        - Read-only API access; no recommendation, evidence, fact, decision or audit authorization is persisted.
+        """
+        return {
+            "ok": True,
+            **client.repository_discovery_details(
+                record_id, collection, offset=offset, limit=limit,
+            ),
         }
 
     def get_assessment_context_page(
@@ -2698,6 +2778,10 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         tool(load_assessment_skill, LoadAssessmentSkillArgs, "load_assessment_skill", "Load an allowlisted investigation skill; it cannot alter legal authority."),
         tool(get_assessment_context, _NoArgs, "get_assessment_context",
              "Reload API-owned audit request, pins and source-view limits with bounded summaries. Call first. Facts, evidence and HITL history are paged through contextCollections; coverage is paged separately. Counts never authorize completion."),
+        tool(get_repository_discovery_ranges, GetRepositoryDiscoveryRangesArgs, "get_repository_discovery_ranges",
+             "Page immutable prioritized source ranges from repositoryDiscovery before broad searching. Leads and scores are not evidence: verify exact pinned lines with cite_repository_source, retain gaps, and expand when recall requires it."),
+        tool(get_repository_discovery_details, GetRepositoryDiscoveryDetailsArgs, "get_repository_discovery_details",
+             "Page discovered AI use cases, non-authoritative rule candidates, known gaps, unsupported languages or unresolved calls. These prioritize investigation only and never authorize scope or decide legal outcomes."),
         tool(get_assessment_context_page, GetAssessmentContextPageArgs, "get_assessment_context_page",
              "Read a byte-bounded page of facts, evidence, humanRequests or openHumanRequestIds using contextCollections.snapshotToken. Large records return detailRequired/detailIndex; use get_assessment_context_detail. A stale token requires reloading context."),
         tool(get_assessment_context_detail, GetAssessmentContextDetailArgs, "get_assessment_context_detail",
@@ -2750,6 +2834,8 @@ ROOT_TOOL_NAMES = (
     "list_assessment_skills",
     "load_assessment_skill",
     "get_assessment_context",
+    "get_repository_discovery_ranges",
+    "get_repository_discovery_details",
     "get_assessment_context_page",
     "get_assessment_context_detail",
     "get_assessment_coverage",

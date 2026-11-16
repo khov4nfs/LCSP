@@ -146,8 +146,10 @@ def approved_tool_specs(tools, bundle):
 
     Business rules:
     - Tool names and schema constraints remain unchanged; unknown descriptions fail closed.
+    - Assessment tools may use their exact governed per-tool entry when the legacy aggregate catalog has not yet incorporated that tool.
     Execution flow:
-    1. Convert tool specs, replace approved descriptions and recursively project schema guidance.
+    1. Convert tool specs and resolve descriptions from approved aggregate, native or exact per-tool entries.
+    2. Recursively project approved schema guidance without changing structural constraints.
     Failure cases:
     - Missing instruction entries or unsupported tool specs reject inference.
     Side effects:
@@ -203,6 +205,9 @@ def approved_tool_specs(tools, bundle):
         description = root.get(name) or preparation.get(name) or native.get("tool." + name)
         if name == "delete":
             description = bundle.instruction("framework.file-deletion")
+        guidance_id = f"assessment-tool.{name}.guidance"
+        if not description and guidance_id in bundle.entries:
+            description = bundle.instruction(guidance_id)
         if not description:
             raise RuntimeInstructionBundleError("INSTRUCTION_ENTRY_MISSING:tool:" + name)
         function["description"] = description

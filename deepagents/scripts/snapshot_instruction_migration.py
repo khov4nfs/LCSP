@@ -175,11 +175,22 @@ def main():
         ("rule_set_preparation/draft_history.py", "_view"): "preparation.history",
         ("rule_set_preparation/agent.py", "after_model"): "preparation.continuation",
     }
+    root_tool_descriptions = json.loads(
+        (ROOT / existing["assessment-tools.descriptions"]["vietnameseSourcePath"]).read_text(encoding="utf-8")
+    )
     for site in payload["constructionSites"]:
         identity = bindings.get((site["filePath"], site["symbolName"]))
         path, kind = site["filePath"], site.get("astKind")
         if kind == "PROMOTED_TOOL_DOCSTRING":
-            identity = "assessment-tools.descriptions" if path.startswith(("assessment_root/", "tools/common/codebase_memory_graph/")) else "preparation-tools.descriptions"
+            if path.startswith(("assessment_root/", "tools/common/codebase_memory_graph/")):
+                exact_tool_source = f"assessment-tool.{site['symbolName']}.guidance"
+                identity = (
+                    exact_tool_source
+                    if site["symbolName"] not in root_tool_descriptions and exact_tool_source in existing
+                    else "assessment-tools.descriptions"
+                )
+            else:
+                identity = "preparation-tools.descriptions"
             site["constructionType"] = "MAINTAINED_TOOL_DESCRIPTION"
         elif kind == "FACTORY_TOOL_DESCRIPTION" and path.endswith("claim_tools.py"):
             identity = "preparation-tools.descriptions"

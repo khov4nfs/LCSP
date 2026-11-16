@@ -5,6 +5,8 @@ from orchestration.context import resolve_response_language
 
 CONTRACTS: dict[str, str] = {
     "get_assessment_context": "Use at start/resume and after case changes. API owns selected scope, pinned source, accepted facts, coverage and blockers; coverage is not legal proof.",
+    "get_repository_discovery_ranges": "Reuse pin-bound ranked ranges as investigation priorities, never as evidence or an absolute source allowlist; verify exact source and preserve coverage gaps.",
+    "get_repository_discovery_details": "Reuse discovered use cases, rule candidates and caveats for planning only; candidates neither authorize audit scope nor decide applicability/compliance.",
     "get_pinned_rule_set": "Paginate the authorized request's rules only; SELECTED_RULES does not authorize the unselected catalog.",
     "get_assessment_rule": "Read one selected rule's legal requirements, criteria, elements and source addresses before investigating it.",
     "get_rule_decision": "Inspect accepted prior reasoning and references; structural acceptance is not semantic correctness.",
@@ -32,6 +34,8 @@ GRAPH_CONTRACTS: dict[str, str] = {
 
 CONTRACTS_VI: dict[str, str] = {
     "get_assessment_context": "Dùng lúc bắt đầu/resume và sau thay đổi case. API nắm scope được chọn, pin, fact/evidence và blocker; coverage không chứng minh kết luận pháp lý.",
+    "get_repository_discovery_ranges": "Tái sử dụng range đã pin để ưu tiên điều tra, không coi là evidence hay allowlist tuyệt đối; phải kiểm đúng source và giữ rõ coverage gap.",
+    "get_repository_discovery_details": "Tái sử dụng use case, rule candidate và caveat để lập kế hoạch; candidate không cấp audit scope hay quyết định applicability/compliance.",
     "get_pinned_rule_set": "Duyệt đủ các rule của request được phép, kể cả khi SELECTED_RULES chỉ là một phần catalog; không audit rule chưa chọn.",
     "get_assessment_rule": "Đọc đúng một rule được chọn, legal requirement, criterion, phần tử applicability và nguồn pháp luật trước khi phân tích.",
     "get_rule_decision": "Xem decision trước đây và reference; API chấp nhận cấu trúc không chứng minh nội dung suy luận đúng.",
@@ -152,6 +156,8 @@ TOOL_PLAYBOOKS_VI = {
 
 
 TOOL_PLAYBOOKS_EN.update({
+    "get_repository_discovery_ranges": "WHEN: repositoryDiscovery is available and source investigation is needed. READ: ranked paths/ranges, reachability state, rule relevance and gaps. NEXT: inspect and cite exact pinned source, then expand/search only for unresolved support or counterevidence. FAILURE: a missing/low-ranked range never proves absence.",
+    "get_repository_discovery_details": "WHEN: planning discovery reuse for selected rules. READ: rule candidates/use cases together with limitations, unresolved calls and known gaps. NEXT: verify only relevant leads under authorized scope. FAILURE: candidate state is not legal applicability, compliance or customer authorization.",
     "get_pinned_rule_set": "WHEN: After get_assessment_context and on scope revision. READ: only authorized selected rules, page via nextOffset. NEXT: get_assessment_rule for one selected ID. FAILURE: missing pages cannot be silently treated as complete coverage.",
     "get_rule_decision": "WHEN: A prior rule is RESOLVED or a decision must be corrected. READ: latest accepted packet, revision, references and invalidation. NEXT: reuse if still current; reopen only material contradiction. FAILURE: old acceptance is not proof of semantic correctness.",
     "search_legal_source": "WHEN: A source term, exception or cross-reference needs resolution. READ: pinned results and effect metadata. NEXT: read_legal_source exact provision, not search snippet. FAILURE: empty search cannot establish absence of a legal condition.",
@@ -163,6 +169,8 @@ TOOL_PLAYBOOKS_EN.update({
     "load_assessment_skill": "WHEN: Selected source evidence justifies one catalog skill. READ: allowed method and non-authority marker. NEXT: apply as investigation technique only. FAILURE: bad locale/name or unavailable skill means no fallback to fabricated instructions."
 })
 TOOL_PLAYBOOKS_VI.update({
+    "get_repository_discovery_ranges": "KHI DÙNG: repositoryDiscovery có sẵn và cần điều tra source. ĐỌC: path/range ưu tiên, reachability, rule relevance và gap. TIẾP: đọc rồi cite đúng source pin; chỉ mở rộng khi support/phản chứng còn thiếu. LỖI: range thiếu hoặc xếp hạng thấp không chứng minh vắng mặt.",
+    "get_repository_discovery_details": "KHI DÙNG: lập kế hoạch tái sử dụng discovery cho selected rules. ĐỌC: candidate/use case cùng limitation, unresolved call và gap. TIẾP: xác minh lead liên quan trong scope. LỖI: candidate không phải applicability, compliance hay quyền audit.",
     "get_pinned_rule_set": "KHI DÙNG: sau get_assessment_context và khi đổi scope. ĐỌC: chỉ các rule được chọn, phân trang đến nextOffset hết. TIẾP: get_assessment_rule cho một ID hợp lệ. LỖI: thiếu trang không được coi là đủ coverage.",
     "get_rule_decision": "KHI DÙNG: rule RESOLVED hoặc cần sửa decision. ĐỌC: packet, revision, reference, trạng thái mất hiệu lực. TIẾP: tái sử dụng nếu còn đúng; mở lại khi có phản chứng trọng yếu. LỖI: API từng nhận không chứng minh nghĩa đúng.",
     "search_legal_source": "KHI DÙNG: cần làm rõ định nghĩa, ngoại lệ, dẫn chiếu. ĐỌC: kết quả có pin và hiệu lực. TIẾP: read_legal_source vào điều khoản chính xác. LỖI: không tìm thấy không chứng minh điều kiện pháp lý vắng mặt.",

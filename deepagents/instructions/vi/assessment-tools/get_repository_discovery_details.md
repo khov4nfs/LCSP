@@ -1,0 +1,1 @@
+KHI DÙNG: lập kế hoạch tái sử dụng discovery cho selected rules. ĐỌC: candidate/use case cùng limitation, unresolved call và gap. TIẾP: xác minh lead liên quan trong scope. LỖI: candidate không phải applicability, compliance hay quyền audit.

@@ -70,8 +70,8 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 | Canonical FactNeed and cross-locale deduplication | IMPLEMENTED | Additive FactNeed persistence distinguishes tenant owner, assessment, subject, predicate, operational scope, environment/deployment, timeframe and value schema; wording/locale and shared rule dependencies reuse one need. |
 | Minimal, batched human questions with native interrupt | PARTIALLY_IMPLEMENTED | Atomic batch questions and native checkpoints reuse canonical FactNeeds, including equivalent needs inside one batch; discovery-completeness/materiality gating remains pending. |
 | Raw answer -> proposal -> accepted fact | PARTIALLY_IMPLEMENTED | FactNeed answers now require typed normalization and material ambiguity/conflict guards before acceptance, with raw and normalized values retained. A durable pending proposal/review state for rejected answers remains pending. |
-| Explainable candidate AssessmentRule matching | NOT_IMPLEMENTED | Rule catalog selection exists, but no discovery-driven recommendation stage or recommendation-state contract exists. |
-| Evidence/discovery reuse before rule investigation | PARTIALLY_IMPLEMENTED | Root reloads accepted facts/evidence and decisions, but there is no discovery handoff or governed range reuse plan. |
+| Explainable candidate AssessmentRule matching | IMPLEMENTED | API-owned deterministic matching uses the pinned Rule Set, discovery findings and accepted facts to emit immutable non-authoritative `CANDIDATE`/`NEEDS_CONTEXT` revisions. Candidates never authorize audit scope or become applicability/compliance verdicts. |
+| Evidence/discovery reuse before rule investigation | PARTIALLY_IMPLEMENTED | Root reloads accepted facts/evidence and decisions, then can page exact-pin discovery use cases, rule candidates, caveats and ranked ranges as non-authoritative investigation priorities. Exact source still must be read/cited; durable expansion-reason recording remains pending. |
 | Direct/indirect selective invalidation | IMPLEMENTED | New decisions persist exact evidence/fact edges; evidence invalidation follows direct and fact-mediated edges, dependency-incomplete history fails closed, human answers preserve unrelated dependency-complete decisions, and affected final reports become INVALID without changing historical bytes. |
 | Reproducible quality/efficiency evaluation | PARTIALLY_IMPLEMENTED | Mechanical scanner/HITL tests exist; no pinned before/after corpus measures recommendation quality, source-range recall, question quality, evidence reuse or legal-regression accuracy. |
 
@@ -85,6 +85,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - `deepagents/tools/common/capabilities/platform/repository_scanner.py` and `deepagents/assessment_root/*` -- relevance generation and bounded research context.
 - `packages/contracts/src/assessment-domain/*`, `apps/api/prisma/schema.prisma`, and assessment application services -- durable discovery result, candidate recommendation state and compatibility projections.
 - Existing evidence/fact/coverage persistence and Root governed tools -- discovery handoff and pin-compatible evidence reuse without a parallel authority store.
+- `deepagents/middleware/approved_instructions.py` and governed EN/VI tool sources -- exact per-tool description fallback for newly registered Assessment tools without weakening unknown-tool fail-closed behavior.
 - `apps/web/src/features/assessment-runtime/*` -- governed question controls/status presentation; preserve current local edits.
 - `.github/workflows/*`, root/API package scripts and PR metadata -- actual CI commands, merge state and exact-SHA verification.
 
@@ -125,6 +126,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - 2026-11-16: Added additive canonical FactNeed persistence and Root/API contracts. Historical HumanRequests remain nullable and uninterpreted; equivalent wording/locales and same-batch questions reuse one need, material deployment/timeframe/value differences remain distinct, and a known accepted answer resolves its linked need atomically while UNKNOWN remains open.
 - 2026-11-16: Added typed FactNeed answer normalization for text, boolean, integer, number, date, date-time, enum and JSON values, and connected the existing high-impact ambiguity/conflict guard to production answer acceptance. Invalid values are rejected before case/fact/evidence mutation; accepted evidence retains both the raw and normalized value.
 - 2026-11-16: Added an additive immutable decision dependency ledger. New decisions record exact evidence/fact edges; evidence invalidation traverses direct and fact-mediated support, historical decisions without a ledger fail closed, and unrelated dependency-complete decisions may survive a later case revision while caseRevision remains the CAS/audit clock. Active final reports are marked INVALID when their case/support changes.
+- 2026-11-16: Exposed immutable repository-discovery details and ranked source ranges to Assessment Root through bounded exact-pin pages. The governed EN/VI contracts keep candidates/ranges non-authoritative, require exact source citation before evidence acceptance, preserve explicit gaps, and permit investigation beyond ranked priorities.
 
 ## Reproducible Pre-Change Baseline — 2026-11-16
 
@@ -174,6 +176,14 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - Any case-changing human answer invalidates an ACTIVE final-report projection; evidence invalidation does the same when it invalidates a supporting decision. Artifact bytes, hashes, pins, decisions, and audit history remain unchanged.
 - Focused dependency, decision, answer, completion, selected-finalization, audit-reuse and migration regression: `9` suites, `114` tests passed. API lint, TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates, and `git diff --check` passed.
 - The repository-wide API command completed `224` suites / `1887` tests successfully, with `22` suites skipped. Its remaining `12` failing integration suites (`108` tests) all report PostgreSQL `P1001` at `127.0.0.1:55432`; no non-database suite failed. A live migration remains unverified locally for the same environment reason.
+
+## Phase 6 Verification — Governed Discovery Reuse Handoff
+
+- Assessment Root, HITL/checkpoint, source-scope and locale regression: `159` tests passed. This includes exact-pin discovery range/detail paging, the complete Root tool surface, native human interrupts, checkpoint recovery, source-scope isolation and rejection of invalid tool arguments.
+- Governed instruction inventory/lifecycle/runtime-bundle regression: `40` tests passed. The strict inventory verifier completed successfully after mapping the two new promoted tool descriptions to their exact EN/VI per-tool sources.
+- The runtime instruction boundary resolves a newly registered Assessment tool from its exact governed per-tool entry only when the legacy aggregate catalog lacks that name. Unknown tools still fail closed; a regression covers this path.
+- Discovery ranges, use cases and rule candidates remain investigation priorities only. They do not authorize audit scope, establish applicability/compliance, or become accepted evidence until the exact pinned source is read and cited. No source-recall, latency, token or legal-accuracy improvement is claimed from this mechanical handoff.
+- Durable recording of controlled expansion reasons/resource use is still pending, so the broader evidence-reuse task remains partially implemented.
 
 ## Design Notes
 
