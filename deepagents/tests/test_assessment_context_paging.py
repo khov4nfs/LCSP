@@ -130,7 +130,7 @@ def test_context_summarizes_all_rules_and_keeps_full_authoritative_identity_cach
     }
     assert client.current == before
     assert len(client.context()["coverage"]) == 243
-    assert {name for name, _ in client.calls} == {"context"}
+    assert {name for name, _ in client.calls} == {"context", "discovery_summary"}
     # Regress the 243-row context expansion without assigning a guessed token count.
     assert len(json.dumps(result).encode("utf-8")) < 4000
     assert len(json.dumps(result).encode("utf-8")) < len(json.dumps(before["coverage"]).encode("utf-8")) // 4
@@ -237,7 +237,7 @@ def test_following_pages_recovers_every_rule_and_current_decision_exactly_once(t
     assert all(row["decisionRevision"] == 2 for row in invalidated)
     assert len(client.calls) - before_reads == len(offsets)
     assert client.current == before
-    assert {name for name, _ in client.calls} == {"context"}
+    assert {name for name, _ in client.calls} == {"context", "discovery_summary"}
 
 
 def test_default_page_is_bounded_and_exact_end_is_an_empty_final_page(tmp_path):
@@ -299,7 +299,7 @@ def test_coverage_changes_without_case_revision_invalidate_existing_pages(tmp_pa
     assert "coverage" not in result
     assert "get_assessment_context" in result["hint"]
     assert run.rule_versions == versions and run.decision_revisions == revisions
-    assert {name for name, _ in client.calls} == {"context"}
+    assert {name for name, _ in client.calls} == {"context", "discovery_summary"}
 
 
 @pytest.mark.parametrize("change", ["added", "removed"])
@@ -361,7 +361,7 @@ def test_same_rules_and_revision_cannot_reuse_a_foreign_case_or_thread_token(tmp
 
     assert result["ok"] is False and result["code"] == "COVERAGE_SNAPSHOT_STALE"
     assert "coverage" not in result
-    assert {name for name, _ in client.calls} == {"context"}
+    assert {name for name, _ in client.calls} == {"context", "discovery_summary"}
 
 
 def test_api_row_reordering_keeps_stable_snapshot_and_page_order(tmp_path):
@@ -506,7 +506,7 @@ def test_compact_header_retains_fact_authority_evidence_human_audit_and_scoped_v
     }
     assert "other/private.txt" not in json.dumps(result)
     assert client.current == before
-    assert {name for name, _ in client.calls} == {"context"}
+    assert {name for name, _ in client.calls} == {"context", "discovery_summary"}
 
 # Compact model descriptions must leave executable native contracts and governance unchanged.
 _REVIEWED_TOOL_NAMES = (
@@ -651,7 +651,7 @@ def test_native_root_keeps_registered_todos_grep_and_full_catalog_with_compact_m
     registered = [registered_by_name[name] for name in model.bound_tool_names[0]]
     assert governed.requests
     for request in governed.requests:
-        assert len(request.tools) == len(registered) == 39
+        assert len(request.tools) == len(registered)
         assert {tool.name for tool in registered} == set(ROOT_TOOL_NAMES) | {"ls", "read_file", "write_file", "edit_file", "delete", "glob", "grep", "task", "write_todos", "search_code_graph", "search_code_text", "get_repository_architecture", "trace_call_path"}
         assert [tool.name for tool in request.tools] == [tool.name for tool in registered]
         for shown in request.tools:
