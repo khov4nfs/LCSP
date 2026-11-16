@@ -31,7 +31,6 @@ COMMIT = "a" * 40
 PINS = {
     "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
     "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
-    "repositoryId": "repository-123",
     "repositoryCommit": COMMIT,
 }
 
@@ -95,6 +94,7 @@ class FakeClient:
             "caseRevision": self.case_revision,
             "decisionScopeId": "ASSESSMENT",
             "repositoryScanJobId": "job-1",
+            "repositoryId": "repository-123",
             "coverage": [
                 {
                     "assessmentRuleId": "ER-1",
