@@ -819,6 +819,37 @@
                   "maxLength": 512
                 }
               },
+              "applicabilityLogic": {
+                "description": "Source-authored versioned connector for applicabilityConditions, never inferred by the runtime. ALL requires every condition; ANY permits alternatives. Material indices name independently required conditions. Omit when the source expression cannot be represented; unresolved legacy conditions then cannot establish applicability.",
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "conditionLogic": {
+                    "type": "string",
+                    "enum": [
+                      "ALL",
+                      "ANY"
+                    ]
+                  },
+                  "materialConditionIndices": {
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "conditionLogic"
+                ],
+                "additionalProperties": false
+              },
               "qualifiers": {
                 "description": "Timing, actor, modality or degree limits the source places on the duty itself.",
                 "maxItems": 64,

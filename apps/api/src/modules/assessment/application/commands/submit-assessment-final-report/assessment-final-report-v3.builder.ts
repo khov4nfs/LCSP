@@ -739,6 +739,9 @@ export async function buildAssessmentFinalReportV3(
       decisionId: decision.decisionId,
       decisionRevision: decision.decisionRevision,
       decision: decision.decision,
+      ...(decision.dependencyValidation
+        ? { dependencyValidation: decision.dependencyValidation }
+        : {}),
       decisionReferences,
       applicabilityBasisReferences,
       factEvidenceReferences,

@@ -12,6 +12,7 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
+import { legalApplicabilityLogicSchema } from "@lcsp/contracts/compliance-rule-set";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { criterionIdsOf, listLength } from "../../domain/rule-criteria.js";
@@ -300,7 +301,7 @@ export class AssessmentCaseSupport {
    * 2. Resolve the decision’s cited facts, then collect direct evidence references and those
    *   facts’ evidence links.
    * 3. Return exact pins/revision, criterion and legal-context identities, declared-element
-   *   counts and record maps.
+   *   counts, source-authored applicability logic and record maps; missing legacy logic remains unknown.
    *
    * Failure cases:
    * - A missing rule remains null and missing facts/evidence remain absent, allowing the
@@ -330,6 +331,7 @@ export class AssessmentCaseSupport {
                 id: true,
                 legalRequirementId: true,
                 applicabilityConditions: true,
+                applicabilityLogic: true,
                 qualifiers: true,
                 exceptions: true,
                 operativePropositions: true,
@@ -433,6 +435,11 @@ export class AssessmentCaseSupport {
                   applicabilityConditions: listLength(
                     link.legalRequirement.applicabilityConditions,
                   ),
+                  ...(link.legalRequirement.applicabilityLogic != null
+                    ? legalApplicabilityLogicSchema.parse(
+                        link.legalRequirement.applicabilityLogic,
+                      )
+                    : {}),
                   qualifiers: listLength(link.legalRequirement.qualifiers),
                   exceptions: listLength(link.legalRequirement.exceptions),
                   operativeScopes: listLength(

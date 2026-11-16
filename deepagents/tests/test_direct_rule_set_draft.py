@@ -175,11 +175,13 @@ def test_one_package_contains_multiple_leaves_and_preserves_only_actual_parent_c
     value["obligations"][0]["action"] = "encrypt stored records"
     value["obligations"].append({**deepcopy(value["obligations"][0]), "action": "restrict access", "statement": "Providers must restrict access to records.", "support": [{"nodeId": leaves[1]["nodeId"], "quote": leaves[1]["content"]}]})
     value["applicability"] = {"mode": "CONDITIONAL", "conditions": [{"statement": "Providers processing health data", "support": [{"nodeId": parent["nodeId"], "quote": parent["content"]}]}]}
+    value["applicability"]["logic"] = {"version": 1, "conditionLogic": "ALL", "materialConditionIndices": [0]}
     result = state.submit(submission(package, [value]))
     assert result["outcome"] == "PASSED", result
     row = api.saved["legalRequirements"][value["candidateId"]]
     assert len(row["operativePropositions"]) == 2
     assert row["applicabilityConditions"] == ["Providers processing health data"]
+    assert row["applicabilityLogic"] == value["applicability"]["logic"]
 
 
 def test_external_obligation_is_retained_without_repository_rule_and_tools_have_no_claim_cycle(tmp_path):

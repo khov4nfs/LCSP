@@ -146,6 +146,8 @@ const authoredKeys = new Set([
   "scopeLimitations",
 ]);
 const protectedKeys = new Set([
+  "dependencyValidation",
+  "applicabilityLogic",
   "sources",
   "sourceRefs",
   "sourceSupport",

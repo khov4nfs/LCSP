@@ -243,6 +243,25 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
 }
 
 describe("shared human answers inside a selected audit", () => {
+  it.each(["I do not know", "Tôi không biết"])(
+    "retains an uncertain ordinary answer as a proposal without accepting a fact: %s",
+    async (answer) => {
+      const f = fixture();
+      f.request.question = "Where are customer records hosted?";
+      const result = await f.handler.execute(f.input(false, answer));
+      expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+      expect(result.factId).toBeNull();
+      expect(result.proposalStatus).toBe(
+        HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+      );
+      expect(f.proposals[0]).toMatchObject({
+        rawAnswer: { answer },
+        acceptedFactId: null,
+        acceptedEvidenceId: null,
+      });
+      expect(f.outbox.enqueue).not.toHaveBeenCalled();
+    },
+  );
   it("accepts a shared answer through its selected dependency and resumes without unrelated historical blockers", async () => {
     const f = fixture();
     const result = await f.handler.execute(f.input(false));

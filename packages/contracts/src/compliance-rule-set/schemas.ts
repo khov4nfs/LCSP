@@ -1,4 +1,6 @@
 import { PREPARATION_ACTIVITY_SCOPES } from "./scope-review.ts";
+import { legalApplicabilityLogicSchema } from "./applicability-logic.ts";
+export { legalApplicabilityLogicSchema } from "./applicability-logic.ts";
 import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "../legal-source/management.ts";
 import {
   PREPARATION_EXECUTION_CONTRACTS,
@@ -192,6 +194,11 @@ export const legalRequirementSchema = z
     applicabilityConditions: shortTextListSchema.describe(
       "Whom or what the source applies this provision to and what triggers it, as facts that evidence can establish or refute, in the source's own terms (any-of / all-of exactly as written). When the source names a role, class, category, status, threshold or sector and defines or enumerates its criteria, unpack those criteria here and cite the defining provision in sourceRefs; a label is never its own explanation. Required (at least one) when assessment rules cover the requirement; if the source adds no further condition, state the addressee it names.",
     ),
+    applicabilityLogic: legalApplicabilityLogicSchema
+      .optional()
+      .describe(
+        "Source-authored versioned connector for applicabilityConditions, never inferred by the runtime. ALL requires every condition; ANY permits alternatives. Material indices name independently required conditions. Omit when the source expression cannot be represented; unresolved legacy conditions then cannot establish applicability.",
+      ),
     qualifiers: shortTextListSchema.describe(
       "Timing, actor, modality or degree limits the source places on the duty itself.",
     ),
@@ -207,7 +214,24 @@ export const legalRequirementSchema = z
     sourceRefs: sourceRefListSchema,
     coverage: legalRequirementCoverageSchema,
   })
-  .strict();
+  .strict()
+  .refine(
+    (requirement) => {
+      const indices =
+        requirement.applicabilityLogic?.materialConditionIndices ?? [];
+      return (
+        new Set(indices).size === indices.length &&
+        indices.every(
+          (index) => index < requirement.applicabilityConditions.length,
+        )
+      );
+    },
+    {
+      message:
+        "Material applicability indices must be unique declared condition addresses",
+      path: ["applicabilityLogic", "materialConditionIndices"],
+    },
+  );
 export type LegalRequirementInput = z.infer<typeof legalRequirementSchema>;
 
 export const engineeringGraphQuerySchema = z

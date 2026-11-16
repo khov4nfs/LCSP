@@ -278,7 +278,15 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     const before = await prisma.complianceRuleSetVersion.findFirst({
       where: { lifecycleState: "ACTIVE" },
     });
-    const result = await submit(run.preparationRunId, validPacket());
+    const packet = validPacket();
+    packet.legalRequirements[0].applicabilityLogic = {
+      version: 1,
+      conditionLogic: "ALL",
+    };
+    const result = await submit(
+      run.preparationRunId,
+      withDerivedAssessmentSemantics(packet),
+    );
 
     expect(result).toMatchObject({
       lifecycleState: "ACTIVE",
@@ -299,6 +307,13 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     });
     expect(ruleSet.legalSourceVersionId).toBe(legalSource.id);
     expect(ruleSet.rules).toHaveLength(5);
+    expect(
+      ruleSet.rules.find(
+        (rule) =>
+          rule.legalRequirementId ===
+          packet.legalRequirements[0].legalRequirementId,
+      )?.applicabilityLogic,
+    ).toEqual(packet.legalRequirements[0].applicabilityLogic);
     expect(ruleSet.assessmentRules).toHaveLength(3);
     expect(ruleSet.contextRelations).toHaveLength(2);
     expect(ruleSet.provenance.length).toBeGreaterThanOrEqual(7);

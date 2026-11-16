@@ -17,6 +17,7 @@ import {
   RULE_DECISION_REFERENCE_TYPES,
   ruleDecisionReferences,
   ruleDecisionSchema,
+  decisionDependencyGraphIsComplete,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
@@ -144,7 +145,28 @@ function ownerCanonicalDecisionEvaluationCte(
               AND ard."state" = 'ACCEPTED'
               AND ard."supersededAt" IS NULL
               AND ard."invalidatedAt" IS NULL
-              AND ard."caseRevision" = ac."caseRevision"
+               AND ard."caseRevision" <= ac."caseRevision"
+               AND (ard."caseRevision" = ac."caseRevision" OR (
+                 ard."dependencyGraphComplete" = true
+                 AND NOT EXISTS (
+                   (SELECT ref->>'type', COALESCE(ref->>'evidenceId', ref->>'factId')
+                    FROM jsonb_path_query(ard."decision"::jsonb, '$.**.references[*]') ref)
+                   EXCEPT
+                   (SELECT 'ASSESSMENT_EVIDENCE', dep."evidenceId"::text FROM "AssessmentDecisionEvidenceDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId"
+                    UNION SELECT 'CONFIRMED_FACT', dep."factId"::text FROM "AssessmentDecisionFactDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId")
+                 )
+                 AND NOT EXISTS (
+                   (SELECT 'ASSESSMENT_EVIDENCE', dep."evidenceId"::text FROM "AssessmentDecisionEvidenceDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId"
+                    UNION SELECT 'CONFIRMED_FACT', dep."factId"::text FROM "AssessmentDecisionFactDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId")
+                   EXCEPT
+                   (SELECT ref->>'type', COALESCE(ref->>'evidenceId', ref->>'factId')
+                    FROM jsonb_path_query(ard."decision"::jsonb, '$.**.references[*]') ref)
+                 )
+               ))
               AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit")
               AND ard."ruleSetVersionId" = ac."ruleSetVersionId"
               AND ard."scopeId" = 'ASSESSMENT'
@@ -176,7 +198,7 @@ function ownerCanonicalDecisionEvaluationCte(
               AND (ard."decision"->>'repositoryCommit') ~ '^(?:[a-f0-9]{40}|[a-f0-9]{64})$'
               AND jsonb_typeof((ard."decision"::jsonb)->'caseRevision') = 'number'
               AND (ard."decision"->>'caseRevision') IS NOT NULL
-              AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
+              AND ard."decision"->>'caseRevision' = ard."caseRevision"::text
               AND jsonb_typeof((ard."decision"::jsonb)->'applicability') = 'string'
               AND (ard."decision"->>'applicability') IS NOT NULL
               AND ard."decision"->>'applicability' = ard."applicability"::text
@@ -364,7 +386,7 @@ function ownerCanonicalDecisionEvaluationCte(
                       OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) > 200
                       OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
                       OR all_refs.ref->>'caseRevision' IS NULL
-                      OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
+                       OR all_refs.ref->>'caseRevision' <> ard."caseRevision"::text
                       OR NOT EXISTS (
                         SELECT 1 FROM "AssessmentCaseFact" af
                         WHERE af."factId"::text = all_refs.ref->>'factId'
@@ -516,6 +538,9 @@ interface DecisionEvaluationParams {
       repositoryCommit: string;
       caseRevision: number;
       decision: unknown;
+      dependencyGraphComplete?: boolean;
+      evidenceDependencies?: Array<{ evidenceId: string }>;
+      factDependencies?: Array<{ factId: string }>;
     }
   >;
   evidenceById?: Map<
@@ -528,6 +553,13 @@ interface DecisionEvaluationParams {
   >;
 }
 
+/**
+ * Business purpose: Project current owned decisions into tracking outcome counts without discarding verified historical work.
+ * Business rules: Identity, pins, coverage and accepted support must agree; older packets require an exact complete dependency ledger and future packets are rejected.
+ * Execution flow: 1. Validate current coverage and packet identity. 2. Verify historical dependency integrity and accepted support. 3. Count each trusted outcome or mark it unresolved.
+ * Failure cases: Missing, malformed, foreign, future or unsupported packets are unresolved and flagged inconsistent.
+ * Side effects: Pure in-memory projection; does not change decisions or case revisions.
+ */
 function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
   compliant: number;
   nonCompliant: number;
@@ -570,7 +602,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
       dec.assessmentRuleVersion !== cov.assessmentRuleVersion ||
       dec.repositoryCommit.toLowerCase() !==
         params.domainCase.repositoryCommit.toLowerCase() ||
-      dec.caseRevision !== params.domainCase.caseRevision
+      dec.caseRevision > params.domainCase.caseRevision
     ) {
       hasDecisionInconsistency = true;
       unresolved++;
@@ -596,7 +628,13 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
         d.repositorySnapshotId !== params.domainCase.repositorySnapshotId) ||
       d.repositoryCommit.toLowerCase() !==
         params.domainCase.repositoryCommit.toLowerCase() ||
-      d.caseRevision !== params.domainCase.caseRevision
+      d.caseRevision !== dec.caseRevision ||
+      (d.caseRevision < params.domainCase.caseRevision &&
+        !decisionDependencyGraphIsComplete(d, {
+          dependencyGraphComplete: dec.dependencyGraphComplete === true,
+          evidenceDependencies: dec.evidenceDependencies ?? [],
+          factDependencies: dec.factDependencies ?? [],
+        }))
     ) {
       hasDecisionInconsistency = true;
       unresolved++;
@@ -616,7 +654,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
             !fact ||
             fact.assessmentId !== params.assessmentId ||
             (fact.state && fact.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) ||
-            fact.caseRevision > params.domainCase.caseRevision
+            fact.caseRevision > d.caseRevision
           ) {
             refsValid = false;
             break;
@@ -974,6 +1012,9 @@ export class AssessmentTrackingLoader {
                 repositoryCommit: true,
                 caseRevision: true,
                 decision: true,
+                dependencyGraphComplete: true,
+                evidenceDependencies: { select: { evidenceId: true } },
+                factDependencies: { select: { factId: true } },
               },
             }),
             this.prisma.assessmentEvidence.findMany({
@@ -2864,6 +2905,9 @@ SELECT
               repositoryCommit: true,
               caseRevision: true,
               decision: true,
+              dependencyGraphComplete: true,
+              evidenceDependencies: { select: { evidenceId: true } },
+              factDependencies: { select: { factId: true } },
             },
           }),
           this.prisma.assessmentEvidence.findMany({

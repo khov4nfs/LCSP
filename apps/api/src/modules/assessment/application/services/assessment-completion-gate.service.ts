@@ -93,6 +93,12 @@ export interface AssessmentFinalizationSnapshot {
   decisions: Array<{
     decisionId: string;
     decisionRevision: number;
+    dependencyValidation?: {
+      caseRevision: number;
+      dependencyGraphComplete: true;
+      evidenceDependencies: Array<{ evidenceId: string }>;
+      factDependencies: Array<{ factId: string }>;
+    };
     decision: RuleDecision;
   }>;
   evidence: Array<{
@@ -625,6 +631,17 @@ export class AssessmentCompletionGate {
               decisionId: record.decisionId,
               decisionRevision: record.decisionRevision,
               decision: decision.data,
+              ...(record.caseRevision < assessmentCase.caseRevision &&
+              decisionDependencyGraphIsComplete(decision.data, record)
+                ? {
+                    dependencyValidation: {
+                      caseRevision: assessmentCase.caseRevision,
+                      dependencyGraphComplete: true as const,
+                      evidenceDependencies: record.evidenceDependencies,
+                      factDependencies: record.factDependencies,
+                    },
+                  }
+                : {}),
             },
           ]
         : [];
