@@ -26,8 +26,16 @@ def test_actual_promoted_docstrings_have_vi_descriptions():
     preparation = read_source("preparation-tool-guidance.json")
     for site in payload["constructionSites"]:
         if site.get("astKind") == "PROMOTED_TOOL_DOCSTRING":
-            table = root if site["viSourceId"] == "assessment-tools.descriptions" else preparation
-            assert site["symbolName"] in table, site["modelFacingConsumer"]
+            if site["viSourceId"] == "assessment-tools.descriptions":
+                assert site["symbolName"] in root, site["modelFacingConsumer"]
+            elif site["viSourceId"].startswith("assessment-tool."):
+                source = next(
+                    row for row in payload["entries"]
+                    if row["sourceId"] == site["viSourceId"]
+                )
+                assert (ROOT / source["vietnameseSourcePath"]).read_text(encoding="utf-8").strip()
+            else:
+                assert site["symbolName"] in preparation, site["modelFacingConsumer"]
 
 
 def test_factory_and_mode_overrides_have_vi_descriptions():
