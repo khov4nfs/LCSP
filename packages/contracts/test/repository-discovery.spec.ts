@@ -11,6 +11,7 @@ import {
   computeRepositoryDiscoveryDigest,
   repositoryDiscoverySchema,
   repositoryDiscoverySummarySchema,
+  submitRepositoryDiscoverySchema,
   type RepositoryDiscovery,
 } from "../src/assessment-domain/repository-discovery.ts";
 import { REPOSITORY_SCANNER_VERSIONS } from "../src/assessment-domain/repository-profile.ts";
@@ -76,7 +77,9 @@ function fixture(): RepositoryDiscovery {
         state: DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
         supportingUseCaseIds: [sha("6")],
         supportingRangeIds: [sha("4")],
+        supportingFactIds: [],
         matchedTerms: ["model"],
+        applicabilityElements: ["Production use is in scope."],
         unresolvedConditions: ["Production use is unconfirmed."],
         rationale: "Source observations make this rule a candidate only.",
         limitations: ["Static reachability is incomplete."],
@@ -133,6 +136,40 @@ describe("repository discovery contract", () => {
     };
 
     expect(repositoryDiscoverySchema.safeParse(invalid).success).toBe(false);
+  });
+
+  it("prevents workers from submitting API-owned rule recommendations", () => {
+    const discovery = fixture();
+
+    expect(submitRepositoryDiscoverySchema.safeParse(discovery).success).toBe(
+      false,
+    );
+    expect(
+      submitRepositoryDiscoverySchema.safeParse({
+        ...discovery,
+        ruleCandidates: [],
+        sourceRanges: discovery.sourceRanges.map((range) => ({
+          ...range,
+          ruleRelevance: [],
+        })),
+      }).success,
+    ).toBe(true);
+    expect(
+      submitRepositoryDiscoverySchema.safeParse({
+        ...discovery,
+        ruleCandidates: [],
+        sourceRanges: discovery.sourceRanges.map((range) => ({
+          ...range,
+          ruleRelevance: [
+            {
+              assessmentRuleId: "RULE-1",
+              evidenceNeed: null,
+              rationale: "API-owned recommendation",
+            },
+          ],
+        })),
+      }).success,
+    ).toBe(false);
   });
 
   it("binds graph version and audited expansion history into the digest", () => {
