@@ -1,0 +1,35 @@
+{
+  "profile": {
+    "user_id": "customer-e2e-1",
+    "email": "owner@example.test",
+    "email_verified": true,
+    "display_name": "Billing Customer",
+    "recovery_email": null,
+    "primary_email_address_policy": "ACCOUNT_EMAIL",
+    "backup_recovery_email_policy": "RECOVERY_EMAIL",
+    "created_at": "2026-09-01T00:00:00.000Z",
+    "updated_at": "2026-09-01T00:00:00.000Z",
+    "role": "CUSTOMER",
+    "mfa_enrolled": false,
+    "mfa_enrolled_at": null,
+    "mfa_verified": false,
+    "mfa_verified_at": null,
+    "current_session_id": "session-customer-e2e-1",
+    "current_session_created_at": "2026-09-20T00:00:00.000Z",
+    "current_session_updated_at": "2026-09-20T00:00:00.000Z",
+    "current_session_expires_at": "2026-10-04T00:00:00.000Z"
+  },
+  "failure": {
+    "ok": false,
+    "problem": {
+      "type": "about:blank",
+      "status": 503,
+      "code": "UPSTREAM_UNAVAILABLE",
+      "titleKey": "problems.requestFailed.title",
+      "detailKey": "problems.requestFailed.detail",
+      "requiredAction": null,
+      "correlationId": "settings-profile-test",
+      "meta": {}
+    }
+  }
+}

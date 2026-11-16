@@ -2273,6 +2273,23 @@ export const viPages = {
           dark: "Tối",
         },
       },
+      profile: {
+        emptyName: "Chưa có tên hiển thị. Bạn có thể thêm tên bên dưới.",
+        loading: "Đang tải hồ sơ…",
+        retry: "Thử lại",
+        save: "Lưu thay đổi",
+        saving: "Đang lưu…",
+        saved: "Đã cập nhật hồ sơ.",
+        nameHelp:
+          "Tên hiển thị được dùng trong không gian làm việc. Nhập từ 1–120 ký tự.",
+        nameRequired: "Vui lòng nhập tên hiển thị.",
+        nameTooLong: "Tên hiển thị không được vượt quá 120 ký tự.",
+        nameRejected:
+          "Tên hiển thị chưa được chấp nhận. Vui lòng kiểm tra và thử lại.",
+        saveFailed:
+          "Chưa thể xác nhận cập nhật hồ sơ. Nội dung đã nhập được giữ lại. Vui lòng thử lại.",
+        reauthCancelled: "Đã hủy xác thực. Thay đổi của bạn chưa được lưu.",
+      },
       general: {
         profileTitle: "Hồ sơ",
         fullName: "Tên đầy đủ",
@@ -2515,6 +2532,23 @@ export const viPages = {
           "Gửi hướng dẫn khôi phục theo đúng luồng khôi phục mật khẩu hiện tại của LCSP khi cần đặt lại truy cập.",
       },
       sessions: {
+        revoking: "Đang thu hồi phiên đăng nhập…",
+        refresh: "Tải lại phiên đăng nhập",
+        loading: "Đang tải phiên đăng nhập…",
+        loadFailed: "Không thể tải phiên đăng nhập. Vui lòng thử lại.",
+        actionFailed:
+          "Không thể xác nhận việc thu hồi phiên. Vui lòng thử lại.",
+        cancelled: "Đã hủy xác thực. Chưa thu hồi phiên nào.",
+        verifyAgain: "Cần xác thực lại. Vui lòng thử lại thao tác.",
+        accountFailed:
+          "Không thể tải thông tin bảo mật tài khoản. Hãy thử lại trước khi quản lý phiên.",
+        targetMissing:
+          "Phiên này không còn khả dụng. Hãy tải lại danh sách và thử lại.",
+        expiresAt: "Hết hạn lúc",
+        scopeDescription:
+          "Xem các phiên đăng nhập còn hiệu lực của tài khoản. Chưa có thông tin thiết bị và vị trí.",
+        logoutAllDescription:
+          "Kết thúc mọi phiên hiện có, bao gồm phiên này. Bạn sẽ cần đăng nhập lại.",
         title: "Phiên đăng nhập",
         description:
           "Xem các phiên đã xác thực trong phạm vi workspace hiện tại.",

@@ -2267,6 +2267,24 @@ export const enPages = {
           dark: "Dark",
         },
       },
+      profile: {
+        emptyName: "No display name is set. Add one below.",
+        loading: "Loading profile…",
+        retry: "Retry",
+        save: "Save changes",
+        saving: "Saving…",
+        saved: "Profile updated.",
+        nameHelp:
+          "Your display name is shown across your workspace. Use 1–120 characters.",
+        nameRequired: "Enter a display name.",
+        nameTooLong: "Use no more than 120 characters.",
+        nameRejected:
+          "This display name could not be accepted. Check it and try again.",
+        saveFailed:
+          "Could not confirm your profile update. Your input has been kept. Please retry.",
+        reauthCancelled:
+          "Verification canceled. Your changes have not been saved.",
+      },
       general: {
         profileTitle: "Profile",
         fullName: "Full name",
@@ -2509,6 +2527,22 @@ export const enPages = {
           "Send recovery instructions through the current LCSP password recovery flow when you need to reset access.",
       },
       sessions: {
+        revoking: "Revoking sessions…",
+        refresh: "Refresh sessions",
+        loading: "Loading sessions…",
+        loadFailed: "Could not load sessions. Please retry.",
+        actionFailed: "Could not confirm session revocation. Please retry.",
+        cancelled: "Verification canceled. No sessions were revoked.",
+        verifyAgain: "Verification is required again. Please retry the action.",
+        accountFailed:
+          "Could not load account security information. Retry before managing sessions.",
+        targetMissing:
+          "This session is no longer available. Refresh the list and retry.",
+        expiresAt: "Expires at",
+        scopeDescription:
+          "Review active sign-ins for your account. Device and location details are unavailable.",
+        logoutAllDescription:
+          "Ends all existing sessions, including this one. You will need to sign in again.",
         title: "Sessions",
         description:
           "Review active and prior authenticated sessions for the current workspace scope.",

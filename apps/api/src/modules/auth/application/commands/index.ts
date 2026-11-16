@@ -1,3 +1,4 @@
+import { RevokeAllSessionsHandler } from "./revoke-all-sessions/revoke-all-sessions.handler.ts";
 import { ConfirmPasswordRecoveryHandler } from "./confirm-password-recovery/confirm-password-recovery.handler.ts";
 import { DisableMfaHandler } from "./disable-mfa/disable-mfa.handler.ts";
 import { EnrollMfaHandler } from "./enroll-mfa/enroll-mfa.handler.ts";
@@ -67,6 +68,7 @@ export const AUTH_COMMAND_HANDLERS = [
   RecordMfaRecoveryCodeAccessHandler,
   RequestPasswordRecoveryHandler,
   RevokeOwnedSessionHandler,
+  RevokeAllSessionsHandler,
   RevokeSessionHandler,
   SignInHandler,
   SignUpHandler,
@@ -74,3 +76,6 @@ export const AUTH_COMMAND_HANDLERS = [
   VerifyMfaOtpHandler,
   VerifyMfaRecoveryCodeHandler,
 ] as const;
+
+export * from "./revoke-all-sessions/revoke-all-sessions.command.ts";
+export * from "./revoke-all-sessions/revoke-all-sessions.handler.ts";

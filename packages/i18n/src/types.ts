@@ -2065,6 +2065,20 @@ export type PagesMessages = {
           dark: string;
         };
       };
+      profile: {
+        emptyName: string;
+        loading: string;
+        retry: string;
+        save: string;
+        saving: string;
+        saved: string;
+        nameHelp: string;
+        nameRequired: string;
+        nameTooLong: string;
+        nameRejected: string;
+        saveFailed: string;
+        reauthCancelled: string;
+      };
       general: {
         profileTitle: string;
         fullName: string;
@@ -2264,6 +2278,18 @@ export type PagesMessages = {
         recoveryDescription: string;
       };
       sessions: {
+        revoking: string;
+        refresh: string;
+        loading: string;
+        loadFailed: string;
+        actionFailed: string;
+        cancelled: string;
+        verifyAgain: string;
+        accountFailed: string;
+        targetMissing: string;
+        expiresAt: string;
+        scopeDescription: string;
+        logoutAllDescription: string;
         title: string;
         description: string;
         activeTitle: string;

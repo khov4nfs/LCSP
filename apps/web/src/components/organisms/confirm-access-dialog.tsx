@@ -81,9 +81,10 @@ function ConfirmAccessDialogContent({
   errorTitleKey,
   errorKey,
   mfa,
+  initialMethod = CONFIRM_ACCESS_METHODS.password,
 }: Omit<ConfirmAccessDialogProps, "open">) {
   const [method, setMethod] = useState<ConfirmAccessMethod>(
-    CONFIRM_ACCESS_METHODS.password,
+    initialMethod,
   );
   const passwordForm = useForm<ConfirmAccessPasswordValues>({
     resolver: zodResolver(confirmAccessPasswordSchema),
