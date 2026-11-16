@@ -295,6 +295,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         caseRevision: pins.caseRevision,
         ruleSetVersionId: pins.ruleSetVersionId,
         repositorySnapshotId: pins.repositorySnapshotId,
+        repositoryId: pins.repositoryId,
         repositoryScanJobId: pins.repositoryScanJobId,
         repositoryCommit: pins.repositoryCommit,
         sourcePathPrefix: pins.sourcePathPrefix,

@@ -51,7 +51,55 @@ DEFAULT_MAX_SCANNED_FILES = 10_000
 DEFAULT_MAX_MANIFEST_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
 DEFAULT_MAX_PATH_DEPTH = 25
 REPOSITORY_PROFILE_PATH = "/workspace/runtime/repository_profile.json"
+REPOSITORY_DISCOVERY_PATH = "/workspace/runtime/repository_discovery.json"
+DISCOVERY_VERSION = "LCSP_DISCOVERY_V1"
+DEFAULT_MAX_DISCOVERY_SOURCE_SIZE_BYTES = 1024 * 1024
+DEFAULT_MAX_DISCOVERY_TOTAL_BYTES = 64 * 1024 * 1024
 _TMP_SCANNER_PATH = "/tmp/.lcsp_scanner.py"
+
+_DISCOVERY_PROVIDER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("OpenAI", re.compile(r"(?:from\s+['\"]openai['\"]|import\s+OpenAI|from\s+openai\s+import|openai\.)", re.I)),
+    ("Anthropic", re.compile(r"(?:@anthropic-ai/sdk|from\s+anthropic\s+import|anthropic\.)", re.I)),
+    ("Google AI", re.compile(r"(?:@google/(?:genai|generative-ai)|google\.generativeai|google\.genai)", re.I)),
+    ("LangChain", re.compile(r"(?:langchain|@langchain/)")),
+    ("Hugging Face", re.compile(r"(?:@huggingface/transformers|transformers\s+import|huggingface_hub)")),
+    ("TensorFlow", re.compile(r"(?:@tensorflow/tfjs|tensorflow|\btf\.)", re.I)),
+    ("PyTorch", re.compile(r"(?:from\s+torch\s+import|import\s+torch|\btorch\.)")),
+    ("AI SDK", re.compile(r"(?:from\s+['\"]ai['\"]|@ai-sdk/|require\(['\"]ai['\"]\))")),
+)
+
+_DISCOVERY_DIRECT_CALL_PATTERN = re.compile(
+    r"(?:responses\.create|chat\.completions\.create|messages\.create|"
+    r"generateText\s*\(|streamText\s*\(|generateObject\s*\(|"
+    r"generate_content\s*\(|pipeline\s*\(|"
+    r"api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com)",
+    re.I,
+)
+
+_DISCOVERY_WRAPPER_CALL_PATTERN = re.compile(
+    r"(?:llm|model|chain|agent|gateway|completion|inference)[\w.$]*\."
+    r"(?:invoke|ainvoke|predict|generate)\s*\(",
+    re.I,
+)
+
+_DISCOVERY_CONFIGURATION_PATTERN = re.compile(
+    r"(?:openai|anthropic|langchain|huggingface|generative[_-]?ai|"
+    r"[\"']?(?:llm|model(?:[_-]?(?:name|id|provider))?)[\"']?\s*[:=])",
+    re.I,
+)
+
+_DISCOVERY_CONTROL_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    ("DATA_PROTECTION", re.compile(r"\b(?:redact|mask|sanitize|anonymi[sz]e|pseudonymi[sz]e)\b", re.I), "AI_CONTROL"),
+    ("ACCESS_CONTROL", re.compile(r"\b(?:authori[sz]e|permission|access[_ -]?control|rbac|pbac)\b", re.I), "AI_CONTROL"),
+    ("AUDIT_LOGGING", re.compile(r"\b(?:audit|logger?|telemetry|trace)\b", re.I), "AI_CONTROL"),
+    ("RETENTION", re.compile(r"\b(?:retention|time[_ -]?to[_ -]?live|ttl|delete|purge)\b", re.I), "AI_CONTROL"),
+    ("HUMAN_OVERSIGHT", re.compile(r"\b(?:human[_ -]?review|approval|moderation|escalat)\w*\b", re.I), "AI_CONTROL"),
+)
+
+_DISCOVERY_DATA_FLOW_PATTERN = re.compile(
+    r"\b(?:prompt|messages?|systemPrompt|userInput|modelInput|completion|modelOutput|response|result)\b",
+    re.I,
+)
 
 _SOURCE_PATH_EDGE_WHITESPACE = " \t\n\v\f\r\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 
@@ -1314,6 +1362,978 @@ class RepositoryScanner:
         return 1
 
 
+def _discovery_sha256(value: str) -> str:
+    """Business purpose:
+    Produce the common prefixed digest used by discovery identities and provenance fields.
+
+    Business rules:
+    - Hash the exact UTF-8 representation supplied by the caller.
+    - Return lowercase SHA-256 with the shared ``sha256:`` prefix.
+
+    Execution flow:
+    1. Encode the input as UTF-8.
+    2. Compute SHA-256 and format the canonical identifier.
+
+    Failure cases:
+    - Encoding failures propagate rather than substituting source content.
+
+    Side effects:
+    - Pure calculation without filesystem or network access.
+    """
+    return f"sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _discovery_source_classification(path: str) -> str:
+    """Business purpose:
+    Classify source location without treating directory placement as runtime reachability.
+
+    Business rules:
+    - Tests, examples, generated and vendored paths retain explicit classifications.
+    - All other files are only classified as production-shaped; this never confirms execution.
+
+    Execution flow:
+    1. Tokenize the lowercase repository-relative path.
+    2. Apply the most specific non-production path classification.
+    3. Fall back to PRODUCTION classification without changing reachability.
+
+    Failure cases:
+    - None; unknown path naming conservatively falls back to production-shaped source.
+
+    Side effects:
+    - Pure classification without source mutation.
+    """
+    lowered = path.lower()
+    segments = set(PurePosixPath(lowered).parts)
+    if segments.intersection({"vendor", "vendored", "third_party", "third-party"}):
+        return "UNKNOWN"
+    if segments.intersection({"generated", "__generated__", "gen"}) or ".generated." in lowered:
+        return "GENERATED"
+    if segments.intersection({"examples", "example", "samples", "sample", "demo", "demos"}):
+        return "EXAMPLE_ONLY"
+    if segments.intersection({"test", "tests", "__tests__", "spec", "specs", "fixtures"}) or re.search(
+        r"(?:^|/)[^/]+\.(?:test|spec)\.[^/]+$", lowered
+    ):
+        return "TEST_ONLY"
+    return "PRODUCTION_CANDIDATE"
+
+
+def _discovery_symbol(lines: list[str], line_number: int) -> str | None:
+    """Business purpose:
+    Attach a nearby declared symbol to a discovery signal without claiming a resolved call graph.
+
+    Business rules:
+    - Inspect at most twenty preceding lines in the same file.
+    - Return only explicit function, class, method, or arrow-function declarations.
+
+    Execution flow:
+    1. Walk backward from the signal within the bounded window.
+    2. Match supported Python and JavaScript/TypeScript declaration forms.
+    3. Return the nearest symbol name or null.
+
+    Failure cases:
+    - Unsupported syntax returns null and leaves graph reachability unresolved.
+
+    Side effects:
+    - Pure in-memory source inspection.
+    """
+    start = max(0, line_number - 21)
+    declaration = re.compile(
+        r"^\s*(?:async\s+)?(?:def|function|class)\s+([A-Za-z_$][\w$]*)|"
+        r"^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>"
+    )
+    for index in range(line_number - 1, start - 1, -1):
+        match = declaration.search(lines[index])
+        if match:
+            return match.group(1) or match.group(2)
+    return None
+
+
+def _discovery_range(
+    *,
+    path: str,
+    line_number: int,
+    line: str,
+    symbol: str | None,
+    signal_type: str,
+    classification: str,
+    technology_relevance: list[str],
+    explanation: str,
+    evidence_strength: str,
+) -> dict[str, Any]:
+    """Business purpose:
+    Build a provenance-bound RelevanceMap range without persisting raw customer source.
+
+    Business rules:
+    - Bind path, one-indexed range, signal and exact line digest into a deterministic identity.
+    - Classification is separate from reachability; static discovery never confirms production execution.
+    - Rule relevance starts empty until server-side candidate matching uses the pinned rule set.
+
+    Execution flow:
+    1. Hash the exact source line and immutable range coordinates.
+    2. Populate source classification, relevance and conservative reachability.
+    3. Record unresolved graph edges and audited expansion state.
+
+    Failure cases:
+    - Invalid coordinates are rejected later by the shared discovery contract.
+
+    Side effects:
+    - Pure dictionary creation; raw source is not retained in the result.
+    """
+    source_digest = _discovery_sha256(line)
+    range_id = _discovery_sha256(
+        json.dumps(
+            [path, line_number, line_number, signal_type, source_digest],
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+    )
+    return {
+        "rangeId": range_id,
+        "path": path,
+        "startLine": line_number,
+        "endLine": line_number,
+        "sourceDigest": source_digest,
+        "symbol": symbol,
+        "signalType": signal_type,
+        "sourceClassification": classification,
+        "reachability": "NOT_ESTABLISHED",
+        "observationStatus": "OBSERVED_SOURCE_FACT",
+        "technologyRelevance": technology_relevance,
+        "useCaseIds": [],
+        "ruleRelevance": [],
+        "evidenceStrength": evidence_strength,
+        "explanation": explanation,
+        "callers": [],
+        "callees": [],
+        "unresolvedEdges": ["Static discovery did not resolve runtime callers or dependency-injection edges."],
+        "coverageGaps": [],
+        "expansionState": "PERMITTED",
+    }
+
+
+def compute_discovery_digest(discovery: Mapping[str, Any]) -> str:
+    """Business purpose:
+    Bind the complete deterministic discovery observation payload to one integrity digest.
+
+    Business rules:
+    - Exclude generatedAt, contentDigest and discoveryId as volatile or self-referential fields.
+    - Preserve array order and recursively sort object keys through canonical JSON output.
+
+    Execution flow:
+    1. Remove excluded fields from the top-level artifact.
+    2. Serialize canonical compact JSON with sorted keys.
+    3. Return the prefixed SHA-256 digest.
+
+    Failure cases:
+    - Non-serializable payload values raise instead of producing a partial digest.
+
+    Side effects:
+    - Pure calculation without persistence or authorization changes.
+    """
+    canonical = {
+        key: value
+        for key, value in discovery.items()
+        if key not in {"generatedAt", "contentDigest", "discoveryId"}
+    }
+    encoded = json.dumps(
+        canonical,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    return _discovery_sha256(encoded)
+
+
+def scan_repository_discovery(
+    workspace_path: Path | str,
+    *,
+    repository_id: str,
+    commit_sha: str,
+    source_path_prefix: str | None = None,
+    max_scanned_files: int = DEFAULT_MAX_SCANNED_FILES,
+    max_source_size_bytes: int = DEFAULT_MAX_DISCOVERY_SOURCE_SIZE_BYTES,
+    max_total_source_bytes: int = DEFAULT_MAX_DISCOVERY_TOTAL_BYTES,
+    max_ranges: int = 10_000,
+    max_path_depth: int = DEFAULT_MAX_PATH_DEPTH,
+    graph_index_version: str = "UNAVAILABLE",
+) -> dict[str, Any]:
+    """Business purpose:
+    Discover source-backed AI invocation candidates and nearby relevant logic before rule assessment.
+
+    Business rules:
+    - Scan JavaScript, TypeScript, Python and bounded AI-related configuration statically; never execute customer code or contact a network/model.
+    - Keep classification distinct from verified reachability and record unsupported languages, skipped paths,
+      unresolved calls and incomplete coverage instead of treating missing observations as evidence of absence.
+    - Retain only digests and bounded metadata, never raw source excerpts.
+    - Ranked ranges are investigation priorities with audited expansion permitted, not an absolute allowlist.
+
+    Execution flow:
+    1. Walk the pinned source scope under file, size and depth bounds.
+    2. Detect provider imports, direct SDK/raw HTTP invocations and nearby data/control signals.
+    3. Group invocation ranges into candidate AI use cases and record unresolved graph/reachability questions.
+    4. Bind scanner signature, cache identity and deterministic content digest into the result.
+
+    Failure cases:
+    - Missing or non-directory workspaces produce an explicit incomplete-coverage gap.
+    - Oversized, binary and unreadable files are skipped with gaps; scanning continues within bounds.
+    - Invalid non-positive limits or maxRanges above the shared contract maximum reject before traversal.
+
+    Side effects:
+    - Performs read-only bounded filesystem traversal; creates no facts, decisions, rule selections, or source writes.
+    """
+    workspace = Path(workspace_path).resolve()
+    prefix = validate_source_path_prefix(source_path_prefix)
+    if max_scanned_files <= 0 or max_source_size_bytes <= 0 or max_total_source_bytes <= 0:
+        raise ValueError("Discovery file and byte limits must be positive")
+    if max_ranges <= 0 or max_ranges > 10_000:
+        raise ValueError("max_ranges must be between 1 and 10000")
+    if not isinstance(graph_index_version, str) or not graph_index_version or len(graph_index_version) > 200:
+        raise ValueError("graph_index_version must be a non-empty string of at most 200 characters")
+    source_ranges: list[dict[str, Any]] = []
+    use_cases: list[dict[str, Any]] = []
+    known_gaps: list[dict[str, Any]] = []
+    skipped_paths: list[str] = []
+    unresolved_calls: list[str] = []
+    unsupported_languages: set[str] = set()
+    scanned_file_count = 0
+    bytes_inspected = 0
+    supported_suffixes = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"}
+    configuration_suffixes = {".json", ".yaml", ".yml", ".toml"}
+    code_suffixes = set(LANGUAGE_EXTENSIONS) - {".json", ".yaml", ".yml", ".toml", ".xml", ".html", ".css", ".scss", ".sql"}
+
+    if not workspace.exists() or not workspace.is_dir():
+        known_gaps.append(
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": "Repository workspace is unavailable or is not a directory.",
+            }
+        )
+    else:
+        stop = False
+        for root, dirs, files in os.walk(workspace):
+            rel_root = Path(root).relative_to(workspace)
+            relative_root = "" if rel_root.as_posix() == "." else rel_root.as_posix()
+            excluded = sorted(name for name in dirs if name in EXCLUDED_DIR_NAMES)
+            for name in excluded:
+                skipped = f"{relative_root}/{name}".lstrip("/")
+                if source_path_in_scope(skipped, prefix) and _canonical_source_path(
+                    skipped, maximum_length=1024
+                ):
+                    skipped_paths.append(skipped)
+                elif source_path_in_scope(skipped, prefix):
+                    known_gaps.append(
+                        {
+                            "path": "",
+                            "reason": "INCOMPLETE_COVERAGE",
+                            "detail": "An excluded path exceeded the contract path limit and was omitted.",
+                        }
+                    )
+            dirs[:] = sorted(name for name in dirs if name not in EXCLUDED_DIR_NAMES)
+            if len(rel_root.parts) > max_path_depth:
+                known_gaps.append(
+                    {
+                        "path": relative_root if len(relative_root) <= 1024 else "",
+                        "reason": "INCOMPLETE_COVERAGE",
+                        "detail": f"Path depth exceeds discovery limit {max_path_depth}.",
+                    }
+                )
+                dirs.clear()
+                continue
+
+            for filename in sorted(files):
+                rel_path = (rel_root / filename).as_posix().removeprefix("./")
+                if not source_path_in_scope(rel_path, prefix):
+                    continue
+                if not _canonical_source_path(rel_path, maximum_length=1024):
+                    known_gaps.append(
+                        {
+                            "path": "",
+                            "reason": "INCOMPLETE_COVERAGE",
+                            "detail": "A source path exceeded the contract path limit and was omitted.",
+                        }
+                    )
+                    continue
+                suffix = Path(filename).suffix.lower()
+                if suffix in code_suffixes and suffix not in supported_suffixes:
+                    language = LANGUAGE_EXTENSIONS.get(suffix, suffix)
+                    unsupported_languages.add(language)
+                    continue
+                is_configuration = suffix in configuration_suffixes and filename.lower() not in {
+                    "package.json",
+                    "package-lock.json",
+                    "pnpm-lock.yaml",
+                    "yarn.lock",
+                    "pyproject.toml",
+                }
+                if suffix not in supported_suffixes and not is_configuration:
+                    continue
+                if scanned_file_count >= max_scanned_files:
+                    known_gaps.append(
+                        {
+                            "path": rel_path,
+                            "reason": "FILE_COUNT_LIMIT_REACHED",
+                            "detail": f"Discovery file limit {max_scanned_files} was reached.",
+                        }
+                    )
+                    stop = True
+                    break
+                scanned_file_count += 1
+                full_path = Path(root) / filename
+                try:
+                    file_size = full_path.stat().st_size
+                    if file_size > max_source_size_bytes:
+                        known_gaps.append(
+                            {
+                                "path": rel_path,
+                                "reason": "FILE_SIZE_LIMIT_EXCEEDED",
+                                "detail": f"Source file exceeds discovery byte limit {max_source_size_bytes}.",
+                            }
+                        )
+                        continue
+                    if bytes_inspected + file_size > max_total_source_bytes:
+                        known_gaps.append(
+                            {
+                                "path": rel_path,
+                                "reason": "TOTAL_BYTE_BUDGET_REACHED",
+                                "detail": f"Discovery total byte budget {max_total_source_bytes} was reached before this file.",
+                            }
+                        )
+                        stop = True
+                        break
+                    raw = full_path.read_bytes()
+                    bytes_inspected += len(raw)
+                    if b"\0" in raw:
+                        known_gaps.append(
+                            {
+                                "path": rel_path,
+                                "reason": "UNREADABLE_OR_MALFORMED",
+                                "detail": "Binary source file was not inspected.",
+                            }
+                        )
+                        continue
+                    content = raw.decode("utf-8")
+                except (OSError, UnicodeError) as err:
+                    known_gaps.append(
+                        {
+                            "path": rel_path,
+                            "reason": "UNREADABLE_OR_MALFORMED",
+                            "detail": str(err)[:1000] or "Source file could not be read.",
+                        }
+                    )
+                    continue
+
+                lines = content.splitlines()
+                if is_configuration:
+                    for line_number, line in enumerate(lines, start=1):
+                        if not _DISCOVERY_CONFIGURATION_PATTERN.search(line):
+                            continue
+                        source_ranges.append(
+                            _discovery_range(
+                                path=rel_path,
+                                line_number=line_number,
+                                line=line,
+                                symbol=None,
+                                signal_type="CONFIGURATION",
+                                classification="CONFIGURATION",
+                                technology_relevance=["MODEL_CONFIGURATION"],
+                                explanation=(
+                                    "Configuration contains an AI/model-related key or provider reference; "
+                                    "its value is not retained and runtime use is not established."
+                                ),
+                                evidence_strength="DIRECT_SOURCE",
+                            )
+                        )
+                    continue
+
+                providers = sorted(
+                    {provider for provider, pattern in _DISCOVERY_PROVIDER_PATTERNS if pattern.search(content)}
+                )
+                classification = _discovery_source_classification(rel_path)
+                file_range_ids: list[str] = []
+                invocation_range_ids: list[str] = []
+
+                for line_number, line in enumerate(lines, start=1):
+                    matching_providers = [
+                        provider for provider, pattern in _DISCOVERY_PROVIDER_PATTERNS if pattern.search(line)
+                    ]
+                    is_direct_call = bool(_DISCOVERY_DIRECT_CALL_PATTERN.search(line))
+                    is_wrapper_call = bool(_DISCOVERY_WRAPPER_CALL_PATTERN.search(line))
+                    is_call = is_direct_call or is_wrapper_call
+                    if not matching_providers and not is_call:
+                        continue
+                    signal_type = "AI_WRAPPER" if is_wrapper_call and not is_direct_call else (
+                        "AI_SDK_CALL" if is_call else "AI_SDK_IMPORT"
+                    )
+                    if is_direct_call and re.search(r"https?://", line, re.I):
+                        signal_type = "RAW_AI_HTTP_CALL"
+                    provider_text = ", ".join(matching_providers or providers) or "an unresolved AI provider"
+                    wrapper_without_provider = is_wrapper_call and not is_direct_call and not providers
+                    source_range = _discovery_range(
+                        path=rel_path,
+                        line_number=line_number,
+                        line=line,
+                        symbol=_discovery_symbol(lines, line_number),
+                        signal_type=signal_type,
+                        classification=classification,
+                        technology_relevance=(
+                            ["RELATED_LOGIC"]
+                            if wrapper_without_provider
+                            else ["AI_INVOCATION"] if is_call else ["AI_ORCHESTRATION"]
+                        ),
+                        explanation=(
+                            "A model-like wrapper method is present without a recognized provider; "
+                            "it is an investigation hypothesis, not a verified AI invocation."
+                            if wrapper_without_provider
+                            else
+                            f"Static source contains a candidate invocation of {provider_text}."
+                            if is_call
+                            else f"Static source imports or references {provider_text}; runtime use is not established."
+                        ),
+                        evidence_strength=(
+                            "HEURISTIC"
+                            if wrapper_without_provider
+                            else "STRUCTURAL" if is_wrapper_call else "DIRECT_SOURCE"
+                        ),
+                    )
+                    if wrapper_without_provider:
+                        source_range["observationStatus"] = "INFERRED_HYPOTHESIS"
+                    elif is_wrapper_call:
+                        source_range["observationStatus"] = "CANDIDATE_FINDING"
+                    source_ranges.append(source_range)
+                    file_range_ids.append(source_range["rangeId"])
+                    if is_call:
+                        invocation_range_ids.append(source_range["rangeId"])
+
+                if not invocation_range_ids:
+                    continue
+
+                use_case_id = _discovery_sha256(
+                    json.dumps(
+                        [repository_id, commit_sha.lower(), prefix, rel_path, invocation_range_ids],
+                        separators=(",", ":"),
+                    )
+                )
+                nearby_range_ids: list[str] = []
+                invocation_lines = {
+                    item["startLine"]
+                    for item in source_ranges
+                    if item["rangeId"] in invocation_range_ids
+                }
+                for line_number, line in enumerate(lines, start=1):
+                    if not any(abs(line_number - invocation_line) <= 40 for invocation_line in invocation_lines):
+                        continue
+                    control_match = next(
+                        ((label, relevance) for label, pattern, relevance in _DISCOVERY_CONTROL_PATTERNS if pattern.search(line)),
+                        None,
+                    )
+                    data_flow = bool(_DISCOVERY_DATA_FLOW_PATTERN.search(line))
+                    if not control_match and not data_flow:
+                        continue
+                    if any(
+                        item["path"] == rel_path and item["startLine"] == line_number
+                        for item in source_ranges
+                    ):
+                        continue
+                    label = control_match[0] if control_match else "AI_DATA_FLOW"
+                    relevance = control_match[1] if control_match else "AI_DATA_FLOW"
+                    related = _discovery_range(
+                        path=rel_path,
+                        line_number=line_number,
+                        line=line,
+                        symbol=_discovery_symbol(lines, line_number),
+                        signal_type="CONTROL" if control_match else "DATA_FLOW",
+                        classification=classification,
+                        technology_relevance=[relevance],
+                        explanation=f"Nearby source contains a {label} signal relevant to the candidate AI invocation.",
+                        evidence_strength="HEURISTIC",
+                    )
+                    related["observationStatus"] = "CANDIDATE_FINDING"
+                    source_ranges.append(related)
+                    nearby_range_ids.append(related["rangeId"])
+
+                all_use_case_ranges = [*invocation_range_ids, *nearby_range_ids]
+                for item in source_ranges:
+                    if item["rangeId"] in all_use_case_ranges:
+                        item["useCaseIds"] = [use_case_id]
+                unresolved = (
+                    f"{rel_path}: runtime entry point, dependency-injection path, async/event reachability, "
+                    "and dynamic configuration were not resolved by static discovery."
+                )
+                unresolved_calls.append(unresolved)
+                invocation_observations = {
+                    item["observationStatus"]
+                    for item in source_ranges
+                    if item["rangeId"] in invocation_range_ids
+                }
+                use_cases.append(
+                    {
+                        "useCaseId": use_case_id,
+                        "name": (
+                            f"Candidate {' / '.join(providers) if providers else 'AI'} use in {rel_path}"
+                        )[:300],
+                        "observationStatus": (
+                            "INFERRED_HYPOTHESIS"
+                            if invocation_observations == {"INFERRED_HYPOTHESIS"}
+                            else "CANDIDATE_FINDING"
+                        ),
+                        "providerOrFramework": " / ".join(providers) if providers else None,
+                        "invocationRangeIds": invocation_range_ids,
+                        "inputRangeIds": [
+                            range_id
+                            for range_id in nearby_range_ids
+                            if next(item for item in source_ranges if item["rangeId"] == range_id)["signalType"] == "DATA_FLOW"
+                        ],
+                        "outputRangeIds": [],
+                        "controlRangeIds": [
+                            range_id
+                            for range_id in nearby_range_ids
+                            if next(item for item in source_ranges if item["rangeId"] == range_id)["signalType"] == "CONTROL"
+                        ],
+                        "unresolvedQuestions": [
+                            "Is this candidate reachable in the deployed production environment?",
+                            "What operational purpose, data categories, retention and human oversight apply?",
+                        ],
+                    }
+                )
+            if stop:
+                break
+
+    signal_priority = {
+        "RAW_AI_HTTP_CALL": 0,
+        "AI_SDK_CALL": 0,
+        "AI_WRAPPER": 1,
+        "CONTROL": 2,
+        "DATA_FLOW": 2,
+        "CONFIGURATION": 3,
+        "AI_SDK_IMPORT": 4,
+    }
+    classification_priority = {
+        "REACHABLE_PRODUCTION": 0,
+        "PRODUCTION_CANDIDATE": 1,
+        "CONFIGURATION": 2,
+        "UNKNOWN": 3,
+        "GENERATED": 4,
+        "TEST_ONLY": 5,
+        "EXAMPLE_ONLY": 5,
+    }
+    observation_priority = {
+        "OBSERVED_SOURCE_FACT": 0,
+        "CANDIDATE_FINDING": 1,
+        "INFERRED_HYPOTHESIS": 2,
+        "CUSTOMER_CONFIRMED_FACT": 3,
+        "UNKNOWN": 4,
+    }
+    strength_priority = {
+        "DIRECT_SOURCE": 0,
+        "STRUCTURAL": 1,
+        "HEURISTIC": 2,
+        "UNKNOWN": 3,
+    }
+    source_ranges.sort(
+        key=lambda item: (
+            signal_priority.get(item["signalType"], 99),
+            observation_priority.get(item["observationStatus"], 99),
+            classification_priority.get(item["sourceClassification"], 99),
+            strength_priority.get(item["evidenceStrength"], 99),
+            item["path"],
+            item["startLine"],
+            item["rangeId"],
+        )
+    )
+
+    if len(source_ranges) > max_ranges:
+        source_ranges = source_ranges[:max_ranges]
+        retained_ids = {item["rangeId"] for item in source_ranges}
+        for use_case in use_cases:
+            for field_name in ("invocationRangeIds", "inputRangeIds", "outputRangeIds", "controlRangeIds"):
+                use_case[field_name] = [
+                    range_id for range_id in use_case[field_name] if range_id in retained_ids
+                ]
+        use_cases = [use_case for use_case in use_cases if use_case["invocationRangeIds"]]
+        known_gaps.append(
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": f"Discovery range limit {max_ranges} was reached.",
+            }
+        )
+
+    if len(use_cases) > 2_000:
+        use_cases = use_cases[:2_000]
+        known_gaps.append(
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": "AI use-case collection reached the contract limit of 2000 entries.",
+            }
+        )
+    for use_case in use_cases:
+        for field_name in (
+            "invocationRangeIds",
+            "inputRangeIds",
+            "outputRangeIds",
+            "controlRangeIds",
+        ):
+            if len(use_case[field_name]) <= 500:
+                continue
+            use_case[field_name] = use_case[field_name][:500]
+            known_gaps.append(
+                {
+                    "path": "",
+                    "reason": "INCOMPLETE_COVERAGE",
+                    "detail": (
+                        f"Use-case {field_name} collection reached the contract limit of 500 entries."
+                    ),
+                }
+            )
+    retained_use_case_ids = {use_case["useCaseId"] for use_case in use_cases}
+    for source_range in source_ranges:
+        source_range["useCaseIds"] = [
+            use_case_id
+            for use_case_id in source_range["useCaseIds"]
+            if use_case_id in retained_use_case_ids
+        ]
+
+    if len(unresolved_calls) > 2_000:
+        unresolved_calls = unresolved_calls[:2_000]
+        known_gaps.append(
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": "Unresolved-call collection reached the contract limit of 2000 entries.",
+            }
+        )
+
+    unsupported_language_list = sorted(unsupported_languages)
+    if len(unsupported_language_list) > 100:
+        unsupported_language_list = unsupported_language_list[:100]
+        known_gaps.append(
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": "Unsupported-language collection reached the contract limit of 100 entries.",
+            }
+        )
+
+    bounded_skipped_paths = sorted(set(skipped_paths))
+    if len(bounded_skipped_paths) > 2_000:
+        bounded_skipped_paths = bounded_skipped_paths[:2_000]
+        known_gaps.append(
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": "Skipped-path collection reached the contract limit of 2000 entries.",
+            }
+        )
+
+    if len(known_gaps) > 2_000:
+        known_gaps = [
+            *known_gaps[:1_999],
+            {
+                "path": "",
+                "reason": "INCOMPLETE_COVERAGE",
+                "detail": "Known-gap collection exceeded the contract limit; additional gaps were omitted.",
+            },
+        ]
+
+    scanner_source = Path(__file__).read_bytes()
+    scanner_signature = f"sha256:{hashlib.sha256(scanner_source).hexdigest()}"
+    cache_identity = _discovery_sha256(
+        json.dumps(
+            [
+                repository_id,
+                commit_sha.lower(),
+                prefix,
+                SCANNER_VERSION,
+                DISCOVERY_VERSION,
+                scanner_signature,
+                graph_index_version,
+            ],
+            separators=(",", ":"),
+        )
+    )
+    discovery_without_digest = {
+        "repositoryId": repository_id,
+        "commitSha": commit_sha.lower(),
+        "sourcePathPrefix": prefix,
+        "scannerVersion": SCANNER_VERSION,
+        "discoveryVersion": DISCOVERY_VERSION,
+        "scannerSignature": scanner_signature,
+        "graphIndexVersion": graph_index_version,
+        "cacheIdentity": cache_identity,
+        "sourceRanges": source_ranges,
+        "aiUseCases": use_cases,
+        "ruleCandidates": [],
+        "knownGaps": known_gaps,
+        "unsupportedLanguages": unsupported_language_list,
+        "skippedPaths": bounded_skipped_paths,
+        "unresolvedCalls": unresolved_calls,
+        "resourceLedger": {
+            "budget": {
+                "maxFiles": max_scanned_files,
+                "maxBytes": max_total_source_bytes,
+                "maxRanges": max_ranges,
+            },
+            "usage": {
+                "filesScanned": scanned_file_count,
+                "bytesInspected": bytes_inspected,
+                "rangesProduced": len(source_ranges),
+            },
+            "remaining": {
+                "files": max(0, max_scanned_files - scanned_file_count),
+                "bytes": max(0, max_total_source_bytes - bytes_inspected),
+                "ranges": max(0, max_ranges - len(source_ranges)),
+            },
+            "coverageImpact": {
+                "knownGapCount": len(known_gaps),
+                "unresolvedCallCount": len(unresolved_calls),
+                "unsupportedLanguageCount": len(unsupported_language_list),
+                "truncated": any(
+                    gap["reason"]
+                    in {
+                        "FILE_COUNT_LIMIT_REACHED",
+                        "FILE_SIZE_LIMIT_EXCEEDED",
+                        "TOTAL_BYTE_BUDGET_REACHED",
+                        "INCOMPLETE_COVERAGE",
+                    }
+                    for gap in known_gaps
+                ),
+            },
+            "expansionHistory": [],
+        },
+        "scannedFileCount": scanned_file_count,
+    }
+    content_digest = compute_discovery_digest(discovery_without_digest)
+    return {
+        **discovery_without_digest,
+        "discoveryId": content_digest,
+        "contentDigest": content_digest,
+        "generatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def validate_repository_discovery_error(
+    discovery: Any,
+    *,
+    repository_id: str,
+    commit_sha: str,
+    source_path_prefix: str | None,
+    scanner_signature: str | None = None,
+    graph_index_version: str | None = None,
+) -> str | None:
+    """Business purpose:
+    Reject stale, malformed or pin-mismatched repository discovery before reuse or persistence.
+
+    Business rules:
+    - Repository, commit, source scope, scanner/discovery versions and optional scanner signature must match.
+    - Content digest and discovery identity must bind the complete deterministic payload.
+    - Required observation collections must remain arrays; missing output is never evidence of absence.
+
+    Execution flow:
+    1. Validate coordinates, versions, signature and collection shapes.
+    2. Recompute cache identity from immutable scanner coordinates.
+    3. Recompute the content digest and require discoveryId to match it.
+
+    Failure cases:
+    - Return a descriptive string for every invalid or stale artifact; return null only for valid input.
+
+    Side effects:
+    - Pure validation without cache mutation or source access.
+    """
+    if not isinstance(discovery, dict):
+        return "discovery must be a dictionary"
+    prefix = validate_source_path_prefix(source_path_prefix)
+    if discovery.get("repositoryId") != repository_id:
+        return "repositoryId mismatch"
+    if str(discovery.get("commitSha", "")).lower() != commit_sha.lower():
+        return "commitSha mismatch"
+    if validate_source_path_prefix(discovery.get("sourcePathPrefix")) != prefix:
+        return "sourcePathPrefix mismatch"
+    if discovery.get("scannerVersion") != SCANNER_VERSION or discovery.get("discoveryVersion") != DISCOVERY_VERSION:
+        return "discovery version mismatch"
+    signature = discovery.get("scannerSignature")
+    if not isinstance(signature, str) or not re.fullmatch(r"sha256:[a-f0-9]{64}", signature):
+        return "invalid scannerSignature"
+    if scanner_signature is not None and signature != scanner_signature:
+        return "scannerSignature mismatch"
+    graph_version = discovery.get("graphIndexVersion")
+    if not isinstance(graph_version, str) or not graph_version or len(graph_version) > 200:
+        return "invalid graphIndexVersion"
+    if graph_index_version is not None and graph_version != graph_index_version:
+        return "graphIndexVersion mismatch"
+    expected_cache_identity = _discovery_sha256(
+        json.dumps(
+            [
+                repository_id,
+                commit_sha.lower(),
+                prefix,
+                SCANNER_VERSION,
+                DISCOVERY_VERSION,
+                signature,
+                graph_version,
+            ],
+            separators=(",", ":"),
+        )
+    )
+    if discovery.get("cacheIdentity") != expected_cache_identity:
+        return "cacheIdentity mismatch"
+    for key in (
+        "sourceRanges",
+        "aiUseCases",
+        "ruleCandidates",
+        "knownGaps",
+        "unsupportedLanguages",
+        "skippedPaths",
+        "unresolvedCalls",
+    ):
+        if not isinstance(discovery.get(key), list):
+            return f"field '{key}' must be a list"
+    if not isinstance(discovery.get("scannedFileCount"), int) or discovery["scannedFileCount"] < 0:
+        return "scannedFileCount must be a non-negative integer"
+    if not isinstance(discovery.get("resourceLedger"), dict):
+        return "resourceLedger must be a dictionary"
+    expected_digest = compute_discovery_digest(discovery)
+    if discovery.get("contentDigest") != expected_digest or discovery.get("discoveryId") != expected_digest:
+        return "contentDigest or discoveryId mismatch"
+    return None
+
+
+def ensure_repository_discovery(
+    backend: object,
+    *,
+    repository_id: str,
+    commit_sha: str,
+    source_path_prefix: str | None = None,
+    workspace_path: Path | str = "/workspace/repository",
+    graph_index_version: str = "UNAVAILABLE",
+) -> dict[str, Any]:
+    """Business purpose:
+    Reuse or produce a versioned repository discovery artifact inside the guarded repository sandbox.
+
+    Business rules:
+    - Reuse requires exact pins, versions, content integrity and the current scanner source signature.
+    - Docker-capable backends execute only the staged trusted scanner with isolated Python.
+    - Sandbox failures fail closed; no host-filesystem fallback may inspect customer source.
+
+    Execution flow:
+    1. Validate scope and current scanner signature, then inspect the cached runtime artifact.
+    2. Reuse only a fully valid artifact bound to the current signature and immutable coordinates.
+    3. Otherwise execute discovery inside the sandbox, or use local traversal only for non-executing test backends.
+    4. Validate and write the new artifact marker for deterministic reuse.
+
+    Failure cases:
+    - Staging, execution, JSON parsing or validation failures raise RuntimeError without returning partial results.
+
+    Side effects:
+    - May write a trusted scanner staging file and repository discovery marker inside the sandbox runtime area.
+    """
+    prefix = validate_source_path_prefix(source_path_prefix)
+    read = getattr(backend, "read", None)
+    write = getattr(backend, "write", None)
+    execute = getattr(backend, "execute", None)
+    scanner_source = Path(__file__).read_text(encoding="utf-8")
+    scanner_signature = _discovery_sha256(scanner_source)
+
+    if callable(read):
+        try:
+            cached_raw = read(REPOSITORY_DISCOVERY_PATH)
+            cached_str: str | None = None
+            if isinstance(cached_raw, str):
+                cached_str = cached_raw
+            elif hasattr(cached_raw, "file_data") and isinstance(cached_raw.file_data, dict):
+                cached_str = cached_raw.file_data.get("content")
+            elif not getattr(cached_raw, "error", None) and hasattr(cached_raw, "content"):
+                cached_str = cached_raw.content
+            elif hasattr(cached_raw, "read"):
+                cached_str = cached_raw.read()
+            if cached_str:
+                cached = json.loads(str(cached_str))
+                if validate_repository_discovery_error(
+                    cached,
+                    repository_id=repository_id,
+                    commit_sha=commit_sha,
+                    source_path_prefix=prefix,
+                    scanner_signature=scanner_signature,
+                    graph_index_version=graph_index_version,
+                ) is None:
+                    return cached
+        except Exception:
+            pass
+
+    if callable(execute):
+        if not callable(write):
+            raise RuntimeError("Sandbox backend does not provide required write capability to stage trusted discovery scanner")
+        staged_path = f"/tmp/.lcsp_scanner_{scanner_signature.removeprefix('sha256:')[:16]}.py"
+        try:
+            write_result = write(staged_path, scanner_source)
+        except Exception as err:
+            raise RuntimeError(f"Failed to stage discovery scanner into sandbox: {err}") from err
+        write_error = getattr(write_result, "error", None) or (
+            write_result.get("error") if isinstance(write_result, dict) else None
+        )
+        if write_error:
+            raise RuntimeError(f"Failed to stage discovery scanner into sandbox: {write_error}")
+        prefix_flag = f" --source-path-prefix {shlex.quote(prefix)}" if prefix else ""
+        command = (
+            f"python3 -I {staged_path} --artifact discovery "
+            f"--workspace {shlex.quote(str(workspace_path))} "
+            f"--repository-id {shlex.quote(repository_id)} "
+            f"--commit-sha {shlex.quote(commit_sha)}{prefix_flag} "
+            f"--graph-index-version {shlex.quote(graph_index_version)}"
+        )
+        try:
+            result = execute(command, timeout=300)
+        except Exception as err:
+            raise RuntimeError(f"Docker sandbox repository discovery execution failed: {err}") from err
+        exit_code = getattr(result, "exit_code", getattr(result, "returncode", None))
+        if exit_code != 0:
+            output = getattr(result, "output", "") or getattr(result, "stderr", "")
+            raise RuntimeError(f"Docker sandbox repository discovery failed with exit code {exit_code}: {output}")
+        lines = [line.strip() for line in str(getattr(result, "output", "") or "").splitlines() if line.strip()]
+        discovered = None
+        for line in reversed(lines):
+            if line.startswith("{") and line.endswith("}"):
+                try:
+                    discovered = json.loads(line)
+                    break
+                except Exception:
+                    continue
+        if discovered is None:
+            raise RuntimeError("Docker sandbox repository discovery produced no valid JSON output")
+    else:
+        discovered = scan_repository_discovery(
+            workspace_path,
+            repository_id=repository_id,
+            commit_sha=commit_sha,
+            source_path_prefix=prefix,
+            graph_index_version=graph_index_version,
+        )
+
+    validation_error = validate_repository_discovery_error(
+        discovered,
+        repository_id=repository_id,
+        commit_sha=commit_sha,
+        source_path_prefix=prefix,
+        scanner_signature=scanner_signature,
+        graph_index_version=graph_index_version,
+    )
+    if validation_error:
+        raise RuntimeError(f"Repository discovery produced invalid artifact: {validation_error}")
+    if callable(write):
+        write_result = write(
+            REPOSITORY_DISCOVERY_PATH,
+            json.dumps(discovered, ensure_ascii=False, separators=(",", ":"), sort_keys=True),
+        )
+        write_error = getattr(write_result, "error", None) or (
+            write_result.get("error") if isinstance(write_result, dict) else None
+        )
+        if write_error:
+            raise RuntimeError(f"Failed to persist repository discovery marker: {write_error}")
+    return discovered
+
+
 def scan_repository_workspace(
     workspace_path: Path | str,
     repository_id: str,
@@ -1614,13 +2634,33 @@ if __name__ == "__main__":
     parser.add_argument("--repository-id", required=True, help="Repository ID")
     parser.add_argument("--commit-sha", required=True, help="Commit SHA")
     parser.add_argument("--source-path-prefix", default=None, help="Optional source path prefix")
+    parser.add_argument(
+        "--artifact",
+        choices=("profile", "discovery"),
+        default="profile",
+        help="Artifact to emit without changing the historical profile contract",
+    )
+    parser.add_argument(
+        "--graph-index-version",
+        default="UNAVAILABLE",
+        help="Pinned Codebase Memory index stamp for discovery cache identity",
+    )
     parsed_args = parser.parse_args()
 
-    scanned = scan_repository_workspace(
-        parsed_args.workspace,
-        repository_id=parsed_args.repository_id,
-        commit_sha=parsed_args.commit_sha,
-        source_path_prefix=parsed_args.source_path_prefix or None,
-    )
+    if parsed_args.artifact == "discovery":
+        scanned = scan_repository_discovery(
+            parsed_args.workspace,
+            repository_id=parsed_args.repository_id,
+            commit_sha=parsed_args.commit_sha,
+            source_path_prefix=parsed_args.source_path_prefix or None,
+            graph_index_version=parsed_args.graph_index_version,
+        )
+    else:
+        scanned = scan_repository_workspace(
+            parsed_args.workspace,
+            repository_id=parsed_args.repository_id,
+            commit_sha=parsed_args.commit_sha,
+            source_path_prefix=parsed_args.source_path_prefix or None,
+        )
     print(json.dumps(scanned, separators=(",", ":"), sort_keys=True))
 
