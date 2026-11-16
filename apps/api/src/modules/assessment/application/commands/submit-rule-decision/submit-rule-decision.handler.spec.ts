@@ -143,6 +143,12 @@ describe("SubmitRuleDecisionHandler", () => {
           return Promise.resolve(args);
         }),
       },
+      assessmentDecisionEvidenceDependency: {
+        createMany: jest.fn((args: unknown) => Promise.resolve(args)),
+      },
+      assessmentDecisionFactDependency: {
+        createMany: jest.fn((args: unknown) => Promise.resolve(args)),
+      },
       assessmentDecisionCoverage: {
         update: jest.fn((args: unknown) => {
           updatedCoverages.push(args);
@@ -384,6 +390,21 @@ describe("SubmitRuleDecisionHandler", () => {
     expect(result.decisionRevision).toBe(2);
     expect(result.replayed).toBe(false);
     expect(createdDecisions).toHaveLength(1);
+    expect(createdDecisions[0]).toEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({ dependencyGraphComplete: true }),
+      }),
+    );
+    expect(
+      tx.assessmentDecisionEvidenceDependency.createMany,
+    ).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          assessmentId,
+          evidenceId: expect.any(String),
+        }),
+      ],
+    });
     expect(support.advanceCoverageToResolved).toHaveBeenCalled();
   });
 

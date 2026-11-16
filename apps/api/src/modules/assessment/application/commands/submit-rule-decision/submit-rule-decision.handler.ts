@@ -20,6 +20,7 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { validateRuleDecision } from "../../../domain/decision-validator.js";
+import { decisionDependencyIds } from "../../../domain/decision-dependencies.js";
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
@@ -57,14 +58,14 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
    *
    * Execution flow:
    * 1. Authorize and lock the case, then verify replay identity and current validation context.
-   * 2. Return an eligible replay, or compare revisions and atomically persist the next decision and coverage.
+   * 2. Return an eligible replay, or compare revisions and atomically persist the next decision, its exact support dependency ledger, and coverage.
    * 3. Append domain and audit records for a newly accepted effect.
    *
    * Failure cases:
    * - Invalid authority, conflicting idempotency, stale revisions or unsupported references reject without partial writes.
    *
    * Side effects:
-   * - New decisions supersede prior accepted records and update coverage/events/audit in one transaction; valid replays write nothing.
+   * - New decisions supersede prior accepted records and update immutable dependency edges, coverage, events, and audit in one transaction; valid replays write nothing.
    */
   async execute(
     input: SubmitRuleDecisionCommand,
@@ -242,6 +243,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
       }
       const decisionId = randomUUID();
       const decisionRevision = latestRevision + 1;
+      const dependencies = decisionDependencyIds(decision);
       await tx.assessmentRuleDecision.create({
         data: {
           decisionId,
@@ -259,8 +261,27 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
           idempotencyKey: request.idempotencyKey,
           requestDigest,
           decision: decision,
+          dependencyGraphComplete: true,
         },
       });
+      if (dependencies.evidenceIds.length > 0) {
+        await tx.assessmentDecisionEvidenceDependency.createMany({
+          data: dependencies.evidenceIds.map((evidenceId) => ({
+            assessmentId: input.assessmentId,
+            decisionId,
+            evidenceId,
+          })),
+        });
+      }
+      if (dependencies.factIds.length > 0) {
+        await tx.assessmentDecisionFactDependency.createMany({
+          data: dependencies.factIds.map((factId) => ({
+            assessmentId: input.assessmentId,
+            decisionId,
+            factId,
+          })),
+        });
+      }
       await this.support.advanceCoverageToResolved(tx, {
         assessmentId: input.assessmentId,
         assessmentRuleId: decision.assessmentRuleId,

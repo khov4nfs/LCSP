@@ -146,6 +146,9 @@ type Fixture = {
     repositoryCommit: string;
     caseRevision: number;
     decision: ReturnType<typeof ruleDecisionSchema.parse>;
+    dependencyGraphComplete: boolean;
+    evidenceDependencies: Array<{ evidenceId: string }>;
+    factDependencies: Array<{ factId: string }>;
   }>;
   evidence: Array<{
     evidenceId: string;
@@ -321,6 +324,9 @@ function createFixture() {
         repositoryCommit,
         caseRevision: 1,
         decision,
+        dependencyGraphComplete: false,
+        evidenceDependencies: [{ evidenceId }],
+        factDependencies: [{ factId }],
       },
     ],
     evidence: [
@@ -837,4 +843,16 @@ describe("AssessmentCompletionGate", () => {
       expect(result.snapshot).not.toBeNull();
     },
   );
+
+  it("preserves an older accepted decision only when its normalized dependency ledger is exact", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.assessmentCase.caseRevision = 2;
+    fixture.decisions[0].dependencyGraphComplete = true;
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.blockers).toEqual([]);
+    expect(result.snapshot?.caseRevision).toBe(2);
+    expect(result.snapshot?.decisions).toHaveLength(1);
+  });
 });

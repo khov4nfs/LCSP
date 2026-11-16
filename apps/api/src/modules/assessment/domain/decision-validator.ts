@@ -25,6 +25,8 @@ export interface DecisionValidationFailure {
 
 export interface DecisionValidationContext {
   caseRevision: number;
+  /** Permits an older immutable decision only after the caller has verified its exact normalized dependency graph. */
+  allowHistoricalCaseRevision?: boolean;
   pins: {
     ruleSetVersionId: string;
     repositorySnapshotId: string;
@@ -61,8 +63,8 @@ export interface DecisionValidationContext {
 /**
  * Business purpose: Gate Root-authored decisions against the authoritative Customer case.
  * Business rules:
- * - Rule identity/version, repository/source pins, case revision, criteria and accepted
- *   evidence/fact references must match the persisted authority.
+ * - Rule identity/version, repository/source pins, criteria and accepted evidence/fact references must match the persisted authority.
+ * - A decision revision normally matches the current case; an older revision is accepted only when the caller has independently verified its complete normalized dependency graph.
  * Execution flow:
  * 1. Check exact identities, applicability-basis structure and all referenced evidence and
  *   facts, collecting individual validation failures.
@@ -134,7 +136,13 @@ export function validateRuleDecision(
       decision.repositorySnapshotId,
     );
   }
-  if (decision.caseRevision !== context.caseRevision) {
+  if (
+    decision.caseRevision !== context.caseRevision &&
+    !(
+      context.allowHistoricalCaseRevision === true &&
+      decision.caseRevision < context.caseRevision
+    )
+  ) {
     fail(
       DECISION_VALIDATION_FAILURE_CODES.CASE_REVISION_STALE,
       String(decision.caseRevision),
