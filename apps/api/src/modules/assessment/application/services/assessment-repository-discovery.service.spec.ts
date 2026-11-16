@@ -324,6 +324,7 @@ function fixture(
         assessmentRuleId: string,
         _correlationId: string,
       ) => {
+        void _correlationId;
         if (assessmentRuleId === "FOREIGN-RULE") {
           return Promise.reject(new Error("rule is outside audit coverage"));
         }
