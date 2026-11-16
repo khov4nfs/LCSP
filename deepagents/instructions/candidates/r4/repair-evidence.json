@@ -1,0 +1,16 @@
+{
+  "status": "PENDING",
+  "changes": [
+    {
+      "sourceId": "tools.schema-guidance",
+      "previousSourcePath": "instructions/revisions/r4/before/tool-schema-guidance.json",
+      "previousSourceSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
+      "sourcePath": "instructions/vi/tool-schema-guidance.json",
+      "sourceSha256": "3a61063f918d309ef6ddbc21c89a46c737730fa19317d5369203ffd63e354770",
+      "previousCandidatePath": "instructions/candidates/r3/tools.schema-guidance.txt",
+      "previousCandidateSha256": "44cdd0632401f32e1eec51a158ad4aa34dc299d54424a56f138641f39d48001e",
+      "candidatePath": "instructions/candidates/r4/tools.schema-guidance.txt",
+      "candidateSha256": "a20e5c94bb502ec6da07cf7b30f3ff3a5084878139512fada96a5f92305be631"
+    }
+  ]
+}
