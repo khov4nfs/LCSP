@@ -1116,7 +1116,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     - All tools share this Root run and its authoritative case pins; the model owns semantic conclusions.
     - Schema validation and API failure feedback must not fabricate accepted evidence or positive verdicts.
     Execution flow:
-    1. Bind context, legal-source, repository-evidence, decision, human-resolution and report functions to this run.
+    1. Bind context, discovery, legal-source, repository-evidence, decision, human-resolution and report functions to this run.
     2. Wrap the named functions with concise model instructions, typed schemas and API problem feedback.
     3. Return only the Root tool surface, leaving repository researchers without decision authority.
     Failure cases:
@@ -1173,12 +1173,14 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         - Case pins, coverage, facts and evidence come from the API, not the model's memory.
         - Preserve each fact's authority so evidence-derived claims remain distinguishable from human-provided context.
         - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.
+        - Repository discovery is a bounded non-authoritative priority view; absence or gaps never prove that behavior is absent.
         - Coverage counts describe the authorized audit request, never a completion verdict; every visible row remains available through snapshot-bound pages.
 
         Execution flow:
         1. Load and adopt the API's complete case context, including every coverage row for revision caches.
         2. Verify the runtime source view and retain the authorized audit request, accepted evidence, fact authority and human audit feedback.
-        3. Return coverage counts and a content-bound page token without repeating the full inventory in model history.
+        3. Load the exact-pin discovery overview, including only its bounded server projection.
+        4. Return coverage counts and content-bound page tokens without repeating full inventories in model history.
 
         Failure cases:
         - API failures remain rejection feedback; conflicting sandbox pins fail context retrieval.
@@ -1187,6 +1189,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         - Updates in-memory Root pins and revision caches; does not persist decisions or facts.
         """
         context = client.context()
+        discovery = client.repository_discovery_summary()
         run.adopt_context(context)
         coverage, snapshot_token = _coverage_snapshot(run, context)
         context_collections, context_snapshot_token = _context_snapshot(run, context)
@@ -1202,6 +1205,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "repositoryView": _repository_view(run),
             "decisionScopeId": context["decisionScopeId"],
             "auditRequest": context.get("auditRequest"),
+            "repositoryDiscovery": discovery,
             "coverageSummary": {
                 "totalRuleCount": len(coverage),
                 "resolutionCounts": resolution_counts,
