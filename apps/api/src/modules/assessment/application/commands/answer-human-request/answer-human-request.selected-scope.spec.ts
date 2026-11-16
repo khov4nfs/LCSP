@@ -10,7 +10,11 @@ import {
   ASSESSMENT_LIFECYCLE_STATES,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
 } from "@lcsp/contracts/assessment";
-import { HUMAN_RESOLUTION_CONTROL_TYPES } from "@lcsp/contracts/assessment-domain";
+import {
+  HUMAN_FACT_GUARD_FAILURES,
+  HUMAN_FACT_PROPOSAL_STATUSES,
+  HUMAN_RESOLUTION_CONTROL_TYPES,
+} from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { AnswerHumanRequestCommand } from "./answer-human-request.command.js";
 import { AnswerHumanRequestHandler } from "./answer-human-request.handler.js";
@@ -54,6 +58,7 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
     answers: [] as Array<Record<string, unknown>>,
   };
   const requests = [request, unrelatedRequest];
+  const proposals: Array<Record<string, unknown>> = [];
   type RequestRow = (typeof requests)[number];
   type RequestFilter = {
     assessmentId?: string;
@@ -145,6 +150,12 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
         .fn<(...args: unknown[]) => Promise<{ count: number }>>()
         .mockResolvedValue({ count: 1 }),
     },
+    assessmentHumanFactProposal: {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+        proposals.push(data);
+        return Promise.resolve(data);
+      }),
+    },
     assessmentDecisionCoverage: {
       updateMany: jest
         .fn<
@@ -191,7 +202,11 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
     outbox as never,
     { writeInTx: () => Promise.resolve(undefined) } as never,
   );
-  const input = (doesNotKnow: boolean, answerText?: string) =>
+  const input = (
+    doesNotKnow: boolean,
+    answerText?: string,
+    expectedRequestRevision = 0,
+  ) =>
     new AnswerHumanRequestCommand(
       assessmentId,
       requestId,
@@ -202,7 +217,7 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
         scope: "all",
       },
       {
-        expectedRequestRevision: 0,
+        expectedRequestRevision,
         expectedCaseRevision: 3,
         idempotencyKey: randomUUID(),
         ...(doesNotKnow
@@ -215,7 +230,16 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
       },
       randomUUID(),
     );
-  return { handler, input, tx, outbox, coordinator, request, unrelatedRequest };
+  return {
+    handler,
+    input,
+    tx,
+    outbox,
+    coordinator,
+    request,
+    unrelatedRequest,
+    proposals,
+  };
 }
 
 describe("shared human answers inside a selected audit", () => {
@@ -223,6 +247,16 @@ describe("shared human answers inside a selected audit", () => {
     const f = fixture();
     const result = await f.handler.execute(f.input(false));
     expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED);
+    expect(result.proposalStatus).toBe(HUMAN_FACT_PROPOSAL_STATUSES.accepted);
+    expect(f.proposals).toEqual([
+      expect.objectContaining({
+        proposalId: result.proposalId,
+        status: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+        guardFailure: null,
+        acceptedEvidenceId: expect.any(String),
+        acceptedFactId: result.factId,
+      }),
+    ]);
     expect(result.resumed).toBe(true);
     expect(f.tx.assessmentDecisionCoverage.updateMany).toHaveBeenCalledTimes(1);
     expect(f.tx.assessmentDecisionCoverage.updateMany).toHaveBeenCalledWith(
@@ -247,6 +281,7 @@ describe("shared human answers inside a selected audit", () => {
     expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentFactNeed.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.assessmentHumanFactProposal.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentDecisionCoverage.updateMany).not.toHaveBeenCalled();
     expect(f.coordinator.transitionVerifiedInTx).not.toHaveBeenCalled();
     expect(f.outbox.enqueue).toHaveBeenCalledTimes(1);
@@ -320,27 +355,98 @@ describe("shared human answers inside a selected audit", () => {
     expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
     expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentFactNeed.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.assessmentHumanFactProposal.create).not.toHaveBeenCalled();
   });
 
-  it("rejects an ambiguous material answer before factual acceptance", async () => {
+  it("persists an ambiguous material answer as a pending non-authoritative proposal", async () => {
     const f = fixture();
     f.request.question =
       "Has any serious AI-system incident occurred during operation of the chatbot?";
 
-    await expect(
-      f.handler.execute(
-        f.input(
-          false,
-          "No serious incident has occurred, but the incident status remains unknown.",
-        ),
+    const result = await f.handler.execute(
+      f.input(
+        false,
+        "No serious incident has occurred, but the incident status remains unknown.",
       ),
-    ).rejects.toMatchObject({ status: 422 });
+    );
 
+    expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+    expect(result.factId).toBeNull();
+    expect(result.resumed).toBe(false);
+    expect(result.proposalStatus).toBe(
+      HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+    );
+    expect(result.guardFailure).toBe(
+      HUMAN_FACT_GUARD_FAILURES.AMBIGUOUS_HUMAN_ANSWER,
+    );
     expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+    expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
+    expect(f.proposals).toEqual([
+      expect.objectContaining({
+        proposalId: result.proposalId,
+        status: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+        guardFailure: HUMAN_FACT_GUARD_FAILURES.AMBIGUOUS_HUMAN_ANSWER,
+        acceptedEvidenceId: null,
+        acceptedFactId: null,
+      }),
+    ]);
+  });
+
+  it("replays a pending proposal without duplicating it or accepting a fact", async () => {
+    const f = fixture();
+    f.request.question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+    const command = f.input(
+      false,
+      "No serious incident has occurred, but the incident status remains unknown.",
+    );
+
+    const first = await f.handler.execute(command);
+    const replay = await f.handler.execute(command);
+
+    expect(replay).toEqual({ ...first, resumed: false, replayed: true });
+    expect(replay.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+    expect(replay.factId).toBeNull();
+    expect(f.proposals).toHaveLength(1);
     expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
   });
 
-  it("rejects a material answer that conflicts with accepted human history", async () => {
+  it("accepts a corrected answer at the next request revision without rewriting the pending proposal", async () => {
+    const f = fixture();
+    f.request.question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+    const pending = await f.handler.execute(
+      f.input(
+        false,
+        "No serious incident has occurred, but the incident status remains unknown.",
+      ),
+    );
+
+    const accepted = await f.handler.execute(
+      f.input(
+        false,
+        "No serious incident has occurred since go-live.",
+        pending.requestRevision,
+      ),
+    );
+
+    expect(accepted.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED);
+    expect(accepted.proposalStatus).toBe(HUMAN_FACT_PROPOSAL_STATUSES.accepted);
+    expect(accepted.factId).not.toBeNull();
+    expect(f.proposals).toHaveLength(2);
+    expect(f.proposals[0]).toMatchObject({
+      proposalId: pending.proposalId,
+      status: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+    });
+    expect(f.proposals[1]).toMatchObject({
+      proposalId: accepted.proposalId,
+      status: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+      acceptedFactId: accepted.factId,
+    });
+  });
+
+  it("persists a conflicting material answer as a pending non-authoritative proposal", async () => {
     const f = fixture();
     const question =
       "Has any serious AI-system incident occurred during operation of the chatbot?";
@@ -361,14 +467,25 @@ describe("shared human answers inside a selected audit", () => {
       },
     ];
 
-    await expect(
-      f.handler.execute(
-        f.input(false, "No serious incident has occurred since go-live."),
-      ),
-    ).rejects.toMatchObject({ status: 422 });
+    const result = await f.handler.execute(
+      f.input(false, "No serious incident has occurred since go-live."),
+    );
 
+    expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+    expect(result.proposalStatus).toBe(
+      HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+    );
+    expect(result.guardFailure).toBe(
+      HUMAN_FACT_GUARD_FAILURES.CONTRADICTS_PRIOR_HUMAN_FACT,
+    );
     expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
     expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+    expect(f.proposals[0]).toMatchObject({
+      status: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+      guardFailure: HUMAN_FACT_GUARD_FAILURES.CONTRADICTS_PRIOR_HUMAN_FACT,
+      acceptedEvidenceId: null,
+      acceptedFactId: null,
+    });
   });
 
   it("rejects a shared request whose dependencies are all outside the current audit", async () => {
