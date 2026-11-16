@@ -22,6 +22,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { humanRequestDependenciesOf } from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
+import { factNeedViewOf } from "../../../infrastructure/persistence/assessment-fact-need.js";
 import {
   humanRequestHasRuleInScope,
   humanRequestScopeWhere,
@@ -132,7 +133,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
             ...humanRequestScopeWhere(input.assessmentId, ruleScope),
             threadId: run.threadId,
           },
-          include: { dependencies: true },
+          include: { dependencies: true, factNeed: true },
           orderBy: { createdAt: "asc" },
         }),
         tx.assessmentRuntimeTurn?.findUnique
@@ -364,6 +365,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           resolvedFactId: row.resolvedFactId,
           answers: row.answers,
           dependencies: humanRequestDependenciesOf(row),
+          ...(row.factNeed ? { factNeed: factNeedViewOf(row.factNeed) } : {}),
         })),
         responseLanguage,
         budgetState,
