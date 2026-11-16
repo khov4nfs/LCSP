@@ -20,6 +20,7 @@ from langchain.agents.middleware import ModelRequest, ModelResponse, ModelRetryM
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
+from conftest import use_model_routes
 from middleware import paid_admission, usage_metering
 from middleware.failure_policy import PaidAdmissionError, retry_model_error
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, _GovernedInternalModelRunnable
@@ -27,10 +28,30 @@ from middleware.paid_admission import ChargePolicy, RunAdmission, RunBudget, fin
 from middleware.provider_fallback import ProviderFallbackMiddleware, provider_fallback_failure
 from middleware.token_fallback import TokenFallbackMiddleware
 from middleware.usage_metering import AgentRoleMiddleware, UsageMeteringMiddleware, activate_agent_run_state
-from model_policy import DEFAULT_ROUTES_FILE, build_model, load_model_routes, model_route_config
+from model_policy import build_model, load_model_routes, model_route_config
 from vertical.live_preparation import LiveUsage, recover_usage
 
 OFFLINE_CREDENTIAL_SALT = "c" * 64
+
+TEST_MODEL_ROUTES = {
+    "routes": {
+        "primary": {
+            "provider": "apx",
+            "protocol": "anthropic",
+            "model": "claude-sonnet-5-5",
+        },
+        "fallback": {"provider": "inception", "model": "model-delta"},
+        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
+        "fallback-02": {"provider": "miraiapi", "model": "model-gamma"},
+    },
+    "roles": {
+        "default": "primary",
+        "root": "primary",
+        "rule-set-preparation": "primary",
+        "claim-author": "primary",
+    },
+    "fallbacks": {"primary": ["fallback", "fallback-01", "fallback-02"]},
+}
 
 
 @pytest.mark.parametrize("window,reason", [("budget", "BUDGET_EXPIRED"), ("policy", "UNVERIFIED_POLICY")])
@@ -84,7 +105,7 @@ def request_identity(model):
 
 @pytest.fixture(autouse=True)
 def offline(monkeypatch):
-    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(DEFAULT_ROUTES_FILE))
+    use_model_routes(monkeypatch, TEST_MODEL_ROUTES)
     for key in ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]:
         monkeypatch.setenv(key, "offline-admission-key")
     load_model_routes.cache_clear()
@@ -115,9 +136,10 @@ def policy_for(model):
 
 
 def budget_for(*models, **changes):
+    routes_file = Path(os.environ["LCSP_MODEL_ROUTES_FILE"])
     data = dict(schema_version=2, run_id="run", candidate_sha="1" * 40,
         credential_salt=OFFLINE_CREDENTIAL_SALT,
-        model_routes_sha256=hashlib.sha256(DEFAULT_ROUTES_FILE.read_bytes()).hexdigest(),
+        model_routes_sha256=hashlib.sha256(routes_file.read_bytes()).hexdigest(),
         valid_from=1, expires_at=4102444800, maximum_calls=20, maximum_input_tokens=20000,
         maximum_output_tokens=20 * 262144, maximum_charge_nano_usd=100000000,
         policies=tuple(policy_for(m) for m in models))
@@ -270,7 +292,8 @@ def test_unverified_request_changes_reject_before_dispatch(tmp_path, monkeypatch
         policy = policy_for(model).model_copy(update={"expires_at": 2})
         state = state_for(tmp_path / "other", model, policies=(policy,))
     if change == "route_file":
-        config = tmp_path / "changed-routes.yaml"; config.write_bytes(DEFAULT_ROUTES_FILE.read_bytes() + b"\n")
+        routes_file = Path(os.environ["LCSP_MODEL_ROUTES_FILE"])
+        config = tmp_path / "changed-routes.yaml"; config.write_bytes(routes_file.read_bytes() + b"\n")
         monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(config))
     if change == "output_override": request = req(model, max_tokens=262145)
     if change == "http_override": request = req(model, http_options={"retry_options": {"attempts": 10}})
@@ -507,6 +530,17 @@ async def test_async_parallel_and_cancellation_preserve_shared_exposure(tmp_path
 
 def test_retry_rotation_fallback_and_terminal_exhaustion_are_all_admitted(tmp_path, monkeypatch):
     from middleware import token_fallback
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {
+                "primary": {"provider": "miraiapi", "model": "model-gamma"},
+                "fallback": {"provider": "inception", "model": "model-delta"},
+            },
+            "roles": {"default": "primary"},
+            "fallbacks": {"primary": ["fallback"]},
+        },
+    )
     primary, rotated, fallback = native(), native(key="offline-rotated-key"), native("fallback")
     state = state_for(tmp_path, primary, rotated, fallback, maximum_calls=3)
     monkeypatch.setattr(token_fallback, "provider_token_source", lambda p: ("MIRAI_API_KEY", ("offline-admission-key", "offline-rotated-key")) if p == "miraiapi" else None)
@@ -652,6 +686,13 @@ def test_native_sdk_error_sends_exactly_one_mock_http_request(tmp_path, route, a
 @pytest.mark.asyncio
 async def test_async_exhaustion_does_not_rotate_or_fallback(tmp_path, monkeypatch):
     from middleware import token_fallback
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {"primary": {"provider": "miraiapi", "model": "model-gamma"}},
+            "roles": {"default": "primary"},
+        },
+    )
     primary, rotated = native(), native(key="offline-rotated-key")
     state = state_for(tmp_path, primary, rotated, maximum_calls=1)
     monkeypatch.setattr(token_fallback, "provider_token_source", lambda p:

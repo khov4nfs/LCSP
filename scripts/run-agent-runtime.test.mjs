@@ -68,7 +68,7 @@ test("optional observability failure does not stop Agent Runtime services", () =
   );
 });
 
-test("docker worker env forwards every provider credential pool the worker rotates", async () => {
+test("docker worker env forwards provider credentials and the Anthropic endpoint", async () => {
   const credentials = await readFile(
     new URL("../deepagents/provider_credentials.py", import.meta.url),
     "utf8",
@@ -89,6 +89,7 @@ test("docker worker env forwards every provider credential pool the worker rotat
   for (const name of keyEnvNames) {
     assert.match(workerEnv, new RegExp(`"${name}"`, "u"), `${name} is not forwarded`);
   }
+  assert.match(workerEnv, /"ANTHROPIC_BASE_URL"/u);
   assert.match(workerEnv, /"INCEPTION_BASE_URL"/u);
   assert.match(workerEnv, /"APX_BASE_URL"/u);
   assert.match(workerEnv, /"LLM_PROVIDER_TIMEOUT_SECONDS"/u);

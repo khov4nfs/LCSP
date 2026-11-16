@@ -6,12 +6,14 @@ import hashlib
 import json
 import os
 import stat
+import subprocess
 import time
 from pathlib import Path
 
 import httpx
 import pytest
 import yaml
+from conftest import use_model_routes
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
@@ -30,10 +32,33 @@ from model_policy import DEFAULT_ROUTES_FILE, build_model, load_model_routes, mo
 
 SALT = "c" * 64
 
+TEST_PILOT_MODEL_ROUTES = {
+    "version": 1,
+    "routes": {
+        "assessment": {
+            "provider": "apx",
+            "protocol": "anthropic",
+            "model": "claude-sonnet-4-6-free",
+        },
+        "primary": {"provider": "miraiapi", "model": "model-gamma"},
+        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
+        "fallback-02": {"provider": "inception", "model": "model-delta"},
+    },
+    "roles": {
+        "default": "assessment",
+        "assessment-root": "assessment",
+        "repository-researcher": "primary",
+    },
+    "fallbacks": {
+        "assessment": ["primary", "fallback-01", "fallback-02"],
+        "primary": ["fallback-01", "fallback-02"],
+    },
+}
+
 
 @pytest.fixture(autouse=True)
 def offline(monkeypatch, tmp_path):
-    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(DEFAULT_ROUTES_FILE))
+    use_model_routes(monkeypatch, TEST_PILOT_MODEL_ROUTES)
     monkeypatch.setenv("LLM_PROVIDER_TIMEOUT_SECONDS", "45")
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(tmp_path / "usage.sqlite3"))
     for name in ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]:
@@ -304,10 +329,42 @@ def isolated_routing_project(monkeypatch, tmp_path):
     project = tmp_path / "project"
     source = project / "deepagents/config/model_routes.yaml"
     source.parent.mkdir(parents=True)
-    source.write_bytes(DEFAULT_ROUTES_FILE.read_bytes())
+    source.write_text(yaml.safe_dump(TEST_PILOT_MODEL_ROUTES, sort_keys=False), encoding="utf-8")
     directory = tmp_path / "pilot"
     directory.mkdir(mode=0o700)
     monkeypatch.setattr(pilot, "ROOT", project)
+    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(source))
+    load_model_routes.cache_clear()
+    return source, directory
+
+
+@pytest.fixture
+def isolated_committed_routing_project(isolated_routing_project):
+    """Give budget tests a genuine Git HEAD inside their disposable project."""
+    source, directory = isolated_routing_project
+    project = source.parents[2]
+    subprocess.run(["git", "init", str(project)], check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "-C", str(project), "config", "user.name", "LCSP Test Fixture"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(project), "config", "user.email", "lcsp-test-fixture@example.invalid"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(project), "add", "--", str(source.relative_to(project))],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git", "-C", str(project), "-c", "commit.gpgsign=false", "commit",
+            "--no-gpg-sign", "-m", "Create isolated T31 route fixture",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
     return source, directory
 
 
@@ -434,9 +491,23 @@ def test_existing_execution_cannot_select_new_profile_or_modify_previous_state(i
     assert {p.name: p.read_bytes() for p in directory.iterdir()} == before
 
 
-def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkeypatch, tmp_path):
-    original = DEFAULT_ROUTES_FILE.read_bytes()
-    profile = select_pilot_routes(tmp_path, "fallback-01")
+def test_build_budget_binds_real_head_from_disposable_git_project(isolated_committed_routing_project):
+    source, _ = isolated_committed_routing_project
+    expected_head = subprocess.check_output(
+        ["git", "-C", str(source.parents[2]), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+
+    budget = build_budget("isolated-git-head")
+
+    assert len(expected_head) == 40
+    assert budget.candidate_sha == expected_head
+
+
+def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkeypatch, isolated_committed_routing_project):
+    source, directory = isolated_committed_routing_project
+    original = source.read_bytes()
+    profile = select_pilot_routes(directory, "fallback-01")
     monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", profile["routesFile"])
     load_model_routes.cache_clear()
     models = []
@@ -452,12 +523,15 @@ def test_selected_google_route_binds_real_native_models_and_frozen_budget(monkey
             assert (identity["route_id"], identity["provider"], identity["model"]) == (
                 "fallback-01", "google_genai", "gemini-3.5-flash-lite")
         budget = build_budget("selected-route-offline")
+        assert budget.candidate_sha == subprocess.check_output(
+            ["git", "-C", str(source.parents[2]), "rev-parse", "HEAD"], text=True,
+        ).strip()
         assert budget.model_routes_sha256 == profile["routesSha256"]
         assert {(policy.route_id, policy.provider) for policy in budget.policies} == {
             ("fallback-01", "google_genai")}
         assert (budget.maximum_calls, budget.maximum_input_tokens, budget.maximum_output_tokens) == (8, 120000, 16384)
         assert {(policy.input_upper_bound, policy.output_upper_bound) for policy in budget.policies} == {(90000, 4096)}
-        assert DEFAULT_ROUTES_FILE.read_bytes() == original
+        assert source.read_bytes() == original
     finally:
         for model in models:
             model.client.close()

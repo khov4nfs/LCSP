@@ -23,9 +23,30 @@ from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, _GovernedIn
 from middleware import token_fallback
 from middleware.usage_metering import AgentRoleMiddleware, activate_agent_run_state, active_agent_role
 from middleware.paid_admission import TokenRunBudget, TokenPolicy, fingerprint, recover_admission, request_identity
-from model_policy import DEFAULT_ROUTES_FILE, load_model_routes
+from model_policy import load_model_routes
+from conftest import use_model_routes
 from test_paid_admission import native, answer, budget_for
 from vertical.live_preparation import LiveUsage, recover_usage
+
+
+REHEARSAL_MODEL_ROUTES = {
+    "routes": {
+        "primary": {"provider": "miraiapi", "model": "model-gamma"},
+        "fallback": {"provider": "inception", "model": "model-delta"},
+        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
+        "fallback-02": {
+            "provider": "apx",
+            "protocol": "anthropic",
+            "model": "claude-sonnet-4-6-free",
+        },
+    },
+    "roles": {
+        "default": "primary",
+        "rule-set-preparation": "primary",
+        "claim-author": "primary",
+    },
+    "fallbacks": {"primary": ["fallback", "fallback-01", "fallback-02"]},
+}
 
 
 def main(output: str, *, token_only: bool = False) -> dict:
@@ -35,7 +56,7 @@ def main(output: str, *, token_only: bool = False) -> dict:
     class OfflineQuotaError(Exception):
         status_code = 402
     with pytest.MonkeyPatch.context() as patch:
-        patch.setenv("LCSP_MODEL_ROUTES_FILE", str(DEFAULT_ROUTES_FILE))
+        use_model_routes(patch, REHEARSAL_MODEL_ROUTES)
         for key in ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]:
             patch.setenv(key, "offline-admission-key")
         load_model_routes.cache_clear()
