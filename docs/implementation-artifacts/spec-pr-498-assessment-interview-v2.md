@@ -67,8 +67,8 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 | Source classification versus verified reachability | PARTIALLY_IMPLEMENTED | Discovery represents the required source contexts separately from conservative reachability; no path is promoted to reachable production without a verified call path. Reachability verification remains pending. |
 | Technology and rule-specific RelevanceMap | PARTIALLY_IMPLEMENTED | Technology ranges are digest-bound, deterministically prioritized and exposed as a bounded Root preview; rule relevance and audited expansion execution remain pending. |
 | Explicit coverage limits and pin/cache identity | PARTIALLY_IMPLEMENTED | Discovery records limits, truncation, unsupported languages, skipped paths, unresolved calls, total resource budgets, scanner signature and graph index identity. Cross-file connection-aware incremental invalidation remains pending. |
-| Canonical FactNeed and cross-locale deduplication | NOT_IMPLEMENTED | Human request sharing still requires exact question/unresolved-fact/control/choice equality. |
-| Minimal, batched human questions with native interrupt | PARTIALLY_IMPLEMENTED | Atomic batch questions and native checkpoints exist; materiality is rule-anchored, but FactNeed identity and discovery-completeness gating are absent. |
+| Canonical FactNeed and cross-locale deduplication | IMPLEMENTED | Additive FactNeed persistence distinguishes tenant owner, assessment, subject, predicate, operational scope, environment/deployment, timeframe and value schema; wording/locale and shared rule dependencies reuse one need. |
+| Minimal, batched human questions with native interrupt | PARTIALLY_IMPLEMENTED | Atomic batch questions and native checkpoints reuse canonical FactNeeds, including equivalent needs inside one batch; discovery-completeness/materiality gating remains pending. |
 | Raw answer -> proposal -> accepted fact | NOT_IMPLEMENTED | Non-null answers still create accepted evidence/facts and advance case revision immediately; integrity inspection is not in the production path. |
 | Explainable candidate AssessmentRule matching | NOT_IMPLEMENTED | Rule catalog selection exists, but no discovery-driven recommendation stage or recommendation-state contract exists. |
 | Evidence/discovery reuse before rule investigation | PARTIALLY_IMPLEMENTED | Root reloads accepted facts/evidence and decisions, but there is no discovery handoff or governed range reuse plan. |
@@ -97,8 +97,8 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - [ ] Build deterministic AI use-case discovery and a two-dimensional RelevanceMap by reusing RepositoryProfile and Codebase Memory; include raw HTTP/custom providers, wrappers, indirect callers, source classification, verified reachability and controlled expansion.
 - [x] Add explainable candidate AssessmentRule matching from verified findings and accepted facts without authorizing scope or emitting applicability/compliance verdicts.
 - [ ] Reuse compatible discovery evidence/ranges and existing accepted evidence/facts before targeted rule-specific investigation; record why any expansion was required.
-- [ ] Design and test additive compatibility for existing HumanRequests, accepted facts, decisions, checkpoints and audit history before adding canonical FactNeed/value/proposal contracts and persistence.
-- [ ] Define FactNeed identity with tenant, assessment, subject/entity, predicate, operational scope, environment, timeframe and value schema as applicable; deduplicate wording/locales and union shared rule dependencies without cross-entity/time merging.
+- [x] Design and test additive compatibility for existing HumanRequests, accepted facts, decisions, checkpoints and audit history before adding canonical FactNeed/value/proposal contracts and persistence.
+- [x] Define FactNeed identity with tenant, assessment, subject/entity, predicate, operational scope, environment, timeframe and value schema as applicable; deduplicate wording/locales and union shared rule dependencies without cross-entity/time merging.
 - [ ] Refactor answer handling to persist raw evidence, validate/normalize, detect ambiguity/conflict, and create facts only after acceptance.
 - [ ] Replace answer-triggered case-wide invalidation with fail-closed traversal across direct/indirect evidence, facts, decisions and report findings while retaining history and caseRevision for CAS/audit.
 - [ ] Reuse repository scanner and Codebase Memory to build rule-aware RelevanceMap priorities from AssessmentRule criteria/goals/evidence needs plus technology signals; cover DI/interfaces, jobs/events, dynamic config and unresolved edges with bounded traversal and explicit gaps.
@@ -122,6 +122,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - 2026-11-16: Recorded the green exact-HEAD CI baseline and the focused deterministic scanner regression baseline before discovery behavior changes.
 - 2026-11-16: Implemented the first additive discovery slice: deterministic static AI-use-case signals, conservative source/reachability classification, explicit coverage/resource gaps, immutable pin-bound API persistence, leased Root submission, and a bounded non-authoritative discovery preview in the existing governed assessment context.
 - 2026-11-16: Added API-owned deterministic candidate matching against the pinned AssessmentRules and ACCEPTED facts. Worker-authored recommendations are rejected, non-AI control terms remain matchable, missing matches never become negative legal conclusions, and candidate revisions remain immutable and non-authoritative.
+- 2026-11-16: Added additive canonical FactNeed persistence and Root/API contracts. Historical HumanRequests remain nullable and uninterpreted; equivalent wording/locales and same-batch questions reuse one need, material deployment/timeframe/value differences remain distinct, and a known accepted answer resolves its linked need atomically while UNKNOWN remains open.
 
 ## Reproducible Pre-Change Baseline — 2026-11-16
 
@@ -147,6 +148,14 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - API lint, contracts/API TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates and `git diff --check`: passed.
 - Candidate states are limited by implementation to `CANDIDATE` or `NEEDS_CONTEXT`; every candidate is `authorizesAssessment=false`. No rule is automatically emitted as `NOT_SELECTED`, `SELECTED`, or a legal applicability/compliance outcome.
 - Candidate matching is deterministic lexical engineering prioritization over current discovery ranges/use cases and accepted facts. Cross-file rule-targeted expansion, legal actor/scope resolution and measured recommendation recall/precision remain later work; no performance or legal-accuracy improvement is claimed.
+
+## Phase 3 Verification — Canonical FactNeed Compatibility
+
+- Additive migration keeps `AssessmentHumanRequest.factNeedId` nullable, performs no historical UPDATE/DELETE/DROP, and adds assessment-bound foreign keys, lifecycle checks and an immutable semantic-identity guard. Migration static compatibility tests: `3 passed`; Prisma schema validation passed. A live PostgreSQL migration could not run locally because Docker/PostgreSQL was unavailable.
+- FactNeed identity regression covers casing/wording reuse and separation across tenant owner, assessment, deployment and timeframe. Focused API/compatibility regression: `8` suites, `81` tests passed; contracts: `13` suites, `152` tests passed.
+- Root and governed instruction regression: `184` tests passed; strict inventory result `PASS`, with zero unresolved paths and no missing VI/EN sources. API lint, contracts/API TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
+- The repository-wide API command completed `219` suites / `1857` tests successfully, with `22` suites skipped. Its remaining `12` failing integration suites (`108` tests) require PostgreSQL at `127.0.0.1:55432`; the one non-database route-allowlist failure was corrected and its `4` tests pass. These are not reported as a green full-suite result.
+- This phase does not yet implement raw-answer proposal/review, typed normalization/conflict acceptance, selective dependency invalidation or measured efficiency/legal-accuracy improvements.
 
 ## Design Notes
 

@@ -34,6 +34,7 @@ import {
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { AssessmentFactNeedStatus } from "@prisma/client";
 import { z } from "zod";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -79,11 +80,12 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
    * - Unknown answers keep the request open and create no accepted fact or case revision.
    * - Once every open dependency has an unknown response at the current checkpoint, enqueue one review-only continuation while preserving WAITING_FOR_HUMAN.
    * - A shared request resolves one fact; only dependencies in the current audit return to investigation after their other open requests resolve.
+   * - A typed FactNeed resolves to the same accepted human fact atomically; legacy requests without a FactNeed keep their historical behavior.
    * - Historical requests outside selected membership neither authorize an answer nor block this audit's continuation.
    *
    * Execution flow:
    * 1. Lock the owned Assessment, validate replay identity, revisions, checkpoint and any selected choice.
-   * 2. For a known answer, advance the case revision, invalidate affected current decisions, snapshot choice meaning, and persist answer evidence and a provenance-labelled fact.
+   * 2. For a known answer, advance the case revision, invalidate affected current decisions, snapshot choice meaning, persist answer evidence/fact, and resolve any linked FactNeed.
    * 3. Append checkpoint-bound answer history, update each dependent rule's coverage, and enqueue normal resume after all blockers resolve or a review-only continuation after all open dependencies have replied UNKNOWN.
    *
    * Failure cases:
@@ -259,6 +261,27 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         await tx.assessmentCaseFactEvidence.create({
           data: { assessmentId: input.assessmentId, factId, evidenceId },
         });
+        if (row.factNeedId) {
+          const resolved = await tx.assessmentFactNeed.updateMany({
+            where: {
+              factNeedId: row.factNeedId,
+              assessmentId: input.assessmentId,
+              status: AssessmentFactNeedStatus.OPEN,
+            },
+            data: {
+              status: AssessmentFactNeedStatus.RESOLVED,
+              resolvedFactId: factId,
+              resolvedAt: new Date(),
+            },
+          });
+          if (resolved.count !== 1) {
+            throw problemException(
+              ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+              input.correlationId,
+              { status: HttpStatus.CONFLICT },
+            );
+          }
+        }
         await this.events.appendInTx(tx, {
           assessmentId: input.assessmentId,
           correlationId: input.correlationId,

@@ -8,6 +8,10 @@ import {
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_RECORD_STATES,
+  FACT_NEED_ENVIRONMENTS,
+  FACT_NEED_SUBJECT_KINDS,
+  FACT_NEED_TIMEFRAME_KINDS,
+  FACT_NEED_VALUE_KINDS,
   HUMAN_RESOLUTION_CONTROL_TYPES,
 } from "@lcsp/contracts/assessment-domain";
 import { OpenHumanRequestHandler } from "./open-human-request.handler.js";
@@ -24,6 +28,7 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
       : new Set(options.selectedRuleIds);
   const dependencyWrites: string[] = [];
   const requests: Array<Record<string, unknown>> = [];
+  const factNeeds: Array<Record<string, unknown>> = [];
   const dependencies: Array<Record<string, unknown>> = [];
   const receipts: Array<Record<string, unknown>> = [];
   const coverage = new Map<
@@ -43,6 +48,56 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
   let factState: string = ASSESSMENT_RECORD_STATES.ACCEPTED;
   let evidenceState: string = ASSESSMENT_RECORD_STATES.ACCEPTED;
   const tx = {
+    assessment: {
+      findUniqueOrThrow: () => ({ ownerId: "tenant-owner-1" }),
+    },
+    assessmentEvidence: {
+      count: () => 0,
+    },
+    assessmentFactNeed: {
+      findUnique: ({
+        where,
+      }: {
+        where: {
+          assessmentId_identityDigest: {
+            assessmentId: string;
+            identityDigest: string;
+          };
+        };
+      }) => {
+        const key = where.assessmentId_identityDigest;
+        const row = factNeeds.find(
+          (entry) =>
+            entry.assessmentId === key.assessmentId &&
+            entry.identityDigest === key.identityDigest,
+        );
+        if (!row) return null;
+        const request = requests.find(
+          (entry) => entry.factNeedId === row.factNeedId,
+        );
+        return {
+          ...row,
+          humanRequest: request ? { requestId: request.requestId } : null,
+        };
+      },
+      create: ({ data }: { data: Record<string, unknown> }) => {
+        factNeeds.push(data);
+        return data;
+      },
+      update: ({
+        where,
+        data,
+      }: {
+        where: { factNeedId: string };
+        data: Record<string, unknown>;
+      }) => {
+        const row = factNeeds.find(
+          (entry) => entry.factNeedId === where.factNeedId,
+        )!;
+        Object.assign(row, data);
+        return row;
+      },
+    },
     assessmentRuleAuditItem: {
       findUnique: ({
         where,
@@ -62,16 +117,19 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
       },
     },
     assessmentHumanRequest: {
-      findUnique: ({
-        where,
-      }: {
-        where: { assessmentId_idempotencyKey?: { idempotencyKey: string } };
-      }) =>
-        requests.find(
-          (row) =>
-            row.idempotencyKey ===
-            where.assessmentId_idempotencyKey?.idempotencyKey,
-        ) ?? null,
+      findUnique: ({ where }: { where: Record<string, unknown> }) => {
+        if (typeof where.requestId === "string") {
+          return (
+            requests.find((row) => row.requestId === where.requestId) ?? null
+          );
+        }
+        const key = where.assessmentId_idempotencyKey as
+          { idempotencyKey: string } | undefined;
+        return (
+          requests.find((row) => row.idempotencyKey === key?.idempotencyKey) ??
+          null
+        );
+      },
       findFirst: ({
         where,
       }: {
@@ -98,6 +156,19 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
           requestRevision: 0,
         };
         requests.push(row);
+        return row;
+      },
+      update: ({
+        where,
+        data,
+      }: {
+        where: { requestId: string };
+        data: Record<string, unknown>;
+      }) => {
+        const row = requests.find(
+          (entry) => entry.requestId === where.requestId,
+        )!;
+        Object.assign(row, data);
         return row;
       },
     },
@@ -260,6 +331,31 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
       leaseToken: "lease",
       request: { ...request, ...overrides },
     }) as never;
+  const factNeed = (deploymentKey = "prod-eu-1") => ({
+    subject: {
+      kind: FACT_NEED_SUBJECT_KINDS.deployment,
+      key: "customer-ai-service",
+    },
+    predicate: "OPERATOR_LEGAL_IDENTITY",
+    operationalScope: "CUSTOMER_FACING_INFERENCE",
+    environment: {
+      kind: FACT_NEED_ENVIRONMENTS.production,
+      deploymentKey,
+    },
+    timeframe: {
+      kind: FACT_NEED_TIMEFRAME_KINDS.current,
+      from: null,
+      to: null,
+    },
+    valueSchema: {
+      kind: FACT_NEED_VALUE_KINDS.text,
+      schemaVersion: "v1",
+      allowedValues: [],
+    },
+    sourceInvestigationAttempts: ["Inspected deployment configuration."],
+    acceptedEvidenceIds: [],
+    investigatedRangeIds: [],
+  });
   const source = (status: string = HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN) => {
     requests.push({
       ...request,
@@ -271,6 +367,7 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
       status,
       resolvedFactId:
         status === HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED ? "fact" : null,
+      factNeedId: null,
     });
     // The populated-upgrade migration backfills the primary dependency.
     dependencies.push({
@@ -288,10 +385,12 @@ function fixture(options: { selectedRuleIds?: string[] } = {}) {
     dependencyWrites,
     selectedRuleIds,
     receipts,
+    factNeeds,
     coverage,
     invalidations,
     transitions,
     source,
+    factNeed,
     invalidateFact: () => {
       factState = ASSESSMENT_RECORD_STATES.INVALIDATED;
     },
@@ -354,6 +453,48 @@ describe("shared human-request dependencies", () => {
     expect(f.coverage.get("RULE-B")?.resolutionState).toBe(
       DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT,
     );
+  });
+
+  it("reuses one typed FactNeed across different wording and rule dependencies", async () => {
+    const f = fixture();
+    const first = await f.handler.execute(
+      f.input({ factNeed: f.factNeed(), idempotencyKey: "typed-need-a" }),
+    );
+    const second = await f.handler.execute(
+      f.input({
+        assessmentRuleId: "RULE-B",
+        question: "Who is the legal operator of this production deployment?",
+        unresolvedFact: "Production deployment operator identity.",
+        factNeed: f.factNeed(),
+        idempotencyKey: "typed-need-b",
+      }),
+    );
+
+    expect(second.requestId).toBe(first.requestId);
+    expect(second.factNeedId).toBe(first.factNeedId);
+    expect(f.factNeeds).toHaveLength(1);
+    expect(f.requests).toHaveLength(1);
+    expect(f.dependencies.map((row) => row.assessmentRuleId).sort()).toEqual([
+      "RULE-A",
+      "RULE-B",
+    ]);
+  });
+
+  it("does not merge FactNeeds from different deployments", async () => {
+    const f = fixture();
+    await f.handler.execute(
+      f.input({ factNeed: f.factNeed("prod-eu-1"), idempotencyKey: "need-eu" }),
+    );
+    await f.handler.execute(
+      f.input({
+        assessmentRuleId: "RULE-B",
+        factNeed: f.factNeed("prod-us-1"),
+        idempotencyKey: "need-us",
+      }),
+    );
+
+    expect(f.factNeeds).toHaveLength(2);
+    expect(f.requests).toHaveLength(2);
   });
 
   it("reuses an accepted resolved fact without waiting or creating facts or lifecycle transitions", async () => {

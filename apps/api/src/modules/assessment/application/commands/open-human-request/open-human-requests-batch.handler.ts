@@ -42,6 +42,7 @@ import {
   ROOT_AUDIT_ACTOR,
   invalid,
 } from "../../../infrastructure/persistence/assessment-case-support.service.js";
+import { resolveAssessmentFactNeedInTx } from "../../../infrastructure/persistence/assessment-fact-need.js";
 import {
   canonicalHumanRequestDependencies,
   hasSameHumanFactScope,
@@ -67,13 +68,14 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
    * - Every declared dependency in each batch request must belong to the active audit's authorized rule scope.
    * - All batch requests must target the exact pinned case revision; revision mismatch rejects the entire batch.
    * - Each request is verified for anchor validity (criterion or condition), customer-safe text, and control type consistency.
+   * - Typed FactNeeds deduplicate wording/locales, including duplicates inside one batch, but never merge different tenant, assessment, subject, deployment, scope, timeframe or value schemas.
    * - If any request is an open blocker and the assessment is currently ACTIVE, transition to WAITING_FOR_HUMAN occurs once.
    * - Replayed requests with matching idempotency return identical request identities without duplicate creation.
    *
    * Execution flow:
    * 1. Authorize the agent lease and load pins under a single transaction.
    * 2. Lock the assessment case and verify the case revision against every request.
-   * 3. For each request, check idempotency receipts, validate criteria and customer-safe text, and persist or link dependencies.
+   * 3. For each request, check idempotency receipts, validate criteria/customer-safe text, and persist or reuse its FactNeed and dependencies.
    * 4. Move affected coverage rows to WAITING_FOR_INPUT.
    * 5. If at least one request remains open and the assessment is ACTIVE, transition to WAITING_FOR_HUMAN once.
    * 6. Return the array of open request results.
@@ -126,6 +128,12 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
 
       const results: OpenAssessmentHumanRequestResult[] = [];
       let hasWaiting = false;
+      const assessmentOwner = requests.some((request) => request.factNeed)
+        ? await tx.assessment.findUniqueOrThrow({
+            where: { id: input.assessmentId },
+            select: { ownerId: true },
+          })
+        : null;
 
       // Phase 1: Pre-validation of all requests in batch before performing writes
       type ValidatedItem = {
@@ -139,6 +147,10 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
         source: Prisma.AssessmentHumanRequestGetPayload<{
           include: { dependencies: true };
         }> | null;
+        factNeed: Awaited<
+          ReturnType<typeof resolveAssessmentFactNeedInTx>
+        > | null;
+        sourceRequestId: string | null;
       };
       const validatedItems: ValidatedItem[] = [];
 
@@ -235,24 +247,53 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
           );
         }
 
-        const source = request.sourceRequestId
+        const factNeed =
+          request.factNeed && assessmentOwner
+            ? await resolveAssessmentFactNeedInTx(tx, {
+                assessmentId: input.assessmentId,
+                tenantOwnerId: assessmentOwner.ownerId,
+                repositoryCommit: pins.repositoryCommit,
+                factNeed: request.factNeed,
+                controlType: request.controlType,
+                choices: request.choices,
+                correlationId: input.correlationId,
+              })
+            : null;
+        if (
+          request.sourceRequestId &&
+          factNeed?.linkedRequestId &&
+          request.sourceRequestId !== factNeed.linkedRequestId
+        ) {
+          throw invalid(
+            ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+            input.correlationId,
+          );
+        }
+        const sourceRequestId =
+          factNeed?.linkedRequestId ?? request.sourceRequestId ?? null;
+        const source = sourceRequestId
           ? await tx.assessmentHumanRequest.findFirst({
               where: {
                 assessmentId: input.assessmentId,
-                requestId: request.sourceRequestId,
+                requestId: sourceRequestId,
               },
               include: { dependencies: true },
             })
           : null;
+        const typedScopeMatches = Boolean(
+          factNeed && source?.factNeedId === factNeed.factNeedId,
+        );
         if (
-          request.sourceRequestId &&
+          sourceRequestId &&
           (!source ||
-            source.threadId !== run.threadId ||
+            (source.threadId !== run.threadId &&
+              (source.status !== HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED ||
+                !typedScopeMatches)) ||
             ![
               HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
               HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
             ].some((status) => status === source.status) ||
-            !hasSameHumanFactScope(source, request) ||
+            (!typedScopeMatches && !hasSameHumanFactScope(source, request)) ||
             (source.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN &&
               source.caseRevision !== pins.caseRevision))
         ) {
@@ -299,13 +340,37 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
           requestDigest,
           coverageRows,
           source,
+          factNeed,
+          sourceRequestId,
         });
       }
 
       // Phase 2: Persistence and state mutation
+      const createdRequestIdsByFactNeed = new Map<string, string>();
       for (const item of validatedItems) {
-        const { request, dependencies, requestDigest, coverageRows, source } =
+        const { request, dependencies, requestDigest, coverageRows, factNeed } =
           item;
+        let source = item.source;
+        let sourceRequestId = item.sourceRequestId;
+        const createdRequestId = factNeed
+          ? createdRequestIdsByFactNeed.get(factNeed.factNeedId)
+          : null;
+        if (!source && createdRequestId) {
+          sourceRequestId = createdRequestId;
+          source = await tx.assessmentHumanRequest.findFirst({
+            where: {
+              assessmentId: input.assessmentId,
+              requestId: createdRequestId,
+            },
+            include: { dependencies: true },
+          });
+          if (!source) {
+            throw invalid(
+              ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+              input.correlationId,
+            );
+          }
+        }
 
         const receipt = await tx.assessmentHumanRequestRegistration.findUnique({
           where: {
@@ -327,6 +392,7 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
             requestId: receipt.requestId,
             caseRevision: receipt.caseRevision,
             requestRevision: receipt.requestRevision,
+            ...(factNeed ? { factNeedId: factNeed.factNeedId } : {}),
           });
           continue;
         }
@@ -351,6 +417,7 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
             requestId: replay.requestId,
             caseRevision: replay.caseRevision,
             requestRevision: replay.requestRevision,
+            ...(replay.factNeedId ? { factNeedId: replay.factNeedId } : {}),
           });
           continue;
         }
@@ -443,9 +510,19 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
               resolutionAttempts: request.resolutionAttempts,
               controlType: request.controlType,
               choices: request.choices,
+              factNeedId: factNeed?.factNeedId ?? null,
               idempotencyKey: request.idempotencyKey,
               requestDigest,
             },
+          });
+          if (factNeed) {
+            createdRequestIdsByFactNeed.set(factNeed.factNeedId, requestId);
+          }
+        }
+        if (source && factNeed && source.factNeedId === null) {
+          await tx.assessmentHumanRequest.update({
+            where: { requestId: source.requestId },
+            data: { factNeedId: factNeed.factNeedId },
           });
         }
 
@@ -480,13 +557,16 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
           requestId,
           caseRevision: pins.caseRevision,
           requestRevision: source?.requestRevision ?? 0,
+          ...(factNeed ? { factNeedId: factNeed.factNeedId } : {}),
         };
         await tx.assessmentHumanRequestRegistration.create({
           data: {
             assessmentId: input.assessmentId,
             idempotencyKey: request.idempotencyKey,
             requestDigest,
-            ...result,
+            requestId,
+            caseRevision: pins.caseRevision,
+            requestRevision: source?.requestRevision ?? 0,
           },
         });
 
@@ -522,7 +602,8 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
               requestId,
               assessmentRuleId: request.assessmentRuleId,
               dependencies,
-              sourceRequestId: request.sourceRequestId ?? null,
+              sourceRequestId,
+              factNeedId: factNeed?.factNeedId ?? null,
             },
           },
           tx,

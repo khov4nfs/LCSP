@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
-import type { Prisma } from "@prisma/client";
+import { AssessmentFactNeedStatus, type Prisma } from "@prisma/client";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
@@ -36,6 +36,7 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
     question: "Which entity operates this deployment?",
     answers: [] as Array<Record<string, unknown>>,
     resolvedFactId: null,
+    factNeedId: null as string | null,
   };
   const unrelatedRequest = {
     ...request,
@@ -130,6 +131,11 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
       create: jest
         .fn<(...args: unknown[]) => Promise<unknown>>()
         .mockResolvedValue({}),
+    },
+    assessmentFactNeed: {
+      updateMany: jest
+        .fn<(...args: unknown[]) => Promise<{ count: number }>>()
+        .mockResolvedValue({ count: 1 }),
     },
     assessmentDecisionCoverage: {
       updateMany: jest
@@ -232,9 +238,31 @@ describe("shared human answers inside a selected audit", () => {
     expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
     expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
+    expect(f.tx.assessmentFactNeed.updateMany).not.toHaveBeenCalled();
     expect(f.tx.assessmentDecisionCoverage.updateMany).not.toHaveBeenCalled();
     expect(f.coordinator.transitionVerifiedInTx).not.toHaveBeenCalled();
     expect(f.outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves a linked FactNeed to the accepted fact in the same transaction", async () => {
+    const f = fixture();
+    f.request.factNeedId = randomUUID();
+
+    const result = await f.handler.execute(f.input(false));
+
+    expect(result.factId).not.toBeNull();
+    expect(f.tx.assessmentFactNeed.updateMany).toHaveBeenCalledWith({
+      where: {
+        factNeedId: f.request.factNeedId,
+        assessmentId: f.request.assessmentId,
+        status: AssessmentFactNeedStatus.OPEN,
+      },
+      data: {
+        status: AssessmentFactNeedStatus.RESOLVED,
+        resolvedFactId: result.factId,
+        resolvedAt: expect.any(Date),
+      },
+    });
   });
 
   it("rejects a shared request whose dependencies are all outside the current audit", async () => {

@@ -1,6 +1,14 @@
 import { authoredLocalizationFixture } from "../../../../../test/support/authored-localization.fixture.js";
 import { describe, expect, it } from "@jest/globals";
-import type { AssessmentHumanRequest } from "@prisma/client";
+import {
+  AssessmentFactNeedEnvironment,
+  AssessmentFactNeedStatus,
+  AssessmentFactNeedSubjectKind,
+  AssessmentFactNeedTimeframeKind,
+  AssessmentFactNeedValueKind,
+  type AssessmentFactNeed,
+  type AssessmentHumanRequest,
+} from "@prisma/client";
 import { AssessmentHumanRequestSupport } from "./assessment-human-request-support.service.js";
 
 describe("AssessmentHumanRequestSupport read projection", () => {
@@ -29,6 +37,7 @@ describe("AssessmentHumanRequestSupport read projection", () => {
     requestDigest: null,
     checkpointId: null,
     resolvedFactId: null,
+    factNeedId: null,
     answers: [],
     createdAt: new Date("2026-10-13T10:00:00Z"),
     resolvedAt: null,
@@ -109,6 +118,57 @@ describe("AssessmentHumanRequestSupport read projection", () => {
         criterionIds: ["CRIT-1", "CRIT-2"],
       },
     ]);
+  });
+
+  it("projects a linked FactNeed without changing its canonical identity", async () => {
+    const factNeed: AssessmentFactNeed = {
+      factNeedId: "33333333-3333-4333-8333-333333333333",
+      assessmentId: canonicalRow.assessmentId,
+      tenantOwnerId: "customer-owner",
+      identityDigest: `sha256:${"a".repeat(64)}`,
+      subjectKind: AssessmentFactNeedSubjectKind.DEPLOYMENT,
+      subjectKey: "chatbot.production",
+      predicate: "operator.legal_entity",
+      operationalScope: "customer_support",
+      environment: AssessmentFactNeedEnvironment.PRODUCTION,
+      deploymentKey: "prod.eu.1",
+      timeframeKind: AssessmentFactNeedTimeframeKind.CURRENT,
+      timeframeFrom: null,
+      timeframeTo: null,
+      valueKind: AssessmentFactNeedValueKind.TEXT,
+      valueSchemaVersion: "legal_entity.v1",
+      allowedValues: [],
+      sourceInvestigationAttempts: ["Inspected deployment configuration."],
+      acceptedEvidenceIds: [],
+      investigatedRangeIds: [`sha256:${"b".repeat(64)}`],
+      status: AssessmentFactNeedStatus.OPEN,
+      resolvedFactId: null,
+      createdAt: new Date("2026-11-16T00:00:00.000Z"),
+      updatedAt: new Date("2026-11-16T00:00:00.000Z"),
+      resolvedAt: null,
+      supersededAt: null,
+    };
+
+    const view = await service.view({
+      ...canonicalRow,
+      factNeedId: factNeed.factNeedId,
+      factNeed,
+    });
+
+    expect(view.factNeed).toMatchObject({
+      factNeedId: factNeed.factNeedId,
+      identityDigest: factNeed.identityDigest,
+      subject: {
+        kind: AssessmentFactNeedSubjectKind.DEPLOYMENT,
+        key: "chatbot.production",
+      },
+      environment: {
+        kind: AssessmentFactNeedEnvironment.PRODUCTION,
+        deploymentKey: "prod.eu.1",
+      },
+      status: AssessmentFactNeedStatus.OPEN,
+      resolvedFactId: null,
+    });
   });
 
   it("preserves canonical English fields when reading with en or null locale", async () => {

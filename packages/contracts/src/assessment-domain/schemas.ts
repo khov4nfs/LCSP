@@ -50,6 +50,7 @@ import {
 } from "./constants.ts";
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
 import { assessmentBudgetStateSchema } from "./budget.ts";
+import { factNeedInputSchema, factNeedViewSchema } from "./fact-needs.ts";
 import {
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_NAME_MAX_LENGTH,
@@ -257,6 +258,7 @@ export const openAssessmentHumanRequestSchema =
       .max(100)
       .optional(),
     sourceRequestId: uuidSchema.optional(),
+    factNeed: factNeedInputSchema.optional(),
   });
 export type OpenAssessmentHumanRequest = z.infer<
   typeof openAssessmentHumanRequestSchema
@@ -265,6 +267,7 @@ export const openAssessmentHumanRequestResultSchema = z.strictObject({
   requestId: uuidSchema,
   caseRevision: revisionSchema,
   requestRevision: revisionSchema,
+  factNeedId: uuidSchema.nullable().optional(),
 });
 export type OpenAssessmentHumanRequestResult = z.infer<
   typeof openAssessmentHumanRequestResultSchema
@@ -355,6 +358,7 @@ export const assessmentHumanRequestViewSchema = z.strictObject({
   resolvedFactId: uuidSchema.nullable(),
   answers: z.array(humanAnswerAuditSchema),
   dependencies: z.array(assessmentHumanRequestDependencySchema).default([]),
+  factNeed: factNeedViewSchema.nullable().optional(),
 });
 export type AssessmentHumanRequestView = z.infer<
   typeof assessmentHumanRequestViewSchema

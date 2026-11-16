@@ -195,6 +195,7 @@ model User {
   billingReservations       BillingReservation[]
   llmUsageEvents            LlmUsageEvent[]
   paymentTransactions       PaymentTransaction[]
+  assessmentFactNeeds       AssessmentFactNeed[]          @relation("AssessmentFactNeedTenantOwner")
 
   @@index([accessStatus, role, createdAt, id])
 }
@@ -1972,6 +1973,50 @@ enum AssessmentRecordState {
   INVALIDATED
 }
 
+enum AssessmentFactNeedSubjectKind {
+  ORGANIZATION
+  DEPLOYMENT
+  AI_SYSTEM
+  USE_CASE
+  MODEL
+  DATASET
+  CONTROL
+  OTHER
+}
+
+enum AssessmentFactNeedEnvironment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+  TEST
+  ALL
+  UNKNOWN
+}
+
+enum AssessmentFactNeedTimeframeKind {
+  CURRENT
+  AT_TIME
+  RANGE
+  ALL_TIME
+}
+
+enum AssessmentFactNeedValueKind {
+  TEXT
+  BOOLEAN
+  INTEGER
+  NUMBER
+  DATE
+  DATE_TIME
+  ENUM
+  JSON
+}
+
+enum AssessmentFactNeedStatus {
+  OPEN
+  RESOLVED
+  SUPERSEDED
+}
+
 enum AssessmentFactKind {
   FACT
   USE_CASE
@@ -2041,6 +2086,7 @@ model AssessmentCase {
   artifacts            AssessmentArtifact[]
   auditRequests        AssessmentRuleAuditRequest[]
   repositoryDiscoveries AssessmentRepositoryDiscovery[]
+  factNeeds             AssessmentFactNeed[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
   @@unique([assessmentId, ruleSetVersionId])
@@ -2179,10 +2225,51 @@ model AssessmentCaseFact {
   invalidatedAt  DateTime?                    @db.Timestamptz(3)
   assessmentCase AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   evidenceLinks  AssessmentCaseFactEvidence[]
+  resolvedFactNeeds AssessmentFactNeed[]
 
   // Every accepted fact is exactly one case revision.
   @@unique([assessmentId, caseRevision])
   @@unique([factId, assessmentId])
+}
+
+/// Canonical semantic identity for one material operational fact missing from an assessment.
+/// Historical human requests remain valid without a FactNeed link; new typed requests may reuse
+/// one need across wording, locale and rule dependencies while assessment/entity/scope/time stay exact.
+model AssessmentFactNeed {
+  factNeedId                  String                           @id @db.Uuid
+  assessmentId                String
+  tenantOwnerId               String
+  identityDigest              String
+  subjectKind                 AssessmentFactNeedSubjectKind
+  subjectKey                  String
+  predicate                   String
+  operationalScope            String
+  environment                 AssessmentFactNeedEnvironment
+  deploymentKey               String?
+  timeframeKind               AssessmentFactNeedTimeframeKind
+  timeframeFrom               DateTime?                        @db.Timestamptz(3)
+  timeframeTo                 DateTime?                        @db.Timestamptz(3)
+  valueKind                   AssessmentFactNeedValueKind
+  valueSchemaVersion          String
+  allowedValues               Json
+  sourceInvestigationAttempts Json
+  acceptedEvidenceIds         Json
+  investigatedRangeIds        Json
+  status                      AssessmentFactNeedStatus         @default(OPEN)
+  resolvedFactId              String?                          @db.Uuid
+  createdAt                   DateTime                         @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                         @updatedAt @db.Timestamptz(3)
+  resolvedAt                  DateTime?                        @db.Timestamptz(3)
+  supersededAt                DateTime?                        @db.Timestamptz(3)
+  assessmentCase              AssessmentCase                  @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  tenantOwner                 User                            @relation("AssessmentFactNeedTenantOwner", fields: [tenantOwnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  resolvedFact                AssessmentCaseFact?             @relation(fields: [resolvedFactId, assessmentId], references: [factId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  humanRequest                AssessmentHumanRequest?
+
+  @@unique([factNeedId, assessmentId])
+  @@unique([assessmentId, identityDigest])
+  @@index([assessmentId, status])
+  @@index([tenantOwnerId, assessmentId])
 }
 
 model AssessmentCaseFactEvidence {
@@ -2269,6 +2356,7 @@ model AssessmentHumanRequest {
   choices            Json
   answers            Json                         @default("[]")
   resolvedFactId     String?                      @db.Uuid
+  factNeedId         String?                      @db.Uuid
   requestRevision    Int                          @default(0)
   idempotencyKey     String?
   requestDigest      String?
@@ -2280,9 +2368,11 @@ model AssessmentHumanRequest {
 
   dependencies       AssessmentHumanRequestDependency[]
   registrations      AssessmentHumanRequestRegistration[]
+  factNeed           AssessmentFactNeed?          @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([requestId, assessmentId])
   @@unique([assessmentId, idempotencyKey])
+  @@unique([factNeedId, assessmentId])
   @@index([assessmentId, status])
 }
 
