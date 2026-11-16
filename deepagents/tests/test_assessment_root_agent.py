@@ -181,6 +181,16 @@ class FakeClient:
             "replayed": False,
         }
 
+    def post_repository_discovery_expansion(
+        self, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        self.calls.append(("discovery_expansion", body))
+        return {
+            "expansionId": "77777777-7777-4777-8777-777777777777",
+            "idempotencyKey": body["idempotencyKey"],
+            "replayed": False,
+        }
+
     def rule_set(self) -> dict[str, Any]:
         self.calls.append(("rule_set", None))
         if self.rule_set_override is not None:
@@ -577,6 +587,78 @@ def test_repository_discovery_pages_are_reused_as_non_authoritative_priorities(t
         "discovery_details",
         ("7bf9ef1d-5666-4f44-b340-4d7e5b597ed5", "KNOWN_GAPS", 0, 5),
     ) in client.calls
+
+
+def test_repository_discovery_expansion_is_runtime_traced_redacted_and_non_consuming(
+    tmp_path,
+) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+    raw_query = "customer-secret-notice"
+    run.trace.on_tool_start(
+        {"name": "grep"},
+        "",
+        run_id="expanded-search",
+        inputs={"pattern": raw_query, "path": "/src"},
+    )
+    run.trace.on_tool_end(
+        '{"results":[{"path":"src/retention.py"}],"hasMore":true}',
+        run_id="expanded-search",
+    )
+
+    result = json.loads(
+        tools["record_repository_discovery_expansion"].invoke(
+            {
+                "record_id": "7bf9ef1d-5666-4f44-b340-4d7e5b597ed5",
+                "content_digest": "sha256:" + "1" * 64,
+                "reason_code": "COUNTER_EVIDENCE_SEARCH",
+                "reason": "The ranked ranges did not cover the contradictory path.",
+                "assessment_rule_ids": ["ER-1"],
+                "priority_range_ids": ["range-1"],
+            }
+        )
+    )
+
+    assert result["ok"] is True
+    body = next(body for kind, body in client.calls if kind == "discovery_expansion")
+    assert body["trace"]["queries"] == [
+        {
+            "tool": "GREP",
+            "queryDigest": "sha256:"
+            + hashlib.sha256(raw_query.encode("utf-8")).hexdigest(),
+            "resultCount": 1,
+            "truncated": True,
+            "failed": False,
+        }
+    ]
+    assert body["trace"]["inspectedPaths"] == ["src"]
+    assert raw_query not in json.dumps(body)
+    assert body["idempotencyKey"].startswith("discovery-expansion:")
+
+    coverage = json.loads(tools["record_search_coverage"].invoke({}))
+    assert coverage["ok"] is True
+    coverage_body = next(body for kind, body in client.calls if kind == "evidence")
+    assert coverage_body["queries"][0]["query"] == raw_query
+
+
+def test_repository_discovery_expansion_rejects_untraced_model_claims(tmp_path) -> None:
+    client = FakeClient()
+    tools = _tools(_run(tmp_path, client))
+
+    result = json.loads(
+        tools["record_repository_discovery_expansion"].invoke(
+            {
+                "record_id": "7bf9ef1d-5666-4f44-b340-4d7e5b597ed5",
+                "content_digest": "sha256:" + "1" * 64,
+                "reason_code": "MISSING_SUPPORT",
+                "reason": "The model says it searched another path.",
+            }
+        )
+    )
+
+    assert result["code"] == "NO_SEARCH_ACTIVITY"
+    assert not any(kind == "discovery_expansion" for kind, _ in client.calls)
 
 
 # ---- the agent graph ------------------------------------------------------------------------------

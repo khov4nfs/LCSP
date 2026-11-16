@@ -2,11 +2,14 @@ import { randomUUID } from "node:crypto";
 
 import {
   DISCOVERY_DETAIL_COLLECTIONS,
+  DISCOVERY_EXPANSION_REASONS,
+  DISCOVERY_EXPANSION_TRACE_TOOLS,
   REPOSITORY_DISCOVERY_VERSIONS,
   REPOSITORY_SCANNER_VERSIONS,
   computeRepositoryDiscoveryCacheIdentity,
   computeRepositoryDiscoveryDigest,
   type RepositoryDiscoveryDetailPage,
+  type RepositoryDiscoveryExpansionResult,
   type RepositoryDiscoveryRangePage,
   type RepositoryDiscoverySaveResult,
   type RepositoryDiscoverySummary,
@@ -110,9 +113,20 @@ describe("AssessmentRepositoryDiscoveryController", () => {
       items: [],
     }),
   );
+  const recordExpansion = jest.fn<
+    AssessmentRepositoryDiscoveryService["recordExpansion"]
+  >((input): Promise<RepositoryDiscoveryExpansionResult> =>
+    Promise.resolve({
+      expansionId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      recordId: input.expansion.recordId,
+      replayed: false,
+      createdAt: "2026-11-16T12:00:00.000Z",
+    }),
+  );
 
   const controller = new AssessmentRepositoryDiscoveryController({
     save,
+    recordExpansion,
     getSummary,
     getRangePage,
     getDetailPage,
@@ -167,5 +181,48 @@ describe("AssessmentRepositoryDiscoveryController", () => {
       ok: true,
       data: { available: false, discovery: null },
     });
+  });
+
+  it("forwards a strict expansion audit through the success envelope", async () => {
+    const assessmentId = randomUUID();
+    const leaseToken = randomUUID();
+    const body = {
+      recordId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      contentDigest: sha("1"),
+      reasonCode: DISCOVERY_EXPANSION_REASONS.missingSupport,
+      reason: "Selected rule support was not present in ranked ranges.",
+      assessmentRuleIds: ["RULE-1"],
+      priorityRangeIds: [],
+      trace: {
+        queries: [
+          {
+            tool: DISCOVERY_EXPANSION_TRACE_TOOLS.grep,
+            queryDigest: sha("2"),
+            resultCount: 1,
+            truncated: false,
+            failed: false,
+          },
+        ],
+        inspectedPaths: ["apps/api"],
+        droppedTraceCount: 0,
+        knownGaps: [],
+      },
+      idempotencyKey: `discovery-expansion:${"d".repeat(64)}`,
+    };
+
+    const response = await controller.recordExpansion(
+      assessmentId,
+      leaseToken,
+      body,
+      request,
+    );
+
+    expect(response).toMatchObject({
+      ok: true,
+      data: { recordId: body.recordId, replayed: false },
+    });
+    expect(recordExpansion).toHaveBeenCalledWith(
+      expect.objectContaining({ assessmentId, leaseToken, expansion: body }),
+    );
   });
 });

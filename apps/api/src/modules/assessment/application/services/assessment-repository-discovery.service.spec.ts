@@ -5,6 +5,8 @@ import {
   DISCOVERY_EVIDENCE_STRENGTHS,
   DISCOVERY_DETAIL_COLLECTIONS,
   DISCOVERY_EXPANSION_STATES,
+  DISCOVERY_EXPANSION_REASONS,
+  DISCOVERY_EXPANSION_TRACE_TOOLS,
   DISCOVERY_OBSERVATION_STATUSES,
   DISCOVERY_REACHABILITY_STATES,
   DISCOVERY_RULE_CANDIDATE_STATES,
@@ -176,6 +178,22 @@ function fixture(
   } = {},
 ) {
   const rows = new Map<string, StoredDiscoveryRow>();
+  const expansionRows = new Map<
+    string,
+    {
+      expansionId: string;
+      assessmentId: string;
+      repositoryDiscoveryId: string;
+      discoveryContentDigest: string;
+      reasonCode: string;
+      reason: string;
+      assessmentRuleIds: unknown;
+      priorityRangeIds: unknown;
+      trace: unknown;
+      idempotencyKey: string;
+      createdAt: Date;
+    }
+  >();
   let latest: StoredDiscoveryRow | null = null;
   const tx = {
     assessmentRule: {
@@ -231,6 +249,61 @@ function fixture(
         return Promise.resolve(latest);
       }),
     },
+    assessmentRepositoryDiscoveryExpansion: {
+      createMany: jest.fn(
+        ({ data }: { data: Array<Record<string, unknown>> }) => {
+          const item = data[0];
+          if (!item) return Promise.resolve({ count: 0 });
+          const key = `${String(item.assessmentId)}|${String(item.idempotencyKey)}`;
+          if (expansionRows.has(key)) return Promise.resolve({ count: 0 });
+          expansionRows.set(key, {
+            expansionId: String(item.expansionId),
+            assessmentId: String(item.assessmentId),
+            repositoryDiscoveryId: String(item.repositoryDiscoveryId),
+            discoveryContentDigest: String(item.discoveryContentDigest),
+            reasonCode: String(item.reasonCode),
+            reason: String(item.reason),
+            assessmentRuleIds: item.assessmentRuleIds,
+            priorityRangeIds: item.priorityRangeIds,
+            trace: item.trace,
+            idempotencyKey: String(item.idempotencyKey),
+            createdAt: new Date("2026-11-16T12:00:00.000Z"),
+          });
+          return Promise.resolve({ count: 1 });
+        },
+      ),
+      findUnique: jest.fn(
+        ({
+          where,
+        }: {
+          where: {
+            assessmentId_idempotencyKey: {
+              assessmentId: string;
+              idempotencyKey: string;
+            };
+          };
+        }) =>
+          Promise.resolve(
+            expansionRows.get(
+              `${where.assessmentId_idempotencyKey.assessmentId}|${where.assessmentId_idempotencyKey.idempotencyKey}`,
+            ) ?? null,
+          ),
+      ),
+      count: jest.fn(
+        ({
+          where,
+        }: {
+          where: { assessmentId: string; repositoryDiscoveryId: string };
+        }) =>
+          Promise.resolve(
+            [...expansionRows.values()].filter(
+              (row) =>
+                row.assessmentId === where.assessmentId &&
+                row.repositoryDiscoveryId === where.repositoryDiscoveryId,
+            ).length,
+          ),
+      ),
+    },
   };
   const prisma = {
     $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) =>
@@ -242,7 +315,17 @@ function fixture(
       Promise.resolve({ executionId: randomUUID() }),
     ),
   };
-  const support = { loadPins: jest.fn(() => Promise.resolve(pins)) };
+  const support = {
+    loadPins: jest.fn(() => Promise.resolve(pins)),
+    requireCoverage: jest.fn(
+      (_tx: unknown, _assessmentId: string, assessmentRuleId: string) => {
+        if (assessmentRuleId === "FOREIGN-RULE") {
+          return Promise.reject(new Error("rule is outside audit coverage"));
+        }
+        return Promise.resolve({ assessmentRuleId });
+      },
+    ),
+  };
   const service = new AssessmentRepositoryDiscoveryService(
     prisma as never,
     authority as never,
@@ -254,9 +337,36 @@ function fixture(
     authority,
     support,
     rows,
+    expansionRows,
     setLatest: (row: StoredDiscoveryRow) => {
       latest = row;
     },
+  };
+}
+
+function expansion(recordId: string, contentDigest: string) {
+  return {
+    recordId,
+    contentDigest,
+    reasonCode: DISCOVERY_EXPANSION_REASONS.incompleteCallChain,
+    reason: "The ranked call site did not resolve its production entry path.",
+    assessmentRuleIds: ["AI-PROVIDER-1"],
+    priorityRangeIds: [sha("3")],
+    trace: {
+      queries: [
+        {
+          tool: DISCOVERY_EXPANSION_TRACE_TOOLS.traceCallPath,
+          queryDigest: sha("9"),
+          resultCount: 2,
+          truncated: false,
+          failed: false,
+        },
+      ],
+      inspectedPaths: ["apps/api"],
+      droppedTraceCount: 0,
+      knownGaps: ["Dependency injection remains unresolved."],
+    },
+    idempotencyKey: `discovery-expansion:${"d".repeat(64)}`,
   };
 }
 
@@ -322,6 +432,122 @@ describe("AssessmentRepositoryDiscoveryService", () => {
     expect(latest.discovery?.recordId).toBe(secondReceipt.recordId);
     expect(latest.discovery?.contentDigest).toBe(secondReceipt.contentDigest);
     expect(secondReceipt.contentDigest).not.toBe(second.contentDigest);
+  });
+
+  it("records one immutable expansion event and replays its idempotency key", async () => {
+    const { service, expansionRows } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-expansion",
+      discovery: discovery(),
+    });
+    const body = expansion(receipt.recordId, receipt.contentDigest);
+
+    const first = await service.recordExpansion({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-1",
+      expansion: body,
+    });
+    const replay = await service.recordExpansion({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-2",
+      expansion: body,
+    });
+    const summary = await service.getSummary({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-summary",
+    });
+
+    expect(first.replayed).toBe(false);
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect(expansionRows.size).toBe(1);
+    expect(summary.discovery?.expansionCount).toBe(1);
+  });
+
+  it("rejects expansion priority ranges outside the immutable discovery", async () => {
+    const { service, expansionRows } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-foreign-range",
+      discovery: discovery(),
+    });
+
+    await expect(
+      service.recordExpansion({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-foreign-range",
+        expansion: {
+          ...expansion(receipt.recordId, receipt.contentDigest),
+          priorityRangeIds: [sha("f")],
+        },
+      }),
+    ).rejects.toThrow();
+    expect(expansionRows.size).toBe(0);
+  });
+
+  it("rejects expansion rule IDs outside current audit coverage", async () => {
+    const { service, expansionRows, support } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-foreign-rule",
+      discovery: discovery(),
+    });
+
+    await expect(
+      service.recordExpansion({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-foreign-rule",
+        expansion: {
+          ...expansion(receipt.recordId, receipt.contentDigest),
+          assessmentRuleIds: ["FOREIGN-RULE"],
+        },
+      }),
+    ).rejects.toThrow();
+    expect(support.requireCoverage).toHaveBeenCalledWith(
+      expect.anything(),
+      assessmentId,
+      "FOREIGN-RULE",
+      "corr-foreign-rule",
+    );
+    expect(expansionRows.size).toBe(0);
+  });
+
+  it("rejects an idempotency key replay with a different semantic event", async () => {
+    const { service, expansionRows } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-expansion-conflict",
+      discovery: discovery(),
+    });
+    const original = expansion(receipt.recordId, receipt.contentDigest);
+    await service.recordExpansion({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-original",
+      expansion: original,
+    });
+
+    await expect(
+      service.recordExpansion({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-expansion-conflict",
+        expansion: {
+          ...original,
+          reason: "A different reason must not inherit the original receipt.",
+        },
+      }),
+    ).rejects.toThrow();
+    expect(expansionRows.size).toBe(1);
   });
 
   it("rejects tampered content and server-owned repository pin mismatches", async () => {

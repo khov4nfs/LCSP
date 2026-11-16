@@ -7,6 +7,8 @@ import {
   REPOSITORY_SCANNER_VERSIONS,
   computeRepositoryDiscoveryCacheIdentity,
   computeRepositoryDiscoveryDigest,
+  repositoryDiscoveryExpansionRequestSchema,
+  repositoryDiscoveryExpansionResultSchema,
   repositoryDiscoveryRangePageSchema,
   repositoryDiscoveryDetailPageSchema,
   repositoryDiscoverySaveResultSchema,
@@ -14,6 +16,8 @@ import {
   repositoryDiscoverySummarySchema,
   submitRepositoryDiscoverySchema,
   type RepositoryDiscovery,
+  type RepositoryDiscoveryExpansionRequest,
+  type RepositoryDiscoveryExpansionResult,
   type RepositoryDiscoveryRangePage,
   type RepositoryDiscoveryDetailPage,
   type RepositoryDiscoveryDetailPageQuery,
@@ -30,6 +34,7 @@ import {
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { canonicalJson } from "../../domain/domain-ids.js";
 import {
   AssessmentCaseSupport,
   type PinnedCase,
@@ -208,6 +213,166 @@ export class AssessmentRepositoryDiscoveryService {
   }
 
   /**
+   * Business purpose: Append an immutable audit event explaining why investigation expanded beyond ranked discovery priorities.
+   *
+   * Business rules:
+   * - A live Root lease and exact current discovery record/digest authorize the event.
+   * - Rule IDs must belong to the current authorized audit coverage and priority range IDs must belong to that immutable discovery.
+   * - Trace queries are runtime-derived bounded metadata, not evidence.
+   * - Expansion never changes the discovery payload, grants audit scope, or confirms production reachability.
+   * - The assessment-scoped idempotency key makes an exact retry return the original event.
+   *
+   * Execution flow:
+   * 1. Validate the strict expansion packet and authorize the lease in a transaction.
+   * 2. Load the exact current-pin discovery and revalidate its complete integrity contract.
+   * 3. Reject foreign priority ranges, append the immutable event conflict-safely, and reload it.
+   * 4. Return the stable event identity, creation time, and replay status.
+   *
+   * Failure cases:
+   * - Malformed packets, stale/foreign discovery coordinates, unknown ranges, conflicting idempotent replays, or missing post-insert rows reject without partial writes.
+   *
+   * Side effects:
+   * - May append one AssessmentRepositoryDiscoveryExpansion row; valid replays and all discovery data remain read-only.
+   */
+  async recordExpansion(input: {
+    assessmentId: string;
+    leaseToken: string;
+    correlationId: string;
+    expansion: RepositoryDiscoveryExpansionRequest;
+  }): Promise<RepositoryDiscoveryExpansionResult> {
+    const parsed = repositoryDiscoveryExpansionRequestSchema.safeParse(
+      input.expansion,
+    );
+    if (!parsed.success) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    const expansion = parsed.data;
+    return this.prisma.$transaction(async (tx) => {
+      await this.authority.authorizeInTx(tx, {
+        assessmentId: input.assessmentId,
+        leaseToken: input.leaseToken,
+        correlationId: input.correlationId,
+        requireActive: false,
+      });
+      const pins = await this.support.loadPins(
+        tx,
+        input.assessmentId,
+        input.correlationId,
+      );
+      const discoveryRow = await tx.assessmentRepositoryDiscovery.findFirst({
+        where: {
+          recordId: expansion.recordId,
+          contentDigest: expansion.contentDigest,
+          ...this.currentPinWhere(input.assessmentId, pins),
+        },
+      });
+      if (!discoveryRow) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_NOT_FOUND,
+          input.correlationId,
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+      const discovery = this.parseVerifiedRow(
+        discoveryRow,
+        pins,
+        input.correlationId,
+      );
+      await Promise.all(
+        [...new Set(expansion.assessmentRuleIds)].map((assessmentRuleId) =>
+          this.support.requireCoverage(
+            tx,
+            input.assessmentId,
+            assessmentRuleId,
+            input.correlationId,
+          ),
+        ),
+      );
+      const rangeIds = new Set(
+        discovery.sourceRanges.map((sourceRange) => sourceRange.rangeId),
+      );
+      if (
+        expansion.priorityRangeIds.some((rangeId) => !rangeIds.has(rangeId))
+      ) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+          input.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
+
+      const inserted =
+        await tx.assessmentRepositoryDiscoveryExpansion.createMany({
+          data: [
+            {
+              expansionId: randomUUID(),
+              assessmentId: input.assessmentId,
+              repositoryDiscoveryId: discoveryRow.recordId,
+              discoveryContentDigest: discoveryRow.contentDigest,
+              reasonCode: expansion.reasonCode,
+              reason: expansion.reason,
+              assessmentRuleIds: expansion.assessmentRuleIds,
+              priorityRangeIds: expansion.priorityRangeIds,
+              trace: expansion.trace,
+              idempotencyKey: expansion.idempotencyKey,
+            },
+          ],
+          skipDuplicates: true,
+        });
+      const row = await tx.assessmentRepositoryDiscoveryExpansion.findUnique({
+        where: {
+          assessmentId_idempotencyKey: {
+            assessmentId: input.assessmentId,
+            idempotencyKey: expansion.idempotencyKey,
+          },
+        },
+      });
+      if (!row) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+          input.correlationId,
+          { status: HttpStatus.INTERNAL_SERVER_ERROR },
+        );
+      }
+      const requestedEvent = {
+        repositoryDiscoveryId: discoveryRow.recordId,
+        discoveryContentDigest: discoveryRow.contentDigest,
+        reasonCode: expansion.reasonCode,
+        reason: expansion.reason,
+        assessmentRuleIds: expansion.assessmentRuleIds,
+        priorityRangeIds: expansion.priorityRangeIds,
+        trace: expansion.trace,
+      };
+      const storedEvent = {
+        repositoryDiscoveryId: row.repositoryDiscoveryId,
+        discoveryContentDigest: row.discoveryContentDigest,
+        reasonCode: row.reasonCode,
+        reason: row.reason,
+        assessmentRuleIds: row.assessmentRuleIds,
+        priorityRangeIds: row.priorityRangeIds,
+        trace: row.trace,
+      };
+      if (canonicalJson(storedEvent) !== canonicalJson(requestedEvent)) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.IDEMPOTENCY_CONFLICT,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      return repositoryDiscoveryExpansionResultSchema.parse({
+        expansionId: row.expansionId,
+        recordId: row.repositoryDiscoveryId,
+        replayed: inserted.count === 0,
+        createdAt: row.createdAt.toISOString(),
+      });
+    });
+  }
+
+  /**
    * Business purpose: Give the leased Root a bounded summary of the newest discovery matching its current repository pins.
    *
    * Business rules:
@@ -219,7 +384,7 @@ export class AssessmentRepositoryDiscoveryService {
    * 1. Authorize the lease and load current pins.
    * 2. Select the newest immutable artifact for the exact assessment/snapshot/repository/commit/scope/version coordinates.
    * 3. Revalidate persisted schema, digest, cache identity and row metadata.
-   * 4. Return counts and resource coverage only, without source ranges or the full payload.
+   * 4. Count immutable expansion events and return bounded counts/resource coverage without the full payload.
    *
    * Failure cases:
    * - Invalid leases or pins reject; malformed/tampered persisted data fails integrity validation.
@@ -253,6 +418,13 @@ export class AssessmentRepositoryDiscoveryService {
         });
       }
       const discovery = this.parseVerifiedRow(row, pins, input.correlationId);
+      const durableExpansionCount =
+        await tx.assessmentRepositoryDiscoveryExpansion.count({
+          where: {
+            assessmentId: input.assessmentId,
+            repositoryDiscoveryId: row.recordId,
+          },
+        });
       return repositoryDiscoverySummarySchema.parse({
         available: true,
         discovery: {
@@ -277,7 +449,9 @@ export class AssessmentRepositoryDiscoveryService {
           resourceUsage: discovery.resourceLedger.usage,
           remainingBudget: discovery.resourceLedger.remaining,
           coverageImpact: discovery.resourceLedger.coverageImpact,
-          expansionCount: discovery.resourceLedger.expansionHistory.length,
+          expansionCount:
+            discovery.resourceLedger.expansionHistory.length +
+            durableExpansionCount,
           preview: {
             ranges: discovery.sourceRanges.slice(0, 5).map((range) => ({
               rangeId: range.rangeId,
