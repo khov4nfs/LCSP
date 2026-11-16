@@ -419,6 +419,94 @@ def test_discovery_finds_direct_sdk_raw_http_and_nearby_controls(tmp_path: Path)
     assert all(item["reachability"] == "NOT_ESTABLISHED" for item in discovery["sourceRanges"])
 
 
+def test_discovery_finds_custom_ai_gateway_http_without_sdk(tmp_path: Path) -> None:
+    (tmp_path / "gateway.ts").write_text(
+        "export async function complete(prompt: string) {\n"
+        "  return fetch(process.env.AI_GATEWAY_URL + '/v1/chat/completions', {\n"
+        "    method: 'POST', body: JSON.stringify({ prompt })\n"
+        "  });\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-custom-ai-gateway",
+        commit_sha="a" * 40,
+    )
+
+    invocation = next(
+        item
+        for item in discovery["sourceRanges"]
+        if item["signalType"] == "RAW_AI_HTTP_CALL"
+    )
+    assert invocation["path"] == "gateway.ts"
+    assert invocation["reachability"] == "NOT_ESTABLISHED"
+    assert invocation["evidenceStrength"] == "DIRECT_SOURCE"
+    assert len(discovery["aiUseCases"]) == 1
+    assert discovery["aiUseCases"][0]["providerOrFramework"] is None
+    assert discovery["unresolvedCalls"]
+    assert all("gateway.ts" in item for item in discovery["unresolvedCalls"])
+
+
+def test_discovery_does_not_treat_generic_http_post_as_ai_use(tmp_path: Path) -> None:
+    (tmp_path / "billing.ts").write_text(
+        "export async function charge(payload) {\n"
+        "  return fetch('/v1/payments', { method: 'POST', body: JSON.stringify(payload) });\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-generic-http",
+        commit_sha="b" * 40,
+    )
+
+    assert discovery["aiUseCases"] == []
+    assert all(
+        item["signalType"] != "RAW_AI_HTTP_CALL"
+        for item in discovery["sourceRanges"]
+    )
+
+
+def test_discovery_keeps_independent_rule_controls_without_ai_overclaim(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "retention.ts").write_text(
+        "export const purgeExpired = (records) => records.filter(byRetentionDeadline);\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "access.ts").write_text(
+        "export const allowed = (actor, resource) => rbac.authorize(actor, resource);\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "audit.ts").write_text(
+        "export const recordEvent = (event) => audit.log(event);\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-independent-controls",
+        commit_sha="c" * 40,
+    )
+
+    controls = [
+        item for item in discovery["sourceRanges"] if item["signalType"] == "CONTROL"
+    ]
+    assert {item["path"] for item in controls} == {
+        "access.ts",
+        "audit.ts",
+        "retention.ts",
+    }
+    assert discovery["aiUseCases"] == []
+    assert all(item["technologyRelevance"] == ["RELATED_LOGIC"] for item in controls)
+    assert all(item["evidenceStrength"] == "HEURISTIC" for item in controls)
+    assert all(item["observationStatus"] == "CANDIDATE_FINDING" for item in controls)
+    assert all("not proof of AI use or compliance" in item["explanation"] for item in controls)
+
+
 def test_discovery_reuses_codebase_memory_call_edges_without_claiming_reachability(
     tmp_path: Path,
 ) -> None:
