@@ -4,3 +4,4 @@ export * from "./constants.ts";
 export * from "./events.ts";
 export * from "./types.ts";
 export * from "./agentic-runtime.ts";
+export * from "./decision-dependencies.ts";

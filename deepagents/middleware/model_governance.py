@@ -444,7 +444,7 @@ def governed_summarization_middleware(model, *, backend, role: str,
     1. Construct the standard summarization middleware for the requested model and backend.
     2. Verify that its internal helper exposes _summary_model.
     3. Replace that model with a governed runnable carrying the caller's instructions, role and SUMMARIZATION operation.
-    4. Return the configured middleware.
+    4. Apply the role's working-context policy and return the configured middleware.
 
     Failure cases:
     - Raise RuntimeError when the framework integration point is absent so summaries cannot silently bypass governance.
@@ -469,7 +469,8 @@ def governed_summarization_middleware(model, *, backend, role: str,
         system_prompt=system_prompt,
         receipt_context=receipt_context, receipt_sink=receipt_sink,
     )
-    return middleware
+    from middleware.working_context_policy import apply_working_context_policy
+    return apply_working_context_policy(middleware, role=role, model=model)
 
 
 

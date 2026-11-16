@@ -1,3 +1,4 @@
+import { legalApplicabilityLogicSchema } from "./applicability-logic.ts";
 import { z } from "zod";
 import { LEGAL_OPERATIVE_MODALITIES, LEGAL_APPLICABILITY_MODES } from "./constants.ts";
 import { LEGAL_ASSESSABILITIES, legalEffectSchema } from "./semantic-support.ts";
@@ -45,6 +46,7 @@ export const directRuleSetCandidateSchema = z.strictObject({
   applicability: z.strictObject({
     mode: z.enum(LEGAL_APPLICABILITY_MODES),
     conditions: z.array(directLegalFindingSchema).max(64),
+    logic: legalApplicabilityLogicSchema.optional().describe("Source-authored ALL/ANY connector and required condition indices. Omit rather than guess when the source expression cannot be represented."),
   }).refine(
     (v) => v.mode === LEGAL_APPLICABILITY_MODES.UNCONDITIONAL
       ? v.conditions.length === 0 : v.conditions.length > 0,

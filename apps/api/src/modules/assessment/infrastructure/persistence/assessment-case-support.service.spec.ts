@@ -5,6 +5,9 @@ import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_REFERENCE_TYPES,
   ruleDecisionSchema,
+  RULE_DECISION_BASIS_KINDS,
+  RULE_DECISION_BASIS_FINDINGS,
+  APPLICABILITY_CONDITION_LOGIC,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_SCOPE,
@@ -12,11 +15,115 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_RECORD_STATES,
   ASSESSMENT_EVIDENCE_TYPES,
+  DECISION_VALIDATION_FAILURE_CODES,
 } from "@lcsp/contracts/assessment-domain";
 
 import { AssessmentCaseSupport } from "./assessment-case-support.service.js";
+import { validateRuleDecision } from "../../domain/decision-validator.js";
 
 describe("AssessmentCaseSupport decision provenance", () => {
+  it.each([
+    APPLICABILITY_CONDITION_LOGIC.ALL,
+    APPLICABILITY_CONDITION_LOGIC.ANY,
+    undefined,
+  ])(
+    "uses persisted connector %s for actual decision validation",
+    async (conditionLogic) => {
+      const assessmentId = randomUUID();
+      const evidenceId = randomUUID();
+      const pins = {
+        assessmentId,
+        repositoryId: "repo",
+        ruleSetVersionId: randomUUID(),
+        repositorySnapshotId: randomUUID(),
+        repositoryScanJobId: randomUUID(),
+        repositoryCommit: "a".repeat(40),
+        sourcePathPrefix: null,
+        caseRevision: 1,
+      };
+      const reference = {
+        type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+        evidenceId,
+      };
+      const decision = ruleDecisionSchema.parse({
+        ruleSetVersionId: pins.ruleSetVersionId,
+        repositorySnapshotId: pins.repositorySnapshotId,
+        repositoryCommit: pins.repositoryCommit,
+        caseRevision: 1,
+        assessmentRuleId: "ER-1",
+        assessmentRuleVersion: "v1",
+        scopeId: ASSESSMENT_DECISION_SCOPE,
+        legalContextRefs: [{ legalContextId: "LR-1" }],
+        applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
+        compliance: null,
+        criteria: [],
+        rationale: "Fixture condition refuted",
+        references: [reference],
+        applicabilityBasis: [
+          {
+            legalRequirementId: "LR-1",
+            kind: RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION,
+            index: 0,
+            finding: RULE_DECISION_BASIS_FINDINGS.REFUTED,
+            rationale: "Fixture refutation",
+            references: [reference],
+          },
+        ],
+      });
+      const tx = {
+        assessmentRule: {
+          findUnique: () =>
+            Promise.resolve({
+              assessmentRuleId: "ER-1",
+              assessmentRuleVersion: "v1",
+              criteria: [],
+              legalRequirementLinks: [
+                {
+                  legalRequirement: {
+                    id: "lr-row",
+                    legalRequirementId: "LR-1",
+                    applicabilityConditions: ["A", "B"],
+                    qualifiers: [],
+                    exceptions: [],
+                    operativePropositions: [],
+                    applicabilityLogic: conditionLogic
+                      ? { version: 1, conditionLogic }
+                      : null,
+                  },
+                },
+              ],
+            }),
+        },
+        legalRequirementContextRelation: {
+          findMany: () => Promise.resolve([]),
+        },
+        assessmentCaseFact: { findMany: () => Promise.resolve([]) },
+        assessmentEvidence: {
+          findMany: () =>
+            Promise.resolve([
+              {
+                evidenceId,
+                state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+                repositoryCommit: pins.repositoryCommit,
+                type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+                payload: {},
+              },
+            ]),
+        },
+      } as unknown as Prisma.TransactionClient;
+      const context = await new AssessmentCaseSupport().buildValidationContext(
+        tx,
+        { assessmentId, pins, decision },
+      );
+      const failures = validateRuleDecision(decision, context);
+      if (conditionLogic === APPLICABILITY_CONDITION_LOGIC.ALL)
+        expect(failures).toEqual([]);
+      else
+        expect(failures.map((failure) => failure.code)).toContain(
+          DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
+        );
+    },
+  );
   it("loads a cited fact's linked evidence under the same assessment scope", async () => {
     const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const factId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";

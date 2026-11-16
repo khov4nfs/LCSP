@@ -242,7 +242,7 @@ export interface DeclaredLegalElementCounts {
    *   Refuting one branch does not contradict APPLICABLE if an alternative branch is ESTABLISHED.
    *   NOT_APPLICABLE requires all branches to be REFUTED (or exception established / operative scope refuted).
    */
-  conditionLogic?: ApplicabilityConditionLogic | "ALL" | "ANY";
+  conditionLogic?: ApplicabilityConditionLogic;
   /**
    * Indices of conditions that are material and must not be left NOT_ESTABLISHED or omitted when asserting APPLICABLE.
    */
@@ -271,6 +271,7 @@ const ELEMENT_COUNT_KEY = {
  * - Under conjunctive ("ALL") condition logic, every required/material condition must be ESTABLISHED, and any
  *   REFUTED condition contradicts APPLICABLE while establishing NOT_APPLICABLE.
  * - NOT_ESTABLISHED alone never establishes NOT_APPLICABLE or COMPLIANT.
+ * - With no source-authored connector, unresolved conditions block a verdict; complete establishment/refutation is sufficient without inferring AND/OR.
  * Execution flow:
  * 1. Validate source addresses, bounds, and referenced findings for each applicability basis entry.
  * 2. Validate operative scopes: require all declared operative scopes to be ESTABLISHED for APPLICABLE, and refute applicability if any scope is REFUTED.
@@ -330,6 +331,21 @@ function validateApplicabilityBasis(
     const conditionCount = counts.applicabilityConditions;
     const operativeScopeCount = counts.operativeScopes ?? 0;
     const exceptionCount = counts.exceptions;
+    if (
+      counts.materialConditionIndices?.some(
+        (index) =>
+          !basis.some(
+            (entry) =>
+              entry.legalRequirementId === requirementId &&
+              entry.kind ===
+                RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION &&
+              entry.index === index &&
+              entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED,
+          ),
+      )
+    ) {
+      hasUnresolvedRequiredCondition = true;
+    }
     totalConditionCount += conditionCount;
     totalElementCount += conditionCount + exceptionCount + operativeScopeCount;
 
@@ -428,10 +444,9 @@ function validateApplicabilityBasis(
           hasUnresolvedRequiredCondition = true;
         }
       } else {
-        // Unspecified / legacy default:
-        // - Material condition indices if specified, else at least one established
-        // - Any refuted condition refutes and contradicts APPLICABLE
-        if (refutedIndices.size > 0) {
+        // Without a reviewed connector, only complete positive/negative findings
+        // establish a verdict across both conjunction and disjunction.
+        if (refutedIndices.size === conditionCount) {
           hasValidConditionRefutation = true;
           if (
             decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
@@ -452,10 +467,10 @@ function validateApplicabilityBasis(
             hasUnresolvedRequiredCondition = true;
           }
         } else {
-          if (establishedIndices.size > 0) {
+          if (establishedIndices.size === conditionCount) {
             hasValidConditionEstablishment = true;
           }
-          if (establishedIndices.size === 0) {
+          if (establishedIndices.size !== conditionCount) {
             hasUnresolvedRequiredCondition = true;
           }
         }

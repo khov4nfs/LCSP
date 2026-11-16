@@ -478,6 +478,8 @@ class DirectDraft:
             "sourceRefs": [], "nonRepositoryDuty": not is_repo_assessable,
             "coverage": {"state": "COVERED_BY_ASSESSMENT_RULES" if is_repo_assessable else "NON_ASSESSABLE", "nonAssessableReason": None if is_repo_assessable else value["nonAssessableReason"]}}
         anchors, modifiers, statements, refs = [], [], [], {}
+        if value["applicability"].get("logic") is not None:
+            row["applicabilityLogic"] = value["applicability"]["logic"]
         for key, (role, claim_type, relation) in ROLES.items():
             for index, fact in enumerate(value["applicability"]["conditions"] if key == "conditions" else value[key]):
                 claim = self._fact([candidate_id, role, index], fact, claim_type or fact["modality"], "LEGAL_NORMATIVE" if key != "definitions" else "DEFINITION", value["repositoryAssessability"] if key == "obligations" else "NON_ASSESSABLE", frame)

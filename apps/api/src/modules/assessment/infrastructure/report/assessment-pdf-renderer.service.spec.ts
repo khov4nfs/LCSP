@@ -278,6 +278,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report, { preview: true });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const mainContent = extracted.text.split(
       "Phụ lục — Bảng truy vết kỹ thuật",
@@ -319,6 +320,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const mainContent = extracted.text.split(
       "Phụ lục — Bảng truy vết kỹ thuật",
@@ -387,6 +389,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report, { preview: true, translations });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const mainContent = extracted.text.split(
       "Phụ lục — Bảng truy vết kỹ thuật",
@@ -472,6 +475,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const catalog = extracted.text
       .split("03 — DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ")[1]
@@ -502,6 +506,7 @@ describe("AssessmentPdfRenderer", () => {
     });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const main = extracted.text.split("Phụ lục — Bảng truy vết kỹ thuật")[0];
 
@@ -545,6 +550,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const catalog = extracted.text
       .split("03 — DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ")[1]
@@ -589,6 +595,7 @@ describe("AssessmentPdfRenderer", () => {
     });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const main = extracted.text.split("Phụ lục — Bảng truy vết kỹ thuật")[0];
 
@@ -615,6 +622,7 @@ describe("AssessmentPdfRenderer", () => {
     });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const explanationPage = extracted.pages.find((page) =>
       page.text.includes("Giải thích kết luận"),
@@ -640,6 +648,7 @@ describe("AssessmentPdfRenderer", () => {
     });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const main = extracted.text.split("Phụ lục — Bảng truy vết kỹ thuật")[0];
 
@@ -660,6 +669,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const mainContent = extracted.text.split(
       "Phụ lục — Bảng truy vết kỹ thuật",
@@ -682,6 +692,7 @@ describe("AssessmentPdfRenderer", () => {
     });
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     const mainContent = extracted.text.split(
       "Phụ lục — Bảng truy vết kỹ thuật",
@@ -704,6 +715,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     expect(extracted.text).toContain("Đã phát hành nội bộ");
     expect(extracted.text).toContain("Đã phát hành");
@@ -717,6 +729,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     expect(extracted.total).toBeGreaterThan(1);
     expect(extracted.text).toContain("20");
@@ -757,6 +770,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     expect(extracted.text.replace(/\s+/gu, " ")).toContain(
       "Dữ liệu được xóa sau 30 ngày (Except when a legal hold is active).",
@@ -791,6 +805,7 @@ describe("AssessmentPdfRenderer", () => {
     const bytes = await render(report);
     const parser = new PDFParse({ data: bytes });
     const extracted = await parser.getText();
+    extracted.text = extracted.text.normalize("NFC");
     await parser.destroy();
     expect(extracted.text).toContain(locator);
   });
