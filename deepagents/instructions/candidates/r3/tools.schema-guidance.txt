@@ -32,6 +32,7 @@
   "OpenHumanRequestArgs.question": "Customer-safe wording; no file paths, hashes or internal IDs.",
   "OpenHumanRequestArgs.resolution_attempts": "How you already tried to settle it from sources.",
   "OpenHumanRequestArgs.source_request_id": "Explicit existing request identity for server-validated sharing of the exact same fact.",
+  "OpenHumanRequestsBatchArgs.requests": "Batch of 1 to 20 material missing-fact questions to open atomically.",
   "ProvisionArgs.locator": "Legal address: art-33, art-34::cl-2::pt-đ, chap-IV, or chapter/iv/article/41",
   "ReadLegalSourceArgs.document_id": "documentId of a provision, as listed in the rule's legalSources.",
   "ReadLegalSourceArgs.locator": "locator of that provision.",
