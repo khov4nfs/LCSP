@@ -81,6 +81,7 @@ export const PRE_SCAN_GAP_REASONS = {
   secretRedacted: "SECRET_REDACTED",
   workspaceNotFound: "WORKSPACE_NOT_FOUND",
   workspaceNotDirectory: "WORKSPACE_NOT_DIRECTORY",
+  collectionLimitReached: "COLLECTION_LIMIT_REACHED",
 } as const;
 export type PreScanGapReason =
   (typeof PRE_SCAN_GAP_REASONS)[keyof typeof PRE_SCAN_GAP_REASONS];

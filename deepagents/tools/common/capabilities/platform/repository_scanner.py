@@ -62,6 +62,18 @@ DEFAULT_DISCOVERY_GRAPH_RESULT_LIMIT = 100
 DEFAULT_DISCOVERY_GRAPH_OUTPUT_TOKENS = 4_000
 _TMP_SCANNER_PATH = "/tmp/.lcsp_scanner.py"
 
+PROFILE_COLLECTION_LIMITS: Mapping[str, int] = {
+    "languages": 100,
+    "manifests": 500,
+    "frameworks": 500,
+    "buildSystems": 100,
+    "ciWorkflows": 200,
+    "containerization": 100,
+    "candidateFacts": 500,
+    "knownGaps": 1_000,
+}
+PROFILE_MANIFEST_DEPENDENCY_LIMIT = 5_000
+
 _DISCOVERY_PROVIDER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("OpenAI", re.compile(r"(?:from\s+['\"]openai['\"]|import\s+OpenAI|from\s+openai\s+import|openai\.)", re.I)),
     ("Anthropic", re.compile(r"(?:@anthropic-ai/sdk|from\s+anthropic\s+import|anthropic\.)", re.I)),
@@ -496,6 +508,94 @@ def compute_profile_digest(profile_dict: Mapping[str, Any]) -> str:
     return "sha256:" + hashlib.sha256(dumped.encode("utf-8")).hexdigest()
 
 
+def _bounded_profile_collection(
+    name: str,
+    values: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """Business purpose:
+    Keep one RepositoryProfile collection inside its published V1 contract limit without losing coverage transparency.
+
+    Business rules:
+    - Retain deterministic scanner order up to the exact contract maximum.
+    - Every omitted observation produces one explicit collection-limit gap.
+    - Unknown collection names fail closed instead of inventing an unbounded default.
+
+    Execution flow:
+    1. Resolve the checked-in contract limit for the named collection.
+    2. Return the original observations when already within bounds.
+    3. Otherwise return the bounded prefix and one omission receipt.
+
+    Failure cases:
+    - An unknown collection raises KeyError and aborts artifact construction.
+
+    Side effects:
+    - Pure in-memory projection; source observations and scanner state are not mutated.
+    """
+    limit = PROFILE_COLLECTION_LIMITS[name]
+    if len(values) <= limit:
+        return values, None
+    return values[:limit], {
+        "path": "",
+        "reason": "COLLECTION_LIMIT_REACHED",
+        "detail": (
+            f"Profile collection {name} contained {len(values)} observations; "
+            f"retained the first {limit} and omitted {len(values) - limit}."
+        ),
+    }
+
+
+def _bounded_manifest_dependencies(
+    manifests: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Business purpose:
+    Bound dependency observations inside each retained manifest while preserving an explicit omission record.
+
+    Business rules:
+    - Each manifest may expose at most the V1 contract's 5,000 dependency rows.
+    - Manifest identity and source lines remain unchanged; only excess dependency rows are omitted.
+    - The input manifest dictionaries are never mutated.
+
+    Execution flow:
+    1. Inspect each retained manifest's dependency collection.
+    2. Copy and truncate only manifests that exceed the contract limit.
+    3. Emit one path-bound collection gap per truncated manifest.
+
+    Failure cases:
+    - Malformed non-list dependency values are left for the existing profile validator to reject.
+
+    Side effects:
+    - Pure in-memory projection with no filesystem or cache writes.
+    """
+    bounded: list[dict[str, Any]] = []
+    gaps: list[dict[str, Any]] = []
+    for manifest in manifests:
+        dependencies = manifest.get("dependencies")
+        if (
+            not isinstance(dependencies, list)
+            or len(dependencies) <= PROFILE_MANIFEST_DEPENDENCY_LIMIT
+        ):
+            bounded.append(manifest)
+            continue
+        bounded.append(
+            {
+                **manifest,
+                "dependencies": dependencies[:PROFILE_MANIFEST_DEPENDENCY_LIMIT],
+            }
+        )
+        gaps.append(
+            {
+                "path": str(manifest.get("path", "")),
+                "reason": "COLLECTION_LIMIT_REACHED",
+                "detail": (
+                    f"Manifest dependencies contained {len(dependencies)} observations; "
+                    f"retained the first {PROFILE_MANIFEST_DEPENDENCY_LIMIT} and omitted "
+                    f"{len(dependencies) - PROFILE_MANIFEST_DEPENDENCY_LIMIT}."
+                ),
+            }
+        )
+    return bounded, gaps
+
+
 class RepositoryScanner:
     """Deterministic read-only scanner over repository workspace files."""
 
@@ -536,17 +636,18 @@ class RepositoryScanner:
         - Only inspect paths within source_path_prefix if specified.
         - Omit excluded directories and binary files.
         - Enforce bounded file counts and manifest byte limits.
+        - Bound every V1 output collection and record explicit omissions instead of returning a schema-invalid artifact.
         - Emit candidate technical facts citing exact 1-indexed lines and sha256 excerpts.
 
         Execution flow:
         1. Traverse workspace filesystem honoring path depth and excluded directories.
         2. Filter entries against source path prefix.
         3. Inspect matching files for language, build system, container, and manifest contents.
-        4. Aggregate languages, frameworks, candidate facts, and known gaps.
-        5. Compute profile content digest and return complete repository profile dictionary.
+        4. Aggregate and contract-bound languages, manifests, frameworks, candidate facts, and known gaps.
+        5. Compute profile content digest and return the valid bounded repository profile dictionary.
 
         Failure cases:
-        - Files exceeding limits or unreadable files are added to knownGaps rather than aborting.
+        - Files or observation collections exceeding limits are added to knownGaps rather than aborting or silently omitting coverage.
 
         Side effects:
         - Traverses filesystem read-only; no file writes or network/model requests.
@@ -614,12 +715,9 @@ class RepositoryScanner:
             for lang, paths in sorted(self.languages_map.items())
         ]
 
-        now_iso = datetime.now(timezone.utc).isoformat()
-        profile_without_digest = {
-            "repositoryId": self.repository_id,
-            "commitSha": self.commit_sha,
-            "sourcePathPrefix": self.source_path_prefix,
-            "scannerVersion": SCANNER_VERSION,
+        bounded_collections: dict[str, list[dict[str, Any]]] = {}
+        collection_gaps: list[dict[str, Any]] = []
+        raw_collections = {
             "languages": languages_list,
             "manifests": self.manifests,
             "frameworks": self.frameworks,
@@ -627,7 +725,47 @@ class RepositoryScanner:
             "ciWorkflows": self.ci_workflows,
             "containerization": self.containerization,
             "candidateFacts": self.candidate_facts,
-            "knownGaps": self.known_gaps,
+        }
+        for name, values in raw_collections.items():
+            bounded, gap = _bounded_profile_collection(name, values)
+            bounded_collections[name] = bounded
+            if gap is not None:
+                collection_gaps.append(gap)
+        bounded_collections["manifests"], dependency_gaps = (
+            _bounded_manifest_dependencies(bounded_collections["manifests"])
+        )
+        collection_gaps.extend(dependency_gaps)
+
+        all_gaps = [*self.known_gaps, *collection_gaps]
+        known_gap_limit = PROFILE_COLLECTION_LIMITS["knownGaps"]
+        if len(all_gaps) > known_gap_limit:
+            omitted = len(all_gaps) - (known_gap_limit - 1)
+            all_gaps = [
+                *all_gaps[: known_gap_limit - 1],
+                {
+                    "path": "",
+                    "reason": "COLLECTION_LIMIT_REACHED",
+                    "detail": (
+                        f"Profile collection knownGaps exceeded {known_gap_limit}; "
+                        f"omitted {omitted} additional gap records."
+                    ),
+                },
+            ]
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        profile_without_digest = {
+            "repositoryId": self.repository_id,
+            "commitSha": self.commit_sha,
+            "sourcePathPrefix": self.source_path_prefix,
+            "scannerVersion": SCANNER_VERSION,
+            "languages": bounded_collections["languages"],
+            "manifests": bounded_collections["manifests"],
+            "frameworks": bounded_collections["frameworks"],
+            "buildSystems": bounded_collections["buildSystems"],
+            "ciWorkflows": bounded_collections["ciWorkflows"],
+            "containerization": bounded_collections["containerization"],
+            "candidateFacts": bounded_collections["candidateFacts"],
+            "knownGaps": all_gaps,
             "scannedFileCount": self.scanned_file_count,
         }
         digest = compute_profile_digest(profile_without_digest)

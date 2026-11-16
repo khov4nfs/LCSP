@@ -19,6 +19,7 @@ from tools.common.capabilities.platform.repository_scanner import (
     scan_repository_discovery,
     scan_repository_workspace,
     validate_repository_discovery_error,
+    validate_repository_profile_error,
 )
 
 
@@ -338,6 +339,77 @@ def test_malicious_and_oversized_file_protection(tmp_path: Path) -> None:
 
     gaps = profile["knownGaps"]
     assert any(g["reason"] == "FILE_SIZE_LIMIT_EXCEEDED" for g in gaps)
+
+
+def test_profile_bounds_large_observation_collections_with_explicit_gaps(
+    tmp_path: Path,
+) -> None:
+    package = json.dumps({"dependencies": {"openai": "^4.0.0"}})
+    for index in range(501):
+        package_dir = tmp_path / f"package-{index:03d}"
+        package_dir.mkdir()
+        (package_dir / "package.json").write_text(package, encoding="utf-8")
+
+    profile = scan_repository_workspace(
+        tmp_path,
+        repository_id="repo-bounded-profile",
+        commit_sha="d" * 40,
+    )
+
+    assert len(profile["manifests"]) == 500
+    assert len(profile["frameworks"]) == 500
+    assert len(profile["candidateFacts"]) == 500
+    limit_details = {
+        gap.get("detail", "")
+        for gap in profile["knownGaps"]
+        if gap["reason"] == "COLLECTION_LIMIT_REACHED"
+    }
+    assert any("collection manifests contained 501" in detail for detail in limit_details)
+    assert any("collection frameworks contained 501" in detail for detail in limit_details)
+    assert any("collection candidateFacts contained 501" in detail for detail in limit_details)
+    assert validate_repository_profile_error(
+        profile,
+        repository_id="repo-bounded-profile",
+        commit_sha="d" * 40,
+        source_path_prefix=None,
+    ) is None
+
+
+def test_profile_bounds_manifest_dependencies_and_gap_ledger(tmp_path: Path) -> None:
+    dependencies = {f"package-{index:04d}": "1.0.0" for index in range(5_001)}
+    (tmp_path / "package.json").write_text(
+        json.dumps({"dependencies": dependencies}),
+        encoding="utf-8",
+    )
+
+    profile = scan_repository_workspace(
+        tmp_path,
+        repository_id="repo-bounded-dependencies",
+        commit_sha="e" * 40,
+    )
+
+    assert len(profile["manifests"][0]["dependencies"]) == 5_000
+    assert any(
+        gap["reason"] == "COLLECTION_LIMIT_REACHED"
+        and gap["path"] == "package.json"
+        and "dependencies contained 5001" in gap.get("detail", "")
+        for gap in profile["knownGaps"]
+    )
+
+    scanner = RepositoryScanner(
+        tmp_path / "empty",
+        repository_id="repo-bounded-gaps",
+        commit_sha="f" * 40,
+    )
+    scanner.workspace_path.mkdir()
+    scanner.known_gaps = [
+        {"path": f"file-{index}", "reason": "UNSUPPORTED_SYNTAX"}
+        for index in range(1_001)
+    ]
+    gap_profile = scanner.scan()
+    assert len(gap_profile["knownGaps"]) == 1_000
+    assert gap_profile["knownGaps"][-1]["reason"] == "COLLECTION_LIMIT_REACHED"
+    assert "omitted 2 additional gap records" in gap_profile["knownGaps"][-1]["detail"]
 
 
 def test_secret_redaction_in_excerpts(tmp_path: Path) -> None:

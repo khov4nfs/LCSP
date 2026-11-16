@@ -191,4 +191,23 @@ describe("RepositoryProfile contract", () => {
     const result = repositoryProfileSchema.safeParse(profileWithWorkspaceGaps);
     expect(result.success).toBe(true);
   });
+
+  it("retains scanner V1 while accepting explicit collection truncation gaps", () => {
+    const boundedProfile = {
+      ...validProfileInput,
+      knownGaps: [
+        {
+          path: "",
+          reason: PRE_SCAN_GAP_REASONS.collectionLimitReached,
+          detail:
+            "Profile collection frameworks contained 501 observations; retained the first 500 and omitted 1.",
+        },
+      ],
+    };
+
+    expect(REPOSITORY_SCANNER_VERSIONS.v1).toBe("LCSP_PRE_SCAN_V1");
+    expect(repositoryProfileSchema.safeParse(boundedProfile).success).toBe(
+      true,
+    );
+  });
 });
