@@ -1186,9 +1186,16 @@ describe("Auth workspace (e2e)", () => {
       );
     }
 
-    const afterRevocation = await httpRequest(app).get("/auth/sessions")
-      .set("Authorization", `Bearer ${second.session_token}`).expect(200);
-    assert.equal(successBody<AuthSessionsSuccess>(afterRevocation).sessions.some(session => session.id === other.id), false);
+    const afterRevocation = await httpRequest(app)
+      .get("/auth/sessions")
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<AuthSessionsSuccess>(afterRevocation).sessions.some(
+        (session) => session.id === other.id,
+      ),
+      false,
+    );
 
     const expiredFirstSession = await httpRequest(app)
       .get("/auth/profile")
@@ -1204,32 +1211,59 @@ describe("Auth workspace (e2e)", () => {
     const first = await signInApprovedUser();
     const second = await signInApprovedUser();
     const foreign = await createAuthSessionRecord(prisma, {
-      id: "foreign-bulk-session", userId: fixture.unverifiedUser.id,
-      token: "test-only-foreign-bulk", expiresAt: new Date(Date.now() + 60_000),
+      id: "foreign-bulk-session",
+      userId: fixture.unverifiedUser.id,
+      token: "test-only-foreign-bulk",
+      expiresAt: new Date(Date.now() + 60_000),
     });
-    await httpRequest(app).delete("/auth/sessions")
-      .set("Authorization", `Bearer ${second.session_token}`).expect(403);
-    await httpRequest(app).post("/auth/re-auth/password")
+    await httpRequest(app)
+      .delete("/auth/sessions")
       .set("Authorization", `Bearer ${second.session_token}`)
-      .send({ password: "CorrectHorseBatteryStaple!" }).expect(201);
-    const response = await httpRequest(app).delete("/auth/sessions")
-      .set("Authorization", `Bearer ${second.session_token}`).expect(200);
-    assert.equal(successBody<{ revoked_all: boolean }>(response).revoked_all, true);
-    assert.equal((await prisma.authRecord.findUniqueOrThrow({ where: { id: foreign.id } })).revokedAt, null);
+      .expect(403);
+    await httpRequest(app)
+      .post("/auth/re-auth/password")
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .send({ password: "CorrectHorseBatteryStaple!" })
+      .expect(201);
+    const response = await httpRequest(app)
+      .delete("/auth/sessions")
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ revoked_all: boolean }>(response).revoked_all,
+      true,
+    );
+    assert.equal(
+      (await prisma.authRecord.findUniqueOrThrow({ where: { id: foreign.id } }))
+        .revokedAt,
+      null,
+    );
     for (const token of [first.session_token, second.session_token]) {
-      await httpRequest(app).get("/auth/profile").set("Authorization", `Bearer ${token}`).expect(401);
+      await httpRequest(app)
+        .get("/auth/profile")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(401);
     }
-    await httpRequest(app).delete("/auth/sessions")
-      .set("Authorization", `Bearer ${second.session_token}`).expect(401);
+    await httpRequest(app)
+      .delete("/auth/sessions")
+      .set("Authorization", `Bearer ${second.session_token}`)
+      .expect(401);
   });
 
   it("all-device logout accepts a current MFA proof without password reauthentication", async () => {
     const signIn = await signInAndVerifyApprovedUser();
-    const response = await httpRequest(app).delete("/auth/sessions")
-      .set("Authorization", `Bearer ${signIn.session_token}`).expect(200);
-    assert.equal(successBody<{ revoked_all: boolean }>(response).revoked_all, true);
-    await httpRequest(app).get("/auth/profile")
-      .set("Authorization", `Bearer ${signIn.session_token}`).expect(401);
+    const response = await httpRequest(app)
+      .delete("/auth/sessions")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ revoked_all: boolean }>(response).revoked_all,
+      true,
+    );
+    await httpRequest(app)
+      .get("/auth/profile")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(401);
   });
 
   it("profile update succeeds and returns updated_fields without secret values", async () => {
