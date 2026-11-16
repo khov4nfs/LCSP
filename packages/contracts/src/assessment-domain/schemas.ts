@@ -432,14 +432,10 @@ export const finishAssessmentRootRequestSchema = z
           "A human interrupt requires its native checkpoint and blockers",
       });
     }
-    if (
-      value.state === AGENT_EXECUTION_STATES.PAUSED &&
-      !value.checkpointId
-    ) {
+    if (value.state === AGENT_EXECUTION_STATES.PAUSED && !value.checkpointId) {
       ctx.addIssue({
         code: "custom",
-        message:
-          "Safe pause requires its native checkpoint",
+        message: "Safe pause requires its native checkpoint",
       });
     }
     if (
@@ -484,6 +480,7 @@ export const assessmentRootContextSchema = z.strictObject({
   caseRevision: revisionSchema,
   ruleSetVersionId: uuidSchema,
   repositorySnapshotId: z.string().min(1),
+  repositoryId: z.string().min(1).max(200),
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
   sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),

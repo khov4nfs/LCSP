@@ -22,6 +22,8 @@ describe("AssessmentCaseSupport decision provenance", () => {
     const factId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const evidenceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
     const pins = {
+      assessmentId,
+      repositoryId: "repository-123",
       caseRevision: 1,
       ruleSetVersionId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       repositorySnapshotId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
@@ -142,6 +144,7 @@ describe("AssessmentCaseSupport immutable source pins", () => {
   };
   const snapshot = {
     id: row.repositorySnapshotId,
+    repositoryId: "repository-123",
     assessmentId,
     commitSha: row.repositoryCommit,
     sourcePathPrefix: "chatbot",
@@ -151,6 +154,7 @@ describe("AssessmentCaseSupport immutable source pins", () => {
     null,
     { ...snapshot, id: "foreign-snapshot" },
     { ...snapshot, assessmentId: "foreign-assessment" },
+    { ...snapshot, repositoryId: "" },
     { ...snapshot, commitSha: "b".repeat(40) },
     { ...snapshot, sourcePathPrefix: "chatbot/../other" },
     { ...snapshot, sourcePathPrefix: undefined },
@@ -203,6 +207,7 @@ describe("AssessmentCaseSupport immutable source pins", () => {
       );
       expect(result).toMatchObject({
         repositorySnapshotId: row.repositorySnapshotId,
+        repositoryId: snapshot.repositoryId,
         repositoryCommit: row.repositoryCommit,
         sourcePathPrefix,
       });

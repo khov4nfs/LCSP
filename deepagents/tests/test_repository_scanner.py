@@ -7,11 +7,17 @@ from types import SimpleNamespace
 import pytest
 
 from tools.common.capabilities.platform.repository_scanner import (
+    DISCOVERY_VERSION,
+    REPOSITORY_DISCOVERY_PATH,
     SCANNER_VERSION,
     RepositoryScanner,
+    compute_discovery_digest,
     compute_profile_digest,
+    ensure_repository_discovery,
     ensure_repository_profile,
+    scan_repository_discovery,
     scan_repository_workspace,
+    validate_repository_discovery_error,
 )
 
 
@@ -374,6 +380,360 @@ class FakeSandboxBackend:
     def write(self, path: str, content: str):
         self.storage[path] = content
         return SimpleNamespace(error=None)
+
+
+def test_discovery_finds_direct_sdk_raw_http_and_nearby_controls(tmp_path: Path) -> None:
+    (tmp_path / "openai.ts").write_text(
+        "import OpenAI from 'openai';\n"
+        "export async function summarize(userInput: string) {\n"
+        "  const sanitized = redact(userInput);\n"
+        "  audit.log('model request');\n"
+        "  return client.responses.create({ input: sanitized });\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "anthropic.py").write_text(
+        "import requests\n"
+        "def call_model(prompt):\n"
+        "    return requests.post('https://api.anthropic.com/v1/messages', json={'prompt': prompt})\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-discovery",
+        commit_sha="a" * 40,
+        graph_index_version="sha256:" + "1" * 64,
+    )
+
+    signal_types = {item["signalType"] for item in discovery["sourceRanges"]}
+    assert {"AI_SDK_CALL", "RAW_AI_HTTP_CALL", "CONTROL", "DATA_FLOW"} <= signal_types
+    assert len(discovery["aiUseCases"]) == 2
+    assert discovery["ruleCandidates"] == []
+    assert discovery["graphIndexVersion"] == "sha256:" + "1" * 64
+    assert discovery["contentDigest"] == compute_discovery_digest(discovery)
+    assert discovery["discoveryId"] == discovery["contentDigest"]
+    assert discovery["resourceLedger"]["expansionHistory"] == []
+    assert all(item["ruleRelevance"] == [] for item in discovery["sourceRanges"])
+    assert all(item["reachability"] == "NOT_ESTABLISHED" for item in discovery["sourceRanges"])
+
+
+def test_discovery_marks_wrapper_as_indirect_candidate_without_confirming_reachability(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "model_gateway.ts").write_text(
+        "export async function runThroughGateway(modelGateway, messages) {\n"
+        "  return modelGateway.invoke(messages);\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-wrapper",
+        commit_sha="b" * 40,
+    )
+
+    use_case = discovery["aiUseCases"][0]
+    assert use_case["providerOrFramework"] is None
+    assert "runtime entry point" in discovery["unresolvedCalls"][0]
+    invocation = next(
+        item for item in discovery["sourceRanges"] if item["signalType"] == "AI_WRAPPER"
+    )
+    assert invocation["reachability"] == "NOT_ESTABLISHED"
+    assert invocation["sourceClassification"] == "PRODUCTION_CANDIDATE"
+    assert invocation["observationStatus"] == "INFERRED_HYPOTHESIS"
+    assert invocation["evidenceStrength"] == "HEURISTIC"
+    assert use_case["observationStatus"] == "INFERRED_HYPOTHESIS"
+
+
+def test_discovery_ignores_generic_invoke_without_ai_or_model_context(tmp_path: Path) -> None:
+    (tmp_path / "cache.ts").write_text(
+        "export function lookup(cache, key) {\n  return cache.invoke(key);\n}\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-generic-invoke",
+        commit_sha="3" * 40,
+    )
+
+    assert discovery["aiUseCases"] == []
+    assert discovery["sourceRanges"] == []
+
+
+def test_discovery_records_configuration_signal_without_retaining_secret_value(
+    tmp_path: Path,
+) -> None:
+    secret = "sk-sensitive-value-that-must-not-be-retained"
+    (tmp_path / "model-config.yaml").write_text(
+        f"model_provider: openai\napi_key: {secret}\nmodel_id: gpt-private\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-config",
+        commit_sha="4" * 40,
+    )
+
+    config_ranges = [
+        item for item in discovery["sourceRanges"] if item["signalType"] == "CONFIGURATION"
+    ]
+    assert config_ranges
+    assert all(item["sourceClassification"] == "CONFIGURATION" for item in config_ranges)
+    assert secret not in json.dumps(discovery)
+    assert discovery["aiUseCases"] == []
+
+
+def test_discovery_ranks_direct_source_before_configuration_and_hypotheses(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "model-config.yaml").write_text(
+        "model_provider: openai\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "wrapper.ts").write_text(
+        "export const invoke = (modelGateway, input) => modelGateway.invoke(input);\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "provider.ts").write_text(
+        "import OpenAI from 'openai';\nclient.responses.create({ input: prompt });\n",
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-ranked",
+        commit_sha="5" * 40,
+    )
+
+    ranked = discovery["sourceRanges"]
+    assert ranked[0]["signalType"] == "AI_SDK_CALL"
+    assert ranked[0]["evidenceStrength"] == "DIRECT_SOURCE"
+    assert next(
+        index for index, item in enumerate(ranked) if item["signalType"] == "AI_WRAPPER"
+    ) < next(
+        index for index, item in enumerate(ranked) if item["signalType"] == "CONFIGURATION"
+    )
+
+
+def test_discovery_does_not_turn_unused_dependency_into_use_case(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text(
+        json.dumps({"dependencies": {"openai": "^4.0.0"}}),
+        encoding="utf-8",
+    )
+    (tmp_path / "index.ts").write_text("export const healthy = true;\n", encoding="utf-8")
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-unused",
+        commit_sha="c" * 40,
+    )
+
+    assert discovery["aiUseCases"] == []
+    assert discovery["sourceRanges"] == []
+
+
+def test_discovery_distinguishes_test_only_source_and_ai_free_repository(tmp_path: Path) -> None:
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "model.test.ts").write_text(
+        "import OpenAI from 'openai';\nclient.responses.create({ input: 'fixture' });\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "service.py").write_text("def add(left, right):\n    return left + right\n", encoding="utf-8")
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-test-only",
+        commit_sha="d" * 40,
+    )
+    assert discovery["aiUseCases"]
+    assert {
+        item["sourceClassification"] for item in discovery["sourceRanges"]
+    } == {"TEST_ONLY"}
+
+    (tests_dir / "model.test.ts").unlink()
+    ai_free = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-ai-free",
+        commit_sha="e" * 40,
+    )
+    assert ai_free["aiUseCases"] == []
+    assert ai_free["sourceRanges"] == []
+    assert ai_free["knownGaps"] == []
+
+
+def test_discovery_records_truncation_unsupported_languages_and_resource_budget(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.ts").write_text("client.responses.create({ input: prompt });\n", encoding="utf-8")
+    (tmp_path / "b.ts").write_text("client.responses.create({ input: prompt });\n", encoding="utf-8")
+    (tmp_path / "handler.go").write_text("package handler\n", encoding="utf-8")
+
+    truncated = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-truncated",
+        commit_sha="f" * 40,
+        max_scanned_files=1,
+    )
+    assert any(gap["reason"] == "FILE_COUNT_LIMIT_REACHED" for gap in truncated["knownGaps"])
+    assert truncated["resourceLedger"]["coverageImpact"]["truncated"] is True
+    assert truncated["resourceLedger"]["remaining"]["files"] == 0
+
+    complete = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-unsupported",
+        commit_sha="1" * 40,
+    )
+    assert "Go" in complete["unsupportedLanguages"]
+    assert complete["resourceLedger"]["coverageImpact"]["unsupportedLanguageCount"] == 1
+
+
+def test_discovery_stops_at_total_byte_budget_and_reports_remaining_budget(tmp_path: Path) -> None:
+    first = "client.responses.create({ input: prompt });\n"
+    second = "client.responses.create({ input: anotherPrompt });\n"
+    (tmp_path / "a.ts").write_text(first, encoding="utf-8")
+    (tmp_path / "b.ts").write_text(second, encoding="utf-8")
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-byte-budget",
+        commit_sha="5" * 40,
+        max_total_source_bytes=len(first.encode("utf-8")),
+    )
+
+    assert discovery["resourceLedger"]["budget"]["maxBytes"] == len(first.encode("utf-8"))
+    assert discovery["resourceLedger"]["usage"]["bytesInspected"] == len(first.encode("utf-8"))
+    assert discovery["resourceLedger"]["remaining"]["bytes"] == 0
+    assert any(
+        gap["reason"] == "TOTAL_BYTE_BUDGET_REACHED" for gap in discovery["knownGaps"]
+    )
+    assert discovery["resourceLedger"]["coverageImpact"]["truncated"] is True
+    assert {item["path"] for item in discovery["sourceRanges"]} == {"a.ts"}
+
+
+def test_discovery_honors_configurable_range_limit_with_explicit_gap(tmp_path: Path) -> None:
+    (tmp_path / "many.ts").write_text(
+        "\n".join(
+            f"client.responses.create({{ input: prompt{index} }});" for index in range(5)
+        ),
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-range-budget",
+        commit_sha="6" * 40,
+        max_ranges=2,
+    )
+
+    assert len(discovery["sourceRanges"]) == 2
+    assert discovery["resourceLedger"]["budget"]["maxRanges"] == 2
+    assert discovery["resourceLedger"]["remaining"]["ranges"] == 0
+    assert any("range limit 2" in gap["detail"] for gap in discovery["knownGaps"])
+
+
+def test_discovery_bounds_nested_use_case_range_collections(tmp_path: Path) -> None:
+    (tmp_path / "many-calls.ts").write_text(
+        "\n".join(
+            f"client.responses.create({{ input: prompt{index} }});" for index in range(501)
+        ),
+        encoding="utf-8",
+    )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-nested-bounds",
+        commit_sha="9" * 40,
+        max_ranges=1_000,
+    )
+
+    assert len(discovery["sourceRanges"]) == 501
+    assert len(discovery["aiUseCases"][0]["invocationRangeIds"]) == 500
+    assert any(
+        "invocationRangeIds collection" in gap["detail"]
+        for gap in discovery["knownGaps"]
+    )
+
+
+def test_discovery_bounds_use_cases_unresolved_calls_and_known_gaps(tmp_path: Path) -> None:
+    for index in range(2_001):
+        (tmp_path / f"call-{index:04d}.ts").write_text(
+            "client.responses.create({ input: prompt });\n",
+            encoding="utf-8",
+        )
+
+    discovery = scan_repository_discovery(
+        tmp_path,
+        repository_id="repo-collection-bounds",
+        commit_sha="7" * 40,
+        max_ranges=3_000,
+    )
+
+    assert len(discovery["aiUseCases"]) == 2_000
+    assert len(discovery["unresolvedCalls"]) == 2_000
+    assert len(discovery["sourceRanges"]) == 2_001
+    assert any("AI use-case collection" in gap["detail"] for gap in discovery["knownGaps"])
+    assert any("Unresolved-call collection" in gap["detail"] for gap in discovery["knownGaps"])
+
+    gaps_dir = tmp_path / "gaps"
+    gaps_dir.mkdir()
+    for index in range(2_001):
+        (gaps_dir / f"oversized-{index:04d}.py").write_text("xx", encoding="utf-8")
+    gap_discovery = scan_repository_discovery(
+        gaps_dir,
+        repository_id="repo-gap-bounds",
+        commit_sha="8" * 40,
+        max_source_size_bytes=1,
+    )
+    assert len(gap_discovery["knownGaps"]) == 2_000
+    assert "additional gaps were omitted" in gap_discovery["knownGaps"][-1]["detail"]
+
+
+def test_ensure_repository_discovery_cache_binds_scanner_graph_and_pins(tmp_path: Path) -> None:
+    (tmp_path / "model.py").write_text(
+        "from openai import OpenAI\nclient.responses.create(input=prompt)\n",
+        encoding="utf-8",
+    )
+    backend = FakeSandboxBackend(tmp_path)
+
+    first = ensure_repository_discovery(
+        backend,
+        repository_id="repo-cache-discovery",
+        commit_sha="2" * 40,
+        workspace_path=tmp_path,
+        graph_index_version="graph-one",
+    )
+    assert REPOSITORY_DISCOVERY_PATH in backend.storage
+    second = ensure_repository_discovery(
+        backend,
+        repository_id="repo-cache-discovery",
+        commit_sha="2" * 40,
+        workspace_path=tmp_path,
+        graph_index_version="graph-one",
+    )
+    assert second == first
+
+    changed_graph = ensure_repository_discovery(
+        backend,
+        repository_id="repo-cache-discovery",
+        commit_sha="2" * 40,
+        workspace_path=tmp_path,
+        graph_index_version="graph-two",
+    )
+    assert changed_graph["cacheIdentity"] != first["cacheIdentity"]
+    assert changed_graph["graphIndexVersion"] == "graph-two"
+    assert validate_repository_discovery_error(
+        first,
+        repository_id="repo-cache-discovery",
+        commit_sha="2" * 40,
+        source_path_prefix=None,
+        graph_index_version="graph-two",
+    ) == "graphIndexVersion mismatch"
+    assert changed_graph["discoveryVersion"] == DISCOVERY_VERSION
 
 
 def test_ensure_repository_profile_cache_reuse_and_invalidation(tmp_path: Path) -> None:
