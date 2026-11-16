@@ -1,6 +1,6 @@
 {
   "schemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
-  "bundleId": "lcsp-347-vi-draft-r1",
+  "bundleId": "lcsp-instruction-repair-r3-2026-11-15",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -897,21 +897,21 @@
       "runtimeRole": "assessment-root",
       "instructionKind": "TOOL_DESCRIPTION",
       "vietnameseSourcePath": "instructions/vi/upstream-assessment-tools.json",
-      "vietnameseSourceRevision": "lcsp-347-upstream-r1",
+      "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
       "runtimeEntryId": "assessment-tools.upstream",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "sourceSha256": "df986400eaaf4d0713b4fb9b2ad3946eb49961e7608bd6376fb19842b9f67d4c",
-      "englishCandidatePath": "instructions/candidates/r1/assessment-tools.upstream.txt",
-      "englishCandidateSha256": "407271bc18b53776123863ab245d301704e714cf5dc058c9b2940831d805ab38",
-      "candidateOriginSha256": "df986400eaaf4d0713b4fb9b2ad3946eb49961e7608bd6376fb19842b9f67d4c",
+      "sourceSha256": "37a815ba859e7b8c8414e4ce5cea4442c9a6cfc2ed5d23d96bc37da5dbdc247a",
+      "englishCandidatePath": "instructions/candidates/r3/assessment-tools.upstream.txt",
+      "englishCandidateSha256": "2e8e17f3153abcfab83466b3028feac2a2ec9fa219c72596a16b2366718604ac",
+      "candidateOriginSha256": "37a815ba859e7b8c8414e4ce5cea4442c9a6cfc2ed5d23d96bc37da5dbdc247a",
       "migrationReferences": [
         "assessment_root/tools.py"
       ],
       "placeholderSchema": {},
       "translationProvenance": {
-        "translator": "Implementation draft from upstream tool contracts; independent equivalence review pending",
-        "translationRevision": "r1"
+        "translator": "Codex session-authorized source repair; full bundle review remains pending",
+        "translationRevision": "r3"
       },
       "consumers": [
         {
@@ -955,21 +955,21 @@
       "runtimeRole": "shared-runtime",
       "instructionKind": "TOOL_DESCRIPTION",
       "vietnameseSourcePath": "instructions/vi/framework-file-deletion.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
       "runtimeEntryId": "framework.file-deletion",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "sourceSha256": "13026989b49e35813c0309e99201645bffb833446dee7921ce14c8bfb1b8aded",
-      "englishCandidatePath": "instructions/candidates/r1/framework.file-deletion.txt",
+      "sourceSha256": "b1dc233c1d02a399d6cab15bb14ea6a46a3da092379ff5a99ceed185d450e227",
+      "englishCandidatePath": "instructions/candidates/r3/framework.file-deletion.txt",
       "englishCandidateSha256": "8134ad829c4559508256e4995298ea3fdff30566826df827109c485a1f7398b7",
-      "candidateOriginSha256": "13026989b49e35813c0309e99201645bffb833446dee7921ce14c8bfb1b8aded",
+      "candidateOriginSha256": "b1dc233c1d02a399d6cab15bb14ea6a46a3da092379ff5a99ceed185d450e227",
       "placeholderSchema": {},
       "migrationReferences": [
         "assessment_root/agent.py"
       ],
       "translationProvenance": {
-        "translator": "Implementation draft; independent review pending",
-        "translationRevision": "r1"
+        "translator": "Codex session-authorized source repair; full bundle review remains pending",
+        "translationRevision": "r3"
       },
       "consumers": [
         {
@@ -1628,7 +1628,7 @@
       "runtimeEntryId": "runtime.budget-finalization",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r1/runtime.budget-finalization.txt",
+      "englishCandidatePath": "instructions/candidates/r3/runtime.budget-finalization.txt",
       "migrationReferences": [
         "middleware/agent_run_budget.py"
       ],
@@ -1655,11 +1655,11 @@
         }
       ],
       "sourceSha256": "4abb5ce64bcee0f553de0734f001dbd3c743e267cbcb8347d300db0c1347a225",
-      "englishCandidateSha256": "09f8b0bcfba9d5d5462338bb9d381ebd7ef084ad2d6c2ccfdefcf0e4096bae14",
+      "englishCandidateSha256": "2831283334896a0049ea4480f2834b6b4668ef2d7466b5d73777587697691d70",
       "candidateOriginSha256": "4abb5ce64bcee0f553de0734f001dbd3c743e267cbcb8347d300db0c1347a225",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "Codex session-authorized source repair; full bundle review remains pending",
+        "translationRevision": "r3"
       }
     },
     {
@@ -1735,11 +1735,11 @@
       "runtimeRole": "response-transform",
       "instructionKind": "SYSTEM_TEMPLATE",
       "vietnameseSourcePath": "instructions/vi/response-transform.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
       "runtimeEntryId": "runtime.response-transform",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r2/runtime.response-transform.txt",
+      "englishCandidatePath": "instructions/candidates/r3/runtime.response-transform.txt",
       "migrationReferences": [
         "orchestration/localization.py"
       ],
@@ -1768,12 +1768,12 @@
       ],
       "templateSyntax": "FORMAT",
       "runtimeInputAuthority": "SERVER_RESPONSE_LANGUAGE_POLICY",
-      "sourceSha256": "1b30bfc82a74865417f4860406fab217782ffa8da3b4fab10c758c7ea28cc965",
+      "sourceSha256": "130ca0db663b9b928e351c7f992c1b0051c34bf96f738f5e18b7a130e4331b95",
       "englishCandidateSha256": "7bd7e677c9810b9db749896274267000c7c82860b4654b18e1a0aa6902c7f1f7",
-      "candidateOriginSha256": "1b30bfc82a74865417f4860406fab217782ffa8da3b4fab10c758c7ea28cc965",
+      "candidateOriginSha256": "130ca0db663b9b928e351c7f992c1b0051c34bf96f738f5e18b7a130e4331b95",
       "translationProvenance": {
-        "translator": "Implementation draft moving locale into trusted data; independent equivalence review pending",
-        "translationRevision": "r2"
+        "translator": "Codex session-authorized source repair; full bundle review remains pending",
+        "translationRevision": "r3"
       }
     },
     {
@@ -1845,11 +1845,11 @@
       "runtimeRole": "response-transform",
       "instructionKind": "SYSTEM_TEMPLATE",
       "vietnameseSourcePath": "instructions/vi/structured-transform.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
       "runtimeEntryId": "runtime.structured-transform",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r2/runtime.structured-transform.txt",
+      "englishCandidatePath": "instructions/candidates/r3/runtime.structured-transform.txt",
       "migrationReferences": [
         "orchestration/localization.py"
       ],
@@ -1878,12 +1878,12 @@
       ],
       "templateSyntax": "FORMAT",
       "runtimeInputAuthority": "SERVER_RESPONSE_LANGUAGE_POLICY",
-      "sourceSha256": "82d6af52293980b103482aacf7c3ac3e512bf0826fb73737cfa821fcd83bc394",
+      "sourceSha256": "13716d591096fd80ecb9f715bec7cc70d0b2ab1162227316d594bc2334561fd5",
       "englishCandidateSha256": "1dd086b9ec375345c06b1c8c9692305d9cb9f9df1665383f4f2967c217f310ce",
-      "candidateOriginSha256": "82d6af52293980b103482aacf7c3ac3e512bf0826fb73737cfa821fcd83bc394",
+      "candidateOriginSha256": "13716d591096fd80ecb9f715bec7cc70d0b2ab1162227316d594bc2334561fd5",
       "translationProvenance": {
-        "translator": "Implementation draft moving locale into trusted data; independent equivalence review pending",
-        "translationRevision": "r2"
+        "translator": "Codex session-authorized source repair; full bundle review remains pending",
+        "translationRevision": "r3"
       }
     },
     {
@@ -2152,11 +2152,11 @@
       "runtimeRole": "shared-runtime",
       "instructionKind": "TOOL_SCHEMA",
       "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
-      "vietnameseSourceRevision": "lcsp-347-draft-r2",
+      "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
       "runtimeEntryId": "tools.schema-guidance",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "englishCandidatePath": "instructions/candidates/r2/tools.schema-guidance.txt",
+      "englishCandidatePath": "instructions/candidates/r3/tools.schema-guidance.txt",
       "migrationReferences": [
         "assessment_root/tools.py"
       ],
@@ -2303,12 +2303,12 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
-      "englishCandidateSha256": "566d7fc6b5f74409e56b379656eb460c2d81b87afc58dba3a950b42cc7fde3fd",
-      "candidateOriginSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
+      "sourceSha256": "114b1364704555c597b869062ab1a8846c2dea07d43a31ad9e32c7e4cb89be54",
+      "englishCandidateSha256": "4fcc4134202b0f74c0a805a92897f8fd010c84a1a7442835487758409a8335d7",
+      "candidateOriginSha256": "114b1364704555c597b869062ab1a8846c2dea07d43a31ad9e32c7e4cb89be54",
       "translationProvenance": {
-        "translator": "Implementation draft preserving new upstream context and HITL schema contracts; independent review pending",
-        "translationRevision": "r2"
+        "translator": "Codex session-authorized source repair; full bundle review remains pending",
+        "translationRevision": "r3"
       }
     }
   ],

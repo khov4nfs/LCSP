@@ -37,7 +37,7 @@ async function isolated(run) {
       readFileSync(
         path.join(
           root,
-          "deepagents/instructions/candidates/r1/manifest.pending.json",
+          "deepagents/instructions/candidates/r3/manifest.pending.json",
         ),
         "utf8",
       ),
@@ -77,6 +77,14 @@ test("I01 & I08 — Exact 59-pair export generates expected pending review packa
     const bytes = readFileSync(file);
     const data = JSON.parse(bytes);
     assert.equal(data.entries.length, 59);
+    assert.equal(data.bundleId, "lcsp-instruction-repair-r3-2026-11-15");
+    const repaired = data.entries.find(
+      (entry) => entry.sourceId === "tools.schema-guidance",
+    );
+    assert.equal(
+      repaired.englishCandidatePath,
+      "instructions/candidates/r3/tools.schema-guidance.txt",
+    );
     assert.equal(data.productionApproval, "BLOCKED");
     assert.equal(data.packageKind, "LCSP_INDEPENDENT_EQUIVALENCE_REVIEW_INPUT");
     assert.ok(
@@ -122,7 +130,8 @@ test("I03 — Unknown and nested reviewer annotations block replacement and pres
 
     // Case B: nested actor authority evidence
     delete data.entries[0].reviewerNotes;
-    data.entries[0].actorAuthorityDistinctions.reviewerEvidence = "Authority verified";
+    data.entries[0].actorAuthorityDistinctions.reviewerEvidence =
+      "Authority verified";
     writeFileSync(file, JSON.stringify(data));
     annotatedBytes = readFileSync(file);
     assert.notEqual(invoke().status, 0);
@@ -130,7 +139,8 @@ test("I03 — Unknown and nested reviewer annotations block replacement and pres
 
     // Case C: nested safety security evidence
     data.entries[0].actorAuthorityDistinctions.reviewerEvidence = null;
-    data.entries[0].safetySecurityConstraints.reviewerEvidence = "Security verified";
+    data.entries[0].safetySecurityConstraints.reviewerEvidence =
+      "Security verified";
     writeFileSync(file, JSON.stringify(data));
     annotatedBytes = readFileSync(file);
     assert.notEqual(invoke().status, 0);
@@ -145,7 +155,8 @@ test("I03 — Unknown and nested reviewer annotations block replacement and pres
     assert.deepEqual(readFileSync(file), annotatedBytes);
 
     // Case E: top-level unknown field
-    data.entries[0].potentialSemanticDrift = "NOT_ASSESSED_REQUIRES_INDEPENDENT_REVIEW";
+    data.entries[0].potentialSemanticDrift =
+      "NOT_ASSESSED_REQUIRES_INDEPENDENT_REVIEW";
     data.independentReviewerOrganization = "External Legal Corp";
     writeFileSync(file, JSON.stringify(data));
     annotatedBytes = readFileSync(file);
@@ -228,8 +239,9 @@ test("I09 — Concurrent reviewer modification: exporter fails closed and refuse
     const res = invoke();
     assert.notEqual(res.status, 0);
     assert.ok(
-      res.stderr.includes("Existing independent review evidence must be preserved") ||
-        res.stderr.includes("refusing to overwrite"),
+      res.stderr.includes(
+        "Existing independent review evidence must be preserved",
+      ) || res.stderr.includes("refusing to overwrite"),
       `Unexpected stderr: ${res.stderr}`,
     );
 
@@ -246,7 +258,7 @@ test("I07 — Partial publication failure / invalid input preserves existing val
     // Corrupt manifest input
     const manifestFile = path.join(
       dir,
-      "deepagents/instructions/candidates/r1/manifest.pending.json",
+      "deepagents/instructions/candidates/r3/manifest.pending.json",
     );
     writeFileSync(manifestFile, "{ invalid json");
 
@@ -263,14 +275,16 @@ for (const kind of [
   "digest",
   "revision",
   "malformed",
+  "bundle_identity",
 ]) {
   test(`I04 & I05 — rejects ${kind} candidate mapping before writing review output`, () =>
     isolated((dir, invoke) => {
       const file = path.join(
         dir,
-        "deepagents/instructions/candidates/r1/manifest.pending.json",
+        "deepagents/instructions/candidates/r3/manifest.pending.json",
       );
       const data = JSON.parse(readFileSync(file, "utf8"));
+      if (kind === "bundle_identity") data.bundleId = "stale-candidate-bundle";
       if (kind === "missing") data.entries.pop();
       if (kind === "duplicate") data.entries.push(data.entries[0]);
       if (kind === "foreign") data.entries[0].sourceId = "foreign-source";

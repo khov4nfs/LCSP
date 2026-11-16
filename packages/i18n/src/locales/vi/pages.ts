@@ -457,6 +457,8 @@ export const viPages = {
     },
   },
   assessmentConversation: {
+    localizationFallback:
+      "Một số nội dung chưa có bản dịch được duyệt. Nội dung gốc đang được hiển thị và có thể dùng ngôn ngữ khác.",
     ruleAudit: {
       selectGroup: "Chọn nhóm: {name}",
       clearGroup: "Bỏ chọn nhóm: {name}",

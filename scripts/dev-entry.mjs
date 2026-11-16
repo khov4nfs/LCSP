@@ -42,6 +42,7 @@ async function main() {
 
   await run(pnpmCommand, ["run", "prepare:cli"]);
   await run(pnpmCommand, ["run", "build:runtime-packages"]);
+  await run(pnpmCommand, ["run", "prisma:generate"]);
   await run(pnpmCommand, ["--filter", "@lcsp/api", "prisma:migrate:deploy"]);
 
   if (mode === "docker") {
