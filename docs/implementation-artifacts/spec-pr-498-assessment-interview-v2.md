@@ -69,7 +69,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 | Explicit coverage limits and pin/cache identity | PARTIALLY_IMPLEMENTED | Discovery records limits, truncation, unsupported languages, skipped paths, unresolved calls, total resource budgets, scanner signature and graph index identity. Cross-file connection-aware incremental invalidation remains pending. |
 | Canonical FactNeed and cross-locale deduplication | IMPLEMENTED | Additive FactNeed persistence distinguishes tenant owner, assessment, subject, predicate, operational scope, environment/deployment, timeframe and value schema; wording/locale and shared rule dependencies reuse one need. |
 | Minimal, batched human questions with native interrupt | PARTIALLY_IMPLEMENTED | Atomic batch questions and native checkpoints reuse canonical FactNeeds, including equivalent needs inside one batch; discovery-completeness/materiality gating remains pending. |
-| Raw answer -> proposal -> accepted fact | NOT_IMPLEMENTED | Non-null answers still create accepted evidence/facts and advance case revision immediately; integrity inspection is not in the production path. |
+| Raw answer -> proposal -> accepted fact | PARTIALLY_IMPLEMENTED | FactNeed answers now require typed normalization and material ambiguity/conflict guards before acceptance, with raw and normalized values retained. A durable pending proposal/review state for rejected answers remains pending. |
 | Explainable candidate AssessmentRule matching | NOT_IMPLEMENTED | Rule catalog selection exists, but no discovery-driven recommendation stage or recommendation-state contract exists. |
 | Evidence/discovery reuse before rule investigation | PARTIALLY_IMPLEMENTED | Root reloads accepted facts/evidence and decisions, but there is no discovery handoff or governed range reuse plan. |
 | Direct/indirect selective invalidation | PARTIALLY_IMPLEMENTED | Evidence-to-fact invalidation exists, but answer acceptance still invalidates all older case-revision decisions and dependency search relies on serialized decision text. |
@@ -123,6 +123,7 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - 2026-11-16: Implemented the first additive discovery slice: deterministic static AI-use-case signals, conservative source/reachability classification, explicit coverage/resource gaps, immutable pin-bound API persistence, leased Root submission, and a bounded non-authoritative discovery preview in the existing governed assessment context.
 - 2026-11-16: Added API-owned deterministic candidate matching against the pinned AssessmentRules and ACCEPTED facts. Worker-authored recommendations are rejected, non-AI control terms remain matchable, missing matches never become negative legal conclusions, and candidate revisions remain immutable and non-authoritative.
 - 2026-11-16: Added additive canonical FactNeed persistence and Root/API contracts. Historical HumanRequests remain nullable and uninterpreted; equivalent wording/locales and same-batch questions reuse one need, material deployment/timeframe/value differences remain distinct, and a known accepted answer resolves its linked need atomically while UNKNOWN remains open.
+- 2026-11-16: Added typed FactNeed answer normalization for text, boolean, integer, number, date, date-time, enum and JSON values, and connected the existing high-impact ambiguity/conflict guard to production answer acceptance. Invalid values are rejected before case/fact/evidence mutation; accepted evidence retains both the raw and normalized value.
 
 ## Reproducible Pre-Change Baseline — 2026-11-16
 
@@ -156,6 +157,13 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - Root and governed instruction regression: `184` tests passed; strict inventory result `PASS`, with zero unresolved paths and no missing VI/EN sources. API lint, contracts/API TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
 - The repository-wide API command completed `219` suites / `1857` tests successfully, with `22` suites skipped. Its remaining `12` failing integration suites (`108` tests) require PostgreSQL at `127.0.0.1:55432`; the one non-database route-allowlist failure was corrected and its `4` tests pass. These are not reported as a green full-suite result.
 - This phase does not yet implement raw-answer proposal/review, typed normalization/conflict acceptance, selective dependency invalidation or measured efficiency/legal-accuracy improvements.
+
+## Phase 4 Verification — Typed Answer Acceptance Guard
+
+- Focused answer regression: `3` suites, `33` tests passed, covering every FactNeed value kind, invalid/unsafe numeric and temporal forms, raw-plus-normalized evidence, UNKNOWN behavior, ambiguity, prior-human-fact conflict and atomic FactNeed resolution.
+- Contracts: `13` suites, `153` tests passed, including historical answer audits without `normalizedAnswer`; the new field is optional and does not reinterpret stored answer history.
+- API lint, contracts/API TypeScript compilation, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
+- Rejected ambiguous/conflicting answers currently return `HUMAN_ANSWER_INVALID` before persistence. Durable raw rejected-attempt/proposal review and explicit reviewed acceptance remain pending, so the full proposal pipeline task is intentionally not marked complete.
 
 ## Design Notes
 

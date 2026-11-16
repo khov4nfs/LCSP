@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
-import { AssessmentFactNeedStatus, type Prisma } from "@prisma/client";
+import {
+  AssessmentFactNeedStatus,
+  AssessmentFactNeedValueKind,
+  type Prisma,
+} from "@prisma/client";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
@@ -30,20 +34,24 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
       { assessmentRuleId: "RULE-SELECTED", criterionIds: ["criterion-1"] },
     ],
     requestRevision: 0,
-    status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+    status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN as string,
     controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT as string,
     choices: [] as Array<{ value: string; label: string }>,
     question: "Which entity operates this deployment?",
     answers: [] as Array<Record<string, unknown>>,
     resolvedFactId: null,
     factNeedId: null as string | null,
+    factNeed: null as {
+      valueKind: AssessmentFactNeedValueKind;
+      allowedValues: string[];
+    } | null,
   };
   const unrelatedRequest = {
     ...request,
     requestId: randomUUID(),
     assessmentRuleId: "RULE-UNSELECTED",
     dependencies: [],
-    answers: [],
+    answers: [] as Array<Record<string, unknown>>,
   };
   const requests = [request, unrelatedRequest];
   type RequestRow = (typeof requests)[number];
@@ -263,6 +271,104 @@ describe("shared human answers inside a selected audit", () => {
         resolvedAt: expect.any(Date),
       },
     });
+  });
+
+  it("normalizes a typed FactNeed answer while preserving the raw answer", async () => {
+    const f = fixture();
+    f.request.factNeedId = randomUUID();
+    f.request.factNeed = {
+      valueKind: AssessmentFactNeedValueKind.BOOLEAN,
+      allowedValues: [],
+    };
+
+    await f.handler.execute(f.input(false, "TRUE"));
+
+    expect(f.tx.assessmentEvidence.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            answer: "TRUE",
+            normalizedAnswer: {
+              kind: AssessmentFactNeedValueKind.BOOLEAN,
+              value: true,
+            },
+          }),
+        }),
+      }),
+    );
+    expect(f.request.answers[0]).toMatchObject({
+      answer: "TRUE",
+      normalizedAnswer: {
+        kind: AssessmentFactNeedValueKind.BOOLEAN,
+        value: true,
+      },
+    });
+  });
+
+  it("rejects an invalid typed answer before creating evidence or advancing the case", async () => {
+    const f = fixture();
+    f.request.factNeedId = randomUUID();
+    f.request.factNeed = {
+      valueKind: AssessmentFactNeedValueKind.BOOLEAN,
+      allowedValues: [],
+    };
+
+    await expect(
+      f.handler.execute(f.input(false, "maybe")),
+    ).rejects.toMatchObject({ status: 422 });
+
+    expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+    expect(f.tx.assessmentFactNeed.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects an ambiguous material answer before factual acceptance", async () => {
+    const f = fixture();
+    f.request.question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+
+    await expect(
+      f.handler.execute(
+        f.input(
+          false,
+          "No serious incident has occurred, but the incident status remains unknown.",
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a material answer that conflicts with accepted human history", async () => {
+    const f = fixture();
+    const question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+    f.request.question = question;
+    f.unrelatedRequest.question = question;
+    f.unrelatedRequest.status = HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED;
+    f.unrelatedRequest.answers = [
+      {
+        idempotencyKey: "prior-answer",
+        requestDigest: "a".repeat(64),
+        actorId: "customer-owner",
+        answeredAt: "2026-11-15T10:00:00.000Z",
+        caseRevision: 2,
+        requestRevision: 1,
+        doesNotKnow: false,
+        answer: "Incident history remains unknown.",
+        selectedChoice: null,
+      },
+    ];
+
+    await expect(
+      f.handler.execute(
+        f.input(false, "No serious incident has occurred since go-live."),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+
+    expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
   });
 
   it("rejects a shared request whose dependencies are all outside the current audit", async () => {

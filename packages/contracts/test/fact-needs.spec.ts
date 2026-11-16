@@ -5,6 +5,8 @@ import {
   FACT_NEED_TIMEFRAME_KINDS,
   FACT_NEED_VALUE_KINDS,
   factNeedInputSchema,
+  humanAnswerAuditSchema,
+  normalizedFactNeedAnswerSchema,
 } from "../src/assessment-domain/index.js";
 
 const rangeId = `sha256:${"a".repeat(64)}`;
@@ -92,5 +94,27 @@ describe("FactNeed contracts", () => {
       euCurrent.environment.deploymentKey,
     );
     expect(euHistorical.timeframe).not.toEqual(euCurrent.timeframe);
+  });
+
+  it("keeps historical answer audits valid while accepting typed normalization", () => {
+    const historical = {
+      idempotencyKey: "answer-idempotency",
+      requestDigest: "b".repeat(64),
+      actorId: "customer-owner",
+      answeredAt: "2026-11-16T10:00:00.000Z",
+      caseRevision: 2,
+      requestRevision: 1,
+      doesNotKnow: false,
+      answer: "TRUE",
+      selectedChoice: null,
+    };
+
+    expect(humanAnswerAuditSchema.parse(historical)).toEqual(historical);
+    expect(
+      normalizedFactNeedAnswerSchema.parse({
+        kind: FACT_NEED_VALUE_KINDS.boolean,
+        value: true,
+      }),
+    ).toEqual({ kind: FACT_NEED_VALUE_KINDS.boolean, value: true });
   });
 });
