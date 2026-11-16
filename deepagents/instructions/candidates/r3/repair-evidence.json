@@ -31,20 +31,20 @@
     {
       "sourceId": "assessment-tools.upstream",
       "previousSourceSha256": "df986400eaaf4d0713b4fb9b2ad3946eb49961e7608bd6376fb19842b9f67d4c",
-      "sourceSha256": "37a815ba859e7b8c8414e4ce5cea4442c9a6cfc2ed5d23d96bc37da5dbdc247a",
+      "sourceSha256": "a0474d6c7f9aa245b4e5e7946a2dcd5d27ef7c721460e5b8b507f8cdc6b43283",
       "previousCandidatePath": "instructions/candidates/r1/assessment-tools.upstream.txt",
-      "previousCandidateSha256": "407271bc18b53776123863ab245d301704e714cf5dc058c9b2940831d805ab38",
+      "previousCandidateSha256": "94a7b02583fd211571faa376272cdf5ea01d9e37f7b22a2f667db88ab9a4ba3f",
       "candidatePath": "instructions/candidates/r3/assessment-tools.upstream.txt",
-      "candidateSha256": "2e8e17f3153abcfab83466b3028feac2a2ec9fa219c72596a16b2366718604ac"
+      "candidateSha256": "9a54a13a7bfcde817abc0a2ab971adc07d7a97e3297020bf8faf5c6935789dc9"
     },
     {
       "sourceId": "tools.schema-guidance",
       "previousSourceSha256": "99c2c2db44b3d69bfa77b6da6943527af829254e1cc0fd8629104b061dfea813",
-      "sourceSha256": "114b1364704555c597b869062ab1a8846c2dea07d43a31ad9e32c7e4cb89be54",
+      "sourceSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
       "previousCandidatePath": "instructions/candidates/r2/tools.schema-guidance.txt",
-      "previousCandidateSha256": "566d7fc6b5f74409e56b379656eb460c2d81b87afc58dba3a950b42cc7fde3fd",
+      "previousCandidateSha256": "de8dfb834eabcef9e0da3caa8ea912b5047b372fe4fda806c9747e78b73ac06e",
       "candidatePath": "instructions/candidates/r3/tools.schema-guidance.txt",
-      "candidateSha256": "4fcc4134202b0f74c0a805a92897f8fd010c84a1a7442835487758409a8335d7"
+      "candidateSha256": "44cdd0632401f32e1eec51a158ad4aa34dc299d54424a56f138641f39d48001e"
     },
     {
       "sourceId": "runtime.budget-finalization",
