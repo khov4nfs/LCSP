@@ -34,6 +34,7 @@ function need(
     sourceInvestigationAttempts: ["Inspected repository configuration."],
     acceptedEvidenceIds: [],
     investigatedRangeIds: [],
+    investigationDiscoveryRefs: null,
     status: AssessmentFactNeedStatus.OPEN,
     resolvedFactId: null,
     createdAt: new Date(),

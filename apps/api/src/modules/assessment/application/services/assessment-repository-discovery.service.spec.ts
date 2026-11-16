@@ -318,7 +318,12 @@ function fixture(
   const support = {
     loadPins: jest.fn(() => Promise.resolve(pins)),
     requireCoverage: jest.fn(
-      (_tx: unknown, _assessmentId: string, assessmentRuleId: string) => {
+      (
+        _tx: unknown,
+        _assessmentId: string,
+        assessmentRuleId: string,
+        _correlationId: string,
+      ) => {
         if (assessmentRuleId === "FOREIGN-RULE") {
           return Promise.reject(new Error("rule is outside audit coverage"));
         }
