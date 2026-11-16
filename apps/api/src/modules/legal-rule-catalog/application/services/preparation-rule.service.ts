@@ -177,7 +177,7 @@ export class PreparationRuleService {
               last.preparationRun.executionState === A.RUNNING ||
               (same && last.preparationRun.executionState === A.SUCCEEDED));
           const result = skipped
-            ? last!
+            ? last
             : await this.createResult(
                 tx,
                 artifact.id,
@@ -249,7 +249,7 @@ export class PreparationRuleService {
         batchId,
         preparationRunId: run.id,
         revision,
-        inputSnapshot: input as unknown as Prisma.InputJsonValue,
+        inputSnapshot: input,
         inputFingerprint: preparationInputFingerprint(input),
         retryOfId,
       },
@@ -513,7 +513,7 @@ export class PreparationRuleService {
             filters: { search: "" },
             ruleIds: [ruleId],
           },
-          inputs: [input] as unknown as Prisma.InputJsonValue,
+          inputs: [input],
           fingerprint: preparationInputFingerprint(input),
         },
       });

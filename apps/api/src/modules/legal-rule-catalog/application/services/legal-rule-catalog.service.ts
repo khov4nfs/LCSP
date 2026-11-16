@@ -541,7 +541,7 @@ export class LegalRuleCatalogService {
           catalogRevision: request.expectedRevision,
           createdBy: actor,
           scope: request,
-          inputs: inputs as unknown as Prisma.InputJsonValue,
+          inputs: inputs,
           fingerprint,
         },
       });
