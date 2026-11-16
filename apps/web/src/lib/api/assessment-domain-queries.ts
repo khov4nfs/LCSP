@@ -1,7 +1,12 @@
 "use client";
 import { getAppLocaleSnapshot, subscribeToAppLocale } from "../locale";
 import { useSyncExternalStore } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import {
   ASSESSMENT_EVENTS_PAGE_LIMIT,
   AUTHORED_LOCALIZATION_CODES,
@@ -14,6 +19,8 @@ import {
   answerAssessmentHumanRequestSchema,
   answerAssessmentHumanRequestResultSchema,
   type AnswerAssessmentHumanRequest,
+  type AssessmentHumanRequestsResult,
+  type AssessmentProvenanceArtifact,
 } from "@lcsp/contracts/assessment-domain";
 import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
@@ -175,7 +182,9 @@ export function useReconcileOrphanedAssessment(id: string) {
  * Side effects:
  * - Performs an owner-authorized BFF read and updates only the captured locale's cache.
  */
-export function useHumanRequestsQuery(id: string) {
+export function useHumanRequestsQuery(
+  id: string,
+): UseQueryResult<AssessmentHumanRequestsResult, Error> {
   const locale = useSyncExternalStore(
     subscribeToAppLocale,
     getAppLocaleSnapshot,
@@ -393,8 +402,21 @@ export function useAssessmentReportQuery(
   });
 }
 
-/** The immutable, validated provenance artifact of one assessment. */
-export function useAssessmentProvenanceQuery(id: string) {
+/**
+ * Business purpose: Read the immutable, validated provenance artifact for one Assessment.
+ * Business rules:
+ * - The shared contract must validate the complete artifact before it enters the query cache.
+ * - An empty Assessment identifier disables the request.
+ * Execution flow:
+ * 1. Build the owner-scoped BFF route and validate its response against the provenance schema.
+ * Failure cases:
+ * - Authorization, transport, API problems, and schema violations reject the query without fallback data.
+ * Side effects:
+ * - Performs a read-only BFF request and caches the validated artifact by Assessment identifier.
+ */
+export function useAssessmentProvenanceQuery(
+  id: string,
+): UseQueryResult<AssessmentProvenanceArtifact, Error> {
   return useQuery({
     queryKey: assessmentDomainKeys.provenance(id),
     queryFn: () =>
