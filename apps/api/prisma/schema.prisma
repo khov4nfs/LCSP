@@ -7,6 +7,93 @@ datasource db {
   // Safe schema comment to force PR webhook build trigger
 }
 
+// Development catalog: editable by Admin; revision checks protect concurrent edits.
+// These catalog entries are never generated from source chunks.
+model LegalRuleCatalogVersion {
+  id String @id @default(uuid())
+  version String @unique
+  revision Int @default(1)
+  legalSourceVersionId String
+  createdBy String
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  legalSourceVersion LegalSourceVersion @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  rules LegalRule[]
+  selections PreparationRuleSelection[]
+}
+
+model LegalRule {
+  id String @id @default(uuid())
+  catalogVersionId String
+  legalRuleId String
+  title String
+  description String
+  citationLocatorRefs Json
+  authoredBy String
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  catalogVersion LegalRuleCatalogVersion @relation(fields: [catalogVersionId], references: [id], onDelete: Restrict)
+  preparation PreparationRule?
+  @@unique([catalogVersionId, legalRuleId])
+}
+
+model PreparationRuleSelection {
+  id String @id @default(uuid())
+  catalogVersionId String
+  catalogRevision Int
+  createdBy String
+  scope Json
+  inputs Json
+  fingerprint String
+  createdAt DateTime @default(now())
+  catalogVersion LegalRuleCatalogVersion @relation(fields: [catalogVersionId], references: [id], onDelete: Restrict)
+  batches PreparationRuleBatch[]
+}
+
+model PreparationRuleBatch {
+  id String @id @default(uuid())
+  selectionId String
+  requestedBy String
+  idempotencyKey String
+  requestHash String
+  items Json @default("[]")
+  createdAt DateTime @default(now())
+  selection PreparationRuleSelection @relation(fields: [selectionId], references: [id], onDelete: Restrict)
+  results PreparationRuleResult[]
+  @@unique([requestedBy, idempotencyKey])
+}
+
+model PreparationRule {
+  id String @id @default(uuid())
+  legalRuleId String @unique
+  legalRule LegalRule @relation(fields: [legalRuleId], references: [id], onDelete: Restrict)
+  results PreparationRuleResult[]
+}
+
+model PreparationRuleResult {
+  id String @id @default(uuid())
+  preparationRuleId String
+  preparationRunId String @unique
+  batchId String
+  revision Int
+  inputSnapshot Json
+  inputFingerprint String
+  instructionReceipt Json?
+  output Json?
+  failureCode String?
+  retryOfId String? @unique
+  createdAt DateTime @default(now())
+  preparationRule PreparationRule @relation(fields: [preparationRuleId], references: [id], onDelete: Restrict)
+  preparationRun RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  batch PreparationRuleBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  retryOf PreparationRuleResult? @relation("PreparationRuleRetry", fields: [retryOfId], references: [id], onDelete: Restrict)
+  retry PreparationRuleResult? @relation("PreparationRuleRetry")
+  @@unique([preparationRuleId, revision])
+  @@index([batchId, createdAt])
+}
+
 enum AuthoredLocalizationState {
   PENDING
   READY
@@ -832,6 +919,7 @@ model LegalSource {
 }
 
 model LegalSourceVersion {
+  ruleCatalogVersions LegalRuleCatalogVersion[]
   id                     String                        @id @default(uuid())
   /// Always set: a database trigger assigns a parent when an insert names none (older callers).
   legalSourceId          String?
@@ -1577,6 +1665,7 @@ model LlmUsageEvent {
 // ---------------------------------------------------------------------------
 
 model RuleSetPreparationRun {
+  selectedRuleResult PreparationRuleResult?
   executionContract PreparationExecutionContract @default(CLAIM_INVENTORY_V1)
   targetActivityScope PreparationTargetActivityScope @default(FULL_SOURCE)
   scopeReviewRequested Boolean @default(false)
@@ -2350,6 +2439,7 @@ enum AuthorizationReasonCode {
   VALIDATION_FAILED
 }
 enum PreparationExecutionContract {
+  SELECTED_RULE_V1
   CLAIM_INVENTORY_V1
   DIRECT_DRAFT_V1
 }

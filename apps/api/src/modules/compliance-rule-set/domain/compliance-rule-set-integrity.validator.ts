@@ -83,66 +83,38 @@ export function sha256Hex(value: string): string {
 }
 
 /**
- * Business purpose: Verify that a complete Rule Set packet is structurally valid and bound to one pinned Legal Source version.
- *
+ * Business purpose: Preserve canonical parent applicability and evidence bindings in generated AssessmentRules.
  * Business rules:
- * - Requirement, AssessmentRule, context-relation and per-rule criterion identities must be unique; source-reference bindings and entity links must be valid.
- * - Every source citation must resolve to the exact pinned chunk/hash with current legal-effect status and provenance.
- * - Assessment applicability, criteria, scope declarations, and evidence requests must preserve linked Requirement structure; this validator does not interpret or repair legal meaning.
- * - A successful result exposes only server-resolved source bindings; failures remain explicit and prevent activation upstream.
- *
+ * - Assessment prose, criterion predicates and source references must inherit the declared parent requirements and directed context.
+ * - Duplicate rule/criterion identities and missing parent context are rejected without interpreting legal meaning.
  * Execution flow:
- * 1. Require a valid retrieval index and nonempty requirements/rules, then check identities and derived AssessmentRule bindings.
- * 2. Resolve source references against the pinned snapshot and collect clean citation bindings, status, and mixed-source failures.
- * 3. Verify rule links, context-relation links, coverage, applicability-scope declaration, and semantic-claim graph integrity.
- * 4. Return the accumulated failures, clean resolved chunks, and structural/retrieval coverage.
- *
+ * 1. Resolve each rule's parent requirements and directed context.
+ * 2. Check inherited prose, source references, unresolved facts and criterion coverage.
  * Failure cases:
- * - Returns typed failures for missing/duplicate/orphan records, unresolved or stale citations, invalid effect status, incomplete coverage, missing scope declarations, and semantic-binding gaps.
- * - Malformed input or unexpected runtime failures propagate; no legal judgment or source repair is generated.
- *
+ * - Returns the existing typed binding and duplicate-identity failures for inconsistent output.
  * Side effects:
- * - None; validates the submitted packet against the supplied immutable source snapshot.
+ * - Pure structural validation shared by complete-source and selected-rule preparation.
  */
-export function validateComplianceRuleSetPacket(
+export function validateAssessmentRuleBindings(
   packet: ComplianceRuleSetPacket,
-  legalSource: LegalSourceSnapshot,
-  isForeignChunkHash: ForeignChunkHashLookup,
-): RuleSetValidationResult {
-  const referenceOnly = new Set(
-    legalSource.referenceOnlyDocumentIds ??
-      legalSource.documentGraph?.referenceOnlyDocumentIds ??
-      [],
-  );
+): ComplianceRuleSetValidationFailure[] {
   const failures: ComplianceRuleSetValidationFailure[] = [];
-  const resolved = new Map<string, LegalSourceChunkSnapshot>();
+  /**
+   * Business purpose: Preserve one typed assessment binding failure for the caller.
+   * Business rules:
+   * - Keep the canonical failure code, affected reference and detail unchanged.
+   * Execution flow:
+   * 1. Append the supplied failure to the local result.
+   * Failure cases:
+   * - Invalid argument construction propagates without repairing the authored rule.
+   * Side effects:
+   * - Mutates only the local validation failure list.
+   */
   const fail = (
     code: ComplianceRuleSetFailureCode,
     ref: string | null,
     detail: string | null = null,
   ) => failures.push({ code, ref, detail });
-
-  if (!legalSource.retrievalIndexValid) {
-    fail(COMPLIANCE_RULE_SET_FAILURE_CODES.RETRIEVAL_INDEX_NOT_VALID, null);
-  }
-  if (
-    packet.legalRequirements.length === 0 ||
-    packet.assessmentRules.length === 0
-  ) {
-    fail(COMPLIANCE_RULE_SET_FAILURE_CODES.EMPTY_RULE_SET, null);
-  }
-
-  // --- unique identities (rule set scope) ---------------------------------
-  const legalRequirementIds = new Set<string>();
-  for (const rule of packet.legalRequirements) {
-    if (legalRequirementIds.has(rule.legalRequirementId)) {
-      fail(
-        COMPLIANCE_RULE_SET_FAILURE_CODES.DUPLICATE_RULE_ID,
-        `legalRequirement:${rule.legalRequirementId}`,
-      );
-    }
-    legalRequirementIds.add(rule.legalRequirementId);
-  }
   const assessmentRuleIds = new Set<string>();
   for (const rule of packet.assessmentRules) {
     const parents = rule.legalRequirementIds.flatMap((id) => {
@@ -278,6 +250,71 @@ export function validateComplianceRuleSetPacket(
         );
     }
   }
+  return failures;
+}
+
+/**
+ * Business purpose: Verify that a complete Rule Set packet is structurally valid and bound to one pinned Legal Source version.
+ *
+ * Business rules:
+ * - Requirement, AssessmentRule, context-relation and per-rule criterion identities must be unique; source-reference bindings and entity links must be valid.
+ * - Every source citation must resolve to the exact pinned chunk/hash with current legal-effect status and provenance.
+ * - Assessment applicability, criteria, scope declarations, and evidence requests must preserve linked Requirement structure; this validator does not interpret or repair legal meaning.
+ * - A successful result exposes only server-resolved source bindings; failures remain explicit and prevent activation upstream.
+ *
+ * Execution flow:
+ * 1. Require a valid retrieval index and nonempty requirements/rules, then check identities and derived AssessmentRule bindings.
+ * 2. Resolve source references against the pinned snapshot and collect clean citation bindings, status, and mixed-source failures.
+ * 3. Verify rule links, context-relation links, coverage, applicability-scope declaration, and semantic-claim graph integrity.
+ * 4. Return the accumulated failures, clean resolved chunks, and structural/retrieval coverage.
+ *
+ * Failure cases:
+ * - Returns typed failures for missing/duplicate/orphan records, unresolved or stale citations, invalid effect status, incomplete coverage, missing scope declarations, and semantic-binding gaps.
+ * - Malformed input or unexpected runtime failures propagate; no legal judgment or source repair is generated.
+ *
+ * Side effects:
+ * - None; validates the submitted packet against the supplied immutable source snapshot.
+ */
+export function validateComplianceRuleSetPacket(
+  packet: ComplianceRuleSetPacket,
+  legalSource: LegalSourceSnapshot,
+  isForeignChunkHash: ForeignChunkHashLookup,
+): RuleSetValidationResult {
+  const referenceOnly = new Set(
+    legalSource.referenceOnlyDocumentIds ??
+      legalSource.documentGraph?.referenceOnlyDocumentIds ??
+      [],
+  );
+  const failures: ComplianceRuleSetValidationFailure[] = [];
+  const resolved = new Map<string, LegalSourceChunkSnapshot>();
+  const fail = (
+    code: ComplianceRuleSetFailureCode,
+    ref: string | null,
+    detail: string | null = null,
+  ) => failures.push({ code, ref, detail });
+
+  if (!legalSource.retrievalIndexValid) {
+    fail(COMPLIANCE_RULE_SET_FAILURE_CODES.RETRIEVAL_INDEX_NOT_VALID, null);
+  }
+  if (
+    packet.legalRequirements.length === 0 ||
+    packet.assessmentRules.length === 0
+  ) {
+    fail(COMPLIANCE_RULE_SET_FAILURE_CODES.EMPTY_RULE_SET, null);
+  }
+
+  // --- unique identities (rule set scope) ---------------------------------
+  const legalRequirementIds = new Set<string>();
+  for (const rule of packet.legalRequirements) {
+    if (legalRequirementIds.has(rule.legalRequirementId)) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.DUPLICATE_RULE_ID,
+        `legalRequirement:${rule.legalRequirementId}`,
+      );
+    }
+    legalRequirementIds.add(rule.legalRequirementId);
+  }
+  failures.push(...validateAssessmentRuleBindings(packet));
   const relationIds = new Set<string>();
   for (const relation of packet.contextRelations) {
     if (relationIds.has(relation.relationId)) {

@@ -455,7 +455,7 @@ export class LegalSourceDeletionService {
    * Business purpose: Build the authoritative read projection used to explain whether source-owned records can be removed safely.
    *
    * Business rules:
-   * - Assessments, reports, nonterminal jobs, active ingestion, and unsettled owned outbox work block deletion; shared blobs are counted separately.
+   * - Canonical input catalogs, Assessments, reports, nonterminal jobs, active ingestion, and unsettled owned outbox work block deletion; shared blobs are counted separately.
    *
    * Execution flow:
    * 1. Load the source and its versions with owned document, preparation, Rule Set, graph, and activation counts.
@@ -487,6 +487,7 @@ export class LegalSourceDeletionService {
                 ruleSetPreparationRuns: true,
                 ruleSetVersions: true,
                 documentMaterializations: true,
+                ruleCatalogVersions: true,
               },
             },
           },
@@ -813,7 +814,13 @@ export class LegalSourceDeletionService {
       }),
     );
 
+    const catalogReferences = source.versions.reduce(
+      (count, version) => count + (version._count.ruleCatalogVersions ?? 0),
+      0,
+    );
     const blockers = new Set<LegalSourceDeletionBlocker>();
+    if (catalogReferences > 0)
+      blockers.add(LEGAL_SOURCE_DELETION_BLOCKERS.catalogReferenceExists);
     if (
       cases +
         auditRequests +
@@ -981,6 +988,7 @@ export class LegalSourceDeletionService {
       externalActivationReferences,
       mixedReactivations,
       prepAssessmentEvents,
+      catalogReferences,
     };
     const etag = `sha256:${createHash("sha256").update(JSON.stringify(digestState)).digest("hex")}`;
     const byStatus = Object.fromEntries(

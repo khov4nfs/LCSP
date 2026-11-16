@@ -12,7 +12,7 @@ if (process.argv[2] === "--self-check") {
   try {
     writeFileSync(
       canary,
-      'LegalCorpus LegalPortfolio EngineeringRule LegalPreparation\nCorpusApprovalRecord legalCorpusVersionId CORPUS_UNAVAILABLE\nadmin/corpus-versions event.legal-corpus.activated.v1 .corpus\nLegalSourceDocumentCorpusRole corpusRole LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES structured legal corpus ...corpus\n"document": "LCSP_RULE_SET_PREPARATION_1TO1_REVIEW_ONLY"; "notRuleSetVersion": true; "authorizedForActivation": false; LegalRule\n',
+      'LegalCorpus LegalPortfolio EngineeringRule LegalPreparation\nCorpusApprovalRecord legalCorpusVersionId CORPUS_UNAVAILABLE\nadmin/corpus-versions event.legal-corpus.activated.v1 .corpus\nLegalSourceDocumentCorpusRole corpusRole LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES structured legal corpus ...corpus\n"document": "LCSP_RULE_SET_PREPARATION_1TO1_REVIEW_ONLY"; "notRuleSetVersion": true; "authorizedForActivation": false; EngineeringRule\n',
     );
     const result = spawnSync(process.execPath, [process.argv[1]], {
       encoding: "utf8",
@@ -46,7 +46,7 @@ if (process.argv[2] === "--self-check") {
         (hit) =>
           hit.file === canary &&
           hit.line === 5 &&
-          hit.matches.includes("LegalRule"),
+          hit.matches.includes("EngineeringRule"),
       ),
       true,
       "a review marker in another path cannot bypass retired-name checks",
@@ -74,9 +74,10 @@ if (process.argv[2] === "--self-check") {
   process.exit(0);
 }
 
-// A source collection and its document roles are current vocabulary; retired aggregate identities and routes are not.
+// LCSP-369 restores LegalRule as the editable canonical input catalog. Generated LegalRequirement and AssessmentRule identities remain distinct.
+// Other retired aggregate identities and routes remain prohibited.
 const retired =
-  /LegalCorpus|CorpusApprovalRecord|legalCorpusVersion|CORPUS_UNAVAILABLE|LEGAL_CORPUS_VERSION|corpus-versions|\/corpus\/|(?<!\.)\.corpus\b|LegalPortfolio|LegalPreparation|EngineeringRule|legal-corpus|legal-portfolio|legal-preparation|engineeringRule|portfolioVersion|legalPortfolioVersion|portfolioRule|portfolioDigest|LegalRule|legalRule|LEGAL_RULE|legal_rule|legal-rule|\bportfolio\b|Portfolio|PORTFOLIO|engineering[_ -]rule|ENGINEERING_RULE|LEGAL_PREPARATION|legal_preparation/g;
+  /LegalCorpus|CorpusApprovalRecord|legalCorpusVersion|CORPUS_UNAVAILABLE|LEGAL_CORPUS_VERSION|corpus-versions|\/corpus\/|(?<!\.)\.corpus\b|LegalPortfolio|LegalPreparation|EngineeringRule|legal-corpus|legal-portfolio|legal-preparation|engineeringRule|portfolioVersion|legalPortfolioVersion|portfolioRule|portfolioDigest|\bportfolio\b|Portfolio|PORTFOLIO|engineering[_ -]rule|ENGINEERING_RULE|LEGAL_PREPARATION|legal_preparation/g;
 // Retired identifiers remain quoted in these two non-executable legal-source review
 // artifacts so reviewers can map legacy exports to exact source locators. This is not
 // a path-based blanket exemption: each file must also carry its non-activation markers.

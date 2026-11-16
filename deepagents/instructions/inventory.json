@@ -2310,6 +2310,35 @@
         "translator": "Codex session-authorized source repair; full bundle review remains pending",
         "translationRevision": "r3"
       }
+    },
+    {
+      "sourceId": "preparation.selected",
+      "runtimeRole": "rule-set-preparation",
+      "instructionKind": "PHASE",
+      "vietnameseSourcePath": "instructions/vi/preparation-selected.md",
+      "vietnameseSourceRevision": "lcsp-369-development-r1",
+      "runtimeEntryId": "preparation.selected",
+      "required": true,
+      "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
+      "englishCandidatePath": "instructions/candidates/r1/preparation.selected.txt",
+      "migrationReferences": [
+        "rule_set_preparation/selected_rule.py"
+      ],
+      "placeholderSchema": {},
+      "consumers": [
+        {
+          "filePath": "rule_set_preparation/selected_rule.py",
+          "symbolName": "run_selected_rule_preparation",
+          "integrationStatus": "DEVELOPMENT_RUNTIME"
+        }
+      ],
+      "sourceSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
+      "englishCandidateSha256": "4ec5ce3abb9dcb8736ec7e6f9ca8e87dd10644eff15609a6fcf211523f810d78",
+      "candidateOriginSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
+      "translationProvenance": {
+        "translator": "LCSP-369 development instruction; no independent approval claimed",
+        "translationRevision": "r1"
+      }
     }
   ],
   "constructionSites": [
@@ -9272,6 +9301,45 @@
       "placeholderSchema": {},
       "migrationStatus": "NON_MODEL_FACING",
       "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
+    },
+    {
+      "siteId": "ast:rule_set_preparation/selected_rule.py::run_selected_rule_preparation::KEYWORD_SYSTEM_PROMPT::66:d5c4a78da5ba5282",
+      "filePath": "rule_set_preparation/selected_rule.py",
+      "lineNumber": 66,
+      "symbolName": "run_selected_rule_preparation",
+      "constructionSha256": "d5c4a78da5ba52821d29d3ab2805594aec33e8367ed8fa4ffe09c9872ef46c75",
+      "evidence": "content",
+      "astKind": "KEYWORD_SYSTEM_PROMPT",
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation",
+      "runtimeRole": "rule-set-preparation",
+      "runtimePhase": "PREPARATION",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "preparation.selected",
+      "existingSourcePath": "rule_set_preparation/selected_rule.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "LCSP-369 selected runtime loads a fresh, context-pinned development instruction and records exact content/hash; no approval status is asserted."
+    },
+    {
+      "siteId": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation::34e87281b06ae047::1",
+      "filePath": "rule_set_preparation/selected_rule.py",
+      "lineNumber": 66,
+      "symbolName": "run_selected_rule_preparation",
+      "constructionSha256": "34e87281b06ae04756ccb127f7a7826bc2f9d98894dfa5f25a6e80978cb7edb8",
+      "evidence": "tools=[], system_prompt=content,",
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation",
+      "runtimeRole": "rule-set-preparation",
+      "runtimePhase": "PREPARATION",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "preparation.selected",
+      "existingSourcePath": "rule_set_preparation/selected_rule.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "LCSP-369 selected runtime loads a fresh, context-pinned development instruction and records exact content/hash; no approval status is asserted."
     }
   ],
   "requiredSourceIds": [
@@ -9333,7 +9401,8 @@
     "skill.rule-preparation-material-context",
     "skill.rule-preparation-mixed-claims",
     "skill.rule-preparation-scope-quality",
-    "tools.schema-guidance"
+    "tools.schema-guidance",
+    "preparation.selected"
   ],
   "frameworkInstructions": [
     {

@@ -12,6 +12,7 @@ import {
 } from "@jest/globals";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
+import { LEGAL_RULE_CATALOG_ERRORS } from "@lcsp/contracts/legal-rule-catalog";
 import { LEGAL_DOCUMENT_NODE_TYPES } from "@lcsp/contracts/legal-source";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
@@ -163,19 +164,16 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
     await app.close();
   });
 
-  it("ADMIN starts preparation with server-owned actor and no content input", async () => {
+  it("ADMIN cannot implicitly start a source-wide workload without canonical rule selection", async () => {
     const response = await supertest(app.getHttpServer())
       .post("/admin/compliance-rule-sets/prepare")
       .set("Authorization", "Bearer admin")
-      .expect(202);
+      .expect(422);
     expect(response.body).toMatchObject({
-      ok: true,
-      data: { executionState: AGENT_EXECUTION_STATES.QUEUED },
+      ok: false,
+      problem: { code: LEGAL_RULE_CATALOG_ERRORS.EMPTY, status: 422 },
     });
-    const dispatched = execute.mock.calls[0][0] as PrepareCurrentRuleSetCommand;
-    expect(dispatched).toBeInstanceOf(PrepareCurrentRuleSetCommand);
-    expect(dispatched.requestedBy).toBe("owner-admin");
-    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
   });
   it("non-admin receives canonical 403 and cannot dispatch preparation", async () => {
     const response = await supertest(app.getHttpServer())

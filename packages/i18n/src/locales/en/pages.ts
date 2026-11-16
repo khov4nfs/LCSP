@@ -1,5 +1,7 @@
 import type { PagesMessages } from "../../types.ts";
+import { enLegalRuleCatalog } from "./legal-rule-catalog.ts";
 export const enPages = {
+  legalRuleCatalog: enLegalRuleCatalog,
   preparationOps: {
     persistedCoverage: "Persisted source coverage",
 
@@ -228,7 +230,7 @@ export const enPages = {
     },
     title: "Compliance rule sets",
     description:
-      "Rule sets are shared by assessments and prepared when a Legal Source Version is activated. Administrators can also prepare the current source, or prepare a new version that replaces the active one automatically once it validates.",
+      "Build a Preparation Rule Set by selecting Legal Rules from chunked sources. Inspect independent rule results, regenerate a rule with updated instructions, and manage existing shared Rule Set versions.",
     active: "Active rule set",
     unavailable: "No active rule set yet",
     sourceVersion: "Legal Source Version",
@@ -2936,6 +2938,7 @@ export const enPages = {
       other: "Other",
     },
     deletionBlockerLabels: {
+      CATALOG_REFERENCE_EXISTS: "A canonical Legal Rule catalog pins this source and its preparation history.",
       PROTECTED_REFERENCE_EXISTS:
         "Protected Assessment, report, or external history references this source.",
       NONTERMINAL_WORK_EXISTS:

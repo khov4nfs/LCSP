@@ -51,6 +51,7 @@ export class ComplianceRuleSetHistoryLoader {
             take: 100,
           }),
           tx.ruleSetPreparationRun.findMany({
+            where: { selectedRuleResult: null },
             include: {
               ruleSet: {
                 select: {

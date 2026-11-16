@@ -31,8 +31,22 @@ class RuleSetPreparationBoundary(AgentBoundaryBase):
         self._runner = runner or run_rule_set_preparation
 
     def handle(self, message: dict[str, Any], correlationId: str) -> dict[str, Any]:
+        """Business purpose: Dispatch a persisted preparation run through its existing runtime boundary.
+
+        Business rules:
+        - Selected-result messages invoke only selected-item execution; API claims validate their canonical ownership.
+        Execution flow:
+        1. Validate run identity; 2. Route selected-item or historical full-source work to its existing runner.
+        Failure cases:
+        - Missing run identity rejects permanently; claim and runtime failures remain governed by the runner.
+        Side effects:
+        - Executes one run through the existing runtime, usage and event boundary.
+        """
         run_id = message.get("preparationRunId")
         if not isinstance(run_id, str) or not run_id.strip():
             # A malformed command can never become valid by redelivery.
             raise NonRetryableAgentBoundaryError("rule set preparation command has no preparationRunId")
+        if message.get("preparationRuleResultId"):
+            from rule_set_preparation.selected_rule import run_selected_rule_preparation
+            return run_selected_rule_preparation(self._api_client, run_id.strip())
         return self._runner(self._api_client, run_id.strip())
