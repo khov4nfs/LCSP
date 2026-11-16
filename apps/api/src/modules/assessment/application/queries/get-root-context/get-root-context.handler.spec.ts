@@ -29,6 +29,7 @@ describe("GetRootContextHandler locale authority", () => {
     caseRevision: 1,
     ruleSetVersionId: randomUUID(),
     repositorySnapshotId: randomUUID(),
+    repositoryId: "repository-123",
     repositoryScanJobId: randomUUID(),
     repositoryCommit: "a".repeat(40),
   };
@@ -158,6 +159,7 @@ describe("GetRootContextHandler locale authority", () => {
       new GetRootContextQuery(assessmentId, leaseToken, correlationId),
     );
     expect(result.sourcePathPrefix).toBe("chatbot");
+    expect(result.repositoryId).toBe("repository-123");
   });
 
   it("resolves default application locale (vi) when no saved selection exists in server state", async () => {

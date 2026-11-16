@@ -275,6 +275,7 @@ export class AssessmentCompletionGate {
         where: { id: pins.repositorySnapshotId },
         select: {
           id: true,
+          repositoryId: true,
           assessmentId: true,
           commitSha: true,
           sourcePathPrefix: true,
@@ -541,6 +542,8 @@ export class AssessmentCompletionGate {
         assessmentId,
         pins: {
           ...pins,
+          assessmentId,
+          repositoryId: snapshot.repositoryId,
           sourcePathPrefix: snapshot.sourcePathPrefix,
           caseRevision: assessmentCase.caseRevision,
         },

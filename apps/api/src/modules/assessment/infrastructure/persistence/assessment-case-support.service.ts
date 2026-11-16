@@ -22,9 +22,11 @@ export const ROOT_AUDIT_ACTOR = {
 } as const;
 
 export interface PinnedCase {
+  assessmentId: string;
   caseRevision: number;
   ruleSetVersionId: string;
   repositorySnapshotId: string;
+  repositoryId: string;
   repositoryScanJobId: string;
   repositoryCommit: string;
   sourcePathPrefix: string | null;
@@ -100,6 +102,7 @@ export class AssessmentCaseSupport {
       },
       select: {
         id: true,
+        repositoryId: true,
         assessmentId: true,
         commitSha: true,
         sourcePathPrefix: true,
@@ -109,6 +112,7 @@ export class AssessmentCaseSupport {
       !snapshot ||
       snapshot.id !== row.repositorySnapshotId ||
       snapshot.assessmentId !== assessmentId ||
+      !snapshot.repositoryId ||
       snapshot.commitSha.toLowerCase() !== row.repositoryCommit.toLowerCase() ||
       (snapshot.sourcePathPrefix !== null &&
         !repositorySourcePathPrefixSchema.safeParse(snapshot.sourcePathPrefix)
@@ -121,9 +125,11 @@ export class AssessmentCaseSupport {
       );
     }
     return {
+      assessmentId,
       caseRevision: row.caseRevision,
       ruleSetVersionId: row.ruleSetVersionId,
       repositorySnapshotId: row.repositorySnapshotId,
+      repositoryId: snapshot.repositoryId,
       repositoryScanJobId: row.repositoryScanJobId,
       repositoryCommit: row.repositoryCommit,
       sourcePathPrefix: snapshot.sourcePathPrefix,

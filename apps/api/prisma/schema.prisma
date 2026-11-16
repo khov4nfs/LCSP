@@ -2040,9 +2040,40 @@ model AssessmentCase {
   humanRequests        AssessmentHumanRequest[]
   artifacts            AssessmentArtifact[]
   auditRequests        AssessmentRuleAuditRequest[]
+  repositoryDiscoveries AssessmentRepositoryDiscovery[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
   @@unique([assessmentId, ruleSetVersionId])
+}
+
+enum RepositoryScannerVersion {
+  LCSP_PRE_SCAN_V1
+}
+
+enum RepositoryDiscoveryVersion {
+  LCSP_DISCOVERY_V1
+}
+
+/// Immutable, versioned repository discovery input bound to one assessment snapshot.
+model AssessmentRepositoryDiscovery {
+  recordId             String                     @id @db.Uuid
+  assessmentId         String
+  repositorySnapshotId String
+  repositoryId         String
+  repositoryCommit     String
+  sourcePathPrefix     String?
+  scannerVersion       RepositoryScannerVersion
+  discoveryVersion     RepositoryDiscoveryVersion
+  scannerSignature     String
+  graphIndexVersion    String
+  cacheIdentity        String
+  contentDigest        String
+  payload              Json
+  createdAt            DateTime                   @default(now()) @db.Timestamptz(3)
+  assessmentCase       AssessmentCase             @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([assessmentId, cacheIdentity, contentDigest])
+  @@index([assessmentId, repositorySnapshotId, createdAt(sort: Desc)])
 }
 
 enum AssessmentAuditMode {

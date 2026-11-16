@@ -242,10 +242,105 @@ class AssessmentRuntimeClient:
         """
         return self._call("GET", "/legal-source/search", params={"query": query})
 
+    def repository_discovery_summary(self) -> dict[str, Any]:
+        """Business purpose: Load the bounded metadata summary of the discovery artifact pinned to this assessment.
+
+        Business rules:
+        - The current worker lease scopes the read; absence remains explicit and never proves no AI use.
+
+        Execution flow:
+        1. Request the governed discovery summary endpoint.
+        2. Return its availability and bounded counts/resource coverage.
+
+        Failure cases:
+        - Lease, pin, integrity and transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP retrieval; no discovery, evidence, fact or decision is changed.
+        """
+        return self._call("GET", "/discovery")
+
+    def repository_discovery_ranges(
+        self, record_id: str, *, offset: int = 0, limit: int = 25
+    ) -> dict[str, Any]:
+        """Business purpose: Read one bounded page of prioritized source ranges from an immutable discovery artifact.
+
+        Business rules:
+        - The record identity, offset and limit are validated by the leased API against current repository pins.
+
+        Execution flow:
+        1. Encode the immutable record and page coordinates.
+        2. Return the digest-bound range page from the governed endpoint.
+
+        Failure cases:
+        - Foreign records, stale pins, invalid pages and transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP retrieval without accepting source as evidence or changing assessment scope.
+        """
+        return self._call(
+            "GET",
+            "/discovery/ranges",
+            params={"recordId": record_id, "offset": str(offset), "limit": str(limit)},
+        )
+
+    def repository_discovery_details(
+        self,
+        record_id: str,
+        collection: str,
+        *,
+        offset: int = 0,
+        limit: int = 25,
+    ) -> dict[str, Any]:
+        """Business purpose: Read bounded AI-use-case or coverage-caveat pages from an immutable discovery artifact.
+
+        Business rules:
+        - Only server-supported collection names are eligible and every page remains bound to the artifact digest.
+
+        Execution flow:
+        1. Send record, collection and page coordinates through the leased discovery endpoint.
+        2. Return the bounded metadata/caveat items and continuation offset.
+
+        Failure cases:
+        - Invalid collections, offsets, pins, integrity or transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP retrieval; no discovery recommendation or audit authorization is created.
+        """
+        return self._call(
+            "GET",
+            "/discovery/details",
+            params={
+                "recordId": record_id,
+                "collection": collection,
+                "offset": str(offset),
+                "limit": str(limit),
+            },
+        )
+
     # ---- governed writes -----------------------------------------------------------------------
 
     def post_evidence(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/evidence", body)
+
+    def post_repository_discovery(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Business purpose: Submit the scanner's strict no-raw-source discovery artifact to durable API history.
+
+        Business rules:
+        - The current Root lease and server-owned repository pins govern acceptance.
+        - Transport sends a mutation once; API cache/content coordinates provide idempotency.
+
+        Execution flow:
+        1. Submit the complete strict discovery artifact to the governed endpoint.
+        2. Return the immutable record receipt or replay receipt.
+
+        Failure cases:
+        - Pin, schema, digest, lease or transport failures propagate and prevent the Root from treating discovery as durable input.
+
+        Side effects:
+        - Performs one HTTP mutation that may append an immutable discovery record; replays do not duplicate it.
+        """
+        return self._call("POST", "/discovery", body)
 
     def post_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/facts", body)

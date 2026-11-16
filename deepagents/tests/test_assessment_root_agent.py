@@ -31,6 +31,7 @@ COMMIT = "a" * 40
 PINS = {
     "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
     "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+    "repositoryId": "repository-123",
     "repositoryCommit": COMMIT,
 }
 
@@ -130,6 +131,55 @@ class FakeClient:
             if all(word in text["content"].lower() for word in words)
         ]
         return {"matches": matches, "truncated": False}
+
+    def repository_discovery_summary(self) -> dict[str, Any]:
+        self.calls.append(("discovery_summary", None))
+        return {"available": False, "discovery": None}
+
+    def repository_discovery_ranges(
+        self, record_id: str, *, offset: int = 0, limit: int = 25
+    ) -> dict[str, Any]:
+        self.calls.append(("discovery_ranges", (record_id, offset, limit)))
+        return {
+            "recordId": record_id,
+            "contentDigest": "sha256:" + "1" * 64,
+            "total": 0,
+            "offset": offset,
+            "limit": limit,
+            "nextOffset": None,
+            "ranges": [],
+        }
+
+    def repository_discovery_details(
+        self,
+        record_id: str,
+        collection: str,
+        *,
+        offset: int = 0,
+        limit: int = 25,
+    ) -> dict[str, Any]:
+        self.calls.append(
+            ("discovery_details", (record_id, collection, offset, limit))
+        )
+        return {
+            "recordId": record_id,
+            "contentDigest": "sha256:" + "1" * 64,
+            "collection": collection,
+            "total": 0,
+            "offset": offset,
+            "limit": limit,
+            "nextOffset": None,
+            "items": [],
+        }
+
+    def post_repository_discovery(self, body: dict[str, Any]) -> dict[str, Any]:
+        self.calls.append(("discovery", body))
+        return {
+            "recordId": "66666666-6666-4666-8666-666666666666",
+            "cacheIdentity": body["cacheIdentity"],
+            "contentDigest": body["contentDigest"],
+            "replayed": False,
+        }
 
     def rule_set(self) -> dict[str, Any]:
         self.calls.append(("rule_set", None))
@@ -489,6 +539,20 @@ def test_failed_search_is_recorded_as_a_coverage_gap(tmp_path) -> None:
     assert body["knownGaps"] == ["The search_code_graph search did not return a usable result."]
 
 
+def test_assessment_context_preserves_explicit_discovery_absence(tmp_path) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+
+    context = json.loads(tools["get_assessment_context"].invoke({}))
+
+    assert context["repositoryDiscovery"] == {
+        "available": False,
+        "discovery": None,
+    }
+    assert ("discovery_summary", None) in client.calls
+
+
 # ---- the agent graph ------------------------------------------------------------------------------
 
 
@@ -542,10 +606,18 @@ def test_root_backend_factory_indexes_the_hydrated_snapshot_for_graph_tools(tmp_
         lambda backend, **_kwargs: order.append(("index", backend is sandbox)),
     )
     client = FakeClient()
+    submitted: list[dict[str, Any]] = []
 
-    sandbox_backend_factory(client.claim(ASSESSMENT), client.context())
+    sandbox_backend_factory(
+        client.claim(ASSESSMENT),
+        client.context(),
+        discovery_sink=submitted.append,
+    )
 
     assert order == ["hydrate", ("index", True)]
+    assert len(submitted) == 1
+    assert submitted[0]["repositoryId"] == "repository-123"
+    assert submitted[0]["contentDigest"] == submitted[0]["discoveryId"]
 
 
 def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_tools(tmp_path) -> None:
