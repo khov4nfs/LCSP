@@ -8016,9 +8016,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::2632:1f44fa73cce7637e",
+      "siteId": "ast:tools/common/capabilities/platform/repository_scanner.py::<module>::KEYWORD_DESCRIPTION::3048:1f44fa73cce7637e",
       "filePath": "tools/common/capabilities/platform/repository_scanner.py",
-      "lineNumber": 2632,
+      "lineNumber": 3048,
       "symbolName": "<module>",
       "constructionSha256": "1f44fa73cce7637ebd70b5dc86cdeaa4c9cdbb93f81e9084b9c1d7db8da18d31",
       "evidence": "\"Deterministic offline repository pre-scan\"",
@@ -9270,7 +9270,7 @@
     {
       "siteId": "tools/common/capabilities/platform/repository_scanner.py::<module>::685d9c993d7675b9::1",
       "filePath": "tools/common/capabilities/platform/repository_scanner.py",
-      "lineNumber": 2632,
+      "lineNumber": 3048,
       "symbolName": "<module>",
       "constructionSha256": "685d9c993d7675b9058d6aaf3e454ed4aeb4f6ecff20fbc0a7bf77208c8f3fc7",
       "evidence": "parser = argparse.ArgumentParser(description=\"Deterministic offline repository pre-scan\")",

@@ -41,6 +41,7 @@ import json
 import os
 import re
 import shlex
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -55,6 +56,10 @@ REPOSITORY_DISCOVERY_PATH = "/workspace/runtime/repository_discovery.json"
 DISCOVERY_VERSION = "LCSP_DISCOVERY_V1"
 DEFAULT_MAX_DISCOVERY_SOURCE_SIZE_BYTES = 1024 * 1024
 DEFAULT_MAX_DISCOVERY_TOTAL_BYTES = 64 * 1024 * 1024
+DEFAULT_MAX_DISCOVERY_GRAPH_TRACES = 50
+DEFAULT_DISCOVERY_GRAPH_TRACE_DEPTH = 3
+DEFAULT_DISCOVERY_GRAPH_RESULT_LIMIT = 100
+DEFAULT_DISCOVERY_GRAPH_OUTPUT_TOKENS = 4_000
 _TMP_SCANNER_PATH = "/tmp/.lcsp_scanner.py"
 
 _DISCOVERY_PROVIDER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -1545,6 +1550,410 @@ def compute_discovery_digest(discovery: Mapping[str, Any]) -> str:
     return _discovery_sha256(encoded)
 
 
+def _append_discovery_gap(
+    discovery: dict[str, Any],
+    *,
+    path: str,
+    reason: str,
+    detail: str,
+) -> None:
+    """Business purpose:
+    Preserve graph coverage limitations inside the bounded discovery contract.
+
+    Business rules:
+    - Keep at most 2,000 known gaps and never silently imply complete coverage.
+    - Deduplicate identical gap records produced by repeated range traces.
+
+    Execution flow:
+    1. Build the bounded gap record.
+    2. Append it when unique and capacity remains.
+    3. Replace the final slot with an omission marker when capacity is exhausted.
+
+    Failure cases:
+    - A full collection records a generic omitted-gap marker instead of exceeding the contract.
+
+    Side effects:
+    - Mutates only the in-memory discovery known-gap collection.
+    """
+    gaps = discovery.setdefault("knownGaps", [])
+    gap = {"path": path[:1024], "reason": reason, "detail": detail[:1000]}
+    if gap in gaps:
+        return
+    if len(gaps) < 2_000:
+        gaps.append(gap)
+        return
+    gaps[-1] = {
+        "path": "",
+        "reason": "INCOMPLETE_COVERAGE",
+        "detail": "Known-gap collection reached its limit; additional graph coverage gaps were omitted.",
+    }
+
+
+def _append_range_gap(source_range: dict[str, Any], detail: str) -> None:
+    """Business purpose:
+    Attach a graph limitation to the exact source priority affected by it.
+
+    Business rules:
+    - Preserve unique messages only and remain within the 100-item range contract.
+    - Never convert an omitted graph result into evidence that an edge is absent.
+
+    Execution flow:
+    1. Normalize the bounded detail.
+    2. Append it when unique and capacity remains.
+    3. Add a final omission marker if more limitations cannot be represented.
+
+    Failure cases:
+    - Full range collections retain a generic incomplete-coverage marker.
+
+    Side effects:
+    - Mutates only the supplied source range.
+    """
+    gaps = source_range.setdefault("coverageGaps", [])
+    bounded = detail[:1000]
+    if bounded in gaps:
+        return
+    if len(gaps) < 100:
+        gaps.append(bounded)
+        return
+    gaps[-1] = "Additional graph coverage gaps were omitted at the range contract limit."
+
+
+def _parse_last_json_object(output: str) -> dict[str, Any] | None:
+    """Business purpose:
+    Extract the structured Codebase Memory result from bounded CLI output.
+
+    Business rules:
+    - Accept only a JSON object emitted on a complete output line.
+    - Ignore diagnostic lines without interpreting them as graph evidence.
+
+    Execution flow:
+    1. Walk non-empty output lines from last to first.
+    2. Decode candidate object lines.
+    3. Return the first valid object.
+
+    Failure cases:
+    - Missing or malformed JSON returns None so the caller records a coverage gap.
+
+    Side effects:
+    - Pure parsing without persistence or source access.
+    """
+    for line in reversed([line.strip() for line in output.splitlines() if line.strip()]):
+        if not (line.startswith("{") and line.endswith("}")):
+            continue
+        try:
+            parsed = json.loads(line)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def _parse_graph_trace_table(table: Any) -> tuple[list[str], bool] | None:
+    """Business purpose:
+    Convert Codebase Memory grouped caller/callee rows into bounded qualified names.
+
+    Business rules:
+    - Require the documented grouped-table shape with explicit columns and groups.
+    - Keep exact names up to 500 characters and at most 100 unique entries.
+
+    Execution flow:
+    1. Locate the name column.
+    2. Combine each group's qualified-name prefix with its name cell.
+    3. Sort, deduplicate and bound the collected names.
+
+    Failure cases:
+    - Unrecognized table shapes return None; invalid or excess rows mark the result truncated.
+
+    Side effects:
+    - Pure parsing without graph or discovery mutation.
+    """
+    if not isinstance(table, dict):
+        return None
+    columns = table.get("cols")
+    groups = table.get("groups")
+    if not isinstance(columns, list) or not isinstance(groups, list) or "name" not in columns:
+        return None
+    name_index = columns.index("name")
+    names: set[str] = set()
+    omitted = False
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("rows"), list):
+            return None
+        prefix = group.get("qn_prefix", "")
+        if not isinstance(prefix, str):
+            return None
+        for row in group["rows"]:
+            if not isinstance(row, list) or name_index >= len(row) or not isinstance(row[name_index], str):
+                omitted = True
+                continue
+            name = row[name_index].strip()
+            if not name:
+                omitted = True
+                continue
+            qualified_name = f"{prefix}.{name}" if prefix else name
+            if len(qualified_name) > 500:
+                omitted = True
+                continue
+            names.add(qualified_name)
+    ordered = sorted(names)
+    if len(ordered) > DEFAULT_DISCOVERY_GRAPH_RESULT_LIMIT:
+        omitted = True
+        ordered = ordered[:DEFAULT_DISCOVERY_GRAPH_RESULT_LIMIT]
+    return ordered, omitted
+
+
+def _finalize_graph_enriched_discovery(discovery: dict[str, Any]) -> dict[str, Any]:
+    """Business purpose:
+    Rebind graph-enriched discovery content to its integrity identity and coverage ledger.
+
+    Business rules:
+    - Preserve the original immutable repository, commit, scope, scanner, graph and cache pins.
+    - Recompute coverage counters and digest after every graph enrichment outcome.
+
+    Execution flow:
+    1. Refresh bounded coverage counters from the artifact collections.
+    2. Mark truncation when scanner or graph results were explicitly bounded.
+    3. Recompute contentDigest and discoveryId over the complete payload.
+
+    Failure cases:
+    - Malformed ledgers raise rather than produce an apparently valid artifact.
+
+    Side effects:
+    - Mutates and returns the supplied in-memory discovery payload.
+    """
+    impact = discovery["resourceLedger"]["coverageImpact"]
+    impact["knownGapCount"] = len(discovery["knownGaps"])
+    impact["unresolvedCallCount"] = len(discovery["unresolvedCalls"])
+    impact["unsupportedLanguageCount"] = len(discovery["unsupportedLanguages"])
+    impact["truncated"] = any(
+        gap.get("reason")
+        in {
+            "FILE_COUNT_LIMIT_REACHED",
+            "FILE_SIZE_LIMIT_EXCEEDED",
+            "TOTAL_BYTE_BUDGET_REACHED",
+            "INCOMPLETE_COVERAGE",
+        }
+        for gap in discovery["knownGaps"]
+        if isinstance(gap, dict)
+    )
+    digest = compute_discovery_digest(discovery)
+    discovery["discoveryId"] = digest
+    discovery["contentDigest"] = digest
+    return discovery
+
+
+def _enrich_repository_discovery_from_graph(
+    discovery: Mapping[str, Any],
+    *,
+    execute: Callable[..., Any],
+    max_traces: int = DEFAULT_MAX_DISCOVERY_GRAPH_TRACES,
+) -> dict[str, Any]:
+    """Business purpose:
+    Reuse the pinned Codebase Memory index to prioritize cross-file callers and callees
+    for discovered AI invocation symbols.
+
+    Business rules:
+    - Query only the existing graph engine; do not build a second AST or call graph.
+    - Bound traversal count, depth and returned names, while recording every truncation
+      or unsupported result.
+    - Graph topology never proves production reachability, legal applicability, compliance,
+      or evidence acceptance.
+    - Dependency injection, interfaces, async jobs, events and dynamic configuration remain
+      explicit unresolved edges.
+
+    Execution flow:
+    1. Copy the scanner artifact and identify unique invocation symbols by exact path.
+    2. Trace a bounded set in both directions against the already pinned graph index.
+    3. Populate bounded caller/callee priorities or record fail-closed range and artifact gaps.
+    4. Recompute the coverage ledger and integrity digest without changing cache pins.
+
+    Failure cases:
+    - Missing graph identity, ambiguous symbols, execution failures and unrecognized output
+      remain unresolved coverage.
+    - Excess trace candidates or graph rows are truncated explicitly, never interpreted as absence.
+
+    Side effects:
+    - Executes bounded read-only Codebase Memory queries and returns an enriched in-memory copy.
+    """
+    if max_traces <= 0:
+        raise ValueError("max_traces must be positive")
+    enriched = json.loads(json.dumps(dict(discovery), ensure_ascii=False))
+    invocation_signals = {"AI_SDK_CALL", "RAW_AI_HTTP_CALL", "AI_WRAPPER"}
+    relevant_ranges = [
+        source_range
+        for source_range in enriched.get("sourceRanges", [])
+        if source_range.get("signalType") in invocation_signals
+    ]
+    if not relevant_ranges:
+        return _finalize_graph_enriched_discovery(enriched)
+
+    graph_version = enriched.get("graphIndexVersion")
+    if graph_version == "UNAVAILABLE":
+        detail = (
+            "Codebase Memory graph was unavailable; static callers and runtime "
+            "reachability remain unresolved."
+        )
+        for source_range in relevant_ranges:
+            _append_range_gap(source_range, detail)
+        _append_discovery_gap(
+            enriched,
+            path="",
+            reason="GRAPH_UNAVAILABLE",
+            detail=detail,
+        )
+        return _finalize_graph_enriched_discovery(enriched)
+
+    missing_symbol_ranges = [
+        source_range
+        for source_range in relevant_ranges
+        if not source_range.get("symbol")
+    ]
+    if missing_symbol_ranges:
+        detail = (
+            "No enclosing symbol was identified, so graph callers/callees could not be traced; "
+            "runtime absence is not established."
+        )
+        for source_range in missing_symbol_ranges:
+            _append_range_gap(source_range, detail)
+        _append_discovery_gap(
+            enriched,
+            path="",
+            reason="UNRESOLVED_REACHABILITY",
+            detail=detail,
+        )
+
+    candidates: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for source_range in relevant_ranges:
+        path = source_range.get("path")
+        symbol = source_range.get("symbol")
+        if isinstance(path, str) and isinstance(symbol, str) and symbol:
+            candidates.setdefault((path, symbol), []).append(source_range)
+    ordered_candidates = sorted(candidates.items(), key=lambda item: item[0])
+    if len(ordered_candidates) > max_traces:
+        detail = (
+            f"Graph trace budget {max_traces} was reached; additional invocation symbols "
+            "remain unresolved."
+        )
+        for _, source_ranges in ordered_candidates[max_traces:]:
+            for source_range in source_ranges:
+                _append_range_gap(source_range, detail)
+        _append_discovery_gap(
+            enriched,
+            path="",
+            reason="INCOMPLETE_COVERAGE",
+            detail=detail,
+        )
+        ordered_candidates = ordered_candidates[:max_traces]
+
+    from .codebase_memory import CODEBASE_MEMORY_PROJECT, codebase_memory_cli
+
+    unresolved_edge = (
+        "Codebase Memory static CALLS edges do not establish dependency-injection, interface, async-job, "
+        "event-handler, dynamic-configuration, or production-runtime reachability."
+    )
+    _append_discovery_gap(
+        enriched,
+        path="",
+        reason="UNRESOLVED_REACHABILITY",
+        detail=unresolved_edge,
+    )
+    for (path, symbol), source_ranges in ordered_candidates:
+        command = codebase_memory_cli(
+            "trace_path",
+            {
+                "project": CODEBASE_MEMORY_PROJECT,
+                "function_name": symbol,
+                "file_path": path,
+                "direction": "both",
+                "depth": DEFAULT_DISCOVERY_GRAPH_TRACE_DEPTH,
+                "format": "json",
+                "limit": DEFAULT_DISCOVERY_GRAPH_RESULT_LIMIT,
+                "max_output_tokens": DEFAULT_DISCOVERY_GRAPH_OUTPUT_TOKENS,
+            },
+        )
+        try:
+            result = execute(command, timeout=30)
+        except Exception:
+            result = None
+        output = str(getattr(result, "output", "") or "") if result is not None else ""
+        exit_code = getattr(result, "exit_code", 1) if result is not None else 1
+        payload = _parse_last_json_object(output) if exit_code == 0 else None
+        callers_result = _parse_graph_trace_table(payload.get("callers")) if payload else None
+        callees_result = _parse_graph_trace_table(payload.get("callees")) if payload else None
+        if callers_result is None or callees_result is None:
+            detail = (
+                f"Codebase Memory could not return a structured caller/callee trace for {path}:{symbol}; "
+                "runtime reachability remains unresolved."
+            )
+            for source_range in source_ranges:
+                source_range["unresolvedEdges"] = [unresolved_edge]
+                _append_range_gap(source_range, detail)
+            _append_discovery_gap(
+                enriched,
+                path=path,
+                reason="UNRESOLVED_REACHABILITY",
+                detail=detail,
+            )
+            continue
+
+        callers, callers_truncated = callers_result
+        callees, callees_truncated = callees_result
+        callers_total = payload.get("callers_total")
+        callees_total = payload.get("callees_total")
+        callers_relation = payload.get("callers_total_relation")
+        callees_relation = payload.get("callees_total_relation")
+        graph_reported_truncation = payload.get("truncated") is True
+        callers_truncated = (
+            callers_truncated
+            or (isinstance(callers_total, int) and callers_total > len(callers))
+            or callers_relation not in {None, "eq"}
+            or graph_reported_truncation
+        )
+        callees_truncated = (
+            callees_truncated
+            or (isinstance(callees_total, int) and callees_total > len(callees))
+            or callees_relation not in {None, "eq"}
+            or graph_reported_truncation
+        )
+        for source_range in source_ranges:
+            source_range["callers"] = callers
+            source_range["callees"] = callees
+            source_range["unresolvedEdges"] = [unresolved_edge]
+            if not callers and not callees:
+                _append_range_gap(
+                    source_range,
+                    "The static graph returned no caller/callee edges; runtime absence is not established.",
+                )
+            if callers_truncated or callees_truncated:
+                _append_range_gap(
+                    source_range,
+                    "Graph caller/callee rows exceeded discovery bounds or contained unsupported rows.",
+                )
+        if not callers and not callees:
+            _append_discovery_gap(
+                enriched,
+                path=path,
+                reason="UNRESOLVED_REACHABILITY",
+                detail=(
+                    f"The static graph returned no caller/callee edges for {path}:{symbol}; "
+                    "runtime absence is not established."
+                ),
+            )
+        if callers_truncated or callees_truncated:
+            _append_discovery_gap(
+                enriched,
+                path=path,
+                reason="INCOMPLETE_COVERAGE",
+                detail=(
+                    f"Graph caller/callee results for {path}:{symbol} were bounded or "
+                    "contained unsupported rows."
+                ),
+            )
+
+    return _finalize_graph_enriched_discovery(enriched)
+
+
 def scan_repository_discovery(
     workspace_path: Path | str,
     *,
@@ -2221,7 +2630,8 @@ def ensure_repository_discovery(
     1. Validate scope and current scanner signature, then inspect the cached runtime artifact.
     2. Reuse only a fully valid artifact bound to the current signature and immutable coordinates.
     3. Otherwise execute discovery inside the sandbox, or use local traversal only for non-executing test backends.
-    4. Validate and write the new artifact marker for deterministic reuse.
+    4. Reuse the pinned Codebase Memory graph for bounded caller/callee priorities when available.
+    5. Validate and write the new artifact marker for deterministic reuse.
 
     Failure cases:
     - Staging, execution, JSON parsing or validation failures raise RuntimeError without returning partial results.
@@ -2309,6 +2719,12 @@ def ensure_repository_discovery(
             commit_sha=commit_sha,
             source_path_prefix=prefix,
             graph_index_version=graph_index_version,
+        )
+
+    if callable(execute):
+        discovered = _enrich_repository_discovery_from_graph(
+            discovered,
+            execute=execute,
         )
 
     validation_error = validate_repository_discovery_error(
