@@ -6,10 +6,12 @@ import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
+  type AssessmentFactNeed,
   type AssessmentHumanRequest,
   type AssessmentHumanRequestDependency,
 } from "@prisma/client";
 import { humanRequestDependenciesOf } from "./assessment-human-request-dependencies.js";
+import { factNeedViewOf } from "./assessment-fact-need.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
@@ -72,6 +74,7 @@ export class AssessmentHumanRequestSupport {
   async view(
     row: AssessmentHumanRequest & {
       dependencies?: AssessmentHumanRequestDependency[];
+      factNeed?: AssessmentFactNeed | null;
     },
     targetLocale?: string | null,
   ) {
@@ -149,6 +152,7 @@ export class AssessmentHumanRequestSupport {
       checkpointId: row.checkpointId,
       resolvedFactId: row.resolvedFactId,
       answers: row.answers,
+      ...(row.factNeed ? { factNeed: factNeedViewOf(row.factNeed) } : {}),
     });
   }
 }

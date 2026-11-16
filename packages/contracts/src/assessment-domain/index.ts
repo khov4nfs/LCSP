@@ -8,3 +8,4 @@ export * from "./budget.ts";
 export * from "./working-context.ts";
 export * from "./repository-profile.ts";
 export * from "./repository-discovery.ts";
+export * from "./fact-needs.ts";
