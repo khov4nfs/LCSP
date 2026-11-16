@@ -210,7 +210,7 @@ export class AssessmentRootCapacityService {
    * - Owners rotate by last admission, then each owner's oldest request, including supported Continue.
    * - Window omission never proves obsolescence; point lookup applies the same eligibility guards.
    * - Assessment aggregate identity scopes command lookup to the existing outbox index.
-   * - Owner history and latest Root commands are materialized once; a large backlog cannot multiply history or command scans under the global lock.
+   * - Owner history and latest Root commands are aggregated once; a large backlog cannot multiply history or command scans under the global lock.
    * - A matching completed terminal Root settles its older command even when a legacy writer omitted admission bookkeeping.
    * - Held physical slots still defer redelivery; newer or timestamp-ambiguous continuation commands remain eligible.
    * - An interrupted UNKNOWN-answer review needs its exact durable review command, completed current checkpoint turn and current audit binding.
@@ -220,7 +220,7 @@ export class AssessmentRootCapacityService {
    * - Initial review eligibility comes from persisted answers, never from a grant created only after admission; claim revalidates the complete answer schema.
    * Execution flow:
    * 1. Select current eligible Root commands, optionally restricted to one Assessment.
-   * 2. Materialize latest Root commands and owner admission history once, then order eligible demand by history/request age within the result ceiling.
+   * 2. Aggregate latest Root commands and owner admission history once, then order eligible demand by history/request age within the result ceiling.
    * Failure cases:
    * - No eligible demand returns an empty list; SQL failures propagate without granting admission.
    * Side effects:
@@ -236,7 +236,7 @@ export class AssessmentRootCapacityService {
         SELECT previous."ownerId", max(s."admittedAt") AS last_admitted
         FROM "AssessmentRootExecutionSlot" s JOIN "Assessment" previous ON previous."id" = s."assessmentId"
         GROUP BY previous."ownerId"
-      ), latest_commands AS MATERIALIZED (
+      ), latest_commands AS (
         SELECT DISTINCT ON ("aggregateId") "id"
         FROM "OutboxMessage"
         WHERE "aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
@@ -825,7 +825,7 @@ export class AssessmentRootCapacityService {
           evaluationSeconds: policy.evaluationSeconds,
         };
       },
-      { timeout: 15_000 },
+      { timeout: 60_000, maxWait: 20_000 },
     );
   }
 
