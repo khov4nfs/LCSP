@@ -485,6 +485,7 @@ export class ComplianceRuleSetActivation {
         operativePropositions: rule.operativePropositions,
         semanticContext: rule.semanticContext,
         applicabilityConditions: rule.applicabilityConditions,
+        applicabilityLogic: rule.applicabilityLogic,
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
         nonRepositoryDuty: rule.nonRepositoryDuty,

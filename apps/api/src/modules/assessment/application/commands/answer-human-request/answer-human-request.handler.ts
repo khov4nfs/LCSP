@@ -232,7 +232,11 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
           ? (choicesList.find((choice) => choice.value === answer) ?? null)
           : null;
       let normalizedAnswer: NormalizedFactNeedAnswer | null = null;
-      if (answer !== null && row.factNeed) {
+      let guardFailure: HumanFactGuardFailure | null =
+        answer !== null
+          ? inspectHumanFactAnswer(row.question, answer, [])
+          : null;
+      if (answer !== null && row.factNeed && guardFailure === null) {
         try {
           normalizedAnswer = normalizeFactNeedAnswer(row.factNeed, answer);
         } catch {
@@ -244,7 +248,6 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         }
       }
       const answerTopic = answer !== null ? topicOf(row.question) : null;
-      let guardFailure: HumanFactGuardFailure | null = null;
       if (answer !== null && answerTopic) {
         const priorRows = await tx.assessmentHumanRequest.findMany({
           where: {

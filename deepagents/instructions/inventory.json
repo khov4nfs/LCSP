@@ -7480,9 +7480,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/direct_draft.py::correct_rule_set_draft_submission::PROMOTED_TOOL_DOCSTRING::962:5bacbf3ca7e187b0",
+      "siteId": "ast:rule_set_preparation/direct_draft.py::correct_rule_set_draft_submission::PROMOTED_TOOL_DOCSTRING::964:5bacbf3ca7e187b0",
       "filePath": "rule_set_preparation/direct_draft.py",
-      "lineNumber": 962,
+      "lineNumber": 964,
       "symbolName": "correct_rule_set_draft_submission",
       "constructionSha256": "5bacbf3ca7e187b0fc531993e720bf15fb97445f2eac11dfe1fddc52df27f8f8",
       "evidence": "\"\"\"Correct only fields of the last rejected submission, retaining all its other exact authored facts. Each patch has path and value, e.g. {\"path\":\"/candidates/0/nonAssessableReason\",\"value\":\"External performance\"}. Use the same package_id. The complete corrected submission is revalidated and saved atomically; nothing rejected is accepted silently.\n\n        Business purpose: Let the agent repair selected fields of the last rejected direct-draft submission.\n\n        Business rules:\n        - Patches must name the same current package; all unchanged authored facts are retained and the complete payload is validated again before any persistence.\n\n        Execution flow:\n        1. Pass package ID and path/value patches to DirectDraft correction.\n        2. Serialize the corrected submission result.\n\n        Failure cases:\n        - Stale package, absent rejected payload or invalid JSON pointer returns a structured failure; rejected facts are never accepted silently.\n\n        Side effects:\n        - Invocation may persist the complete corrected submission through the normal governed draft/frontier flow.\n        \"\"\"",
@@ -7500,9 +7500,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/direct_draft.py::get_next_legal_analysis_package::PROMOTED_TOOL_DOCSTRING::905:7ccabaf03a99d48e",
+      "siteId": "ast:rule_set_preparation/direct_draft.py::get_next_legal_analysis_package::PROMOTED_TOOL_DOCSTRING::907:7ccabaf03a99d48e",
       "filePath": "rule_set_preparation/direct_draft.py",
-      "lineNumber": 905,
+      "lineNumber": 907,
       "symbolName": "get_next_legal_analysis_package",
       "constructionSha256": "7ccabaf03a99d48e7fbcdccab5b1ec7737d7eced82dcaa19e4c6a7a034176481",
       "evidence": "\"\"\"Get one bounded Article-based package of pending source units, exact ancestors and references. Completed units are not assigned again.\n\n        Business purpose: Give the agent the next bounded pinned-source package for independent legal analysis.\n\n        Business rules:\n        - Only pending/reopened source units and their exact ancestor context are assigned; completed units are not assigned again unless the governed frontier reopens them.\n\n        Execution flow:\n        1. Ask the shared DirectDraft state for its next package.\n        2. Serialize pinned source, package revision and the required next action.\n\n        Failure cases:\n        - Frontier failures are returned in the package result; an exhausted frontier reports `complete=true` instead of an invented package.\n\n        Side effects:\n        - Reads durable source-review state and updates run-local package bookkeeping.\n        \"\"\"",
@@ -7520,9 +7520,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/direct_draft.py::get_rule_set_draft_candidate::PROMOTED_TOOL_DOCSTRING::926:4fa741ec9370d6a4",
+      "siteId": "ast:rule_set_preparation/direct_draft.py::get_rule_set_draft_candidate::PROMOTED_TOOL_DOCSTRING::928:4fa741ec9370d6a4",
       "filePath": "rule_set_preparation/direct_draft.py",
-      "lineNumber": 926,
+      "lineNumber": 928,
       "symbolName": "get_rule_set_draft_candidate",
       "constructionSha256": "4fa741ec9370d6a4cd1448feb7ca55e968a6ce996dae430531db8430cbd5f5df",
       "evidence": "\"\"\"Read one persisted candidate's facts and evidence for a targeted correction. Never reconstruct the entire Article draft.\n\n        Business purpose: Retrieve one persisted candidate's authored facts and exact support for a targeted correction.\n\n        Business rules:\n        - The tool returns only the requested candidate and source evidence needed to revise it; it does not reconstruct the whole Article draft.\n\n        Execution flow:\n        1. Resolve the candidate ID through DirectDraft.\n        2. Serialize its facts, exact quotes and linked AssessmentRule.\n\n        Failure cases:\n        - A candidate ID absent from the current draft returns a repairable CLAIM_SCHEMA_INVALID result.\n\n        Side effects:\n        - Adds package metadata to the local correction cache; no candidate content is mutated.\n        \"\"\"",
@@ -7540,9 +7540,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/direct_draft.py::submit_rule_set_draft_candidates::PROMOTED_TOOL_DOCSTRING::947:27e86f6f3e38d87d",
+      "siteId": "ast:rule_set_preparation/direct_draft.py::submit_rule_set_draft_candidates::PROMOTED_TOOL_DOCSTRING::949:27e86f6f3e38d87d",
       "filePath": "rule_set_preparation/direct_draft.py",
-      "lineNumber": 947,
+      "lineNumber": 949,
       "symbolName": "submit_rule_set_draft_candidates",
       "constructionSha256": "27e86f6f3e38d87da6876548b40782ef96f750c3c880525a42a3ceb1c349411b",
       "evidence": "\"\"\"Business purpose: Persist source-backed legal candidates and their review accounting.\n\n        Business rules:\n        - SUBMISSION_SCHEMA defines the typed input; pinned support and candidate ownership remain mandatory. Reuse a candidateId to update only that candidate.\n        Execution flow:\n        1. Validate package facts. 2. Save the governed draft and source review. 3. Return the persistence receipt.\n        Failure cases:\n        - Invalid candidates or stale draft versions return repair feedback without accepting rejected facts.\n        Side effects:\n        - Updates the existing durable authoring draft and source-review progress through the governed API.\n        \"\"\"",
@@ -9935,7 +9935,7 @@
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "middleware/model_governance.py": "81e57a776d6b6a2a8f6d623a3bf4df778481dee35da98a1dba751247e028f621"
+        "middleware/model_governance.py": "52638cb7955aa0f563802617455972875610b3a03c7ddd4f00562dae8666f667"
       },
       "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
@@ -9954,7 +9954,7 @@
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "middleware/model_governance.py": "81e57a776d6b6a2a8f6d623a3bf4df778481dee35da98a1dba751247e028f621"
+        "middleware/model_governance.py": "52638cb7955aa0f563802617455972875610b3a03c7ddd4f00562dae8666f667"
       },
       "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },
@@ -10175,7 +10175,7 @@
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "middleware/model_governance.py": "81e57a776d6b6a2a8f6d623a3bf4df778481dee35da98a1dba751247e028f621"
+        "middleware/model_governance.py": "52638cb7955aa0f563802617455972875610b3a03c7ddd4f00562dae8666f667"
       },
       "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
     },

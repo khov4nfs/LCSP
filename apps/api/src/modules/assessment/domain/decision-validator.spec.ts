@@ -496,11 +496,21 @@ describe("applicability basis (structure only, whatever the legal source calls i
   const legalSources = {
     "register keepers": {
       requirement: "LR-A",
-      declared: { applicabilityConditions: 2, qualifiers: 0, exceptions: 1 },
+      declared: {
+        applicabilityConditions: 2,
+        qualifiers: 0,
+        exceptions: 1,
+        conditionLogic: APPLICABILITY_CONDITION_LOGIC.ALL,
+      },
     },
     "Betreiber von Anlagen": {
       requirement: "LR-B",
-      declared: { applicabilityConditions: 3, qualifiers: 1, exceptions: 0 },
+      declared: {
+        applicabilityConditions: 3,
+        qualifiers: 1,
+        exceptions: 0,
+        conditionLogic: APPLICABILITY_CONDITION_LOGIC.ALL,
+      },
     },
   } as const;
 
@@ -622,7 +632,10 @@ describe("applicability basis (structure only, whatever the legal source calls i
         expect(
           codes(
             applicableWith(requirement, [
-              basis(requirement, CONDITION, 0, ESTABLISHED),
+              ...Array.from(
+                { length: declared.applicabilityConditions },
+                (_, index) => basis(requirement, CONDITION, index, ESTABLISHED),
+              ),
             ]),
             ctx(),
           ),

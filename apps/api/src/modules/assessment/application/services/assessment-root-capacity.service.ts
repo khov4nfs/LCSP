@@ -210,7 +210,7 @@ export class AssessmentRootCapacityService {
    * - Owners rotate by last admission, then each owner's oldest request, including supported Continue.
    * - Window omission never proves obsolescence; point lookup applies the same eligibility guards.
    * - Assessment aggregate identity scopes command lookup to the existing outbox index.
-   * - Owner history is aggregated once; a large customer's backlog cannot multiply history scans under the global lock.
+   * - Owner history and latest Root commands are materialized once; a large backlog cannot multiply history or command scans under the global lock.
    * - A matching completed terminal Root settles its older command even when a legacy writer omitted admission bookkeeping.
    * - Held physical slots still defer redelivery; newer or timestamp-ambiguous continuation commands remain eligible.
    * - An interrupted UNKNOWN-answer review needs its exact durable review command, completed current checkpoint turn and current audit binding.
@@ -220,7 +220,7 @@ export class AssessmentRootCapacityService {
    * - Initial review eligibility comes from persisted answers, never from a grant created only after admission; claim revalidates the complete answer schema.
    * Execution flow:
    * 1. Select current eligible Root commands, optionally restricted to one Assessment.
-   * 2. Aggregate owner admission history once and order by that history/request age within the result ceiling.
+   * 2. Materialize latest Root commands and owner admission history once, then order eligible demand by history/request age within the result ceiling.
    * Failure cases:
    * - No eligible demand returns an empty list; SQL failures propagate without granting admission.
    * Side effects:
@@ -236,12 +236,20 @@ export class AssessmentRootCapacityService {
         SELECT previous."ownerId", max(s."admittedAt") AS last_admitted
         FROM "AssessmentRootExecutionSlot" s JOIN "Assessment" previous ON previous."id" = s."assessmentId"
         GROUP BY previous."ownerId"
+      ), latest_commands AS MATERIALIZED (
+        SELECT DISTINCT ON ("aggregateId") "id"
+        FROM "OutboxMessage"
+        WHERE "aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
+          AND "eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
+          ${assessmentId ? Prisma.sql`AND "aggregateId" = ${assessmentId}` : Prisma.empty}
+        ORDER BY "aggregateId", "createdAt" DESC, "id" DESC
       )
       SELECT a."id" AS "assessmentId", demand."requestedAt",
         command."payload"->>'idempotencyKey' AS "commandKey"
       FROM "AssessmentRootAdmissionRequest" demand
       JOIN "Assessment" a ON a."id" = demand."assessmentId"
       JOIN "OutboxMessage" command ON command."id" = demand."commandId"
+      JOIN latest_commands current_command ON current_command."id" = command."id"
       JOIN "AssessmentRuntime" r ON r."assessmentId" = a."id"
       LEFT JOIN "AssessmentCase" c ON c."assessmentId" = a."id"
       LEFT JOIN "AssessmentRuntimeTurn" t ON t."id" = r."currentExecutionId"::text
@@ -347,10 +355,6 @@ export class AssessmentRootCapacityService {
           AND t."createdAt" > demand."requestedAt", FALSE)
         AND (command."status"::text = ${OUTBOX_STATUSES.published} OR demand."deliveredAt" IS NOT NULL)
         AND command."status"::text NOT IN (${OUTBOX_STATUSES.dlq}, ${OUTBOX_STATUSES.cancelled})
-        AND NOT EXISTS (SELECT 1 FROM "OutboxMessage" newer
-          WHERE newer."aggregateType" = command."aggregateType"
-            AND newer."aggregateId" = a."id" AND newer."eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
-            AND (newer."createdAt", newer."id") > (command."createdAt", command."id"))
         AND NOT EXISTS (SELECT 1 FROM "AssessmentRootExecutionSlot" s WHERE s."assessmentId" = a."id" AND s."releasedAt" IS NULL)
         ${assessmentId ? Prisma.sql`AND a."id" = ${assessmentId}` : Prisma.empty}
       ORDER BY owner_history.last_admitted ASC NULLS FIRST, demand."requestedAt", a."id"

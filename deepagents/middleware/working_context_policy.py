@@ -250,9 +250,12 @@ def resolve_working_context_policy(
     if base_trigger[0] == TRIGGER_MODE_FRACTION:
         trigger_val = _parse_float_env("LCSP_WORKING_CONTEXT_TRIGGER_FRACTION", float(base_trigger[1]))
         trigger = (TRIGGER_MODE_FRACTION, trigger_val)
-    else:
+    elif base_trigger[0] == TRIGGER_MODE_TOKENS:
         trigger_val = _parse_positive_int_env("LCSP_WORKING_CONTEXT_TRIGGER_TOKENS", int(base_trigger[1]))
         trigger = (TRIGGER_MODE_TOKENS, trigger_val)
+    else:
+        # Preserve native message-count triggers rather than interpreting message counts as tokens.
+        trigger = base_trigger
 
     if base_keep[0] == KEEP_MODE_MESSAGES:
         keep_val = _parse_positive_int_env("LCSP_WORKING_CONTEXT_KEEP_MESSAGES", int(base_keep[1]))

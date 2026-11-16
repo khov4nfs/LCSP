@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { HUMAN_FACT_GUARD_FAILURES } from "@lcsp/contracts/assessment-domain";
 import {
   inspectHumanFactAnswer,
   reusableHumanFactId,
@@ -96,14 +97,14 @@ describe("HITL high-impact fact integrity", () => {
     ).toBeNull();
   });
 
-  it("leaves unrelated and consistently negative customer responses unchanged", () => {
+  it("retains unrelated uncertainty and accepts consistently negative customer responses", () => {
     expect(
       inspectHumanFactAnswer(
         "What is your registered company address?",
         "Unknown at present",
         [],
       ),
-    ).toBeNull();
+    ).toBe(HUMAN_FACT_GUARD_FAILURES.UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW);
     expect(
       inspectHumanFactAnswer(
         incident,
@@ -112,4 +113,15 @@ describe("HITL high-impact fact integrity", () => {
       ),
     ).toBeNull();
   });
+});
+it.each([
+  "I do not know",
+  "I don't know",
+  "Tôi không biết",
+  "Không rõ",
+  "Chưa xác định",
+])("keeps ordinary free-text uncertainty non-factual: %s", (answer) => {
+  expect(
+    inspectHumanFactAnswer("Where are customer records hosted?", answer, []),
+  ).toBe(HUMAN_FACT_GUARD_FAILURES.UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW);
 });

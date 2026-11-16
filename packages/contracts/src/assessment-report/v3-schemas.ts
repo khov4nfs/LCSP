@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { decisionDependencyGraphIsComplete } from "../assessment/decision-dependencies.ts";
 
 import {
   ASSESSMENT_ARTIFACT_KINDS,
@@ -244,6 +245,18 @@ const ruleDetailSchemaV3 = z.strictObject({
   decisionId: uuidSchema,
   decisionRevision: revisionSchema,
   decision: ruleDecisionSchema,
+  dependencyValidation: z
+    .strictObject({
+      caseRevision: revisionSchema,
+      dependencyGraphComplete: z.literal(true),
+      evidenceDependencies: z
+        .array(z.strictObject({ evidenceId: uuidSchema }))
+        .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_INDEX_ENTRIES),
+      factDependencies: z
+        .array(z.strictObject({ factId: uuidSchema }))
+        .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_INDEX_ENTRIES),
+    })
+    .optional(),
   decisionReferences: z
     .array(decisionReferenceEntrySchemaV3)
     .min(1)
@@ -1429,7 +1442,15 @@ function validateAssessmentFinalReportV3Invariants(
       rule.decision.repositorySnapshotId !== report.pins.repositorySnapshotId ||
       rule.decision.repositoryCommit.toLowerCase() !==
         report.pins.repositoryCommit.toLowerCase() ||
-      rule.decision.caseRevision !== report.caseRevision ||
+      (rule.decision.caseRevision !== report.caseRevision &&
+        !(
+          rule.decision.caseRevision < report.caseRevision &&
+          rule.dependencyValidation?.caseRevision === report.caseRevision &&
+          decisionDependencyGraphIsComplete(
+            rule.decision,
+            rule.dependencyValidation,
+          )
+        )) ||
       rule.decision.scopeId !== ASSESSMENT_DECISION_SCOPE
     ) {
       context.addIssue({
@@ -2056,12 +2077,12 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     },
     {
       pathPattern:
-        "/ruleDetails/*/decisionReferences/*, /ruleDetails/*/applicabilityBasisReferences/*, /ruleDetails/*/factEvidenceReferences/*",
+        "/ruleDetails/*/decisionReferences/*, /ruleDetails/*/applicabilityBasisReferences/*, /ruleDetails/*/factEvidenceReferences/*, /ruleDetails/*/dependencyValidation/*",
       classification:
         ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation:
-        "decisionReferences, applicabilityBasisReferences, factEvidenceReferences",
+        "decisionReferences, applicabilityBasisReferences, factEvidenceReferences, dependencyValidation",
       notes:
         "Reference provenance arrays with origin tags and IDs. Excluded in B1; add container keys to protectedKeys in C2 for defense-in-depth.",
     },

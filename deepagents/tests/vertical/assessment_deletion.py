@@ -39,6 +39,9 @@ DOMAIN_TABLES = (
     "AssessmentCaseFactEvidence", "AssessmentRuleDecision", "AssessmentDecisionCoverage",
     "AssessmentHumanRequest", "AssessmentArtifact", "AssessmentEvent",
     "AssessmentRuntimeTurn", "AssessmentRuntimeEvent", "RepositorySnapshot", "RepositoryScanJob",
+    "AssessmentDecisionEvidenceDependency", "AssessmentDecisionFactDependency",
+    "AssessmentFactNeed", "AssessmentHumanFactProposal", "AssessmentRepositoryDiscovery",
+    "AssessmentRepositoryDiscoveryExpansion",
 )
 
 
