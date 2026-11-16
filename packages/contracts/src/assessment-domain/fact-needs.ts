@@ -139,19 +139,47 @@ export const factNeedIdentitySchema = z.strictObject({
 });
 export type FactNeedIdentity = z.infer<typeof factNeedIdentitySchema>;
 
-export const factNeedInputSchema = factNeedIdentitySchema.extend({
+export const factNeedDiscoveryRefSchema = z.strictObject({
+  recordId: z.uuid(),
+  contentDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+});
+export type FactNeedDiscoveryRef = z.infer<
+  typeof factNeedDiscoveryRefSchema
+>;
+
+const factNeedInputObjectSchema = factNeedIdentitySchema.extend({
   sourceInvestigationAttempts: z
     .array(z.string().trim().min(1).max(2_000))
     .min(1)
     .max(100),
   acceptedEvidenceIds: z.array(z.uuid()).max(100),
+  investigationDiscoveryRefs: z
+    .array(factNeedDiscoveryRefSchema)
+    .max(20)
+    .optional(),
   investigatedRangeIds: z
     .array(z.string().regex(/^sha256:[a-f0-9]{64}$/))
     .max(500),
 });
+
+export const factNeedInputSchema = factNeedInputObjectSchema.superRefine(
+  (need, context) => {
+    if (
+      need.investigatedRangeIds.length > 0 &&
+      !need.investigationDiscoveryRefs?.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["investigationDiscoveryRefs"],
+        message:
+          "investigatedRangeIds require an immutable repository discovery reference",
+      });
+    }
+  },
+);
 export type FactNeedInput = z.infer<typeof factNeedInputSchema>;
 
-export const factNeedViewSchema = factNeedInputSchema.extend({
+export const factNeedViewSchema = factNeedInputObjectSchema.extend({
   factNeedId: z.uuid(),
   identityDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   status: z.enum(FACT_NEED_STATUSES),

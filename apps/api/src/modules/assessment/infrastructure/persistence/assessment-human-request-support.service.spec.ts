@@ -140,6 +140,7 @@ describe("AssessmentHumanRequestSupport read projection", () => {
       allowedValues: [],
       sourceInvestigationAttempts: ["Inspected deployment configuration."],
       acceptedEvidenceIds: [],
+      investigationDiscoveryRefs: null,
       investigatedRangeIds: [`sha256:${"b".repeat(64)}`],
       status: AssessmentFactNeedStatus.OPEN,
       resolvedFactId: null,

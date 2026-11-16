@@ -2300,6 +2300,7 @@ model AssessmentFactNeed {
   allowedValues               Json
   sourceInvestigationAttempts Json
   acceptedEvidenceIds         Json
+  investigationDiscoveryRefs  Json?
   investigatedRangeIds        Json
   status                      AssessmentFactNeedStatus         @default(OPEN)
   resolvedFactId              String?                          @db.Uuid
