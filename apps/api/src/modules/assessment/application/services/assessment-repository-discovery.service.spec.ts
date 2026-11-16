@@ -825,6 +825,97 @@ describe("AssessmentRepositoryDiscoveryService", () => {
     ]);
   });
 
+  it("matches controlled technical equivalents in camelCase code without legal overclaim", async () => {
+    const { service, rows } = fixture({
+      rules: [
+        {
+          assessmentRuleId: "RETENTION-CONTROL",
+          assessmentRuleVersion: "2026.1",
+          concept: "Data retention and deletion",
+          applicabilityGuidance: "Confirm the applicable retention period.",
+          criteria: [{ criterionId: "deletion-when-expired" }],
+          contract: {
+            keywords: ["delete", "retention", "expiry"],
+            requiredEvidence: ["Verify data deletion after expiry."],
+          },
+          ordinal: 0,
+        },
+      ],
+    });
+    const artifact = discovery({
+      sourceRanges: [
+        {
+          ...discovery().sourceRanges[0],
+          path: "apps/api/background-worker.ts",
+          symbol: "purgeExpiredRecords",
+          signalType: DISCOVERY_SIGNAL_TYPES.control,
+          technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.relatedLogic],
+          explanation: "Scheduled maintenance task executes.",
+          useCaseIds: [],
+          unresolvedEdges: [],
+        },
+      ],
+      aiUseCases: [],
+      unresolvedCalls: [],
+      unsupportedLanguages: [],
+    });
+
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-camel-retention",
+      discovery: artifact,
+    });
+
+    const stored = [...rows.values()][0];
+    expect(stored?.payload.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "RETENTION-CONTROL",
+        supportingRangeIds: [sha("3")],
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(stored?.payload.sourceRanges[0].ruleRelevance).toEqual([
+      expect.objectContaining({ assessmentRuleId: "RETENTION-CONTROL" }),
+    ]);
+  });
+
+  it("does not equate generic UI removal with personal-data deletion", async () => {
+    const { service, rows } = fixture({
+      rules: [
+        {
+          assessmentRuleId: "DATA-DELETE",
+          assessmentRuleVersion: "1",
+          concept: "Personal data deletion",
+          applicabilityGuidance: "Check actual customer deletion handling.",
+          criteria: [{ criterionId: "data-erasure" }],
+          contract: { keywords: ["delete", "erasure"] },
+          ordinal: 0,
+        },
+      ],
+    });
+    const artifact = discovery({
+      sourceRanges: [
+        {
+          ...discovery().sourceRanges[0],
+          path: "apps/api/ui.ts",
+          symbol: "removeButton",
+          explanation: "UI component action.",
+          technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.relatedLogic],
+          useCaseIds: [],
+        },
+      ],
+      aiUseCases: [],
+    });
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-ui-remove",
+      discovery: artifact,
+    });
+    expect([...rows.values()][0]?.payload.ruleCandidates).toEqual([]);
+  });
+
   it("rejects worker-authored candidates before persistence", async () => {
     const { service, tx } = fixture();
     const artifact = discovery();

@@ -23,7 +23,7 @@ export interface HumanFactResponse {
  * silently replacing unknown or conflicting HITL facts in the same assessment.
  *
  * Business rules:
- * - Explicit uncertainty is never accepted as a fact, regardless of question topic or language.
+ * - Explicit uncertainty and common English/Vietnamese hedged operational assertions cannot become accepted facts, regardless of topic.
  * - Additional polarity/conflict classification is limited to the supported high-impact topics.
  * - Unknown incident/breach and unknown *formal* security classification must
  *   use doesNotKnow so they cannot be accepted as affirmative/refuting evidence.
@@ -32,7 +32,7 @@ export interface HumanFactResponse {
  * - This is a deterministic safety net, not general semantic fact verification.
  *
  * Execution flow:
- * 1. Reject explicit uncertainty before identifying the question topic and answer polarity.
+ * 1. Normalize text and reject explicit uncertainty or hedged assertions before factual acceptance.
  * 2. Check ambiguity inside the submitted answer.
  * 3. Compare with earlier answered requests about that same topic.
  *
@@ -59,11 +59,17 @@ export function inspectHumanFactAnswer(
     .toLowerCase()
     .replace(/đ/gu, "d")
     .replace(/’/gu, "'");
-  if (
+  // Conservatively hold hedged operational assertions for review rather than
+  // promote them to accepted facts; this is not general semantic verification.
+  const explicitlyUnknown =
     /\b(?:(?:i )?(?:do not|don't) know|i am not sure|i'm not sure|unknown|not sure|khong biet|khong ro|chua xac dinh|chua ro)\b/u.test(
       normalized,
-    )
-  ) {
+    );
+  const materiallyHedged =
+    /\b(?:may (?:have|be|still|not|already|currently)|might|could|possibly|perhaps|probably|potentially|uncertain|unconfirmed|unverified|not confirmed|cannot confirm|can't confirm|unable to verify|we believe|we think|it seems|appears to|as far as i know|to our knowledge|co the|co le|co kha nang|duong nhu|hinh nhu|co ve|chua xac nhan|khong the xac nhan|chua kiem chung|chua duoc xac minh|chua chac|khong chac|khong dam chac|theo toi biet|toi nghi|chung toi nghi)\b/u.test(
+      normalized,
+    );
+  if (explicitlyUnknown || materiallyHedged) {
     return HUMAN_FACT_GUARD_FAILURES.UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW;
   }
   if (!topic) return null;

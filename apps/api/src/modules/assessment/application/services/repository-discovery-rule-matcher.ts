@@ -13,6 +13,28 @@ const MAX_STRING_LEAVES = 500;
 const MAX_MATCHED_TERMS = 100;
 const MAX_RULE_RELEVANCE_PER_RANGE = 1_000;
 
+/** Narrow, controlled engineering synonyms for candidate prioritization only.
+ * These terms never establish applicability, evidence acceptance, or compliance.
+ * Generic UI words such as "remove" must not become legal deletion claims.
+ */
+const MATCH_ENGINEERING_ALIASES: Readonly<Record<string, string>> = {
+  deletion: "delete",
+  deletions: "delete",
+  deleting: "delete",
+  deleted: "delete",
+  erasure: "delete",
+  erase: "delete",
+  erased: "delete",
+  purge: "delete",
+  purged: "delete",
+  purging: "delete",
+  expiry: "expire",
+  expiration: "expire",
+  expired: "expire",
+  expires: "expire",
+  expiring: "expire",
+};
+
 const MATCH_STOP_WORDS = new Set([
   "about",
   "against",
@@ -139,13 +161,13 @@ function collectStringLeaves(value: unknown): string[] {
  * Business purpose: Normalize authored technical language into stable terms for deterministic discovery-to-rule comparison.
  *
  * Business rules:
- * - Unicode letters and numbers are retained after accent normalization and case folding.
- * - Generic assessment vocabulary and tokens shorter than three characters are excluded.
+ * - Unicode letters/numbers, camelCase and PascalCase identifiers are tokenized before case folding.
+ * - Only narrow engineering aliases are canonicalized; generic assessment words and short tokens are excluded.
  * - Terms are unique and sorted so identical inputs always produce identical candidate artifacts.
  *
  * Execution flow:
- * 1. Normalize each text value to lowercase decomposed Unicode.
- * 2. Split on non-alphanumeric boundaries and remove generic stop words.
+ * 1. Split case boundaries in symbols and normalize Unicode accents/casing.
+ * 2. Tokenize, canonicalize narrow engineering aliases, and remove generic stop words.
  * 3. Return a sorted unique list.
  *
  * Failure cases:
@@ -158,16 +180,19 @@ function normalizedTerms(values: readonly string[]): string[] {
   const terms = new Set<string>();
   for (const value of values) {
     for (const token of value
+      .replace(/([A-Z])([A-Z][a-z])/gu, "$1 $2")
+      .replace(/([a-z0-9])([A-Z][a-z])/gu, "$1 $2")
       .normalize("NFKD")
       .replace(/\p{M}+/gu, "")
       .toLowerCase()
       .split(/[^\p{L}\p{N}]+/gu)) {
+      const canonical = MATCH_ENGINEERING_ALIASES[token] ?? token;
       if (
-        token.length >= 3 &&
-        token.length <= 200 &&
-        !MATCH_STOP_WORDS.has(token)
+        canonical.length >= 3 &&
+        canonical.length <= 200 &&
+        !MATCH_STOP_WORDS.has(canonical)
       ) {
-        terms.add(token);
+        terms.add(canonical);
       }
     }
   }
