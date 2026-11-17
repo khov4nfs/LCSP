@@ -41,6 +41,9 @@ import {
 
 import { AdminUsageController } from "./presentation/http/admin-usage.controller.js";
 import { GetAdminUsageHandler } from "./application/queries/get-admin-usage/get-admin-usage.handler.js";
+import { UsageAnalyticsReader } from "./application/shared/usage-analytics.reader.js";
+import { GetCustomerUsageHandler } from "./application/queries/get-customer-usage/get-customer-usage.handler.js";
+import { CustomerUsageController } from "./presentation/http/customer-usage.controller.js";
 
 @Module({
   imports: [
@@ -52,6 +55,7 @@ import { GetAdminUsageHandler } from "./application/queries/get-admin-usage/get-
   controllers: [
     BillingUsageController,
     AdminUsageController,
+    CustomerUsageController,
     BillingCustomerController,
     SePayWebhookController,
     BillingAdminReconciliationController,
@@ -61,6 +65,8 @@ import { GetAdminUsageHandler } from "./application/queries/get-admin-usage/get-
   providers: [
     PrismaService,
     GetAdminUsageHandler,
+    UsageAnalyticsReader,
+    GetCustomerUsageHandler,
     PrismaBillingTransaction,
     {
       provide: BILLING_TRANSACTION_PORT,

@@ -78,6 +78,7 @@
   "GET /billing/estimate",
   "GET /billing/history",
   "GET /billing/orders/:id",
+  "GET /billing/usage",
   "GET /billing/wallet",
   "GET /github/repositories",
   "GET /health",
