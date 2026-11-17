@@ -1,9 +1,13 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { LegalEffectStatus } from "@prisma/client";
 import {
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_CATALOG_EVENTS,
 } from "@lcsp/contracts/legal-rule-catalog";
-import { LegalRuleCatalogService } from "./legal-rule-catalog.service.js";
+import {
+  LegalRuleCatalogService,
+  isEligibleLegalChunkStatus,
+} from "./legal-rule-catalog.service.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 
@@ -198,5 +202,23 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
       }),
       mockTx,
     );
+  });
+});
+
+describe("isEligibleLegalChunkStatus", () => {
+  it("allows EFFECTIVE chunks", () => {
+    expect(isEligibleLegalChunkStatus(LegalEffectStatus.EFFECTIVE)).toBe(true);
+  });
+
+  it("allows UNKNOWN unreviewed chunks", () => {
+    expect(isEligibleLegalChunkStatus(LegalEffectStatus.UNKNOWN)).toBe(true);
+  });
+
+  it("rejects REPEALED chunks", () => {
+    expect(isEligibleLegalChunkStatus(LegalEffectStatus.REPEALED)).toBe(false);
+  });
+
+  it("rejects FUTURE chunks", () => {
+    expect(isEligibleLegalChunkStatus(LegalEffectStatus.FUTURE)).toBe(false);
   });
 });
