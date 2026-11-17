@@ -805,7 +805,7 @@ def chunk_document(pages: list[str], *, profile: str, markdown: bool = False) ->
         chosen = PROFILE_PARAGRAPHS
         front_chunk, structural, front = run(chosen)
         front = max(front, unclassified_source_length)
-    if chosen == PROFILE_PARAGRAPHS:
+    if chosen == PROFILE_PARAGRAPHS or profiles[chosen]["kind"] == "numbered-outline":
         for chunk in structural:
             chunk.hierarchy.update(
                 {

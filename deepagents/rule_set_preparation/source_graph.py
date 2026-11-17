@@ -361,7 +361,7 @@ class PinnedSourceGraph:
         3. Compare structural node label/title against the entire one-line heading or two-line heading/title body.
 
         Failure cases:
-        - Unknown node IDs propagate lookup errors; unsupported types and non-exact matches remain eligible for retrieval.
+        - Invalid node IDs propagate lookup errors; unsupported types and non-exact matches remain eligible for retrieval.
 
         Side effects:
         - None: this projection predicate does not change graph nodes, legal status, or review coverage.

@@ -1153,9 +1153,7 @@ export function buildLegalRetrievalUnits(
     throw new Error("Invalid retrieval window size");
   const retrievalUnits: LegalDocumentGraph["retrievalUnits"] = [];
   const nodesWithChildren = new Set(
-    nodes.flatMap((node) =>
-      node.parentNodeId ? [node.parentNodeId] : [],
-    ),
+    nodes.flatMap((node) => (node.parentNodeId ? [node.parentNodeId] : [])),
   );
   for (const node of nodes) {
     if (isRetrievalOnlyStructure(node, nodesWithChildren.has(node.nodeId)))
@@ -1201,7 +1199,7 @@ export function buildLegalRetrievalUnits(
  * 3. Return true only when the full node body is that heading, optionally with its recorded title on the next line.
  *
  * Failure cases:
- * - Unknown node types, unrecognized headings, and title mismatches remain retrievable; malformed node text propagates ordinary string errors.
+ * - Unsupported node types, unrecognized headings, and title mismatches remain retrievable; malformed node text propagates ordinary string errors.
  *
  * Side effects:
  * - None: the predicate reads node metadata and content without changing the canonical graph.
@@ -1214,7 +1212,8 @@ function isRetrievalOnlyStructure(
     .split(/\r?\n/u)
     .map((line) => line.replace(/^\s*#{1,6}\s+/u, "").trim())
     .filter(Boolean);
-  if (node.nodeType === N.DOCUMENT && hasChildren && lines.length > 0) return true;
+  if (node.nodeType === N.DOCUMENT && hasChildren && lines.length > 0)
+    return true;
   if (lines.length === 0) return false;
   const spec = LEGAL_STRUCTURE_HEADINGS.find(
     (candidate) => candidate.type === node.nodeType,

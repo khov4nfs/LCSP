@@ -81,30 +81,52 @@ export function composeLegalSourceProvisions(input: {
 } {
   /**
    * Business purpose: Normalize transport part suffixes to the logical provision identity.
-   * Business rules: Only the trailing persisted part marker is ignored; legal hierarchy remains intact.
-   * Execution flow: Remove one recognized suffix and return the locator.
-   * Failure cases: Unrecognized suffixes remain part of the locator and are handled by the parser.
-   * Side effects: Pure string normalization.
+   * Business rules:
+   * - Ignore only the trailing persisted part marker; preserve every legal hierarchy segment.
+   *
+   * Execution flow:
+   * 1. Remove one recognized part suffix and return the logical locator.
+   *
+   * Failure cases:
+   * - Unrecognized suffixes remain part of the locator for the provision parser to reject.
+   *
+   * Side effects:
+   * - Pure string normalization; source rows are unchanged.
    */
-  const baseLocator = (locator: string) =>
-    locator.replace(/::part-\d+$/u, "");
+  const baseLocator = (locator: string) => locator.replace(/::part-\d+$/u, "");
   /**
    * Business purpose: Read source hierarchy metadata without trusting malformed JSON shapes.
-   * Business rules: Only JSON objects contribute legal hierarchy fields.
-   * Execution flow: Validate the stored value's object shape and return its fields.
-   * Failure cases: Non-object metadata produces an empty hierarchy for downstream unresolved handling.
-   * Side effects: Pure in-memory projection.
+   * Business rules:
+   * - Only a non-array JSON object may supply Article, Clause, or Point metadata.
+   *
+   * Execution flow:
+   * 1. Validate the stored value's object shape and return its fields when valid.
+   *
+   * Failure cases:
+   * - Non-object metadata produces an empty hierarchy and is handled as unresolved downstream.
+   *
+   * Side effects:
+   * - Pure in-memory projection; no persisted hierarchy is changed.
    */
   const readHierarchy = (chunk: SourceProvisionChunk) =>
-    chunk.hierarchy && typeof chunk.hierarchy === "object" && !Array.isArray(chunk.hierarchy)
+    chunk.hierarchy &&
+    typeof chunk.hierarchy === "object" &&
+    !Array.isArray(chunk.hierarchy)
       ? (chunk.hierarchy as Record<string, unknown>)
       : {};
   /**
    * Business purpose: Accept only Article–Clause–Point locator paths for provision composition.
-   * Business rules: Structural-only and unstructured locator families are never legal leaves.
-   * Execution flow: Remove the transport suffix, parse supported segments, and return null for other shapes.
-   * Failure cases: Invalid order, unsupported depth, or malformed segments remain unclassified for import.
-   * Side effects: Pure locator parsing.
+   * Business rules:
+   * - Structural-only and unstructured locator families are never accepted as legal leaves.
+   *
+   * Execution flow:
+   * 1. Remove transport suffixes and parse supported Article-Clause-Point segments.
+   *
+   * Failure cases:
+   * - Invalid order, unsupported depth, and malformed segments return null for unresolved review.
+   *
+   * Side effects:
+   * - Pure locator parsing; no source identity is rewritten.
    */
   const parseProvisionLocator = (locator: string) => {
     const identityLocator = baseLocator(locator);
@@ -122,31 +144,88 @@ export function composeLegalSourceProvisions(input: {
   };
   /**
    * Business purpose: Compare source lines for exact duplicate suppression.
-   * Business rules: Unicode and whitespace normalization do not rewrite emitted source wording.
-   * Execution flow: Normalize a comparison key from the original string.
-   * Failure cases: Empty text returns an empty comparison key.
-   * Side effects: Pure string normalization.
+   * Business rules:
+   * - Comparison normalization must never alter wording emitted in a LegalRule description.
+   *
+   * Execution flow:
+   * 1. Build a comparison key from Unicode-normalized, whitespace-collapsed source text.
+   *
+   * Failure cases:
+   * - Empty text produces an empty comparison key.
+   *
+   * Side effects:
+   * - Pure string normalization; source wording is unchanged.
    */
   const normalized = (value: string) =>
-    value.normalize("NFC").replace(/\s+/gu, " ").trim().toLocaleLowerCase("vi-VN");
+    value
+      .normalize("NFC")
+      .replace(/\s+/gu, " ")
+      .trim()
+      .toLocaleLowerCase("vi-VN");
   const limitations: LegalRuleSourceProvisionLimitation[] = [];
   /**
    * Business purpose: Keep each unresolved source locator visible once in the projection response.
-   * Business rules: A limitation is unique by locator and typed reason.
-   * Execution flow: Check existing limitations and append the new pair when absent.
-   * Failure cases: None; duplicate limitations are ignored.
-   * Side effects: Mutates only this projection's in-memory limitation list.
+   * Business rules:
+   * - A limitation is unique by source locator and typed reason so unresolved coverage stays concise.
+   *
+   * Execution flow:
+   * 1. Check whether the locator/reason pair already exists.
+   * 2. Append the pair only when it is new.
+   *
+   * Failure cases:
+   * - Duplicate pairs are ignored; invalid typed reasons are rejected by the contract boundary.
+   *
+   * Side effects:
+   * - Mutates only this projection's in-memory limitation list.
    */
   const addLimitation = (
     locator: string,
     reason: LegalRuleSourceProvisionLimitation["reason"],
   ) => {
-    if (!limitations.some((item) => item.locator === locator && item.reason === reason))
+    if (
+      !limitations.some(
+        (item) => item.locator === locator && item.reason === reason,
+      )
+    )
       limitations.push({ locator, reason });
+  };
+  /**
+   * Business purpose: Convert validated hierarchy primitives to display text without coercing malformed JSON into legal prose.
+   *
+   * Business rules:
+   * - Narrative hierarchy fields accept strings only; Article and Clause numbers may also be finite numbers.
+   * - Objects, arrays, booleans, and non-finite numbers are invalid context and must remain unresolved.
+   *
+   * Execution flow:
+   * 1. Trim string values and return them unchanged otherwise.
+   * 2. Convert finite numeric identifiers only when the field permits numeric values.
+   * 3. Return null for malformed values so the caller can surface a typed limitation.
+   *
+   * Failure cases:
+   * - Unsupported JSON values return null and are not stringified into a LegalRule description.
+   *
+   * Side effects:
+   * - Pure validation and formatting of an in-memory hierarchy value.
+   */
+  const hierarchyText = (
+    value: unknown,
+    allowNumber: boolean,
+  ): string | null => {
+    if (value === undefined || value === null) return "";
+    if (typeof value === "string") return value.trim();
+    if (allowNumber && typeof value === "number" && Number.isFinite(value)) {
+      return value.toString();
+    }
+    return null;
   };
   const groups = new Map<
     string,
-    { identityLocator: string; segments: string[]; chunks: SourceProvisionChunk[]; hierarchy: Record<string, unknown> }
+    {
+      identityLocator: string;
+      segments: string[];
+      chunks: SourceProvisionChunk[];
+      hierarchy: Record<string, unknown>;
+    }
   >();
   for (const chunk of input.chunks) {
     const parsed = parseProvisionLocator(chunk.locator);
@@ -175,10 +254,17 @@ export function composeLegalSourceProvisions(input: {
   const items: LegalRuleSourceProvision[] = [];
   /**
    * Business purpose: Reassemble exact persisted text parts for one logical provision.
-   * Business rules: Part order follows locator order and source wording is retained.
-   * Execution flow: Sort parts, trim outer whitespace, discard empty parts, and join with line breaks.
-   * Failure cases: Missing groups produce empty text.
-   * Side effects: Pure in-memory projection.
+   * Business rules:
+   * - Part order follows persisted locator order and original non-empty source wording is retained.
+   *
+   * Execution flow:
+   * 1. Sort the stored parts, trim only their outer whitespace, and join them with line breaks.
+   *
+   * Failure cases:
+   * - Missing groups produce empty text; source content is never reconstructed.
+   *
+   * Side effects:
+   * - Pure in-memory projection of persisted content.
    */
   const contentOf = (group: (typeof sourceGroups)[number] | undefined) =>
     group?.chunks
@@ -191,10 +277,19 @@ export function composeLegalSourceProvisions(input: {
       .join("\n") ?? "";
   /**
    * Business purpose: Distinguish a parent's own enforceable text from a heading or child setup lead-in.
-   * Business rules: Explicit chunker metadata is authoritative; otherwise residual body text is required and a trailing setup colon alone is not substantive.
-   * Execution flow: Check the explicit marker, then compare persisted lines against hierarchy heading and lead-in metadata.
-   * Failure cases: Missing or non-effective parent chunks do not establish independent legal content.
-   * Side effects: Pure classification of persisted source text.
+   * Business rules:
+   * - Explicit chunker metadata is authoritative; otherwise the parent needs residual body text beyond its heading and setup lead-in.
+   * - A trailing setup colon alone is not treated as an independent obligation.
+   *
+   * Execution flow:
+   * 1. Require an existing, EFFECTIVE parent chunk.
+   * 2. Check the independent-substance marker, then compare body lines with hierarchy heading and lead-in metadata.
+   *
+   * Failure cases:
+   * - Missing or non-effective parent chunks cannot establish independent legal content.
+   *
+   * Side effects:
+   * - Pure classification of persisted source text; no parent content is copied or changed.
    */
   const hasIndependentParentContent = (
     group: (typeof sourceGroups)[number] | undefined,
@@ -204,13 +299,14 @@ export function composeLegalSourceProvisions(input: {
     if (
       !group ||
       !group.chunks.length ||
-      group.chunks.some((chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE)
-    ) return false;
+      group.chunks.some(
+        (chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE,
+      )
+    )
+      return false;
     if (group.hierarchy.independentlySubstantive === true) return true;
     const metadataLines = new Set(
-      [heading, ...leadIn.split(/\r?\n/u)]
-        .map(normalized)
-        .filter(Boolean),
+      [heading, ...leadIn.split(/\r?\n/u)].map(normalized).filter(Boolean),
     );
     const residual = group.chunks
       .flatMap((chunk) => chunk.content.split(/\r?\n/u))
@@ -223,44 +319,82 @@ export function composeLegalSourceProvisions(input: {
         return true;
       });
     const leadInLines = leadIn.split(/\r?\n/u).map((line) => line.trim());
-    const hasPriorSentence = leadInLines
-      .slice(0, -1)
-      .some((line) => /[.;?!]$/u.test(line)) || /[.;?!]\s+\S/u.test(leadIn);
+    const hasPriorSentence =
+      leadInLines.slice(0, -1).some((line) => /[.;?!]$/u.test(line)) ||
+      /[.;?!]\s+\S/u.test(leadIn);
     if (leadIn.trim().endsWith(":") && hasPriorSentence) return true;
     return residual.length > 0 && !leadIn.trim().endsWith(":");
   };
 
   for (const group of sourceGroups) {
-    if (group.chunks.some((chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE))
+    if (
+      group.chunks.some(
+        (chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE,
+      )
+    )
       continue;
     const hasDescendant = sourceGroups.some(
       (candidate) =>
         candidate.segments.length > group.segments.length &&
-        group.segments.every((segment, index) => candidate.segments[index] === segment),
+        group.segments.every(
+          (segment, index) => candidate.segments[index] === segment,
+        ),
     );
-    const articleNumber = String(
-      group.hierarchy.articleNumber ?? group.segments[0]?.slice("art-".length) ?? "",
-    ).trim();
-    const articleTitle = String(group.hierarchy.articleTitle ?? "").trim();
-    const articleHeading = String(group.hierarchy.articleHeading ?? "").trim() ||
-      (articleNumber ? `Điều ${articleNumber}.${articleTitle ? ` ${articleTitle}` : ""}` : "");
-    const articleLeadIn = String(group.hierarchy.articleLeadIn ?? "").trim();
-    const clauseNumber = String(
-      group.hierarchy.clauseNumber ?? group.segments[1]?.slice("cl-".length) ?? "",
-    ).trim();
-    const clauseNumbering = String(group.hierarchy.clauseNumbering ?? "").trim() ||
-      (clauseNumber ? `${clauseNumber}.` : "");
-    const clauseHeading = String(group.hierarchy.clauseHeading ?? "").trim() ||
-      clauseNumbering;
-    const clauseLeadIn = String(group.hierarchy.clauseLeadIn ?? "").trim();
+    const articleNumberValue = hierarchyText(
+      group.hierarchy.articleNumber,
+      true,
+    );
+    const articleTitle = hierarchyText(group.hierarchy.articleTitle, false);
+    const articleHeadingValue = hierarchyText(
+      group.hierarchy.articleHeading,
+      false,
+    );
+    const articleLeadIn = hierarchyText(group.hierarchy.articleLeadIn, false);
+    const clauseNumberValue = hierarchyText(group.hierarchy.clauseNumber, true);
+    const clauseNumberingValue = hierarchyText(
+      group.hierarchy.clauseNumbering,
+      false,
+    );
+    const clauseHeadingValue = hierarchyText(
+      group.hierarchy.clauseHeading,
+      false,
+    );
+    const clauseLeadIn = hierarchyText(group.hierarchy.clauseLeadIn, false);
+    if (
+      articleNumberValue === null ||
+      articleTitle === null ||
+      articleHeadingValue === null ||
+      articleLeadIn === null ||
+      clauseNumberValue === null ||
+      clauseNumberingValue === null ||
+      clauseHeadingValue === null ||
+      clauseLeadIn === null
+    ) {
+      addLimitation(
+        group.identityLocator,
+        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_UNRESOLVED,
+      );
+      continue;
+    }
+    const articleNumber =
+      articleNumberValue || group.segments[0]?.slice("art-".length) || "";
+    const clauseNumber =
+      clauseNumberValue || group.segments[1]?.slice("cl-".length) || "";
+    const articleHeading =
+      articleHeadingValue ||
+      (articleNumber
+        ? `Điều ${articleNumber}.${articleTitle ? ` ${articleTitle}` : ""}`
+        : "");
+    const clauseNumbering =
+      clauseNumberingValue || (clauseNumber ? `${clauseNumber}.` : "");
+    const clauseHeading = clauseHeadingValue || clauseNumbering;
     const articleParent = sourceGroups.find(
       (candidate) =>
         candidate.segments.length === 1 &&
         candidate.identityLocator === group.segments[0],
     );
-    const clauseLocator = group.segments.length >= 2
-      ? group.segments.slice(0, 2).join("::")
-      : "";
+    const clauseLocator =
+      group.segments.length >= 2 ? group.segments.slice(0, 2).join("::") : "";
     const clauseParent = clauseLocator
       ? sourceGroups.find(
           (candidate) =>
@@ -278,11 +412,15 @@ export function composeLegalSourceProvisions(input: {
       clauseHeading,
       clauseLeadIn,
     );
-    if (hasDescendant && !(group.segments.length === 1 ? independentArticle : independentClause))
+    if (
+      hasDescendant &&
+      !(group.segments.length === 1 ? independentArticle : independentClause)
+    )
       continue;
 
     const sourceContent = contentOf(group);
-    const ownHeading = group.segments.length === 1 ? articleHeading : clauseNumbering;
+    const ownHeading =
+      group.segments.length === 1 ? articleHeading : clauseNumbering;
     if (
       !hasDescendant &&
       group.segments.length < 3 &&
@@ -356,9 +494,9 @@ export function composeLegalSourceProvisions(input: {
       continue;
     }
     const citationLocatorRefs = group.chunks.map((chunk) => ({
-        documentId: chunk.documentId,
-        locator: chunk.locator,
-      }));
+      documentId: chunk.documentId,
+      locator: chunk.locator,
+    }));
     if (citationLocatorRefs.length > 64) {
       addLimitation(
         group.identityLocator,
@@ -366,11 +504,12 @@ export function composeLegalSourceProvisions(input: {
       );
       continue;
     }
-    const level = group.segments.length === 1
-      ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.ARTICLE
-      : group.segments.length === 2
-        ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.CLAUSE
-        : LEGAL_RULE_SOURCE_PROVISION_LEVELS.POINT;
+    const level =
+      group.segments.length === 1
+        ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.ARTICLE
+        : group.segments.length === 2
+          ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.CLAUSE
+          : LEGAL_RULE_SOURCE_PROVISION_LEVELS.POINT;
     const legalRuleId = `src-${sha256Hex(`${input.sourceVersionId}::${input.documentId}::${group.identityLocator}`)}`;
     items.push({
       sourceVersionId: input.sourceVersionId,
@@ -515,11 +654,15 @@ export class LegalRuleCatalogService {
       (source.status !== LegalSourceLifecycleStatus.ACTIVE &&
         source.status !== LegalSourceLifecycleStatus.SUPERSEDED) ||
       !source.retrievalIndexes.length
-    ) catalogFailure(E.INELIGIBLE, cid);
+    )
+      catalogFailure(E.INELIGIBLE, cid);
 
     const document = await this.prisma.legalSourceDocument.findUnique({
       where: {
-        legalSourceVersionId_documentId: { legalSourceVersionId: source.id, documentId },
+        legalSourceVersionId_documentId: {
+          legalSourceVersionId: source.id,
+          documentId,
+        },
       },
       select: { id: true, documentId: true, title: true },
     });
@@ -610,15 +753,19 @@ export class LegalRuleCatalogService {
       input.documentId,
       cid,
     );
-    const provision = projection.items.find((item) => item.locator === input.locator);
+    const provision = projection.items.find(
+      (item) => item.locator === input.locator,
+    );
     if (!provision) {
       if (
         projection.limitations.some(
           (limitation) =>
             limitation.locator === input.locator &&
-            limitation.reason === LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_TOO_LARGE,
+            limitation.reason ===
+              LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_TOO_LARGE,
         )
-      ) catalogFailure(E.SOURCE_CONTEXT_TOO_LARGE, cid, 422);
+      )
+        catalogFailure(E.SOURCE_CONTEXT_TOO_LARGE, cid, 422);
       catalogFailure(E.INELIGIBLE, cid, 422);
     }
     return this.saveRule(

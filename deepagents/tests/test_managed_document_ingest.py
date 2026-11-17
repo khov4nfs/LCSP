@@ -97,40 +97,55 @@ class TestHeadingTreeProfile:
         result = chunk_document([STATUTE], profile="ARTICLES")
 
         assert result.profile == "ARTICLES"
-        # Text before the first heading and the chapter heading are chunks too (the partition is lossless).
-        assert locators(result) == ["front-matter", "chap-i", "art-1", "art-2", "art-2::cl-1", "art-2::cl-1::pt-a", "art-2::cl-1::pt-b", "art-2::cl-2", "art-3"]
+        assert locators(result) == [
+            "art-1",
+            "art-2::cl-1",
+            "art-2::cl-1::pt-a",
+            "art-2::cl-1::pt-b",
+            "art-2::cl-2",
+            "art-3",
+        ]
         by_locator = {chunk["locator"]: chunk for chunk in result.chunks}
-        assert by_locator["chap-i"]["content"] == "Chương I\nQUY ĐỊNH CHUNG"
-        assert by_locator["chap-i"]["hierarchy"] == {"chapterNumber": "I", "chapterTitle": "QUY ĐỊNH CHUNG"}
+        assert "chap-i" not in by_locator and "front-matter" not in by_locator
         clause = by_locator["art-2::cl-1"]
-        assert clause["hierarchy"] == {
-            "chapterNumber": "I",
-            "chapterTitle": "QUY ĐỊNH CHUNG",
-            "articleNumber": "2",
-            "articleTitle": "Nghĩa vụ chung",
-            "clauseNumber": "1",
-        }
+        assert clause["hierarchy"]["articleNumber"] == "2"
+        assert clause["hierarchy"]["clauseNumber"] == "1"
+        assert clause["hierarchy"]["independentlySubstantive"] is True
+        assert "articleLeadIn" in clause["hierarchy"]
         # Points are independently addressable; cross-reference prose does not open an article.
         assert by_locator["art-2::cl-1::pt-b"]["content"] == "b) Hồ sơ phải đúng hạn."
         assert "Điều 1 của Luật này" in by_locator["art-2::cl-2"]["content"]
-        # The article keeps its own lead-in as a non-leaf chunk above its clauses.
-        assert by_locator["art-2"]["content"].endswith("phải:")
+        point_hierarchy = by_locator["art-2::cl-1::pt-a"]["hierarchy"]
+        assert point_hierarchy["articleHeading"].startswith("Điều 2.")
+        assert point_hierarchy["articleLeadIn"].endswith(":")
+        assert point_hierarchy["clauseNumbering"] == "1."
 
     def test_points_preserve_unicode_labels_continuations_and_distinct_status_addresses(self):
         text = "Article 1. Duties\n1. The following:\na) First point.\nIts continuation.\nd) Fourth.\nđ) Distinct fifth.\n2. Next clause."
         result = chunk_document([text], profile="ARTICLES")
-        assert locators(result) == ["art-1", "art-1::cl-1", "art-1::cl-1::pt-a", "art-1::cl-1::pt-d", "art-1::cl-1::pt-đ", "art-1::cl-2"]
-        assert result.chunks[2]["content"] == "a) First point.\nIts continuation."
-        assert "\n".join(c["content"] for c in result.chunks) == text
-        assert result.chunks[4]["hierarchy"]["pointLabel"] == "đ"
+        assert locators(result) == [
+            "art-1::cl-1::pt-a",
+            "art-1::cl-1::pt-d",
+            "art-1::cl-1::pt-đ",
+            "art-1::cl-2",
+        ]
+        by_locator = {chunk["locator"]: chunk for chunk in result.chunks}
+        assert by_locator["art-1::cl-1::pt-a"]["content"] == "a) First point.\nIts continuation."
+        assert by_locator["art-1::cl-1::pt-đ"]["hierarchy"]["pointLabel"] == "đ"
+        point_hierarchy = by_locator["art-1::cl-1::pt-a"]["hierarchy"]
+        assert point_hierarchy["articleHeading"] == "Article 1. Duties"
+        assert point_hierarchy["clauseNumbering"] == "1."
+        assert point_hierarchy["clauseLeadIn"] == "The following:"
+        assert by_locator["art-1::cl-2"]["content"] == "2. Next clause."
 
-    def test_front_matter_is_counted_and_kept_as_its_own_chunk(self):
+    def test_front_matter_is_counted_but_not_emitted_as_a_provision(self):
         result = chunk_document([STATUTE], profile="ARTICLES")
-        assert result.front_matter_characters > 0  # informational counter, kept for compatibility
-        front = result.chunks[0]
-        assert front["locator"] == "front-matter" and front["hierarchy"] == {}
-        assert front["content"] == "QUỐC HỘI\nLuật số 99/2099/QH99"
-        assert sum("QUỐC HỘI" in chunk["content"] for chunk in result.chunks) == 1
+        assert result.front_matter_characters > 0
+        assert all(chunk["locator"] != "front-matter" for chunk in result.chunks)
+        extracted = extract_document(MEDIA_TEXT, STATUTE.encode("utf-8"))
+        assert extracted.pages == [STATUTE]
+        assert "QUỐC HỘI" in extracted.pages[0]
+        assert "Luật số 99/2099/QH99" in extracted.pages[0]
 
     def test_hashes_are_of_the_exact_stored_text(self):
         result = chunk_document([STATUTE], profile="ARTICLES")
@@ -139,14 +154,14 @@ class TestHeadingTreeProfile:
 
     def test_headings_come_from_configuration_not_code(self):
         result = chunk_document([ENGLISH], profile="ARTICLES")
-        assert locators(result) == ["front-matter", "art-1", "art-2", "art-2::cl-1", "art-2::cl-2", "art-3"]
-        assert result.chunks[1]["hierarchy"]["articleTitle"] == "Scope"
+        assert locators(result) == ["art-1", "art-2::cl-1", "art-2::cl-2", "art-3"]
+        assert result.chunks[0]["hierarchy"]["articleTitle"] == "Scope"
 
     def test_only_the_next_clause_number_opens_a_clause(self):
         text = "Article 1. Scope\n1. First.\n3. Not the next clause.\n2. Second.\n"
         result = chunk_document([text], profile="ARTICLES")
         by_locator = {chunk["locator"]: chunk["content"] for chunk in result.chunks}
-        assert sorted(by_locator) == ["art-1", "art-1::cl-1", "art-1::cl-2"]
+        assert sorted(by_locator) == ["art-1::cl-1", "art-1::cl-2"]
         assert "3. Not the next clause." in by_locator["art-1::cl-1"]
 
     def test_a_repeated_heading_keeps_its_text_under_a_distinct_locator(self):
@@ -160,13 +175,16 @@ class TestOtherProfiles:
     def test_numbered_sections_nest_by_number(self):
         result = chunk_document([OUTLINE], profile="NUMBERED_SECTIONS")
         assert locators(result) == [
-            "front-matter",
             "sec-1",
             "sec-1::sec-1.1",
             "sec-2",
             "sec-2::sec-2.1",
         ]
         assert result.front_matter_characters > 0
+        assert all(
+            chunk["hierarchy"]["structureClassification"] == "UNCLASSIFIED"
+            for chunk in result.chunks
+        )
 
     def test_paragraph_windows_cover_all_text_and_carry_pages(self):
         pages = ["alpha " * 400, "beta " * 400, "gamma " * 400]
@@ -178,7 +196,12 @@ class TestOtherProfiles:
 
     def test_auto_picks_the_first_profile_with_enough_headings_else_paragraphs(self):
         assert chunk_document([STATUTE], profile="AUTO").profile == "ARTICLES"
-        assert chunk_document([OUTLINE], profile="AUTO").profile == "NUMBERED_SECTIONS"
+        outline = chunk_document([OUTLINE], profile="AUTO")
+        assert outline.profile == "PARAGRAPHS"
+        assert all(
+            chunk["hierarchy"]["structureClassification"] == "UNCLASSIFIED"
+            for chunk in outline.chunks
+        )
         plain = chunk_document(["just some words\nwith no structure at all\n"], profile="AUTO")
         assert plain.profile == "PARAGRAPHS"
         assert plain.chunks
