@@ -62,7 +62,7 @@ function fixture() {
     ASSESSMENT_LIFECYCLE_STATES.ACTIVE;
   const runQueries = {
     findUnique: jest.fn(
-      async ({
+      ({
         where,
       }: {
         where: {
@@ -73,27 +73,28 @@ function fixture() {
           };
         };
       }) => {
-        if (where.runId) return rows.get(where.runId) ?? null;
+        if (where.runId) return Promise.resolve(rows.get(where.runId) ?? null);
         const input = where.assessmentId_idempotencyKey;
-        return (
+        return Promise.resolve(
           [...rows.values()].find(
             (r) =>
               r.assessmentId === input?.assessmentId &&
               r.idempotencyKey === input?.idempotencyKey,
-          ) ?? null
+          ) ?? null,
         );
       },
     ),
-    findFirst: jest.fn(
-      async () =>
+    findFirst: jest.fn(() =>
+      Promise.resolve(
         [...rows.values()].find(
           (r) =>
             r.status === AssessmentDiscoveryRunStatus.QUEUED ||
             r.status === AssessmentDiscoveryRunStatus.RUNNING,
         ) ?? null,
+      ),
     ),
     create: jest.fn(
-      async ({
+      ({
         data,
       }: {
         data: Omit<
@@ -126,11 +127,11 @@ function fixture() {
           failedAt: null,
         };
         rows.set(row.runId, row);
-        return row;
+        return Promise.resolve(row);
       },
     ),
     update: jest.fn(
-      async ({
+      ({
         where,
         data,
       }: {
@@ -151,46 +152,54 @@ function fixture() {
             Object.assign(row, { [key]: value });
           }
         }
-        return row;
+        return Promise.resolve(row);
       },
     ),
   };
   const tx = {
     assessment: {
-      findUnique: jest.fn(async () => ({
-        ownerId: currentOwner,
-        lifecycleState: currentLifecycle,
-        domainCase: { auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED },
-      })),
+      findUnique: jest.fn(() =>
+        Promise.resolve({
+          ownerId: currentOwner,
+          lifecycleState: currentLifecycle,
+          domainCase: { auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED },
+        }),
+      ),
     },
     assessmentRuntime: {
-      findUnique: jest.fn(async () => ({ currentAuditRequestId })),
+      findUnique: jest.fn(() => Promise.resolve({ currentAuditRequestId })),
     },
     assessmentDiscoveryRun: runQueries,
   };
   const prisma = {
-    $transaction: jest.fn(
-      async (callback: (client: unknown) => Promise<unknown>) => callback(tx),
+    $transaction: jest.fn((callback: (client: unknown) => Promise<unknown>) =>
+      callback(tx),
     ),
   };
   const outbox = {
-    enqueue: jest.fn(
-      async (_command: unknown, _transaction: unknown) => "outbox-1",
-    ),
+    enqueue: jest.fn((command: unknown, transaction: unknown) => {
+      void command;
+      void transaction;
+      return Promise.resolve("outbox-1");
+    }),
   };
   const support = {
-    lockCase: jest.fn(async () => undefined),
-    loadPins: jest.fn(async () => pins),
+    lockCase: jest.fn(() => Promise.resolve(undefined)),
+    loadPins: jest.fn(() => Promise.resolve(pins)),
   };
   const discoveries = {
-    getOwnerSummary: jest.fn(async () => ({
-      available: false,
-      discovery: null,
-    })),
-    saveAuthorizedInTx: jest.fn(async () => ({
-      recordId: randomUUID(),
-      replayed: false,
-    })),
+    getOwnerSummary: jest.fn(() =>
+      Promise.resolve({
+        available: false,
+        discovery: null,
+      }),
+    ),
+    saveAuthorizedInTx: jest.fn(() =>
+      Promise.resolve({
+        recordId: randomUUID(),
+        replayed: false,
+      }),
+    ),
   };
   const service = new AssessmentDiscoveryRunService(
     prisma as unknown as PrismaService,

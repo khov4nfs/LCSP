@@ -168,43 +168,45 @@ function fixture() {
   };
   const tx = {
     assessment: {
-      findUnique: jest.fn(async () => ({
-        ownerId: owner,
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
-        domainCase: { auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED },
-      })),
-    },
-    assessmentRuntime: {
-      findUnique: jest.fn(async () => ({ currentAuditRequestId })),
-    },
-    assessmentDiscoveryRun: {
-      findUnique: jest.fn(async () => run),
-      update: jest.fn(
-        async ({ data }: { data: { discoveryRecordId: string } }) => {
-          run.discoveryRecordId = data.discoveryRecordId;
-          return run;
-        },
+      findUnique: jest.fn(() =>
+        Promise.resolve({
+          ownerId: owner,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+          domainCase: { auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED },
+        }),
       ),
     },
-    assessmentCase: {
-      update: jest.fn(async ({ data }: { data: { caseRevision: number } }) => {
-        caseRevision = data.caseRevision;
-        return { caseRevision };
+    assessmentRuntime: {
+      findUnique: jest.fn(() => Promise.resolve({ currentAuditRequestId })),
+    },
+    assessmentDiscoveryRun: {
+      findUnique: jest.fn(() => Promise.resolve(run)),
+      update: jest.fn(({ data }: { data: { discoveryRecordId: string } }) => {
+        run.discoveryRecordId = data.discoveryRecordId;
+        return Promise.resolve(run);
       }),
-      findUnique: jest.fn(async () => ({ caseRevision })),
+    },
+    assessmentCase: {
+      update: jest.fn(({ data }: { data: { caseRevision: number } }) => {
+        caseRevision = data.caseRevision;
+        return Promise.resolve({ caseRevision });
+      }),
+      findUnique: jest.fn(() => Promise.resolve({ caseRevision })),
     },
     assessmentRepositoryDiscovery: {
-      findMany: jest.fn(async () => [
-        {
-          recordId: discoveryRecordId,
-          contentDigest: artifact.contentDigest,
-          payload: artifact,
-        },
-      ]),
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            recordId: discoveryRecordId,
+            contentDigest: artifact.contentDigest,
+            payload: artifact,
+          },
+        ]),
+      ),
     },
     assessmentFactNeed: {
       findUnique: jest.fn(
-        async ({
+        ({
           where,
         }: {
           where: {
@@ -215,30 +217,31 @@ function fixture() {
             };
           };
         }) => {
-          if (where.factNeedId) return needs.get(where.factNeedId) ?? null;
-          return (
+          if (where.factNeedId)
+            return Promise.resolve(needs.get(where.factNeedId) ?? null);
+          return Promise.resolve(
             [...needs.values()].find(
               (need) =>
                 need.identityDigest ===
                 where.assessmentId_identityDigest?.identityDigest,
-            ) ?? null
+            ) ?? null,
           );
         },
       ),
       findUniqueOrThrow: jest.fn(
-        async ({ where }: { where: { factNeedId: string } }) => {
+        ({ where }: { where: { factNeedId: string } }) => {
           const row = needs.get(where.factNeedId);
-          if (!row) throw new Error("fixture missing need");
-          return row;
+          if (!row) return Promise.reject(new Error("fixture missing need"));
+          return Promise.resolve(row);
         },
       ),
-      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
         const row = { ...data, status: AssessmentFactNeedStatus.OPEN };
         needs.set(String(data.factNeedId), row);
-        return row;
+        return Promise.resolve(row);
       }),
       update: jest.fn(
-        async ({
+        ({
           where,
           data,
         }: {
@@ -247,11 +250,11 @@ function fixture() {
         }) => {
           const row = needs.get(where.factNeedId)!;
           Object.assign(row, data);
-          return row;
+          return Promise.resolve(row);
         },
       ),
       updateMany: jest.fn(
-        async ({
+        ({
           where,
           data,
         }: {
@@ -259,15 +262,16 @@ function fixture() {
           data: Record<string, unknown>;
         }) => {
           const row = needs.get(where.factNeedId);
-          if (!row || row.status !== where.status) return { count: 0 };
+          if (!row || row.status !== where.status)
+            return Promise.resolve({ count: 0 });
           Object.assign(row, data);
-          return { count: 1 };
+          return Promise.resolve({ count: 1 });
         },
       ),
     },
     assessmentDiscoveryInterviewProposal: {
       findUnique: jest.fn(
-        async ({
+        ({
           where,
         }: {
           where: {
@@ -278,18 +282,19 @@ function fixture() {
             };
           };
         }) => {
-          if (where.proposalId) return proposals.get(where.proposalId) ?? null;
-          return (
+          if (where.proposalId)
+            return Promise.resolve(proposals.get(where.proposalId) ?? null);
+          return Promise.resolve(
             [...proposals.values()].find(
               (row) =>
                 row.idempotencyKey ===
                 where.assessmentId_idempotencyKey?.idempotencyKey,
-            ) ?? null
+            ) ?? null,
           );
         },
       ),
       findFirst: jest.fn(
-        async ({
+        ({
           where,
         }: {
           where: {
@@ -297,13 +302,15 @@ function fixture() {
             status: AssessmentDiscoveryInterviewProposalStatus;
           };
         }) =>
-          [...proposals.values()].find(
-            (row) =>
-              row.factNeedId === where.factNeedId &&
-              row.status === where.status,
-          ) ?? null,
+          Promise.resolve(
+            [...proposals.values()].find(
+              (row) =>
+                row.factNeedId === where.factNeedId &&
+                row.status === where.status,
+            ) ?? null,
+          ),
       ),
-      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
         const row: Proposal = {
           ...data,
           proposalId: String(data.proposalId),
@@ -317,7 +324,8 @@ function fixture() {
           answer: String(data.answer),
           submittedBy: String(data.submittedBy),
           status: AssessmentDiscoveryInterviewProposalStatus.PENDING_REVIEW,
-          guardFailure: data.guardFailure ? String(data.guardFailure) : null,
+          guardFailure:
+            typeof data.guardFailure === "string" ? data.guardFailure : null,
           reviewedBy: null,
           acceptedFactId: null,
           acceptedEvidenceId: null,
@@ -325,10 +333,10 @@ function fixture() {
           reviewedAt: null,
         };
         proposals.set(row.proposalId, row);
-        return row;
+        return Promise.resolve(row);
       }),
       update: jest.fn(
-        async ({
+        ({
           where,
           data,
         }: {
@@ -337,55 +345,60 @@ function fixture() {
         }) => {
           const row = proposals.get(where.proposalId)!;
           Object.assign(row, data);
-          return row;
+          return Promise.resolve(row);
         },
       ),
-      count: jest.fn(async () => proposals.size),
-      findMany: jest.fn(
-        async ({ skip, take }: { skip: number; take: number }) =>
-          [...proposals.values()].slice(skip, skip + take),
+      count: jest.fn(() => Promise.resolve(proposals.size)),
+      findMany: jest.fn(({ skip, take }: { skip: number; take: number }) =>
+        Promise.resolve([...proposals.values()].slice(skip, skip + take)),
       ),
     },
     assessmentEvidence: {
-      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
         evidence.push(data);
-        return data;
+        return Promise.resolve(data);
       }),
     },
     assessmentCaseFact: {
-      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
         facts.push(data);
-        return data;
+        return Promise.resolve(data);
       }),
     },
     assessmentCaseFactEvidence: {
-      create: jest.fn(async () => ({ linked: true })),
+      create: jest.fn(() => Promise.resolve({ linked: true })),
     },
   };
   const prisma = {
-    $transaction: jest.fn(async (cb: (client: unknown) => Promise<unknown>) =>
+    $transaction: jest.fn((cb: (client: unknown) => Promise<unknown>) =>
       cb(tx),
     ),
     assessmentCase: tx.assessmentCase,
   };
   const support = {
-    lockCase: jest.fn(async () => undefined),
-    loadPins: jest.fn(async () => ({ ...pins, caseRevision })),
+    lockCase: jest.fn(() => Promise.resolve(undefined)),
+    loadPins: jest.fn(() => Promise.resolve({ ...pins, caseRevision })),
   };
   const discoveries = {
-    verifyInterviewQuestionInTx: jest.fn(async () => {
-      if (!sourceQuestionValid) throw new Error("UNVERIFIED_SOURCE_QUESTION");
-      return { contentDigest: artifact.contentDigest, rangeIds: [sha("7")] };
+    verifyInterviewQuestionInTx: jest.fn(() => {
+      if (!sourceQuestionValid)
+        return Promise.reject(new Error("UNVERIFIED_SOURCE_QUESTION"));
+      return Promise.resolve({
+        contentDigest: artifact.contentDigest,
+        rangeIds: [sha("7")],
+      });
     }),
-    refreshCandidateRecommendationsInTx: jest.fn(async () => ({
-      recordId: "99999999-9999-4999-8999-999999999999",
-      cacheIdentity: artifact.cacheIdentity,
-      contentDigest: artifact.contentDigest,
-      replayed: false,
-    })),
+    refreshCandidateRecommendationsInTx: jest.fn(() =>
+      Promise.resolve({
+        recordId: "99999999-9999-4999-8999-999999999999",
+        cacheIdentity: artifact.cacheIdentity,
+        contentDigest: artifact.contentDigest,
+        replayed: false,
+      }),
+    ),
   };
   const invalidation = {
-    invalidateFinalReportInTx: jest.fn(async () => undefined),
+    invalidateFinalReportInTx: jest.fn(() => Promise.resolve(undefined)),
   };
   const service = new AssessmentDiscoveryInterviewService(
     prisma as unknown as PrismaService,

@@ -203,21 +203,23 @@ function fixture(
       findMany: jest.fn(() => Promise.resolve(options.rules ?? defaultRules)),
     },
     assessmentCaseFact: {
-      findMany: jest.fn((_query: { take?: number }) =>
-        Promise.resolve(
+      findMany: jest.fn((query: { take?: number }) => {
+        void query;
+        return Promise.resolve(
           options.acceptedFacts ?? [
             {
               factId: acceptedFactId,
               statement: "OpenAI production deployment is not yet confirmed.",
             },
           ],
-        ),
-      ),
+        );
+      }),
     },
     assessmentFactNeed: {
-      findMany: jest.fn((_query: { take?: number }) =>
-        Promise.resolve(options.resolvedQuestions ?? []),
-      ),
+      findMany: jest.fn((query: { take?: number }) => {
+        void query;
+        return Promise.resolve(options.resolvedQuestions ?? []);
+      }),
     },
     assessmentRepositoryDiscovery: {
       createMany: jest.fn(({ data }: { data: StoredDiscoveryInput[] }) => {

@@ -115,6 +115,7 @@ LIVE_BOUNDARIES = {
     "legal_retrieval_index_requested",
     "audit_export_requested",
     "agent_runtime_health_requested",
+    "assessment_discovery_requested",
 }
 # Retired V1 commands/events (CUTOVER): no boundary may consume them again.
 RETIRED_EVENTS = {
