@@ -1,6 +1,7 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { FileTextIcon } from "lucide-react";
 import {
   LEGAL_RULE_PREPARATION_STATES as STATES,
   LEGAL_RULE_SELECTION_MODES as MODES,
@@ -34,6 +35,7 @@ import {
   useLegalRules,
   useLegalRuleCommand,
 } from "@/lib/api/legal-rule-catalog-queries";
+import { useLegalSourceListQuery } from "@/lib/api/legal-source-queries";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
 import { LEGAL_RULE_FILTER_ALL } from "../../config/legal-rule-catalog.config";
 import {
@@ -42,6 +44,7 @@ import {
 } from "../molecules/legal-rule-catalog-forms";
 import { LegalRuleResultDialog } from "../molecules/legal-rule-catalog-result";
 import { LegalRuleCatalogBatch } from "./legal-rule-catalog-batch";
+import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
 
 /**
  * Business purpose: Build a Preparation Rule Set from explicitly selected canonical rules after chunking.
@@ -73,6 +76,7 @@ export function LegalRuleCatalogWorkflow({
     undefined,
   );
   const [inspectedRule, setInspectedRule] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const batchId = useSearchParams().get("preparationBatchId");
   const [confirming, setConfirming] = useState(false);
   const [snapshot, setSnapshot] = useState<ReturnType<
@@ -80,6 +84,8 @@ export function LegalRuleCatalogWorkflow({
   > | null>(null);
   const submissionKey = useRef("");
   const rules = useLegalRules(catalogId, { ...filters, page, limit: 50 });
+  const isCatalogEmpty =
+    rules.data?.total === 0 && !filters.search && !filters.state;
   const selection = useLegalRuleCommand(
     "/selections",
     legalRuleSelectionResultSchema,
@@ -88,10 +94,29 @@ export function LegalRuleCatalogWorkflow({
     "/preparations",
     preparationRuleBatchSchema,
   );
+  const sourcesQuery = useLegalSourceListQuery();
+  const sourceNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const src of sourcesQuery.data?.items ?? []) {
+      if (src.activeVersion) map.set(src.activeVersion.id, src.name);
+      if (src.latestVersion) map.set(src.latestVersion.id, src.name);
+    }
+    return map;
+  }, [sourcesQuery.data]);
+
   const currentCatalog = catalogs.data?.find(
     (catalog) => catalog.id === catalogId,
   );
   const busy = selection.isPending || submit.isPending;
+
+  useEffect(() => {
+    if (!catalogId && catalogs.data?.length) {
+      const match = sourceId
+        ? catalogs.data.find((c) => c.legalSourceVersionId === sourceId)
+        : null;
+      setCatalogId((match ?? catalogs.data[0]).id);
+    }
+  }, [catalogs.data, catalogId, sourceId]);
 
   /**
    * Business purpose: Keep the acknowledged Preparation Rule Set reopenable after a page refresh.
@@ -272,14 +297,17 @@ export function LegalRuleCatalogWorkflow({
             <SelectTrigger aria-label={t("catalog")}>
               <SelectValue placeholder={t("chooseCatalog")}>
                 {currentCatalog
-                  ? `${currentCatalog.version} · ${currentCatalog.revision}`
+                  ? `${currentCatalog.version} · rev ${currentCatalog.revision}${sourceNameMap.get(currentCatalog.legalSourceVersionId) ? ` (${sourceNameMap.get(currentCatalog.legalSourceVersionId)})` : ""}`
                   : t("chooseCatalog")}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {catalogs.data?.map((catalog) => (
                 <SelectItem key={catalog.id} value={catalog.id}>
-                  {catalog.version} · {catalog.revision}
+                  {catalog.version} · rev {catalog.revision}
+                  {sourceNameMap.get(catalog.legalSourceVersionId)
+                    ? ` (${sourceNameMap.get(catalog.legalSourceVersionId)})`
+                    : ""}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -288,183 +316,227 @@ export function LegalRuleCatalogWorkflow({
         <Button variant="outline" onClick={() => setCreateOpen(true)}>
           {t("createCatalog")}
         </Button>
-        <Button
-          variant="outline"
-          disabled={!rules.data}
-          onClick={() => setEditing(null)}
-        >
-          {t("addRule")}
-        </Button>
+        {!isCatalogEmpty && catalogId ? (
+          <>
+            <Button
+              variant="default"
+              disabled={!catalogId}
+              onClick={() => setPickerOpen(true)}
+            >
+              <FileTextIcon className="mr-2 size-4" />
+              {t("browseSourceDocuments")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!rules.data}
+              onClick={() => setEditing(null)}
+            >
+              {t("addRule")}
+            </Button>
+          </>
+        ) : null}
       </div>
       {catalogs.data?.length === 0 ? (
         <p role="status">{t("emptyCatalog")}</p>
       ) : null}
       {catalogId ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="legal-rule-search">{t("search")}</Label>
-              <Input
-                id="legal-rule-search"
-                value={filters.search}
-                onChange={(event) => {
-                  setFilters({ ...filters, search: event.target.value });
-                  setPage(1);
-                }}
-              />
+        isCatalogEmpty ? (
+          <div
+            role="status"
+            className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border/70 bg-muted/15 p-12 text-center"
+          >
+            <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <FileTextIcon className="size-6" />
             </div>
-            <div className="space-y-2">
-              <Label>{t("status")}</Label>
-              <Select
-                value={filters.state ?? LEGAL_RULE_FILTER_ALL}
-                onValueChange={(value) => {
-                  setFilters({
-                    ...filters,
-                    state:
-                      value === LEGAL_RULE_FILTER_ALL
-                        ? undefined
-                        : (value as LegalRuleFilter["state"]),
-                  });
-                  setPage(1);
-                }}
+            <div className="max-w-md space-y-1">
+              <h3 className="text-base font-semibold">
+                {t("emptyCatalogRulesTitle")}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {t("emptyCatalogRules")}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <Button
+                variant="default"
+                disabled={!catalogId}
+                onClick={() => setPickerOpen(true)}
               >
-                <SelectTrigger aria-label={t("status")}>
-                  <SelectValue>
-                    {filters.state
-                      ? t(`state_${filters.state}`)
-                      : t("allStates")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={LEGAL_RULE_FILTER_ALL}>
-                    {t("allStates")}
-                  </SelectItem>
-                  {Object.values(STATES).map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {t(`state_${state}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <FileTextIcon className="mr-2 size-4" />
+                {t("browseSourceDocuments")}
+              </Button>
+              <Button variant="outline" onClick={() => setEditing(null)}>
+                {t("manualAddRule")}
+              </Button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              disabled={busy || !rules.data?.eligibleTotal}
-              onClick={() => void selectAll()}
-            >
-              {t("selectAll")}
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={!selectedIds.size || busy}
-              onClick={clearSelection}
-            >
-              {t("clear")}
-            </Button>
-            <span role="status">
-              {t("selected")}:{" "}
-              <strong data-testid="legal-rule-selected-count">
-                {selectedIds.size}
-              </strong>
-            </span>
-            <Button
-              disabled={!selectedIds.size || busy}
-              onClick={() => void previewSelection()}
-            >
-              {busy ? t("loading") : t("prepare")}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">{t("acrossPages")}</p>
-          {selection.isError || rules.isError ? (
-            <Alert variant="destructive">
-              <AlertDescription>{t("error")}</AlertDescription>
-            </Alert>
-          ) : null}
-          {rules.isPending ? <p role="status">{t("loading")}</p> : null}
-          <ul className="divide-y">
-            {rules.data?.items.map((rule) => (
-              <li key={rule.id} className="flex items-start gap-3 py-4">
-                <Checkbox
-                  id={`select-${rule.id}`}
-                  aria-label={`${t("selectRule")} ${rule.legalRuleId}`}
-                  checked={selectedIds.has(rule.id)}
-                  disabled={!!rule.ineligibleReason || busy}
-                  onCheckedChange={() => toggleRule(rule.id)}
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="legal-rule-search">{t("search")}</Label>
+                <Input
+                  id="legal-rule-search"
+                  value={filters.search}
+                  onChange={(event) => {
+                    setFilters({ ...filters, search: event.target.value });
+                    setPage(1);
+                  }}
                 />
-                <div className="min-w-0 flex-1">
-                  <Label
-                    htmlFor={`select-${rule.id}`}
-                    className="font-semibold"
-                  >
-                    {rule.legalRuleId} · {rule.title}
-                  </Label>
-                  <p className="mt-1 text-sm">{rule.description}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {currentCatalog?.version} · {t(`state_${rule.state}`)}
-                  </p>
-                  <ul className="mt-1 text-xs text-muted-foreground">
-                    {rule.citationLocatorRefs.map((ref) => (
-                      <li key={`${ref.documentId}:${ref.locator}`}>
-                        {ref.documentId} · {ref.locator}
-                      </li>
+              </div>
+              <div className="space-y-2">
+                <Label>{t("status")}</Label>
+                <Select
+                  value={filters.state ?? LEGAL_RULE_FILTER_ALL}
+                  onValueChange={(value) => {
+                    setFilters({
+                      ...filters,
+                      state:
+                        value === LEGAL_RULE_FILTER_ALL
+                          ? undefined
+                          : (value as LegalRuleFilter["state"]),
+                    });
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger aria-label={t("status")}>
+                    <SelectValue>
+                      {filters.state
+                        ? t(`state_${filters.state}`)
+                        : t("allStates")}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={LEGAL_RULE_FILTER_ALL}>
+                      {t("allStates")}
+                    </SelectItem>
+                    {Object.values(STATES).map((state) => (
+                      <SelectItem key={state} value={state}>
+                        {t(`state_${state}`)}
+                      </SelectItem>
                     ))}
-                  </ul>
-                  {rule.ineligibleReason ? (
-                    <p className="mt-1 text-sm text-destructive">
-                      {t(`reason_${rule.ineligibleReason}`)}
-                    </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditing(rule)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={busy || !rules.data?.eligibleTotal}
+                onClick={() => void selectAll()}
+              >
+                {t("selectAll")}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={!selectedIds.size || busy}
+                onClick={clearSelection}
+              >
+                {t("clear")}
+              </Button>
+              <span role="status">
+                {t("selected")}:{" "}
+                <strong data-testid="legal-rule-selected-count">
+                  {selectedIds.size}
+                </strong>
+              </span>
+              <Button
+                disabled={!selectedIds.size || busy}
+                onClick={() => void previewSelection()}
+              >
+                {busy ? t("loading") : t("prepare")}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("acrossPages")}</p>
+            {selection.isError || rules.isError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{t("error")}</AlertDescription>
+              </Alert>
+            ) : null}
+            {rules.isPending ? <p role="status">{t("loading")}</p> : null}
+            <ul className="divide-y">
+              {rules.data?.items.map((rule) => (
+                <li key={rule.id} className="flex items-start gap-3 py-4">
+                  <Checkbox
+                    id={`select-${rule.id}`}
+                    aria-label={`${t("selectRule")} ${rule.legalRuleId}`}
+                    checked={selectedIds.has(rule.id)}
+                    disabled={!!rule.ineligibleReason || busy}
+                    onCheckedChange={() => toggleRule(rule.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <Label
+                      htmlFor={`select-${rule.id}`}
+                      className="font-semibold"
                     >
-                      {t("editRule")}
-                    </Button>
-                    {rule.lastResultId ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setInspectedRule(rule.id)}
-                      >
-                        {t("viewResult")}
-                      </Button>
+                      {rule.legalRuleId} · {rule.title}
+                    </Label>
+                    <p className="mt-1 text-sm">{rule.description}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {currentCatalog?.version} · {t(`state_${rule.state}`)}
+                    </p>
+                    <ul className="mt-1 text-xs text-muted-foreground">
+                      {rule.citationLocatorRefs.map((ref) => (
+                        <li key={`${ref.documentId}:${ref.locator}`}>
+                          {ref.documentId} · {ref.locator}
+                        </li>
+                      ))}
+                    </ul>
+                    {rule.ineligibleReason ? (
+                      <p className="mt-1 text-sm text-destructive">
+                        {t(`reason_${rule.ineligibleReason}`)}
+                      </p>
                     ) : null}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(rule)}
+                      >
+                        {t("editRule")}
+                      </Button>
+                      {rule.lastResultId ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setInspectedRule(rule.id)}
+                        >
+                          {t("viewResult")}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {rules.data?.items.length === 0 ? (
-            <p role="status">{t("empty")}</p>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              variant="outline"
-              disabled={page === 1 || rules.isFetching}
-              onClick={() => setPage((value) => value - 1)}
-            >
-              {t("previous")}
-            </Button>
-            <span>
-              {t("page")} {page} · {t("total")}: {rules.data?.total ?? 0}
-            </span>
-            <Button
-              variant="outline"
-              disabled={
-                !rules.data ||
-                page * rules.data.limit >= rules.data.total ||
-                rules.isFetching
-              }
-              onClick={() => setPage((value) => value + 1)}
-            >
-              {t("next")}
-            </Button>
-          </div>
-        </>
+                </li>
+              ))}
+            </ul>
+            {rules.data?.items.length === 0 ? (
+              <p role="status">{t("empty")}</p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={page === 1 || rules.isFetching}
+                onClick={() => setPage((value) => value - 1)}
+              >
+                {t("previous")}
+              </Button>
+              <span>
+                {t("page")} {page} · {t("total")}: {rules.data?.total ?? 0}
+              </span>
+              <Button
+                variant="outline"
+                disabled={
+                  !rules.data ||
+                  page * rules.data.limit >= rules.data.total ||
+                  rules.isFetching
+                }
+                onClick={() => setPage((value) => value + 1)}
+              >
+                {t("next")}
+              </Button>
+            </div>
+          </>
+        )
       ) : null}
       {batchId ? (
         <LegalRuleCatalogBatch
@@ -475,20 +547,24 @@ export function LegalRuleCatalogWorkflow({
         />
       ) : null}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="flex flex-col gap-1.5 border-b pb-4">
             <DialogTitle>{t("createCatalog")}</DialogTitle>
-            <DialogDescription>{t("description")}</DialogDescription>
+            <DialogDescription>
+              {t("createCatalogDescription")}
+            </DialogDescription>
           </DialogHeader>
-          <LegalRuleCatalogCreateForm
-            sourceId={sourceId ?? ""}
-            onCreated={(id) => {
-              setCatalogId(id);
-              setCreateOpen(false);
-              setPage(1);
-              clearSelection();
-            }}
-          />
+          <div className="p-6">
+            <LegalRuleCatalogCreateForm
+              sourceId={sourceId ?? ""}
+              onCreated={(id) => {
+                setCatalogId(id);
+                setCreateOpen(false);
+                setPage(1);
+                clearSelection();
+              }}
+            />
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog
@@ -497,51 +573,55 @@ export function LegalRuleCatalogWorkflow({
           if (!open) setEditing(undefined);
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader className="flex flex-col gap-1.5 border-b pb-4">
             <DialogTitle>{editing ? t("editRule") : t("addRule")}</DialogTitle>
             <DialogDescription>{t("citationHelp")}</DialogDescription>
           </DialogHeader>
-          {editing !== undefined && rules.data ? (
-            <LegalRuleCatalogRuleForm
-              key={editing?.id ?? "NEW"}
-              catalogId={catalogId}
-              revision={rules.data.catalogRevision}
-              rule={editing}
-              onSaved={() => setEditing(undefined)}
-            />
-          ) : null}
+          <div className="p-6">
+            {editing !== undefined && rules.data ? (
+              <LegalRuleCatalogRuleForm
+                key={editing?.id ?? "NEW"}
+                catalogId={catalogId}
+                revision={rules.data.catalogRevision}
+                rule={editing}
+                onSaved={() => setEditing(undefined)}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog open={confirming} onOpenChange={setConfirming}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="flex flex-col gap-1.5 border-b pb-4">
             <DialogTitle>{t("confirm")}</DialogTitle>
             <DialogDescription>{t("confirmDescription")}</DialogDescription>
           </DialogHeader>
-          <p>
-            {t("confirmCount")}: <strong>{snapshot?.selectedCount}</strong>
-          </p>
-          <p className="text-sm">
-            {currentCatalog?.version} · {snapshot?.catalogRevision}
-            <br />
-            {currentCatalog?.legalSourceVersionId}
-          </p>
-          <details>
-            <summary className="cursor-pointer">{t("confirmScope")}</summary>
-            <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs">
-              {JSON.stringify(snapshot?.scope, null, 2)}
-            </pre>
-            <p className="break-all font-mono text-xs">
-              {snapshot?.ruleIds.join("\n")}
+          <div className="space-y-4 p-6">
+            <p>
+              {t("confirmCount")}: <strong>{snapshot?.selectedCount}</strong>
             </p>
-          </details>
-          {submit.isError ? (
-            <Alert variant="destructive">
-              <AlertDescription>{t("error")}</AlertDescription>
-            </Alert>
-          ) : null}
-          <DialogFooter>
+            <p className="text-sm text-muted-foreground">
+              {currentCatalog?.version} · rev {snapshot?.catalogRevision}
+            </p>
+            <details className="rounded-lg border bg-muted/20 p-3">
+              <summary className="cursor-pointer text-xs font-medium">
+                {t("confirmScope")}
+              </summary>
+              <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                {JSON.stringify(snapshot?.scope, null, 2)}
+              </pre>
+              <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
+                {snapshot?.ruleIds.join("\n")}
+              </p>
+            </details>
+            {submit.isError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{t("error")}</AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+          <DialogFooter className="px-6 pb-6">
             <Button
               variant="outline"
               disabled={submit.isPending}
@@ -564,6 +644,21 @@ export function LegalRuleCatalogWorkflow({
           ruleId={inspectedRule}
           onClose={() => setInspectedRule(null)}
           onBatch={showBatch}
+        />
+      ) : null}
+      {pickerOpen && catalogId ? (
+        <LegalRuleSourcePickerDialog
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          catalogId={catalogId}
+          catalogRevision={
+            rules.data?.catalogRevision ?? currentCatalog?.revision ?? 1
+          }
+          initialLegalSourceVersionId={currentCatalog?.legalSourceVersionId}
+          onImported={() => {
+            void rules.refetch();
+            void catalogs.refetch();
+          }}
         />
       ) : null}
     </section>

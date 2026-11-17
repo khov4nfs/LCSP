@@ -2487,6 +2487,9 @@ export type PagesMessages = {
     noEarlierVersion: string;
     startingVersion: string;
     versionSummary: string;
+    versionIdLabel: string;
+    copyVersionId: string;
+    versionIdCopied: string;
     sourceLabel: string;
     sourceLink: string;
     indexLabel: string;

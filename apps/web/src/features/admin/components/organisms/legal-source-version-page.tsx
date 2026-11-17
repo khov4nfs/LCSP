@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import {
   LEGAL_SOURCE_STATUS_MESSAGE_KEYS,
 } from "../../config/legal-source-display.config";
@@ -146,6 +147,10 @@ export function LegalSourceVersionPage({ versionId }: { versionId: string }) {
           <CardTitle>{t("pages.legalSources.versionSummary")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <SummaryId
+            labelKey="pages.legalSources.versionIdLabel"
+            value={version.id}
+          />
           <SummaryValue
             labelKey="pages.legalSources.sourceLabel"
             value={version.source.name}
@@ -282,6 +287,55 @@ function SummaryValue({
     <div className="flex flex-col gap-1">
       <span className="text-sm text-muted-foreground">{t(labelKey)}</span>
       <span className="break-words text-sm font-medium">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Business purpose: Present a copyable canonical legal source version ID for external referencing and catalog association.
+ * Business rules:
+ * - Displays the exact immutable version UUID; copying accesses clipboard without mutating component or server state.
+ * Execution flow:
+ * 1. Render label and formatted code.
+ * 2. On click, write value to clipboard.
+ * 3. Temporarily display copied confirmation icon.
+ * Failure cases:
+ * - Clipboard write rejection sets copied state to false.
+ * Side effects:
+ * - Writes text to the browser clipboard API; updates local transient copied state.
+ */
+function SummaryId({ labelKey, value }: { labelKey: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyId() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-sm text-muted-foreground">{t(labelKey)}</span>
+      <div className="flex items-center gap-2">
+        <code className="break-all font-mono text-xs">{value}</code>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("pages.legalSources.copyVersionId")}
+          onClick={() => void copyId()}
+        >
+          {copied ? (
+            <CheckIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <CopyIcon className="size-3.5" />
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
