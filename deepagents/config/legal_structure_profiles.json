@@ -1,9 +1,9 @@
 {
-  "version": 3,
+  "version": 4,
   "maxChunkCharacters": 6000,
-  "autoMinimumHeadings": 3,
+  "autoMinimumHeadings": 1,
   "frontMatterLocator": "front-matter",
-  "autoOrder": ["ARTICLES", "NUMBERED_SECTIONS"],
+  "autoOrder": ["ARTICLES"],
   "profiles": {
     "ARTICLES": {
       "kind": "heading-tree",
