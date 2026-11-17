@@ -45,6 +45,11 @@ import {
 import { AssessmentRuntimeAuthority } from "./assessment-runtime-authority.service.js";
 import { buildRepositoryDiscoveryRuleCandidates } from "./repository-discovery-rule-matcher.js";
 
+// Read one extra record to detect incomplete recommendation inputs without a costly count.
+// Truncation must never silently convert a missing fact into a missing rule candidate.
+const MAX_DISCOVERY_MATCH_ACCEPTED_FACTS = 10_000;
+const MAX_DISCOVERY_MATCH_RESOLVED_QUESTIONS = 2_000;
+
 type DiscoveryRow = {
   recordId: string;
   assessmentId: string;
@@ -79,6 +84,7 @@ export class AssessmentRepositoryDiscoveryService {
    * - Repository, snapshot commit, source scope, versions, cache identity, and content digest must all match exactly.
    * - The strict worker contract contains hashes and metadata only; raw source fields and worker-authored rule recommendations are rejected.
    * - The API enriches the verified artifact from pinned rules, ACCEPTED facts, and accepted scoped FactNeed question resolutions without authorizing audit scope.
+   * - Oversized accepted-fact/FactNeed inventories fail closed rather than silently dropping facts and giving incomplete candidate rankings.
    * - Replaying the same assessment/cache/content coordinates returns the original record without a second insert.
    *
    * Execution flow:
@@ -147,6 +153,7 @@ export class AssessmentRepositoryDiscoveryService {
    * - The caller must hold the surrounding transaction and authorize the exact assessment before invoking this method.
    * - Repository pins, strict no-raw-source schema, deterministic identity, API-owned rule candidates, and accepted-fact enrichment remain identical for every authority path.
    * - Exact cache/content replay returns the existing immutable row.
+   * - A partial accepted-fact or resolved-question inventory cannot be used for candidate matching.
    *
    * Execution flow:
    * 1. Validate the submitted artifact schema, digest, discovery identity, and cache identity.
@@ -154,7 +161,7 @@ export class AssessmentRepositoryDiscoveryService {
    * 3. Enrich candidates from pinned rules and accepted facts, append the immutable row conflict-safely, and return its receipt.
    *
    * Failure cases:
-   * - Invalid content, stale pins, malformed metadata, or a missing post-insert row aborts the caller's transaction.
+   * - Invalid content, stale pins, malformed metadata, oversized fact inputs, or a missing post-insert row aborts the caller's transaction.
    *
    * Side effects:
    * - May append one AssessmentRepositoryDiscovery row and reads rules/facts; it never authorizes audit scope or writes evidence, facts, or decisions.
@@ -217,6 +224,7 @@ export class AssessmentRepositoryDiscoveryService {
           state: AssessmentRecordState.ACCEPTED,
         },
         orderBy: [{ caseRevision: "asc" }, { factId: "asc" }],
+        take: MAX_DISCOVERY_MATCH_ACCEPTED_FACTS + 1,
         select: { factId: true, statement: true },
       }),
       tx.assessmentFactNeed.findMany({
@@ -228,10 +236,21 @@ export class AssessmentRepositoryDiscoveryService {
           resolvedFact: { state: AssessmentRecordState.ACCEPTED },
         },
         orderBy: [{ resolvedAt: "desc" }, { factNeedId: "asc" }],
-        take: 2_001,
+        take: MAX_DISCOVERY_MATCH_RESOLVED_QUESTIONS + 1,
         select: { subjectKey: true, predicate: true },
       }),
     ]);
+    if (
+      acceptedFacts.length > MAX_DISCOVERY_MATCH_ACCEPTED_FACTS ||
+      resolvedQuestions.length > MAX_DISCOVERY_MATCH_RESOLVED_QUESTIONS
+    ) {
+      // Reject rather than rank recommendations against a misleading partial fact set.
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
     const enriched = buildRepositoryDiscoveryRuleCandidates({
       discovery,
       rules,

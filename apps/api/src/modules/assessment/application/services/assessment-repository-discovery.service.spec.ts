@@ -203,7 +203,7 @@ function fixture(
       findMany: jest.fn(() => Promise.resolve(options.rules ?? defaultRules)),
     },
     assessmentCaseFact: {
-      findMany: jest.fn(() =>
+      findMany: jest.fn((_query: { take?: number }) =>
         Promise.resolve(
           options.acceptedFacts ?? [
             {
@@ -215,7 +215,9 @@ function fixture(
       ),
     },
     assessmentFactNeed: {
-      findMany: jest.fn(() => Promise.resolve(options.resolvedQuestions ?? [])),
+      findMany: jest.fn((_query: { take?: number }) =>
+        Promise.resolve(options.resolvedQuestions ?? []),
+      ),
     },
     assessmentRepositoryDiscovery: {
       createMany: jest.fn(({ data }: { data: StoredDiscoveryInput[] }) => {
@@ -383,6 +385,51 @@ function expansion(recordId: string, contentDigest: string) {
 }
 
 describe("AssessmentRepositoryDiscoveryService", () => {
+  it("fails closed when resolved Discovery questions exceed the bounded recommendation inventory", async () => {
+    const { service, tx, rows } = fixture({
+      resolvedQuestions: Array.from({ length: 2_001 }, (_, ordinal) => ({
+        subjectKey: `usecase.${String(ordinal).padStart(64, "a")}`,
+        predicate: `discovery.question.${"b".repeat(64)}`,
+      })),
+    });
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-question-overflow",
+        discovery: discovery(),
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+    expect(rows.size).toBe(0);
+    expect(tx.assessmentFactNeed.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 2_001 }),
+    );
+  });
+
+  it("fails closed when accepted customer facts exceed the bounded recommendation inventory", async () => {
+    const { service, tx, rows } = fixture({
+      acceptedFacts: Array.from({ length: 10_001 }, () => ({
+        factId: randomUUID(),
+        statement:
+          "The assessment contains an accepted scoped operational fact.",
+      })),
+    });
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-fact-overflow",
+        discovery: discovery(),
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+    expect(rows.size).toBe(0);
+    expect(tx.assessmentCaseFact.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 10_001 }),
+    );
+  });
+
   it("persists once and replays identical assessment/cache/content coordinates", async () => {
     const { service, tx, rows } = fixture();
     const artifact = discovery();

@@ -112,6 +112,12 @@ This additive slice introduces `AssessmentDiscoveryInterviewProposal` as an owne
 - No end-to-end browser acceptance with a live authenticated customer or disposable PostgreSQL integration migration was executed in this slice.
 - SourceNerve `origin` still resolves to `khovan123/LCSP`, while the target PR is `khov4nfs/LCSP#498`; commits must **not** be pushed to the unrelated remote.
 
+### 2026-11-17 follow-up: bounded recommendation input and customer rule-picker regression
+
+The API-owned rule-candidate matcher now reads at most **10,001 ACCEPTED facts** and **2,001 resolved Discovery FactNeeds** to detect over-budget conditions (limits: 10,000 and 2,000 respectively). If either inventory exceeds its limit, the service rejects with the typed `BUDGET_EXHAUSTED` domain error **before** persisting or presenting an incomplete recommendation revision. This prevents dropped customer facts from silently excluding otherwise relevant rules. It is a safety bound, not evidence that the assessment has no applicable obligations.
+
+Two regression cases confirm that overflow produces no Discovery write. The customer rule-picker test fixture now distinguishes the added read-only Discovery status endpoint from paged Rule Catalog requests; its audit-selection checks remain unchanged. The post-change focused runs passed 98/98 API tests and 11/11 web tests; no live legal-accuracy, token-use, PostgreSQL end-to-end, or browser acceptance result is claimed.
+
 ### Current State Classification at `caf06e5e3b611be2536111587cf5b7719b773bc9`
 
 | Requirement | Status | Evidence / gap |
