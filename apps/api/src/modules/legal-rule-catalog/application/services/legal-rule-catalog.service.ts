@@ -62,6 +62,25 @@ export function preparationInputFingerprint(
 }
 
 /**
+ * Business purpose: Determine whether a document chunk has an eligible legal effect status for catalog rules.
+ * Business rules:
+ * - Active law chunks (EFFECTIVE) and unreviewed newly ingested chunks (UNKNOWN) are eligible for citation.
+ * - Explicitly repealed (REPEALED) and future/un-enacted (FUTURE) chunks are strictly ineligible.
+ * Execution flow:
+ * 1. Evaluate chunk legalEffectStatus against allowed active and unreviewed statuses.
+ * Failure cases:
+ * - None; pure predicate function.
+ * Side effects:
+ * - Pure predicate evaluation without persistence or I/O side effects.
+ */
+export function isEligibleLegalChunkStatus(status: LegalEffectStatus): boolean {
+  return (
+    status === LegalEffectStatus.EFFECTIVE ||
+    status === LegalEffectStatus.UNKNOWN
+  );
+}
+
+/**
  * Business purpose: Report a typed catalog rejection through the shared API envelope.
  * Business rules:
  * - Rejections never create catalog or model work.
@@ -304,7 +323,7 @@ export class LegalRuleCatalogService {
               (chunk) =>
                 chunk.documentId === ref.documentId &&
                 chunk.locator === ref.locator &&
-                chunk.legalEffectStatus === LegalEffectStatus.EFFECTIVE,
+                isEligibleLegalChunkStatus(chunk.legalEffectStatus),
             ),
         )
       )
@@ -452,8 +471,7 @@ export class LegalRuleCatalogService {
             : !citations.length ||
                 citations.some(
                   (ref) =>
-                    !ref ||
-                    ref.legalEffectStatus !== LegalEffectStatus.EFFECTIVE,
+                    !ref || !isEligibleLegalChunkStatus(ref.legalEffectStatus),
                 )
               ? R.CITATION_INVALID
               : null;
@@ -722,7 +740,7 @@ export class LegalRuleCatalogService {
             chunk.contentSha256 !== ref.contentSha256 ||
             sha256Hex(chunk.content) !==
               ref.contentSha256.replace(/^sha256:/u, "") ||
-            chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE
+            !isEligibleLegalChunkStatus(chunk.legalEffectStatus)
           )
             catalogFailure(E.INELIGIBLE, cid);
           return { ...ref, content: chunk.content };

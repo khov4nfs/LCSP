@@ -38,9 +38,11 @@ import {
   useLegalSourceListQuery,
 } from "@/lib/api/legal-source-queries";
 import {
-  useLegalRuleCommand,
+  legalRuleCatalogKey,
   useLegalRuleCatalogs,
 } from "@/lib/api/legal-rule-catalog-queries";
+import { useQueryClient } from "@tanstack/react-query";
+import { ApiRequestError, apiValidated } from "@/lib/api/api-request";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
 
 interface SelectedProvisionItem {
@@ -86,6 +88,7 @@ export function LegalRuleSourcePickerDialog({
   initialLegalSourceVersionId,
   onImported,
 }: LegalRuleSourcePickerDialogProps) {
+  const queryClient = useQueryClient();
   const sourcesQuery = useLegalSourceListQuery();
   const catalogsQuery = useLegalRuleCatalogs();
 
@@ -113,14 +116,21 @@ export function LegalRuleSourcePickerDialog({
     "";
 
   const targetCatalog = useMemo(() => {
+    if (!catalogsQuery.data || !effectiveVersionId) return null;
     return (
-      catalogsQuery.data?.find(
+      catalogsQuery.data.find(
+        (c) =>
+          c.id === catalogId &&
+          c.legalSourceVersionId === effectiveVersionId,
+      ) ??
+      catalogsQuery.data.find(
         (c) => c.legalSourceVersionId === effectiveVersionId,
-      ) ?? catalogsQuery.data?.find((c) => c.id === catalogId)
+      ) ??
+      null
     );
   }, [catalogsQuery.data, effectiveVersionId, catalogId]);
 
-  const activeCatalogId = targetCatalog?.id ?? catalogId;
+  const activeCatalogId = targetCatalog?.id ?? "";
   const activeCatalogRevision = targetCatalog?.revision ?? catalogRevision;
 
   const versionQuery = useLegalSourceVersionQuery(effectiveVersionId);
@@ -139,15 +149,6 @@ export function LegalRuleSourcePickerDialog({
     total: number;
   } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  const saveRuleMutation = useLegalRuleCommand(
-    `/${activeCatalogId}/rules`,
-    legalRuleSavedSchema,
-  );
-  const createCatalogMutation = useLegalRuleCommand(
-    "",
-    legalRuleCatalogSchema,
-  );
 
   const activeDoc = useMemo(() => {
     if (!documents.length) return null;
@@ -185,6 +186,11 @@ export function LegalRuleSourcePickerDialog({
     chunk: LegalSourceChunkView,
     document: LegalSourceDocumentView,
   ) {
+    const isEligible =
+      chunk.legalEffectStatus === "EFFECTIVE" ||
+      chunk.legalEffectStatus === "UNKNOWN";
+    if (!isEligible) return;
+
     const next = new Map(selectedProvisions);
     if (next.has(chunk.id)) {
       next.delete(chunk.id);
@@ -204,13 +210,18 @@ export function LegalRuleSourcePickerDialog({
     if (!activeDoc) return;
     const next = new Map(selectedProvisions);
     for (const chunk of chunks) {
-      next.set(chunk.id, {
-        chunkId: chunk.id,
-        locator: chunk.locator,
-        content: chunk.content,
-        documentId: activeDoc.documentId,
-        documentTitle: activeDoc.title,
-      });
+      if (
+        chunk.legalEffectStatus === "EFFECTIVE" ||
+        chunk.legalEffectStatus === "UNKNOWN"
+      ) {
+        next.set(chunk.id, {
+          chunkId: chunk.id,
+          locator: chunk.locator,
+          content: chunk.content,
+          documentId: activeDoc.documentId,
+          documentTitle: activeDoc.title,
+        });
+      }
     }
     setSelectedProvisions(next);
   }
@@ -240,10 +251,18 @@ export function LegalRuleSourcePickerDialog({
         const src = availableSources.find(
           (s) => s.versionId === effectiveVersionId,
         );
-        const newCatalog = await createCatalogMutation.mutateAsync({
-          version: `${src?.versionName ?? "v1.0"}-catalog`,
-          legalSourceVersionId: effectiveVersionId,
-        });
+        const newCatalog = await apiValidated(
+          "/api/admin/legal-rule-catalog",
+          legalRuleCatalogSchema,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              version: `${src?.versionName ?? "v1.0"}-catalog`,
+              legalSourceVersionId: effectiveVersionId,
+            }),
+          },
+        );
         resolvedCatalogId = newCatalog.id;
         currentRev = newCatalog.revision;
       }
@@ -266,23 +285,38 @@ export function LegalRuleSourcePickerDialog({
         const description =
           item.content.trim() || `${item.documentTitle} - ${item.locator}`;
 
-        const result = await saveRuleMutation.mutateAsync({
-          legalRuleId,
-          title,
-          description,
-          citationLocatorRefs,
-          expectedRevision: currentRev,
-        });
+        const result = await apiValidated(
+          `/api/admin/legal-rule-catalog/${resolvedCatalogId}/rules`,
+          legalRuleSavedSchema,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              legalRuleId,
+              title,
+              description,
+              citationLocatorRefs,
+              expectedRevision: currentRev,
+            }),
+          },
+        );
 
         currentRev = result.catalogRevision;
       }
 
+      await queryClient.invalidateQueries({ queryKey: legalRuleCatalogKey });
       setSelectedProvisions(new Map());
       setSavingProgress(null);
       onImported?.();
       onOpenChange(false);
-    } catch {
-      setSaveError(t("error"));
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiRequestError && err.problemCode
+          ? `${t("error")}: ${err.problemCode}`
+          : err instanceof Error
+            ? err.message
+            : t("error");
+      setSaveError(msg);
       setSavingProgress(null);
     }
   }
@@ -291,7 +325,7 @@ export function LegalRuleSourcePickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[88vh] max-h-[90vh] max-w-[95vw] flex-col gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card p-0 sm:max-w-5xl">
         {/* Header with clean vertical title & description, inheriting top rounded corners */}
-        <div className="flex flex-col gap-1.5 border-b border-border/70 bg-muted/30 px-6 py-4.5 pr-14">
+        <div className="flex flex-col gap-1.5 rounded-t-2xl border-b border-border/70 bg-muted/30 px-6 py-5 pr-14">
           <DialogTitle className="text-lg font-semibold tracking-tight text-foreground">
             {t("sourcePickerTitle")}
           </DialogTitle>
@@ -456,19 +490,31 @@ export function LegalRuleSourcePickerDialog({
                 ) : (
                   chunks.map((chunk) => {
                     const isChecked = selectedProvisions.has(chunk.id);
+                    const isEligible =
+                      chunk.legalEffectStatus === "EFFECTIVE" ||
+                      chunk.legalEffectStatus === "UNKNOWN";
                     return (
                       <div
                         key={chunk.id}
-                        onClick={() => activeDoc && toggleChunk(chunk, activeDoc)}
-                        className={`flex cursor-pointer items-start gap-3 p-3 transition-colors hover:bg-muted/30 ${
-                          isChecked ? "bg-muted/20" : ""
+                        onClick={() =>
+                          isEligible && activeDoc && toggleChunk(chunk, activeDoc)
+                        }
+                        className={`flex items-start gap-3 p-3 transition-colors ${
+                          !isEligible
+                            ? "cursor-not-allowed bg-muted/10 opacity-50"
+                            : isChecked
+                              ? "cursor-pointer bg-muted/20 hover:bg-muted/30"
+                              : "cursor-pointer hover:bg-muted/30"
                         }`}
                       >
                         <Checkbox
                           id={`chk-${chunk.id}`}
                           checked={isChecked}
+                          disabled={!isEligible}
                           onCheckedChange={() =>
-                            activeDoc && toggleChunk(chunk, activeDoc)
+                            isEligible &&
+                            activeDoc &&
+                            toggleChunk(chunk, activeDoc)
                           }
                           className="mt-1"
                         />
@@ -477,7 +523,10 @@ export function LegalRuleSourcePickerDialog({
                             <span className="font-mono text-xs font-semibold text-primary">
                               {chunk.locator}
                             </span>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant={isEligible ? "outline" : "destructive"}
+                              className="text-xs"
+                            >
                               {chunk.legalEffectStatus}
                             </Badge>
                           </div>
@@ -529,7 +578,7 @@ export function LegalRuleSourcePickerDialog({
         </div>
 
         {/* Footer: Compact, single horizontal row with zero wasted empty space */}
-        <div className="flex items-center justify-between gap-3 border-t border-border/70 bg-card px-6 py-3.5">
+        <div className="flex items-center justify-between gap-3 rounded-b-2xl border-t border-border/70 bg-card px-6 py-3.5">
           <div className="text-xs text-muted-foreground">
             {selectedProvisions.size > 0 ? (
               <span>
