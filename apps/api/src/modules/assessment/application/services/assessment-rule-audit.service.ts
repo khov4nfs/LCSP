@@ -49,6 +49,7 @@ import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain
 import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
+import { decisionDependencyGraphIsComplete } from "../../domain/decision-dependencies.js";
 import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 
 const ORCHESTRATOR = {
@@ -171,7 +172,10 @@ export class AssessmentRuleAuditService {
               assessmentId,
               status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
             },
-            select: { assessmentRuleId: true },
+            select: {
+              assessmentRuleId: true,
+              dependencies: { select: { assessmentRuleId: true } },
+            },
           }),
           tx.assessmentRuleAuditRequest.findFirst({
             where: { assessmentId },
@@ -234,7 +238,12 @@ export class AssessmentRuleAuditService {
       const covered = new Map(
         coverage.map((row) => [row.assessmentRuleId, row]),
       );
-      const waiting = new Set(openRequests.map((row) => row.assessmentRuleId));
+      const waiting = new Set(
+        openRequests.flatMap((row) => [
+          row.assessmentRuleId,
+          ...(row.dependencies?.map((d) => d.assessmentRuleId) ?? []),
+        ]),
+      );
       const localizedRules = await Promise.all(
         visibleRules.map(async (rule) => {
           if (!locale) return rule;
@@ -351,12 +360,12 @@ export class AssessmentRuleAuditService {
   /**
    * Business purpose: Freeze a customer's exact audit choice and authorize one Root dispatch.
    * Business rules:
-   * - Only the owner of a ready customer-selected assessment can start a nonempty,
-   * current, wholly pinned scope; one active request and one Root lease exist at a time.
+   * - Only the owner of a ready customer-selected assessment can start a nonempty, current, wholly pinned scope; one active request and one Root lease exist at a time.
+   * - Accepted decisions at the current case revision are reusable; older decisions require an exact complete dependency ledger so unrelated new facts do not force redundant assessment.
    * Execution flow:
    * 1. Lock assessment and replay a matching idempotency key before comparing revisions.
    * 2. Validate the complete server catalog and reject duplicate, foreign or stale IDs.
-   * 3. Store immutable request/items, advance revision and enqueue its Root command atomically.
+   * 3. Select only dependency-safe reusable decisions, store immutable request/items, advance revision and enqueue its Root command atomically.
    * Failure cases:
    * - Conflicting replay, stale pins/revision, invalid lifecycle or scope aborts the transaction.
    * Side effects:
@@ -505,16 +514,32 @@ export class AssessmentRuleAuditService {
           assessmentId,
           assessmentRuleId: { in: chosen.map((rule) => rule.assessmentRuleId) },
         },
-        include: { currentDecision: true },
+        include: {
+          currentDecision: {
+            include: {
+              evidenceDependencies: { select: { evidenceId: true } },
+              factDependencies: { select: { factId: true } },
+            },
+          },
+        },
       });
       const reusable = new Map(
         currentCoverage.flatMap((row) => {
           const decision = row.currentDecision;
+          const parsed = decision
+            ? ruleDecisionSchema.safeParse(decision.decision)
+            : null;
+          const supportedCaseRevision =
+            decision?.caseRevision === domainCase.caseRevision ||
+            (decision != null &&
+              decision.caseRevision < domainCase.caseRevision &&
+              parsed?.success === true &&
+              decisionDependencyGraphIsComplete(parsed.data, decision));
           return row.resolutionState === DECISION_RESOLUTION_STATES.RESOLVED &&
             row.assessmentRuleVersion ===
               byId.get(row.assessmentRuleId)?.assessmentRuleVersion &&
             decision?.state === ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED &&
-            decision.caseRevision === domainCase.caseRevision &&
+            supportedCaseRevision &&
             decision.repositoryCommit === domainCase.repositoryCommit &&
             decision.ruleSetVersionId === ruleSet.id
             ? [[row.assessmentRuleId, decision.decisionId] as const]
@@ -725,7 +750,10 @@ export class AssessmentRuleAuditService {
             assessmentId,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
           },
-          select: { assessmentRuleId: true },
+          select: {
+            assessmentRuleId: true,
+            dependencies: { select: { assessmentRuleId: true } },
+          },
         }),
         this.prisma.assessmentRuleDecision.findMany({
           where: { auditRequestId: requestId },
@@ -738,7 +766,12 @@ export class AssessmentRuleAuditService {
     for (const decision of requestDecisions)
       if (!decided.has(decision.assessmentRuleId))
         decided.set(decision.assessmentRuleId, decision);
-    const waiting = new Set(openRequests.map((item) => item.assessmentRuleId));
+    const waiting = new Set(
+      openRequests.flatMap((item) => [
+        item.assessmentRuleId,
+        ...(item.dependencies?.map((d) => d.assessmentRuleId) ?? []),
+      ]),
+    );
     const rules = row.rules.map((item) => {
       const current = byId.get(item.assessmentRuleId);
       const own = decided.get(item.assessmentRuleId);
@@ -793,7 +826,7 @@ export class AssessmentRuleAuditService {
   /**
    * Business purpose: Freeze only currently accepted selected-rule results in a labelled partial export.
    * Business rules:
-   * - Export is owner-scoped, idempotent and includes no pending, invalidated or unrequested verdict.
+   * - Export is owner-scoped, idempotent and includes no pending, invalidated, dependency-incomplete historical, or unrequested verdict.
    * Execution flow:
    * 1. Verify request ownership and return an existing export for the same key.
    * 2. Revalidate each available decision against current pins, facts and evidence.
@@ -876,7 +909,14 @@ export class AssessmentRuleAuditService {
               assessmentRuleId: item.assessmentRuleId,
             },
           },
-          include: { currentDecision: true },
+          include: {
+            currentDecision: {
+              include: {
+                evidenceDependencies: { select: { evidenceId: true } },
+                factDependencies: { select: { factId: true } },
+              },
+            },
+          },
         });
         const record = coverage?.currentDecision;
         if (
@@ -887,7 +927,7 @@ export class AssessmentRuleAuditService {
         if (
           coverage?.resolutionState !== DECISION_RESOLUTION_STATES.RESOLVED ||
           record?.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED ||
-          record.caseRevision !== pins.caseRevision ||
+          record.caseRevision > pins.caseRevision ||
           record.repositoryCommit !== pins.repositoryCommit ||
           record.assessmentRuleVersion !== item.assessmentRuleVersion
         )
@@ -898,12 +938,26 @@ export class AssessmentRuleAuditService {
           parsed.data.assessmentRuleId !== item.assessmentRuleId
         )
           continue;
+        const historicalDependencyGraphComplete =
+          record.caseRevision < pins.caseRevision &&
+          decisionDependencyGraphIsComplete(parsed.data, record);
+        if (
+          record.caseRevision < pins.caseRevision &&
+          !historicalDependencyGraphComplete
+        )
+          continue;
         const context = await this.support.buildValidationContext(tx, {
           assessmentId,
           pins,
           decision: parsed.data,
         });
-        if (validateRuleDecision(parsed.data, context).length > 0) continue;
+        if (
+          validateRuleDecision(parsed.data, {
+            ...context,
+            allowHistoricalCaseRevision: historicalDependencyGraphComplete,
+          }).length > 0
+        )
+          continue;
         const legal = legalById.get(item.assessmentRuleId);
         if (!legal) continue;
         const references = [

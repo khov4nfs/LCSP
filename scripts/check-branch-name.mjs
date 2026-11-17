@@ -7,6 +7,8 @@ const ALLOWED_BRANCHES = [
   /^release\/.+$/,
   /^hotfix\/.+$/,
   /^dependabot\/.+$/,
+  /^backup\/.+$/,
+  /^history-rewrite-.+$/,
 ];
 
 const TASK_BRANCH_PATTERN =
@@ -50,5 +52,5 @@ console.error("Allowed CI branch format:");
 console.error("  ci/check-changed-workflow");
 console.error("");
 console.error("Allowed special branches:");
-console.error("  main, develop, release/*, hotfix/*, dependabot/*");
+console.error("  main, develop, release/*, hotfix/*, dependabot/*, backup/*, history-rewrite-*");
 process.exit(1);

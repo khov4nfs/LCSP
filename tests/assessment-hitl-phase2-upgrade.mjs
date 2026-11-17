@@ -121,6 +121,7 @@ const admin = new Client({
   host: "127.0.0.1",
   port,
   user: "postgres",
+  password: process.env.PGPASSWORD ?? "postgres",
   database: "postgres",
 });
 await admin.connect();
@@ -452,10 +453,17 @@ try {
     migrationNames.length,
     "Both new migrations were applied",
   );
+  const expectedHistory = {
+    ...before,
+    AssessmentHumanRequest: before.AssessmentHumanRequest.map((row) => ({
+      ...row,
+      factNeedId: null,
+    })),
+  };
   eq(
     await history(),
-    before,
-    "Upgrade preserves all pre-existing history, facts, pins, runtime bindings and coverage",
+    expectedHistory,
+    "Upgrade preserves all history and adds only the nullable FactNeed binding",
   );
   const backfill = (
     await q(
@@ -501,7 +509,7 @@ try {
     requests.length,
     "Deployment replay does not duplicate dependencies",
   );
-  eq(await history(), before, "Deployment replay preserves all history");
+  eq(await history(), expectedHistory, "Deployment replay preserves all history");
 
   const insertDependency =
     'INSERT INTO "AssessmentHumanRequestDependency"("requestId","assessmentId","assessmentRuleId","criterionIds") VALUES($1,$2,$3,\'[]\')';

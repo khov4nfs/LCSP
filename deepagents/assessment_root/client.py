@@ -145,7 +145,7 @@ class AssessmentRuntimeClient:
     def heartbeat(self) -> dict[str, Any]:
         return self._call("POST", "/heartbeat")
 
-    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False) -> dict[str, Any]:
+    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None, recovery_required: bool = False, reason: str | None = None) -> dict[str, Any]:
         """Business purpose: Settle one leased Root segment, retaining uncertain work for operator recovery.
 
         Business rules:
@@ -167,6 +167,8 @@ class AssessmentRuntimeClient:
             body["requestIds"] = request_ids
         if control_request_id is not None:
             body["controlRequestId"] = control_request_id
+        if reason is not None:
+            body["reason"] = reason
         result = self._call("POST", "/finish", body)
         self.lease_token = None
         return result
@@ -240,10 +242,127 @@ class AssessmentRuntimeClient:
         """
         return self._call("GET", "/legal-source/search", params={"query": query})
 
+    def repository_discovery_summary(self) -> dict[str, Any]:
+        """Business purpose: Load the bounded metadata summary of the discovery artifact pinned to this assessment.
+
+        Business rules:
+        - The current worker lease scopes the read; absence remains explicit and never proves no AI use.
+
+        Execution flow:
+        1. Request the governed discovery summary endpoint.
+        2. Return its availability and bounded counts/resource coverage.
+
+        Failure cases:
+        - Lease, pin, integrity and transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP retrieval; no discovery, evidence, fact or decision is changed.
+        """
+        return self._call("GET", "/discovery")
+
+    def repository_discovery_ranges(
+        self, record_id: str, *, offset: int = 0, limit: int = 25
+    ) -> dict[str, Any]:
+        """Business purpose: Read one bounded page of prioritized source ranges from an immutable discovery artifact.
+
+        Business rules:
+        - The record identity, offset and limit are validated by the leased API against current repository pins.
+
+        Execution flow:
+        1. Encode the immutable record and page coordinates.
+        2. Return the digest-bound range page from the governed endpoint.
+
+        Failure cases:
+        - Foreign records, stale pins, invalid pages and transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP retrieval without accepting source as evidence or changing assessment scope.
+        """
+        return self._call(
+            "GET",
+            "/discovery/ranges",
+            params={"recordId": record_id, "offset": str(offset), "limit": str(limit)},
+        )
+
+    def repository_discovery_details(
+        self,
+        record_id: str,
+        collection: str,
+        *,
+        offset: int = 0,
+        limit: int = 25,
+    ) -> dict[str, Any]:
+        """Business purpose: Read bounded AI-use-case, rule-candidate or coverage-caveat pages from an immutable discovery artifact.
+
+        Business rules:
+        - Only server-supported collection names are eligible and every page remains bound to the artifact digest.
+        - Rule candidates remain non-authoritative priorities and never grant assessment scope.
+
+        Execution flow:
+        1. Send record, collection and page coordinates through the leased discovery endpoint.
+        2. Return the bounded metadata/caveat items and continuation offset.
+
+        Failure cases:
+        - Invalid collections, offsets, pins, integrity or transport failures propagate through the shared request path.
+
+        Side effects:
+        - Read-only HTTP retrieval; no discovery recommendation or audit authorization is created.
+        """
+        return self._call(
+            "GET",
+            "/discovery/details",
+            params={
+                "recordId": record_id,
+                "collection": collection,
+                "offset": str(offset),
+                "limit": str(limit),
+            },
+        )
+
     # ---- governed writes -----------------------------------------------------------------------
 
     def post_evidence(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/evidence", body)
+
+    def post_repository_discovery(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Business purpose: Submit the scanner's strict no-raw-source discovery artifact to durable API history.
+
+        Business rules:
+        - The current Root lease and server-owned repository pins govern acceptance.
+        - Transport sends a mutation once; API cache/content coordinates provide idempotency.
+
+        Execution flow:
+        1. Submit the complete strict discovery artifact to the governed endpoint.
+        2. Return the immutable record receipt or replay receipt.
+
+        Failure cases:
+        - Pin, schema, digest, lease or transport failures propagate and prevent the Root from treating discovery as durable input.
+
+        Side effects:
+        - Performs one HTTP mutation that may append an immutable discovery record; replays do not duplicate it.
+        """
+        return self._call("POST", "/discovery", body)
+
+    def post_repository_discovery_expansion(
+        self, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Business purpose: Persist the runtime-authenticated reason and bounded trace for investigation beyond discovery priorities.
+
+        Business rules:
+        - The current lease and API-owned discovery pins govern acceptance.
+        - Trace metadata is bounded and contains digests instead of raw query/source text.
+
+        Execution flow:
+        1. Submit the expansion packet to the discovery subresource.
+        2. Return the immutable event receipt or its idempotent replay receipt.
+
+        Failure cases:
+        - Invalid pins, ranges, trace metadata or transport failures propagate without changing discovery authority.
+
+        Side effects:
+        - May append one immutable expansion audit event; it does not mutate discovery, evidence, facts or decisions.
+        """
+        return self._call("POST", "/discovery/expansions", body)
 
     def post_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/facts", body)
@@ -256,6 +375,25 @@ class AssessmentRuntimeClient:
 
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-requests", body)
+
+    def post_human_requests_batch(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Business purpose: Transport an atomic batch of human resolution requests to the governed API.
+
+        Business rules:
+        - The batch must contain between 1 and 20 requests anchored to valid criteria or conditions.
+        - The request is a mutation sent with current execution lease and case revision authority.
+
+        Execution flow:
+        1. Dispatch POST /human-requests/batch with worker auth and lease headers.
+        2. Unmarshal the server response envelope and return created or replayed request records.
+
+        Failure cases:
+        - Validation errors, revision conflicts, or lease expiration raise AssessmentApiError.
+
+        Side effects:
+        - Persists human requests in the API database and triggers state transitions.
+        """
+        return self._call("POST", "/human-requests/batch", body)
 
     def report_unresolvable_human_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-fact-unresolvable", body)

@@ -184,6 +184,9 @@ export function deriveAssessmentApplicabilityGuidance(
         ...(rule.applicabilityMode
           ? [`Applicability mode: ${rule.applicabilityMode}`]
           : []),
+        ...(rule.applicabilityLogic
+          ? [`Applicability logic: ${JSON.stringify(rule.applicabilityLogic)}`]
+          : []),
         ...(rule.claimBindings ?? []).flatMap((binding) => {
           const claim = semanticGraph?.claims.find(
             (c) => c.claimId === binding.claimId,

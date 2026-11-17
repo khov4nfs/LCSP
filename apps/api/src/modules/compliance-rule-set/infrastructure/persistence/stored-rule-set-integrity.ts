@@ -117,6 +117,9 @@ export function storedRuleSetIntegrityValid(
           ? { operativePropositions: rule.operativePropositions }
           : {}),
         applicabilityConditions: rule.applicabilityConditions,
+        ...(rule.applicabilityLogic != null
+          ? { applicabilityLogic: rule.applicabilityLogic }
+          : {}),
         ...(rule.applicabilityMode
           ? { applicabilityMode: rule.applicabilityMode }
           : {}),

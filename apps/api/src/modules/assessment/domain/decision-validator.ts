@@ -1,9 +1,11 @@
 import {
+  APPLICABILITY_CONDITION_LOGIC,
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_BASIS_FINDINGS,
   RULE_DECISION_BASIS_KINDS,
   RULE_DECISION_REFERENCE_TYPES,
   ruleDecisionReferences,
+  type ApplicabilityConditionLogic,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
 import {
@@ -23,6 +25,8 @@ export interface DecisionValidationFailure {
 
 export interface DecisionValidationContext {
   caseRevision: number;
+  /** Permits an older immutable decision only after the caller has verified its exact normalized dependency graph. */
+  allowHistoricalCaseRevision?: boolean;
   pins: {
     ruleSetVersionId: string;
     repositorySnapshotId: string;
@@ -39,16 +43,7 @@ export interface DecisionValidationContext {
      * How many applicability elements each LINKED LegalRequirement declares, per kind. These lists
      * are authored from the legal source; the validator only counts and indexes them.
      */
-    declaredElements: ReadonlyMap<
-      string,
-      {
-        applicabilityConditions: number;
-        qualifiers: number;
-        exceptions: number;
-        /** One actor/activity/scope assessment per source-authored operative proposition. */
-        operativeScopes?: number;
-      }
-    >;
+    declaredElements: DeclaredElements;
   } | null;
   evidence: ReadonlyMap<
     string,
@@ -68,8 +63,8 @@ export interface DecisionValidationContext {
 /**
  * Business purpose: Gate Root-authored decisions against the authoritative Customer case.
  * Business rules:
- * - Rule identity/version, repository/source pins, case revision, criteria and accepted
- *   evidence/fact references must match the persisted authority.
+ * - Rule identity/version, repository/source pins, criteria and accepted evidence/fact references must match the persisted authority.
+ * - A decision revision normally matches the current case; an older revision is accepted only when the caller has independently verified its complete normalized dependency graph.
  * Execution flow:
  * 1. Check exact identities, applicability-basis structure and all referenced evidence and
  *   facts, collecting individual validation failures.
@@ -141,7 +136,13 @@ export function validateRuleDecision(
       decision.repositorySnapshotId,
     );
   }
-  if (decision.caseRevision !== context.caseRevision) {
+  if (
+    decision.caseRevision !== context.caseRevision &&
+    !(
+      context.allowHistoricalCaseRevision === true &&
+      decision.caseRevision < context.caseRevision
+    )
+  ) {
     fail(
       DECISION_VALIDATION_FAILURE_CODES.CASE_REVISION_STALE,
       String(decision.caseRevision),
@@ -227,9 +228,28 @@ export function validateRuleDecision(
   return failures;
 }
 
-type DeclaredElements = NonNullable<
-  DecisionValidationContext["rule"]
->["declaredElements"];
+export interface DeclaredLegalElementCounts {
+  applicabilityConditions: number;
+  qualifiers: number;
+  exceptions: number;
+  /** One actor/activity/scope assessment per source-authored operative proposition. */
+  operativeScopes?: number;
+  /**
+   * Logical connector for applicability conditions:
+   * - "ALL" (conjunction / AND): all applicability conditions must be ESTABLISHED for APPLICABLE.
+   *   Any REFUTED condition refutes the requirement and contradicts APPLICABLE.
+   * - "ANY" (disjunction / OR): at least one applicability condition must be ESTABLISHED for APPLICABLE.
+   *   Refuting one branch does not contradict APPLICABLE if an alternative branch is ESTABLISHED.
+   *   NOT_APPLICABLE requires all branches to be REFUTED (or exception established / operative scope refuted).
+   */
+  conditionLogic?: ApplicabilityConditionLogic;
+  /**
+   * Indices of conditions that are material and must not be left NOT_ESTABLISHED or omitted when asserting APPLICABLE.
+   */
+  materialConditionIndices?: readonly number[];
+}
+
+export type DeclaredElements = ReadonlyMap<string, DeclaredLegalElementCounts>;
 
 const ELEMENT_COUNT_KEY = {
   [RULE_DECISION_BASIS_KINDS.OPERATIVE_SCOPE]: "operativeScopes",
@@ -246,15 +266,25 @@ const ELEMENT_COUNT_KEY = {
  *   established/refuted findings must support the overall applicability outcome.
  * - Every operative scope needs an explicit ESTABLISHED finding for APPLICABLE; an unknown actor,
  *   activity or inherited scope cannot be omitted because the duty has no separate condition list.
+ * - Under disjunctive ("ANY") condition logic, establishing one condition branch supports APPLICABLE even
+ *   if another condition branch is REFUTED, and NOT_APPLICABLE requires all alternative branches to be REFUTED.
+ * - Under conjunctive ("ALL") condition logic, every required/material condition must be ESTABLISHED, and any
+ *   REFUTED condition contradicts APPLICABLE while establishing NOT_APPLICABLE.
+ * - NOT_ESTABLISHED alone never establishes NOT_APPLICABLE or COMPLIANT.
+ * - With no source-authored connector, unresolved conditions block a verdict; complete establishment/refutation is sufficient without inferring AND/OR.
  * Execution flow:
- * 1. Validate source addresses and referenced findings, then check each required operative scope.
- * 2. Compare establishing/refuting findings with the submitted applicability conclusion.
+ * 1. Validate source addresses, bounds, and referenced findings for each applicability basis entry.
+ * 2. Validate operative scopes: require all declared operative scopes to be ESTABLISHED for APPLICABLE, and refute applicability if any scope is REFUTED.
+ * 3. Validate exceptions: refute applicability and contradict APPLICABLE if any declared exception is ESTABLISHED.
+ * 4. Validate conditions according to the requirement's condition logic ("ALL" vs "ANY") and material indices:
+ *    verify required findings match the submitted APPLICABLE or NOT_APPLICABLE conclusion.
  * Failure cases:
- * - Invalid indices, absent references or contradictory findings emit failures.
+ * - Unknown elements emit UNKNOWN_APPLICABILITY_ELEMENT.
+ * - Missing references on ESTABLISHED/REFUTED findings emit APPLICABILITY_BASIS_UNREFERENCED.
+ * - Contradictory findings or verdicts emit APPLICABILITY_BASIS_CONTRADICTION.
+ * - Missing required scope, unresolved material conditions, or missing refuting basis emit APPLICABILITY_BASIS_REQUIRED.
  * Side effects:
- * - None; only the provided failure collector receives diagnostic entries. NOT_ESTABLISHED
- *   cannot support NOT_APPLICABLE. The pinned Rule Set defines which elements exist; this
- *   function does not determine whether the underlying legal claim is true.
+ * - Pure diagnostic function; only the provided failure collector receives entries.
  */
 function validateApplicabilityBasis(
   decision: RuleDecision,
@@ -262,8 +292,9 @@ function validateApplicabilityBasis(
   fail: (code: DecisionValidationFailureCode, ref: string) => void,
 ): void {
   const basis = decision.applicabilityBasis ?? [];
-  let refuting = false;
-  let establishing = false;
+  let refutingScope = false;
+  let establishedException = false;
+
   for (const entry of basis) {
     const ref = `${entry.legalRequirementId}:${entry.kind}:${entry.index}`;
     const counts = declared.get(entry.legalRequirementId);
@@ -286,49 +317,172 @@ function validateApplicabilityBasis(
         ref,
       );
     }
-    const isCondition =
-      entry.kind === RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION;
-    const isOperativeScope =
-      entry.kind === RULE_DECISION_BASIS_KINDS.OPERATIVE_SCOPE;
-    const isException = entry.kind === RULE_DECISION_BASIS_KINDS.EXCEPTION;
-    if (
-      ((isCondition || isOperativeScope) &&
-        entry.finding === RULE_DECISION_BASIS_FINDINGS.REFUTED) ||
-      (isException &&
-        entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED)
-    ) {
-      refuting = true;
-    }
-    if (
-      isCondition &&
-      entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED
-    ) {
-      establishing = true;
-    }
   }
 
-  let conditionCount = 0;
-  let elementCount = 0;
+  let totalConditionCount = 0;
+  let totalElementCount = 0;
   let missingScope = false;
+  let hasValidConditionRefutation = false;
+  let hasValidConditionEstablishment = false;
+  let hasConditionContradiction = false;
+  let hasUnresolvedRequiredCondition = false;
+
   for (const [requirementId, counts] of declared) {
-    conditionCount += counts.applicabilityConditions;
-    elementCount +=
-      counts.applicabilityConditions +
-      counts.exceptions +
-      (counts.operativeScopes ?? 0);
-    for (let index = 0; index < (counts.operativeScopes ?? 0); index++) {
+    const conditionCount = counts.applicabilityConditions;
+    const operativeScopeCount = counts.operativeScopes ?? 0;
+    const exceptionCount = counts.exceptions;
+    if (
+      counts.materialConditionIndices?.some(
+        (index) =>
+          !basis.some(
+            (entry) =>
+              entry.legalRequirementId === requirementId &&
+              entry.kind ===
+                RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION &&
+              entry.index === index &&
+              entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED,
+          ),
+      )
+    ) {
+      hasUnresolvedRequiredCondition = true;
+    }
+    totalConditionCount += conditionCount;
+    totalElementCount += conditionCount + exceptionCount + operativeScopeCount;
+
+    // Check operative scopes
+    for (let index = 0; index < operativeScopeCount; index++) {
       const scope = basis.find(
         (entry) =>
           entry.legalRequirementId === requirementId &&
           entry.kind === RULE_DECISION_BASIS_KINDS.OPERATIVE_SCOPE &&
           entry.index === index,
       );
-      if (scope?.finding !== RULE_DECISION_BASIS_FINDINGS.ESTABLISHED)
+      if (scope?.finding === RULE_DECISION_BASIS_FINDINGS.REFUTED) {
+        refutingScope = true;
+      }
+      if (scope?.finding !== RULE_DECISION_BASIS_FINDINGS.ESTABLISHED) {
         missingScope = true;
+      }
+    }
+
+    // Check exceptions
+    for (let index = 0; index < exceptionCount; index++) {
+      const ex = basis.find(
+        (entry) =>
+          entry.legalRequirementId === requirementId &&
+          entry.kind === RULE_DECISION_BASIS_KINDS.EXCEPTION &&
+          entry.index === index,
+      );
+      if (ex?.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED) {
+        establishedException = true;
+      }
+    }
+
+    // Check conditions for this requirement
+    if (conditionCount > 0) {
+      const conditionEntries = basis.filter(
+        (entry) =>
+          entry.legalRequirementId === requirementId &&
+          entry.kind === RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION,
+      );
+      const establishedIndices = new Set(
+        conditionEntries
+          .filter(
+            (entry) =>
+              entry.finding === RULE_DECISION_BASIS_FINDINGS.ESTABLISHED,
+          )
+          .map((entry) => entry.index),
+      );
+      const refutedIndices = new Set(
+        conditionEntries
+          .filter(
+            (entry) => entry.finding === RULE_DECISION_BASIS_FINDINGS.REFUTED,
+          )
+          .map((entry) => entry.index),
+      );
+
+      const isDisjunctive =
+        counts.conditionLogic === APPLICABILITY_CONDITION_LOGIC.ANY;
+      const isConjunctive =
+        counts.conditionLogic === APPLICABILITY_CONDITION_LOGIC.ALL;
+
+      if (isDisjunctive) {
+        // ANY (disjunctive / OR) logic:
+        // - At least one condition established suffices for APPLICABLE
+        // - Refuting an alternative branch does not contradict APPLICABLE if another is ESTABLISHED
+        // - APPLICABLE contradicts only if ALL conditions are REFUTED
+        // - NOT_APPLICABLE requires ALL conditions to be REFUTED
+        if (establishedIndices.size > 0) {
+          hasValidConditionEstablishment = true;
+        }
+        if (refutedIndices.size === conditionCount) {
+          hasValidConditionRefutation = true;
+          if (
+            decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
+          ) {
+            hasConditionContradiction = true;
+          }
+        }
+        if (establishedIndices.size === 0) {
+          hasUnresolvedRequiredCondition = true;
+        }
+      } else if (isConjunctive) {
+        // Explicit ALL (conjunctive / AND) logic:
+        // - All conditions must be ESTABLISHED for APPLICABLE
+        // - Any REFUTED condition refutes the requirement and contradicts APPLICABLE
+        if (refutedIndices.size > 0) {
+          hasValidConditionRefutation = true;
+          if (
+            decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
+          ) {
+            hasConditionContradiction = true;
+          }
+        }
+        if (establishedIndices.size === conditionCount) {
+          hasValidConditionEstablishment = true;
+        } else {
+          hasUnresolvedRequiredCondition = true;
+        }
+      } else {
+        // Without a reviewed connector, only complete positive/negative findings
+        // establish a verdict across both conjunction and disjunction.
+        if (refutedIndices.size === conditionCount) {
+          hasValidConditionRefutation = true;
+          if (
+            decision.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE
+          ) {
+            hasConditionContradiction = true;
+          }
+        }
+        if (
+          counts.materialConditionIndices &&
+          counts.materialConditionIndices.length > 0
+        ) {
+          const allMaterialEstablished = counts.materialConditionIndices.every(
+            (idx) => establishedIndices.has(idx),
+          );
+          if (allMaterialEstablished) {
+            hasValidConditionEstablishment = true;
+          } else {
+            hasUnresolvedRequiredCondition = true;
+          }
+        } else {
+          if (establishedIndices.size === conditionCount) {
+            hasValidConditionEstablishment = true;
+          }
+          if (establishedIndices.size !== conditionCount) {
+            hasUnresolvedRequiredCondition = true;
+          }
+        }
+      }
     }
   }
+
+  // Final evaluation for NOT_APPLICABLE
   if (decision.applicability === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE) {
-    if (elementCount > 0 && !refuting) {
+    const hasRefutingBasis =
+      refutingScope || establishedException || hasValidConditionRefutation;
+    if (totalElementCount > 0 && !hasRefutingBasis) {
       fail(
         DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
         decision.assessmentRuleId,
@@ -336,13 +490,21 @@ function validateApplicabilityBasis(
     }
     return;
   }
-  if (refuting) {
+
+  // Final evaluation for APPLICABLE
+  if (refutingScope || establishedException || hasConditionContradiction) {
     fail(
       DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_CONTRADICTION,
       decision.assessmentRuleId,
     );
+    return;
   }
-  if (missingScope || (conditionCount > 0 && !establishing)) {
+
+  if (
+    missingScope ||
+    (totalConditionCount > 0 &&
+      (!hasValidConditionEstablishment || hasUnresolvedRequiredCondition))
+  ) {
     fail(
       DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
       decision.assessmentRuleId,

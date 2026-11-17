@@ -60,8 +60,12 @@ export function WorkspaceRuntimeProvider({
         if (next !== fingerprint.current) {
           fingerprint.current = next;
           void client.invalidateQueries({ queryKey: ["assessments"] });
-          for (const id of affectedAssessmentIds(parsed))
+          for (const id of affectedAssessmentIds(parsed)) {
             void client.invalidateQueries({ queryKey: ["assessment", id] });
+            void client.invalidateQueries({
+              queryKey: ["assessment-runtime-control", id],
+            });
+          }
         }
       },
     );

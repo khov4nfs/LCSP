@@ -154,6 +154,18 @@ export const RULE_DECISION_BASIS_FINDINGS = {
 export type RuleDecisionBasisFinding =
   (typeof RULE_DECISION_BASIS_FINDINGS)[keyof typeof RULE_DECISION_BASIS_FINDINGS];
 
+/**
+ * Logical connector for applicability condition evaluation:
+ * - ALL (conjunction): all required conditions must be ESTABLISHED.
+ * - ANY (disjunction): at least one condition must be ESTABLISHED, and having another branch REFUTED is not a contradiction.
+ */
+export const APPLICABILITY_CONDITION_LOGIC = {
+  ALL: "ALL",
+  ANY: "ANY",
+} as const;
+export type ApplicabilityConditionLogic =
+  (typeof APPLICABILITY_CONDITION_LOGIC)[keyof typeof APPLICABILITY_CONDITION_LOGIC];
+
 export const AGENTIC_RUNTIME_TRANSITION_GUARDS = {
   AUTHORIZED_REVISION_CAS_AND_ATOMIC_EVENT:
     "AUTHORIZED_REVISION_CAS_AND_ATOMIC_EVENT",
@@ -952,6 +964,7 @@ export const executionStateChangedPayloadSchema = z
   .strictObject({
     fromState: agentExecutionStateSchema,
     toState: agentExecutionStateSchema,
+    reason: z.string().max(100).optional(),
   })
   .refine(
     (value) =>

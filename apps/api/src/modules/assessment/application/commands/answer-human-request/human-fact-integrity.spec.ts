@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { HUMAN_FACT_GUARD_FAILURES } from "@lcsp/contracts/assessment-domain";
 import {
   inspectHumanFactAnswer,
   reusableHumanFactId,
@@ -96,14 +97,14 @@ describe("HITL high-impact fact integrity", () => {
     ).toBeNull();
   });
 
-  it("leaves unrelated and consistently negative customer responses unchanged", () => {
+  it("retains unrelated uncertainty and accepts consistently negative customer responses", () => {
     expect(
       inspectHumanFactAnswer(
         "What is your registered company address?",
         "Unknown at present",
         [],
       ),
-    ).toBeNull();
+    ).toBe(HUMAN_FACT_GUARD_FAILURES.UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW);
     expect(
       inspectHumanFactAnswer(
         incident,
@@ -113,3 +114,51 @@ describe("HITL high-impact fact integrity", () => {
     ).toBeNull();
   });
 });
+it.each([
+  "I do not know",
+  "I don't know",
+  "Tôi không biết",
+  "Không rõ",
+  "Chưa xác định",
+])("keeps ordinary free-text uncertainty non-factual: %s", (answer) => {
+  expect(
+    inspectHumanFactAnswer("Where are customer records hosted?", answer, []),
+  ).toBe(HUMAN_FACT_GUARD_FAILURES.UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW);
+});
+it.each([
+  "It may have been deployed, but we have not confirmed it yet.",
+  "We might be operating the model in production.",
+  "It could be deployed in Vietnam.",
+  "We believe the system is in production.",
+  "We cannot confirm the deployment status.",
+  "Có thể đã triển khai ở Việt Nam.",
+  "Chưa xác nhận hệ thống đang chạy production.",
+  "Chúng tôi nghĩ có khả năng đang vận hành.",
+  "Dường như dữ liệu được lưu tại Việt Nam.",
+])("does not accept hedged operational claims as facts: %s", (answer) => {
+  expect(
+    inspectHumanFactAnswer(
+      "Is the system deployed to production in Vietnam?",
+      answer,
+      [],
+    ),
+  ).toBe(HUMAN_FACT_GUARD_FAILURES.UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW);
+});
+
+it.each([
+  "The system is deployed to production in Vietnam.",
+  "Our company operates the chatbot in Da Nang.",
+  "Chúng tôi đã triển khai hệ thống tại Việt Nam.",
+  "The company does not deploy the system in Vietnam.",
+])(
+  "preserves clear non-hedged operational answers for typed validation: %s",
+  (answer) => {
+    expect(
+      inspectHumanFactAnswer(
+        "Is the system deployed to production in Vietnam?",
+        answer,
+        [],
+      ),
+    ).toBeNull();
+  },
+);

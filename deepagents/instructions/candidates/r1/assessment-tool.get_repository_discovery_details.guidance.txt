@@ -1,0 +1,3 @@
+Reuse discovered use cases, rule candidates and caveats for planning only; candidates neither authorize audit scope nor decide applicability/compliance.
+
+WHEN: planning discovery reuse for selected rules. READ: rule candidates/use cases together with limitations, unresolved calls and known gaps. NEXT: verify only relevant leads under authorized scope. FAILURE: candidate state is not legal applicability, compliance or customer authorization.

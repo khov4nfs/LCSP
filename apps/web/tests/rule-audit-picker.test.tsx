@@ -40,9 +40,14 @@ for (const locale of ["en", "vi"] as const) {
     const originalFetch = globalThis.fetch;
     const offsets: number[] = [];
     globalThis.fetch = async (input) => {
-      const offset = Number(
-        new URL(String(input), "http://localhost").searchParams.get("offset"),
-      );
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname.endsWith("/discovery-runs/latest")) {
+        return Response.json({
+          ok: true,
+          data: { available: false, run: null },
+        });
+      }
+      const offset = Number(url.searchParams.get("offset"));
       offsets.push(offset);
       return Response.json({
         ok: true,

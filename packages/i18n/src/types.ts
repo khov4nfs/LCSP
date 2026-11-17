@@ -709,6 +709,41 @@ export type PagesMessages = {
       localizationFailed: string;
       title: string;
       description: string;
+      discovery: {
+        title: string;
+        description: string;
+        start: string;
+        retry: string;
+        running: string;
+        failed: string;
+        error: string;
+        summary: string;
+        investigationOnly: string;
+        preview: string;
+        allCandidates: string;
+        selectCandidateRules: string;
+        loadMore: string;
+        contextQuestions: string;
+        contextAdvisory: string;
+        interviewTitle: string;
+        interviewDescription: string;
+        interviewLoading: string;
+        interviewError: string;
+        interviewAccepted: string;
+        interviewPending: string;
+        interviewAmbiguous: string;
+        interviewConfirm: string;
+        interviewReject: string;
+        interviewRejected: string;
+        answerPlaceholder: string;
+        answerInvalid: string;
+        submitAnswer: string;
+        loadMoreHistory: string;
+        candidateLoadFailed: string;
+        needsContext: string;
+        candidate: string;
+        noCandidates: string;
+      };
       search: string;
       selectedCount: string;
       resultsCount: string;
@@ -786,6 +821,7 @@ export type PagesMessages = {
       textLabel: string;
       required: string;
       failed: string;
+      staleConflict: string;
     };
     decision: {
       ruleFallback: string;
@@ -2623,6 +2659,7 @@ export type PagesMessages = {
       EXTRACTION_FAILED: string;
       NO_EXTRACTABLE_TEXT: string;
       NO_CHUNKS: string;
+      CHUNK_LIMIT_EXCEEDED: string;
       DUPLICATE_LOCATOR: string;
       RUNTIME_UNAVAILABLE: string;
     };

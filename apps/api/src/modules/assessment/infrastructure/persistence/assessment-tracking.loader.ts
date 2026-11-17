@@ -15,7 +15,9 @@ import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_COMPLIANCE_OUTCOMES,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   ruleDecisionSchema,
+  decisionDependencyGraphIsComplete,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
@@ -143,7 +145,28 @@ function ownerCanonicalDecisionEvaluationCte(
               AND ard."state" = 'ACCEPTED'
               AND ard."supersededAt" IS NULL
               AND ard."invalidatedAt" IS NULL
-              AND ard."caseRevision" = ac."caseRevision"
+               AND ard."caseRevision" <= ac."caseRevision"
+               AND (ard."caseRevision" = ac."caseRevision" OR (
+                 ard."dependencyGraphComplete" = true
+                 AND NOT EXISTS (
+                   (SELECT ref->>'type', COALESCE(ref->>'evidenceId', ref->>'factId')
+                    FROM jsonb_path_query(ard."decision"::jsonb, '$.**.references[*]') ref)
+                   EXCEPT
+                   (SELECT 'ASSESSMENT_EVIDENCE', dep."evidenceId"::text FROM "AssessmentDecisionEvidenceDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId"
+                    UNION SELECT 'CONFIRMED_FACT', dep."factId"::text FROM "AssessmentDecisionFactDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId")
+                 )
+                 AND NOT EXISTS (
+                   (SELECT 'ASSESSMENT_EVIDENCE', dep."evidenceId"::text FROM "AssessmentDecisionEvidenceDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId"
+                    UNION SELECT 'CONFIRMED_FACT', dep."factId"::text FROM "AssessmentDecisionFactDependency" dep
+                    WHERE dep."decisionId" = ard."decisionId" AND dep."assessmentId" = adc."assessmentId")
+                   EXCEPT
+                   (SELECT ref->>'type', COALESCE(ref->>'evidenceId', ref->>'factId')
+                    FROM jsonb_path_query(ard."decision"::jsonb, '$.**.references[*]') ref)
+                 )
+               ))
               AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit")
               AND ard."ruleSetVersionId" = ac."ruleSetVersionId"
               AND ard."scopeId" = 'ASSESSMENT'
@@ -175,7 +198,7 @@ function ownerCanonicalDecisionEvaluationCte(
               AND (ard."decision"->>'repositoryCommit') ~ '^(?:[a-f0-9]{40}|[a-f0-9]{64})$'
               AND jsonb_typeof((ard."decision"::jsonb)->'caseRevision') = 'number'
               AND (ard."decision"->>'caseRevision') IS NOT NULL
-              AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
+              AND ard."decision"->>'caseRevision' = ard."caseRevision"::text
               AND jsonb_typeof((ard."decision"::jsonb)->'applicability') = 'string'
               AND (ard."decision"->>'applicability') IS NOT NULL
               AND ard."decision"->>'applicability' = ard."applicability"::text
@@ -188,7 +211,43 @@ function ownerCanonicalDecisionEvaluationCte(
                   AND ard."decision"->>'compliance' = ard."compliance"::text
                 )
               )
-              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance']) = '{}'::jsonb
+              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance', 'applicabilityBasis']) = '{}'::jsonb
+              AND (
+                (ard."decision"::jsonb)->'applicabilityBasis' IS NULL
+                OR jsonb_typeof((ard."decision"::jsonb)->'applicabilityBasis') = 'null'
+                OR (
+                  jsonb_typeof((ard."decision"::jsonb)->'applicabilityBasis') = 'array'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements((ard."decision"::jsonb)->'applicabilityBasis') basis
+                    WHERE jsonb_typeof(basis) <> 'object'
+                      OR (basis - ARRAY['legalRequirementId', 'kind', 'index', 'finding', 'rationale', 'references']) <> '{}'::jsonb
+                      OR jsonb_typeof(basis->'legalRequirementId') <> 'string'
+                      OR basis->>'legalRequirementId' IS NULL
+                      OR length(btrim(basis->>'legalRequirementId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(basis->>'legalRequirementId', ${CANONICAL_SQL_WHITESPACE})) > 200
+                      OR jsonb_typeof(basis->'kind') <> 'string'
+                      OR basis->>'kind' NOT IN ('OPERATIVE_SCOPE', 'APPLICABILITY_CONDITION', 'QUALIFIER', 'EXCEPTION')
+                      OR jsonb_typeof(basis->'index') <> 'number'
+                      OR (basis->>'index')::int < 0
+                      OR jsonb_typeof(basis->'finding') <> 'string'
+                      OR basis->>'finding' NOT IN ('ESTABLISHED', 'REFUTED', 'NOT_ESTABLISHED')
+                      OR jsonb_typeof(basis->'rationale') <> 'string'
+                      OR basis->>'rationale' IS NULL
+                      OR length(btrim(basis->>'rationale', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(basis->>'rationale', ${CANONICAL_SQL_WHITESPACE})) > 10000
+                      OR jsonb_typeof(basis->'references') <> 'array'
+                      OR (
+                        basis->>'finding' <> 'NOT_ESTABLISHED'
+                        AND jsonb_array_length(basis->'references') < 1
+                      )
+                  )
+                  AND (
+                    SELECT count(DISTINCT concat_ws('|', btrim(basis->>'legalRequirementId', ${CANONICAL_SQL_WHITESPACE}), basis->>'kind', basis->>'index'))
+                    FROM jsonb_array_elements((ard."decision"::jsonb)->'applicabilityBasis') basis
+                  ) = jsonb_array_length((ard."decision"::jsonb)->'applicabilityBasis')
+                )
+              )
               AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
               AND NOT EXISTS (
@@ -282,6 +341,17 @@ function ownerCanonicalDecisionEvaluationCte(
                       THEN (ard."decision"::jsonb)->'criteria'
                       ELSE '[]'::jsonb END
                   ) crit
+                  UNION ALL
+                  SELECT jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(basis->'references') = 'array'
+                      THEN basis->'references'
+                      ELSE '[]'::jsonb END
+                  ) AS ref
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'applicabilityBasis') = 'array'
+                      THEN (ard."decision"::jsonb)->'applicabilityBasis'
+                      ELSE '[]'::jsonb END
+                  ) basis
                 ) all_refs
                 WHERE (
                   jsonb_typeof(all_refs.ref) <> 'object'
@@ -316,14 +386,40 @@ function ownerCanonicalDecisionEvaluationCte(
                       OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) > 200
                       OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
                       OR all_refs.ref->>'caseRevision' IS NULL
-                      OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
+                       OR all_refs.ref->>'caseRevision' <> ard."caseRevision"::text
                       OR NOT EXISTS (
                         SELECT 1 FROM "AssessmentCaseFact" af
                         WHERE af."factId"::text = all_refs.ref->>'factId'
                           AND af."assessmentId" = adc."assessmentId"
                           AND af."state" = 'ACCEPTED'
                           AND af."invalidatedAt" IS NULL
-                          AND af."caseRevision" = ac."caseRevision"
+                          AND af."caseRevision" <= (ard."decision"->>'caseRevision')::int
+                          AND (
+                            af."authority" <> 'EVIDENCE_CITED'
+                            OR (
+                              EXISTS (
+                                SELECT 1
+                                FROM "AssessmentCaseFactEvidence" acfe
+                                WHERE acfe."factId" = af."factId"
+                                  AND acfe."assessmentId" = af."assessmentId"
+                              )
+                              AND NOT EXISTS (
+                                SELECT 1
+                                FROM "AssessmentCaseFactEvidence" acfe
+                                LEFT JOIN "AssessmentEvidence" ae
+                                  ON ae."evidenceId" = acfe."evidenceId"
+                                  AND ae."assessmentId" = af."assessmentId"
+                                WHERE acfe."factId" = af."factId"
+                                  AND acfe."assessmentId" = af."assessmentId"
+                                  AND (
+                                    ae."evidenceId" IS NULL
+                                    OR ae."state" <> 'ACCEPTED'
+                                    OR ae."invalidatedAt" IS NOT NULL
+                                    OR LOWER(ae."repositoryCommit") <> LOWER(ac."repositoryCommit")
+                                  )
+                              )
+                            )
+                          )
                       )
                     )
                   )
@@ -442,6 +538,9 @@ interface DecisionEvaluationParams {
       repositoryCommit: string;
       caseRevision: number;
       decision: unknown;
+      dependencyGraphComplete?: boolean;
+      evidenceDependencies?: Array<{ evidenceId: string }>;
+      factDependencies?: Array<{ factId: string }>;
     }
   >;
   evidenceById?: Map<
@@ -454,6 +553,13 @@ interface DecisionEvaluationParams {
   >;
 }
 
+/**
+ * Business purpose: Project current owned decisions into tracking outcome counts without discarding verified historical work.
+ * Business rules: Identity, pins, coverage and accepted support must agree; older packets require an exact complete dependency ledger and future packets are rejected.
+ * Execution flow: 1. Validate current coverage and packet identity. 2. Verify historical dependency integrity and accepted support. 3. Count each trusted outcome or mark it unresolved.
+ * Failure cases: Missing, malformed, foreign, future or unsupported packets are unresolved and flagged inconsistent.
+ * Side effects: Pure in-memory projection; does not change decisions or case revisions.
+ */
 function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
   compliant: number;
   nonCompliant: number;
@@ -496,7 +602,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
       dec.assessmentRuleVersion !== cov.assessmentRuleVersion ||
       dec.repositoryCommit.toLowerCase() !==
         params.domainCase.repositoryCommit.toLowerCase() ||
-      dec.caseRevision !== params.domainCase.caseRevision
+      dec.caseRevision > params.domainCase.caseRevision
     ) {
       hasDecisionInconsistency = true;
       unresolved++;
@@ -522,7 +628,13 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
         d.repositorySnapshotId !== params.domainCase.repositorySnapshotId) ||
       d.repositoryCommit.toLowerCase() !==
         params.domainCase.repositoryCommit.toLowerCase() ||
-      d.caseRevision !== params.domainCase.caseRevision
+      d.caseRevision !== dec.caseRevision ||
+      (d.caseRevision < params.domainCase.caseRevision &&
+        !decisionDependencyGraphIsComplete(d, {
+          dependencyGraphComplete: dec.dependencyGraphComplete === true,
+          evidenceDependencies: dec.evidenceDependencies ?? [],
+          factDependencies: dec.factDependencies ?? [],
+        }))
     ) {
       hasDecisionInconsistency = true;
       unresolved++;
@@ -530,10 +642,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     }
 
     if (params.evidenceById || params.factsById) {
-      const allRefs = [
-        ...d.references,
-        ...d.criteria.flatMap((c) => c.references),
-      ];
+      const allRefs = ruleDecisionReferences(d);
       let refsValid = true;
       for (const ref of allRefs) {
         if (
@@ -545,7 +654,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
             !fact ||
             fact.assessmentId !== params.assessmentId ||
             (fact.state && fact.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) ||
-            fact.caseRevision !== params.domainCase.caseRevision
+            fact.caseRevision > d.caseRevision
           ) {
             refsValid = false;
             break;
@@ -903,6 +1012,9 @@ export class AssessmentTrackingLoader {
                 repositoryCommit: true,
                 caseRevision: true,
                 decision: true,
+                dependencyGraphComplete: true,
+                evidenceDependencies: { select: { evidenceId: true } },
+                factDependencies: { select: { factId: true } },
               },
             }),
             this.prisma.assessmentEvidence.findMany({
@@ -2793,6 +2905,9 @@ SELECT
               repositoryCommit: true,
               caseRevision: true,
               decision: true,
+              dependencyGraphComplete: true,
+              evidenceDependencies: { select: { evidenceId: true } },
+              factDependencies: { select: { factId: true } },
             },
           }),
           this.prisma.assessmentEvidence.findMany({

@@ -7,12 +7,13 @@ a provider's billing promise. No production tariff is supplied by the code.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 import hashlib
 import json
 from pathlib import Path
 import sqlite3
 import time
-from typing import Annotated, Literal
+from typing import Annotated, Any, Generator, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -143,10 +144,11 @@ class TokenRunBudget(BaseModel):
     model_routes_sha256: Digest
     credential_salt: Digest
     valid_from: Positive
-    expires_at: Positive
-    maximum_calls: UInt
-    maximum_input_tokens: UInt
-    maximum_output_tokens: UInt
+    expires_at: Positive | None = None
+    maximum_calls: UInt | None = None
+    maximum_input_tokens: UInt | None = None
+    maximum_output_tokens: UInt | None = None
+    maximum_total_tokens: UInt | None = None
     policies: tuple[TokenPolicy, ...]
 
 
@@ -160,6 +162,7 @@ class UnrestrictedRunBudget(TokenRunBudget):
     maximum_calls: None = None
     maximum_input_tokens: None = None
     maximum_output_tokens: None = None
+    maximum_total_tokens: None = None
 
 
 def parse_run_budget(value: dict) -> RunBudget | TokenRunBudget | UnrestrictedRunBudget:
@@ -303,6 +306,9 @@ class RunAdmission:
             ):
                 if limit is not None and used + increment > limit:
                     reason = reason or label
+            max_tot = getattr(self.budget, "maximum_total_tokens", None)
+            if max_tot is not None and (totals[1] + totals[2] + exposure[0] + exposure[1]) > max_tot:
+                reason = reason or "TOKEN_LIMIT"
             state = "DENIED" if reason else "ADMITTED"
             safe_identity = {k: identity[k] for k in (
                 "route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model", "agent_role"
@@ -387,7 +393,16 @@ class RunAdmission:
                 raise PaidAdmissionError("ATTEMPT_IDENTITY", self.run_id, attempt_id)
             token_only = isinstance(self.budget, TokenRunBudget)
             fields = ("inputTokensIncludingCache", "outputTokens") if token_only else ("inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens", "reasoningTokens")
-            usage = {k: usage[k] for k in fields if k in usage} if isinstance(usage, dict) else None
+            if token_only and isinstance(usage, dict):
+                in_tok = usage.get("inputTokensIncludingCache") if usage.get("inputTokensIncludingCache") is not None else usage.get("inputTokens")
+                out_tok = usage.get("outputTokens")
+                usage = {}
+                if in_tok is not None:
+                    usage["inputTokensIncludingCache"] = in_tok
+                if out_tok is not None:
+                    usage["outputTokens"] = out_tok
+            else:
+                usage = {k: usage[k] for k in fields if k in usage} if isinstance(usage, dict) else None
             raw = json.dumps(usage, sort_keys=True) if usage is not None else None
             if row["state"] == "SETTLED":
                 if row["usage"] != raw:
@@ -434,6 +449,8 @@ class RunAdmission:
             if exposure:
                 db.execute("UPDATE inference_attempts SET input_exposure=?,output_exposure=?,charge_exposure=? WHERE run_id=? AND attempt_id=?",
                            (*exposure, self.run_id, attempt_id))
+            if state == "SETTLED" and not failure:
+                db.execute("UPDATE inference_budgets SET stopped=NULL WHERE run_id=? AND stopped IN ('TOKEN_LIMIT', 'INPUT_LIMIT', 'OUTPUT_LIMIT')", (self.run_id,))
         if failure:
             raise failure
 
@@ -542,6 +559,109 @@ def route_fingerprint(route) -> str:
                         "model": route.model, "options": route.options})
 
 
+_TEST_SCRIPTED_MODEL_REGISTRY: ContextVar[dict[int, dict[str, Any]] | None] = ContextVar(
+    "test_scripted_model_registry", default=None
+)
+
+
+@contextmanager
+def isolated_test_scripted_models() -> Generator[None, None, None]:
+    """Test fixture context: enables registration of verified test scripted models.
+
+    In production, this context is never entered and the registry remains None,
+    making it impossible for any production model to be treated as a test double.
+
+    Business purpose: Isolate scripted model test doubles so test-only identity cannot leak into production.
+
+    Business rules:
+    - Activate an in-memory dictionary scoped to the current context.
+    - Reset the context on exit so subsequent calls or concurrent turns remain strictly production-governed.
+
+    Execution flow:
+    1. Set a new empty dictionary into the registry ContextVar.
+    2. Yield control to the caller/test.
+    3. Reset the ContextVar back to its previous value.
+
+    Failure cases:
+    - Context cleanup always restores the previous token even if an exception occurs.
+
+    Side effects:
+    - Mutates the thread/async ContextVar for the duration of the context.
+    """
+    token = _TEST_SCRIPTED_MODEL_REGISTRY.set({})
+    try:
+        yield
+    finally:
+        _TEST_SCRIPTED_MODEL_REGISTRY.reset(token)
+
+
+def register_test_scripted_model(
+    model: Any,
+    route_id: str,
+    *,
+    credential_salt: str,
+    credential_token: str = "test-scripted-credential-token",
+    endpoint: str = "http://localhost:test-endpoint",
+) -> dict[str, Any]:
+    """Register an explicitly verified test-only scripted model within an active test context.
+
+    Business purpose: Allow legitimate offline test doubles to participate in admission integration tests without trusting arbitrary object attributes in production.
+
+    Business rules:
+    - Can only be called when isolated_test_scripted_models() is active in the current context.
+    - The route_id must be registered in model_routes.yaml with verified positive integer token bounds.
+
+    Execution flow:
+    1. Verify that the test registry ContextVar is active; fail closed otherwise.
+    2. Load model_routes.yaml and verify route_id is registered.
+    3. Validate route options (context_window_tokens, max_output_tokens) as positive integers.
+    4. Compute salted credential fingerprint and endpoint hash.
+    5. Store the verified identity in the registry keyed by id(model) and return it.
+
+    Failure cases:
+    - Inactive test registry raises PaidAdmissionError('TEST_REGISTRY_INACTIVE').
+    - Unregistered route raises PaidAdmissionError('UNBOUND_MODEL_ROUTE').
+    - Missing or non-positive bounds raise PaidAdmissionError('UNVERIFIED_PROVIDER_BOUNDS').
+
+    Side effects:
+    - Adds an entry to the test registry in the current ContextVar scope; does not perform network or disk writes.
+    """
+    registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+    if registry is None:
+        raise PaidAdmissionError("TEST_REGISTRY_INACTIVE", "test registry not active in this context")
+    from model_policy import load_model_routes
+    routes_obj = load_model_routes()
+    if route_id not in routes_obj.routes:
+        raise PaidAdmissionError("UNBOUND_MODEL_ROUTE", route_id)
+    cfg = routes_obj.config(route_id)
+    prof = getattr(model, "profile", None)
+    in_b = cfg.options.get("context_window_tokens")
+    out_b = cfg.options.get("max_output_tokens")
+    if in_b is None and isinstance(prof, dict):
+        in_b = prof.get("max_input_tokens")
+    if out_b is None and isinstance(prof, dict):
+        out_b = prof.get("max_output_tokens")
+    if not isinstance(in_b, int) or in_b <= 0 or not isinstance(out_b, int) or out_b <= 0:
+        raise PaidAdmissionError("UNVERIFIED_PROVIDER_BOUNDS", route_id)
+
+    ident = {
+        "route_id": cfg.route_id,
+        "route_fingerprint": route_fingerprint(cfg),
+        "credential_fingerprint": hashlib.pbkdf2_hmac(
+            "sha256", credential_token.encode(), bytes.fromhex(credential_salt), 600000
+        ).hex(),
+        "endpoint_fingerprint": hashlib.sha256(endpoint.encode()).hexdigest(),
+        "sdk_fingerprint": "0" * 64,
+        "provider": cfg.provider,
+        "protocol": cfg.protocol,
+        "model": cfg.model,
+        "input_upper_bound": in_b,
+        "output_upper_bound": out_b,
+    }
+    registry[id(model)] = ident
+    return ident
+
+
 def request_identity(model, credential_salt: str) -> dict:
     """Bind billing policy to the actual native client, endpoint and credential.
 
@@ -549,26 +669,44 @@ def request_identity(model, credential_salt: str) -> dict:
 
     Business rules:
     - The model must carry a configured route and match its native protocol/model; sync and async clients must share the observable account endpoint.
+    - Arbitrary synthetic attributes on the model are never trusted in production.
+    - Test doubles are accepted only when explicitly registered within an active isolated_test_scripted_models() context.
     - Credentials remain salted fingerprints and never appear in the returned identity.
+
     Execution flow:
-    1. Inspect the supported native client and verify transport/account consistency.
-    2. Derive route, credential, endpoint and installed SDK fingerprints.
-    3. Return the observable provider/protocol/model identity.
+    1. Check if an isolated test double registry is active and holds this exact model instance.
+    2. Inspect the supported native client and verify transport/account consistency against registered routes.
+    3. Derive route, credential, endpoint and installed SDK fingerprints.
+    4. Return the observable provider/protocol/model identity.
+
     Failure cases:
     - Unbound route/account, unobservable transport or inconsistent client identity raises PaidAdmissionError before admission; missing package metadata propagates.
+
     Side effects:
     - Reads in-process client configuration and package versions; performs no network request or persistent write.
     """
+    registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+    if registry is not None and id(model) in registry:
+        return dict(registry[id(model)])
+
     from langchain_anthropic import ChatAnthropic
     from langchain_openai import ChatOpenAI
     from langchain_google_genai import ChatGoogleGenerativeAI
-    from model_policy import model_route_config
+    from model_policy import model_route_config, load_model_routes
     from importlib.metadata import version
     import anthropic._base_client as anthropic_client
 
     route = model_route_config(model)
     if route is None:
         raise PaidAdmissionError("UNBOUND_MODEL_ROUTE", "unknown")
+
+    routes_obj = load_model_routes()
+    if route.route_id not in routes_obj.routes:
+        raise PaidAdmissionError("UNBOUND_MODEL_ROUTE", route.route_id)
+    reg_cfg = routes_obj.config(route.route_id)
+    if route_fingerprint(route) != route_fingerprint(reg_cfg):
+        raise PaidAdmissionError("FORGED_ROUTE_IDENTITY", route.route_id)
+
     if isinstance(model, ChatAnthropic) and route.protocol == "anthropic":
         key, endpoint = model._client.api_key, str(model._client.base_url).rstrip("/")
         if model.model != route.model or model._async_client.api_key != key or str(model._async_client.base_url).rstrip("/") != endpoint:
@@ -610,13 +748,19 @@ def prepare_admitted_request(admission: RunAdmission, request, attempt_id: str, 
 
     Business rules:
     - The routes file must match the immutable envelope and the native transport/options must remain observable.
+    - Route input/output bounds are operator declarations that are trustworthy only when backed by documented provider capabilities and verified at transport.
     - The active output cap cannot exceed its verified policy; bounded Google transport allows one physical request and disables automatic function calls.
+    - Arbitrary synthetic identity attributes are ignored; test doubles are admitted only through the isolated test registry.
+
     Execution flow:
     1. Derive the native request identity and detect changed routes or unbounded options.
-    2. Persist admission or denial for this physical attempt.
-    3. Apply protocol-specific native options and return the admitted request.
+    2. Validate that the model matches a pre-authorized policy and that request options do not exceed verified upper bounds.
+    3. Persist admission or denial for this physical attempt.
+    4. Apply protocol-specific native options and return the admitted request.
+
     Failure cases:
-    - Identity/configuration/option failures persist a denial through admission; no request is dispatched on rejection.
+    - Identity, configuration, credential mismatch or option failures persist a denial through admission; no request is dispatched on rejection.
+
     Side effects:
     - Writes the admission ledger and returns a native request override; does not invoke the model.
     """
@@ -644,13 +788,21 @@ def prepare_admitted_request(admission: RunAdmission, request, attempt_id: str, 
     protocol = identity.get("protocol")
     parameter = "max_output_tokens" if protocol == "google_genai" else "max_tokens"
     settings = getattr(request, "model_settings", None) or {}
+
+    # Strict request-options validation:
     # No transport, alternative cap, reasoning or call-time HTTP override can
     # replace the frozen route's charging/retry contract in bounded mode.
-    if set(settings) - {parameter} or type(settings.get(parameter)) is not int or settings.get(parameter, 0) <= 0:
-        reason = reason or "UNBOUNDED_REQUEST_OPTIONS"
+    registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+    is_test_double = registry is not None and id(request.model) in registry
+    if not is_test_double:
+        if set(settings) - {parameter} or type(settings.get(parameter)) is not int or settings.get(parameter, 0) <= 0:
+            reason = reason or "UNBOUNDED_REQUEST_OPTIONS"
+
     policy = next((p for p in admission.budget.policies if (p.route_id, p.credential_fingerprint)
                    == (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
-    if policy and settings.get(parameter, 0) > policy.output_upper_bound:
+    if policy is None:
+        reason = reason or ("UNKNOWN_TOKEN_POLICY" if isinstance(admission.budget, TokenRunBudget) else "UNKNOWN_TARIFF")
+    elif settings.get(parameter, 0) > policy.output_upper_bound:
         reason = reason or "OUTPUT_BOUND_UNVERIFIED"
     if not hasattr(request, "override"):
         reason = reason or "UNBOUNDED_REQUEST_OPTIONS"

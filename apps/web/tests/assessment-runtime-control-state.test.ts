@@ -106,3 +106,60 @@ test("a response for an unexpected target cannot advance an older cache", () => 
     current,
   );
 });
+
+test("resumeRequested advances to running upon worker resumption for same targetRunId", () => {
+  const current = {
+    state: States.resumeRequested,
+    targetRunId: "run-1",
+    requestId: "req-continue",
+  };
+  const running = {
+    state: States.running,
+    targetRunId: "run-1",
+    requestId: null,
+  };
+  assert.equal(mergeRuntimeControlResponse(current, running), running);
+});
+
+test("a delayed resumeRequested cannot overwrite an already running state", () => {
+  const running = {
+    state: States.running,
+    targetRunId: "run-1",
+    requestId: null,
+  };
+  const delayedResume = {
+    state: States.resumeRequested,
+    targetRunId: "run-1",
+    requestId: "req-old",
+  };
+  assert.equal(mergeRuntimeControlResponse(running, delayedResume), running);
+});
+
+test("a delayed running response cannot overwrite a stopped state", () => {
+  const stopped = {
+    state: States.stopped,
+    targetRunId: "run-1",
+    requestId: "req-stop",
+  };
+  const delayedRunning = {
+    state: States.running,
+    targetRunId: "run-1",
+    requestId: null,
+  };
+  assert.equal(mergeRuntimeControlResponse(stopped, delayedRunning), stopped);
+});
+
+test("completion wins over running and resumeRequested within same targetRunId", () => {
+  const completed = {
+    state: States.completed,
+    targetRunId: "run-1",
+    requestId: null,
+  };
+  const running = {
+    state: States.running,
+    targetRunId: "run-1",
+    requestId: null,
+  };
+  assert.equal(mergeRuntimeControlResponse(running, completed), completed);
+  assert.equal(mergeRuntimeControlResponse(completed, running), completed);
+});

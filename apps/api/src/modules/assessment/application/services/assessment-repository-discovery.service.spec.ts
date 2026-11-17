@@ -1,0 +1,1099 @@
+import { randomUUID } from "node:crypto";
+import { sha256Hex } from "../../domain/domain-ids.js";
+import type { Prisma } from "@prisma/client";
+
+import { describe, expect, it, jest } from "@jest/globals";
+import {
+  DISCOVERY_EVIDENCE_STRENGTHS,
+  DISCOVERY_DETAIL_COLLECTIONS,
+  DISCOVERY_EXPANSION_STATES,
+  DISCOVERY_EXPANSION_REASONS,
+  DISCOVERY_EXPANSION_TRACE_TOOLS,
+  DISCOVERY_OBSERVATION_STATUSES,
+  DISCOVERY_REACHABILITY_STATES,
+  DISCOVERY_RULE_CANDIDATE_STATES,
+  DISCOVERY_SIGNAL_TYPES,
+  DISCOVERY_SOURCE_CLASSIFICATIONS,
+  DISCOVERY_TECHNOLOGY_RELEVANCE,
+  REPOSITORY_DISCOVERY_VERSIONS,
+  REPOSITORY_SCANNER_VERSIONS,
+  computeRepositoryDiscoveryCacheIdentity,
+  computeRepositoryDiscoveryDigest,
+  type RepositoryDiscovery,
+  type SubmitRepositoryDiscovery,
+} from "@lcsp/contracts/assessment-domain";
+
+import { AssessmentRepositoryDiscoveryService } from "./assessment-repository-discovery.service.js";
+import type { DiscoveryRuleMatchRule } from "./repository-discovery-rule-matcher.js";
+
+const sha = (character: string) => `sha256:${character.repeat(64)}`;
+const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const repositorySnapshotId = "snapshot-1";
+const repositoryId = "repository-1";
+const repositoryCommit = "a".repeat(40);
+const acceptedFactId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+const pins = {
+  assessmentId,
+  caseRevision: 0,
+  ruleSetVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  repositorySnapshotId,
+  repositoryId,
+  repositoryScanJobId: "scan-job-1",
+  repositoryCommit,
+  sourcePathPrefix: "apps/api",
+};
+
+function discovery(
+  overrides: Partial<SubmitRepositoryDiscovery> = {},
+): SubmitRepositoryDiscovery {
+  const base = {
+    repositoryId,
+    commitSha: repositoryCommit,
+    sourcePathPrefix: "apps/api",
+    scannerVersion: REPOSITORY_SCANNER_VERSIONS.v1,
+    discoveryVersion: REPOSITORY_DISCOVERY_VERSIONS.v1,
+    scannerSignature: sha("1"),
+    graphIndexVersion: sha("2"),
+    cacheIdentity: sha("0"),
+    sourceRanges: [
+      {
+        rangeId: sha("3"),
+        path: "apps/api/model.ts",
+        startLine: 4,
+        endLine: 4,
+        sourceDigest: sha("4"),
+        symbol: "invokeModel",
+        signalType: DISCOVERY_SIGNAL_TYPES.aiSdkCall,
+        sourceClassification:
+          DISCOVERY_SOURCE_CLASSIFICATIONS.productionCandidate,
+        reachability: DISCOVERY_REACHABILITY_STATES.notEstablished,
+        observationStatus: DISCOVERY_OBSERVATION_STATUSES.observedSourceFact,
+        technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.aiInvocation],
+        useCaseIds: [sha("5")],
+        ruleRelevance: [],
+        evidenceStrength: DISCOVERY_EVIDENCE_STRENGTHS.directSource,
+        explanation:
+          "Direct model call; production reachability remains unknown.",
+        callers: [],
+        callees: [],
+        unresolvedEdges: ["Caller unresolved."],
+        coverageGaps: [],
+        expansionState: DISCOVERY_EXPANSION_STATES.permitted,
+      },
+    ],
+    aiUseCases: [
+      {
+        useCaseId: sha("5"),
+        name: "Candidate model use",
+        observationStatus: DISCOVERY_OBSERVATION_STATUSES.candidateFinding,
+        providerOrFramework: "OpenAI",
+        invocationRangeIds: [sha("3")],
+        inputRangeIds: [],
+        outputRangeIds: [],
+        controlRangeIds: [],
+        unresolvedQuestions: ["Is this deployed?"],
+      },
+    ],
+    ruleCandidates: [],
+    knownGaps: [],
+    unsupportedLanguages: ["Go"],
+    skippedPaths: [],
+    unresolvedCalls: ["Runtime caller unresolved."],
+    resourceLedger: {
+      budget: { maxFiles: 100, maxBytes: 1_000_000, maxRanges: 100 },
+      usage: { filesScanned: 1, bytesInspected: 100, rangesProduced: 1 },
+      remaining: { files: 99, bytes: 999_900, ranges: 99 },
+      coverageImpact: {
+        knownGapCount: 0,
+        unresolvedCallCount: 1,
+        unsupportedLanguageCount: 1,
+        truncated: false,
+      },
+      expansionHistory: [],
+    },
+    scannedFileCount: 1,
+    generatedAt: "2026-11-16T10:00:00.000Z",
+  } satisfies Omit<SubmitRepositoryDiscovery, "discoveryId" | "contentDigest">;
+  const merged = { ...base, ...overrides };
+  const cacheIdentity = computeRepositoryDiscoveryCacheIdentity(merged);
+  const contentDigest = computeRepositoryDiscoveryDigest({
+    ...merged,
+    cacheIdentity,
+  });
+  return {
+    ...merged,
+    cacheIdentity,
+    contentDigest,
+    discoveryId: contentDigest,
+  };
+}
+
+type StoredDiscoveryRow = {
+  recordId: string;
+  assessmentId: string;
+  repositorySnapshotId: string;
+  repositoryId: string;
+  repositoryCommit: string;
+  sourcePathPrefix: string | null;
+  scannerVersion: string;
+  discoveryVersion: string;
+  scannerSignature: string;
+  graphIndexVersion: string;
+  cacheIdentity: string;
+  contentDigest: string;
+  payload: RepositoryDiscovery;
+  createdAt: Date;
+};
+
+type StoredDiscoveryInput = Omit<StoredDiscoveryRow, "createdAt">;
+
+const defaultRules: DiscoveryRuleMatchRule[] = [
+  {
+    assessmentRuleId: "AI-PROVIDER-1",
+    assessmentRuleVersion: "2026.1",
+    concept: "OpenAI provider governance",
+    applicabilityGuidance: "Confirm whether OpenAI is used in production.",
+    criteria: [{ criterionId: "provider-identified" }],
+    contract: {
+      commonLibraries: ["openai"],
+      requiredEvidence: ["Verified OpenAI invocation and runtime scope."],
+      unresolvedConditions: ["Production deployment remains unconfirmed."],
+    },
+    ordinal: 0,
+  },
+  {
+    assessmentRuleId: "UNRELATED-ENCRYPTION-1",
+    assessmentRuleVersion: "2026.1",
+    concept: "Encryption key rotation",
+    applicabilityGuidance: "Confirm managed encryption key rotation.",
+    criteria: [{ criterionId: "key-rotation" }],
+    contract: { keywords: ["encryption", "kms", "rotation"] },
+    ordinal: 1,
+  },
+];
+
+function fixture(
+  options: {
+    rules?: DiscoveryRuleMatchRule[];
+    acceptedFacts?: { factId: string; statement: string }[];
+    resolvedQuestions?: { subjectKey: string; predicate: string }[];
+  } = {},
+) {
+  const rows = new Map<string, StoredDiscoveryRow>();
+  const expansionRows = new Map<
+    string,
+    {
+      expansionId: string;
+      assessmentId: string;
+      repositoryDiscoveryId: string;
+      discoveryContentDigest: string;
+      reasonCode: string;
+      reason: string;
+      assessmentRuleIds: unknown;
+      priorityRangeIds: unknown;
+      trace: unknown;
+      idempotencyKey: string;
+      createdAt: Date;
+    }
+  >();
+  let latest: StoredDiscoveryRow | null = null;
+  const tx = {
+    assessmentRule: {
+      findMany: jest.fn(() => Promise.resolve(options.rules ?? defaultRules)),
+    },
+    assessmentCaseFact: {
+      findMany: jest.fn((query: { take?: number }) => {
+        void query;
+        return Promise.resolve(
+          options.acceptedFacts ?? [
+            {
+              factId: acceptedFactId,
+              statement: "OpenAI production deployment is not yet confirmed.",
+            },
+          ],
+        );
+      }),
+    },
+    assessmentFactNeed: {
+      findMany: jest.fn((query: { take?: number }) => {
+        void query;
+        return Promise.resolve(options.resolvedQuestions ?? []);
+      }),
+    },
+    assessmentRepositoryDiscovery: {
+      createMany: jest.fn(({ data }: { data: StoredDiscoveryInput[] }) => {
+        const row = data[0];
+        if (!row) return Promise.resolve({ count: 0 });
+        const key = `${row.assessmentId}|${row.cacheIdentity}|${row.contentDigest}`;
+        if (rows.has(key)) return Promise.resolve({ count: 0 });
+        const stored = { ...row, createdAt: new Date(), payload: row.payload };
+        rows.set(key, stored);
+        latest = stored;
+        return Promise.resolve({ count: 1 });
+      }),
+      findUnique: jest.fn(
+        ({
+          where,
+        }: {
+          where: {
+            assessmentId_cacheIdentity_contentDigest: {
+              assessmentId: string;
+              cacheIdentity: string;
+              contentDigest: string;
+            };
+          };
+        }) => {
+          const key = where.assessmentId_cacheIdentity_contentDigest;
+          return Promise.resolve(
+            rows.get(
+              `${key.assessmentId}|${key.cacheIdentity}|${key.contentDigest}`,
+            ),
+          );
+        },
+      ),
+      findFirst: jest.fn(({ where }: { where: { recordId?: string } }) => {
+        if (where.recordId && latest?.recordId !== where.recordId) {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve(latest);
+      }),
+    },
+    assessmentRepositoryDiscoveryExpansion: {
+      createMany: jest.fn(
+        ({ data }: { data: Array<Record<string, unknown>> }) => {
+          const item = data[0];
+          if (!item) return Promise.resolve({ count: 0 });
+          const key = `${String(item.assessmentId)}|${String(item.idempotencyKey)}`;
+          if (expansionRows.has(key)) return Promise.resolve({ count: 0 });
+          expansionRows.set(key, {
+            expansionId: String(item.expansionId),
+            assessmentId: String(item.assessmentId),
+            repositoryDiscoveryId: String(item.repositoryDiscoveryId),
+            discoveryContentDigest: String(item.discoveryContentDigest),
+            reasonCode: String(item.reasonCode),
+            reason: String(item.reason),
+            assessmentRuleIds: item.assessmentRuleIds,
+            priorityRangeIds: item.priorityRangeIds,
+            trace: item.trace,
+            idempotencyKey: String(item.idempotencyKey),
+            createdAt: new Date("2026-11-16T12:00:00.000Z"),
+          });
+          return Promise.resolve({ count: 1 });
+        },
+      ),
+      findUnique: jest.fn(
+        ({
+          where,
+        }: {
+          where: {
+            assessmentId_idempotencyKey: {
+              assessmentId: string;
+              idempotencyKey: string;
+            };
+          };
+        }) =>
+          Promise.resolve(
+            expansionRows.get(
+              `${where.assessmentId_idempotencyKey.assessmentId}|${where.assessmentId_idempotencyKey.idempotencyKey}`,
+            ) ?? null,
+          ),
+      ),
+      count: jest.fn(
+        ({
+          where,
+        }: {
+          where: { assessmentId: string; repositoryDiscoveryId: string };
+        }) =>
+          Promise.resolve(
+            [...expansionRows.values()].filter(
+              (row) =>
+                row.assessmentId === where.assessmentId &&
+                row.repositoryDiscoveryId === where.repositoryDiscoveryId,
+            ).length,
+          ),
+      ),
+    },
+  };
+  const prisma = {
+    $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) =>
+      work(tx),
+    ),
+  };
+  const authority = {
+    authorizeInTx: jest.fn(() =>
+      Promise.resolve({ executionId: randomUUID() }),
+    ),
+  };
+  const support = {
+    loadPins: jest.fn(() => Promise.resolve(pins)),
+    requireCoverage: jest.fn(
+      (
+        _tx: unknown,
+        _assessmentId: string,
+        assessmentRuleId: string,
+        _correlationId: string,
+      ) => {
+        void _correlationId;
+        if (assessmentRuleId === "FOREIGN-RULE") {
+          return Promise.reject(new Error("rule is outside audit coverage"));
+        }
+        return Promise.resolve({ assessmentRuleId });
+      },
+    ),
+  };
+  const service = new AssessmentRepositoryDiscoveryService(
+    prisma as never,
+    authority as never,
+    support as never,
+  );
+  return {
+    service,
+    tx,
+    authority,
+    support,
+    rows,
+    expansionRows,
+    setLatest: (row: StoredDiscoveryRow) => {
+      latest = row;
+    },
+  };
+}
+
+function expansion(recordId: string, contentDigest: string) {
+  return {
+    recordId,
+    contentDigest,
+    reasonCode: DISCOVERY_EXPANSION_REASONS.incompleteCallChain,
+    reason: "The ranked call site did not resolve its production entry path.",
+    assessmentRuleIds: ["AI-PROVIDER-1"],
+    priorityRangeIds: [sha("3")],
+    trace: {
+      queries: [
+        {
+          tool: DISCOVERY_EXPANSION_TRACE_TOOLS.traceCallPath,
+          queryDigest: sha("9"),
+          resultCount: 2,
+          truncated: false,
+          failed: false,
+        },
+      ],
+      inspectedPaths: ["apps/api"],
+      droppedTraceCount: 0,
+      knownGaps: ["Dependency injection remains unresolved."],
+    },
+    idempotencyKey: `discovery-expansion:${"d".repeat(64)}`,
+  };
+}
+
+describe("AssessmentRepositoryDiscoveryService", () => {
+  it("fails closed when resolved Discovery questions exceed the bounded recommendation inventory", async () => {
+    const { service, tx, rows } = fixture({
+      resolvedQuestions: Array.from({ length: 2_001 }, (_, ordinal) => ({
+        subjectKey: `usecase.${String(ordinal).padStart(64, "a")}`,
+        predicate: `discovery.question.${"b".repeat(64)}`,
+      })),
+    });
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-question-overflow",
+        discovery: discovery(),
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+    expect(rows.size).toBe(0);
+    expect(tx.assessmentFactNeed.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 2_001 }),
+    );
+  });
+
+  it("fails closed when accepted customer facts exceed the bounded recommendation inventory", async () => {
+    const { service, tx, rows } = fixture({
+      acceptedFacts: Array.from({ length: 10_001 }, () => ({
+        factId: randomUUID(),
+        statement:
+          "The assessment contains an accepted scoped operational fact.",
+      })),
+    });
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-fact-overflow",
+        discovery: discovery(),
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+    expect(rows.size).toBe(0);
+    expect(tx.assessmentCaseFact.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 10_001 }),
+    );
+  });
+
+  it("persists once and replays identical assessment/cache/content coordinates", async () => {
+    const { service, tx, rows } = fixture();
+    const artifact = discovery();
+
+    const first = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-1",
+      discovery: artifact,
+    });
+    const replay = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-2",
+      discovery: artifact,
+    });
+
+    expect(first.replayed).toBe(false);
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect(rows.size).toBe(1);
+    expect(tx.assessmentRepositoryDiscovery.createMany).toHaveBeenCalledTimes(
+      2,
+    );
+  });
+
+  it("retains a different content digest under the same cache identity as a new immutable revision", async () => {
+    const { service, rows } = fixture();
+    const first = discovery();
+    const second = discovery({
+      unresolvedCalls: [
+        "Runtime caller unresolved.",
+        "Dynamic configuration unresolved.",
+      ],
+    });
+    expect(second.cacheIdentity).toBe(first.cacheIdentity);
+    expect(second.contentDigest).not.toBe(first.contentDigest);
+
+    const firstReceipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-1",
+      discovery: first,
+    });
+    const secondReceipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-2",
+      discovery: second,
+    });
+
+    expect(firstReceipt.recordId).not.toBe(secondReceipt.recordId);
+    expect(secondReceipt.replayed).toBe(false);
+    expect(rows.size).toBe(2);
+    const latest = await service.getSummary({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-latest",
+    });
+    expect(latest.discovery?.recordId).toBe(secondReceipt.recordId);
+    expect(latest.discovery?.contentDigest).toBe(secondReceipt.contentDigest);
+    expect(secondReceipt.contentDigest).not.toBe(second.contentDigest);
+  });
+
+  it("records one immutable expansion event and replays its idempotency key", async () => {
+    const { service, expansionRows } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-expansion",
+      discovery: discovery(),
+    });
+    const body = expansion(receipt.recordId, receipt.contentDigest);
+
+    const first = await service.recordExpansion({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-1",
+      expansion: body,
+    });
+    const replay = await service.recordExpansion({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-2",
+      expansion: body,
+    });
+    const summary = await service.getSummary({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-summary",
+    });
+
+    expect(first.replayed).toBe(false);
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect(expansionRows.size).toBe(1);
+    expect(summary.discovery?.expansionCount).toBe(1);
+  });
+
+  it("rejects expansion priority ranges outside the immutable discovery", async () => {
+    const { service, expansionRows } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-foreign-range",
+      discovery: discovery(),
+    });
+
+    await expect(
+      service.recordExpansion({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-foreign-range",
+        expansion: {
+          ...expansion(receipt.recordId, receipt.contentDigest),
+          priorityRangeIds: [sha("f")],
+        },
+      }),
+    ).rejects.toThrow();
+    expect(expansionRows.size).toBe(0);
+  });
+
+  it("rejects expansion rule IDs outside current audit coverage", async () => {
+    const { service, expansionRows, support } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-foreign-rule",
+      discovery: discovery(),
+    });
+
+    await expect(
+      service.recordExpansion({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-foreign-rule",
+        expansion: {
+          ...expansion(receipt.recordId, receipt.contentDigest),
+          assessmentRuleIds: ["FOREIGN-RULE"],
+        },
+      }),
+    ).rejects.toThrow();
+    expect(support.requireCoverage).toHaveBeenCalledWith(
+      expect.anything(),
+      assessmentId,
+      "FOREIGN-RULE",
+      "corr-foreign-rule",
+    );
+    expect(expansionRows.size).toBe(0);
+  });
+
+  it("rejects an idempotency key replay with a different semantic event", async () => {
+    const { service, expansionRows } = fixture();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save-expansion-conflict",
+      discovery: discovery(),
+    });
+    const original = expansion(receipt.recordId, receipt.contentDigest);
+    await service.recordExpansion({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-expansion-original",
+      expansion: original,
+    });
+
+    await expect(
+      service.recordExpansion({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-expansion-conflict",
+        expansion: {
+          ...original,
+          reason: "A different reason must not inherit the original receipt.",
+        },
+      }),
+    ).rejects.toThrow();
+    expect(expansionRows.size).toBe(1);
+  });
+
+  it("rejects tampered content and server-owned repository pin mismatches", async () => {
+    const { service, tx } = fixture();
+    const valid = discovery();
+    const tampered = { ...valid, contentDigest: sha("f") };
+
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-tamper",
+        discovery: tampered,
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-pin",
+        discovery: discovery({ repositoryId: "foreign-repository" }),
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+  });
+
+  it("returns explicit absence for legacy audits and bounded digest-bound pages when present", async () => {
+    const { service } = fixture();
+    const absent = await service.getSummary({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-absent",
+    });
+    expect(absent).toEqual({ available: false, discovery: null });
+
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-save",
+      discovery: discovery(),
+    });
+    const summary = await service.getSummary({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-summary",
+    });
+    expect(summary.available).toBe(true);
+    expect(summary.discovery?.recordId).toBe(receipt.recordId);
+    expect(summary.discovery?.sourceRangeCount).toBe(1);
+    expect(summary.discovery?.ruleCandidateCount).toBe(1);
+    expect(summary.discovery?.preview.ranges).toHaveLength(1);
+    expect(summary.discovery?.preview.aiUseCases).toHaveLength(1);
+    expect(summary.discovery?.preview.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "AI-PROVIDER-1",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
+        supportingFactIds: [acceptedFactId],
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(summary.discovery?.preview.unresolvedCalls).toEqual([
+      "Runtime caller unresolved.",
+    ]);
+
+    const ranges = await service.getRangePage({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-ranges",
+      recordId: receipt.recordId,
+      offset: 0,
+      limit: 1,
+    });
+    expect(ranges.ranges).toHaveLength(1);
+    expect(ranges.contentDigest).toBe(summary.discovery?.contentDigest);
+
+    const useCases = await service.getDetailPage({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-details",
+      recordId: receipt.recordId,
+      collection: DISCOVERY_DETAIL_COLLECTIONS.aiUseCases,
+      offset: 0,
+      limit: 1,
+    });
+    expect(useCases.items).toHaveLength(1);
+    expect(useCases.contentDigest).toBe(summary.discovery?.contentDigest);
+
+    const candidates = await service.getDetailPage({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-candidate-details",
+      recordId: receipt.recordId,
+      collection: DISCOVERY_DETAIL_COLLECTIONS.ruleCandidates,
+      offset: 0,
+      limit: 1,
+    });
+    expect(candidates.items).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "AI-PROVIDER-1",
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(candidates.contentDigest).toBe(summary.discovery?.contentDigest);
+  });
+
+  it("fails closed when persisted payload no longer matches its immutable metadata", async () => {
+    const { service, setLatest } = fixture();
+    const artifact = discovery();
+    setLatest({
+      recordId: randomUUID(),
+      assessmentId,
+      repositorySnapshotId,
+      repositoryId,
+      repositoryCommit,
+      sourcePathPrefix: pins.sourcePathPrefix,
+      scannerVersion: artifact.scannerVersion,
+      discoveryVersion: artifact.discoveryVersion,
+      scannerSignature: artifact.scannerSignature,
+      graphIndexVersion: artifact.graphIndexVersion,
+      cacheIdentity: artifact.cacheIdentity,
+      contentDigest: artifact.contentDigest,
+      payload: { ...artifact, unresolvedCalls: ["tampered after digest"] },
+      createdAt: new Date(),
+    });
+
+    await expect(
+      service.getSummary({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-persisted-tamper",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("matches pinned rules conservatively and never turns a missing match into NOT_SELECTED", async () => {
+    const { service, rows } = fixture();
+    const scannerArtifact = discovery();
+
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-candidate",
+      discovery: scannerArtifact,
+    });
+
+    const stored = [...rows.values()].find(
+      (row) => row.recordId === receipt.recordId,
+    );
+    expect(stored?.payload.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "AI-PROVIDER-1",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
+        supportingUseCaseIds: [sha("5")],
+        supportingRangeIds: [sha("3")],
+        supportingFactIds: [acceptedFactId],
+        matchedTerms: expect.arrayContaining(["openai"]),
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(
+      stored?.payload.ruleCandidates.some(
+        (candidate) =>
+          candidate.state === DISCOVERY_RULE_CANDIDATE_STATES.notSelected,
+      ),
+    ).toBe(false);
+    expect(stored?.payload.sourceRanges[0]?.ruleRelevance).toEqual([
+      expect.objectContaining({ assessmentRuleId: "AI-PROVIDER-1" }),
+    ]);
+  });
+
+  it("creates a new immutable recommendation revision when accepted facts change", async () => {
+    const fixtureState = fixture({ acceptedFacts: [] });
+    const artifact = discovery();
+    const first = await fixtureState.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-no-fact",
+      discovery: artifact,
+    });
+    fixtureState.tx.assessmentCaseFact.findMany.mockResolvedValue([
+      {
+        factId: acceptedFactId,
+        statement: "OpenAI production deployment is not yet confirmed.",
+      },
+    ]);
+    const second = await fixtureState.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-with-fact",
+      discovery: artifact,
+    });
+
+    expect(second.recordId).not.toBe(first.recordId);
+    expect(second.contentDigest).not.toBe(first.contentDigest);
+    expect(fixtureState.rows.size).toBe(2);
+  });
+
+  it("updates candidate context status when canonical source questions are resolved by accepted FactNeeds", async () => {
+    const supportRule = {
+      assessmentRuleId: "CHATBOT-CONTEXT",
+      assessmentRuleVersion: "1",
+      concept: "OpenAI chatbot operation",
+      applicabilityGuidance: "Confirm actual deployment separately.",
+      criteria: [{ criterionId: "runtime-known" }],
+      contract: { keywords: ["openai"] },
+      ordinal: 0,
+    };
+    const f = fixture({ rules: [supportRule], acceptedFacts: [] });
+    const base = discovery();
+    const sourceReady = discovery({
+      sourceRanges: base.sourceRanges.map((range) => ({
+        ...range,
+        reachability: DISCOVERY_REACHABILITY_STATES.confirmed,
+        unresolvedEdges: [],
+      })),
+      unresolvedCalls: [],
+      unsupportedLanguages: [],
+    });
+    const first = await f.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-question-unresolved",
+      discovery: sourceReady,
+    });
+    const unresolvedRow = [...f.rows.values()].find(
+      (row) => row.recordId === first.recordId,
+    );
+    expect(unresolvedRow?.payload.ruleCandidates[0]?.state).toBe(
+      DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
+    );
+    f.tx.assessmentFactNeed.findMany.mockResolvedValue([
+      {
+        subjectKey: `usecase.${sha("5").slice(7)}`,
+        predicate: `discovery.question.${sha256Hex("Is this deployed?")}`,
+      },
+    ]);
+    const second = await f.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-question-resolved",
+      discovery: sourceReady,
+    });
+    const resolvedRow = [...f.rows.values()].find(
+      (row) => row.recordId === second.recordId,
+    );
+    expect(second.contentDigest).not.toBe(first.contentDigest);
+    expect(resolvedRow?.payload.ruleCandidates[0]).toEqual(
+      expect.objectContaining({
+        assessmentRuleId: "CHATBOT-CONTEXT",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.candidate,
+        authorizesAssessment: false,
+      }),
+    );
+  });
+
+  it("discovers non-AI retention controls through rule-specific relevance", async () => {
+    const retentionRule = {
+      assessmentRuleId: "RETENTION-1",
+      assessmentRuleVersion: "2026.1",
+      concept: "Retention deletion control",
+      applicabilityGuidance: "Confirm the applicable retention period.",
+      criteria: [{ criterionId: "retention-enforced" }],
+      contract: {
+        keywords: ["retention", "delete", "expiry"],
+        requiredEvidence: ["Verified retention deletion control."],
+      },
+      ordinal: 0,
+    };
+    const { service, rows } = fixture({
+      rules: [retentionRule],
+      acceptedFacts: [
+        {
+          factId: acceptedFactId,
+          statement: "The production retention period is 30 days.",
+        },
+      ],
+    });
+    const artifact = discovery({
+      sourceRanges: [
+        {
+          rangeId: sha("7"),
+          path: "apps/api/retention-policy.ts",
+          startLine: 10,
+          endLine: 20,
+          sourceDigest: sha("8"),
+          symbol: "deleteExpiredRecords",
+          signalType: DISCOVERY_SIGNAL_TYPES.control,
+          sourceClassification:
+            DISCOVERY_SOURCE_CLASSIFICATIONS.reachableProduction,
+          reachability: DISCOVERY_REACHABILITY_STATES.confirmed,
+          observationStatus: DISCOVERY_OBSERVATION_STATUSES.observedSourceFact,
+          technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.relatedLogic],
+          useCaseIds: [],
+          ruleRelevance: [],
+          evidenceStrength: DISCOVERY_EVIDENCE_STRENGTHS.directSource,
+          explanation: "Deletes records after the configured retention expiry.",
+          callers: ["scheduledCleanup"],
+          callees: [],
+          unresolvedEdges: [],
+          coverageGaps: [],
+          expansionState: DISCOVERY_EXPANSION_STATES.permitted,
+        },
+      ],
+      aiUseCases: [],
+      unresolvedCalls: [],
+      unsupportedLanguages: [],
+    });
+
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-retention",
+      discovery: artifact,
+    });
+
+    const stored = [...rows.values()][0];
+    expect(stored?.payload.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "RETENTION-1",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.candidate,
+        supportingRangeIds: [sha("7")],
+        supportingFactIds: [acceptedFactId],
+        authorizesAssessment: false,
+      }),
+    ]);
+  });
+
+  it("matches controlled technical equivalents in camelCase code without legal overclaim", async () => {
+    const { service, rows } = fixture({
+      rules: [
+        {
+          assessmentRuleId: "RETENTION-CONTROL",
+          assessmentRuleVersion: "2026.1",
+          concept: "Data retention and deletion",
+          applicabilityGuidance: "Confirm the applicable retention period.",
+          criteria: [{ criterionId: "deletion-when-expired" }],
+          contract: {
+            keywords: ["delete", "retention", "expiry"],
+            requiredEvidence: ["Verify data deletion after expiry."],
+          },
+          ordinal: 0,
+        },
+      ],
+    });
+    const artifact = discovery({
+      sourceRanges: [
+        {
+          ...discovery().sourceRanges[0],
+          path: "apps/api/background-worker.ts",
+          symbol: "purgeExpiredRecords",
+          signalType: DISCOVERY_SIGNAL_TYPES.control,
+          technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.relatedLogic],
+          explanation: "Scheduled maintenance task executes.",
+          useCaseIds: [],
+          unresolvedEdges: [],
+        },
+      ],
+      aiUseCases: [],
+      unresolvedCalls: [],
+      unsupportedLanguages: [],
+    });
+
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-camel-retention",
+      discovery: artifact,
+    });
+
+    const stored = [...rows.values()][0];
+    expect(stored?.payload.ruleCandidates).toEqual([
+      expect.objectContaining({
+        assessmentRuleId: "RETENTION-CONTROL",
+        supportingRangeIds: [sha("3")],
+        authorizesAssessment: false,
+      }),
+    ]);
+    expect(stored?.payload.sourceRanges[0].ruleRelevance).toEqual([
+      expect.objectContaining({ assessmentRuleId: "RETENTION-CONTROL" }),
+    ]);
+  });
+
+  it("does not equate generic UI removal with personal-data deletion", async () => {
+    const { service, rows } = fixture({
+      rules: [
+        {
+          assessmentRuleId: "DATA-DELETE",
+          assessmentRuleVersion: "1",
+          concept: "Personal data deletion",
+          applicabilityGuidance: "Check actual customer deletion handling.",
+          criteria: [{ criterionId: "data-erasure" }],
+          contract: { keywords: ["delete", "erasure"] },
+          ordinal: 0,
+        },
+      ],
+    });
+    const artifact = discovery({
+      sourceRanges: [
+        {
+          ...discovery().sourceRanges[0],
+          path: "apps/api/ui.ts",
+          symbol: "removeButton",
+          explanation: "UI component action.",
+          technologyRelevance: [DISCOVERY_TECHNOLOGY_RELEVANCE.relatedLogic],
+          useCaseIds: [],
+        },
+      ],
+      aiUseCases: [],
+    });
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-ui-remove",
+      discovery: artifact,
+    });
+    expect([...rows.values()][0]?.payload.ruleCandidates).toEqual([]);
+  });
+
+  it("proves pre-scope interview questions originate from the exact pinned Discovery use case", async () => {
+    const { service, tx } = fixture();
+    const artifact = discovery();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-question-source",
+      discovery: artifact,
+    });
+    const binding = await service.verifyInterviewQuestionInTx(
+      tx as unknown as Prisma.TransactionClient,
+      {
+        pins,
+        recordId: receipt.recordId,
+        useCaseId: sha("5"),
+        question: "Is this deployed?",
+        correlationId: "corr-question-source",
+      },
+    );
+    expect(binding.contentDigest).toBe(receipt.contentDigest);
+    expect(binding.rangeIds).toEqual([sha("3")]);
+    await expect(
+      service.verifyInterviewQuestionInTx(
+        tx as unknown as Prisma.TransactionClient,
+        {
+          pins,
+          recordId: receipt.recordId,
+          useCaseId: sha("5"),
+          question: "Pretend the organization is legally exempt.",
+          correlationId: "corr-invented-question",
+        },
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("rejects worker-authored candidates before persistence", async () => {
+    const { service, tx } = fixture();
+    const artifact = discovery();
+
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-worker-candidate",
+        discovery: {
+          ...artifact,
+          ruleCandidates: [
+            {
+              assessmentRuleId: "WORKER-RULE",
+              assessmentRuleVersion: "1",
+              state: DISCOVERY_RULE_CANDIDATE_STATES.selected,
+              supportingUseCaseIds: [],
+              supportingRangeIds: [],
+              supportingFactIds: [],
+              matchedTerms: [],
+              applicabilityElements: [],
+              unresolvedConditions: [],
+              rationale: "Worker tried to authorize scope.",
+              limitations: [],
+              authorizesAssessment: false,
+            },
+          ],
+        } as never,
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+  });
+});

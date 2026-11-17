@@ -442,3 +442,40 @@ for (const concept of ["Access control", "Ki?m so?t truy c?p"])
     assert.equal(decision.concept, concept);
     assert.equal(JSON.stringify(localized.case!.decisions), originalDecision);
   });
+
+test("an answered choice question preserves its selected label for display", () => {
+  const req = request();
+  const answeredChoice = {
+    ...req,
+    choices: [
+      { value: "YES", label: "Yes, verified in production" },
+      { value: "NO", label: "No, development only" },
+    ],
+    status: "RESOLVED" as const,
+    answers: [
+      {
+        id: "answer-choice-1",
+        requestId: req.requestId,
+        idempotencyKey: "key-1",
+        requestDigest: "d".repeat(64),
+        actorId: "owner-1",
+        answeredAt: new Date(Date.UTC(2026, 9, 11, 10, 0, 30)).toISOString(),
+        caseRevision: 1,
+        requestRevision: 1,
+        doesNotKnow: false,
+        answer: "YES",
+      },
+    ],
+  };
+  const projection = projectConversation({
+    assessmentId: ASSESSMENT_ID,
+    events: RUN,
+    detail: detail({ lifecycle: LIFE.ACTIVE, execution: EXEC.RUNNING }),
+    requests: [answeredChoice],
+    repository: REPOSITORY,
+  });
+  const answerTurn = projection.turns.find((turn) => turn.kind === KIND.ANSWER);
+  assert.ok(answerTurn && answerTurn.kind === KIND.ANSWER);
+  assert.equal(answerTurn.answer, "YES");
+  assert.equal(answerTurn.selectedLabel, "Yes, verified in production");
+});

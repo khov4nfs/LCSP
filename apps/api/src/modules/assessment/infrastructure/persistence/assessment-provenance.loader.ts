@@ -1,4 +1,5 @@
 import { humanRequestDependenciesOf } from "./assessment-human-request-dependencies.js";
+import { factNeedViewOf } from "./assessment-fact-need.js";
 import { createHash } from "node:crypto";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
@@ -95,7 +96,7 @@ export class AssessmentProvenanceLoader {
               orderBy: { assessmentRuleId: "asc" },
             },
             humanRequests: {
-              include: { dependencies: true },
+              include: { dependencies: true, factNeed: true },
               orderBy: { createdAt: "asc" },
             },
             artifacts: {
@@ -564,6 +565,7 @@ export class AssessmentProvenanceLoader {
         checkpointId: hr.checkpointId,
         resolvedFactId: hr.resolvedFactId,
         answers: hr.answers,
+        ...(hr.factNeed ? { factNeed: factNeedViewOf(hr.factNeed) } : {}),
       }),
     );
 

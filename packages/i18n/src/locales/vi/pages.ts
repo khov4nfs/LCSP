@@ -768,6 +768,55 @@ export const viPages = {
       title: "Chọn quy tắc cần đánh giá",
       description:
         "Chỉ các quy tắc bạn yêu cầu mới được điều tra. Quy tắc chưa yêu cầu chưa có kết luận đánh giá.",
+      discovery: {
+        title: "Khám phá repository trước khi chọn quy tắc",
+        description:
+          "Quét source chỉ đọc để tìm ứng dụng AI và quy tắc cần điều tra. Bạn vẫn là người xác nhận phạm vi đánh giá.",
+        start: "Khám phá các use case AI",
+        retry: "Thử lại khám phá repository",
+        running:
+          "Đang tìm hiểu source code và các biện pháp kiểm soát liên quan…",
+        failed:
+          "Không hoàn tất được khám phá repository. Hệ thống chưa đưa ra kết luận pháp lý.",
+        error: "Không thể đọc hoặc khởi chạy Discovery. Hãy thử lại.",
+        summary:
+          "{useCases} use case AI, {candidates} quy tắc đề xuất, {gaps} điểm chưa đủ bao phủ",
+        investigationOnly:
+          "Đây chỉ là dấu hiệu kỹ thuật để điều tra, không phải kết luận áp dụng luật hay tuân thủ. Quy tắc không hiển thị vẫn có thể liên quan.",
+        preview: "Đang xem trước {shown}/{total} quy tắc đề xuất",
+        allCandidates: "Đã tải đủ {total} quy tắc gợi ý (chỉ phục vụ điều tra)",
+        selectCandidateRules:
+          "Chọn các quy tắc gợi ý (kiểm tra lại trước khi đánh giá)",
+        loadMore: "Xem thêm quy tắc gợi ý",
+        contextQuestions: "Các thông tin vận hành cần làm rõ",
+        contextAdvisory:
+          "Đây là gợi ý từ Discovery, chưa phải thông tin đã xác nhận. Câu trả lời chính thức phải qua luồng phỏng vấn được cấp quyền.",
+        interviewTitle: "Xác nhận thông tin vận hành trước khi chọn quy tắc",
+        interviewDescription:
+          "Gửi câu trả lời để kiểm tra, rồi xác nhận riêng. Câu trả lời được xác nhận là thông tin do khách hàng cung cấp, chưa phải kết luận áp dụng pháp luật.",
+        interviewLoading: "Đang tải lịch sử câu trả lời…",
+        interviewError:
+          "Không thể gửi, duyệt hoặc tải câu trả lời. Kiểm tra phiên bản dữ kiện và thử lại.",
+        interviewAccepted: "Khách hàng đã xác nhận:",
+        interviewPending: "Đang chờ xác nhận rõ ràng:",
+        interviewAmbiguous:
+          "Câu trả lời còn mơ hồ hoặc mâu thuẫn. Hãy từ chối và trả lời rõ hơn; không thể chấp nhận làm dữ kiện.",
+        interviewConfirm: "Xác nhận câu trả lời",
+        interviewReject: "Từ chối và trả lời lại",
+        interviewRejected:
+          "Câu trả lời trước đã bị từ chối. Bạn có thể gửi câu trả lời mới.",
+        answerPlaceholder:
+          "Nhập thông tin vận hành đã biết rõ (không phỏng đoán)",
+        answerInvalid: "Cần nhập câu trả lời rõ ràng, tối đa 2.000 ký tự.",
+        submitAnswer: "Gửi để xác nhận",
+        loadMoreHistory: "Xem thêm lịch sử câu trả lời",
+        candidateLoadFailed:
+          "Chưa tải được đầy đủ danh sách gợi ý; phần xem trước không đại diện cho toàn bộ.",
+        needsContext: "Cần làm rõ thông tin",
+        candidate: "Có thể liên quan, cần kiểm tra",
+        noCandidates:
+          "Chưa tìm thấy rule phù hợp. Điều này không chứng minh rằng không có quy tắc nào áp dụng.",
+      },
       search: "Tìm quy tắc đánh giá",
       selectedCount: "Đã chọn {selected}/{total}",
       resultsCount: "Kết quả sẵn sàng: {ready}/{requested} quy tắc đã chọn",
@@ -848,6 +897,8 @@ export const viPages = {
       textLabel: "Câu trả lời của bạn",
       required: "Hãy nhập câu trả lời trước.",
       failed: "Không thể gửi câu trả lời. Vui lòng thử lại.",
+      staleConflict:
+        "Đã có phiên bản mới hơn. Bản nháp của bạn đã được giữ lại; vui lòng kiểm tra và gửi lại.",
     },
     decision: {
       ruleFallback: "Quy tắc đánh giá {id}",
@@ -3030,6 +3081,8 @@ export const viPages = {
       EXTRACTION_FAILED: "Không thể trích xuất văn bản từ tài liệu.",
       NO_EXTRACTABLE_TEXT: "Không tìm thấy văn bản có thể đọc.",
       NO_CHUNKS: "Không thể tạo điều khoản.",
+      CHUNK_LIMIT_EXCEEDED:
+        "Tài liệu vượt quá giới hạn 20.000 điều khoản. Vui lòng chia nhỏ tài liệu theo chương hoặc phần pháp lý.",
       DUPLICATE_LOCATOR: "Tài liệu có vị trí điều khoản bị trùng.",
       RUNTIME_UNAVAILABLE: "Tạm thời không thể xử lý tài liệu.",
     },

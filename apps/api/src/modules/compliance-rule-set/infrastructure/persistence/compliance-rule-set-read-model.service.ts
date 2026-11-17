@@ -191,6 +191,9 @@ export class ComplianceRuleSetReadModelLoader {
           ? { operativePropositions: rule.operativePropositions }
           : {}),
         applicabilityConditions: rule.applicabilityConditions,
+        ...(rule.applicabilityLogic != null
+          ? { applicabilityLogic: rule.applicabilityLogic }
+          : {}),
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
         nonRepositoryDuty: rule.nonRepositoryDuty,

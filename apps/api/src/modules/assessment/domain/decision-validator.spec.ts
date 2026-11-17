@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+  APPLICABILITY_CONDITION_LOGIC,
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_BASIS_FINDINGS,
   RULE_DECISION_BASIS_KINDS,
@@ -404,6 +405,33 @@ describe("validateRuleDecision (identity and provenance only)", () => {
     );
   });
 
+  it("accepts only an older dependency-verified revision when explicitly authorized", () => {
+    const evidenceOnlyCriteria = applicable().criteria.map((criterion) => ({
+      ...criterion,
+      references: [evidenceRef],
+    }));
+    const older = applicable({
+      caseRevision: 2,
+      criteria: evidenceOnlyCriteria,
+    });
+    expect(
+      validateRuleDecision(older, {
+        ...context(),
+        allowHistoricalCaseRevision: true,
+      }),
+    ).toEqual([]);
+    const future = applicable({
+      caseRevision: 4,
+      criteria: evidenceOnlyCriteria,
+    });
+    expect(
+      codes(future, {
+        ...context(),
+        allowHistoricalCaseRevision: true,
+      }),
+    ).toContain(FAIL.CASE_REVISION_STALE);
+  });
+
   it("rejects references that are unknown, invalidated, mispinned or from the future", () => {
     const unknown = {
       type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
@@ -468,11 +496,21 @@ describe("applicability basis (structure only, whatever the legal source calls i
   const legalSources = {
     "register keepers": {
       requirement: "LR-A",
-      declared: { applicabilityConditions: 2, qualifiers: 0, exceptions: 1 },
+      declared: {
+        applicabilityConditions: 2,
+        qualifiers: 0,
+        exceptions: 1,
+        conditionLogic: APPLICABILITY_CONDITION_LOGIC.ALL,
+      },
     },
     "Betreiber von Anlagen": {
       requirement: "LR-B",
-      declared: { applicabilityConditions: 3, qualifiers: 1, exceptions: 0 },
+      declared: {
+        applicabilityConditions: 3,
+        qualifiers: 1,
+        exceptions: 0,
+        conditionLogic: APPLICABILITY_CONDITION_LOGIC.ALL,
+      },
     },
   } as const;
 
@@ -594,7 +632,10 @@ describe("applicability basis (structure only, whatever the legal source calls i
         expect(
           codes(
             applicableWith(requirement, [
-              basis(requirement, CONDITION, 0, ESTABLISHED),
+              ...Array.from(
+                { length: declared.applicabilityConditions },
+                (_, index) => basis(requirement, CONDITION, index, ESTABLISHED),
+              ),
             ]),
             ctx(),
           ),
@@ -671,5 +712,211 @@ describe("applicability basis (structure only, whatever the legal source calls i
         ],
       });
     expect(staleFact).toThrow();
+  });
+
+  describe("condition logic (ALL vs ANY) and material conditions", () => {
+    it("under conjunctive (ALL) logic, requires all declared conditions to be established", () => {
+      const requirement = "LR-CONJ";
+      const declared = {
+        applicabilityConditions: 2,
+        qualifiers: 0,
+        exceptions: 0,
+        conditionLogic: APPLICABILITY_CONDITION_LOGIC.ALL,
+      };
+      const ctx = contextFor(requirement, declared);
+
+      // Only condition 0 established, condition 1 omitted -> APPLICABILITY_BASIS_REQUIRED
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_REQUIRED]);
+
+      // Condition 0 established, condition 1 NOT_ESTABLISHED -> APPLICABILITY_BASIS_REQUIRED
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+            basis(requirement, CONDITION, 1, NOT_ESTABLISHED, []),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_REQUIRED]);
+
+      // Condition 0 established, condition 1 REFUTED -> APPLICABILITY_BASIS_CONTRADICTION
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+            basis(requirement, CONDITION, 1, REFUTED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_CONTRADICTION]);
+
+      // Both conditions established -> VALID!
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+            basis(requirement, CONDITION, 1, ESTABLISHED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([]);
+    });
+
+    it("under disjunctive (ANY) logic, establishing one condition allows another to be refuted without contradiction", () => {
+      const requirement = "LR-DISJ";
+      const declared = {
+        applicabilityConditions: 2,
+        qualifiers: 0,
+        exceptions: 0,
+        conditionLogic: APPLICABILITY_CONDITION_LOGIC.ANY,
+      };
+      const ctx = contextFor(requirement, declared);
+
+      // Condition 0 established and Condition 1 refuted is NOT a contradiction under ANY logic!
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+            basis(requirement, CONDITION, 1, REFUTED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([]);
+
+      // But if ALL conditions are refuted, asserting APPLICABLE contradicts the basis
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, REFUTED),
+            basis(requirement, CONDITION, 1, REFUTED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_CONTRADICTION]);
+
+      // For NOT_APPLICABLE under ANY logic, refuting only 1 condition while condition 1 is omitted or NOT_ESTABLISHED is insufficient
+      expect(
+        codes(
+          notApplicable(requirement, [
+            basis(requirement, CONDITION, 0, REFUTED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_REQUIRED]);
+
+      expect(
+        codes(
+          notApplicable(requirement, [
+            basis(requirement, CONDITION, 0, REFUTED),
+            basis(requirement, CONDITION, 1, NOT_ESTABLISHED, []),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_REQUIRED]);
+
+      // Refuting ALL alternative conditions under ANY logic proves NOT_APPLICABLE
+      expect(
+        codes(
+          notApplicable(requirement, [
+            basis(requirement, CONDITION, 0, REFUTED),
+            basis(requirement, CONDITION, 1, REFUTED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([]);
+    });
+
+    it("enforces explicit material condition indices", () => {
+      const requirement = "LR-MAT";
+      const declared = {
+        applicabilityConditions: 2,
+        qualifiers: 0,
+        exceptions: 0,
+        materialConditionIndices: [1],
+      };
+      const ctx = contextFor(requirement, declared);
+
+      // Condition 0 established but material condition 1 omitted -> APPLICABILITY_BASIS_REQUIRED
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.APPLICABILITY_BASIS_REQUIRED]);
+
+      // Both condition 0 and material condition 1 established -> VALID
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED),
+            basis(requirement, CONDITION, 1, ESTABLISHED),
+          ]),
+          ctx,
+        ),
+      ).toEqual([]);
+    });
+
+    it("accepts older accepted fact where fact.caseRevision <= decision.caseRevision and rejects future fact", () => {
+      const requirement = "LR-FACT-REV";
+      const declared = {
+        applicabilityConditions: 1,
+        qualifiers: 0,
+        exceptions: 0,
+      };
+      const ctx = contextFor(requirement, declared);
+
+      // Case revision of decision is 3. Fact was accepted at revision 1.
+      ctx.facts = new Map([
+        [
+          factRef.factId,
+          {
+            state: "ACCEPTED",
+            caseRevision: 1, // older valid fact!
+            authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+            evidenceIds: [],
+          },
+        ],
+      ]);
+
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED, [factRef]),
+          ]),
+          ctx,
+        ),
+      ).toEqual([]);
+
+      // Fact from the future (caseRevision: 4 > decision.caseRevision: 3)
+      ctx.facts = new Map([
+        [
+          factRef.factId,
+          {
+            state: "ACCEPTED",
+            caseRevision: 4, // future fact!
+            authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+            evidenceIds: [],
+          },
+        ],
+      ]);
+
+      expect(
+        codes(
+          applicableWith(requirement, [
+            basis(requirement, CONDITION, 0, ESTABLISHED, [factRef]),
+          ]),
+          ctx,
+        ),
+      ).toEqual([FAIL.FACT_REVISION_MISMATCH]);
+    });
   });
 });

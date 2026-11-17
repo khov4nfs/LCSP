@@ -86,6 +86,8 @@ export const ASSESSMENT_PROVENANCE_SCHEMA_VERSION =
   "ASSESSMENT_PROVENANCE_V1" as const;
 export const ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION =
   "ASSESSMENT_FINAL_REPORT_V2" as const;
+export const ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION =
+  "ASSESSMENT_FINAL_REPORT_V3" as const;
 
 export const ASSESSMENT_COMPLETION_BLOCKER_CODES = {
   ASSESSMENT_NOT_ACTIVE: "ASSESSMENT_NOT_ACTIVE",
@@ -186,6 +188,8 @@ export const ASSESSMENT_DOMAIN_ERROR_CODES = {
   FINAL_REPORT_ALREADY_CREATED: "ASSESSMENT_FINAL_REPORT_ALREADY_CREATED",
   PROVENANCE_INTEGRITY_MISMATCH: "ASSESSMENT_PROVENANCE_INTEGRITY_MISMATCH",
   PROVENANCE_NOT_FOUND: "ASSESSMENT_PROVENANCE_NOT_FOUND",
+  BUDGET_EXHAUSTED: "ASSESSMENT_BUDGET_EXHAUSTED",
+  NO_PROGRESS_LIMIT_REACHED: "ASSESSMENT_NO_PROGRESS_LIMIT_REACHED",
 } as const;
 export type AssessmentDomainErrorCode =
   (typeof ASSESSMENT_DOMAIN_ERROR_CODES)[keyof typeof ASSESSMENT_DOMAIN_ERROR_CODES];
@@ -196,6 +200,13 @@ export const ASSESSMENT_ROOT_COMMAND_TYPES = {
 } as const;
 export type AssessmentRootCommandType =
   (typeof ASSESSMENT_ROOT_COMMAND_TYPES)[keyof typeof ASSESSMENT_ROOT_COMMAND_TYPES];
+
+/** Deterministic, no-model repository discovery requested before customer audit selection. */
+export const ASSESSMENT_DISCOVERY_COMMAND_TYPES = {
+  DISCOVERY_REQUESTED: "command.assessment.discovery.requested.v1",
+} as const;
+export type AssessmentDiscoveryCommandType =
+  (typeof ASSESSMENT_DISCOVERY_COMMAND_TYPES)[keyof typeof ASSESSMENT_DISCOVERY_COMMAND_TYPES];
 
 /** Customer-safe activity label keys written by the domain boundary. */
 export const ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS = {
@@ -349,3 +360,11 @@ export const HUMAN_FACT_GUARD_FAILURES = {
 } as const;
 export type HumanFactGuardFailure =
   (typeof HUMAN_FACT_GUARD_FAILURES)[keyof typeof HUMAN_FACT_GUARD_FAILURES];
+
+/** Lifecycle of one immutable human fact proposal derived from a submitted answer. */
+export const HUMAN_FACT_PROPOSAL_STATUSES = {
+  pendingReview: "PENDING_REVIEW",
+  accepted: "ACCEPTED",
+} as const;
+export type HumanFactProposalStatus =
+  (typeof HUMAN_FACT_PROPOSAL_STATUSES)[keyof typeof HUMAN_FACT_PROPOSAL_STATUSES];

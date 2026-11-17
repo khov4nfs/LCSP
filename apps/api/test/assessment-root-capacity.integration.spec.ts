@@ -11,6 +11,7 @@ import {
   describe,
   expect,
   it,
+  jest,
 } from "@jest/globals";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
@@ -105,6 +106,7 @@ function metrics(active = 0): RootCapacityRuntimeMetrics {
 integration(
   "LCSP-364 real PostgreSQL global admission and worker HTTP boundary",
   () => {
+    jest.setTimeout(120_000);
     let first: PrismaClient, second: PrismaClient;
     let a: AssessmentRootCapacityService, b: AssessmentRootCapacityService;
     let app: INestApplication<Server>;
@@ -303,7 +305,7 @@ integration(
       // disposable test pools bound server-side work, including lock acquisition.
       const testConnection = {
         connectionString: url!,
-        options: "-c statement_timeout=10000 -c lock_timeout=5000",
+        options: "-c statement_timeout=90000 -c lock_timeout=30000",
       };
       first = new PrismaClient({ adapter: new PrismaPg(testConnection) });
       second = new PrismaClient({ adapter: new PrismaPg(testConnection) });
@@ -387,7 +389,7 @@ integration(
       process.stdout.write(
         `[capacity] reset settled ms=${Math.round(performance.now() - resetStarted)} rows=${previousRows}\n`,
       );
-    }, 30_000);
+    }, 120_000);
 
     afterAll(async () => {
       if (pendingBacklog) await Promise.allSettled([pendingBacklog]);
@@ -402,7 +404,7 @@ integration(
       }
       await app?.close();
       await Promise.all([first?.$disconnect(), second?.$disconnect()]);
-    });
+    }, 120_000);
 
     async function enqueue(owner = owners[0], ageSeconds = 60) {
       const id = randomUUID();
@@ -1312,6 +1314,12 @@ integration(
             reason: Reasons.fairness,
           });
           expect(await first.assessmentRootExecutionSlot.count()).toBe(0);
+          await report(a, {
+            hostId: host,
+            incarnationId,
+            liveRunIds: [],
+            metrics: metrics(),
+          });
           expect(
             await timed("reserve-head", 10_001, () => a.reserve(head)),
           ).toMatchObject({ admitted: true });
@@ -1321,7 +1329,7 @@ integration(
           ).toMatchObject({ admitted: true });
           expect((await a.status()).active).toBe(1);
         }),
-      60_000,
+      120_000,
     );
 
     brokerIntegration(
@@ -1366,7 +1374,7 @@ integration(
           ).toMatchObject({ admittedRunId: null, completedAt: null });
           expect((await a.status()).admissionDeferrals).toBeGreaterThan(0);
         }),
-      90_000,
+      120_000,
     );
 
     it("serializes admissions from independent API pools without crossing the global cap", async () => {

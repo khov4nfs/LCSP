@@ -1,6 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { httpBodyParser } from "./http-body-parser.js";
+import { ASSESSMENT_REPORT_V3_LIMITS } from "@lcsp/contracts/assessment-report";
 
 interface TestApiResponse {
   ok: boolean;
@@ -85,6 +86,33 @@ describe("httpBodyParser (route-specific JSON and raw body limits)", () => {
     expect(res.status).toBe(200);
     const body = res.body as TestApiResponse;
     expect(body.ok).toBe(true);
+  });
+
+  it("admits report bodies above 1 MB and enforces the report UTF-8 ingress boundary", async () => {
+    const route = "/internal/assessment-runtime/test/final-report";
+    app.post(route, (_req, res) => res.json({ ok: true }));
+    const limit = ASSESSMENT_REPORT_V3_LIMITS.INGRESS_JSON_BODY_LIMIT_BYTES;
+    const prefix = '{"summary":"';
+    const suffix = '"}';
+    const atLimit =
+      prefix + "x".repeat(limit - prefix.length - suffix.length) + suffix;
+    expect(
+      (
+        await request(app)
+          .post(route)
+          .set("Content-Type", "application/json")
+          .send(atLimit)
+      ).status,
+    ).toBe(200);
+    const overLimit = prefix + "ệ" + atLimit.slice(prefix.length);
+    expect(
+      (
+        await request(app)
+          .post(route)
+          .set("Content-Type", "application/json")
+          .send(overLimit)
+      ).status,
+    ).toBe(413);
   });
 
   it("rejects payload > 1 MiB on unconfigured internal endpoints with 413", async () => {

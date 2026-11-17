@@ -39,6 +39,12 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "cron.legal-source.check-updates.v1",
     ),
     AgentInvocationBoundary(
+        "assessment_discovery_requested",
+        "assessment_root.discovery_boundary:AssessmentDiscoveryBoundary",
+        "assessment.repository-discovery",
+        "command.assessment.discovery.requested.v1",
+    ),
+    AgentInvocationBoundary(
         "assessment_root_requested",
         "assessment_root.boundary:AssessmentRootBoundary",
         "assessment.root-run",
