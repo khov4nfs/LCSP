@@ -137,8 +137,11 @@ jobs:
         run: |
           ticket="$(printf '%s\n' "$PR_TITLE" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
           if [ -z "$ticket" ]; then
-            commit_message="$(git log -1 --format=%B "$PR_HEAD_SHA")"
-            ticket="$(printf '%s\n' "$commit_message" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
+            # PR checkout uses the merge ref; fetch the exact head SHA before reading its message.
+            if git fetch --no-tags origin "$PR_HEAD_SHA"; then
+              commit_message="$(git show -s --format=%B "$PR_HEAD_SHA")"
+              ticket="$(printf '%s\n' "$commit_message" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
+            fi
           fi
           # Dependabot cannot interpolate a Jira key into its generated title or commit subject.
           # Link its automatic lint commit to the shared dependency-maintenance issue.
