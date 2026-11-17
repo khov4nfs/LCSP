@@ -1,0 +1,1 @@
+KHI DÙNG: repositoryDiscovery có sẵn và cần điều tra source. ĐỌC: path/range ưu tiên, reachability, rule relevance và gap. TIẾP: đọc rồi cite đúng source pin; chỉ mở rộng khi support/phản chứng còn thiếu. LỖI: range thiếu hoặc xếp hạng thấp không chứng minh vắng mặt.

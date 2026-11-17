@@ -32,6 +32,7 @@ import {
 
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
+import { decisionDependencyGraphIsComplete } from "../../domain/decision-dependencies.js";
 import { validateLegalProvenance } from "../../domain/legal-provenance-validator.js";
 
 const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
@@ -92,6 +93,12 @@ export interface AssessmentFinalizationSnapshot {
   decisions: Array<{
     decisionId: string;
     decisionRevision: number;
+    dependencyValidation?: {
+      caseRevision: number;
+      dependencyGraphComplete: true;
+      evidenceDependencies: Array<{ evidenceId: string }>;
+      factDependencies: Array<{ factId: string }>;
+    };
     decision: RuleDecision;
   }>;
   evidence: Array<{
@@ -125,8 +132,8 @@ export class AssessmentCompletionGate {
   /**
    * Business purpose: Determine whether a Customer Assessment is eligible for finalization.
    * Business rules:
-   * - Every pinned rule requires a current accepted decision and valid provenance; human
-   *   requests, stopped executions, stale evidence and broken source pins block completion.
+   * - Every pinned rule requires a currently supported accepted decision and valid provenance; human requests, stopped executions, stale evidence and broken source pins block completion.
+   * - An older immutable decision survives an unrelated case revision only when its normalized dependency ledger exactly matches its packet and every referenced fact/evidence remains valid.
    * - Decision validation uses the immutable scope from the same owned snapshot and commit;
    *   missing or malformed source scope blocks completion instead of widening access.
    * Execution flow:
@@ -275,6 +282,7 @@ export class AssessmentCompletionGate {
         where: { id: pins.repositorySnapshotId },
         select: {
           id: true,
+          repositoryId: true,
           assessmentId: true,
           commitSha: true,
           sourcePathPrefix: true,
@@ -367,6 +375,9 @@ export class AssessmentCompletionGate {
           repositoryCommit: true,
           caseRevision: true,
           decision: true,
+          dependencyGraphComplete: true,
+          evidenceDependencies: { select: { evidenceId: true } },
+          factDependencies: { select: { factId: true } },
         },
       }),
       tx.assessmentEvidence.findMany({
@@ -513,7 +524,7 @@ export class AssessmentCompletionGate {
         record.assessmentRuleVersion !== rule.assessmentRuleVersion ||
         record.repositoryCommit.toLowerCase() !==
           pins.repositoryCommit.toLowerCase() ||
-        record.caseRevision !== assessmentCase.caseRevision
+        record.caseRevision > assessmentCase.caseRevision
       ) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
@@ -536,17 +547,35 @@ export class AssessmentCompletionGate {
         );
         continue;
       }
+      const historicalDependencyGraphComplete =
+        record.caseRevision < assessmentCase.caseRevision &&
+        decisionDependencyGraphIsComplete(parsed.data, record);
+      if (
+        record.caseRevision < assessmentCase.caseRevision &&
+        !historicalDependencyGraphComplete
+      ) {
+        add(
+          ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
+          rule.assessmentRuleId,
+        );
+        continue;
+      }
       if (!snapshot || !snapshotPinsValid) continue;
       const context = await this.support.buildValidationContext(tx, {
         assessmentId,
         pins: {
           ...pins,
+          assessmentId,
+          repositoryId: snapshot.repositoryId,
           sourcePathPrefix: snapshot.sourcePathPrefix,
           caseRevision: assessmentCase.caseRevision,
         },
         decision: parsed.data,
       });
-      const failures = validateRuleDecision(parsed.data, context);
+      const failures = validateRuleDecision(parsed.data, {
+        ...context,
+        allowHistoricalCaseRevision: historicalDependencyGraphComplete,
+      });
       for (const failure of failures) {
         const code =
           failure.code ===
@@ -602,6 +631,17 @@ export class AssessmentCompletionGate {
               decisionId: record.decisionId,
               decisionRevision: record.decisionRevision,
               decision: decision.data,
+              ...(record.caseRevision < assessmentCase.caseRevision &&
+              decisionDependencyGraphIsComplete(decision.data, record)
+                ? {
+                    dependencyValidation: {
+                      caseRevision: assessmentCase.caseRevision,
+                      dependencyGraphComplete: true as const,
+                      evidenceDependencies: record.evidenceDependencies,
+                      factDependencies: record.factDependencies,
+                    },
+                  }
+                : {}),
             },
           ]
         : [];

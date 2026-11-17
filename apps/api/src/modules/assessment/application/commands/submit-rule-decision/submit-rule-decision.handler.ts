@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
+  DECISION_RESOLUTION_STATES,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
   ruleDecisionSchema,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
@@ -18,6 +20,7 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { validateRuleDecision } from "../../../domain/decision-validator.js";
+import { decisionDependencyIds } from "../../../domain/decision-dependencies.js";
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
@@ -29,6 +32,7 @@ import {
   AssessmentCaseSupport,
   ROOT_AUDIT_ACTOR,
 } from "../../../infrastructure/persistence/assessment-case-support.service.js";
+import { humanRequestScopeWhere } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import {
   SubmitRuleDecisionCommand,
   type SubmitRuleDecisionResult,
@@ -54,14 +58,14 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
    *
    * Execution flow:
    * 1. Authorize and lock the case, then verify replay identity and current validation context.
-   * 2. Return an eligible replay, or compare revisions and atomically persist the next decision and coverage.
+   * 2. Return an eligible replay, or compare revisions and atomically persist the next decision, its exact support dependency ledger, and coverage.
    * 3. Append domain and audit records for a newly accepted effect.
    *
    * Failure cases:
    * - Invalid authority, conflicting idempotency, stale revisions or unsupported references reject without partial writes.
    *
    * Side effects:
-   * - New decisions supersede prior accepted records and update coverage/events/audit in one transaction; valid replays write nothing.
+   * - New decisions supersede prior accepted records and update immutable dependency edges, coverage, events, and audit in one transaction; valid replays write nothing.
    */
   async execute(
     input: SubmitRuleDecisionCommand,
@@ -120,6 +124,32 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         decision.assessmentRuleId,
         input.correlationId,
       );
+      if (
+        coverage.resolutionState ===
+        DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT
+      ) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      const openHumanDependency = await tx.assessmentHumanRequest.findFirst({
+        where: {
+          ...humanRequestScopeWhere(input.assessmentId, [
+            decision.assessmentRuleId,
+          ]),
+          status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+        },
+        select: { requestId: true },
+      });
+      if (openHumanDependency) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
       const auditMember = run.auditRequestId
         ? await tx.assessmentRuleAuditItem.findUnique({
             where: {
@@ -135,12 +165,22 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         auditMember?.reusedDecisionId != null &&
         auditMember.reusedDecisionId === coverage.currentDecisionId &&
         !replay
-      )
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
-          input.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
+      ) {
+        const reusedDecision = await tx.assessmentRuleDecision.findUnique({
+          where: { decisionId: auditMember.reusedDecisionId },
+          select: { state: true },
+        });
+        if (
+          coverage.resolutionState === DECISION_RESOLUTION_STATES.RESOLVED &&
+          reusedDecision?.state === ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+      }
       const context = await this.support.buildValidationContext(tx, {
         assessmentId: input.assessmentId,
         pins,
@@ -203,6 +243,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
       }
       const decisionId = randomUUID();
       const decisionRevision = latestRevision + 1;
+      const dependencies = decisionDependencyIds(decision);
       await tx.assessmentRuleDecision.create({
         data: {
           decisionId,
@@ -220,8 +261,27 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
           idempotencyKey: request.idempotencyKey,
           requestDigest,
           decision: decision,
+          dependencyGraphComplete: true,
         },
       });
+      if (dependencies.evidenceIds.length > 0) {
+        await tx.assessmentDecisionEvidenceDependency.createMany({
+          data: dependencies.evidenceIds.map((evidenceId) => ({
+            assessmentId: input.assessmentId,
+            decisionId,
+            evidenceId,
+          })),
+        });
+      }
+      if (dependencies.factIds.length > 0) {
+        await tx.assessmentDecisionFactDependency.createMany({
+          data: dependencies.factIds.map((factId) => ({
+            assessmentId: input.assessmentId,
+            decisionId,
+            factId,
+          })),
+        });
+      }
       await this.support.advanceCoverageToResolved(tx, {
         assessmentId: input.assessmentId,
         assessmentRuleId: decision.assessmentRuleId,

@@ -5,6 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@12.3.4",
   "scripts": {
+    "test:assessment-report": "tsx --test tests/assessment-report-v3-contract.test.ts tests/assessment-report-v3-reader.test.ts",
     "dev:fogewise": "node scripts/run.mjs fogewise",
     "dev:fogewise:reset": "node scripts/run.mjs fogewise_reset",
     "dev:stop": "node scripts/run.mjs dev_stop",

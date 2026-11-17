@@ -4,3 +4,4 @@ export * from "./repository-url.ts";
 export * from "./statuses.ts";
 export * from "./types.ts";
 export * from "./source-scope.ts";
+export * from "./github-app.ts";

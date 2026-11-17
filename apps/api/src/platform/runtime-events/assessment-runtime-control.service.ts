@@ -9,6 +9,7 @@ import {
   ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  ASSESSMENT_BUDGET_REASONS,
 } from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -20,6 +21,7 @@ import {
   isAssessmentRuntimeControlState,
   ASSESSMENT_RUNTIME_CONTROL_PROBLEM_CODES as Problems,
   ASSESSMENT_RUNTIME_CONTROL_STATES as States,
+  type AssessmentBudgetExtensionInput,
   type AssessmentRuntimeControlAction,
   type AssessmentRuntimeControlResult,
   type AssessmentRuntimeControlState,
@@ -28,6 +30,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
@@ -92,7 +95,26 @@ export class AssessmentRuntimeControlService {
     return result(row);
   }
 
-  /** CAS and outbox enqueue are atomic. Every retry stays bound to one run. */
+  /**
+   * Business purpose: Request a cooperative stop or resume of an Assessment Root execution turn on its server-owned thread.
+   *
+   * Business rules:
+   * - Stop is accepted only when the current execution turn is running, and will pause at the next native checkpoint boundary.
+   * - Resume is accepted only when the current execution is stopped and paused with valid snapshot and pins.
+   * - If paused due to budget exhaustion, resume requires an explicit budget extension; repeated extensions must have strictly increasing version numbers and append historical extensions to an immutable lineage array.
+   *
+   * Execution flow:
+   * 1. Authorize the caller and load the canonical target runtime and current execution turn under transaction.
+   * 2. Verify turn state, boundary invariants, and pause/resume authority guards.
+   * 3. For resume, validate budget constraints, clear blocker references, and enqueue the ROOT_REQUESTED outbox command.
+   * 4. Transition the turn state to stopRequested or resumeRequested atomically and return the control outcome.
+   *
+   * Failure cases:
+   * - Stale target runs, invalid states, mismatched pins, open human blockers, stale extension versions, or unextended budget exhaustion reject with 409 Conflict.
+   *
+   * Side effects:
+   * - Updates turn state, clears blocker references on resume, and enqueues transactional outbox messages.
+   */
   async request(input: {
     assessmentId: string;
     actor: RbacRequestContext;
@@ -100,6 +122,7 @@ export class AssessmentRuntimeControlService {
     action: AssessmentRuntimeControlAction;
     targetRunId?: string;
     responseLanguage?: string | null;
+    budgetExtension?: AssessmentBudgetExtensionInput;
   }): Promise<AssessmentRuntimeControlResult> {
     const outcome = await this.prisma.$transaction(async (tx) => {
       const { runtime, row } = await this.loadCanonicalTarget(
@@ -198,6 +221,149 @@ export class AssessmentRuntimeControlService {
             input.correlationId,
             { status: HttpStatus.CONFLICT },
           );
+        }
+
+        const blockerRef = (assessment.blockerReference ?? null) as Record<
+          string,
+          unknown
+        > | null;
+
+        // Verify authority: only administrators can provide budget extensions or overrides
+        if (input.budgetExtension) {
+          if (input.actor.role !== AUTH_USER_ROLES.admin) {
+            throw problemException(
+              SHARED_ERROR_CODES.forbidden,
+              input.correlationId,
+              { status: HttpStatus.FORBIDDEN },
+            );
+          }
+        }
+
+        const isBudgetExhausted =
+          blockerRef &&
+          (blockerRef.reason ===
+            ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED ||
+            blockerRef.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
+            blockerRef.reason ===
+              ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
+            blockerRef.reason ===
+              ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED);
+
+        const isNoProgressStall =
+          blockerRef &&
+          blockerRef.reason ===
+            ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
+
+        const existingExtension =
+          blockerRef?.budgetExtension &&
+          typeof blockerRef.budgetExtension === "object"
+            ? (blockerRef.budgetExtension as Record<string, unknown>)
+            : null;
+
+        const existingHistory = Array.isArray(
+          blockerRef?.budgetExtensionHistory,
+        )
+          ? (blockerRef.budgetExtensionHistory as Array<
+              Record<string, unknown>
+            >)
+          : existingExtension
+            ? [existingExtension]
+            : [];
+
+        let activeExtension: Record<string, unknown> | null = null;
+        let updatedHistory = existingHistory;
+
+        if (input.budgetExtension) {
+          if (existingExtension && existingExtension.version !== undefined) {
+            const existingVersion = Number(existingExtension.version);
+            if (input.budgetExtension.version <= existingVersion) {
+              throw problemException(
+                ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+                input.correlationId,
+                { status: HttpStatus.CONFLICT },
+              );
+            }
+          }
+          activeExtension = {
+            version: input.budgetExtension.version,
+            authorizedBy: input.actor.userId,
+            authorizedAt: new Date().toISOString(),
+            previousVersion: existingExtension
+              ? (existingExtension.version ?? null)
+              : null,
+            ...(input.budgetExtension.auditReason
+              ? { auditReason: input.budgetExtension.auditReason }
+              : {}),
+            additionalModelCalls:
+              input.budgetExtension.additionalModelCalls ?? null,
+            additionalInputTokens:
+              input.budgetExtension.additionalInputTokens ?? null,
+            additionalOutputTokens:
+              input.budgetExtension.additionalOutputTokens ?? null,
+            additionalTotalTokens:
+              input.budgetExtension.additionalTotalTokens ?? null,
+            overrideNoProgress:
+              input.budgetExtension.overrideNoProgress ?? false,
+          };
+          if (
+            existingExtension &&
+            !existingHistory.some(
+              (h) => h.version === existingExtension.version,
+            )
+          ) {
+            updatedHistory = [...existingHistory, existingExtension];
+          }
+        } else if (existingExtension) {
+          activeExtension = existingExtension;
+        }
+
+        const activeOverride =
+          input.budgetExtension?.overrideNoProgress === true ||
+          blockerRef?.overrideNoProgress === true ||
+          activeExtension?.overrideNoProgress === true;
+
+        if (
+          isBudgetExhausted &&
+          !activeExtension &&
+          !blockerRef?.budgetExtended
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        if (isNoProgressStall && !activeOverride) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        if (blockerRef || activeExtension || activeOverride) {
+          const updatedBlocker: Prisma.InputJsonValue = {
+            reason: null,
+            resumedAt: new Date().toISOString(),
+            ...(activeExtension
+              ? { budgetExtension: activeExtension as Prisma.InputJsonObject }
+              : {}),
+            ...(updatedHistory.length > 0
+              ? {
+                  budgetExtensionHistory:
+                    updatedHistory as unknown as Prisma.InputJsonValue,
+                }
+              : {}),
+            ...(activeOverride ? { overrideNoProgress: true } : {}),
+            ...(blockerRef?.budgetExtended ? { budgetExtended: true } : {}),
+          };
+          await tx.assessment.update({
+            where: { id: input.assessmentId },
+            data: {
+              blockerReference: updatedBlocker,
+            },
+          });
         }
       }
       const requestId = randomUUID();

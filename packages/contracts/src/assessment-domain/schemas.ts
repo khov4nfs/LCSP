@@ -38,6 +38,8 @@ import {
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
   ASSESSMENT_RECORD_STATES,
+  HUMAN_FACT_GUARD_FAILURES,
+  HUMAN_FACT_PROPOSAL_STATUSES,
   SEARCH_COVERAGE_SCOPE_KINDS,
   TRACKING_ACTION_REASONS,
   TRACKING_ANOMALY_TYPES,
@@ -49,6 +51,12 @@ import {
   TRACKING_UNTRUSTED_REASONS,
 } from "./constants.ts";
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
+import { assessmentBudgetStateSchema } from "./budget.ts";
+import {
+  factNeedInputSchema,
+  factNeedViewSchema,
+  normalizedFactNeedAnswerSchema,
+} from "./fact-needs.ts";
 import {
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_NAME_MAX_LENGTH,
@@ -256,6 +264,7 @@ export const openAssessmentHumanRequestSchema =
       .max(100)
       .optional(),
     sourceRequestId: uuidSchema.optional(),
+    factNeed: factNeedInputSchema.optional(),
   });
 export type OpenAssessmentHumanRequest = z.infer<
   typeof openAssessmentHumanRequestSchema
@@ -264,9 +273,24 @@ export const openAssessmentHumanRequestResultSchema = z.strictObject({
   requestId: uuidSchema,
   caseRevision: revisionSchema,
   requestRevision: revisionSchema,
+  factNeedId: uuidSchema.nullable().optional(),
 });
 export type OpenAssessmentHumanRequestResult = z.infer<
   typeof openAssessmentHumanRequestResultSchema
+>;
+
+export const openAssessmentHumanRequestsBatchSchema = z.strictObject({
+  requests: z.array(openAssessmentHumanRequestSchema).min(1).max(20),
+});
+export type OpenAssessmentHumanRequestsBatch = z.infer<
+  typeof openAssessmentHumanRequestsBatchSchema
+>;
+
+export const openAssessmentHumanRequestsBatchResultSchema = z.strictObject({
+  requests: z.array(openAssessmentHumanRequestResultSchema),
+});
+export type OpenAssessmentHumanRequestsBatchResult = z.infer<
+  typeof openAssessmentHumanRequestsBatchResultSchema
 >;
 
 /** Root-authored dependency claim. Shape/provenance validation does not judge obtainability. */
@@ -309,17 +333,52 @@ export type AnswerAssessmentHumanRequest = z.infer<
   typeof answerAssessmentHumanRequestSchema
 >;
 
-export const humanAnswerAuditSchema = z.strictObject({
-  idempotencyKey: z.string().min(8).max(128),
-  requestDigest: z.string().regex(/^[a-f0-9]{64}$/),
-  actorId: z.string().min(1),
-  answeredAt: z.iso.datetime(),
-  caseRevision: revisionSchema,
-  requestRevision: revisionSchema,
-  doesNotKnow: z.boolean(),
-  answer: privateTextSchema.nullable(),
-  checkpointId: uuidSchema.optional(),
-});
+export const humanAnswerAuditSchema = z
+  .strictObject({
+    idempotencyKey: z.string().min(8).max(128),
+    requestDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    actorId: z.string().min(1),
+    answeredAt: z.iso.datetime(),
+    caseRevision: revisionSchema,
+    requestRevision: revisionSchema,
+    doesNotKnow: z.boolean(),
+    answer: privateTextSchema.nullable(),
+    normalizedAnswer: normalizedFactNeedAnswerSchema.nullable().optional(),
+    selectedChoice: z
+      .strictObject({
+        value: identifierSchema,
+        label: privateTextSchema,
+      })
+      .nullable()
+      .optional(),
+    checkpointId: uuidSchema.optional(),
+    proposalId: uuidSchema.optional(),
+    proposalStatus: z.enum(HUMAN_FACT_PROPOSAL_STATUSES).optional(),
+    guardFailure: z.enum(HUMAN_FACT_GUARD_FAILURES).nullable().optional(),
+  })
+  .superRefine((audit, context) => {
+    const hasProposalMetadata =
+      audit.proposalId !== undefined ||
+      audit.proposalStatus !== undefined ||
+      audit.guardFailure !== undefined;
+    const pending =
+      audit.proposalStatus === HUMAN_FACT_PROPOSAL_STATUSES.pendingReview;
+    const accepted =
+      audit.proposalStatus === HUMAN_FACT_PROPOSAL_STATUSES.accepted;
+    if (
+      hasProposalMetadata &&
+      (!audit.proposalId ||
+        !audit.proposalStatus ||
+        audit.doesNotKnow ||
+        (pending && !audit.guardFailure) ||
+        (accepted && audit.guardFailure != null))
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Human fact proposal metadata has an invalid lifecycle shape",
+      });
+    }
+  });
 export type HumanAnswerAudit = z.infer<typeof humanAnswerAuditSchema>;
 
 export const assessmentHumanRequestViewSchema = z.strictObject({
@@ -333,6 +392,7 @@ export const assessmentHumanRequestViewSchema = z.strictObject({
   resolvedFactId: uuidSchema.nullable(),
   answers: z.array(humanAnswerAuditSchema),
   dependencies: z.array(assessmentHumanRequestDependencySchema).default([]),
+  factNeed: factNeedViewSchema.nullable().optional(),
 });
 export type AssessmentHumanRequestView = z.infer<
   typeof assessmentHumanRequestViewSchema
@@ -355,6 +415,9 @@ export const answerAssessmentHumanRequestResultSchema = z.strictObject({
   factId: uuidSchema.nullable(),
   resumed: z.boolean(),
   replayed: z.boolean(),
+  proposalId: uuidSchema.optional(),
+  proposalStatus: z.enum(HUMAN_FACT_PROPOSAL_STATUSES).optional(),
+  guardFailure: z.enum(HUMAN_FACT_GUARD_FAILURES).nullable().optional(),
 });
 export type AnswerAssessmentHumanRequestResult = z.infer<
   typeof answerAssessmentHumanRequestResultSchema
@@ -388,6 +451,7 @@ export const finishAssessmentRootRequestSchema = z
     controlRequestId: uuidSchema.optional(),
     requestIds: z.array(uuidSchema).min(1).max(100).optional(),
     recoveryRequired: z.boolean().optional(),
+    reason: z.string().max(100).optional(),
   })
   .superRefine((value, ctx) => {
     if (
@@ -409,14 +473,21 @@ export const finishAssessmentRootRequestSchema = z
           "A human interrupt requires its native checkpoint and blockers",
       });
     }
+    if (value.state === AGENT_EXECUTION_STATES.PAUSED && !value.checkpointId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Safe pause requires its native checkpoint",
+      });
+    }
     if (
       value.state === AGENT_EXECUTION_STATES.PAUSED &&
-      (!value.checkpointId || !value.controlRequestId)
+      !value.controlRequestId &&
+      !value.reason
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Safe pause requires its native checkpoint and authorized Stop request",
+          "Safe pause requires either an authorized Stop request or a pause reason",
       });
     }
   });
@@ -450,6 +521,7 @@ export const assessmentRootContextSchema = z.strictObject({
   caseRevision: revisionSchema,
   ruleSetVersionId: uuidSchema,
   repositorySnapshotId: z.string().min(1),
+  repositoryId: z.string().min(1).max(200),
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
   sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),
@@ -469,6 +541,7 @@ export const assessmentRootContextSchema = z.strictObject({
   openHumanRequestIds: z.array(uuidSchema),
   humanRequests: z.array(assessmentHumanRequestViewSchema).default([]),
   responseLanguage: z.enum(LOCALES).default(DEFAULT_RESPONSE_LANGUAGE),
+  budgetState: assessmentBudgetStateSchema.optional(),
 });
 export type AssessmentRootContext = z.infer<typeof assessmentRootContextSchema>;
 

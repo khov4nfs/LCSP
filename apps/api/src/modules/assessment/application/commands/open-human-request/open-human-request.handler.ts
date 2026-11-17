@@ -41,6 +41,7 @@ import {
   ROOT_AUDIT_ACTOR,
   invalid,
 } from "../../../infrastructure/persistence/assessment-case-support.service.js";
+import { resolveAssessmentFactNeedInTx } from "../../../infrastructure/persistence/assessment-fact-need.js";
 import {
   canonicalHumanRequestDependencies,
   hasSameHumanFactScope,
@@ -63,15 +64,17 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
    * Business purpose: Ask one factual question once for the rules authorized by the active Root audit.
    * Business rules:
    * - Every declared dependency must belong to the selected request, even on replay; legacy full audits retain their full pinned scope.
-   * - Source reuse requires the same assessment, thread and factual scope; open sources also retain the opening revision.
+   * - Typed FactNeeds deduplicate independently of wording/locale while preserving tenant, assessment, entity, deployment, scope, timeframe and value schema.
+   * - Investigated discovery ranges must bind to integrity-valid immutable discovery records at the current snapshot, commit and source scope.
+   * - Legacy source reuse requires the same assessment, thread and factual scope; typed resolved needs may reuse accepted facts across audit threads.
    * - Resolved reuse requires accepted human fact and evidence authority; historical dependencies outside this audit are preserved without mutation.
    * - Registration receipts reject conflicting idempotency payloads without duplicating customer questions.
    * Execution flow:
    * 1. Authorize the lease and every dependency, then validate replay identity, current pins and rule criteria.
-   * 2. Create or explicitly reuse the canonical question and attach only this audit's declared dependencies.
+   * 2. Validate FactNeed evidence/discovery provenance, then create or reuse the canonical need/question and attach only this audit's declared dependencies.
    * 3. Reopen affected coverage, persist registration and audit, and enter human waiting for an open question.
    * Failure cases:
-   * - Nonmembers, stale revisions, invalid criteria, foreign factual scopes and invalidated evidence reject atomically.
+   * - Nonmembers, stale revisions, invalid criteria, foreign factual scopes, invented discovery ranges and invalidated evidence reject atomically.
    * Side effects:
    * - Persists the request, dependencies and audit history; updates only authorized coverage and creates no compliance verdict or fact.
    */
@@ -121,10 +124,19 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
             input.correlationId,
             { status: HttpStatus.CONFLICT },
           );
+        const registered = request.factNeed
+          ? await tx.assessmentHumanRequest.findUnique({
+              where: { requestId: receipt.requestId },
+              select: { factNeedId: true },
+            })
+          : null;
         return {
           requestId: receipt.requestId,
           caseRevision: receipt.caseRevision,
           requestRevision: receipt.requestRevision,
+          ...(registered?.factNeedId
+            ? { factNeedId: registered.factNeedId }
+            : {}),
         };
       }
       const replay = await tx.assessmentHumanRequest.findUnique({
@@ -147,6 +159,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           requestId: replay.requestId,
           caseRevision: replay.caseRevision,
           requestRevision: replay.requestRevision,
+          ...(replay.factNeedId ? { factNeedId: replay.factNeedId } : {}),
         };
       }
       const blocker = assessmentBlockerSchema.safeParse({
@@ -239,24 +252,60 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           input.correlationId,
         );
 
-      const source = request.sourceRequestId
+      const assessmentOwner = request.factNeed
+        ? await tx.assessment.findUniqueOrThrow({
+            where: { id: input.assessmentId },
+            select: { ownerId: true },
+          })
+        : null;
+      const factNeed =
+        request.factNeed && assessmentOwner
+          ? await resolveAssessmentFactNeedInTx(tx, {
+              assessmentId: input.assessmentId,
+              tenantOwnerId: assessmentOwner.ownerId,
+              repositorySnapshotId: pins.repositorySnapshotId,
+              repositoryCommit: pins.repositoryCommit,
+              sourcePathPrefix: pins.sourcePathPrefix,
+              factNeed: request.factNeed,
+              controlType: request.controlType,
+              choices: request.choices,
+              correlationId: input.correlationId,
+            })
+          : null;
+      if (
+        request.sourceRequestId &&
+        factNeed?.linkedRequestId &&
+        request.sourceRequestId !== factNeed.linkedRequestId
+      )
+        throw invalid(
+          ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+          input.correlationId,
+        );
+      const sourceRequestId =
+        factNeed?.linkedRequestId ?? request.sourceRequestId;
+      const source = sourceRequestId
         ? await tx.assessmentHumanRequest.findFirst({
             where: {
               assessmentId: input.assessmentId,
-              requestId: request.sourceRequestId,
+              requestId: sourceRequestId,
             },
             include: { dependencies: true },
           })
         : null;
+      const typedScopeMatches = Boolean(
+        factNeed && source?.factNeedId === factNeed.factNeedId,
+      );
       if (
-        request.sourceRequestId &&
+        sourceRequestId &&
         (!source ||
-          source.threadId !== run.threadId ||
+          (source.threadId !== run.threadId &&
+            (source.status !== HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED ||
+              !typedScopeMatches)) ||
           ![
             HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
             HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED,
           ].some((status) => status === source.status) ||
-          !hasSameHumanFactScope(source, request) ||
+          (!typedScopeMatches && !hasSameHumanFactScope(source, request)) ||
           (source.status === HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN &&
             source.caseRevision !== pins.caseRevision))
       )
@@ -372,9 +421,15 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
             resolutionAttempts: request.resolutionAttempts,
             controlType: request.controlType,
             choices: request.choices,
+            factNeedId: factNeed?.factNeedId ?? null,
             idempotencyKey: request.idempotencyKey,
             requestDigest,
           },
+        });
+      if (source && factNeed && source.factNeedId === null)
+        await tx.assessmentHumanRequest.update({
+          where: { requestId: source.requestId },
+          data: { factNeedId: factNeed.factNeedId },
         });
       for (const dependency of dependencies) {
         const previous = previousDependencies.find(
@@ -406,13 +461,16 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
         requestId,
         caseRevision: pins.caseRevision,
         requestRevision: source?.requestRevision ?? 0,
+        ...(factNeed ? { factNeedId: factNeed.factNeedId } : {}),
       };
       await tx.assessmentHumanRequestRegistration.create({
         data: {
           assessmentId: input.assessmentId,
           idempotencyKey: request.idempotencyKey,
           requestDigest,
-          ...result,
+          requestId,
+          caseRevision: pins.caseRevision,
+          requestRevision: source?.requestRevision ?? 0,
         },
       });
       if (!source)
@@ -458,7 +516,8 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
             requestId,
             assessmentRuleId: request.assessmentRuleId,
             dependencies,
-            sourceRequestId: request.sourceRequestId ?? null,
+            sourceRequestId: sourceRequestId ?? null,
+            factNeedId: factNeed?.factNeedId ?? null,
           },
         },
         tx,

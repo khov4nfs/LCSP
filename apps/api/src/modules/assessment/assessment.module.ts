@@ -55,6 +55,7 @@ import { DeleteAssessmentHandler } from "./application/commands/delete-assessmen
 import { FinishAssessmentRootHandler } from "./application/commands/finish-assessment-root/finish-assessment-root.handler.js";
 import { HeartbeatAssessmentRootHandler } from "./application/commands/heartbeat-assessment-root/heartbeat-assessment-root.handler.js";
 import { OpenHumanRequestHandler } from "./application/commands/open-human-request/open-human-request.handler.js";
+import { OpenHumanRequestsBatchHandler } from "./application/commands/open-human-request/open-human-requests-batch.handler.js";
 import { RecordRootActivityHandler } from "./application/commands/record-root-activity/record-root-activity.handler.js";
 import { RenameAssessmentHandler } from "./application/commands/rename-assessment/rename-assessment.handler.js";
 import { ReportUnresolvableHumanFactHandler } from "./application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.handler.js";
@@ -76,6 +77,16 @@ import { ListAssessmentsHandler } from "./application/queries/list-assessments/l
 import { AssessmentCompletionGate } from "./application/services/assessment-completion-gate.service.js";
 import { AssessmentEventAppender } from "./application/services/assessment-event-appender.service.js";
 import { AssessmentEvidenceInvalidation } from "./application/services/assessment-evidence-invalidation.service.js";
+import { AssessmentRepositoryProfileService } from "./application/services/assessment-repository-profile.service.js";
+import { AssessmentRepositoryDiscoveryService } from "./application/services/assessment-repository-discovery.service.js";
+import { AssessmentRepositoryDiscoveryController } from "./presentation/http/assessment-repository-discovery.controller.js";
+import {
+  AssessmentDiscoveryRunController,
+  AssessmentDiscoveryRunWorkerController,
+} from "./presentation/http/assessment-discovery-run.controller.js";
+import { AssessmentDiscoveryRunService } from "./application/services/assessment-discovery-run.service.js";
+import { AssessmentDiscoveryInterviewService } from "./application/services/assessment-discovery-interview.service.js";
+import { AssessmentDiscoveryInterviewController } from "./presentation/http/assessment-discovery-interview.controller.js";
 import { AssessmentLifecycleCoordinator } from "./application/services/assessment-lifecycle-coordinator.service.js";
 import { AssessmentRuntimeAuthority } from "./application/services/assessment-runtime-authority.service.js";
 import { AssessmentRuntimePreparation } from "./application/services/assessment-runtime-preparation.service.js";
@@ -84,6 +95,7 @@ import { AssessmentCaseSupport } from "./infrastructure/persistence/assessment-c
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
 import { AssessmentDomainController } from "./presentation/http/assessment-domain.controller.js";
 import { AssessmentRuntimeControlController } from "./presentation/http/assessment-runtime-control.controller.js";
+import { AdminAssessmentBudgetController } from "./presentation/http/admin-assessment-budget.controller.js";
 import { AssessmentController } from "./presentation/http/assessment.controller.js";
 import { AssessmentRuleAuditController } from "./presentation/http/assessment-rule-audit.controller.js";
 import { AssessmentRuleAuditService } from "./application/services/assessment-rule-audit.service.js";
@@ -108,8 +120,13 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AdminAssessmentRootCapacityController,
     InternalAgentStreamController,
     AssessmentRuntimeControlController,
+    AdminAssessmentBudgetController,
     AssessmentController,
     AssessmentRuleAuditController,
+    AssessmentRepositoryDiscoveryController,
+    AssessmentDiscoveryRunController,
+    AssessmentDiscoveryInterviewController,
+    AssessmentDiscoveryRunWorkerController,
     WorkspaceRuntimeEventsController,
     AssessmentDomainController,
     AssessmentHumanResolutionController,
@@ -135,6 +152,10 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentRuleAuditService,
     AssessmentCaseSupport,
     AssessmentEvidenceInvalidation,
+    AssessmentRepositoryProfileService,
+    AssessmentRepositoryDiscoveryService,
+    AssessmentDiscoveryRunService,
+    AssessmentDiscoveryInterviewService,
     AssessmentCompletionGate,
     LocalePresentationProjectionService,
     AssessmentHumanRequestSupport,
@@ -148,6 +169,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     SubmitAssessmentFinalReportHandler,
     HeartbeatAssessmentRootHandler,
     OpenHumanRequestHandler,
+    OpenHumanRequestsBatchHandler,
     ReportUnresolvableHumanFactHandler,
     RecordRootActivityHandler,
     StartRuleInvestigationHandler,
@@ -188,6 +210,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
       useExisting: PrismaAssessmentRepository,
     },
     PrismaAssessmentBillingRetention,
+    AssessmentRepositoryProfileService,
     {
       provide: ASSESSMENT_BILLING_RETENTION,
       useExisting: PrismaAssessmentBillingRetention,

@@ -1,9 +1,13 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
 import { Prisma } from "@prisma/client";
 import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_REFERENCE_TYPES,
   ruleDecisionSchema,
+  RULE_DECISION_BASIS_KINDS,
+  RULE_DECISION_BASIS_FINDINGS,
+  APPLICABILITY_CONDITION_LOGIC,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_SCOPE,
@@ -11,16 +15,122 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_RECORD_STATES,
   ASSESSMENT_EVIDENCE_TYPES,
+  DECISION_VALIDATION_FAILURE_CODES,
 } from "@lcsp/contracts/assessment-domain";
 
 import { AssessmentCaseSupport } from "./assessment-case-support.service.js";
+import { validateRuleDecision } from "../../domain/decision-validator.js";
 
 describe("AssessmentCaseSupport decision provenance", () => {
+  it.each([
+    APPLICABILITY_CONDITION_LOGIC.ALL,
+    APPLICABILITY_CONDITION_LOGIC.ANY,
+    undefined,
+  ])(
+    "uses persisted connector %s for actual decision validation",
+    async (conditionLogic) => {
+      const assessmentId = randomUUID();
+      const evidenceId = randomUUID();
+      const pins = {
+        assessmentId,
+        repositoryId: "repo",
+        ruleSetVersionId: randomUUID(),
+        repositorySnapshotId: randomUUID(),
+        repositoryScanJobId: randomUUID(),
+        repositoryCommit: "a".repeat(40),
+        sourcePathPrefix: null,
+        caseRevision: 1,
+      };
+      const reference = {
+        type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+        evidenceId,
+      };
+      const decision = ruleDecisionSchema.parse({
+        ruleSetVersionId: pins.ruleSetVersionId,
+        repositorySnapshotId: pins.repositorySnapshotId,
+        repositoryCommit: pins.repositoryCommit,
+        caseRevision: 1,
+        assessmentRuleId: "ER-1",
+        assessmentRuleVersion: "v1",
+        scopeId: ASSESSMENT_DECISION_SCOPE,
+        legalContextRefs: [{ legalContextId: "LR-1" }],
+        applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
+        compliance: null,
+        criteria: [],
+        rationale: "Fixture condition refuted",
+        references: [reference],
+        applicabilityBasis: [
+          {
+            legalRequirementId: "LR-1",
+            kind: RULE_DECISION_BASIS_KINDS.APPLICABILITY_CONDITION,
+            index: 0,
+            finding: RULE_DECISION_BASIS_FINDINGS.REFUTED,
+            rationale: "Fixture refutation",
+            references: [reference],
+          },
+        ],
+      });
+      const tx = {
+        assessmentRule: {
+          findUnique: () =>
+            Promise.resolve({
+              assessmentRuleId: "ER-1",
+              assessmentRuleVersion: "v1",
+              criteria: [],
+              legalRequirementLinks: [
+                {
+                  legalRequirement: {
+                    id: "lr-row",
+                    legalRequirementId: "LR-1",
+                    applicabilityConditions: ["A", "B"],
+                    qualifiers: [],
+                    exceptions: [],
+                    operativePropositions: [],
+                    applicabilityLogic: conditionLogic
+                      ? { version: 1, conditionLogic }
+                      : null,
+                  },
+                },
+              ],
+            }),
+        },
+        legalRequirementContextRelation: {
+          findMany: () => Promise.resolve([]),
+        },
+        assessmentCaseFact: { findMany: () => Promise.resolve([]) },
+        assessmentEvidence: {
+          findMany: () =>
+            Promise.resolve([
+              {
+                evidenceId,
+                state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+                repositoryCommit: pins.repositoryCommit,
+                type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+                payload: {},
+              },
+            ]),
+        },
+      } as unknown as Prisma.TransactionClient;
+      const context = await new AssessmentCaseSupport().buildValidationContext(
+        tx,
+        { assessmentId, pins, decision },
+      );
+      const failures = validateRuleDecision(decision, context);
+      if (conditionLogic === APPLICABILITY_CONDITION_LOGIC.ALL)
+        expect(failures).toEqual([]);
+      else
+        expect(failures.map((failure) => failure.code)).toContain(
+          DECISION_VALIDATION_FAILURE_CODES.APPLICABILITY_BASIS_REQUIRED,
+        );
+    },
+  );
   it("loads a cited fact's linked evidence under the same assessment scope", async () => {
     const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const factId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const evidenceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
     const pins = {
+      assessmentId,
+      repositoryId: "repository-123",
       caseRevision: 1,
       ruleSetVersionId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       repositorySnapshotId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
@@ -141,6 +251,7 @@ describe("AssessmentCaseSupport immutable source pins", () => {
   };
   const snapshot = {
     id: row.repositorySnapshotId,
+    repositoryId: "repository-123",
     assessmentId,
     commitSha: row.repositoryCommit,
     sourcePathPrefix: "chatbot",
@@ -150,6 +261,7 @@ describe("AssessmentCaseSupport immutable source pins", () => {
     null,
     { ...snapshot, id: "foreign-snapshot" },
     { ...snapshot, assessmentId: "foreign-assessment" },
+    { ...snapshot, repositoryId: "" },
     { ...snapshot, commitSha: "b".repeat(40) },
     { ...snapshot, sourcePathPrefix: "chatbot/../other" },
     { ...snapshot, sourcePathPrefix: undefined },
@@ -202,9 +314,74 @@ describe("AssessmentCaseSupport immutable source pins", () => {
       );
       expect(result).toMatchObject({
         repositorySnapshotId: row.repositorySnapshotId,
+        repositoryId: snapshot.repositoryId,
         repositoryCommit: row.repositoryCommit,
         sourcePathPrefix,
       });
     },
   );
+
+  describe("advanceCoverageToResolved", () => {
+    it("rejects transition from WAITING_FOR_INPUT with DECISION_REVISION_STALE", async () => {
+      const update = jest.fn();
+      const tx = {
+        assessmentDecisionCoverage: { update },
+      } as unknown as Prisma.TransactionClient;
+
+      await expect(
+        new AssessmentCaseSupport().advanceCoverageToResolved(tx, {
+          assessmentId,
+          assessmentRuleId: "ER-1",
+          from: "WAITING_FOR_INPUT",
+          decisionId: randomUUID(),
+          decisionRevision: 1,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("steps through INVESTIGATING and advances to RESOLVED when from INVALIDATED", async () => {
+      const update = jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({});
+      const tx = {
+        assessmentDecisionCoverage: { update },
+      } as unknown as Prisma.TransactionClient;
+      const decisionId = randomUUID();
+
+      await new AssessmentCaseSupport().advanceCoverageToResolved(tx, {
+        assessmentId,
+        assessmentRuleId: "ER-1",
+        from: "INVALIDATED",
+        decisionId,
+        decisionRevision: 2,
+      });
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenNthCalledWith(1, {
+        where: {
+          assessmentId_assessmentRuleId: {
+            assessmentId,
+            assessmentRuleId: "ER-1",
+          },
+        },
+        data: { resolutionState: "INVESTIGATING" },
+      });
+      expect(update).toHaveBeenNthCalledWith(2, {
+        where: {
+          assessmentId_assessmentRuleId: {
+            assessmentId,
+            assessmentRuleId: "ER-1",
+          },
+        },
+        data: {
+          resolutionState: "RESOLVED",
+          currentDecisionId: decisionId,
+          decisionRevision: 2,
+        },
+      });
+    });
+  });
 });

@@ -16,13 +16,34 @@ const output = path.resolve(
   "../docs/implementation-artifacts/lcsp347-pm-rereview/instruction-equivalence.pending.json",
 );
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const inventory = JSON.parse(
-  readFileSync(path.join(root, "instructions/inventory.json"), "utf8"),
-);
+const inventoryPath = existsSync(
+  path.join(root, "instructions/revisions/r3/inventory.review.json"),
+)
+  ? path.join(root, "instructions/revisions/r3/inventory.review.json")
+  : path.join(root, "instructions/inventory.json");
+const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
 const manifestBytes = readFileSync(
   path.join(root, "instructions/candidates/r3/manifest.pending.json"),
 );
 const manifest = JSON.parse(manifestBytes);
+const devInventoryPath = path.join(root, "instructions/inventory.json");
+if (existsSync(devInventoryPath)) {
+  const devInventory = JSON.parse(readFileSync(devInventoryPath, "utf8"));
+  if (
+    Array.isArray(devInventory.entries) &&
+    (devInventory.entries.length !== manifest.entries.length ||
+      new Set(manifest.entries.map((entry) => entry.sourceId)).size !==
+        devInventory.entries.length)
+  ) {
+    throw Error("Incomplete or duplicate manifest source inventory");
+  }
+}
+const archivedVietnameseSources = new Map([
+  [
+    "tools.schema-guidance",
+    "instructions/revisions/r4/before/tool-schema-guidance.json",
+  ],
+]);
 if (manifest.bundleId !== inventory.bundleId)
   throw Error("Inventory and candidate bundle identity disagree");
 if (
@@ -45,8 +66,8 @@ const entries = inventory.entries.map((entry) => {
     (row) => row.sourceId === entry.sourceId,
   );
   if (!pinned) throw Error(`Missing candidate ${entry.sourceId}`);
-  const read = (relative, expected) => {
-    const target = realpathSync(path.resolve(root, relative));
+  const read = (relative, expected, archivedRelative = relative) => {
+    const target = realpathSync(path.resolve(root, archivedRelative));
     if (!target.startsWith(realpathSync(root) + path.sep))
       throw Error("Unsafe source path");
     const bytes = readFileSync(target);
@@ -55,7 +76,11 @@ const entries = inventory.entries.map((entry) => {
     const value = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     return value;
   };
-  const vi = read(pinned.vietnameseSourcePath, pinned.vietnameseSourceSha256),
+  const vi = read(
+      pinned.vietnameseSourcePath,
+      pinned.vietnameseSourceSha256,
+      archivedVietnameseSources.get(entry.sourceId),
+    ),
     en = read(pinned.englishRuntimePath, pinned.englishRuntimeSha256);
   if (
     entry.vietnameseSourcePath !== pinned.vietnameseSourcePath ||

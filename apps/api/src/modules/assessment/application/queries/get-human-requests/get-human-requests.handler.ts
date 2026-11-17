@@ -15,7 +15,7 @@ export class GetHumanRequestsHandler implements IQueryHandler<GetHumanRequestsQu
    * - Ownership is verified before exposing request and case revisions.
    * Execution flow:
    * 1. Authorize the owner and read the current case revision.
-   * 2. Load questions and normalized dependencies, then project them in the requested locale.
+   * 2. Load questions, normalized dependencies and any typed FactNeed, then project presentation text in the requested locale.
    * Failure cases:
    * - Missing or unauthorized assessments are rejected by the ownership guard.
    * Side effects:
@@ -30,7 +30,7 @@ export class GetHumanRequestsHandler implements IQueryHandler<GetHumanRequestsQu
       const rows = await tx.assessmentHumanRequest.findMany({
         where: { assessmentId: input.assessmentId },
         orderBy: { createdAt: "asc" },
-        include: { dependencies: true },
+        include: { dependencies: true, factNeed: true },
       });
       return {
         caseRevision: current.caseRevision,

@@ -10,7 +10,7 @@ export function ConversationAnswerTurn({ turn }: { turn: AnswerTurn }) {
       <span data-answer-for={turn.requestId}>
         {turn.doesNotKnow || turn.answer === null
           ? copy("answer.unknown")
-          : turn.answer}
+          : (turn.selectedLabel ?? turn.answer)}
       </span>
     </ChatMessage>
   );

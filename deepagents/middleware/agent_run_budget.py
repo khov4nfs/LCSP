@@ -33,6 +33,7 @@ from middleware.failure_policy import AgentRunBudgetExceeded
 from middleware.usage_metering import (
     estimate_messages_input_tokens,
     estimate_request_metrics,
+    output_token_limit,
     provider_context_limit_tokens,
 )
 from orchestration.agent_stream import publish_agent_stream_event
@@ -89,14 +90,29 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         grace_calls: int | None = None,
         keep_tool_results: int = DEFAULT_KEEP_TOOL_RESULTS,
         finalize_tools: frozenset[str] = frozenset(),
-        run_quotas: dict[str, int] | None = None,
+        run_quotas: dict[str, int | None] | None = None,
+        durable_usage: Any = None,
+        workload_limits: Any = None,
+        persist_callback: Any = None,
     ) -> None:
         super().__init__()
         # File discovery shares this counter across Producer and native claim-author invocations.
         # Quota mode never edits context or withdraws governed tools.
         self.run_quotas = run_quotas
-        self.quota_calls = 0
-        self.quota_input_tokens = 0
+        self.durable_usage = durable_usage
+        self.workload_limits = workload_limits
+        self.persist_callback = persist_callback
+        self._pending_reservations: dict[int, tuple[int, int]] = {}
+        if durable_usage is not None:
+            self.quota_calls = getattr(durable_usage, "model_calls", 0)
+            self.quota_input_tokens = getattr(durable_usage, "input_tokens", 0)
+            self.quota_output_tokens = getattr(durable_usage, "output_tokens", 0)
+            self.quota_total_tokens = getattr(durable_usage, "total_tokens", 0)
+        else:
+            self.quota_calls = 0
+            self.quota_input_tokens = 0
+            self.quota_output_tokens = 0
+            self.quota_total_tokens = 0
         self.quota_lock = threading.Lock()
         # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
@@ -189,59 +205,137 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return response
 
     def _settle_quota(self, request, response):
-        """Business purpose: Replace the shared quota's estimated input reservation with reported model input usage when available.
+        """Business purpose: Reconcile shared quota reservations against reported provider tokens while preserving unmeasured exposure.
 
         Business rules:
-        - Reconcile only in explicit quota mode and only when response messages report input_tokens; hold the shared lock for the adjustment.
+        - Reconcile only in explicit quota mode under lock.
+        - When provider omits output tokens, reserved output exposure must not be released based on heuristic text estimation; estimated tokens remain diagnostic telemetry.
 
         Execution flow:
-        1. Sum available response input usage, recompute the original estimate, and adjust the quota by reported minus reserved input.
+        1. Extract reported usage metadata from response messages.
+        2. Adjust input quota by reported minus reserved tokens if reported.
+        3. Adjust output quota by reported output tokens if present; if omitted, preserve reserved output exposure and record heuristic estimate as diagnostic telemetry.
+        4. Sync total tokens to durable usage and execute persistence callback.
 
         Failure cases:
-        - Absent quota configuration or reported usage leaves counters unchanged; malformed reported values are not silently converted to zero.
+        - Persistence callback errors propagate to enforce durable state; absent quota leaves counters unchanged.
 
         Side effects:
-        - Mutates the in-memory shared quota input counter; no historical receipt or customer balance is rewritten.
+        - Mutates in-memory quota counters and durable usage object; triggers persist_callback.
         """
         if self.run_quotas is None:
             return
-        reported = [m.usage_metadata["input_tokens"] for m in getattr(response, "result", [])
-            if getattr(m, "usage_metadata", None) and "input_tokens" in m.usage_metadata]
-        if reported:
-            reserved = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
-            with self.quota_lock:
-                self.quota_input_tokens += sum(reported) - reserved
+        results = [m for m in getattr(response, "result", []) if getattr(m, "usage_metadata", None)]
+        if not results and getattr(response, "usage_metadata", None):
+            results = [response]
+        reported = [m.usage_metadata["input_tokens"] for m in results if "input_tokens" in m.usage_metadata]
+        out = [m.usage_metadata["output_tokens"] for m in results if "output_tokens" in m.usage_metadata]
+
+        all_messages = getattr(response, "result", [])
+        if not isinstance(all_messages, list):
+            all_messages = [all_messages] if all_messages else []
+        if not all_messages and hasattr(response, "content"):
+            all_messages = [response]
+        estimated_output = 0
+        for m in all_messages:
+            content = getattr(m, "content", "")
+            if isinstance(content, str) and content:
+                estimated_output += max(1, len(content) // 4)
+            elif isinstance(content, list):
+                for part in content:
+                    if isinstance(part, str):
+                        estimated_output += max(1, len(part) // 4)
+                    elif isinstance(part, dict) and "text" in part:
+                        estimated_output += max(1, len(str(part.get("text", ""))) // 4)
+
+        with self.quota_lock:
+            model = getattr(request, "model", None)
+            reserved_in, reserved_out = self._pending_reservations.pop(id(request), (None, 0))
+            if reserved_in is None:
+                reserved_in = getattr(request, "_lcsp_reserved_input", None)
+            if reserved_in is None:
+                reserved_in = estimate_request_metrics(request, model).estimated_input_tokens
+            if reported:
+                self.quota_input_tokens += sum(reported) - reserved_in
+            if out:
+                self.quota_output_tokens += sum(out) - reserved_out
+            else:
+                if reserved_out == 0:
+                    reserved_out = output_token_limit(model)
+                    self.quota_output_tokens += reserved_out
+                # P1-03: Do not release reserved output exposure merely because response text allows a heuristic token estimate.
+                # When provider omits output tokens, the reserved output exposure is preserved in full.
+                # Heuristic estimation from text length is recorded strictly as diagnostic telemetry.
+                if self.durable_usage is not None:
+                    self.durable_usage.estimated_diagnostic_output_tokens = (
+                        getattr(self.durable_usage, "estimated_diagnostic_output_tokens", 0) + max(10, estimated_output)
+                    )
+            self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
+            if self.durable_usage is not None:
+                self.durable_usage.input_tokens = self.quota_input_tokens
+                self.durable_usage.output_tokens = self.quota_output_tokens
+                self.durable_usage.total_tokens = self.quota_total_tokens
+            if callable(self.persist_callback):
+                self.persist_callback()
 
     def _bounded_request(self, request):
         """Business purpose: Enforce configured run admission and preserve a path to truthful finalization under the existing budget policy.
 
         Business rules:
-        - Shared-quota mode reserves call/input estimates atomically and neither edits context nor withdraws tools.
+        - Shared-quota mode reserves call/input estimates and route output bounds atomically before dispatch; neither edits context nor withdraws tools.
+        - Reservation persistence failure must prevent dispatch (fail-closed); errors are never swallowed.
         - Standard mode stops at the hard call limit, trims older tool results near context capacity, and restricts late calls to configured finalization tools.
 
         Execution flow:
-        1. In quota mode reject an exceeded configured threshold or reserve the next request.
-        2. Otherwise enforce the hard call count and trim old tool results when context warrants it.
-        3. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
+        1. In quota mode reject an exceeded configured threshold or reserve the next request including route output exposure.
+        2. Execute persistence callback synchronously and fail closed if persistence fails.
+        3. Otherwise enforce the hard call count and trim old tool results when context warrants it.
+        4. Return the original/trimmed request or a finalization-only request with an unresolved-work instruction.
 
         Failure cases:
-        - Quota or hard-limit exhaustion raises AgentRunBudgetExceeded; context limits request finalization without inventing completed work.
+        - Quota or hard-limit exhaustion raises AgentRunBudgetExceeded; persistence failure propagates to block dispatch; context limits request finalization without inventing completed work.
 
         Side effects:
-        - Updates in-memory quota reservations and emits budget/trim telemetry; may return a modified message/tool request without calling the provider.
+        - Updates in-memory quota reservations and emits budget/trim telemetry; invokes persist_callback; may return a modified message/tool request without calling the provider.
         """
         if self.run_quotas is not None:
-            tokens = estimate_request_metrics(request, getattr(request, "model", None)).estimated_input_tokens
+            model = getattr(request, "model", None)
+            tokens = estimate_request_metrics(request, model).estimated_input_tokens
+            out_cap = output_token_limit(model)
             with self.quota_lock:
-                calls_limit = self.run_quotas.get("model_calls")
-                tokens_limit = self.run_quotas.get("input_tokens")
-                if (calls_limit is not None and self.quota_calls >= calls_limit) or (tokens_limit is not None and self.quota_input_tokens + tokens > tokens_limit):
-                    publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={
-                        "required_state": "PAUSED", "model_calls": self.quota_calls,
-                        "input_tokens": self.quota_input_tokens, "limits": self.run_quotas})
-                    raise AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable")
+                cl = self.run_quotas.get("model_calls")
+                tl = self.run_quotas.get("input_tokens")
+                totl = self.run_quotas.get("total_tokens")
+                reason = (
+                    "CALL_LIMIT_EXCEEDED"
+                    if cl is not None and self.quota_calls >= cl
+                    else (
+                        "TOKEN_LIMIT_EXCEEDED"
+                        if (
+                            (tl is not None and self.quota_input_tokens + tokens > tl)
+                            or (
+                                totl is not None
+                                and self.quota_input_tokens + self.quota_output_tokens + tokens + out_cap > totl
+                            )
+                        )
+                        else None
+                    )
+                )
+                if reason is not None:
+                    publish_agent_stream_event(AGENT_BUDGET_REACHED, status="RUNNING", data={"required_state": "PAUSED", "model_calls": self.quota_calls, "input_tokens": self.quota_input_tokens, "output_tokens": self.quota_output_tokens, "limits": self.run_quotas, "reason": reason})
+                    err = AgentRunBudgetExceeded("Rule Set Preparation quota reached; committed files are resumable", reason=reason); err.reason = reason; raise err
+                self._pending_reservations[id(request)] = (tokens, out_cap)
                 self.quota_calls += 1
                 self.quota_input_tokens += tokens
+                self.quota_output_tokens += out_cap
+                self.quota_total_tokens = self.quota_input_tokens + self.quota_output_tokens
+                if self.durable_usage is not None:
+                    self.durable_usage.model_calls = self.quota_calls
+                    self.durable_usage.input_tokens = self.quota_input_tokens
+                    self.durable_usage.output_tokens = self.quota_output_tokens
+                    self.durable_usage.total_tokens = self.quota_total_tokens
+                if callable(self.persist_callback):
+                    self.persist_callback()
             return request
         calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:

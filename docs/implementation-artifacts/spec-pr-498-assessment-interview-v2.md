@@ -1,0 +1,355 @@
+---
+title: 'PR 498 CI recovery and Assessment Interview v2'
+type: 'refactor'
+created: '2026-11-15'
+status: 'in-progress'
+baseline_commit: 'caf06e5e3b611be2536111587cf5b7719b773bc9'
+review_loop_iteration: 0
+context:
+  - 'docs/project-context.md'
+  - 'docs/planning-artifacts/architecture/architecture-LCSP-2026-11-15/INTERVIEW-AUDIT-REPORT.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** PR #498 has four failing checks caused by governed instruction-construction drift, while Assessment Interview still promotes insufficiently validated answers to facts, invalidates unrelated decisions, deduplicates by wording, and investigates source without a bounded relevance map.
+
+**Approach:** First reconcile `develop`, restore CI, and record a reproducible baseline. Then incrementally add backward-compatible typed FactNeed/answer handling, fail-closed dependency-selective invalidation, rule-aware bounded repository relevance, aligned controls/prompt policy, and measured behavioral evaluation while preserving API authority and durable LangGraph checkpoints.
+
+## Boundaries & Constraints
+
+**Always:** Work on the existing PR #498 branch; reconcile `develop` without force-push; preserve user working-tree changes and historical HumanRequests, facts, decisions, checkpoints and audit records; prefer additive migrations; retain raw answers, evidence provenance, source pins, legal distinctions, audit/outbox, idempotency, concurrency and checkpoint guarantees; add the required five-heading business documentation to changed production logic; verify the exact pushed commit in GitHub CI.
+
+**Ask First:** New runtime dependencies, destructive schema/data operations, or a change that cannot preserve existing accepted assessment history.
+
+**Never:** Create another branch/PR, merge the PR/deploy, force-push, destructively reinterpret historical data, weaken tests or release gates, fabricate compliance or metrics, pre-populate T31–T40 recorders, send/persist unrestricted raw source, replace LangGraph, duplicate Codebase Memory with an unproven graph engine, or use a hard source allowlist that reduces verified coverage.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|---|---|---|---|
+| Clear answer | Valid typed value, no conflict | Raw evidence retained; one accepted fact created | Replay is idempotent |
+| Ambiguous/conflicting answer | Uncertain or contradicting value | No silent accepted fact; proposal waits for confirmation/review | Existing decisions remain until accepted change |
+| Does not know | `doesNotKnow=true` | Request stays unresolved; no fact/verdict | Preserve existing resume semantics |
+| Shared factual need | Equivalent wording/locale for multiple rules | One canonical FactNeed/request with all dependencies | Different scope/timeframe stays distinct |
+| Historical assessment | Existing request/fact/decision/checkpoint/audit rows | Continue to load and resume without reinterpretation | New fields use additive compatibility defaults/projections |
+| Selective change | Fact A changes; Rule B does not depend on A | Only decisions supported by A are invalidated | Stale revision fails closed |
+| Repository investigation | AssessmentRule plus AI/non-AI evidence needs, wrappers, jobs/events/config and unresolved graph edges | Ranked, provenance-bound ranges with audited expansion and separate reachability state | Scanner limits/gaps never become evidence of absence |
+
+</frozen-after-approval>
+
+## Design Amendment — Discovery-First Workflow (2026-11-16)
+
+This amendment preserves the frozen intent and changes the delivery sequence from rule-first retrieval to a discovery-first, explicitly authorized assessment workflow:
+
+`Repository Snapshot -> Deterministic Repository Discovery -> AI Use Case Discovery -> Context Fact Resolution / Interview -> Candidate AssessmentRule Matching -> Explicit Audit Scope Authorization -> Rule-Specific Assessment -> RuleDecisions and Report`.
+
+- Existing `CUSTOMER_SELECTED`, `SELECTED_RULES`, `FULL_RULE_SET`, and legacy/direct selected-rule audits remain valid when discovery has not run.
+- Discovery persists a versioned, pin-bound result containing classified source observations, AI use cases, runtime invocation candidates, entry paths, data flows, safeguards, unknowns, coverage gaps, and cache identity. Candidate findings, README/comments, graph results, and hypotheses never become accepted facts automatically.
+- Technology relevance drives use-case discovery. Rule-specific relevance is applied only after a pinned rule is being recommended or assessed and may include non-AI controls such as retention, access control, logging, disclosure, authorization, and security.
+- Candidate rule matching is explainable and separate from authorization. `CANDIDATE`, `NEEDS_CONTEXT`, `RECOMMENDED`, `SELECTED`, and `NOT_SELECTED` are recommendation/selection states, never applicability or compliance verdicts. Only the API/customer selection path authorizes an audit scope.
+- Rule-specific assessment first reuses compatible accepted evidence, facts, discovery ranges, coverage records, and unresolved dependencies. It performs targeted expansion only for missing support, incomplete call chains, bypasses/counterexamples, unknown runtime configuration, or bounded negative claims.
+- The scanner reuses RepositoryProfile and Codebase Memory; it must not execute customer code or introduce a duplicate indexing engine. Ranked ranges are priorities, not an exclusion gate, and every truncation/unsupported language/unresolved edge remains an explicit coverage limitation.
+- Scanner/cache evolution remains compatible with historical V1 profiles through explicit signature/version refresh semantics; it never silently reinterprets an old cache artifact.
+- Evaluation compares pinned before/after runs over the same repositories and rules for recall, precision, false negatives, source reads, tokens, latency, cache overhead, question quality, evidence reuse, invalidation correctness, and legal accuracy. Only executed measurements may be recorded.
+
+## Final Remediation Amendment — Customer-Visible Discovery-First Workflow (2026-11-17)
+
+This amendment adds the remaining customer workflow without changing the frozen safety boundaries or removing the existing direct selected-rule path. Discovery becomes a separately authorized, idempotent, restartable pre-scope operation over the already pinned snapshot and existing Repository Scanner/Codebase Memory. It must finish and expose its non-authoritative result before an optional context interview or customer scope confirmation; it must not create a synthetic rule decision or silently authorize any rule.
+
+The customer projection must keep three meanings separate: technical candidate relevance, unresolved legal applicability context, and an explicitly selected audit scope. Candidate rules and source findings are recommendations only. Rules omitted from the customer's request remain `NOT_SELECTED`, never `NOT_APPLICABLE`. A direct `SELECTED_RULES` or `FULL_RULE_SET` submission remains valid without discovery-first onboarding.
+
+Human answers follow `raw answer -> typed normalization -> predicate-aware semantic classification -> canonical-scope conflict check -> immutable proposal -> accepted fact or pending review`. Ambiguous, hedged, contradictory, or semantically unsafe text cannot become accepted authority. Pending proposals require an owner-authorized accept/reject/correct workflow; replay, case revision, checkpoint, scope, and transaction guarantees remain unchanged.
+
+Candidate matching may normalize controlled engineering terminology and use pinned rule metadata, discovery use-case/data-flow links, graph relationships, accepted facts, and unresolved FactNeeds. It may rank candidates but must expose unmatched/incomplete coverage and cannot establish applicability or compliance. Evaluation must cover the complete pre-scope-to-decision workflow with deterministic CI fixtures and must label model-dependent metrics as unmeasured until actually executed.
+
+### Remediation Implementation Status at local commit `cef0d49c50cb136a7408549090625fdf1211cf29` (2026-11-17)
+
+This is a **local implementation status**, not a pushed GitHub CI result or proof of full Interview v2 acceptance. The configured SourceNerve workspace still identifies `khovan123/LCSP`, while the requested PR is in `khov4nfs/LCSP`; no remote push, merge or deploy was performed. The original direct selected/full-audit path remains available.
+
+| Finding | Status | Verified current implementation / remaining gap |
+|---|---|---|
+| Separately authorized discovery before rule selection | IMPLEMENTED (local) | New owner-authorized `AssessmentDiscoveryRun`, queued event, independent worker lease, pinned sandbox scan, immutable API settlement, replay and failure tests; selected-rule Root remains a separate optional path. |
+| Customer-visible discovery result | IMPLEMENTED (local, browser unverified) | Owner-only API/BFF and frontend Discovery overview display use cases, rule candidates, source gaps, and unresolved-question previews. AI use-case and candidate inventories now paginate; customer browser-flow verification remains pending. |
+| Pre-assessment Context Interview | PARTIALLY_FIXED | Unresolved operational questions can be browsed **before** scope selection, but cannot yet be answered, normalized, reviewed and accepted as FactNeeds through an independent pre-scope authority. Do not count display-only questions as a completed Interview. |
+| Explicit customer scope confirmation | PARTIALLY_FIXED | User still selects `SELECTED_RULES` or `FULL_RULE_SET` explicitly; recommendations are shown ahead of selection but cannot yet be applied as a separately reviewable candidate selection set. Missing matches never become `NOT_APPLICABLE`. |
+| Predicate-aware answer semantics | PARTIALLY_FIXED | Typed validation and conservative EN/VI uncertainty guards now include hedged deployment statements; arbitrary predicate-specific conflicts and owner resolution of pending proposals require more work. |
+| Candidate rule matching quality | PARTIALLY_FIXED | Deterministic non-authoritative matching recognizes bounded engineering aliases and camelCase (for example `purgeExpiredRecords`), without equating generic UI removal with personal-data deletion; semantic/graph gold coverage is incomplete. |
+| Evidence reuse before targeted investigation | PARTIALLY_FIXED | Root can reuse the exact already-persisted Discovery artifact and bounded priorities, but automatic per-criterion evidence sufficiency planning still needs evaluation. |
+| Direct/indirect selective invalidation | IMPLEMENTED | Existing normalized dependency edges preserve unrelated complete decisions and invalidate dependent decisions and derived reports; historical incomplete dependencies fail closed. |
+| End-to-end workflow evaluation | OPEN | The reproducible 13-case scanner benchmark does not measure actual question reduction, model token savings, end-to-end wall time or legal decision accuracy; do not report unmeasured improvements. |
+
+**Executed local checks:** API discovery/HumanFact/migration 54/54 tests; pre-scope BFF 4/4; Python scanner/discovery 48/48; TypeScript typecheck, import/contract checks, business-logic documentation and staged `git diff --check` passed. A full live customer browser run and all GitHub CI checks on the new commit are **not** verified.
+
+### 2026-11-17 implementation amendment — governed pre-scope Context Interview
+
+This additive slice introduces `AssessmentDiscoveryInterviewProposal` as an owner-scoped, source-bound review ledger linked to an exact completed `AssessmentDiscoveryRun` and canonical `AssessmentFactNeed`. It does **not** create synthetic rule decisions or replace native post-selection LangGraph HITL.
+
+**Implemented behavior**
+
+1. The customer sees source-generated unresolved questions from paged AI use cases before choosing an audit scope. Each answer submission identifies the exact `useCaseId` and question text in the immutable pinned Discovery; invented or foreign questions fail closed.
+2. Raw operational text is validated and saved as `PENDING_REVIEW` with a stable request UUID and canonical FactNeed identity. No evidence or accepted fact exists at this stage.
+3. An owner-authorized, optimistic-revision review can `REJECT` the proposal (allowing correction), or `ACCEPT` a clear answer. Ambiguous, uncertain, or conflicting input cannot be accepted through this endpoint.
+4. Acceptance creates one `HUMAN_ANSWER` evidence, one `HUMAN_PROVIDED` case fact, their provenance edge and a resolved FactNeed in the same database transaction. It advances caseRevision and invalidates any stale final report.
+5. The pinned source Discovery remains immutable. Accepted FactNeed question identities allow the existing API matcher to create a **new immutable candidate-recommendation revision**, without rehydrating or rescanning source. A resolved source question no longer forces `NEEDS_CONTEXT` when no other unknown condition or coverage gap remains. `CANDIDATE` still cannot authorize an audit or claim legal applicability.
+6. The web interface exposes proposal status, owner confirmation/rejection, retryable answer forms and paged review history. Routes use `/context-answers`, avoiding the retired V1 `/interview` route family. The previous direct selected/full audit path remains available.
+
+**Database and security constraints**
+
+- Additive migration only. Proposal content/source/actor are immutable after creation; a trigger permits one explicit `PENDING_REVIEW` → `ACCEPTED` or `REJECTED` transition.
+- Composite assessment-bound FKs link FactNeed, accepted evidence and accepted fact; fact references are deferred to commit to preserve same-assessment cascade erasure while rejecting independent deletion of referenced support.
+- Case row lock, owner RBAC, source snapshot/commit/prefix pins, source question provenance, accepted FactNeed state and optimistic case revision are validated before mutation.
+- Missing evidence, UNKNOWN operational context or unmatched rules never imply `NOT_APPLICABLE` or `COMPLIANT`.
+
+**Remaining acceptance gaps (do not silently mark FIXED)**
+
+- This pre-scope interview currently covers **source-discovered unresolved questions using TEXT FactNeeds**; fully typed, predicate-specific forms for legal actor, geography, dates, classifications, and reviewer-driven clarification require further work.
+- `PENDING_REVIEW` settlement uses explicit **owner confirmation**, not independent legal counsel approval; legal applicability remains a separate authoritative decision.
+- A deliberate `doesNotKnow` response is still unresolved, not an accepted fact; a dedicated explicit UNKNOWN acknowledgment and question materiality/batching policy remain to implement.
+- Automatic criterion-level evidence sufficiency, graph-semantic recommendation gold tests and full Discovery → Interview → Scope → Decision benchmark are still outstanding.
+- No end-to-end browser acceptance with a live authenticated customer or disposable PostgreSQL integration migration was executed in this slice.
+- SourceNerve `origin` still resolves to `khovan123/LCSP`, while the target PR is `khov4nfs/LCSP#498`; commits must **not** be pushed to the unrelated remote.
+
+### 2026-11-17 follow-up: bounded recommendation input and customer rule-picker regression
+
+The API-owned rule-candidate matcher now reads at most **10,001 ACCEPTED facts** and **2,001 resolved Discovery FactNeeds** to detect over-budget conditions (limits: 10,000 and 2,000 respectively). If either inventory exceeds its limit, the service rejects with the typed `BUDGET_EXHAUSTED` domain error **before** persisting or presenting an incomplete recommendation revision. This prevents dropped customer facts from silently excluding otherwise relevant rules. It is a safety bound, not evidence that the assessment has no applicable obligations.
+
+Two regression cases confirm that overflow produces no Discovery write. The customer rule-picker test fixture now distinguishes the added read-only Discovery status endpoint from paged Rule Catalog requests; its audit-selection checks remain unchanged. The post-change focused runs passed 98/98 API tests and 11/11 web tests; no live legal-accuracy, token-use, PostgreSQL end-to-end, or browser acceptance result is claimed.
+
+### Current State Classification at `caf06e5e3b611be2536111587cf5b7719b773bc9`
+
+| Requirement | Status | Evidence / gap |
+|---|---|---|
+| Branch integration and governed instruction repair | IMPLEMENTED | PR is rebased and mergeable; all GitHub checks passed on exact pushed HEAD `caf06e5e3b611be2536111587cf5b7719b773bc9` on 2026-11-16. |
+| Existing selected/full/legacy audit compatibility | IMPLEMENTED | API-owned immutable audit requests and direct selected-rule execution already operate without discovery. |
+| Deterministic repository inventory and dependency signals | PARTIALLY_IMPLEMENTED | V1 scans bounded manifests, languages, frameworks, containers and gaps, then discovers direct AI calls, strict custom/provider HTTP calls, model-like wrappers and independent or nearby control/data-flow signals. A checked-in 13-case offline corpus now measures this scanner slice; connection-aware incremental invalidation and broader gold repositories remain pending. |
+| Durable versioned Discovery result | IMPLEMENTED | `LCSP_DISCOVERY_V1` is an immutable assessment-owned API record bound to snapshot/repository/commit/scope/scanner/graph/cache/digest coordinates; V1 RepositoryProfile remains compatible. |
+| Runtime call sites, raw HTTP, wrappers and business callers | PARTIALLY_IMPLEMENTED | Deterministic source discovery covers direct SDK calls, known-provider and custom-gateway HTTP, model-like wrappers, configuration and control/data-flow signals. The existing pinned Codebase Memory index adds bounded cross-file caller/callee priorities with explicit graph gaps; verified production reachability remains pending. |
+| Source classification versus verified reachability | PARTIALLY_IMPLEMENTED | Discovery represents the required source contexts separately from conservative reachability; no path is promoted to reachable production without a verified call path. Reachability verification remains pending. |
+| Technology and rule-specific RelevanceMap | PARTIALLY_IMPLEMENTED | Technology ranges and independent retention/access/logging control candidates are digest-bound, deterministically prioritized and exposed as a bounded Root preview; API-owned matching applies pinned rules and accepted facts without authorizing assessment. Controls remain heuristic, and runtime-traced expansion is durably audited; semantic rule-targeted range generation and verified reachability remain pending. |
+| Explicit coverage limits and pin/cache identity | PARTIALLY_IMPLEMENTED | Discovery records limits, truncation, unsupported languages, skipped paths, unresolved calls, total resource budgets, scanner signature and graph index identity. Profile V1 now also bounds every published collection and per-manifest dependency list with explicit `COLLECTION_LIMIT_REACHED` gaps, so oversized repositories remain schema-valid and visibly incomplete. Cross-file connection-aware incremental invalidation remains pending. |
+| Canonical FactNeed and cross-locale deduplication | IMPLEMENTED | Additive FactNeed persistence distinguishes tenant owner, assessment, subject, predicate, operational scope, environment/deployment, timeframe and value schema; wording/locale and shared rule dependencies reuse one need. New source-range provenance binds exact immutable Discovery record/digest coordinates without changing semantic identity. |
+| Minimal, batched human questions with native interrupt | PARTIALLY_IMPLEMENTED | Atomic batch questions and native checkpoints reuse canonical FactNeeds, including equivalent needs inside one batch. Any claimed investigated range is now revalidated against the assessment's current snapshot/commit/scope before a new question can open; automatic materiality and discovery-completeness gating remain pending. |
+| Raw answer -> proposal -> accepted fact | IMPLEMENTED | Non-unknown answers now create immutable Fact Proposals bound to assessment, request revision, case revision, checkpoint, actor and idempotency. Clear proposals atomically reference accepted evidence/facts; ambiguous or conflicting proposals remain `PENDING_REVIEW`, keep the request open and create no authority. Typed-invalid, stale and checkpoint-invalid submissions still reject before persistence. |
+| Explainable candidate AssessmentRule matching | IMPLEMENTED | API-owned deterministic matching uses the pinned Rule Set, discovery findings and accepted facts to emit immutable non-authoritative `CANDIDATE`/`NEEDS_CONTEXT` revisions. Candidates never authorize audit scope or become applicability/compliance verdicts. |
+| Evidence/discovery reuse before rule investigation | PARTIALLY_IMPLEMENTED | Root reloads accepted facts/evidence and decisions, then can page exact-pin discovery use cases, rule candidates, caveats and ranked ranges as non-authoritative investigation priorities. Expansion beyond those priorities now records an immutable exact-discovery event derived from the runtime trace; exact source still must be read/cited and automatic evidence compatibility remains pending. |
+| Direct/indirect selective invalidation | IMPLEMENTED | New decisions persist exact evidence/fact edges; evidence invalidation follows direct and fact-mediated edges, dependency-incomplete history fails closed, human answers preserve unrelated dependency-complete decisions, and affected final reports become INVALID without changing historical bytes. |
+| Reproducible quality/efficiency evaluation | PARTIALLY_IMPLEMENTED | A checked-in 13-case positive/negative/adversarial scanner corpus compares identical pinned Profile/Discovery inputs and measures use-case/source/control recall, precision, false negatives, classification, projected source volume, actual local latency/memory and cache correctness. Interview question quality, recommendation quality, evidence reuse and approved legal-regression accuracy remain explicitly unmeasured. |
+
+## Code Map
+
+- `deepagents/instructions/inventory.json` and `deepagents/scripts/snapshot_instruction_migration.py` -- governed CI drift reconciliation.
+- `apps/api/src/modules/assessment/application/commands/answer-human-request/*` -- answer evidence, integrity and fact acceptance.
+- `apps/api/src/modules/assessment/application/services/assessment-evidence-invalidation.service.ts` and `apps/api/src/modules/assessment/domain/decision-dependencies.ts` -- normalized direct/indirect dependency integrity, selective invalidation, and fail-closed historical fallback.
+- `apps/api/src/modules/assessment/infrastructure/persistence/assessment-human-request-dependencies.ts` and `apps/api/prisma/schema.prisma` -- request identity/dependencies and FactNeed persistence.
+- `packages/contracts/src/assessment-domain/*` -- canonical value sets and DTO schemas.
+- `deepagents/tools/common/capabilities/platform/repository_scanner.py` and `deepagents/assessment_root/*` -- relevance generation and bounded research context.
+- `deepagents/evaluation/discovery_scanner_corpus.json` and `deepagents/scripts/evaluate_assessment_discovery.py` -- pinned offline scanner gold cases and executed before/after measurement receipt.
+- `packages/contracts/src/assessment-domain/*`, `apps/api/prisma/schema.prisma`, and assessment application services -- durable discovery result, candidate recommendation state and compatibility projections.
+- Existing evidence/fact/coverage persistence and Root governed tools -- discovery handoff and pin-compatible evidence reuse without a parallel authority store.
+- `deepagents/middleware/approved_instructions.py` and governed EN/VI tool sources -- exact per-tool description fallback for newly registered Assessment tools without weakening unknown-tool fail-closed behavior.
+- `apps/web/src/features/assessment-runtime/*` -- governed question controls/status presentation; preserve current local edits.
+- `.github/workflows/*`, root/API package scripts and PR metadata -- actual CI commands, merge state and exact-SHA verification.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [x] Preserve local changes, reconcile `develop` on the existing branch, resolve conflicts, reconcile all changed instruction sites, review dispositions, establish baseline metrics, and restore Python/release-gate CI before the larger refactor.
+- [x] Classify every discovery-first requirement as implemented, partial, missing or blocked against the current HEAD; record the reproducible baseline before behavioral changes.
+- [x] Add versioned discovery contracts and additive persistence for pin-bound observed source facts, candidates, hypotheses, confirmed facts, unknowns, coverage gaps and cache identity while preserving direct selected-rule audits.
+- [ ] Build deterministic AI use-case discovery and a two-dimensional RelevanceMap by reusing RepositoryProfile and Codebase Memory; include raw HTTP/custom providers, wrappers, indirect callers, source classification, verified reachability and controlled expansion.
+- [x] Add explainable candidate AssessmentRule matching from verified findings and accepted facts without authorizing scope or emitting applicability/compliance verdicts.
+- [ ] Reuse compatible discovery evidence/ranges and existing accepted evidence/facts before targeted rule-specific investigation; record why any expansion was required.
+- [x] Design and test additive compatibility for existing HumanRequests, accepted facts, decisions, checkpoints and audit history before adding canonical FactNeed/value/proposal contracts and persistence.
+- [x] Define FactNeed identity with tenant, assessment, subject/entity, predicate, operational scope, environment, timeframe and value schema as applicable; deduplicate wording/locales and union shared rule dependencies without cross-entity/time merging.
+- [x] Refactor answer handling to persist raw evidence, validate/normalize, detect ambiguity/conflict, and create facts only after acceptance.
+- [x] Replace answer-triggered case-wide invalidation with fail-closed traversal across direct/indirect evidence, facts, decisions and report findings while retaining history and caseRevision for CAS/audit.
+- [ ] Reuse repository scanner and Codebase Memory to build rule-aware RelevanceMap priorities from AssessmentRule criteria/goals/evidence needs plus technology signals; cover DI/interfaces, jobs/events, dynamic config and unresolved edges with bounded traversal and explicit gaps.
+- [ ] Separate file classification from verified reachability; preserve commit/scope/version cache pins and invalidate changed/renamed/deleted/new connections; use ranked ranges as priorities with audited expansion, never an absolute allowlist.
+- [ ] Align backend/web control types and canonical EN/VI semantic policy without overwriting unrelated UI/i18n work.
+- [ ] Add pinned before/after positive, negative, adversarial and regression fixtures covering AI and non-AI rules; measure recall, precision, false negatives, tokens, latency, memory, cache correctness, question quality and legal traceability; never claim unexecuted results.
+- [ ] Run verified package/CI commands, document results, make logically grouped commits, push without force, and verify required checks on the exact PR #498 SHA.
+
+**Acceptance Criteria:**
+- Given the exact PR branch, when governed inventories and tests run, then every required check passes without bypasses.
+- Given existing assessment records, when the additive schema and readers are deployed, then historical requests, facts, decisions, checkpoints and audits retain their original meaning and remain loadable/resumable.
+- Given a clear, ambiguous, conflicting, unknown, replayed or stale human answer, when submitted, then only validated accepted facts affect decisions and existing transaction/checkpoint guarantees hold.
+- Given equivalent FactNeeds across rules, wording or locale within the same tenant/assessment/entity/scope/environment/time/schema, when questions are opened, then one canonical need is reused; any material identity difference remains separate.
+- Given an accepted fact/evidence changes, when invalidation runs, then all directly or indirectly dependent decisions/findings become stale, unrelated complete dependencies remain current, and uncertainty fails closed.
+- Given pinned repositories and AssessmentRules, when investigation runs, then ranked ranges cover relevant AI and non-AI evidence, graph gaps/limits are explicit, reachability is not inferred from paths, cache invalidation is correct, pins/provenance remain intact, and audited expansion preserves recall.
+- Given the pushed commit, when GitHub CI completes, then all required checks are green and the report records before/after metrics and residual risks.
+
+## Spec Change Log
+
+- 2026-11-16: Added the human-requested discovery-first workflow amendment, compatibility modes, durable discovery result, explainable rule recommendation boundary, evidence reuse order, cache evolution and measured evaluation requirements. Frozen intent remains unchanged.
+- 2026-11-16: Recorded the green exact-HEAD CI baseline and the focused deterministic scanner regression baseline before discovery behavior changes.
+- 2026-11-16: Implemented the first additive discovery slice: deterministic static AI-use-case signals, conservative source/reachability classification, explicit coverage/resource gaps, immutable pin-bound API persistence, leased Root submission, and a bounded non-authoritative discovery preview in the existing governed assessment context.
+- 2026-11-16: Added API-owned deterministic candidate matching against the pinned AssessmentRules and ACCEPTED facts. Worker-authored recommendations are rejected, non-AI control terms remain matchable, missing matches never become negative legal conclusions, and candidate revisions remain immutable and non-authoritative.
+- 2026-11-16: Added additive canonical FactNeed persistence and Root/API contracts. Historical HumanRequests remain nullable and uninterpreted; equivalent wording/locales and same-batch questions reuse one need, material deployment/timeframe/value differences remain distinct, and a known accepted answer resolves its linked need atomically while UNKNOWN remains open.
+- 2026-11-16: Added typed FactNeed answer normalization for text, boolean, integer, number, date, date-time, enum and JSON values, and connected the existing high-impact ambiguity/conflict guard to production answer acceptance. Invalid values are rejected before case/fact/evidence mutation; accepted evidence retains both the raw and normalized value.
+- 2026-11-16: Added an additive immutable decision dependency ledger. New decisions record exact evidence/fact edges; evidence invalidation traverses direct and fact-mediated support, historical decisions without a ledger fail closed, and unrelated dependency-complete decisions may survive a later case revision while caseRevision remains the CAS/audit clock. Active final reports are marked INVALID when their case/support changes.
+- 2026-11-16: Exposed immutable repository-discovery details and ranked source ranges to Assessment Root through bounded exact-pin pages. The governed EN/VI contracts keep candidates/ranges non-authoritative, require exact source citation before evidence acceptance, preserve explicit gaps, and permit investigation beyond ranked priorities.
+- 2026-11-16: Reused the pinned Codebase Memory graph to enrich discovered invocation symbols with bounded caller/callee priorities. Trace failures, ambiguity, empty results, row/output budgets and unsupported runtime edges remain explicit coverage gaps; static topology never upgrades production reachability.
+- 2026-11-16: Added immutable, assessment-bound controlled-expansion audit events. Assessment Root derives redacted query digests, paths, result counts, truncation/failure gaps and deterministic idempotency from executed runtime trace; events grant no scope, evidence, reachability or legal conclusion.
+- 2026-11-16: Completed the answer proposal boundary with additive immutable `AssessmentHumanFactProposal` records. Accepted proposals link the exact evidence/fact atomically; ambiguous/conflicting submissions remain pending, do not advance the case, and can be corrected at the next request revision without rewriting history.
+- 2026-11-16: Added a reproducible offline discovery-scanner evaluation corpus and closed its measured custom-gateway and independent-control recall gaps. Results remain scanner-slice measurements only; question quality, evidence reuse and legal accuracy are explicitly unmeasured.
+- 2026-11-16: Closed the Profile V1 collection-limit failure mode without introducing V2. Oversized manifests, frameworks, candidate facts and other published collections are deterministically bounded at their existing contract maxima, and every omission becomes an explicit coverage gap that participates in the content digest and scanner-signature cache refresh.
+- 2026-11-16: Bound new FactNeed source-investigation claims to exact immutable Discovery record/digest references. Invented, foreign, stale-scope or digest-invalid range IDs now fail before a human request is created, while historical FactNeeds keep nullable compatibility and their original meaning.
+
+## Reproducible Pre-Change Baseline — 2026-11-16
+
+- Pushed PR HEAD: `caf06e5e3b611be2536111587cf5b7719b773bc9`.
+- GitHub PR checks: all reported checks passed, including API checks/coverage/E2E/unit, Assessment Root vertical, Python worker checks/tests, Docker sandbox E2E, web checks/tests/build, CodeQL, dependency review, Trivy, SecureAI-Scan, Trustabl reliability and the V2 required release gate.
+- Focused scanner command: `cd deepagents && uv run pytest tests/test_repository_scanner.py -q --durations=10`.
+- Focused scanner result: `18 passed in 0.10s`.
+- Interpretation: this is a mechanical compatibility baseline only. It does not measure source-range recall, rule-recommendation accuracy, legal correctness, tokens, or runtime investigation cost; no performance improvement is claimed from it.
+
+## Phase 1 Verification — Discovery Artifact and Durable Handoff
+
+- Scanner and Assessment Root regression: `167 passed` (`31` scanner, `136` Root).
+- Focused API persistence/context/controller tests: `4` suites, `41` tests passed.
+- Contracts: `12` suites, `147` tests passed.
+- API lint, Prisma schema validation, contracts/API TypeScript compilation, Python compilation, contract-literal policy, business-logic documentation gates and `git diff --check`: passed.
+- Governed instruction inventory: strict result `PASS`, zero unresolved mappings and zero missing English candidates.
+- No quality, recall, precision, token, latency or legal-accuracy improvement is claimed yet; the reproducible evaluation corpus remains a later phase.
+
+## Phase 2 Verification — Non-Authoritative Rule Candidates
+
+- API-focused regression: `4` suites, `45` tests passed, including deterministic replay, accepted-fact recommendation revision, non-AI retention-control relevance, bounded preview, and rejection of worker-authored candidates.
+- Contracts: `12` suites, `148` tests passed; scanner and Assessment Root regression: `167` tests passed (`31` scanner, `136` Root).
+- API lint, contracts/API TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates and `git diff --check`: passed.
+- Candidate states are limited by implementation to `CANDIDATE` or `NEEDS_CONTEXT`; every candidate is `authorizesAssessment=false`. No rule is automatically emitted as `NOT_SELECTED`, `SELECTED`, or a legal applicability/compliance outcome.
+- Candidate matching is deterministic lexical engineering prioritization over current discovery ranges/use cases and accepted facts. Cross-file rule-targeted expansion, legal actor/scope resolution and measured recommendation recall/precision remain later work; no performance or legal-accuracy improvement is claimed.
+
+## Phase 3 Verification — Canonical FactNeed Compatibility
+
+- Additive migration keeps `AssessmentHumanRequest.factNeedId` nullable, performs no historical UPDATE/DELETE/DROP, and adds assessment-bound foreign keys, lifecycle checks and an immutable semantic-identity guard. Migration static compatibility tests: `3 passed`; Prisma schema validation passed. A live PostgreSQL migration could not run locally because Docker/PostgreSQL was unavailable.
+- FactNeed identity regression covers casing/wording reuse and separation across tenant owner, assessment, deployment and timeframe. Focused API/compatibility regression: `8` suites, `81` tests passed; contracts: `13` suites, `152` tests passed.
+- Root and governed instruction regression: `184` tests passed; strict inventory result `PASS`, with zero unresolved paths and no missing VI/EN sources. API lint, contracts/API TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
+- The repository-wide API command completed `219` suites / `1857` tests successfully, with `22` suites skipped. Its remaining `12` failing integration suites (`108` tests) require PostgreSQL at `127.0.0.1:55432`; the one non-database route-allowlist failure was corrected and its `4` tests pass. These are not reported as a green full-suite result.
+- This phase does not yet implement raw-answer proposal/review, typed normalization/conflict acceptance, selective dependency invalidation or measured efficiency/legal-accuracy improvements.
+
+## Phase 4 Verification — Typed Answer Acceptance Guard
+
+- Focused answer regression: `3` suites, `33` tests passed, covering every FactNeed value kind, invalid/unsafe numeric and temporal forms, raw-plus-normalized evidence, UNKNOWN behavior, ambiguity, prior-human-fact conflict and atomic FactNeed resolution.
+- Contracts: `13` suites, `153` tests passed, including historical answer audits without `normalizedAnswer`; the new field is optional and does not reinterpret stored answer history.
+- API lint, contracts/API TypeScript compilation, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
+- Rejected ambiguous/conflicting answers currently return `HUMAN_ANSWER_INVALID` before persistence. Durable raw rejected-attempt/proposal review and explicit reviewed acceptance remain pending, so the full proposal pipeline task is intentionally not marked complete.
+
+## Phase 5 Verification — Dependency-Selective Invalidation
+
+- The migration is additive: historical decisions default to `dependencyGraphComplete=false`, no historical JSON packet is backfilled or reinterpreted, and exact evidence/fact edges use assessment-bound foreign keys. The completeness marker is immutable after decision creation.
+- New accepted decisions atomically persist their deduplicated direct evidence and fact references. Evidence invalidation follows direct edges plus evidence -> fact -> decision edges; any accepted historical decision with incomplete dependency metadata is invalidated fail-closed instead of being assumed unrelated.
+- Human answer acceptance no longer invalidates every older accepted decision. Rules affected by the question were already invalidated when the request opened; unrelated older decisions survive only when their persisted ledger exactly matches the immutable packet and current evidence/facts still validate. Generic facts without a declared rule scope retain case-wide fail-closed invalidation.
+- Any case-changing human answer invalidates an ACTIVE final-report projection; evidence invalidation does the same when it invalidates a supporting decision. Artifact bytes, hashes, pins, decisions, and audit history remain unchanged.
+- Focused dependency, decision, answer, completion, selected-finalization, audit-reuse and migration regression: `9` suites, `114` tests passed. API lint, TypeScript compilation, Prisma validation, contract-literal policy, business-logic documentation gates, and `git diff --check` passed.
+- The repository-wide API command completed `224` suites / `1887` tests successfully, with `22` suites skipped. Its remaining `12` failing integration suites (`108` tests) all report PostgreSQL `P1001` at `127.0.0.1:55432`; no non-database suite failed. A live migration remains unverified locally for the same environment reason.
+
+## Phase 6 Verification — Governed Discovery Reuse Handoff
+
+- Assessment Root, HITL/checkpoint, source-scope and locale regression: `159` tests passed. This includes exact-pin discovery range/detail paging, the complete Root tool surface, native human interrupts, checkpoint recovery, source-scope isolation and rejection of invalid tool arguments.
+- Governed instruction inventory/lifecycle/runtime-bundle regression: `40` tests passed. The strict inventory verifier completed successfully after mapping the two new promoted tool descriptions to their exact EN/VI per-tool sources.
+- The runtime instruction boundary resolves a newly registered Assessment tool from its exact governed per-tool entry only when the legacy aggregate catalog lacks that name. Unknown tools still fail closed; a regression covers this path.
+- Discovery ranges, use cases and rule candidates remain investigation priorities only. They do not authorize audit scope, establish applicability/compliance, or become accepted evidence until the exact pinned source is read and cited. No source-recall, latency, token or legal-accuracy improvement is claimed from this mechanical handoff.
+- Durable recording of controlled expansion reasons/resource use is still pending, so the broader evidence-reuse task remains partially implemented.
+
+## Phase 7 Verification — Bounded Codebase Memory Enrichment
+
+- Focused repository scanner regression: `35` tests passed, including caller/callee enrichment, graph-query failure, trace-budget truncation, exact cache-pin persistence and reuse.
+- Assessment Root, Codebase Memory lifecycle and repository sandbox regression: `200` tests passed. Instruction inventory/tool lifecycle regression: `46` tests passed with strict inventory result `PASS`, zero unresolved paths and no missing EN/VI sources.
+- Each graph trace is bounded to 50 unique invocation symbols per discovery, depth 3, 100 rows and a 4,000-token output budget. Exact graph totals and truncation metadata are checked; excess or unrecognized results become explicit gaps instead of absence claims.
+- Codebase Memory output supplies investigation priorities only. `reachability` remains `NOT_ESTABLISHED`; dependency injection, interfaces, async jobs, events, dynamic configuration and deployed runtime use remain unresolved until separately verified.
+- The scanner source signature changed while `LCSP_DISCOVERY_V1` stayed stable. Exact scanner-signature and graph-index pins therefore refresh old cache artifacts without introducing a V2 contract or reinterpreting historical discovery records.
+- Business-logic documentation gates, contract-literal policy, Python compilation and `git diff --check` passed. Ruff and graphify remain unavailable in the local environment; no performance, recall, precision, token, latency or legal-accuracy improvement is claimed.
+
+## Phase 8 Verification — Audited Controlled Expansion
+
+- Added an additive `AssessmentRepositoryDiscoveryExpansion` model and migration. Each immutable event is bound to assessment, discovery record, discovery content digest and an assessment-scoped idempotency key; no existing discovery, decision, evidence or audit row is rewritten.
+- Root expansion records are derived from executed repository-tool trace without consuming the later search-coverage trace. Raw search terms and source bytes are excluded; the API receives bounded query digests, paths, counts and explicit truncation/failure/dropped-trace gaps.
+- The API revalidates current repository pins, authorized rule coverage and the complete discovery digest, rejects foreign priority ranges, and compares the full canonical semantic packet on replay. Reusing an idempotency key for different content fails with an idempotency conflict.
+- Focused API/controller/migration regression: `3` suites, `19` tests passed. Discovery contract regression: `6` tests passed. Assessment Root regression: `139` tests passed, including redaction, trace preservation and rejection of untraced model claims. Governed inventory/runtime workflow regression: `31` tests passed.
+- API build, Prisma validation, targeted API lint, business-logic documentation gates, Python compilation and `git diff --check` passed. A live PostgreSQL migration remains unverified locally; Ruff and graphify are unavailable. No performance, recall, precision, token, latency or legal-accuracy improvement is claimed.
+
+## Phase 9 Verification — Durable Human Fact Proposals
+
+- Added an additive immutable `AssessmentHumanFactProposal` ledger. Historical HumanRequests, answer JSON, accepted evidence/facts, decisions and checkpoints are not backfilled or reinterpreted; proposal metadata in answer contracts is optional for historical compatibility.
+- Every non-unknown answer that passes schema/typed normalization creates one proposal bound to assessment, request, FactNeed when present, case/request revision, native checkpoint, actor, request digest and idempotency key. `ACCEPTED` proposals must reference both accepted evidence and fact; `PENDING_REVIEW` proposals must contain a typed guard failure and cannot reference accepted authority.
+- Ambiguous and conflicting material answers now return a successful unresolved receipt with `PENDING_REVIEW`, keep the request open, leave `caseRevision` unchanged, create no evidence/fact, and do not resume Root. Exact replay returns the same proposal; a corrected answer at the next request revision creates a new accepted proposal without mutating the pending record.
+- Human-answer normalization/integrity/controller/proposal-migration regression: `5` suites, `46` tests passed. Focused FactNeed contract regression: `6` tests passed. API build, Prisma validation, targeted lint, business-logic documentation and contract-literal gates passed.
+- A live PostgreSQL migration and browser presentation of the new pending-review receipt remain unverified. No legal conclusion, operational fact or compliance authority is derived from a pending proposal.
+
+## Phase 10 Verification — Reproducible Discovery Scanner Slice
+
+- Added a checked-in 13-case corpus covering direct OpenAI/Anthropic/Vercel/LangChain use, known-provider and custom-gateway HTTP, unused dependencies, test-only calls, background jobs, dynamic configuration, AI controls, independent retention/access/logging controls and an AI-free negative.
+- The Profile manifest baseline measured AI-use-case precision `0.8`, recall `0.444444` and false-negative rate `0.555556` (`4` TP, `1` FP, `5` FN); it projected no invocation ranges (`0/9` recall). The Discovery result measured precision/recall `1.0/1.0` for the `9` expected AI-use cases and invocation paths, `1.0/1.0` for the `4` expected control-relevant paths, and `10/10` expected source classifications on this corpus.
+- All five cache checks passed: exact-pin replay and no rewrite, modified-commit refresh, renamed/deleted-path refresh, and graph-version refresh. Both scanners made zero model calls and used zero model tokens.
+- One actual local run measured Profile `6.329331 ms` / `16,191` peak traced Python bytes and Discovery `19.896668 ms` / `176,040` bytes while projecting `5` versus `13` source files and `31` discovery ranges. These machine-local diagnostics do not establish a performance improvement and are not a production benchmark.
+- Focused scanner/evaluator regression: `39 passed in 1.73s`. Corpus digest: `sha256:8202b8828d57844ff221c4eb1652b67369aff8df0497a047565a7a50b969e686`.
+- Custom HTTP detection requires both a supported HTTP client call and an AI gateway/model endpoint signal to avoid converting generic HTTP into AI use. Independent controls are `HEURISTIC` `CANDIDATE_FINDING` ranges with `RELATED_LOGIC`; they never create an AI use case or prove compliance.
+- Interview question quality, rule-recommendation quality, durable evidence reuse and approved legal accuracy are explicitly unmeasured. No T31-T40 recorder was populated and no broader performance or legal-accuracy claim is made.
+
+## Phase 11 Verification — Profile V1 Collection Safety
+
+- RepositoryProfile remains `LCSP_PRE_SCAN_V1`; no historical profile or cache record is rewritten. The scanner source signature changes naturally, so exact-pin cache validation refreshes newly executed artifacts while old stored V1 payloads retain their historical meaning.
+- Every V1 top-level collection is bounded to its existing contract maximum, each retained manifest is bounded to `5,000` dependencies, and `knownGaps` reserves its final bounded slot for an omission receipt when its own ledger overflows.
+- Omitted observations use the additive `COLLECTION_LIMIT_REACHED` gap reason with the collection/path, original count, retained count and omitted count. Truncation is therefore visible and cannot be interpreted as evidence of absence.
+- Focused scanner/evaluator regression: `41 passed in 2.37s`. RepositoryProfile contract regression: `1` suite / `8` tests passed with Watchman disabled in the restricted local environment.
+
+## Phase 12 Verification — FactNeed Discovery Provenance
+
+- Added nullable `investigationDiscoveryRefs` JSON provenance to `AssessmentFactNeed`; the migration contains no UPDATE, DELETE, DROP or historical backfill. Existing FactNeeds and HumanRequests remain readable with an empty reference projection and unchanged stored attempts/range IDs.
+- New FactNeed inputs that claim investigated range IDs must supply exact immutable `recordId`/`contentDigest` pairs. The API revalidates assessment ownership, repository snapshot, commit, source scope, payload digest/discovery identity and membership of every range before creating or reusing a question.
+- Discovery references remain provenance and are excluded from canonical FactNeed semantic identity. Equivalent wording/locales can still reuse one need; merged provenance fails closed at contract bounds rather than dropping references silently.
+- Focused API/provenance/migration regression: `6` suites / `28` tests passed. FactNeed contract regression: `1` suite / `7` tests passed. Assessment Root regression: `139` tests passed. Governed inventory/bundle regression: `48` tests plus `9` subtests passed.
+- The new schema descriptions use a pending immutable `r4` candidate; `r1`-`r3` remain byte-preserved, current VI/EN key sets match, and no runtime approval was created. Contracts/API builds, Prisma validation/generation, targeted API lint, contract-literal policy, business-logic documentation gates and `git diff --check` passed.
+- This closes fabricated source-investigation claims but does not yet prove that every possible repository search was complete or that a missing operational fact is legally material; those remain governed investigator responsibilities and explicit residual risk.
+
+## Design Notes
+
+Use API-owned typed state for semantic identity and acceptance; models propose but never directly establish authority. Preserve the current Root/checkpoint boundary for this PR. Relevance combines rule-specific evidence goals with technology signals and existing graph/index data; traversal budgets produce explicit coverage gaps rather than absence claims or invented confidence.
+
+## Verification
+
+**Commands:**
+- `cd deepagents && pytest` -- full Python worker suite passes.
+- `pnpm --filter @lcsp/api test` -- API unit/integration regressions pass.
+- `pnpm --filter @lcsp/api test:e2e` -- API E2E regressions pass against the disposable database.
+- `pnpm run test:web` -- web regressions pass.
+- `pnpm run check:business-logic-docs && pnpm run test:business-logic-docs` -- changed business logic is documented.
+- `pnpm run check:contracts` -- contract value-set policy passes.
+- `git diff --check` -- patch integrity passes.
+- `gh pr checks 498 --watch` -- required checks pass on the exact pushed SHA.
+
+## Implementation Checkpoint — Pre-Scope Discovery (2026-11-17)
+
+This checkpoint records executable changes without modifying the approved frozen intent or claiming the full remediation is complete.
+
+### Delivered in the current local worktree
+
+- **Customer-initiated discovery authority:** A separate `AssessmentDiscoveryRun` persistence model, additive migration, owner-authenticated run/start/latest/details API, bounded worker claim/complete/fail contracts, and transactional outbox command `command.assessment.discovery.requested.v1`. No `RuleDecision` or audit membership is authored.
+- **Model-free worker:** `AssessmentDiscoveryBoundary` uses the existing scoped repository hydration, Codebase Memory, RepositoryProfile and Discovery scanner. Source snapshots and worker lease are validated by API, with guarded retries and failure settlement.
+- **Customer-facing recommendation view:** BFF and EN/VI picker panel expose a voluntary pre-audit scan, status, AI-use-case summary, outstanding contextual questions, candidate/rationale preview, and customer-triggered paginated candidate inventory. `NEEDS_CONTEXT` is advisory and does not become `NOT_APPLICABLE` or an automatically selected audit rule.
+- **Versioned reuse:** Assessment Root can reuse the already persisted Discovery metadata only if server-verified snapshot/repository/commit/source scope and current Codebase Memory graph stamp match exactly. Otherwise its previous bounded discovery behavior remains in place.
+- **Workflow compatibility:** The existing direct `SELECTED_RULES` and `FULL_RULE_SET` APIs are unchanged; read-only historic Discovery remains available after an assessment changes lifecycle. Strict commit pinning, customer ownership, bounded data contracts and worker idempotency are covered by tests.
+
+### Executed local checks
+
+- Targeted API unit tests (assessment discovery, rule matcher, source paging, HITL integrity, route allowlist and type normalization) passed on the local changes.
+- Existing Web test suite: **421 passed, 0 failed**; new Discovery BFF-specific tests: **3 passed**.
+- Python Assessment Root, Discovery and RabbitMQ-related tests: **200 passed, 0 failed**.
+- `pnpm run lint`, `pnpm run typecheck:run`, `pnpm run check:business-logic-docs`, Prisma schema validation and the additive DiscoveryRun migration test passed.
+- Offline synthetic 13-case Discovery scanner evaluation: baseline AI-use-case precision **0.80**, recall **0.4444**; Discovery V1 precision **1.00**, recall **1.00**. These are **synthetic scanner-only** results, not end-to-end model, cost, Interview or legal-accuracy results.
+
+### Still open (do not claim accepted)
+
+- **Pre-scope Context Interview:** Customer-visible outstanding questions are advisory only; no owner-authorized canonical FactNeed answer/confirmation workflow has yet been added before selected audit. Do not persist raw questionnaire answers as accepted legal facts by bypassing existing HumanRequest and checkpoint authorities.
+- **Pending fact proposals:** The approved accept/reject/correct workflow and full predicate-aware semantic consistency checks remain incomplete.
+- **Assessment evidence reuse:** Root can avoid repeating the Discovery scanner for exact matched pins, but still must verify source evidence and legal elements; criterion-level accepted-evidence planning is not complete.
+- **End-to-end benchmark:** Full Discovery → Interview → recommendation → customer selection → assessment → RuleDecision accuracy and actual LLM token savings remain unmeasured. Current synthetic metrics must not be represented as legal verification.
+- **Delivery integration:** Native browser interaction, disposable-DB migration execution, GitHub CI at a new pushed commit and deployment have not been verified in this checkpoint. Push is not authorized to an unrelated `origin` remote.
+
+### Next safe delivery gates
+
+The pre-scope interview requires a distinct, narrowly scoped human-resolution authority compatible with the existing typed FactNeed, immutable raw answer/evidence, tenant and deployment scope, native checkpoint lifecycle and fail-closed accepted-fact path. Implement it with direct and adversarial tests before enabling customer-facing answer submission. Do not copy selected-audit `AssessmentHumanRequest` rows with fabricated rule IDs simply to unlock the UI.

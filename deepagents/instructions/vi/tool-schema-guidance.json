@@ -26,6 +26,7 @@
   "OpenHumanRequestArgs.resolution_attempts": "Các cách đã thử giải quyết fact từ nguồn.",
   "OpenHumanRequestArgs.choices": "Danh sách value và label khi có tập lựa chọn cố định.",
   "OpenHumanRequestArgs.condition_ref": "Phần tử do nguồn phát biểu mà fact tác động. Request cần condition_ref hoặc criterion_ids; hỏi fact giải quyết phần tử, không hỏi verdict pháp lý.",
+  "OpenHumanRequestsBatchArgs.requests": "Tập hợp từ 1 đến 20 câu hỏi về fact trọng yếu còn thiếu cần mở đồng thời theo cách nguyên tử.",
   "ReportUnresolvableHumanFactArgs.unavailability_rationale": "Vì sao accepted evidence chứng minh fact trọng yếu vĩnh viễn không thu thập được theo contract; câu trả lời không biết là chưa đủ.",
   "ReportUnresolvableHumanFactArgs.evidence_ids": "Accepted evidence IDs hỗ trợ việc fact không thể thu thập.",
   "StructureArgs.document_id": "documentId hoặc định danh văn bản pháp luật được in chính xác.",
@@ -58,5 +59,10 @@
   "ReportExistingUnresolvableHumanFactArgs.unavailability_rationale": "Lý do bằng chứng đã chấp nhận chứng minh không thể thu thập fact vĩnh viễn; UNKNOWN đơn thuần chưa đủ.",
   "ReportExistingUnresolvableHumanFactArgs.evidence_ids": "Các evidence ID đã được chấp nhận chứng minh sự không thể thu thập vĩnh viễn.",
   "OpenHumanRequestArgs.dependencies": "Các rule/criterion khác phụ thuộc cùng material fact này; không mở rộng selected scope.",
-  "OpenHumanRequestArgs.source_request_id": "Identity request có sẵn để server xác thực việc chia sẻ đúng cùng fact."
+  "OpenHumanRequestArgs.source_request_id": "Identity request có sẵn để server xác thực việc chia sẻ đúng cùng fact.",
+  "RecordRepositoryDiscoveryExpansionArgs.record_id": "recordId chính xác của repositoryDiscovery bất biến đang được mở rộng.",
+  "RecordRepositoryDiscoveryExpansionArgs.content_digest": "contentDigest chính xác của repositoryDiscovery bất biến đang được mở rộng.",
+  "FactNeedDiscoveryRefArgs.record_id": "recordId chính xác do công cụ repositoryDiscovery được quản trị trả về.",
+  "FactNeedDiscoveryRefArgs.content_digest": "contentDigest chính xác gắn với record repositoryDiscovery bất biến.",
+  "FactNeedArgs.investigation_discovery_refs": "Các recordId và contentDigest bất biến chứa investigatedRangeIds; bắt buộc khi khai báo range IDs."
 }

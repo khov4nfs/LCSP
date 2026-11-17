@@ -37,13 +37,14 @@ import {
 import { copy } from "../../utils/conversation-copy";
 import { RuleAuditOption } from "../molecules/rule-audit-option";
 import { RuleAuditGroup } from "../molecules/rule-audit-group";
+import { AssessmentDiscoveryOverview } from "./assessment-discovery-overview";
 
 /**
  * Business purpose: Let the customer explicitly choose a frozen rule scope in the assessment conversation.
  * Business rules: No rule is preselected; zero cannot start; Audit all is a separate deliberate action.
  * Execution flow:
  * 1. Load every pinned catalog page and current request progress.
- * 2. Collect selected IDs through the validated form and submit exact versions/pins.
+ * 2. Collect explicitly chosen IDs, optionally populate them from fully loaded candidate suggestions, and submit exact versions/pins.
  * 3. Show durable per-rule progress and navigate to the accepted decision turn.
  * Failure cases: Catalog or submit errors retain the selection without inventing a result.
  * Side effects: Sends one idempotent audit request and scrolls to a persisted result on demand.
@@ -292,6 +293,31 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
           </CardTitle>
           <CardDescription>{copy("ruleAudit.description")}</CardDescription>
         </CardHeader>
+        <CardContent className="pb-0">
+          <AssessmentDiscoveryOverview
+            assessmentId={assessmentId}
+            rules={rules}
+            canDiscover={!data.latestRequestId}
+            canChooseCandidates={canStart}
+            onChooseCandidates={(assessmentRuleIds) => {
+              const eligible = new Set(
+                rules
+                  .filter(
+                    (rule) =>
+                      rule.progress !== RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
+                  )
+                  .map((rule) => rule.assessmentRuleId),
+              );
+              form.setValue(
+                "selectedRuleIds",
+                [...new Set(assessmentRuleIds)].filter((id) =>
+                  eligible.has(id),
+                ),
+                { shouldDirty: true, shouldValidate: true },
+              );
+            }}
+          />
+        </CardContent>
         {latest ? (
           <CardContent className="pb-0">
             <div

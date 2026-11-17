@@ -2,8 +2,8 @@
   "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
   "bundleId": "lcsp-instruction-repair-r3-2026-11-15",
   "approvalStatus": "PENDING",
-  "vietnameseInventorySha256": "4f9b365d05c06822ccc3f8ae0dfe9d4a8eaf0944885977df96d3705143f803b3",
-  "englishBundleSha256": "c2c757c3a8e28a50bb37b9d0114555d818875e881034f1a230097c7d307cf198",
+  "vietnameseInventorySha256": "08d96c4590f42d1bc736b9ce447bab885a7b60add4a6b40c3531eb83b0639998",
+  "englishBundleSha256": "8c8cceb805eb99cd859528f12aba637e6d38f9a44395400c0303e45831f237c8",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -209,9 +209,9 @@
       "sourceId": "assessment-tools.upstream",
       "vietnameseSourcePath": "instructions/vi/upstream-assessment-tools.json",
       "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
-      "vietnameseSourceSha256": "37a815ba859e7b8c8414e4ce5cea4442c9a6cfc2ed5d23d96bc37da5dbdc247a",
+      "vietnameseSourceSha256": "a0474d6c7f9aa245b4e5e7946a2dcd5d27ef7c721460e5b8b507f8cdc6b43283",
       "englishRuntimePath": "instructions/candidates/r3/assessment-tools.upstream.txt",
-      "englishRuntimeSha256": "2e8e17f3153abcfab83466b3028feac2a2ec9fa219c72596a16b2366718604ac"
+      "englishRuntimeSha256": "9a54a13a7bfcde817abc0a2ab971adc07d7a97e3297020bf8faf5c6935789dc9"
     },
     {
       "sourceId": "claim-author.system",
@@ -473,9 +473,9 @@
       "sourceId": "tools.schema-guidance",
       "vietnameseSourcePath": "instructions/vi/tool-schema-guidance.json",
       "vietnameseSourceRevision": "r3-source-repair-2026-11-15",
-      "vietnameseSourceSha256": "114b1364704555c597b869062ab1a8846c2dea07d43a31ad9e32c7e4cb89be54",
+      "vietnameseSourceSha256": "5b158d2bd1607d2b03129890ba5a681c048de3ea9d22e626b8aa8dfdfb4ba154",
       "englishRuntimePath": "instructions/candidates/r3/tools.schema-guidance.txt",
-      "englishRuntimeSha256": "4fcc4134202b0f74c0a805a92897f8fd010c84a1a7442835487758409a8335d7"
+      "englishRuntimeSha256": "44cdd0632401f32e1eec51a158ad4aa34dc299d54424a56f138641f39d48001e"
     }
   ]
 }

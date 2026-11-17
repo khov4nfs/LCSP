@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { jest } from "@jest/globals";
 import {
   AGENT_EXECUTION_STATES as Execution,
+  type AgentExecutionState,
   ASSESSMENT_LIFECYCLE_STATES as Lifecycle,
   type AssessmentLifecycleState,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
@@ -13,6 +14,8 @@ import {
   RULE_AUDIT_STATUSES,
   claimAssessmentRootExecutionRequestSchema,
   assessmentRootClaimSchema,
+  ASSESSMENT_BUDGET_REASONS,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import {
@@ -35,15 +38,17 @@ function fixture(
   const row = {
     lifecycleState,
     lifecycleRevision: 3,
-    blockerReason: null,
-    blockerReference: null,
+    blockerReason: null as string | null,
+    blockerReference: null as Record<string, unknown> | null,
     threadId: randomUUID(),
     checkpointNamespace: assessmentId,
     checkpointId: randomUUID(),
     currentExecutionId: randomUUID(),
-    executionState: Execution.RUNNING,
-    leaseToken: randomUUID(),
-    leaseExpiresAt: new Date(Date.now() + (expired ? -60000 : 600000)),
+    executionState: Execution.RUNNING as AgentExecutionState,
+    leaseToken: randomUUID() as string | null,
+    leaseExpiresAt: new Date(
+      Date.now() + (expired ? -60000 : 600000),
+    ) as Date | null,
   };
   const turn = {
     id: row.currentExecutionId,
@@ -80,9 +85,20 @@ function fixture(
         Promise.resolve(Object.assign(row, data)),
       ),
     },
+    assessment: {
+      update: jest
+        .fn<
+          (args?: {
+            where?: Record<string, unknown>;
+            data?: Record<string, unknown>;
+          }) => Promise<unknown>
+        >()
+        .mockResolvedValue({}),
+    },
     assessmentRuntimeTurn: {
       findUnique: jest.fn<() => Promise<typeof turn>>().mockResolvedValue(turn),
       findFirst: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+      findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       upsert: jest.fn(
         ({
           update,
@@ -124,7 +140,11 @@ function fixture(
   const authority = new AssessmentRuntimeAuthority(
     { $transaction: (fn: (tx: unknown) => unknown) => fn(tx) } as never,
     { appendInTx } as never,
-    {} as never,
+    {
+      transitionFromRuntimeAcknowledgementInTx: jest
+        .fn<() => Promise<void>>()
+        .mockResolvedValue(undefined),
+    } as never,
     { bindInTx: () => Promise.resolve(undefined) } as never,
   );
   return {
@@ -165,7 +185,7 @@ describe("persisted Agent Server run recovery", () => {
       await expect(
         f.authority.authorize({
           assessmentId: f.assessmentId,
-          leaseToken: oldLease,
+          leaseToken: oldLease ?? undefined,
           correlationId: randomUUID(),
         }),
       ).rejects.toMatchObject({ status: 403 });
@@ -1288,5 +1308,109 @@ describe("unknown response review on the existing native thread", () => {
       }),
     ).rejects.toMatchObject({ status: 403 });
     expect(f.tx.assessmentRuntime.update).not.toHaveBeenCalled();
+  });
+
+  it("allows pausing with durable budget reason and sets blockerReference on assessment", async () => {
+    const f = fixture(Lifecycle.ACTIVE);
+    Object.assign(f.row, {
+      leaseToken: null,
+      leaseExpiresAt: null,
+      executionState: Execution.INTERRUPTED,
+    });
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    const cp = randomUUID();
+    const result = await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: claim.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.PAUSED,
+      checkpointId: cp,
+      reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
+    });
+    expect(result.executionState).toBe(Execution.PAUSED);
+    const updateCall = f.tx.assessment.update.mock.calls[0]?.[0];
+    expect(updateCall).toMatchObject({
+      where: { id: f.assessmentId },
+      data: {
+        blockerReference: {
+          reason: ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED,
+        },
+      },
+    });
+  });
+
+  it("denies claimRoot with NO_PROGRESS_LIMIT_REACHED when 15 consecutive turns lack progress and overrideNoProgress is not set", async () => {
+    const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+    process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
+    try {
+      const f = fixture(Lifecycle.ACTIVE, true);
+      f.row.executionState = Execution.QUEUED;
+      f.row.leaseToken = null;
+      f.row.leaseExpiresAt = null;
+      const turns = Array.from({ length: 15 }, (_, i) => ({
+        id: `turn-${i}`,
+        contextJson: { progressMade: false },
+        createdAt: new Date(Date.now() - i * 1000),
+      }));
+      f.tx.assessmentRuntimeTurn.findMany = jest
+        .fn<() => Promise<typeof turns>>()
+        .mockResolvedValue(turns);
+
+      let error:
+        | {
+            getStatus?: () => number;
+            getResponse?: () => { problem?: { code?: string } };
+          }
+        | undefined;
+      try {
+        await f.authority.claimRoot({
+          assessmentId: f.assessmentId,
+          correlationId: randomUUID(),
+        });
+      } catch (err: unknown) {
+        error = err as {
+          getStatus?: () => number;
+          getResponse?: () => { problem?: { code?: string } };
+        };
+      }
+      expect(error).toBeDefined();
+      expect(error?.getStatus?.()).toBe(409);
+      expect(error?.getResponse?.()?.problem?.code).toBe(
+        ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
+      );
+    } finally {
+      if (originalEnv !== undefined) {
+        process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
+      } else {
+        delete process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
+      }
+    }
+  });
+
+  it("admits claimRoot when 15 consecutive turns lack progress but blockerReference specifies overrideNoProgress: true", async () => {
+    const f = fixture(Lifecycle.ACTIVE, true);
+    f.row.executionState = Execution.QUEUED;
+    f.row.leaseToken = null;
+    f.row.leaseExpiresAt = null;
+    f.row.blockerReference = { overrideNoProgress: true };
+    const turns = Array.from({ length: 15 }, (_, i) => ({
+      id: `turn-${i}`,
+      contextJson: { progressMade: false },
+      createdAt: new Date(Date.now() - i * 1000),
+    }));
+    f.tx.assessmentRuntimeTurn.findMany = jest
+      .fn<() => Promise<typeof turns>>()
+      .mockResolvedValue(turns);
+
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+    });
+    expect(claim).toBeDefined();
+    expect(claim.leaseToken).toBeDefined();
   });
 });

@@ -1,13 +1,22 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, jest } from "@jest/globals";
-import type { Prisma } from "@prisma/client";
+import {
+  AssessmentFactNeedStatus,
+  AssessmentFactNeedValueKind,
+  type Prisma,
+} from "@prisma/client";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
 } from "@lcsp/contracts/assessment";
-import { HUMAN_RESOLUTION_CONTROL_TYPES } from "@lcsp/contracts/assessment-domain";
+import {
+  HUMAN_FACT_GUARD_FAILURES,
+  HUMAN_FACT_PROPOSAL_STATUSES,
+  HUMAN_RESOLUTION_CONTROL_TYPES,
+} from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { AnswerHumanRequestCommand } from "./answer-human-request.command.js";
 import { AnswerHumanRequestHandler } from "./answer-human-request.handler.js";
 
 function fixture(selectedRules = ["RULE-SELECTED"]) {
@@ -29,21 +38,27 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
       { assessmentRuleId: "RULE-SELECTED", criterionIds: ["criterion-1"] },
     ],
     requestRevision: 0,
-    status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-    controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT,
-    choices: [],
+    status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN as string,
+    controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT as string,
+    choices: [] as Array<{ value: string; label: string }>,
     question: "Which entity operates this deployment?",
     answers: [] as Array<Record<string, unknown>>,
     resolvedFactId: null,
+    factNeedId: null as string | null,
+    factNeed: null as {
+      valueKind: AssessmentFactNeedValueKind;
+      allowedValues: string[];
+    } | null,
   };
   const unrelatedRequest = {
     ...request,
     requestId: randomUUID(),
     assessmentRuleId: "RULE-UNSELECTED",
     dependencies: [],
-    answers: [],
+    answers: [] as Array<Record<string, unknown>>,
   };
   const requests = [request, unrelatedRequest];
+  const proposals: Array<Record<string, unknown>> = [];
   type RequestRow = (typeof requests)[number];
   type RequestFilter = {
     assessmentId?: string;
@@ -110,10 +125,37 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
           ),
       ),
     },
-    assessmentCase: { update: jest.fn(() => Promise.resolve({})) },
-    assessmentEvidence: { create: jest.fn(() => Promise.resolve({})) },
-    assessmentCaseFact: { create: jest.fn(() => Promise.resolve({})) },
-    assessmentCaseFactEvidence: { create: jest.fn(() => Promise.resolve({})) },
+    assessmentCase: {
+      update: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentEvidence: {
+      create: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentCaseFact: {
+      create: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentCaseFactEvidence: {
+      create: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue({}),
+    },
+    assessmentFactNeed: {
+      updateMany: jest
+        .fn<(...args: unknown[]) => Promise<{ count: number }>>()
+        .mockResolvedValue({ count: 1 }),
+    },
+    assessmentHumanFactProposal: {
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+        proposals.push(data);
+        return Promise.resolve(data);
+      }),
+    },
     assessmentDecisionCoverage: {
       updateMany: jest
         .fn<
@@ -155,35 +197,85 @@ function fixture(selectedRules = ["RULE-SELECTED"]) {
         }),
     } as never,
     { appendInTx: () => Promise.resolve(undefined) } as never,
-    { invalidateCaseRevisionInTx: () => Promise.resolve([]) } as never,
+    { invalidateFinalReportInTx: () => Promise.resolve(undefined) } as never,
     coordinator as never,
     outbox as never,
     { writeInTx: () => Promise.resolve(undefined) } as never,
   );
-  const input = (doesNotKnow: boolean) =>
-    ({
+  const input = (
+    doesNotKnow: boolean,
+    answerText?: string,
+    expectedRequestRevision = 0,
+  ) =>
+    new AnswerHumanRequestCommand(
       assessmentId,
       requestId,
-      correlationId: randomUUID(),
-      actor: { userId: ownerId, role: AUTH_USER_ROLES.customer },
-      request: {
-        expectedRequestRevision: 0,
+      {
+        userId: ownerId,
+        role: AUTH_USER_ROLES.customer,
+        sessionId: randomUUID(),
+        scope: "all",
+      },
+      {
+        expectedRequestRevision,
         expectedCaseRevision: 3,
         idempotencyKey: randomUUID(),
-        doesNotKnow,
-        answer: doesNotKnow
-          ? null
-          : "The deployment is operated by Example Ltd.",
+        ...(doesNotKnow
+          ? { doesNotKnow: true as const }
+          : {
+              doesNotKnow: false as const,
+              answer:
+                answerText ?? "The deployment is operated by Example Ltd.",
+            }),
       },
-    }) as never;
-  return { handler, input, tx, outbox, coordinator, request, unrelatedRequest };
+      randomUUID(),
+    );
+  return {
+    handler,
+    input,
+    tx,
+    outbox,
+    coordinator,
+    request,
+    unrelatedRequest,
+    proposals,
+  };
 }
 
 describe("shared human answers inside a selected audit", () => {
+  it.each(["I do not know", "Tôi không biết"])(
+    "retains an uncertain ordinary answer as a proposal without accepting a fact: %s",
+    async (answer) => {
+      const f = fixture();
+      f.request.question = "Where are customer records hosted?";
+      const result = await f.handler.execute(f.input(false, answer));
+      expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+      expect(result.factId).toBeNull();
+      expect(result.proposalStatus).toBe(
+        HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+      );
+      expect(f.proposals[0]).toMatchObject({
+        rawAnswer: { answer },
+        acceptedFactId: null,
+        acceptedEvidenceId: null,
+      });
+      expect(f.outbox.enqueue).not.toHaveBeenCalled();
+    },
+  );
   it("accepts a shared answer through its selected dependency and resumes without unrelated historical blockers", async () => {
     const f = fixture();
     const result = await f.handler.execute(f.input(false));
     expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED);
+    expect(result.proposalStatus).toBe(HUMAN_FACT_PROPOSAL_STATUSES.accepted);
+    expect(f.proposals).toEqual([
+      expect.objectContaining({
+        proposalId: result.proposalId,
+        status: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+        guardFailure: null,
+        acceptedEvidenceId: expect.any(String),
+        acceptedFactId: result.factId,
+      }),
+    ]);
     expect(result.resumed).toBe(true);
     expect(f.tx.assessmentDecisionCoverage.updateMany).toHaveBeenCalledTimes(1);
     expect(f.tx.assessmentDecisionCoverage.updateMany).toHaveBeenCalledWith(
@@ -207,9 +299,212 @@ describe("shared human answers inside a selected audit", () => {
     expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
     expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
+    expect(f.tx.assessmentFactNeed.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.assessmentHumanFactProposal.create).not.toHaveBeenCalled();
     expect(f.tx.assessmentDecisionCoverage.updateMany).not.toHaveBeenCalled();
     expect(f.coordinator.transitionVerifiedInTx).not.toHaveBeenCalled();
     expect(f.outbox.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves a linked FactNeed to the accepted fact in the same transaction", async () => {
+    const f = fixture();
+    f.request.factNeedId = randomUUID();
+
+    const result = await f.handler.execute(f.input(false));
+
+    expect(result.factId).not.toBeNull();
+    expect(f.tx.assessmentFactNeed.updateMany).toHaveBeenCalledWith({
+      where: {
+        factNeedId: f.request.factNeedId,
+        assessmentId: f.request.assessmentId,
+        status: AssessmentFactNeedStatus.OPEN,
+      },
+      data: {
+        status: AssessmentFactNeedStatus.RESOLVED,
+        resolvedFactId: result.factId,
+        resolvedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("normalizes a typed FactNeed answer while preserving the raw answer", async () => {
+    const f = fixture();
+    f.request.factNeedId = randomUUID();
+    f.request.factNeed = {
+      valueKind: AssessmentFactNeedValueKind.BOOLEAN,
+      allowedValues: [],
+    };
+
+    await f.handler.execute(f.input(false, "TRUE"));
+
+    expect(f.tx.assessmentEvidence.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            answer: "TRUE",
+            normalizedAnswer: {
+              kind: AssessmentFactNeedValueKind.BOOLEAN,
+              value: true,
+            },
+          }),
+        }),
+      }),
+    );
+    expect(f.request.answers[0]).toMatchObject({
+      answer: "TRUE",
+      normalizedAnswer: {
+        kind: AssessmentFactNeedValueKind.BOOLEAN,
+        value: true,
+      },
+    });
+  });
+
+  it("rejects an invalid typed answer before creating evidence or advancing the case", async () => {
+    const f = fixture();
+    f.request.factNeedId = randomUUID();
+    f.request.factNeed = {
+      valueKind: AssessmentFactNeedValueKind.BOOLEAN,
+      allowedValues: [],
+    };
+
+    await expect(
+      f.handler.execute(f.input(false, "maybe")),
+    ).rejects.toMatchObject({ status: 422 });
+
+    expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+    expect(f.tx.assessmentFactNeed.updateMany).not.toHaveBeenCalled();
+    expect(f.tx.assessmentHumanFactProposal.create).not.toHaveBeenCalled();
+  });
+
+  it("persists an ambiguous material answer as a pending non-authoritative proposal", async () => {
+    const f = fixture();
+    f.request.question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+
+    const result = await f.handler.execute(
+      f.input(
+        false,
+        "No serious incident has occurred, but the incident status remains unknown.",
+      ),
+    );
+
+    expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+    expect(result.factId).toBeNull();
+    expect(result.resumed).toBe(false);
+    expect(result.proposalStatus).toBe(
+      HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+    );
+    expect(result.guardFailure).toBe(
+      HUMAN_FACT_GUARD_FAILURES.AMBIGUOUS_HUMAN_ANSWER,
+    );
+    expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+    expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
+    expect(f.proposals).toEqual([
+      expect.objectContaining({
+        proposalId: result.proposalId,
+        status: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+        guardFailure: HUMAN_FACT_GUARD_FAILURES.AMBIGUOUS_HUMAN_ANSWER,
+        acceptedEvidenceId: null,
+        acceptedFactId: null,
+      }),
+    ]);
+  });
+
+  it("replays a pending proposal without duplicating it or accepting a fact", async () => {
+    const f = fixture();
+    f.request.question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+    const command = f.input(
+      false,
+      "No serious incident has occurred, but the incident status remains unknown.",
+    );
+
+    const first = await f.handler.execute(command);
+    const replay = await f.handler.execute(command);
+
+    expect(replay).toEqual({ ...first, resumed: false, replayed: true });
+    expect(replay.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+    expect(replay.factId).toBeNull();
+    expect(f.proposals).toHaveLength(1);
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts a corrected answer at the next request revision without rewriting the pending proposal", async () => {
+    const f = fixture();
+    f.request.question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+    const pending = await f.handler.execute(
+      f.input(
+        false,
+        "No serious incident has occurred, but the incident status remains unknown.",
+      ),
+    );
+
+    const accepted = await f.handler.execute(
+      f.input(
+        false,
+        "No serious incident has occurred since go-live.",
+        pending.requestRevision,
+      ),
+    );
+
+    expect(accepted.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED);
+    expect(accepted.proposalStatus).toBe(HUMAN_FACT_PROPOSAL_STATUSES.accepted);
+    expect(accepted.factId).not.toBeNull();
+    expect(f.proposals).toHaveLength(2);
+    expect(f.proposals[0]).toMatchObject({
+      proposalId: pending.proposalId,
+      status: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+    });
+    expect(f.proposals[1]).toMatchObject({
+      proposalId: accepted.proposalId,
+      status: HUMAN_FACT_PROPOSAL_STATUSES.accepted,
+      acceptedFactId: accepted.factId,
+    });
+  });
+
+  it("persists a conflicting material answer as a pending non-authoritative proposal", async () => {
+    const f = fixture();
+    const question =
+      "Has any serious AI-system incident occurred during operation of the chatbot?";
+    f.request.question = question;
+    f.unrelatedRequest.question = question;
+    f.unrelatedRequest.status = HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED;
+    f.unrelatedRequest.answers = [
+      {
+        idempotencyKey: "prior-answer",
+        requestDigest: "a".repeat(64),
+        actorId: "customer-owner",
+        answeredAt: "2026-11-15T10:00:00.000Z",
+        caseRevision: 2,
+        requestRevision: 1,
+        doesNotKnow: false,
+        answer: "Incident history remains unknown.",
+        selectedChoice: null,
+      },
+    ];
+
+    const result = await f.handler.execute(
+      f.input(false, "No serious incident has occurred since go-live."),
+    );
+
+    expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN);
+    expect(result.proposalStatus).toBe(
+      HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+    );
+    expect(result.guardFailure).toBe(
+      HUMAN_FACT_GUARD_FAILURES.CONTRADICTS_PRIOR_HUMAN_FACT,
+    );
+    expect(f.tx.assessmentCase.update).not.toHaveBeenCalled();
+    expect(f.tx.assessmentEvidence.create).not.toHaveBeenCalled();
+    expect(f.proposals[0]).toMatchObject({
+      status: HUMAN_FACT_PROPOSAL_STATUSES.pendingReview,
+      guardFailure: HUMAN_FACT_GUARD_FAILURES.CONTRADICTS_PRIOR_HUMAN_FACT,
+      acceptedEvidenceId: null,
+      acceptedFactId: null,
+    });
   });
 
   it("rejects a shared request whose dependencies are all outside the current audit", async () => {
@@ -220,5 +515,40 @@ describe("shared human answers inside a selected audit", () => {
     expect(f.tx.assessmentHumanRequest.update).not.toHaveBeenCalled();
     expect(f.tx.assessmentCaseFact.create).not.toHaveBeenCalled();
     expect(f.outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("preserves typed choice value and canonical label in evidence payload and fact statement", async () => {
+    const f = fixture();
+    f.request.controlType = HUMAN_RESOLUTION_CONTROL_TYPES.SINGLE_SELECT;
+    f.request.choices = [
+      { value: "DEV_ONLY", label: "Development environment only" },
+      { value: "PROD", label: "Production environment" },
+    ];
+    const result = await f.handler.execute(f.input(false, "DEV_ONLY"));
+
+    expect(result.status).toBe(HUMAN_RESOLUTION_REQUEST_STATUSES.RESOLVED);
+    expect(f.tx.assessmentEvidence.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          payload: expect.objectContaining({
+            answer: "DEV_ONLY",
+            selectedChoice: {
+              value: "DEV_ONLY",
+              label: "Development environment only",
+            },
+            controlType: HUMAN_RESOLUTION_CONTROL_TYPES.SINGLE_SELECT,
+          }),
+        }),
+      }),
+    );
+    expect(f.tx.assessmentCaseFact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          statement: expect.stringContaining(
+            "Customer answer: Development environment only (DEV_ONLY)",
+          ),
+        }),
+      }),
+    );
   });
 });

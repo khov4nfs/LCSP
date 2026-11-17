@@ -12,6 +12,7 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
+import { legalApplicabilityLogicSchema } from "@lcsp/contracts/compliance-rule-set";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { criterionIdsOf, listLength } from "../../domain/rule-criteria.js";
@@ -22,9 +23,11 @@ export const ROOT_AUDIT_ACTOR = {
 } as const;
 
 export interface PinnedCase {
+  assessmentId: string;
   caseRevision: number;
   ruleSetVersionId: string;
   repositorySnapshotId: string;
+  repositoryId: string;
   repositoryScanJobId: string;
   repositoryCommit: string;
   sourcePathPrefix: string | null;
@@ -100,6 +103,7 @@ export class AssessmentCaseSupport {
       },
       select: {
         id: true,
+        repositoryId: true,
         assessmentId: true,
         commitSha: true,
         sourcePathPrefix: true,
@@ -109,6 +113,7 @@ export class AssessmentCaseSupport {
       !snapshot ||
       snapshot.id !== row.repositorySnapshotId ||
       snapshot.assessmentId !== assessmentId ||
+      !snapshot.repositoryId ||
       snapshot.commitSha.toLowerCase() !== row.repositoryCommit.toLowerCase() ||
       (snapshot.sourcePathPrefix !== null &&
         !repositorySourcePathPrefixSchema.safeParse(snapshot.sourcePathPrefix)
@@ -121,9 +126,11 @@ export class AssessmentCaseSupport {
       );
     }
     return {
+      assessmentId,
       caseRevision: row.caseRevision,
       ruleSetVersionId: row.ruleSetVersionId,
       repositorySnapshotId: row.repositorySnapshotId,
+      repositoryId: snapshot.repositoryId,
       repositoryScanJobId: row.repositoryScanJobId,
       repositoryCommit: row.repositoryCommit,
       sourcePathPrefix: snapshot.sourcePathPrefix,
@@ -190,6 +197,24 @@ export class AssessmentCaseSupport {
     return row;
   }
 
+  /**
+   * Business purpose: Advance rule decision coverage to RESOLVED along the canonical state transition table.
+   *
+   * Business rules:
+   * - Coverage may transition to RESOLVED from PENDING, INVALIDATED, or INVESTIGATING.
+   * - Direct transition from WAITING_FOR_INPUT to RESOLVED without resolving human dependencies is rejected.
+   *
+   * Execution flow:
+   * 1. Reject illegal transitions from WAITING_FOR_INPUT.
+   * 2. Step through INVESTIGATING for initial or recovering transitions from PENDING or INVALIDATED.
+   * 3. Record the new resolved decision ID, revision, and RESOLVED status under the caller's transaction.
+   *
+   * Failure cases:
+   * - Transition from WAITING_FOR_INPUT throws DECISION_REVISION_STALE with HTTP 409 Conflict.
+   *
+   * Side effects:
+   * - Updates AssessmentDecisionCoverage row in the database.
+   */
   async advanceCoverageToResolved(
     tx: Prisma.TransactionClient,
     input: {
@@ -200,6 +225,13 @@ export class AssessmentCaseSupport {
       decisionRevision: number;
     },
   ) {
+    if (input.from === DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
+        "",
+        { status: HttpStatus.CONFLICT },
+      );
+    }
     const key = {
       assessmentId_assessmentRuleId: {
         assessmentId: input.assessmentId,
@@ -269,7 +301,7 @@ export class AssessmentCaseSupport {
    * 2. Resolve the decision’s cited facts, then collect direct evidence references and those
    *   facts’ evidence links.
    * 3. Return exact pins/revision, criterion and legal-context identities, declared-element
-   *   counts and record maps.
+   *   counts, source-authored applicability logic and record maps; missing legacy logic remains unknown.
    *
    * Failure cases:
    * - A missing rule remains null and missing facts/evidence remain absent, allowing the
@@ -299,6 +331,7 @@ export class AssessmentCaseSupport {
                 id: true,
                 legalRequirementId: true,
                 applicabilityConditions: true,
+                applicabilityLogic: true,
                 qualifiers: true,
                 exceptions: true,
                 operativePropositions: true,
@@ -402,6 +435,11 @@ export class AssessmentCaseSupport {
                   applicabilityConditions: listLength(
                     link.legalRequirement.applicabilityConditions,
                   ),
+                  ...(link.legalRequirement.applicabilityLogic != null
+                    ? legalApplicabilityLogicSchema.parse(
+                        link.legalRequirement.applicabilityLogic,
+                      )
+                    : {}),
                   qualifiers: listLength(link.legalRequirement.qualifiers),
                   exceptions: listLength(link.legalRequirement.exceptions),
                   operativeScopes: listLength(

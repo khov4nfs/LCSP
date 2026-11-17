@@ -21,6 +21,8 @@ import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecy
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../../domain/decision-validator.js";
+import { decisionDependencyGraphIsComplete } from "../../../domain/decision-dependencies.js";
+import { humanRequestScopeWhere } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { RequestAssessmentFinalizationCommand } from "./request-assessment-finalization.command.js";
 
 const ORCHESTRATOR = {
@@ -41,7 +43,8 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
   /**
    * Business purpose: Confirm completion of the authorized audit scope using persisted decisions.
    * Business rules:
-   * - A selected request completes when every member has a current validated decision and no open human blocker.
+   * - A selected request completes when every member has a currently supported validated decision and no open human blocker.
+   * - An older decision is reusable only when its exact normalized dependency ledger is complete and its cited support still validates.
    * - A full request keeps the whole Rule Set completion gate and FINALIZING lifecycle transition.
    * Execution flow:
    * 1. Authorize the leased Root and load its request.
@@ -76,21 +79,29 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
           code: (typeof ASSESSMENT_COMPLETION_BLOCKER_CODES)[keyof typeof ASSESSMENT_COMPLETION_BLOCKER_CODES];
           reference?: string;
         }> = [];
+        const ruleIds = auditRequest.rules.map((item) => item.assessmentRuleId);
+        const ruleIdSet = new Set(ruleIds);
         const open = await tx.assessmentHumanRequest.findMany({
           where: {
-            assessmentId: command.assessmentId,
+            ...humanRequestScopeWhere(command.assessmentId, ruleIds),
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-            assessmentRuleId: {
-              in: auditRequest.rules.map((item) => item.assessmentRuleId),
-            },
           },
-          select: { assessmentRuleId: true },
+          select: {
+            assessmentRuleId: true,
+            dependencies: { select: { assessmentRuleId: true } },
+          },
         });
-        for (const request of open)
+        for (const request of open) {
+          const matchingRule = ruleIdSet.has(request.assessmentRuleId)
+            ? request.assessmentRuleId
+            : (request.dependencies.find((d) =>
+                ruleIdSet.has(d.assessmentRuleId),
+              )?.assessmentRuleId ?? request.assessmentRuleId);
           blockers.push({
             code: ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
-            reference: request.assessmentRuleId,
+            reference: matchingRule,
           });
+        }
         for (const item of auditRequest.rules) {
           const coverage = await tx.assessmentDecisionCoverage.findUnique({
             where: {
@@ -99,7 +110,14 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
                 assessmentRuleId: item.assessmentRuleId,
               },
             },
-            include: { currentDecision: true },
+            include: {
+              currentDecision: {
+                include: {
+                  evidenceDependencies: { select: { evidenceId: true } },
+                  factDependencies: { select: { factId: true } },
+                },
+              },
+            },
           });
           const record = coverage?.currentDecision;
           if (
@@ -108,7 +126,7 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
             coverage.assessmentRuleVersion !== item.assessmentRuleVersion ||
             !record ||
             record.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED ||
-            record.caseRevision !== pins.caseRevision ||
+            record.caseRevision > pins.caseRevision ||
             record.repositoryCommit !== pins.repositoryCommit ||
             record.ruleSetVersionId !== auditRequest.ruleSetVersionId
           ) {
@@ -129,12 +147,30 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
             });
             continue;
           }
+          const historicalDependencyGraphComplete =
+            record.caseRevision < pins.caseRevision &&
+            decisionDependencyGraphIsComplete(parsed.data, record);
+          if (
+            record.caseRevision < pins.caseRevision &&
+            !historicalDependencyGraphComplete
+          ) {
+            blockers.push({
+              code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
+              reference: item.assessmentRuleId,
+            });
+            continue;
+          }
           const context = await this.support.buildValidationContext(tx, {
             assessmentId: command.assessmentId,
             pins,
             decision: parsed.data,
           });
-          if (validateRuleDecision(parsed.data, context).length > 0)
+          if (
+            validateRuleDecision(parsed.data, {
+              ...context,
+              allowHistoricalCaseRevision: historicalDependencyGraphComplete,
+            }).length > 0
+          )
             blockers.push({
               code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
               reference: item.assessmentRuleId,

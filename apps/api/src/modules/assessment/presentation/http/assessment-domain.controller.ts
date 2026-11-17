@@ -23,6 +23,8 @@ import {
   submitAssessmentFinalReportRequestSchema,
   openAssessmentHumanRequestSchema,
   type OpenAssessmentHumanRequest,
+  openAssessmentHumanRequestsBatchSchema,
+  type OpenAssessmentHumanRequestsBatch,
   reportUnresolvableHumanFactRequestSchema,
   type ReportUnresolvableHumanFactRequest,
   pinnedLegalSourceSearchRequestSchema,
@@ -59,6 +61,7 @@ import { ClaimAssessmentRootCommand } from "../../application/commands/claim-ass
 import { FinishAssessmentRootCommand } from "../../application/commands/finish-assessment-root/finish-assessment-root.command.js";
 import { HeartbeatAssessmentRootCommand } from "../../application/commands/heartbeat-assessment-root/heartbeat-assessment-root.command.js";
 import { OpenHumanRequestCommand } from "../../application/commands/open-human-request/open-human-request.command.js";
+import { OpenHumanRequestsBatchCommand } from "../../application/commands/open-human-request/open-human-requests-batch.command.js";
 import { ReportUnresolvableHumanFactCommand } from "../../application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.command.js";
 import { RecordRootActivityCommand } from "../../application/commands/record-root-activity/record-root-activity.command.js";
 import { RequestAssessmentFinalizationCommand } from "../../application/commands/request-assessment-finalization/request-assessment-finalization.command.js";
@@ -204,6 +207,7 @@ export class AssessmentDomainController {
           body.requestIds,
           body.controlRequestId,
           body.recoveryRequired,
+          body.reason,
         ),
       ),
     );
@@ -464,6 +468,37 @@ export class AssessmentDomainController {
     return resultEnvelope(
       await this.commandBus.execute(
         new OpenHumanRequestCommand(
+          assessmentId,
+          lease,
+          body,
+          this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  @Post("human-requests/batch")
+  @UseGuards(AssessmentLeaseGuard)
+  @HttpCode(200)
+  async humanRequestsBatch(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Body(
+      requestPipe(
+        openAssessmentHumanRequestsBatchSchema,
+        ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
+      ),
+    )
+    body: OpenAssessmentHumanRequestsBatch,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new OpenHumanRequestsBatchCommand(
           assessmentId,
           lease,
           body,

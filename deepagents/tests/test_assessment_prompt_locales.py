@@ -20,6 +20,7 @@ from assessment_root.researcher import (
 from assessment_root.skills import ALLOWED, list_skills, load_skill
 from assessment_root.tool_contracts import CONTRACTS, CONTRACTS_VI, GRAPH_CONTRACTS, GRAPH_CONTRACTS_VI, describe_tool
 from assessment_root.tools import ROOT_TOOL_NAMES, build_root_tools
+from middleware.approved_instructions import approved_tool_specs
 from test_assessment_root_agent import FakeClient, RootScriptedModel, _run, complete_root_messages
 
 BASE = Path(__file__).resolve().parents[1]
@@ -107,6 +108,29 @@ def test_tool_contracts_have_same_keys_en_vi_and_stable_names() -> None:
     assert vi.startswith("Canonical API schema")
     assert "ASSESSMENT TOOL CONTRACT" in en and "ASSESSMENT TOOL CONTRACT" in vi
     assert "HITL" in vi
+
+
+def test_discovery_tools_resolve_exact_governed_entries_when_aggregate_catalog_lags(
+    tmp_path, offline_instruction_snapshot,
+) -> None:
+    names = {
+        "get_repository_discovery_ranges",
+        "get_repository_discovery_details",
+    }
+    registered = [
+        tool
+        for tool in build_root_tools(_run(tmp_path, FakeClient()))
+        if tool.name in names
+    ]
+
+    specs = approved_tool_specs(registered, offline_instruction_snapshot)
+
+    assert {item["function"]["name"] for item in specs} == names
+    for item in specs:
+        name = item["function"]["name"]
+        assert item["function"]["description"] == offline_instruction_snapshot.instruction(
+            f"assessment-tool.{name}.guidance"
+        )
 
 
 @pytest.mark.parametrize("locale,expected_term", [("en", "Investigation"), ("vi", "Investigation")])

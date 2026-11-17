@@ -140,6 +140,37 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "logic": {
+                "description": "Source-authored ALL/ANY connector and required condition indices. Omit rather than guess when the source expression cannot be represented.",
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "number",
+                    "const": 1
+                  },
+                  "conditionLogic": {
+                    "type": "string",
+                    "enum": [
+                      "ALL",
+                      "ANY"
+                    ]
+                  },
+                  "materialConditionIndices": {
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                },
+                "required": [
+                  "version",
+                  "conditionLogic"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [

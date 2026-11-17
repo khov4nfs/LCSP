@@ -34,6 +34,16 @@ from tools.common.capabilities.platform.repository_sandbox import (
 # Native/search tool names whose executions authenticate a search-coverage record.
 _SEARCH_TOOLS = {"ls", "glob", "grep", "search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
 _READ_TOOLS = {"read_file"}
+_DISCOVERY_EXPANSION_TRACE_TOOLS = {
+    "ls": "LIST_DIRECTORY",
+    "glob": "GLOB",
+    "grep": "GREP",
+    "search_code_graph": "SEARCH_CODE_GRAPH",
+    "trace_call_path": "TRACE_CALL_PATH",
+    "search_code_text": "SEARCH_CODE_TEXT",
+    "get_repository_architecture": "GET_REPOSITORY_ARCHITECTURE",
+    "read_file": "READ_FILE",
+}
 _SCOPE_DIRECTORY = "SOURCE_DIRECTORY"
 _SCOPE_FILE = "SOURCE_FILE"
 _SCOPE_GRAPH = "GRAPH_INDEX"
@@ -43,6 +53,8 @@ _COVERAGE_MAX_PAGE_SIZE = 25
 _CONTEXT_DEFAULT_PAGE_SIZE = 5
 _CONTEXT_MAX_PAGE_SIZE = 10
 _CONTEXT_DETAIL_MAX_BYTES = 4096
+_DISCOVERY_DEFAULT_PAGE_SIZE = 25
+_DISCOVERY_MAX_PAGE_SIZE = 100
 _HITL_RESUME_MAX_BYTES = 4096
 _HITL_RESUME_DEFAULT_PAGE_SIZE = 10
 _HITL_RESUME_MAX_PAGE_SIZE = 50
@@ -189,6 +201,28 @@ class SearchTrace(BaseCallbackHandler):
             dropped, self.dropped_entries = self.dropped_entries, 0
             return taken, dropped
 
+    def snapshot(self) -> tuple[list[dict[str, Any]], int]:
+        """Business purpose:
+        Copy executed repository activity for a durable expansion audit without consuming search coverage.
+
+        Business rules:
+        - Preserve recorded order and the dropped-entry count under the same trace lock.
+        - The returned dictionaries are isolated from later trace mutation.
+
+        Execution flow:
+        1. Acquire the trace lock.
+        2. Copy every bounded entry and the dropped counter.
+        3. Return without resetting either collection.
+
+        Failure cases:
+        - An empty trace returns an empty list and zero rather than inventing activity.
+
+        Side effects:
+        - Read-only snapshot of execution-local memory.
+        """
+        with self._lock:
+            return [dict(entry) for entry in self.entries], self.dropped_entries
+
 
 @dataclass
 class RootRun:
@@ -321,7 +355,12 @@ class RecordSearchCoverageArgs(_Args):
     )
     known_gaps: list[str] = Field(
         default_factory=list,
-        description="Root-authored caveats about what searches could not cover; not proof a search ran.",
+        description=(
+            "Root-authored caveats about what searches could not cover. "
+            "IMPORTANT: Leave this empty [] when recording search coverage to support a rule decision. "
+            "Any entry in known_gaps marks coverage as incomplete and causes submit_rule_decision "
+            "to reject the decision with SEARCH_COVERAGE_INCOMPLETE. Put negative findings into rule rationale or accept_case_fact, not here."
+        ),
     )
     direct_source_fallbacks: list[dict[str, str]] = Field(
         default_factory=list,
@@ -386,6 +425,48 @@ class GetAssessmentContextDetailArgs(_Args):
     offset: int = Field(default=0, ge=0)
     max_items: int = Field(default=10, ge=1, le=20)
     max_chars: int = Field(default=2000, ge=1, le=4000)
+
+
+class GetRepositoryDiscoveryRangesArgs(_Args):
+    record_id: str
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
+        default=_DISCOVERY_DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=_DISCOVERY_MAX_PAGE_SIZE,
+    )
+
+
+class GetRepositoryDiscoveryDetailsArgs(_Args):
+    record_id: str
+    collection: Literal[
+        "AI_USE_CASES", "RULE_CANDIDATES", "KNOWN_GAPS", "UNSUPPORTED_LANGUAGES", "UNRESOLVED_CALLS"
+    ]
+    offset: int = Field(default=0, ge=0)
+    limit: int = Field(
+        default=_DISCOVERY_DEFAULT_PAGE_SIZE,
+        ge=1,
+        le=_DISCOVERY_MAX_PAGE_SIZE,
+    )
+
+
+class RecordRepositoryDiscoveryExpansionArgs(_Args):
+    record_id: str = Field(description="recordId from repositoryDiscovery.")
+    content_digest: str = Field(
+        pattern=r"^sha256:[a-f0-9]{64}$",
+        description="Exact contentDigest returned for the immutable discovery record.",
+    )
+    reason_code: Literal[
+        "MISSING_SUPPORT",
+        "INCOMPLETE_CALL_CHAIN",
+        "COUNTER_EVIDENCE_SEARCH",
+        "UNKNOWN_RUNTIME_CONFIGURATION",
+        "BOUNDED_NEGATIVE_CLAIM",
+        "SCANNER_COVERAGE_GAP",
+    ]
+    reason: str = Field(min_length=1, max_length=1000)
+    assessment_rule_ids: list[str] = Field(default_factory=list, max_length=100)
+    priority_range_ids: list[str] = Field(default_factory=list, max_length=1000)
 
 
 class GetHumanRequestResumePageArgs(_Args):
@@ -482,6 +563,55 @@ class HumanRequestDependencyArgs(_Args):
     criterion_ids: list[str] = Field(default_factory=list)
 
 
+class FactNeedSubjectArgs(_Args):
+    kind: Literal["ORGANIZATION", "DEPLOYMENT", "AI_SYSTEM", "USE_CASE", "MODEL", "DATASET", "CONTROL", "OTHER"]
+    key: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+
+
+class FactNeedEnvironmentArgs(_Args):
+    kind: Literal["PRODUCTION", "STAGING", "DEVELOPMENT", "TEST", "ALL", "UNKNOWN"]
+    deployment_key: str | None = Field(default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+
+
+class FactNeedTimeframeArgs(_Args):
+    kind: Literal["CURRENT", "AT_TIME", "RANGE", "ALL_TIME"]
+    from_time: str | None = None
+    to_time: str | None = None
+
+
+class FactNeedValueSchemaArgs(_Args):
+    kind: Literal["TEXT", "BOOLEAN", "INTEGER", "NUMBER", "DATE", "DATE_TIME", "ENUM", "JSON"]
+    schema_version: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+    allowed_values: list[str] = Field(default_factory=list, max_length=100)
+
+
+class FactNeedDiscoveryRefArgs(_Args):
+    record_id: str = Field(description="Exact recordId from repositoryDiscovery.")
+    content_digest: str = Field(
+        pattern=r"^sha256:[a-f0-9]{64}$",
+        description="Exact contentDigest for the immutable discovery record.",
+    )
+
+
+class FactNeedArgs(_Args):
+    subject: FactNeedSubjectArgs
+    predicate: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+    operational_scope: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$", max_length=300)
+    environment: FactNeedEnvironmentArgs
+    timeframe: FactNeedTimeframeArgs
+    value_schema: FactNeedValueSchemaArgs
+    source_investigation_attempts: list[str] = Field(min_length=1, max_length=100)
+    accepted_evidence_ids: list[str] = Field(default_factory=list, max_length=100)
+    investigation_discovery_refs: list[FactNeedDiscoveryRefArgs] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Immutable discovery records containing investigated_range_ids; required when range IDs are supplied."
+        ),
+    )
+    investigated_range_ids: list[str] = Field(default_factory=list, max_length=500)
+
+
 class ReportExistingUnresolvableHumanFactArgs(_Args):
     request_id: str = Field(min_length=1, description="Existing requestId from governed humanRequests context.")
     unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence proves permanent unavailability; UNKNOWN alone is insufficient.")
@@ -493,6 +623,7 @@ class OpenHumanRequestArgs(_Args):
     criterion_ids: list[str] = Field(default_factory=list)
     dependencies: list[HumanRequestDependencyArgs] = Field(default_factory=list, description="Other rule/criterion dependencies on this same material fact.")
     source_request_id: str | None = Field(default=None, description="Explicit existing request identity for server-validated sharing of the exact same fact.")
+    fact_need: FactNeedArgs | None = None
     question: str = Field(min_length=1, description="Customer-safe wording; no file paths, hashes or internal IDs.")
     unresolved_fact: str = Field(min_length=1)
     decision_impact: list[str] = Field(min_length=1)
@@ -508,9 +639,70 @@ class OpenHumanRequestArgs(_Args):
     )
 
 
+class OpenHumanRequestsBatchArgs(_Args):
+    requests: list[OpenHumanRequestArgs] = Field(
+        min_length=1,
+        max_length=20,
+        description="Batch of 1 to 20 material missing fact questions to open atomically.",
+    )
+
+
 class ReportUnresolvableHumanFactArgs(OpenHumanRequestArgs):
     unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.")
     evidence_ids: list[str] = Field(min_length=1, description="Accepted evidence IDs supporting the unavailability claim.")
+
+
+def _fact_need_payload(value: FactNeedArgs | dict[str, Any] | None) -> dict[str, Any] | None:
+    """Business purpose:
+    Convert one model-facing semantic FactNeed into the strict API contract without using question wording as identity.
+
+    Business rules:
+    - Every tenant/assessment boundary is added by the API; the model supplies only typed subject, scope, environment, timeframe and value schema.
+    - Investigation attempts, immutable discovery coordinates and accepted references remain provenance, not semantic identity or accepted facts.
+
+    Execution flow:
+    1. Validate the complete model value through the FactNeed argument schema.
+    2. Translate snake-case tool fields and discovery coordinates into the API's canonical field names.
+    3. Return None only when the legacy-compatible caller omitted a FactNeed.
+
+    Failure cases:
+    - Malformed subject keys, missing investigation attempts or invalid nested values raise ordinary tool validation feedback.
+
+    Side effects:
+    - Pure in-memory projection; creates no question, fact, evidence or audit scope.
+    """
+    if value is None:
+        return None
+    need = value if isinstance(value, FactNeedArgs) else FactNeedArgs.model_validate(value)
+    return {
+        "subject": {"kind": need.subject.kind, "key": need.subject.key},
+        "predicate": need.predicate,
+        "operationalScope": need.operational_scope,
+        "environment": {
+            "kind": need.environment.kind,
+            "deploymentKey": need.environment.deployment_key,
+        },
+        "timeframe": {
+            "kind": need.timeframe.kind,
+            "from": need.timeframe.from_time,
+            "to": need.timeframe.to_time,
+        },
+        "valueSchema": {
+            "kind": need.value_schema.kind,
+            "schemaVersion": need.value_schema.schema_version,
+            "allowedValues": need.value_schema.allowed_values,
+        },
+        "sourceInvestigationAttempts": need.source_investigation_attempts,
+        "acceptedEvidenceIds": need.accepted_evidence_ids,
+        "investigationDiscoveryRefs": [
+            {
+                "recordId": ref.record_id,
+                "contentDigest": ref.content_digest,
+            }
+            for ref in need.investigation_discovery_refs
+        ],
+        "investigatedRangeIds": need.investigated_range_ids,
+    }
 
 
 class FinalReportFindingArgs(_Args):
@@ -528,18 +720,41 @@ class SubmitFinalReportArgs(_Args):
 
 
 def _failure(error: AssessmentApiError) -> dict[str, Any]:
+    """Business purpose: Transform an API error into structured model feedback with actionable remediation hints.
+
+    Business rules:
+    - Retain authoritative API error code, failures, and correlation metadata without leaking credentials.
+    - Provide specific correction hints for domain validation failures like SEARCH_COVERAGE_INCOMPLETE.
+
+    Execution flow:
+    1. Parse reported validation failure codes and items from the error metadata.
+    2. Construct specific hints for known domain validator rejections or default to context reload.
+    3. Return the standard structured failure envelope.
+
+    Failure cases:
+    - Malformed or missing failure metadata falls back to the generic non-retryable hint.
+
+    Side effects:
+    - Pure dictionary construction; no external state mutations.
+    """
     failures = [
         item for item in str(error.meta.get("failures", "")).split(",") if item
     ]
+    hint = "Call get_assessment_context to reload server state, then correct and resubmit."
+    if any("SEARCH_COVERAGE_INCOMPLETE" in f for f in failures):
+        hint = (
+            "Evidence is rejected with SEARCH_COVERAGE_INCOMPLETE because knownGaps was not empty or queries were truncated. "
+            "Re-record search coverage with known_gaps=[] after running complete searches across the scoped codebase, then cite the new evidence ID."
+        )
+    elif error.retryable:
+        hint = "Transient server error; retry the same call."
     return {
         "ok": False,
         "code": error.code,
         "retryable": error.retryable,
         **({"failures": failures} if failures else {}),
         **{k: v for k, v in error.meta.items() if k != "failures"},
-        "hint": "Call get_assessment_context to reload server state, then correct and resubmit."
-        if not error.retryable
-        else "Transient server error; retry the same call.",
+        "hint": hint,
     }
 
 
@@ -1080,7 +1295,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     - All tools share this Root run and its authoritative case pins; the model owns semantic conclusions.
     - Schema validation and API failure feedback must not fabricate accepted evidence or positive verdicts.
     Execution flow:
-    1. Bind context, legal-source, repository-evidence, decision, human-resolution and report functions to this run.
+    1. Bind context, discovery, legal-source, repository-evidence, decision, human-resolution and report functions to this run.
     2. Wrap the named functions with concise model instructions, typed schemas and API problem feedback.
     3. Return only the Root tool surface, leaving repository researchers without decision authority.
     Failure cases:
@@ -1137,12 +1352,14 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         - Case pins, coverage, facts and evidence come from the API, not the model's memory.
         - Preserve each fact's authority so evidence-derived claims remain distinguishable from human-provided context.
         - Runtime source metadata must match those pins; incomplete visibility cannot establish absence.
+        - Repository discovery is a bounded non-authoritative priority view; absence or gaps never prove that behavior is absent.
         - Coverage counts describe the authorized audit request, never a completion verdict; every visible row remains available through snapshot-bound pages.
 
         Execution flow:
         1. Load and adopt the API's complete case context, including every coverage row for revision caches.
         2. Verify the runtime source view and retain the authorized audit request, accepted evidence, fact authority and human audit feedback.
-        3. Return coverage counts and a content-bound page token without repeating the full inventory in model history.
+        3. Load the exact-pin discovery overview, including only its bounded server projection.
+        4. Return coverage counts and content-bound page tokens without repeating full inventories in model history.
 
         Failure cases:
         - API failures remain rejection feedback; conflicting sandbox pins fail context retrieval.
@@ -1151,6 +1368,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         - Updates in-memory Root pins and revision caches; does not persist decisions or facts.
         """
         context = client.context()
+        discovery = client.repository_discovery_summary()
         run.adopt_context(context)
         coverage, snapshot_token = _coverage_snapshot(run, context)
         context_collections, context_snapshot_token = _context_snapshot(run, context)
@@ -1166,6 +1384,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "repositoryView": _repository_view(run),
             "decisionScopeId": context["decisionScopeId"],
             "auditRequest": context.get("auditRequest"),
+            "repositoryDiscovery": discovery,
             "coverageSummary": {
                 "totalRuleCount": len(coverage),
                 "resolutionCounts": resolution_counts,
@@ -1183,6 +1402,179 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "counts": {name: len(items) for name, items in context_collections.items()},
             },
         }
+
+    def get_repository_discovery_ranges(
+        record_id: str, offset: int = 0, limit: int = _DISCOVERY_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose: Reuse immutable discovery source-range priorities before repeating broad repository searches.
+
+        Business rules:
+        - The API must bind the discovery record to this assessment's current snapshot, commit, source scope, scanner, graph index and content digest.
+        - Returned ranges are investigation leads only; the Root must read pinned source and call cite_repository_source before using one as accepted evidence.
+        - Pagination limits model context but never acts as an allowlist or proof that omitted behavior is absent.
+
+        Execution flow:
+        1. Request one bounded range page from the governed discovery artifact.
+        2. Return its immutable content digest, priorities, coverage gaps and continuation offset unchanged.
+
+        Failure cases:
+        - Foreign/stale record IDs, invalid offsets, integrity failures and transport errors remain API rejection feedback.
+
+        Side effects:
+        - Read-only API access; no repository bytes, evidence, facts, decisions or audit scope are changed.
+        """
+        return {
+            "ok": True,
+            **client.repository_discovery_ranges(record_id, offset=offset, limit=limit),
+        }
+
+    def get_repository_discovery_details(
+        record_id: str,
+        collection: str,
+        offset: int = 0,
+        limit: int = _DISCOVERY_DEFAULT_PAGE_SIZE,
+    ) -> dict[str, Any]:
+        """Business purpose: Reuse discovered use cases, rule priorities and explicit coverage caveats during targeted assessment planning.
+
+        Business rules:
+        - Rule candidates never authorize scope or decide applicability/compliance; unknowns and gaps remain explicit.
+        - The selected immutable record and collection are validated by the API against current repository pins.
+        - Metadata can prioritize source verification but cannot become accepted evidence or an operational customer fact.
+
+        Execution flow:
+        1. Request one bounded page for the selected discovery collection.
+        2. Return the API-verified page and continuation offset without interpreting candidate state.
+
+        Failure cases:
+        - Unsupported collections, stale/foreign records, excessive offsets, integrity failures and transport errors remain visible rejection feedback.
+
+        Side effects:
+        - Read-only API access; no recommendation, evidence, fact, decision or audit authorization is persisted.
+        """
+        return {
+            "ok": True,
+            **client.repository_discovery_details(
+                record_id, collection, offset=offset, limit=limit,
+            ),
+        }
+
+    def record_repository_discovery_expansion(
+        record_id: str,
+        content_digest: str,
+        reason_code: str,
+        reason: str,
+        assessment_rule_ids: list[str] | None = None,
+        priority_range_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Business purpose:
+        Audit why selected-rule investigation searched beyond the immutable discovery priorities.
+
+        Business rules:
+        - Only repository searches/reads actually captured by the runtime trace may support an event.
+        - Raw query/source text is never submitted; the API receives bounded query digests, counts and scoped paths.
+        - The event does not authorize a rule, prove absence, accept evidence, or confirm production reachability.
+
+        Execution flow:
+        1. Snapshot executed repository activity without consuming the later search-coverage record.
+        2. Validate every attributable path against the pinned source scope and derive bounded gaps.
+        3. Bind discovery coordinates, semantic reason, related rule/range IDs and deterministic idempotency.
+        4. Submit the immutable expansion event through the governed API.
+
+        Failure cases:
+        - No activity, out-of-scope paths or unsupported trace tools return repair feedback without persistence.
+        - API pin, digest, range or lease rejection remains visible and does not alter discovery.
+
+        Side effects:
+        - Reads execution-local trace and may append one API expansion audit event; trace entries remain available for search coverage.
+        """
+        if not run.pins:
+            run.adopt_context(client.context())
+        entries, dropped_count = run.trace.snapshot()
+        if not entries:
+            return {
+                "ok": False,
+                "code": "NO_SEARCH_ACTIVITY",
+                "hint": "Run the justified repository expansion before recording it.",
+            }
+        queries: list[dict[str, Any]] = []
+        inspected_paths: set[str] = set()
+        known_gaps: list[str] = []
+        for entry in entries:
+            tool_name = str(entry.get("tool") or "")
+            governed_tool = _DISCOVERY_EXPANSION_TRACE_TOOLS.get(tool_name)
+            if governed_tool is None:
+                return {"ok": False, "code": "UNSUPPORTED_EXPANSION_TRACE_TOOL"}
+            args = entry.get("args") if isinstance(entry.get("args"), dict) else {}
+            if tool_name in _READ_TOOLS or tool_name in {"ls", "glob", "grep"}:
+                candidate_path = args.get("file_path") or args.get("path") or args.get("directory") or "."
+                scoped_path = _source_evidence_path(run, candidate_path)
+                if scoped_path is None:
+                    return {
+                        "ok": False,
+                        "code": "SOURCE_PATH_OUTSIDE_SCOPE",
+                        "sourcePathPrefix": run.source_path_prefix,
+                    }
+                inspected_paths.add(scoped_path)
+            else:
+                inspected_paths.add(run.source_path_prefix or ".")
+            query = str(
+                args.get("pattern")
+                or args.get("query")
+                or args.get("name_pattern")
+                or args.get("function_name")
+                or entry.get("input")
+                or tool_name
+            )
+            queries.append(
+                {
+                    "tool": governed_tool,
+                    "queryDigest": "sha256:"
+                    + hashlib.sha256(query.encode("utf-8")).hexdigest(),
+                    "resultCount": max(0, int(entry.get("resultCount", 0))),
+                    "truncated": bool(entry.get("truncated", False)),
+                    "failed": bool(entry.get("failed", False)),
+                }
+            )
+            if entry.get("truncated"):
+                known_gaps.append(f"The {tool_name} result was truncated.")
+            if entry.get("failed"):
+                known_gaps.append(f"The {tool_name} operation failed.")
+        if dropped_count:
+            known_gaps.append(
+                f"Runtime trace omitted {dropped_count} operation(s) after its bound."
+            )
+        bounded_trace_omissions = dropped_count + max(0, len(queries) - 200)
+        if len(queries) > 200:
+            known_gaps.append(
+                f"Expansion audit retained 200 of {len(queries)} traced operations."
+            )
+        if len(inspected_paths) > 200:
+            known_gaps.append(
+                f"Expansion audit retained 200 of {len(inspected_paths)} inspected paths."
+            )
+        payload = {
+            "recordId": record_id,
+            "contentDigest": content_digest,
+            "reasonCode": reason_code,
+            "reason": reason,
+            "assessmentRuleIds": assessment_rule_ids or [],
+            "priorityRangeIds": priority_range_ids or [],
+            "trace": {
+                "queries": queries[:200],
+                "inspectedPaths": sorted(inspected_paths)[:200],
+                "droppedTraceCount": bounded_trace_omissions,
+                "knownGaps": known_gaps[:200],
+            },
+        }
+        digest = hashlib.sha256(
+            json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        ).hexdigest()
+        result = client.post_repository_discovery_expansion(
+            {**payload, "idempotencyKey": f"discovery-expansion:{digest}"}
+        )
+        return {"ok": True, **result}
 
     def get_assessment_context_page(
         snapshot_token: str, collection: str, offset: int = 0, limit: int = _CONTEXT_DEFAULT_PAGE_SIZE,
@@ -1853,11 +2245,13 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
         dependencies: list[dict[str, Any]] | None = None,
         source_request_id: str | None = None,
+        fact_need: FactNeedArgs | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Persist one idempotent material question and its shared rule dependencies.
 
         Business rules:
         - Server validation owns source-request equivalence, accepted facts and dependency eligibility.
+        - A typed FactNeed provides semantic reuse across wording/locales; legacy callers retain exact-content sharing.
         - Exact semantic content and explicit source identity determine replay identity on this Root thread.
         Execution flow:
         1. Serialize the question and optional dependency/source references.
@@ -1882,6 +2276,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 for dependency in (HumanRequestDependencyArgs.model_validate(row) for row in dependencies)
             ]} if dependencies else {}),
             **({"sourceRequestId": source_request_id} if source_request_id else {}),
+            **({"factNeed": payload} if (payload := _fact_need_payload(fact_need)) else {}),
         }
         # Native interrupt replays this tool. Stable server-thread/content identity makes the
         # pre-interrupt request write idempotent across new processes and execution attempts.
@@ -2062,6 +2457,51 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "responseKind": (
                 "UNKNOWN" if request_id in context["openHumanRequestIds"] else "RESOLVED"
             ),
+        }
+
+    def _human_requests_batch_resume_payload(
+        context: dict[str, Any], results: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Business purpose: Return bounded HITL continuation metadata for a batch of questions.
+
+        Business rules:
+        - Share a single context snapshot token and bounded page tool metadata.
+        - Model-facing continuation never embeds complete facts, evidence or answer history.
+        - UNKNOWN answers require exact checkpoint-bound review authority without creating facts or verdicts.
+
+        Execution flow:
+        1. Bind the current context collections to a snapshot token.
+        2. Project each request through the bounded resume identity envelope.
+        3. Determine whether any open UNKNOWN review conditions exist.
+        4. Return compact aggregate continuation metadata.
+
+        Failure cases:
+        - Missing open request identity or unauthorized UNKNOWN review fails closed.
+
+        Side effects:
+        - Pure projection of already-loaded authoritative context.
+        """
+        _, context_snapshot_token = _context_snapshot(run, context)
+        projected = [
+            _human_request_resume_identity(context, res)
+            for res in results
+        ]
+        has_unknown = any(item.get("responseKind") == "UNKNOWN" for item in projected)
+        all_resolved = all(item.get("resolved") is True for item in projected)
+        instruction = (
+            "This UNKNOWN response is not a fact or verdict. Read accepted facts/evidence through the bounded context tools; report permanent unavailability only if supported, otherwise call wait_for_human_requests."
+            if has_unknown
+            else "Continue investigation using accepted facts from bounded context reads; re-evaluate stale decisions."
+        )
+        return {
+            "ok": True,
+            "caseRevision": run.case_revision,
+            "allResolved": all_resolved,
+            "contextSnapshotToken": context_snapshot_token,
+            "contextPageTool": "get_assessment_context_page",
+            "contextDetailTool": "get_assessment_context_detail",
+            "instruction": instruction,
+            "requests": projected,
         }
 
     def _human_request_resume_page(
@@ -2285,18 +2725,20 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         condition_ref: dict[str, Any] | None = None,
         dependencies: list[dict[str, Any]] | None = None,
         source_request_id: str | None = None,
+        fact_need: FactNeedArgs | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Ask the customer for a material missing fact after investigating the repository and pinned legal sources.
 
         Business rules:
         - The fact must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
-        - Explicit source sharing and extra dependencies require server validation; an accepted resolved source needs no new wait.
+        - Typed FactNeed sharing and extra dependencies require server validation; an accepted resolved need needs no new wait.
+        - Any investigated discovery range must include the exact immutable discovery record ID and digest returned by governed discovery tools.
         Execution flow:
         1. Verify the question’s criterion or condition anchor.
         2. Persist or explicitly share the governed question; return a resolved source or interrupt with the open request identity.
         3. On an authorized resume, return the server-owned resolution of that same request.
         Failure cases:
-        - Invalid anchors return feedback; an open request keeps the assessment waiting instead of forcing completion.
+        - Invalid anchors or unbound discovery ranges return feedback; an open request keeps the assessment waiting instead of forcing completion.
         Side effects:
         - Persists a human-resolution request and a native checkpoint dependency; creates no assumed customer fact.
         """
@@ -2304,12 +2746,102 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         if isinstance(impact, dict):
             return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
-            impact, resolution_attempts, criterion_ids, control_type, choices, dependencies, source_request_id)
+            impact, resolution_attempts, criterion_ids, control_type, choices, dependencies, source_request_id, fact_need)
         context = client.context()
-        if source_request_id and result["requestId"] not in context["openHumanRequestIds"]:
+        if (source_request_id or fact_need) and result["requestId"] not in context["openHumanRequestIds"]:
             return resolved_human_request(result)
         interrupt({"requestIds": [result["requestId"]]})
         return resolved_human_request(result)
+
+    def open_human_requests_batch(
+        requests: list[dict[str, Any] | OpenHumanRequestArgs],
+    ) -> dict[str, Any]:
+        """Business purpose: Ask the customer for multiple material missing facts atomically across rules or criteria.
+
+        Business rules:
+        - Every question must settle a named criterion or source-stated condition; an unanswered question cannot become a compliance verdict.
+        - All batch items must pass legal anchor validation before any server mutation.
+        - Claimed discovery ranges require exact immutable record/digest references for API pin and integrity validation.
+        - Batch size is bounded between 1 and 20 items.
+        - The native interrupt pauses atomically for all open requests in the batch.
+
+        Execution flow:
+        1. Validate anchors and build idempotent request payloads for all batch items.
+        2. Submit the batch to the governed API.
+        3. Check authoritative context for open requests and atomically interrupt if any remain open.
+        4. On resume, return bounded batch continuation metadata.
+
+        Failure cases:
+        - Any invalid anchor or empty/exceeded batch returns typed validation feedback before network calls.
+
+        Side effects:
+        - Persists human-resolution requests and a native checkpoint dependency for open items; creates no assumed customer facts.
+        """
+        if not requests or len(requests) > 20:
+            return {
+                "ok": False,
+                "code": "HUMAN_REQUEST_INVALID",
+                "hint": "Batch must contain between 1 and 20 requests.",
+            }
+        validated_items: list[OpenHumanRequestArgs] = []
+        for item in requests:
+            if isinstance(item, OpenHumanRequestArgs):
+                validated_items.append(item)
+            elif isinstance(item, dict):
+                validated_items.append(OpenHumanRequestArgs.model_validate(item))
+            else:
+                validated_items.append(OpenHumanRequestArgs.model_validate(item))
+
+        prepared_payloads: list[dict[str, Any]] = []
+        for item in validated_items:
+            impact = anchored_impact(
+                item.assessment_rule_id,
+                item.criterion_ids,
+                item.condition_ref,
+                item.decision_impact,
+            )
+            if isinstance(impact, dict):
+                return impact
+            content = {
+                "assessmentRuleId": item.assessment_rule_id,
+                "criterionIds": item.criterion_ids or [],
+                "question": item.question,
+                "unresolvedFact": item.unresolved_fact,
+                "decisionImpact": list(impact),
+                "resolutionAttempts": list(item.resolution_attempts),
+                "controlType": item.control_type,
+                "choices": item.choices or [],
+                **({"dependencies": [
+                    {"assessmentRuleId": dep.assessment_rule_id, "criterionIds": dep.criterion_ids}
+                    for dep in item.dependencies
+                ]} if item.dependencies else {}),
+                **({"sourceRequestId": item.source_request_id} if item.source_request_id else {}),
+                **({"factNeed": payload} if (payload := _fact_need_payload(item.fact_need)) else {}),
+            }
+            digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()[:32]
+            prepared_payloads.append({
+                **content,
+                "expectedCaseRevision": run.case_revision,
+                "idempotencyKey": f"human:{run.thread_id}:{digest}",
+            })
+
+        batch_result = client.post_human_requests_batch({"requests": prepared_payloads})
+        results = batch_result.get("requests", [])
+
+        context = client.context()
+        run.adopt_context(context)
+
+        open_ids = [
+            r["requestId"]
+            for r in results
+            if r["requestId"] in context.get("openHumanRequestIds", [])
+        ]
+        if open_ids:
+            interrupt({"requestIds": sorted(set(open_ids))})
+            context = client.context()
+            run.adopt_context(context)
+
+        return _human_requests_batch_resume_payload(context, results)
 
     def report_human_fact_unresolvable(
         assessment_rule_id: str,
@@ -2325,6 +2857,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         condition_ref: dict[str, Any] | None = None,
         dependencies: list[dict[str, Any]] | None = None,
         source_request_id: str | None = None,
+        fact_need: FactNeedArgs | dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Business purpose: Record evidence that a material customer fact is permanently unavailable without inventing an unknown verdict.
 
@@ -2345,7 +2878,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
             impact, [*resolution_attempts, unavailability_rationale],
-            criterion_ids, control_type, choices, dependencies, source_request_id)
+            criterion_ids, control_type, choices, dependencies, source_request_id, fact_need)
         # A later valid answer replays this native tool. Resolution is server-owned and must
         # clear the old dependency instead of reapplying the historical blocker claim.
         context = client.context()
@@ -2438,6 +2971,12 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         tool(load_assessment_skill, LoadAssessmentSkillArgs, "load_assessment_skill", "Load an allowlisted investigation skill; it cannot alter legal authority."),
         tool(get_assessment_context, _NoArgs, "get_assessment_context",
              "Reload API-owned audit request, pins and source-view limits with bounded summaries. Call first. Facts, evidence and HITL history are paged through contextCollections; coverage is paged separately. Counts never authorize completion."),
+        tool(get_repository_discovery_ranges, GetRepositoryDiscoveryRangesArgs, "get_repository_discovery_ranges",
+             "Page immutable prioritized source ranges from repositoryDiscovery before broad searching. Leads and scores are not evidence: verify exact pinned lines with cite_repository_source, retain gaps, and expand when recall requires it."),
+        tool(get_repository_discovery_details, GetRepositoryDiscoveryDetailsArgs, "get_repository_discovery_details",
+             "Page discovered AI use cases, non-authoritative rule candidates, known gaps, unsupported languages or unresolved calls. These prioritize investigation only and never authorize scope or decide legal outcomes."),
+        tool(record_repository_discovery_expansion, RecordRepositoryDiscoveryExpansionArgs, "record_repository_discovery_expansion",
+             "Record why runtime-traced investigation expanded beyond discovery priorities. This immutable audit event grants no scope, evidence authority, reachability or legal conclusion; record truncation and unresolved gaps."),
         tool(get_assessment_context_page, GetAssessmentContextPageArgs, "get_assessment_context_page",
              "Read a byte-bounded page of facts, evidence, humanRequests or openHumanRequestIds using contextCollections.snapshotToken. Large records return detailRequired/detailIndex; use get_assessment_context_detail. A stale token requires reloading context."),
         tool(get_assessment_context_detail, GetAssessmentContextDetailArgs, "get_assessment_context_detail",
@@ -2468,6 +3007,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
              "Submit supported findings for one pinned rule at current revisions. Address every material applicability element; NOT_ESTABLISHED supports neither verdict. APPLICABLE needs every criterion and consistent compliance. The API validates pins, references and revisions without choosing the conclusion."),
         tool(open_human_request, OpenHumanRequestArgs, "open_human_request",
              "Ask for a material missing fact after investigating sources and accepted facts. Anchor it to a criterion or legal element, using customer-safe wording and no requested legal verdict. The governed request pauses natively; explicit source sharing needs server validation."),
+        tool(open_human_requests_batch, OpenHumanRequestsBatchArgs, "open_human_requests_batch",
+             "Ask for multiple material missing facts atomically across rules or criteria after investigating sources and accepted facts. Every request is anchored to a criterion or condition. The governed batch pauses natively until all open dependencies are resolved."),
         tool(report_human_fact_unresolvable, ReportUnresolvableHumanFactArgs, "report_human_fact_unresolvable",
              "Report accepted evidence proving a material anchored fact permanently unobtainable. An unknown answer is insufficient. Retain the native human dependency even if the API rejects the claim; never manufacture a fact or verdict."),
         tool(report_existing_human_fact_unresolvable, ReportExistingUnresolvableHumanFactArgs, "report_existing_human_fact_unresolvable",
@@ -2488,6 +3029,9 @@ ROOT_TOOL_NAMES = (
     "list_assessment_skills",
     "load_assessment_skill",
     "get_assessment_context",
+    "get_repository_discovery_ranges",
+    "get_repository_discovery_details",
+    "record_repository_discovery_expansion",
     "get_assessment_context_page",
     "get_assessment_context_detail",
     "get_assessment_coverage",
@@ -2503,6 +3047,7 @@ ROOT_TOOL_NAMES = (
     "accept_case_fact",
     "submit_rule_decision",
     "open_human_request",
+    "open_human_requests_batch",
     "report_human_fact_unresolvable",
     "report_existing_human_fact_unresolvable",
     "get_human_request_resume_page",

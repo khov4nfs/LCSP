@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import contextlib
 import os
-from typing import Any
+from functools import partial
+from typing import Any, Callable
 from langgraph.config import get_store
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
@@ -22,27 +23,40 @@ _LEASE_HELD = "ASSESSMENT_EXECUTION_LEASE_HELD"
 _NOT_ACTIVE = "ASSESSMENT_NOT_ACTIVE"
 
 
-def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
+def sandbox_backend_factory(
+    claim: dict[str, Any],
+    context: dict[str, Any],
+    *,
+    discovery_sink: Callable[[dict[str, Any]], Any] | None = None,
+    discovery_lookup: Callable[[], dict[str, Any]] | None = None,
+):
     """Business purpose: Mount the Assessment's pinned source on its durable Root thread for native investigation.
 
     Business rules:
     - Hydrate only the API-issued snapshot/job/commit and immutable source prefix for this Assessment and server-owned thread.
     - Scope filtering preserves original source paths and excludes sibling projects before graph indexing.
     - Source and runtime identity metadata are read-only; writes are limited to the existing agent scratch subtree.
-    - Graph lookup is an investigation aid indexed from this same hydrated source, not a legal authority.
+    - Graph lookup and versioned discovery are investigation aids bound to this same hydrated source, not legal authority.
+    - A previously persisted discovery may be reused only after the API verifies its owner, immutable source coordinates and graph index version.
+    - When supplied and no reusable discovery exists, the governed sink must durably accept the validated artifact before model investigation starts.
 
     Execution flow:
     1. Resolve the thread sandbox and hydrate its pinned repository with source-view limitations.
-    2. Ensure the source graph index is current and activate the repository backend for nested native tools.
-    3. Return the file-only backend with its repository-write boundary enabled.
+    2. Ensure the source graph index and historical V1 pre-scan profile are current.
+    3. Check any leased, API-verified Discovery summary against the pinned snapshot, repository, source scope and graph index.
+    4. Reuse the exact matching artifact; otherwise scan and submit a new one through the governed API.
+    5. Return the read-only repository backend without exposing source to model context.
 
     Failure cases:
-    - Missing or mismatched pins, hydration and indexing failures propagate before model investigation begins.
+    - Missing or mismatched pins, hydration, indexing, discovery, or durable submission failures propagate before model investigation begins.
 
     Side effects:
-    - Materializes the guarded source view and graph index in the thread sandbox; invokes no model or decision write.
+    - Hydrates the guarded source view and graph index; scans only on a cache miss and invokes no model or decision write.
     """
-    from tools.common.capabilities.platform.codebase_memory import ensure_codebase_memory_index
+    from tools.common.capabilities.platform.codebase_memory import (
+        active_codebase_memory_index,
+        ensure_codebase_memory_index,
+    )
     from tools.common.capabilities.platform.repository_sandbox import (
         activate_repository_backend,
         hydrate_repository,
@@ -64,6 +78,51 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
     # The Root's graph tools query the Codebase Memory index of the hydrated snapshot; index it
     # before the Root starts (reused when current) so a run never silently lacks the graph.
     ensure_codebase_memory_index(thread_backend)
+    graph_identity = active_codebase_memory_index()
+    from tools.common.capabilities.platform.repository_scanner import (
+        ensure_repository_discovery,
+        ensure_repository_profile,
+    )
+    ensure_repository_profile(
+        thread_backend,
+        repository_id=context.get("repositoryId") or context.get("repositoryFullName") or context["assessmentId"],
+        commit_sha=context["repositoryCommit"],
+        source_path_prefix=context.get("sourcePathPrefix"),
+    )
+    # A separate customer-authorized Discovery may already have completed on this
+    # immutable snapshot. The server validates persisted integrity and Root lease
+    # before returning its metadata; the worker independently checks every source
+    # coordinate and current graph stamp before avoiding another content scan.
+    if discovery_lookup is not None:
+        verified = discovery_lookup()
+        if not isinstance(verified, dict):
+            raise RuntimeError("governed discovery summary has invalid shape")
+        if verified.get("available") is True:
+            previous = verified.get("discovery")
+            if not isinstance(previous, dict):
+                raise RuntimeError("governed discovery summary is missing metadata")
+            if (
+                previous.get("repositorySnapshotId") == context["repositorySnapshotId"]
+                and previous.get("repositoryId") == (
+                    context.get("repositoryId") or context.get("repositoryFullName") or context["assessmentId"]
+                )
+                and str(previous.get("repositoryCommit", "")).lower() == str(context["repositoryCommit"]).lower()
+                and previous.get("sourcePathPrefix") == context.get("sourcePathPrefix")
+                and previous.get("graphIndexVersion") == (
+                    graph_identity.index_stamp if graph_identity is not None else "UNAVAILABLE"
+                )
+            ):
+                return RuntimeRepositoryFilesystemBackend(read_only_repository=True), activate_repository_backend(thread_backend)
+
+    discovery = ensure_repository_discovery(
+        thread_backend,
+        repository_id=context.get("repositoryId") or context.get("repositoryFullName") or context["assessmentId"],
+        commit_sha=context["repositoryCommit"],
+        source_path_prefix=context.get("sourcePathPrefix"),
+        graph_index_version=graph_identity.index_stamp if graph_identity is not None else "UNAVAILABLE",
+    )
+    if discovery_sink is not None:
+        discovery_sink(discovery)
     return RuntimeRepositoryFilesystemBackend(read_only_repository=True), activate_repository_backend(thread_backend)
 
 
@@ -139,7 +198,13 @@ class AssessmentRootBoundary(AgentBoundaryBase):
                 from assessment_root.execution_policy import root_runner_options
 
                 client = self._client_factory()
-                runner_options = {"backend_factory": sandbox_backend_factory}
+                runner_options = {
+                    "backend_factory": partial(
+                        sandbox_backend_factory,
+                        discovery_sink=client.post_repository_discovery,
+                        discovery_lookup=client.repository_discovery_summary,
+                    )
+                }
                 runner_options.update(root_runner_options(message, client))
                 result = self._runner(
                     client,

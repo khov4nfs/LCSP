@@ -282,6 +282,7 @@ model User {
   billingReservations       BillingReservation[]
   llmUsageEvents            LlmUsageEvent[]
   paymentTransactions       PaymentTransaction[]
+  assessmentFactNeeds       AssessmentFactNeed[]          @relation("AssessmentFactNeedTenantOwner")
 
   @@index([accessStatus, role, createdAt, id])
 }
@@ -1745,6 +1746,7 @@ model LegalRequirement {
   operativePropositions   Json?
   semanticContext         Json?
   applicabilityConditions Json
+  applicabilityLogic      Json?
   qualifiers              Json
   exceptions              Json
   nonRepositoryDuty       Boolean
@@ -2061,6 +2063,61 @@ enum AssessmentRecordState {
   INVALIDATED
 }
 
+enum AssessmentFactNeedSubjectKind {
+  ORGANIZATION
+  DEPLOYMENT
+  AI_SYSTEM
+  USE_CASE
+  MODEL
+  DATASET
+  CONTROL
+  OTHER
+}
+
+enum AssessmentFactNeedEnvironment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+  TEST
+  ALL
+  UNKNOWN
+}
+
+enum AssessmentFactNeedTimeframeKind {
+  CURRENT
+  AT_TIME
+  RANGE
+  ALL_TIME
+}
+
+enum AssessmentFactNeedValueKind {
+  TEXT
+  BOOLEAN
+  INTEGER
+  NUMBER
+  DATE
+  DATE_TIME
+  ENUM
+  JSON
+}
+
+enum AssessmentFactNeedStatus {
+  OPEN
+  RESOLVED
+  SUPERSEDED
+}
+
+enum AssessmentHumanFactProposalStatus {
+  PENDING_REVIEW
+  ACCEPTED
+}
+
+enum AssessmentHumanFactProposalGuardFailure {
+  UNKNOWN_ANSWER_MUST_USE_DOES_NOT_KNOW
+  AMBIGUOUS_HUMAN_ANSWER
+  CONTRADICTS_PRIOR_HUMAN_FACT
+}
+
 enum AssessmentFactKind {
   FACT
   USE_CASE
@@ -2129,9 +2186,117 @@ model AssessmentCase {
   humanRequests        AssessmentHumanRequest[]
   artifacts            AssessmentArtifact[]
   auditRequests        AssessmentRuleAuditRequest[]
+  discoveryRuns        AssessmentDiscoveryRun[]
+  discoveryInterviewProposals AssessmentDiscoveryInterviewProposal[]
+  repositoryDiscoveries AssessmentRepositoryDiscovery[]
+  repositoryDiscoveryExpansions AssessmentRepositoryDiscoveryExpansion[]
+  factNeeds             AssessmentFactNeed[]
+  humanFactProposals    AssessmentHumanFactProposal[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
   @@unique([assessmentId, ruleSetVersionId])
+}
+
+enum RepositoryScannerVersion {
+  LCSP_PRE_SCAN_V1
+}
+
+enum RepositoryDiscoveryVersion {
+  LCSP_DISCOVERY_V1
+}
+
+enum RepositoryDiscoveryExpansionReason {
+  MISSING_SUPPORT
+  INCOMPLETE_CALL_CHAIN
+  COUNTER_EVIDENCE_SEARCH
+  UNKNOWN_RUNTIME_CONFIGURATION
+  BOUNDED_NEGATIVE_CLAIM
+  SCANNER_COVERAGE_GAP
+}
+
+enum AssessmentDiscoveryRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// Customer-authorized deterministic discovery execution before audit scope selection.
+model AssessmentDiscoveryRun {
+  runId                String                       @id @db.Uuid
+  assessmentId         String
+  requestedBy          String
+  idempotencyKey       String
+  requestDigest        String
+  status               AssessmentDiscoveryRunStatus @default(QUEUED)
+  attempt              Int                          @default(1)
+  repositorySnapshotId String
+  repositoryId         String
+  repositoryCommit     String
+  sourcePathPrefix     String?
+  repositoryScanJobId  String
+  threadId             String
+  leaseToken           String?                      @db.Uuid
+  leaseExpiresAt       DateTime?                    @db.Timestamptz(3)
+  discoveryRecordId    String?                      @db.Uuid
+  workerContentDigest  String?
+  errorCode            String?
+  requestedAt          DateTime                     @default(now()) @db.Timestamptz(3)
+  startedAt            DateTime?                    @db.Timestamptz(3)
+  completedAt          DateTime?                    @db.Timestamptz(3)
+  failedAt             DateTime?                    @db.Timestamptz(3)
+  assessmentCase       AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  repositoryDiscovery  AssessmentRepositoryDiscovery? @relation(fields: [discoveryRecordId, assessmentId], references: [recordId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  interviewProposals   AssessmentDiscoveryInterviewProposal[]
+
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, requestedAt(sort: Desc)])
+  @@index([status, leaseExpiresAt])
+}
+
+/// Immutable, versioned repository discovery input bound to one assessment snapshot.
+model AssessmentRepositoryDiscovery {
+  recordId             String                     @id @db.Uuid
+  assessmentId         String
+  repositorySnapshotId String
+  repositoryId         String
+  repositoryCommit     String
+  sourcePathPrefix     String?
+  scannerVersion       RepositoryScannerVersion
+  discoveryVersion     RepositoryDiscoveryVersion
+  scannerSignature     String
+  graphIndexVersion    String
+  cacheIdentity        String
+  contentDigest        String
+  payload              Json
+  createdAt            DateTime                   @default(now()) @db.Timestamptz(3)
+  assessmentCase       AssessmentCase             @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  expansions           AssessmentRepositoryDiscoveryExpansion[]
+  discoveryRuns        AssessmentDiscoveryRun[]
+
+  @@unique([recordId, assessmentId])
+  @@unique([assessmentId, cacheIdentity, contentDigest])
+  @@index([assessmentId, repositorySnapshotId, createdAt(sort: Desc)])
+}
+
+/// Immutable audit record explaining why investigation expanded beyond discovery priorities.
+model AssessmentRepositoryDiscoveryExpansion {
+  expansionId            String                             @id @db.Uuid
+  assessmentId           String
+  repositoryDiscoveryId  String                             @db.Uuid
+  discoveryContentDigest String
+  reasonCode             RepositoryDiscoveryExpansionReason
+  reason                 String
+  assessmentRuleIds      Json
+  priorityRangeIds       Json
+  trace                  Json
+  idempotencyKey         String
+  createdAt              DateTime                           @default(now()) @db.Timestamptz(3)
+  assessmentCase         AssessmentCase                     @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  repositoryDiscovery    AssessmentRepositoryDiscovery      @relation(fields: [repositoryDiscoveryId, assessmentId], references: [recordId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, repositoryDiscoveryId, createdAt(sort: Asc)])
 }
 
 enum AssessmentAuditMode {
@@ -2220,6 +2385,8 @@ model AssessmentEvidence {
   invalidatedAt    DateTime?                    @db.Timestamptz(3)
   assessmentCase   AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   factLinks        AssessmentCaseFactEvidence[]
+  decisionDependencies AssessmentDecisionEvidenceDependency[]
+  discoveryInterviewAcceptances AssessmentDiscoveryInterviewProposal[] @relation("DiscoveryInterviewAcceptedEvidence")
 
   @@unique([evidenceId, assessmentId])
   @@index([assessmentId, state])
@@ -2237,10 +2404,123 @@ model AssessmentCaseFact {
   invalidatedAt  DateTime?                    @db.Timestamptz(3)
   assessmentCase AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   evidenceLinks  AssessmentCaseFactEvidence[]
+  resolvedFactNeeds AssessmentFactNeed[]
+  decisionDependencies AssessmentDecisionFactDependency[]
+  discoveryInterviewAcceptances AssessmentDiscoveryInterviewProposal[] @relation("DiscoveryInterviewAcceptedFact")
 
   // Every accepted fact is exactly one case revision.
   @@unique([assessmentId, caseRevision])
   @@unique([factId, assessmentId])
+}
+
+/// Canonical semantic identity for one material operational fact missing from an assessment.
+/// Historical human requests remain valid without a FactNeed link; new typed requests may reuse
+/// one need across wording, locale and rule dependencies while assessment/entity/scope/time stay exact.
+model AssessmentFactNeed {
+  factNeedId                  String                           @id @db.Uuid
+  assessmentId                String
+  tenantOwnerId               String
+  identityDigest              String
+  subjectKind                 AssessmentFactNeedSubjectKind
+  subjectKey                  String
+  predicate                   String
+  operationalScope            String
+  environment                 AssessmentFactNeedEnvironment
+  deploymentKey               String?
+  timeframeKind               AssessmentFactNeedTimeframeKind
+  timeframeFrom               DateTime?                        @db.Timestamptz(3)
+  timeframeTo                 DateTime?                        @db.Timestamptz(3)
+  valueKind                   AssessmentFactNeedValueKind
+  valueSchemaVersion          String
+  allowedValues               Json
+  sourceInvestigationAttempts Json
+  acceptedEvidenceIds         Json
+  investigationDiscoveryRefs  Json?
+  investigatedRangeIds        Json
+  status                      AssessmentFactNeedStatus         @default(OPEN)
+  resolvedFactId              String?                          @db.Uuid
+  createdAt                   DateTime                         @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                         @updatedAt @db.Timestamptz(3)
+  resolvedAt                  DateTime?                        @db.Timestamptz(3)
+  supersededAt                DateTime?                        @db.Timestamptz(3)
+  assessmentCase              AssessmentCase                  @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  tenantOwner                 User                            @relation("AssessmentFactNeedTenantOwner", fields: [tenantOwnerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  resolvedFact                AssessmentCaseFact?             @relation(fields: [resolvedFactId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+  humanRequest                AssessmentHumanRequest?
+  proposals                   AssessmentHumanFactProposal[]
+  discoveryInterviewProposals AssessmentDiscoveryInterviewProposal[]
+
+  @@unique([factNeedId, assessmentId])
+  @@unique([assessmentId, identityDigest])
+  @@index([assessmentId, status])
+  @@index([tenantOwnerId, assessmentId])
+}
+
+enum AssessmentDiscoveryInterviewProposalStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+/// Owner-submitted pre-scope context statement; never authoritative before explicit review.
+/// Source question and its use-case identity are verified against one pinned Discovery artifact.
+model AssessmentDiscoveryInterviewProposal {
+  proposalId         String                                   @id @db.Uuid
+  assessmentId       String
+  discoveryRunId     String                                   @db.Uuid
+  factNeedId         String                                   @db.Uuid
+  idempotencyKey     String                                   @db.Uuid
+  requestDigest      String
+  useCaseId          String
+  question           String
+  answer             String
+  status             AssessmentDiscoveryInterviewProposalStatus @default(PENDING_REVIEW)
+  guardFailure       String?
+  submittedBy        String
+  reviewedBy         String?
+  acceptedFactId     String?                                  @db.Uuid
+  acceptedEvidenceId String?                                  @db.Uuid
+  createdAt          DateTime                                 @default(now()) @db.Timestamptz(3)
+  reviewedAt         DateTime?                                @db.Timestamptz(3)
+  assessmentCase     AssessmentCase                           @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict, map: "ADIP_assessment_fkey")
+  discoveryRun       AssessmentDiscoveryRun                   @relation(fields: [discoveryRunId], references: [runId], onDelete: Cascade, onUpdate: Restrict, map: "ADIP_run_fkey")
+  factNeed           AssessmentFactNeed                      @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: NoAction, onUpdate: Restrict, map: "ADIP_need_assessment_fkey")
+  acceptedEvidence   AssessmentEvidence?                    @relation("DiscoveryInterviewAcceptedEvidence", fields: [acceptedEvidenceId, assessmentId], references: [evidenceId, assessmentId], onDelete: NoAction, onUpdate: Restrict, map: "ADIP_evidence_assessment_fkey")
+  acceptedFact       AssessmentCaseFact?                    @relation("DiscoveryInterviewAcceptedFact", fields: [acceptedFactId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict, map: "ADIP_fact_assessment_fkey")
+
+  @@unique([assessmentId, idempotencyKey], map: "ADIP_assessment_idempotency_key")
+  @@index([assessmentId, discoveryRunId, status], map: "ADIP_assessment_run_status_idx")
+  @@index([assessmentId, factNeedId, status], map: "ADIP_assessment_need_status_idx")
+}
+
+/// Immutable candidate interpretation of one submitted human answer.
+/// Only ACCEPTED proposals may reference accepted evidence/facts; pending proposals keep the request open.
+model AssessmentHumanFactProposal {
+  proposalId        String                                   @id @db.Uuid
+  assessmentId      String
+  requestId         String                                   @db.Uuid
+  factNeedId        String?                                  @db.Uuid
+  caseRevision      Int
+  requestRevision   Int
+  checkpointId      String                                   @db.Uuid
+  idempotencyKey    String
+  requestDigest     String
+  actorId           String
+  rawAnswer         Json
+  normalizedAnswer  Json?
+  status            AssessmentHumanFactProposalStatus
+  guardFailure      AssessmentHumanFactProposalGuardFailure?
+  acceptedEvidenceId String?                                 @db.Uuid
+  acceptedFactId     String?                                 @db.Uuid
+  createdAt         DateTime                                 @default(now()) @db.Timestamptz(3)
+  assessmentCase    AssessmentCase                           @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  humanRequest      AssessmentHumanRequest                   @relation(fields: [requestId, assessmentId], references: [requestId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+  factNeed          AssessmentFactNeed?                      @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@unique([proposalId, assessmentId])
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, requestId, createdAt])
+  @@index([assessmentId, status, createdAt])
 }
 
 model AssessmentCaseFactEvidence {
@@ -2272,6 +2552,7 @@ model AssessmentRuleDecision {
   idempotencyKey        String
   requestDigest         String
   decision              Json
+  dependencyGraphComplete Boolean                        @default(false)
   createdAt             DateTime                       @default(now()) @db.Timestamptz(3)
   supersededAt          DateTime?                      @db.Timestamptz(3)
   invalidatedAt         DateTime?                      @db.Timestamptz(3)
@@ -2279,11 +2560,39 @@ model AssessmentRuleDecision {
   auditRequest          AssessmentRuleAuditRequest?    @relation(fields: [auditRequestId], references: [requestId], onDelete: Restrict, onUpdate: Restrict)
   assessmentRule        AssessmentRule                 @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
   currentFor            AssessmentDecisionCoverage[]
+  evidenceDependencies  AssessmentDecisionEvidenceDependency[]
+  factDependencies      AssessmentDecisionFactDependency[]
 
   @@unique([assessmentId, assessmentRuleId, scopeId, decisionRevision])
   @@unique([assessmentId, idempotencyKey])
   @@unique([decisionId, assessmentId])
   @@index([assessmentId, state])
+}
+
+/// Exact accepted-evidence references used by a decision. Historical decisions intentionally
+/// have dependencyGraphComplete=false instead of receiving a guessed backfill.
+model AssessmentDecisionEvidenceDependency {
+  assessmentId String
+  decisionId   String @db.Uuid
+  evidenceId   String @db.Uuid
+  decision     AssessmentRuleDecision @relation(fields: [decisionId, assessmentId], references: [decisionId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  evidence     AssessmentEvidence     @relation(fields: [evidenceId, assessmentId], references: [evidenceId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([decisionId, evidenceId])
+  @@index([assessmentId, evidenceId])
+}
+
+/// Exact accepted-fact references used by a decision. Evidence supporting one of these facts
+/// remains an indirect decision dependency through AssessmentCaseFactEvidence.
+model AssessmentDecisionFactDependency {
+  assessmentId String
+  decisionId   String @db.Uuid
+  factId       String @db.Uuid
+  decision     AssessmentRuleDecision @relation(fields: [decisionId, assessmentId], references: [decisionId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  fact         AssessmentCaseFact     @relation(fields: [factId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([decisionId, factId])
+  @@index([assessmentId, factId])
 }
 
 /// Decision-resolution coverage: one row per AssessmentRule of the pinned rule set, created in
@@ -2327,6 +2636,7 @@ model AssessmentHumanRequest {
   choices            Json
   answers            Json                         @default("[]")
   resolvedFactId     String?                      @db.Uuid
+  factNeedId         String?                      @db.Uuid
   requestRevision    Int                          @default(0)
   idempotencyKey     String?
   requestDigest      String?
@@ -2338,9 +2648,12 @@ model AssessmentHumanRequest {
 
   dependencies       AssessmentHumanRequestDependency[]
   registrations      AssessmentHumanRequestRegistration[]
+  factNeed           AssessmentFactNeed?          @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+  factProposals      AssessmentHumanFactProposal[]
 
   @@unique([requestId, assessmentId])
   @@unique([assessmentId, idempotencyKey])
+  @@unique([factNeedId, assessmentId])
   @@index([assessmentId, status])
 }
 
