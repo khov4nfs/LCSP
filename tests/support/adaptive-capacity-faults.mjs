@@ -7,7 +7,6 @@ import {
   writeFileSync,
   readFileSync,
   existsSync,
-  unlinkSync,
   appendFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -65,10 +64,9 @@ export async function runAdaptiveCapacityFaults({
       outgoing.end(JSON.stringify({ injected: "capacity report unavailable" }));
       return;
     }
-    const fault = path.join(dir, "fail-quiesce-once");
+    const fault = path.join(dir, "withhold-quiescence");
     if (url.endsWith("/quiesce") && existsSync(fault)) {
-      // One lost receipt: fail before forwarding, never fabricate an API success.
-      unlinkSync(fault);
+      // Hold the outage through the replay assertion so concurrent receipts cannot release its selected slot.
       appendFileSync(
         path.join(dir, "proxy.jsonl"),
         JSON.stringify({ at: Date.now(), path: url, injectedStatus: 503 }) +
