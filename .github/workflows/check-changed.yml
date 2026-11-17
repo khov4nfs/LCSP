@@ -132,10 +132,21 @@ jobs:
         if: github.event_name == 'pull_request' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true')
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          ticket="$(printf '%s\n' "$PR_TITLE" | grep -oE 'LCSP-[0-9]+' | head -n 1)"
+          ticket="$(printf '%s\\n' "$PR_TITLE" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
           if [ -z "$ticket" ]; then
-            echo "Unable to resolve LCSP Jira key from PR title: $PR_TITLE" >&2
+            commit_message="$(git log -1 --format=%B "$PR_HEAD_SHA")"
+            ticket="$(printf '%s\\n' "$commit_message" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
+          fi
+          # Dependabot cannot interpolate a Jira key into its generated title or commit subject.
+          # Link its automatic lint commit to the shared dependency-maintenance issue.
+          if [ -z "$ticket" ] && [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            ticket="LCSP-359"
+          fi
+          if [ -z "$ticket" ]; then
+            echo "Unable to resolve LCSP Jira key from PR title or head commit: $PR_TITLE" >&2
             exit 1
           fi
           echo "ticket=$ticket" >> "$GITHUB_OUTPUT"
