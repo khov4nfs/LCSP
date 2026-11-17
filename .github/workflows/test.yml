@@ -408,6 +408,21 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
 
+      - name: TEMP snapshot installed framework instruction surfaces for LCSP-516
+        run: |
+          python scripts/snapshot_instruction_migration.py --write
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("instructions/inventory.json").read_text(encoding="utf-8"))
+          print("LCSP_FRAMEWORK_SNAPSHOT_BEGIN")
+          print(json.dumps(payload["frameworkInstructions"], ensure_ascii=False, separators=(",", ":")))
+          print("LCSP_FRAMEWORK_SNAPSHOT_END")
+          PY
+          git status --short
+          git diff --stat
+        
+
       # Python/API parity tests run the API's TypeScript domain code through `pnpm exec tsx`.
       - uses: pnpm/action-setup@v4
 
