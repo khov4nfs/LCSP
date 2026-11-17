@@ -764,23 +764,51 @@ export const enPages = {
         "Only the rules you request will be investigated. Unrequested rules have no audit decision.",
       discovery: {
         title: "Explore this repository before choosing rules",
-        description: "Run a read-only source scan to find AI use cases and investigation candidates. You remain in control of the audit scope.",
+        description:
+          "Run a read-only source scan to find AI use cases and investigation candidates. You remain in control of the audit scope.",
         start: "Discover AI use cases",
         retry: "Retry repository discovery",
         running: "Discovering source code and relevant controls…",
-        failed: "Repository discovery could not finish. No legal conclusion has been made.",
+        failed:
+          "Repository discovery could not finish. No legal conclusion has been made.",
         error: "Could not load or start discovery. Refresh or try again.",
-        summary: "{useCases} AI use cases, {candidates} candidate rules, {gaps} known source gaps",
-        investigationOnly: "These are technical leads, not legal applicability or compliance decisions. Unlisted rules may still be relevant.",
+        summary:
+          "{useCases} AI use cases, {candidates} candidate rules, {gaps} known source gaps",
+        investigationOnly:
+          "These are technical leads, not legal applicability or compliance decisions. Unlisted rules may still be relevant.",
         preview: "Showing {shown} of {total} candidate rules (preview only)",
-        allCandidates: "All {total} candidate rules (investigative suggestions only)",
+        allCandidates:
+          "All {total} candidate rules (investigative suggestions only)",
+        selectCandidateRules: "Select suggested rules (review before auditing)",
         loadMore: "Load more candidate rules",
         contextQuestions: "Operational questions that still need clarification",
-        contextAdvisory: "These are discovery hints, not confirmed facts. Formal answers must be recorded through an authorized interview.",
-        candidateLoadFailed: "Could not load the full candidate inventory. The preview is not exhaustive.",
+        contextAdvisory:
+          "These are discovery hints, not confirmed facts. Formal answers must be recorded through an authorized interview.",
+        interviewTitle:
+          "Review operational context before selecting audit rules",
+        interviewDescription:
+          "Submit a source-backed answer for review, then explicitly confirm it. Confirmed answers become customer-provided facts; they do not establish legal applicability.",
+        interviewLoading: "Loading previously submitted answers…",
+        interviewError:
+          "Could not submit, review or load a context answer. Check the latest case revision and retry.",
+        interviewAccepted: "Confirmed customer answer:",
+        interviewPending: "Pending explicit confirmation:",
+        interviewAmbiguous:
+          "This answer is uncertain or contradictory. Reject and provide a clearer answer; it cannot be accepted as a fact.",
+        interviewConfirm: "Confirm this answer",
+        interviewReject: "Reject and rewrite",
+        interviewRejected:
+          "The earlier answer was rejected. You may submit a revised answer.",
+        answerPlaceholder: "Enter the factual operational answer (not a guess)",
+        answerInvalid: "Enter a clear answer of at most 2,000 characters.",
+        submitAnswer: "Submit for review",
+        loadMoreHistory: "Load more answer history",
+        candidateLoadFailed:
+          "Could not load the full candidate inventory. The preview is not exhaustive.",
         needsContext: "Needs additional context",
         candidate: "Potentially relevant for investigation",
-        noCandidates: "No candidate match found. This does not prove that no rules apply.",
+        noCandidates:
+          "No candidate match found. This does not prove that no rules apply.",
       },
       search: "Search assessment rules",
       selectedCount: "Selected {selected}/{total}",

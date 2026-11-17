@@ -85,6 +85,8 @@ import {
   AssessmentDiscoveryRunWorkerController,
 } from "./presentation/http/assessment-discovery-run.controller.js";
 import { AssessmentDiscoveryRunService } from "./application/services/assessment-discovery-run.service.js";
+import { AssessmentDiscoveryInterviewService } from "./application/services/assessment-discovery-interview.service.js";
+import { AssessmentDiscoveryInterviewController } from "./presentation/http/assessment-discovery-interview.controller.js";
 import { AssessmentLifecycleCoordinator } from "./application/services/assessment-lifecycle-coordinator.service.js";
 import { AssessmentRuntimeAuthority } from "./application/services/assessment-runtime-authority.service.js";
 import { AssessmentRuntimePreparation } from "./application/services/assessment-runtime-preparation.service.js";
@@ -123,6 +125,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentRuleAuditController,
     AssessmentRepositoryDiscoveryController,
     AssessmentDiscoveryRunController,
+    AssessmentDiscoveryInterviewController,
     AssessmentDiscoveryRunWorkerController,
     WorkspaceRuntimeEventsController,
     AssessmentDomainController,
@@ -152,6 +155,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentRepositoryProfileService,
     AssessmentRepositoryDiscoveryService,
     AssessmentDiscoveryRunService,
+    AssessmentDiscoveryInterviewService,
     AssessmentCompletionGate,
     LocalePresentationProjectionService,
     AssessmentHumanRequestSupport,

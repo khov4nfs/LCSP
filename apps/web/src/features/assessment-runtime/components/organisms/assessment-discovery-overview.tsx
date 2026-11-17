@@ -21,6 +21,7 @@ import {
   useStartAssessmentDiscovery,
 } from "@/lib/api/assessment-discovery-queries";
 
+import { AssessmentDiscoveryInterview } from "./assessment-discovery-interview";
 import { copy } from "../../utils/conversation-copy";
 
 type RuleLabel = {
@@ -34,10 +35,11 @@ type RuleLabel = {
  * - Discovery is explicitly started by the customer and never selects or decides a rule.
  * - Preview is bounded; missing and unlisted candidates cannot imply legal non-applicability.
  * - A failed request keeps its stable key for retry; a completed failed run uses a new key.
+ * - Suggestions may populate the customer's editable selection only on explicit click after all candidate pages load, never authorize an audit.
  * Execution flow:
  * 1. Restore latest pin-bound run, allowing refresh and server-side polling during a scan.
  * 2. Start discovery only when the user requests it and no selected audit exists.
- * 3. Page the entire available unresolved-question inventory on demand, and explain gaps/candidates without selecting rules.
+ * 3. Page the full use-case/question inventory and allow owner-reviewed pre-scope answers without selecting rules.
  * Failure cases:
  * - API, ownership, worker and incomplete-coverage failures are explicit without fabricated results.
  * Side effects:
@@ -47,10 +49,14 @@ export function AssessmentDiscoveryOverview({
   assessmentId,
   rules,
   canDiscover,
+  canChooseCandidates,
+  onChooseCandidates,
 }: {
   assessmentId: string;
   rules: RuleLabel[];
   canDiscover: boolean;
+  canChooseCandidates: boolean;
+  onChooseCandidates: (assessmentRuleIds: string[]) => void;
 }) {
   const latest = useAssessmentDiscoveryLatestQuery(assessmentId);
   const start = useStartAssessmentDiscovery(assessmentId);
@@ -79,19 +85,40 @@ export function AssessmentDiscoveryOverview({
     candidatePages.data?.pages.flatMap((page) => page.items) ??
     available?.preview.ruleCandidates ??
     [];
-  const openQuestions = Array.from(
-    new Set(
+  const questionEntries = Array.from(
+    new Map(
       (
         questionPages.data?.pages.flatMap((page) => page.items) ??
         available?.preview.aiUseCases ??
         []
-      ).flatMap((useCase) => useCase.unresolvedQuestions),
-    ),
+      )
+        .flatMap((useCase) =>
+          useCase.unresolvedQuestions.map((question) => ({
+            useCaseId: useCase.useCaseId,
+            question,
+          })),
+        )
+        .map((entry) => [`${entry.useCaseId}::${entry.question}`, entry]),
+    ).values(),
   );
-  const visibleQuestions = openQuestions.slice(0, visibleQuestionCount);
+  const visibleQuestions = questionEntries.slice(0, visibleQuestionCount);
   const canExpandQuestions =
-    openQuestions.length > visibleQuestionCount ||
+    questionEntries.length > visibleQuestionCount ||
     questionPages.hasNextPage === true;
+  const selectableCandidateIds =
+    candidatePages.isSuccess &&
+    !candidatePages.hasNextPage &&
+    visibleCandidates.length === available?.ruleCandidateCount
+      ? visibleCandidates
+          .filter(
+            (candidate) =>
+              candidate.state === DISCOVERY_RULE_CANDIDATE_STATES.candidate &&
+              rules.some(
+                (rule) => rule.assessmentRuleId === candidate.assessmentRuleId,
+              ),
+          )
+          .map((candidate) => candidate.assessmentRuleId)
+      : [];
   const showStart = canDiscover && !running;
 
   /**
@@ -180,7 +207,7 @@ export function AssessmentDiscoveryOverview({
                 </AlertDescription>
               </Alert>
             ) : null}
-            {openQuestions.length > 0 || questionPages.hasNextPage ? (
+            {questionEntries.length > 0 || questionPages.hasNextPage ? (
               <section
                 aria-label={copy("ruleAudit.discovery.contextQuestions")}
                 className="space-y-2"
@@ -191,11 +218,14 @@ export function AssessmentDiscoveryOverview({
                 <p className="text-muted-foreground">
                   {copy("ruleAudit.discovery.contextAdvisory")}
                 </p>
-                <ul className="list-disc space-y-1 pl-5">
-                  {visibleQuestions.map((question) => (
-                    <li key={question}>{question}</li>
-                  ))}
-                </ul>
+                {run ? (
+                  <AssessmentDiscoveryInterview
+                    assessmentId={assessmentId}
+                    runId={run.runId}
+                    questions={visibleQuestions}
+                    canEdit={canDiscover}
+                  />
+                ) : null}
                 {canExpandQuestions ? (
                   <Button
                     type="button"
@@ -203,7 +233,7 @@ export function AssessmentDiscoveryOverview({
                     size="sm"
                     disabled={questionPages.isFetchingNextPage}
                     onClick={() => {
-                      if (openQuestions.length > visibleQuestionCount) {
+                      if (questionEntries.length > visibleQuestionCount) {
                         setVisibleQuestionCount((count) => count + 10);
                       } else {
                         void questionPages.fetchNextPage();
@@ -257,6 +287,16 @@ export function AssessmentDiscoveryOverview({
                     </li>
                   ))}
                 </ul>
+                {canChooseCandidates && selectableCandidateIds.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onChooseCandidates(selectableCandidateIds)}
+                  >
+                    {copy("ruleAudit.discovery.selectCandidateRules")}
+                  </Button>
+                ) : null}
                 {candidatePages.hasNextPage ? (
                   <Button
                     type="button"

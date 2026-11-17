@@ -1,3 +1,4 @@
+import { sha256Hex } from "../../domain/domain-ids.js";
 import {
   DISCOVERY_GAP_REASONS,
   DISCOVERY_REACHABILITY_STATES,
@@ -234,12 +235,13 @@ function intersectTerms(
  * - Candidate matching uses only the pinned rules supplied by the API, verified discovery metadata, and ACCEPTED case facts supplied by the caller.
  * - A rule requires a technical source/use-case match; accepted facts may support but never create a candidate alone.
  * - Missing matches never produce NOT_SELECTED, and this matcher never emits SELECTED, RECOMMENDED, applicability, or compliance outcomes.
- * - Coverage gaps, unresolved reachability, and rule conditions force NEEDS_CONTEXT; every candidate has authorizesAssessment=false.
+ * - Coverage gaps, unresolved reachability, and rule conditions force NEEDS_CONTEXT; only accepted, scoped FactNeeds may satisfy a scanner question.
+ * - Every candidate retains authorizesAssessment=false regardless of question resolution.
  * - Rule relevance is an investigation priority only and is bounded per source range.
  *
  * Execution flow:
  * 1. Extract explicit engineering fields from each pinned rule and normalize their technical terms.
- * 2. Match those terms against discovered use cases, source ranges, and accepted facts.
+ * 2. Match those terms against discovered use cases, source ranges, accepted facts, and verified resolution identities for source questions.
  * 3. Build bounded candidate explanations and attach rule-specific priorities to supporting ranges.
  * 4. Record truncation as an explicit coverage gap, then recompute the immutable content digest and discovery identity.
  * 5. Validate the complete enriched artifact before returning it.
@@ -256,6 +258,7 @@ export function buildRepositoryDiscoveryRuleCandidates(input: {
   discovery: SubmitRepositoryDiscovery;
   rules: readonly DiscoveryRuleMatchRule[];
   acceptedFacts: readonly DiscoveryRuleMatchFact[];
+  resolvedQuestions?: readonly { useCaseId: string; questionDigest: string }[];
 }): RepositoryDiscovery {
   const rangeById = new Map(
     input.discovery.sourceRanges.map((range) => [range.rangeId, range]),
@@ -264,6 +267,11 @@ export function buildRepositoryDiscoveryRuleCandidates(input: {
     string,
     RepositoryDiscovery["sourceRanges"][number]["ruleRelevance"]
   >();
+  const resolvedQuestionKeys = new Set(
+    (input.resolvedQuestions ?? []).map(
+      (question) => `${question.useCaseId}:${question.questionDigest}`,
+    ),
+  );
   const candidates: RepositoryDiscovery["ruleCandidates"] = [];
   let candidateTruncated = false;
   let rangeRelevanceTruncated = false;
@@ -358,7 +366,12 @@ export function buildRepositoryDiscoveryRuleCandidates(input: {
     const unresolvedUseCase = input.discovery.aiUseCases.some(
       (useCase) =>
         supportingUseCaseIds.has(useCase.useCaseId) &&
-        useCase.unresolvedQuestions.length > 0,
+        useCase.unresolvedQuestions.some(
+          (question) =>
+            !resolvedQuestionKeys.has(
+              `${useCase.useCaseId}:${sha256Hex(question)}`,
+            ),
+        ),
     );
     const incompleteCoverage =
       input.discovery.knownGaps.length > 0 ||

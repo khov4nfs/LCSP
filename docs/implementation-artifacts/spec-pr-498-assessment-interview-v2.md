@@ -65,19 +65,52 @@ Human answers follow `raw answer -> typed normalization -> predicate-aware seman
 
 Candidate matching may normalize controlled engineering terminology and use pinned rule metadata, discovery use-case/data-flow links, graph relationships, accepted facts, and unresolved FactNeeds. It may rank candidates but must expose unmatched/incomplete coverage and cannot establish applicability or compliance. Evaluation must cover the complete pre-scope-to-decision workflow with deterministic CI fixtures and must label model-dependent metrics as unmeasured until actually executed.
 
-### Revalidated Finding Status at `e12ef4fae8813a19dcb9c644465d3f9d1a4428a5`
+### Remediation Implementation Status at local commit `cef0d49c50cb136a7408549090625fdf1211cf29` (2026-11-17)
 
-| Finding | Status | Current evidence / remaining gap |
+This is a **local implementation status**, not a pushed GitHub CI result or proof of full Interview v2 acceptance. The configured SourceNerve workspace still identifies `khovan123/LCSP`, while the requested PR is in `khov4nfs/LCSP`; no remote push, merge or deploy was performed. The original direct selected/full-audit path remains available.
+
+| Finding | Status | Verified current implementation / remaining gap |
 |---|---|---|
-| Separately authorized discovery before rule selection | OPEN | `AssessmentRuleAuditService.submit()` still creates the selected audit and dispatches Root; `AssessmentRuntimeAuthority.claimRoot()` rejects customer-selected execution without a current audit request. |
-| Customer-visible discovery result | OPEN | Existing Discovery HTTP routes require worker API key and Root lease; the web application has no owner projection for use cases, findings, gaps, candidates, or rationales. |
-| Pre-assessment Context Interview | PARTIALLY_FIXED | Typed FactNeed, HumanRequest, immutable proposal, and accepted-fact infrastructure exists, but opening/resuming questions still assumes selected-rule Root authority and pending proposals have no owner resolution command. |
-| Explicit customer scope confirmation | PARTIALLY_FIXED | `SELECTED_RULES` and `FULL_RULE_SET` are explicit and authoritative, but the picker does not consume discovery candidates or distinguish unresolved recommendations. |
-| Predicate-aware answer semantics | PARTIALLY_FIXED | Typed validation, raw-answer retention, unknown behavior, and limited EN/VI ambiguity/conflict guards exist; arbitrary high-impact predicate semantics and canonical-scope conflict enforcement remain incomplete. |
-| Candidate rule matching quality | PARTIALLY_FIXED | Matching is deterministic, bounded, explainable, and non-authoritative, but remains predominantly lexical and underuses controlled terminology, graph/use-case relationships, and unresolved FactNeeds. |
-| Evidence reuse before targeted investigation | PARTIALLY_FIXED | Root receives pinned discovery priorities and audited expansion, but criterion-level sufficiency and compatible accepted-evidence reuse are not yet automatically planned. |
-| Direct/indirect selective invalidation | FIXED | Normalized evidence/fact dependencies, affected decision/report invalidation, unrelated complete-dependency preservation, and fail-closed incomplete history are implemented and regression tested. |
-| End-to-end workflow evaluation | OPEN | The checked-in 13-case scanner corpus measures only scanner behavior; Interview, recommendation, selection, evidence reuse, decision correctness, and model-token effects are not yet measured. |
+| Separately authorized discovery before rule selection | IMPLEMENTED (local) | New owner-authorized `AssessmentDiscoveryRun`, queued event, independent worker lease, pinned sandbox scan, immutable API settlement, replay and failure tests; selected-rule Root remains a separate optional path. |
+| Customer-visible discovery result | IMPLEMENTED (local, browser unverified) | Owner-only API/BFF and frontend Discovery overview display use cases, rule candidates, source gaps, and unresolved-question previews. AI use-case and candidate inventories now paginate; customer browser-flow verification remains pending. |
+| Pre-assessment Context Interview | PARTIALLY_FIXED | Unresolved operational questions can be browsed **before** scope selection, but cannot yet be answered, normalized, reviewed and accepted as FactNeeds through an independent pre-scope authority. Do not count display-only questions as a completed Interview. |
+| Explicit customer scope confirmation | PARTIALLY_FIXED | User still selects `SELECTED_RULES` or `FULL_RULE_SET` explicitly; recommendations are shown ahead of selection but cannot yet be applied as a separately reviewable candidate selection set. Missing matches never become `NOT_APPLICABLE`. |
+| Predicate-aware answer semantics | PARTIALLY_FIXED | Typed validation and conservative EN/VI uncertainty guards now include hedged deployment statements; arbitrary predicate-specific conflicts and owner resolution of pending proposals require more work. |
+| Candidate rule matching quality | PARTIALLY_FIXED | Deterministic non-authoritative matching recognizes bounded engineering aliases and camelCase (for example `purgeExpiredRecords`), without equating generic UI removal with personal-data deletion; semantic/graph gold coverage is incomplete. |
+| Evidence reuse before targeted investigation | PARTIALLY_FIXED | Root can reuse the exact already-persisted Discovery artifact and bounded priorities, but automatic per-criterion evidence sufficiency planning still needs evaluation. |
+| Direct/indirect selective invalidation | IMPLEMENTED | Existing normalized dependency edges preserve unrelated complete decisions and invalidate dependent decisions and derived reports; historical incomplete dependencies fail closed. |
+| End-to-end workflow evaluation | OPEN | The reproducible 13-case scanner benchmark does not measure actual question reduction, model token savings, end-to-end wall time or legal decision accuracy; do not report unmeasured improvements. |
+
+**Executed local checks:** API discovery/HumanFact/migration 54/54 tests; pre-scope BFF 4/4; Python scanner/discovery 48/48; TypeScript typecheck, import/contract checks, business-logic documentation and staged `git diff --check` passed. A full live customer browser run and all GitHub CI checks on the new commit are **not** verified.
+
+### 2026-11-17 implementation amendment — governed pre-scope Context Interview
+
+This additive slice introduces `AssessmentDiscoveryInterviewProposal` as an owner-scoped, source-bound review ledger linked to an exact completed `AssessmentDiscoveryRun` and canonical `AssessmentFactNeed`. It does **not** create synthetic rule decisions or replace native post-selection LangGraph HITL.
+
+**Implemented behavior**
+
+1. The customer sees source-generated unresolved questions from paged AI use cases before choosing an audit scope. Each answer submission identifies the exact `useCaseId` and question text in the immutable pinned Discovery; invented or foreign questions fail closed.
+2. Raw operational text is validated and saved as `PENDING_REVIEW` with a stable request UUID and canonical FactNeed identity. No evidence or accepted fact exists at this stage.
+3. An owner-authorized, optimistic-revision review can `REJECT` the proposal (allowing correction), or `ACCEPT` a clear answer. Ambiguous, uncertain, or conflicting input cannot be accepted through this endpoint.
+4. Acceptance creates one `HUMAN_ANSWER` evidence, one `HUMAN_PROVIDED` case fact, their provenance edge and a resolved FactNeed in the same database transaction. It advances caseRevision and invalidates any stale final report.
+5. The pinned source Discovery remains immutable. Accepted FactNeed question identities allow the existing API matcher to create a **new immutable candidate-recommendation revision**, without rehydrating or rescanning source. A resolved source question no longer forces `NEEDS_CONTEXT` when no other unknown condition or coverage gap remains. `CANDIDATE` still cannot authorize an audit or claim legal applicability.
+6. The web interface exposes proposal status, owner confirmation/rejection, retryable answer forms and paged review history. Routes use `/context-answers`, avoiding the retired V1 `/interview` route family. The previous direct selected/full audit path remains available.
+
+**Database and security constraints**
+
+- Additive migration only. Proposal content/source/actor are immutable after creation; a trigger permits one explicit `PENDING_REVIEW` → `ACCEPTED` or `REJECTED` transition.
+- Composite assessment-bound FKs link FactNeed, accepted evidence and accepted fact; fact references are deferred to commit to preserve same-assessment cascade erasure while rejecting independent deletion of referenced support.
+- Case row lock, owner RBAC, source snapshot/commit/prefix pins, source question provenance, accepted FactNeed state and optimistic case revision are validated before mutation.
+- Missing evidence, UNKNOWN operational context or unmatched rules never imply `NOT_APPLICABLE` or `COMPLIANT`.
+
+**Remaining acceptance gaps (do not silently mark FIXED)**
+
+- This pre-scope interview currently covers **source-discovered unresolved questions using TEXT FactNeeds**; fully typed, predicate-specific forms for legal actor, geography, dates, classifications, and reviewer-driven clarification require further work.
+- `PENDING_REVIEW` settlement uses explicit **owner confirmation**, not independent legal counsel approval; legal applicability remains a separate authoritative decision.
+- A deliberate `doesNotKnow` response is still unresolved, not an accepted fact; a dedicated explicit UNKNOWN acknowledgment and question materiality/batching policy remain to implement.
+- Automatic criterion-level evidence sufficiency, graph-semantic recommendation gold tests and full Discovery → Interview → Scope → Decision benchmark are still outstanding.
+- No end-to-end browser acceptance with a live authenticated customer or disposable PostgreSQL integration migration was executed in this slice.
+- SourceNerve `origin` still resolves to `khovan123/LCSP`, while the target PR is `khov4nfs/LCSP#498`; commits must **not** be pushed to the unrelated remote.
 
 ### Current State Classification at `caf06e5e3b611be2536111587cf5b7719b773bc9`
 

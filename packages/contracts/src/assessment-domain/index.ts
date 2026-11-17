@@ -9,3 +9,4 @@ export * from "./working-context.ts";
 export * from "./repository-profile.ts";
 export * from "./repository-discovery.ts";
 export * from "./fact-needs.ts";
+export * from "./discovery-interview.ts";

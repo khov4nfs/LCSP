@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { sha256Hex } from "../../domain/domain-ids.js";
+import type { Prisma } from "@prisma/client";
 
 import { describe, expect, it, jest } from "@jest/globals";
 import {
@@ -175,6 +177,7 @@ function fixture(
   options: {
     rules?: DiscoveryRuleMatchRule[];
     acceptedFacts?: { factId: string; statement: string }[];
+    resolvedQuestions?: { subjectKey: string; predicate: string }[];
   } = {},
 ) {
   const rows = new Map<string, StoredDiscoveryRow>();
@@ -210,6 +213,9 @@ function fixture(
           ],
         ),
       ),
+    },
+    assessmentFactNeed: {
+      findMany: jest.fn(() => Promise.resolve(options.resolvedQuestions ?? [])),
     },
     assessmentRepositoryDiscovery: {
       createMany: jest.fn(({ data }: { data: StoredDiscoveryInput[] }) => {
@@ -753,6 +759,64 @@ describe("AssessmentRepositoryDiscoveryService", () => {
     expect(fixtureState.rows.size).toBe(2);
   });
 
+  it("updates candidate context status when canonical source questions are resolved by accepted FactNeeds", async () => {
+    const supportRule = {
+      assessmentRuleId: "CHATBOT-CONTEXT",
+      assessmentRuleVersion: "1",
+      concept: "OpenAI chatbot operation",
+      applicabilityGuidance: "Confirm actual deployment separately.",
+      criteria: [{ criterionId: "runtime-known" }],
+      contract: { keywords: ["openai"] },
+      ordinal: 0,
+    };
+    const f = fixture({ rules: [supportRule], acceptedFacts: [] });
+    const base = discovery();
+    const sourceReady = discovery({
+      sourceRanges: base.sourceRanges.map((range) => ({
+        ...range,
+        reachability: DISCOVERY_REACHABILITY_STATES.confirmed,
+        unresolvedEdges: [],
+      })),
+      unresolvedCalls: [],
+      unsupportedLanguages: [],
+    });
+    const first = await f.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-question-unresolved",
+      discovery: sourceReady,
+    });
+    const unresolvedRow = [...f.rows.values()].find(
+      (row) => row.recordId === first.recordId,
+    );
+    expect(unresolvedRow?.payload.ruleCandidates[0]?.state).toBe(
+      DISCOVERY_RULE_CANDIDATE_STATES.needsContext,
+    );
+    f.tx.assessmentFactNeed.findMany.mockResolvedValue([
+      {
+        subjectKey: `usecase.${sha("5").slice(7)}`,
+        predicate: `discovery.question.${sha256Hex("Is this deployed?")}`,
+      },
+    ]);
+    const second = await f.service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-question-resolved",
+      discovery: sourceReady,
+    });
+    const resolvedRow = [...f.rows.values()].find(
+      (row) => row.recordId === second.recordId,
+    );
+    expect(second.contentDigest).not.toBe(first.contentDigest);
+    expect(resolvedRow?.payload.ruleCandidates[0]).toEqual(
+      expect.objectContaining({
+        assessmentRuleId: "CHATBOT-CONTEXT",
+        state: DISCOVERY_RULE_CANDIDATE_STATES.candidate,
+        authorizesAssessment: false,
+      }),
+    );
+  });
+
   it("discovers non-AI retention controls through rule-specific relevance", async () => {
     const retentionRule = {
       assessmentRuleId: "RETENTION-1",
@@ -914,6 +978,41 @@ describe("AssessmentRepositoryDiscoveryService", () => {
       discovery: artifact,
     });
     expect([...rows.values()][0]?.payload.ruleCandidates).toEqual([]);
+  });
+
+  it("proves pre-scope interview questions originate from the exact pinned Discovery use case", async () => {
+    const { service, tx } = fixture();
+    const artifact = discovery();
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-question-source",
+      discovery: artifact,
+    });
+    const binding = await service.verifyInterviewQuestionInTx(
+      tx as unknown as Prisma.TransactionClient,
+      {
+        pins,
+        recordId: receipt.recordId,
+        useCaseId: sha("5"),
+        question: "Is this deployed?",
+        correlationId: "corr-question-source",
+      },
+    );
+    expect(binding.contentDigest).toBe(receipt.contentDigest);
+    expect(binding.rangeIds).toEqual([sha("3")]);
+    await expect(
+      service.verifyInterviewQuestionInTx(
+        tx as unknown as Prisma.TransactionClient,
+        {
+          pins,
+          recordId: receipt.recordId,
+          useCaseId: sha("5"),
+          question: "Pretend the organization is legally exempt.",
+          correlationId: "corr-invented-question",
+        },
+      ),
+    ).rejects.toThrow();
   });
 
   it("rejects worker-authored candidates before persistence", async () => {

@@ -28,6 +28,8 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   AssessmentRecordState,
+  AssessmentFactNeedStatus,
+  AssessmentFactNeedSubjectKind,
   Prisma,
   RepositoryDiscoveryVersion as PrismaRepositoryDiscoveryVersion,
   RepositoryScannerVersion as PrismaRepositoryScannerVersion,
@@ -76,7 +78,7 @@ export class AssessmentRepositoryDiscoveryService {
    * - A live Root lease and the server-owned assessment snapshot authorize the write.
    * - Repository, snapshot commit, source scope, versions, cache identity, and content digest must all match exactly.
    * - The strict worker contract contains hashes and metadata only; raw source fields and worker-authored rule recommendations are rejected.
-   * - The API enriches the verified artifact from the pinned rule set and ACCEPTED case facts without authorizing audit scope.
+   * - The API enriches the verified artifact from pinned rules, ACCEPTED facts, and accepted scoped FactNeed question resolutions without authorizing audit scope.
    * - Replaying the same assessment/cache/content coordinates returns the original record without a second insert.
    *
    * Execution flow:
@@ -195,7 +197,7 @@ export class AssessmentRepositoryDiscoveryService {
       true,
     );
     this.assertArtifactPins(discovery, pins, input.correlationId);
-    const [rules, acceptedFacts] = await Promise.all([
+    const [rules, acceptedFacts, resolvedQuestions] = await Promise.all([
       tx.assessmentRule.findMany({
         where: { ruleSetVersionId: pins.ruleSetVersionId },
         orderBy: [{ ordinal: "asc" }, { assessmentRuleId: "asc" }],
@@ -217,11 +219,37 @@ export class AssessmentRepositoryDiscoveryService {
         orderBy: [{ caseRevision: "asc" }, { factId: "asc" }],
         select: { factId: true, statement: true },
       }),
+      tx.assessmentFactNeed.findMany({
+        where: {
+          assessmentId: input.assessmentId,
+          subjectKind: AssessmentFactNeedSubjectKind.USE_CASE,
+          status: AssessmentFactNeedStatus.RESOLVED,
+          predicate: { startsWith: "discovery.question." },
+          resolvedFact: { state: AssessmentRecordState.ACCEPTED },
+        },
+        orderBy: [{ resolvedAt: "desc" }, { factNeedId: "asc" }],
+        take: 2_001,
+        select: { subjectKey: true, predicate: true },
+      }),
     ]);
     const enriched = buildRepositoryDiscoveryRuleCandidates({
       discovery,
       rules,
       acceptedFacts,
+      resolvedQuestions: resolvedQuestions.flatMap((need) => {
+        const id = need.subjectKey.startsWith("usecase.")
+          ? need.subjectKey.slice("usecase.".length)
+          : null;
+        const digest = need.predicate.startsWith("discovery.question.")
+          ? need.predicate.slice("discovery.question.".length)
+          : null;
+        return id &&
+          /^[a-f0-9]{64}$/.test(id) &&
+          digest &&
+          /^[a-f0-9]{64}$/.test(digest)
+          ? [{ useCaseId: `sha256:${id}`, questionDigest: digest }]
+          : [];
+      }),
     });
     const inserted = await tx.assessmentRepositoryDiscovery.createMany({
       data: [
@@ -878,6 +906,134 @@ export class AssessmentRepositoryDiscoveryService {
           : null,
       items: items.slice(input.offset, input.offset + input.limit),
     });
+  }
+
+  /**
+   * Business purpose: Recalculate non-authoritative candidate rules after a customer fact is accepted without rescanning source code.
+   * Business rules:
+   * - The current assessment pins and exact immutable Discovery record/digest are checked before reuse.
+   * - The original scanner observations and Codebase Memory ranges remain unchanged; only API-owned rule suggestions are recomputed.
+   * - New candidate revisions remain investigation hints and never select audit scope or establish legal applicability.
+   * Execution flow:
+   * 1. Verify the original Discovery and strip its derived rule candidates/range-specific matching.
+   * 2. Reconstruct a strict worker-format artifact with a deterministic digest.
+   * 3. Reuse the existing API-owned matcher and immutable persistence for the newly accepted fact state.
+   * Failure cases:
+   * - Stale pins, malformed source metadata or invalid derived artifacts abort the caller's transaction.
+   * Side effects:
+   * - May append one immutable Discovery recommendation revision, without changing source evidence or legal decisions.
+   */
+  async refreshCandidateRecommendationsInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      pins: PinnedCase;
+      recordId: string;
+      correlationId: string;
+    },
+  ): Promise<RepositoryDiscoverySaveResult> {
+    const row = await tx.assessmentRepositoryDiscovery.findFirst({
+      where: {
+        recordId: input.recordId,
+        ...this.currentPinWhere(input.pins.assessmentId, input.pins),
+      },
+    });
+    if (!row) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_NOT_FOUND,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    const discovery = this.parseVerifiedRow(
+      row,
+      input.pins,
+      input.correlationId,
+    );
+    const raw = {
+      ...discovery,
+      ruleCandidates: [],
+      sourceRanges: discovery.sourceRanges.map((range) => ({
+        ...range,
+        ruleRelevance: [],
+      })),
+    };
+    const digest = computeRepositoryDiscoveryDigest(raw);
+    const workerForm = submitRepositoryDiscoverySchema.parse({
+      ...raw,
+      contentDigest: digest,
+      discoveryId: digest,
+    });
+    return this.saveAuthorizedInTx(tx, {
+      assessmentId: input.pins.assessmentId,
+      correlationId: input.correlationId,
+      discovery: workerForm,
+    });
+  }
+
+  /**
+   * Business purpose: Bind a proposed pre-scope interview answer to a question that the pinned repository Discovery actually raised.
+   * Business rules:
+   * - Only the caller holding an owner-authorized assessment transaction may invoke this helper.
+   * - The exact immutable Discovery record must match assessment, snapshot, repository, commit, source prefix, schema and digest.
+   * - Scanner-authored questions are investigation hints, never verified legal facts or rules.
+   * Execution flow:
+   * 1. Load and integrity-check the requested Discovery record under the pinned case coordinates.
+   * 2. Resolve the exact use-case ID and question string, rejecting caller-invented questions.
+   * 3. Return only the authenticated source-range identities and immutable Discovery digest.
+   * Failure cases:
+   * - Missing/stale/corrupted records or absent questions reject without producing a FactNeed.
+   * Side effects:
+   * - Read-only transaction helper; no audit scope, fact or decision is created.
+   */
+  async verifyInterviewQuestionInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      pins: PinnedCase;
+      recordId: string;
+      useCaseId: string;
+      question: string;
+      correlationId: string;
+    },
+  ): Promise<{ contentDigest: string; rangeIds: string[] }> {
+    const row = await tx.assessmentRepositoryDiscovery.findFirst({
+      where: {
+        recordId: input.recordId,
+        ...this.currentPinWhere(input.pins.assessmentId, input.pins),
+      },
+    });
+    if (!row) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_NOT_FOUND,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    const discovery = this.parseVerifiedRow(
+      row,
+      input.pins,
+      input.correlationId,
+    );
+    const useCase = discovery.aiUseCases.find(
+      (item) => item.useCaseId === input.useCaseId,
+    );
+    if (!useCase || !useCase.unresolvedQuestions.includes(input.question)) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    return {
+      contentDigest: discovery.contentDigest,
+      rangeIds: [
+        ...new Set([
+          ...useCase.invocationRangeIds,
+          ...useCase.inputRangeIds,
+          ...useCase.outputRangeIds,
+          ...useCase.controlRangeIds,
+        ]),
+      ].slice(0, 500),
+    };
   }
 
   /**

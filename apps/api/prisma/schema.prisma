@@ -2098,6 +2098,7 @@ model AssessmentCase {
   artifacts            AssessmentArtifact[]
   auditRequests        AssessmentRuleAuditRequest[]
   discoveryRuns        AssessmentDiscoveryRun[]
+  discoveryInterviewProposals AssessmentDiscoveryInterviewProposal[]
   repositoryDiscoveries AssessmentRepositoryDiscovery[]
   repositoryDiscoveryExpansions AssessmentRepositoryDiscoveryExpansion[]
   factNeeds             AssessmentFactNeed[]
@@ -2157,6 +2158,7 @@ model AssessmentDiscoveryRun {
   failedAt             DateTime?                    @db.Timestamptz(3)
   assessmentCase       AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   repositoryDiscovery  AssessmentRepositoryDiscovery? @relation(fields: [discoveryRecordId, assessmentId], references: [recordId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+  interviewProposals   AssessmentDiscoveryInterviewProposal[]
 
   @@unique([assessmentId, idempotencyKey])
   @@index([assessmentId, requestedAt(sort: Desc)])
@@ -2295,6 +2297,7 @@ model AssessmentEvidence {
   assessmentCase   AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   factLinks        AssessmentCaseFactEvidence[]
   decisionDependencies AssessmentDecisionEvidenceDependency[]
+  discoveryInterviewAcceptances AssessmentDiscoveryInterviewProposal[] @relation("DiscoveryInterviewAcceptedEvidence")
 
   @@unique([evidenceId, assessmentId])
   @@index([assessmentId, state])
@@ -2314,6 +2317,7 @@ model AssessmentCaseFact {
   evidenceLinks  AssessmentCaseFactEvidence[]
   resolvedFactNeeds AssessmentFactNeed[]
   decisionDependencies AssessmentDecisionFactDependency[]
+  discoveryInterviewAcceptances AssessmentDiscoveryInterviewProposal[] @relation("DiscoveryInterviewAcceptedFact")
 
   // Every accepted fact is exactly one case revision.
   @@unique([assessmentId, caseRevision])
@@ -2355,11 +2359,49 @@ model AssessmentFactNeed {
   resolvedFact                AssessmentCaseFact?             @relation(fields: [resolvedFactId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
   humanRequest                AssessmentHumanRequest?
   proposals                   AssessmentHumanFactProposal[]
+  discoveryInterviewProposals AssessmentDiscoveryInterviewProposal[]
 
   @@unique([factNeedId, assessmentId])
   @@unique([assessmentId, identityDigest])
   @@index([assessmentId, status])
   @@index([tenantOwnerId, assessmentId])
+}
+
+enum AssessmentDiscoveryInterviewProposalStatus {
+  PENDING_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+/// Owner-submitted pre-scope context statement; never authoritative before explicit review.
+/// Source question and its use-case identity are verified against one pinned Discovery artifact.
+model AssessmentDiscoveryInterviewProposal {
+  proposalId         String                                   @id @db.Uuid
+  assessmentId       String
+  discoveryRunId     String                                   @db.Uuid
+  factNeedId         String                                   @db.Uuid
+  idempotencyKey     String                                   @db.Uuid
+  requestDigest      String
+  useCaseId          String
+  question           String
+  answer             String
+  status             AssessmentDiscoveryInterviewProposalStatus @default(PENDING_REVIEW)
+  guardFailure       String?
+  submittedBy        String
+  reviewedBy         String?
+  acceptedFactId     String?                                  @db.Uuid
+  acceptedEvidenceId String?                                  @db.Uuid
+  createdAt          DateTime                                 @default(now()) @db.Timestamptz(3)
+  reviewedAt         DateTime?                                @db.Timestamptz(3)
+  assessmentCase     AssessmentCase                           @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict, map: "ADIP_assessment_fkey")
+  discoveryRun       AssessmentDiscoveryRun                   @relation(fields: [discoveryRunId], references: [runId], onDelete: Cascade, onUpdate: Restrict, map: "ADIP_run_fkey")
+  factNeed           AssessmentFactNeed                      @relation(fields: [factNeedId, assessmentId], references: [factNeedId, assessmentId], onDelete: NoAction, onUpdate: Restrict, map: "ADIP_need_assessment_fkey")
+  acceptedEvidence   AssessmentEvidence?                    @relation("DiscoveryInterviewAcceptedEvidence", fields: [acceptedEvidenceId, assessmentId], references: [evidenceId, assessmentId], onDelete: NoAction, onUpdate: Restrict, map: "ADIP_evidence_assessment_fkey")
+  acceptedFact       AssessmentCaseFact?                    @relation("DiscoveryInterviewAcceptedFact", fields: [acceptedFactId, assessmentId], references: [factId, assessmentId], onDelete: NoAction, onUpdate: Restrict, map: "ADIP_fact_assessment_fkey")
+
+  @@unique([assessmentId, idempotencyKey], map: "ADIP_assessment_idempotency_key")
+  @@index([assessmentId, discoveryRunId, status], map: "ADIP_assessment_run_status_idx")
+  @@index([assessmentId, factNeedId, status], map: "ADIP_assessment_need_status_idx")
 }
 
 /// Immutable candidate interpretation of one submitted human answer.
