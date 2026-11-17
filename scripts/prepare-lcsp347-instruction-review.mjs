@@ -16,16 +16,28 @@ const output = path.resolve(
   "../docs/implementation-artifacts/lcsp347-pm-rereview/instruction-equivalence.pending.json",
 );
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const inventory = JSON.parse(
-  readFileSync(
-    path.join(root, "instructions/revisions/r3/inventory.review.json"),
-    "utf8",
-  ),
-);
+const inventoryPath = existsSync(
+  path.join(root, "instructions/revisions/r3/inventory.review.json"),
+)
+  ? path.join(root, "instructions/revisions/r3/inventory.review.json")
+  : path.join(root, "instructions/inventory.json");
+const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
 const manifestBytes = readFileSync(
   path.join(root, "instructions/candidates/r3/manifest.pending.json"),
 );
 const manifest = JSON.parse(manifestBytes);
+const devInventoryPath = path.join(root, "instructions/inventory.json");
+if (existsSync(devInventoryPath)) {
+  const devInventory = JSON.parse(readFileSync(devInventoryPath, "utf8"));
+  if (
+    Array.isArray(devInventory.entries) &&
+    (devInventory.entries.length !== manifest.entries.length ||
+      new Set(manifest.entries.map((entry) => entry.sourceId)).size !==
+        devInventory.entries.length)
+  ) {
+    throw Error("Incomplete or duplicate manifest source inventory");
+  }
+}
 const archivedVietnameseSources = new Map([
   [
     "tools.schema-guidance",

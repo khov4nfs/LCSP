@@ -10189,7 +10189,7 @@
       "controlMode": "POST_GUARD_CONTENT_COMPATIBILITY",
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
         "tests/test_instruction_framework_controls.py": "0b17ea27ba7086925793f67e973b67c6f0c4217eb69710df36d6671818d8a33e"
       },
       "activationEvidence": "The post-guard compatibility filter only replaces unsupported HumanMessage/ToolMessage content blocks; SystemMessage and tool specifications are untouched, as asserted by the adapter regression test."
@@ -10208,7 +10208,7 @@
       "controlMode": "RESPONSE_REFUSAL_CHECK",
       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
       "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
         "tests/test_instruction_framework_controls.py": "0b17ea27ba7086925793f67e973b67c6f0c4217eb69710df36d6671818d8a33e"
       },
       "activationEvidence": "The refusal tail inspects the model response only and passes the original model request unchanged, as asserted by the adapter regression test."
