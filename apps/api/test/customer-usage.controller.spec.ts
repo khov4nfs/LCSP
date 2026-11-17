@@ -32,7 +32,7 @@ describe("Customer Usage owner boundary", () => {
       const guard = new RbacGuard(
         new Reflector(),
         { load: async () => ({ ok: true, session, user }) } as never,
-        { append: async () => {} } as never,
+        { append: async () => {} },
       );
       const request = {
         headers: {},
