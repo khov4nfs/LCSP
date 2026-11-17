@@ -1,7 +1,10 @@
-"""Final model boundary for approved EN instructions and tool metadata.
+"""Approved model-request boundary for EN instructions and tool metadata.
 
 Tool execution continues through the original graph tools and validators. Only
 model-facing descriptions are projected. Unknown tools fail before inference.
+The framework compatibility tail may replace unsupported HumanMessage and
+ToolMessage content blocks; it must not alter the approved system prompt or
+tool specifications. The refusal tail inspects responses only.
 """
 from copy import deepcopy
 import json
@@ -212,7 +215,7 @@ def approved_tool_specs(tools, bundle):
 
 
 class ApprovedInstructionMiddleware(AgentMiddleware):
-    """Innermost guard: framework/profile defaults cannot override bundle text."""
+    """Approved instruction projection before framework compatibility/refusal tail."""
 
     def __init__(self, source_ids, *, receipt_context=None, receipt_sink=None, presentation_context=None):
         self.source_ids = source_ids
