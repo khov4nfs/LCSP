@@ -29,6 +29,55 @@ def test_all_declared_surfaces_have_fingerprinted_active_or_guarded_inactive_con
     validate_inventory(require_complete=True)
 
 
+def test_post_guard_compatibility_filter_preserves_approved_system_and_tool_projection():
+    from deepagents.middleware.unsupported_content import UnsupportedContentMiddleware
+
+    system = SystemMessage(content="approved system instruction")
+    human = HumanMessage(content=[{"type": "image", "url": "https://example.invalid/image.png"}])
+    tools = [{"name": "read_file", "description": "approved tool description"}]
+
+    class Model:
+        profile = {}
+
+    request = SimpleNamespace(
+        system_message=system,
+        messages=[system, human],
+        tools=tools,
+        model=Model(),
+    )
+    request.override = lambda **updates: SimpleNamespace(**{**vars(request), **updates})
+    middleware = UnsupportedContentMiddleware()
+    middleware._is_supported = lambda block, *, model, in_tool_message: False
+    middleware._replace = lambda block, message: {
+        "type": "text",
+        "text": "unsupported content placeholder",
+    }
+
+    filtered = middleware._filter_request(request)
+
+    assert filtered.system_message is system
+    assert filtered.messages[0] is system
+    assert filtered.messages[1].content == [
+        {"type": "text", "text": "unsupported content placeholder"}
+    ]
+    assert filtered.tools is tools
+
+
+def test_model_refusal_tail_passes_the_approved_request_unchanged():
+    from langchain.agents.middleware.model_refusal import ModelRefusalMiddleware
+
+    request = object()
+    response = SimpleNamespace(result=[])
+    received = []
+
+    result = ModelRefusalMiddleware().wrap_model_call(
+        request, lambda actual: (received.append(actual) or response)
+    )
+
+    assert received == [request]
+    assert result is response
+
+
 def test_summary_boundary_verifies_system_template_history_and_actual_receipt():
     from tests.test_assessment_root_agent import RootScriptedModel, EXECUTION, PINS
     with offline_instruction_bundle() as bundle:
