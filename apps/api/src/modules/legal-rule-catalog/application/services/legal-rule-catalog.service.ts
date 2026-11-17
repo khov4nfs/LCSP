@@ -140,6 +140,93 @@ export class LegalRuleCatalogService {
   }
 
   /**
+   * Business purpose: Permanently delete an idle LegalRule catalog and its owned descendants.
+   * Business rules:
+   * - Cannot delete a catalog while associated rule preparation runs are queued or active.
+   * Execution flow:
+   * 1. Lock the catalog row and verify existence
+   * 2. Ensure no active preparation runs are in flight
+   * 3. Cascade delete preparation results, rules, batches, selections, and catalog
+   * 4. Record audit trail evidence
+   * Failure cases:
+   * - Missing catalog returns 404; active runs return 409 conflict.
+   * Side effects:
+   * - Removes the catalog and child records atomically and writes an audit event.
+   */
+  async deleteCatalog(catalogId: string, actor: string, cid: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const catalog = await tx.legalRuleCatalogVersion.findUnique({
+        where: { id: catalogId },
+      });
+      if (!catalog) catalogFailure(E.NOT_FOUND, cid, 404);
+
+      const activeRuns = await tx.preparationRuleResult.findFirst({
+        where: {
+          preparationRule: {
+            legalRule: {
+              catalogVersionId: catalogId,
+            },
+          },
+          preparationRun: {
+            executionState: {
+              in: [AgentExecutionState.QUEUED, AgentExecutionState.RUNNING],
+            },
+          },
+        },
+      });
+      if (activeRuns) catalogFailure(E.CONFLICT, cid, 409);
+
+      await tx.preparationRuleResult.deleteMany({
+        where: {
+          preparationRule: {
+            legalRule: {
+              catalogVersionId: catalogId,
+            },
+          },
+        },
+      });
+
+      await tx.preparationRule.deleteMany({
+        where: {
+          legalRule: {
+            catalogVersionId: catalogId,
+          },
+        },
+      });
+
+      await tx.preparationRuleBatch.deleteMany({
+        where: {
+          selection: {
+            catalogVersionId: catalogId,
+          },
+        },
+      });
+
+      await tx.preparationRuleSelection.deleteMany({
+        where: {
+          catalogVersionId: catalogId,
+        },
+      });
+
+      await tx.legalRule.deleteMany({
+        where: {
+          catalogVersionId: catalogId,
+        },
+      });
+
+      await tx.legalRuleCatalogVersion.delete({
+        where: { id: catalogId },
+      });
+
+      await this.record(tx, EVENTS.DELETED, catalogId, actor, cid, {
+        version: catalog.version,
+      });
+
+      return { id: catalogId, deleted: true as const };
+    });
+  }
+
+  /**
    * Business purpose: Serialize catalog edits and selection against one explicit revision.
    * Business rules:
    * - A stale page cannot overwrite concurrent Admin edits.

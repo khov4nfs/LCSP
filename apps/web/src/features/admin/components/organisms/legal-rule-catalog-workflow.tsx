@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileTextIcon } from "lucide-react";
+import { FileTextIcon, Trash2Icon } from "lucide-react";
 import {
   LEGAL_RULE_PREPARATION_STATES as STATES,
   LEGAL_RULE_SELECTION_MODES as MODES,
@@ -34,6 +34,7 @@ import {
   useLegalRuleCatalogs,
   useLegalRules,
   useLegalRuleCommand,
+  useDeleteLegalRuleCatalog,
 } from "@/lib/api/legal-rule-catalog-queries";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
 import { LEGAL_RULE_FILTER_ALL } from "../../config/legal-rule-catalog.config";
@@ -83,6 +84,7 @@ export function LegalRuleCatalogWorkflow({
   );
   const [inspectedRule, setInspectedRule] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const batchId = useSearchParams().get("preparationBatchId");
   const [confirming, setConfirming] = useState(false);
   const [snapshot, setSnapshot] = useState<ReturnType<
@@ -100,6 +102,7 @@ export function LegalRuleCatalogWorkflow({
     "/preparations",
     preparationRuleBatchSchema,
   );
+  const deleteMutation = useDeleteLegalRuleCatalog();
 
   const currentCatalog = catalogs.data?.find(
     (catalog) => catalog.id === catalogId,
@@ -317,6 +320,15 @@ export function LegalRuleCatalogWorkflow({
               onClick={() => setEditing(null)}
             >
               {t("addRule")}
+            </Button>
+            <Button
+              variant="outline"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2Icon className="mr-2 size-4" />
+              {t("deleteCatalog")}
             </Button>
           </>
         ) : null}
@@ -549,6 +561,57 @@ export function LegalRuleCatalogWorkflow({
                 clearSelection();
               }}
             />
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="flex flex-col gap-1.5 border-b pb-4">
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2Icon className="size-5" />
+              {t("deleteCatalogTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("deleteCatalogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 p-6">
+            {deleteMutation.isError ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {t("deleteCatalogConflict")}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter className="flex flex-row justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                disabled={deleteMutation.isPending}
+                onClick={() => setDeleteOpen(false)}
+              >
+                {t("cancel")}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={async () => {
+                  if (!catalogId) return;
+                  const res = await deleteMutation
+                    .mutateAsync(catalogId)
+                    .catch(() => null);
+                  if (res) {
+                    setDeleteOpen(false);
+                    setSelectedCatalogId("");
+                    setPage(1);
+                    clearSelection();
+                  }
+                }}
+              >
+                {deleteMutation.isPending
+                  ? t("loading")
+                  : t("deleteCatalogConfirm")}
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

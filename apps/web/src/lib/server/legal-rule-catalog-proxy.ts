@@ -60,6 +60,11 @@ const routes = [
     request: z.strictObject({}),
     response: C.preparationRuleClaimSchema,
   },
+  {
+    method: "DELETE",
+    pattern: /^[^/]+$/,
+    response: C.legalRuleCatalogDeleteResponseSchema,
+  },
 ];
 
 /**

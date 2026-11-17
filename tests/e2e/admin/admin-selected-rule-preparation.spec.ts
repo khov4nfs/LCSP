@@ -339,3 +339,26 @@ test("Vietnamese controls remain keyboard-accessible at mobile width", async ({
     ),
   ).toBe(true);
 });
+
+test("delete catalog permanently removes catalog and resets workflow state", async ({
+  page,
+}) => {
+  await openWorkflow(page);
+  await chooseCatalog(page);
+  await expect(
+    page.getByRole("button", { name: en.deleteCatalog, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: en.deleteCatalog, exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("heading", { name: en.deleteCatalogTitle, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: en.deleteCatalogConfirm, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

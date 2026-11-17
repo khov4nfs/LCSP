@@ -242,3 +242,52 @@ export function useLegalRuleCommand<TInput, TOutput>(
       client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
   });
 }
+
+/**
+ * Business purpose: Delete an idle LegalRule catalog and invalidate all catalog queries.
+ * Business rules:
+ * - Admin authorization required; deletes are immediate upon backend confirmation.
+ * Execution flow:
+ * 1. Dispatch DELETE request with catalog identity.
+ * 2. Validate acknowledgement response.
+ * 3. Invalidate catalog query cache.
+ * Failure cases:
+ * - Rejections (404/409) propagate to mutation state without optimistic removal.
+ * Side effects:
+ * - Sends DELETE mutation and triggers refetch of active catalog queries.
+ */
+export function useDeleteLegalRuleCatalog() {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Dispatch deletion of a specific catalog version.
+     * Business rules:
+     * - Only targeted catalog ID is passed; server verifies eligibility.
+     * Execution flow:
+     * 1. Send DELETE request to catalog endpoint.
+     * Failure cases:
+     * - Transport or server rejection throws mutation error.
+     * Side effects:
+     * - Issues DELETE request to API proxy.
+     */
+    mutationFn: (catalogId: string) =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}`,
+        C.legalRuleCatalogDeleteResponseSchema,
+        { method: "DELETE" },
+      ),
+    /**
+     * Business purpose: Evict stale catalog cache after deletion.
+     * Business rules:
+     * - Only fires on successful deletion.
+     * Execution flow:
+     * 1. Invalidate all catalog query keys.
+     * Failure cases:
+     * - Cache invalidation errors propagate.
+     * Side effects:
+     * - Triggers refetch for active catalog lists.
+     */
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}
