@@ -47,7 +47,7 @@ try {
     chunks: chunks.map((c) => ({ ...c, contentSha256: contentHash(c.content) })),
   });
 
-  const { preparationRunId } = await stack.activateLegalSource(sourceId);
+  const { preparationRunId } = await stack.startPreparationFixture(sourceId);
   const support = (locator, quote) => [{ documentId: "DIRECT-FIXTURE", locator, quote }];
   const healthCondition = {
     statement: "Providers processing sensitive health records",

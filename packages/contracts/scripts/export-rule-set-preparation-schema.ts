@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { complianceRuleSetPacketSchema } from "../src/compliance-rule-set/schemas.ts";
 import { directDraftSubmissionSchema } from "../src/compliance-rule-set/direct-draft.ts";
+import { preparationRuleOutputSchema } from "../src/legal-rule-catalog/index.ts";
 
 // Shape guidance only; the API still owns integrity checks and relation refinements.
 const schema = {
@@ -31,10 +32,38 @@ if (process.argv.includes("--check")) {
 } else {
   writeFileSync(output, JSON.stringify(schema, null, 2) + "\n");
 }
-const directSchema = z.toJSONSchema(directDraftSubmissionSchema, { target: "draft-7", io: "input" });
-const directOutput = new URL("../../../deepagents/rule_set_preparation/direct-draft.schema.json", import.meta.url);
+const directSchema = z.toJSONSchema(directDraftSubmissionSchema, {
+  target: "draft-7",
+  io: "input",
+});
+const directOutput = new URL(
+  "../../../deepagents/rule_set_preparation/direct-draft.schema.json",
+  import.meta.url,
+);
 if (process.argv.includes("--check")) {
-  assert.deepEqual(JSON.parse(readFileSync(directOutput, "utf8")), directSchema, "Direct draft tool schema is stale");
+  assert.deepEqual(
+    JSON.parse(readFileSync(directOutput, "utf8")),
+    directSchema,
+    "Direct draft tool schema is stale",
+  );
 } else {
   writeFileSync(directOutput, JSON.stringify(directSchema, null, 2) + "\n");
+}
+const selectedSchema = z.toJSONSchema(preparationRuleOutputSchema, {
+  target: "draft-7",
+  io: "input",
+});
+selectedSchema.title = "SelectedPreparationRuleResult";
+const selectedOutput = new URL(
+  "../../../deepagents/rule_set_preparation/selected-output.schema.json",
+  import.meta.url,
+);
+if (process.argv.includes("--check")) {
+  assert.deepEqual(
+    JSON.parse(readFileSync(selectedOutput, "utf8")),
+    selectedSchema,
+    "Selected rule output schema is stale",
+  );
+} else {
+  writeFileSync(selectedOutput, JSON.stringify(selectedSchema, null, 2) + "\n");
 }

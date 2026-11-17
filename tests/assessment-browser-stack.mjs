@@ -18,7 +18,7 @@ const lines = sourceBytes.toString('utf8').split('\n');
 const hashes = Object.fromEntries(locators.map((locator, index) => [locator, contentHash(lines[index])]));
 const legalSource = await seedLegalSource({ name: 'browser-browser', status: 'ACTIVE', documentId: 'SYNTHETIC-NOTICE-INSTRUMENT', sourceBytes, sourceSha256: contentHash(sourceBytes), chunks: locators.map((locator, index) => ({ locator, content: lines[index], contentSha256: hashes[locator] })) });
 const seed = path.join(dir, 'seed.json'); writeFileSync(seed, JSON.stringify({ hashes }));
-const preparation = await stack.activateLegalSource(legalSource);
+const preparation = await stack.startPreparationFixture(legalSource);
 assert.equal(preparation.runs.length, 1);
 await runPython(path.join(root, 'deepagents/tests/vertical/scripted_preparation.py'), [base, workerKey, preparation.preparationRunId, seed, 'valid']);
 const { hashSecret } = await import(path.join(root, 'apps/api/dist/src/platform/security/crypto.utils.js'));

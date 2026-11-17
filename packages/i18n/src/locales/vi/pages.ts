@@ -1,5 +1,7 @@
 import type { PagesMessages } from "../../types.ts";
+import { viLegalRuleCatalog } from "./legal-rule-catalog.ts";
 export const viPages = {
+  legalRuleCatalog: viLegalRuleCatalog,
   preparationOps: {
     persistedCoverage: "Tiến độ coverage đã lưu",
     title: "Preparation đã chọn — run canonical",
@@ -226,7 +228,7 @@ export const viPages = {
     },
     title: "Bộ quy tắc tuân thủ",
     description:
-      "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại, hoặc chuẩn bị phiên bản mới sẽ tự động thay thế phiên bản đang hoạt động sau khi vượt qua kiểm tra.",
+      "Tạo Preparation Rule Set bằng cách chọn LegalRule từ nguồn đã chunk. Xem kết quả riêng từng rule, phân tích lại khi cập nhật instruction và quản lý các phiên bản bộ quy tắc dùng chung hiện có.",
     active: "Bộ quy tắc đang hoạt động",
     unavailable: "Chưa có bộ quy tắc đang hoạt động",
     sourceVersion: "Phiên bản nguồn pháp lý",
@@ -2940,6 +2942,7 @@ export const viPages = {
       other: "Khác",
     },
     deletionBlockerLabels: {
+      CATALOG_REFERENCE_EXISTS: "Catalog Legal Rule chuẩn đang ghim nguồn này và lịch sử chuẩn bị.",
       PROTECTED_REFERENCE_EXISTS:
         "Có Đánh giá, báo cáo hoặc lịch sử bên ngoài được bảo vệ tham chiếu đến nguồn này.",
       NONTERMINAL_WORK_EXISTS:

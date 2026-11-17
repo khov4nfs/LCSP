@@ -13,6 +13,8 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any, Callable, Collection, Mapping
 
 
@@ -23,6 +25,7 @@ class RuntimeInstructionBundleError(ValueError):
 TrustedApprovalVerifier = Callable[[Mapping[str, object]], bool]
 
 _RUNTIME_BUNDLE_CACHE: "ApprovedEnglishRuntimeBundle" | None = None
+_SCOPED_RUNTIME_BUNDLE: ContextVar["ApprovedEnglishRuntimeBundle | None"] = ContextVar("scoped_runtime_instruction_bundle", default=None)
 
 
 def clear_runtime_bundle_cache() -> None:
@@ -44,15 +47,15 @@ def clear_runtime_bundle_cache() -> None:
     _RUNTIME_BUNDLE_CACHE = None
 
 
-def production_runtime_bundle() -> "ApprovedEnglishRuntimeBundle":
+def production_runtime_bundle(*, fresh: bool = False) -> "ApprovedEnglishRuntimeBundle":
     """Business purpose: Load runtime English instructions directly into the agent.
 
     Business rules:
     - Instructions are loaded directly from disk without manifest or SHA guard checks.
-    - In-memory caching ensures instructions are read once per process.
+    - Existing callers keep process caching; an explicit fresh snapshot reads current development assets without changing another run's pinned view.
 
     Execution flow:
-    1. Return cached bundle if already loaded in memory.
+    1. Return this run's pinned bundle, or the process cache unless fresh loading is requested.
     2. Read English candidate instruction files directly from disk into runtime entries.
     3. Construct and cache the runtime bundle.
 
@@ -60,10 +63,13 @@ def production_runtime_bundle() -> "ApprovedEnglishRuntimeBundle":
     - If no instruction files can be found, raise RuntimeInstructionBundleError.
 
     Side effects:
-    - Reads text files from disk and caches the bundle in memory.
+    - Reads text files from disk; fresh loading does not replace the process cache.
     """
     global _RUNTIME_BUNDLE_CACHE
-    if _RUNTIME_BUNDLE_CACHE is not None:
+    scoped = _SCOPED_RUNTIME_BUNDLE.get()
+    if scoped is not None:
+        return scoped
+    if _RUNTIME_BUNDLE_CACHE is not None and not fresh:
         return _RUNTIME_BUNDLE_CACHE
 
     from instruction_source_inventory import ROOT
@@ -123,8 +129,31 @@ def production_runtime_bundle() -> "ApprovedEnglishRuntimeBundle":
         approval_revision="r1",
         entries=entries,
     )
-    _RUNTIME_BUNDLE_CACHE = bundle
+    if not fresh:
+        _RUNTIME_BUNDLE_CACHE = bundle
     return bundle
+
+
+@contextmanager
+def runtime_instruction_snapshot():
+    """Business purpose: Pin fresh development instruction bytes for one selected Preparation revision.
+
+    Business rules:
+    - Editing development instructions needs no publication workflow; concurrent runs retain their own immutable in-memory view.
+    Execution flow:
+    1. Load fresh runtime assets and set a context-local bundle.
+    2. Yield the bundle and restore the previous context on every exit.
+    Failure cases:
+    - Missing/invalid assets fail before a model can be constructed.
+    Side effects:
+    - Reads instruction assets and temporarily binds this invocation's bundle; never clears another run's cache.
+    """
+    bundle = production_runtime_bundle(fresh=True)
+    token = _SCOPED_RUNTIME_BUNDLE.set(bundle)
+    try:
+        yield bundle
+    finally:
+        _SCOPED_RUNTIME_BUNDLE.reset(token)
 
 
 def runtime_instruction(source_id: str, key: str | None = None) -> str:

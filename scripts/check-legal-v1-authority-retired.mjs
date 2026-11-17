@@ -68,7 +68,7 @@ const RETIRED = [
     "Interview shadow decision authority",
   ],
   [
-    /\b(model|enum)\s+(AssessmentInterviewThread|EngineeringRuleAssessment|TargetedReanalysisRequest|TargetedReanalysisCheckpoint|TechnicalEvidenceReport|TechnicalProfile|AIUsageFlow|ConflictRecord|VerifiedProfile|ClassificationResult|ClassificationReviewRequest|DocumentRequest|LegacyAssessmentArchive|LegacyMigrationRun|LegacyArchiveRecord|LegacyArchiveBlob|LegacyReevaluation|RuleApprovalRecord|LegalRuleCatalogVersion|CorpusPreparation|WorkflowBillingPause|AssessmentStatus)\b/,
+    /\b(model|enum)\s+(AssessmentInterviewThread|EngineeringRuleAssessment|TargetedReanalysisRequest|TargetedReanalysisCheckpoint|TechnicalEvidenceReport|TechnicalProfile|AIUsageFlow|ConflictRecord|VerifiedProfile|ClassificationResult|ClassificationReviewRequest|DocumentRequest|LegacyAssessmentArchive|LegacyMigrationRun|LegacyArchiveRecord|LegacyArchiveBlob|LegacyReevaluation|RuleApprovalRecord|CorpusPreparation|WorkflowBillingPause|AssessmentStatus)\b/,
     "obsolete active schema",
   ],
   // API writers / authority
@@ -230,6 +230,14 @@ for (const file of files) {
   // The outbox fence has no handler, schema, reader or runtime selector.
   if (file === "apps/api/src/platform/outbox/retired-event-policy.ts") continue;
   for (const [pattern, label] of RETIRED) {
+    // LCSP-369 restores editable catalog writes only in their current owning module.
+    // The old approval/recovery routes, writers and other V1 authorities remain forbidden.
+    if (
+      label === "V1 LegalRule table writer" &&
+      file.startsWith("apps/api/src/modules/legal-rule-catalog/") &&
+      !/\bruleApprovalRecord\./.test(text)
+    )
+      continue;
     const match = pattern.exec(text);
     if (match) violations.push(`${file}: ${label} (${match[0]})`);
   }

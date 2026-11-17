@@ -1,5 +1,9 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import {
+  catalogFixtureAdminPrefix,
+  handleLegalRuleCatalog,
+} from "./legal-rule-catalog-fixture.mjs";
 
 const fixture = JSON.parse(
   await readFile(
@@ -70,7 +74,11 @@ function getToken(request) {
 }
 
 function getRole(token) {
-  if (token === "billing-e2e-admin" || token === "billing-e2e-admin-error") {
+  if (
+    token === "billing-e2e-admin" ||
+    token === "billing-e2e-admin-error" ||
+    token.startsWith(catalogFixtureAdminPrefix)
+  ) {
     return "ADMIN";
   }
   if (token === "billing-e2e-customer") return "CUSTOMER";
@@ -81,6 +89,28 @@ const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", `http://127.0.0.1:${PORT}`);
   const token = getToken(request);
   const role = getRole(token);
+  if (
+    url.pathname.startsWith("/admin/legal-rule-catalog") ||
+    (token.startsWith(catalogFixtureAdminPrefix) &&
+      ([
+        "/admin/localization",
+        "/admin/compliance-rule-sets/groups/pending",
+        "/workspace/runtime-events",
+      ].includes(url.pathname) ||
+        /^\/admin\/compliance-rule-sets\/preparations\/[^/]+\/activity$/.test(
+          url.pathname,
+        )))
+  ) {
+    if (role !== "ADMIN") return problem(response, 403, "RBAC_DENIED");
+    if (
+      await handleLegalRuleCatalog(request, response, url, readAccount(token), {
+        success,
+        problem,
+        readJson,
+      })
+    )
+      return;
+  }
 
   if (request.method === "GET" && url.pathname === "/health") {
     return send(response, 200, { ok: true });

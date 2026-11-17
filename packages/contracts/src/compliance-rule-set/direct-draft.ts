@@ -4,6 +4,7 @@ import { LEGAL_ASSESSABILITIES, legalEffectSchema } from "./semantic-support.ts"
 import { LEGAL_SEMANTIC_RELATION_KINDS } from "./semantic-graph.ts";
 
 export const PREPARATION_EXECUTION_CONTRACTS = {
+  SELECTED_RULE_V1: "SELECTED_RULE_V1",
   CLAIM_INVENTORY_V1: "CLAIM_INVENTORY_V1",
   DIRECT_DRAFT_V1: "DIRECT_DRAFT_V1",
 } as const;

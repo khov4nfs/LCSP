@@ -76,7 +76,11 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
       const supported = input.request.supportedExecutionContracts ?? [
         PreparationExecutionContract.CLAIM_INVENTORY_V1,
       ];
-      if (!supported.includes(run.executionContract))
+      if (
+        run.executionContract ===
+          PreparationExecutionContract.SELECTED_RULE_V1 ||
+        !supported.includes(run.executionContract)
+      )
         throw problemException(
           COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
           input.correlationId,

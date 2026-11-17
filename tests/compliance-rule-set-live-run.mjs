@@ -138,7 +138,7 @@ try {
     const sourceId = await stack.seedLegalDocuments(corpus);
     await admin(`/admin/legal-source-versions/${sourceId}/activate`);
     // The isolated stack leaves outbox messages pending; dispatch through its real consumer seam.
-    await stack.activateLegalSource(sourceId);
+    await stack.startPreparationFixture(sourceId);
     preparationRunId = (
       await stack.q(
         `SELECT id FROM "RuleSetPreparationRun" WHERE "legalSourceVersionId"=$1`,
@@ -169,7 +169,7 @@ try {
         contentSha256: contentHash(c.content),
       })),
     });
-    ({ preparationRunId } = await stack.activateLegalSource(legalSourceId));
+    ({ preparationRunId } = await stack.startPreparationFixture(legalSourceId));
   }
   assert.ok(preparationRunId, "activation must start one automatic run");
   const usageFile = path.join(

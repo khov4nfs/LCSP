@@ -91,7 +91,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         start.execute(command),
     } as unknown as CommandBus;
     manual = new PrepareCurrentRuleSetHandler(service, bus);
-    consumer = new LegalSourceActivatedConsumer({} as RabbitMqClient, bus);
+    consumer = new LegalSourceActivatedConsumer({} as RabbitMqClient);
     retry = new RetryRuleSetPreparationHandler(service, bus);
     nativeCancelIds = [];
     cancellationEvents = [];

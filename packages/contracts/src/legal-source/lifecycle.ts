@@ -18,6 +18,7 @@ export type LegalSourceDeletionReasonCode =
   (typeof LEGAL_SOURCE_DELETION_REASON_CODES)[keyof typeof LEGAL_SOURCE_DELETION_REASON_CODES];
 
 export const LEGAL_SOURCE_DELETION_BLOCKERS = {
+  catalogReferenceExists: "CATALOG_REFERENCE_EXISTS",
   protectedReferenceExists: "PROTECTED_REFERENCE_EXISTS",
   nonterminalWorkExists: "NONTERMINAL_WORK_EXISTS",
   unsettledIngestionExists: "UNSETTLED_INGESTION_EXISTS",

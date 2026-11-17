@@ -18,7 +18,7 @@ try {
   ];
   const bytes = Buffer.from(chunks.map((c) => c.content).join("\n"));
   const sourceId = await stack.seedLegalSource({ name: "direct-http-" + randomUUID(), status: "ACTIVE", documentId: "DIRECT-FIXTURE", sourceBytes: bytes, sourceSha256: contentHash(bytes), chunks: chunks.map((c) => ({ ...c, contentSha256: contentHash(c.content) })) });
-  const { preparationRunId } = await stack.activateLegalSource(sourceId);
+  const { preparationRunId } = await stack.startPreparationFixture(sourceId);
   const run = (await stack.q('SELECT "executionContract","targetDate" FROM "RuleSetPreparationRun" WHERE id=$1', [preparationRunId])).rows[0];
   assert.equal(run.executionContract, "DIRECT_DRAFT_V1");
   const support = (locator, quote) => [{ documentId: "DIRECT-FIXTURE", locator, quote }];

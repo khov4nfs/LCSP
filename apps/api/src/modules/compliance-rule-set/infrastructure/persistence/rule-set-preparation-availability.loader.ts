@@ -19,7 +19,19 @@ const inProgress = new Set<string>([
   AGENT_EXECUTION_STATES.PAUSED,
 ]);
 
-/** Fail closed on ambiguous/unactivated sources; never fall back to a draft or test generation. */
+/**
+ * Business purpose: Explain availability of historical source-wide preparation without conflating selected-rule runs.
+ * Business rules:
+ * - A unique activated, indexed source with complete provenance is required; selected-rule attempts have their own batch eligibility.
+ * - An existing active shared set remains intact while an explicit replacement runs.
+ * Execution flow:
+ * 1. Validate source readiness and resolve the active shared set.
+ * 2. Read only the latest historical source-wide attempt and derive start/replacement availability.
+ * Failure cases:
+ * - Ambiguous, unactivated or incomplete sources return an explicit refusal; no draft source is substituted.
+ * Side effects:
+ * - Read-only persistence access; never selects rules or starts model work.
+ */
 export async function loadRuleSetPreparationAvailability(
   tx: Prisma.TransactionClient,
 ): Promise<RuleSetPreparationAvailability> {
@@ -111,7 +123,7 @@ export async function loadRuleSetPreparationAvailability(
       select: { id: true },
     }),
     tx.ruleSetPreparationRun.findFirst({
-      where: { legalSourceVersionId: source.id },
+      where: { legalSourceVersionId: source.id, selectedRuleResult: null },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: { ruleSet: { select: { id: true } } },
     }),

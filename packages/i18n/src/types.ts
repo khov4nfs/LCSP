@@ -1,3 +1,4 @@
+import type { LegalRuleCatalogMessages } from "./locales/en/legal-rule-catalog.ts";
 export type AuthMessages = {
   errors: {
     authRequired: { title: string; detail: string };
@@ -39,6 +40,7 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  legalRuleCatalog: LegalRuleCatalogMessages;
   preparationOps: {
     persistedCoverage: string;
 
@@ -2545,6 +2547,7 @@ export type PagesMessages = {
       other: string;
     };
     deletionBlockerLabels: {
+      CATALOG_REFERENCE_EXISTS: string;
       PROTECTED_REFERENCE_EXISTS: string;
       NONTERMINAL_WORK_EXISTS: string;
       UNSETTLED_INGESTION_EXISTS: string;

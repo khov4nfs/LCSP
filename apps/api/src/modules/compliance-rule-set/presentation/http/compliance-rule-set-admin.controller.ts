@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { LEGAL_RULE_CATALOG_ERRORS } from "@lcsp/contracts/legal-rule-catalog";
 import {
   Body,
   Controller,
@@ -42,7 +43,10 @@ import {
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
+import {
+  resultEnvelope,
+  problemException,
+} from "../../../../platform/http/filters/error.factory.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
 import { RuleCatalogGroupsService } from "../../infrastructure/persistence/rule-catalog-groups.service.js";
@@ -55,7 +59,6 @@ import { ResumeRuleSetPreparationCommand } from "../../application/commands/resu
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { GetComplianceRuleSetResultQuery } from "../../application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.query.js";
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
-import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
@@ -493,6 +496,17 @@ export class ComplianceRuleSetAdminController {
       .then(resultEnvelope);
   }
 
+  /**
+   * Business purpose: Require explicit canonical LegalRule selection instead of starting a source-wide workload.
+   * Business rules:
+   * - Legacy start requests cannot implicitly select every rule.
+   * Execution flow:
+   * 1. Reject the obsolete start request with the shared selection-required problem.
+   * Failure cases:
+   * - Always returns an unprocessable selection-required problem.
+   * Side effects:
+   * - None; creates no runs, artifacts or model dispatches.
+   */
   @Post("prepare")
   @HttpCode(HttpStatus.ACCEPTED)
   prepare(
@@ -502,20 +516,14 @@ export class ComplianceRuleSetAdminController {
         COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
       ),
     )
-    request: RuleSetPreparationAdminRequest,
+    _request: RuleSetPreparationAdminRequest,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.commands
-      .execute(
-        new PrepareCurrentRuleSetCommand(
-          req.rbacContext.userId,
-          req.correlationId || randomUUID(),
-          request.replaceActive === true,
-          request.legalSourceVersionId,
-          request.targetActivityScope ?? "FULL_SOURCE",
-        ),
-      )
-      .then(resultEnvelope);
+    throw problemException(
+      LEGAL_RULE_CATALOG_ERRORS.EMPTY,
+      req.correlationId || randomUUID(),
+      { status: HttpStatus.UNPROCESSABLE_ENTITY },
+    );
   }
 
   @Post(":ruleSetVersionId/reactivate")

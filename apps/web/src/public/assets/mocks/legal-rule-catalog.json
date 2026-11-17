@@ -1,0 +1,1003 @@
+{
+  "catalog": {
+    "id": "36900000-0000-4000-8000-000000000001",
+    "version": "LCSP-369 provider-free catalog",
+    "revision": 1,
+    "legalSourceVersionId": "36900000-0000-4000-8000-000000000002"
+  },
+  "rules": [
+    {
+      "id": "36900000-0000-4000-8000-000000000101",
+      "legalRuleId": "LR001",
+      "title": "Notice rule 1",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000102",
+      "legalRuleId": "LR002",
+      "title": "Notice rule 2",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000103",
+      "legalRuleId": "LR003",
+      "title": "Notice rule 3",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000104",
+      "legalRuleId": "LR004",
+      "title": "Notice rule 4",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000105",
+      "legalRuleId": "LR005",
+      "title": "Notice rule 5",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000106",
+      "legalRuleId": "LR006",
+      "title": "Notice rule 6",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000107",
+      "legalRuleId": "LR007",
+      "title": "Notice rule 7",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000108",
+      "legalRuleId": "LR008",
+      "title": "Notice rule 8",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000109",
+      "legalRuleId": "LR009",
+      "title": "Notice rule 9",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000110",
+      "legalRuleId": "LR010",
+      "title": "Notice rule 10",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000111",
+      "legalRuleId": "LR011",
+      "title": "Notice rule 11",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000112",
+      "legalRuleId": "LR012",
+      "title": "Notice rule 12",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000113",
+      "legalRuleId": "LR013",
+      "title": "Notice rule 13",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000114",
+      "legalRuleId": "LR014",
+      "title": "Notice rule 14",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000115",
+      "legalRuleId": "LR015",
+      "title": "Notice rule 15",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000116",
+      "legalRuleId": "LR016",
+      "title": "Notice rule 16",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000117",
+      "legalRuleId": "LR017",
+      "title": "Notice rule 17",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000118",
+      "legalRuleId": "LR018",
+      "title": "Notice rule 18",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000119",
+      "legalRuleId": "LR019",
+      "title": "Notice rule 19",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000120",
+      "legalRuleId": "LR020",
+      "title": "Notice rule 20",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000121",
+      "legalRuleId": "LR021",
+      "title": "Notice rule 21",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000122",
+      "legalRuleId": "LR022",
+      "title": "Notice rule 22",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000123",
+      "legalRuleId": "LR023",
+      "title": "Notice rule 23",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000124",
+      "legalRuleId": "LR024",
+      "title": "Notice rule 24",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000125",
+      "legalRuleId": "LR025",
+      "title": "Notice rule 25",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000126",
+      "legalRuleId": "LR026",
+      "title": "Notice rule 26",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000127",
+      "legalRuleId": "LR027",
+      "title": "Notice rule 27",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000128",
+      "legalRuleId": "LR028",
+      "title": "Notice rule 28",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000129",
+      "legalRuleId": "LR029",
+      "title": "Notice rule 29",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000130",
+      "legalRuleId": "LR030",
+      "title": "Notice rule 30",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000131",
+      "legalRuleId": "LR031",
+      "title": "Notice rule 31",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000132",
+      "legalRuleId": "LR032",
+      "title": "Notice rule 32",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000133",
+      "legalRuleId": "LR033",
+      "title": "Notice rule 33",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000134",
+      "legalRuleId": "LR034",
+      "title": "Notice rule 34",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000135",
+      "legalRuleId": "LR035",
+      "title": "Notice rule 35",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000136",
+      "legalRuleId": "LR036",
+      "title": "Notice rule 36",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000137",
+      "legalRuleId": "LR037",
+      "title": "Notice rule 37",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000138",
+      "legalRuleId": "LR038",
+      "title": "Notice rule 38",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000139",
+      "legalRuleId": "LR039",
+      "title": "Notice rule 39",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000140",
+      "legalRuleId": "LR040",
+      "title": "Notice rule 40",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000141",
+      "legalRuleId": "LR041",
+      "title": "Notice rule 41",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000142",
+      "legalRuleId": "LR042",
+      "title": "Notice rule 42",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000143",
+      "legalRuleId": "LR043",
+      "title": "Notice rule 43",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000144",
+      "legalRuleId": "LR044",
+      "title": "Notice rule 44",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000145",
+      "legalRuleId": "LR045",
+      "title": "Notice rule 45",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000146",
+      "legalRuleId": "LR046",
+      "title": "Notice rule 46",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000147",
+      "legalRuleId": "LR047",
+      "title": "Notice rule 47",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000148",
+      "legalRuleId": "LR048",
+      "title": "Notice rule 48",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000149",
+      "legalRuleId": "LR049",
+      "title": "Notice rule 49",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000150",
+      "legalRuleId": "LR050",
+      "title": "Notice rule 50",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000151",
+      "legalRuleId": "LR051",
+      "title": "Notice rule 51",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "NOT_PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    },
+    {
+      "id": "36900000-0000-4000-8000-000000000152",
+      "legalRuleId": "LR052",
+      "title": "Notice with invalid citation",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "missing"
+        }
+      ],
+      "state": "INELIGIBLE",
+      "ineligibleReason": "CITATION_INVALID",
+      "lastResultId": null,
+      "lastRunId": null,
+      "lastOutcome": null
+    }
+  ],
+  "adminTokenPrefix": "billing-e2e-admin-lcsp369-",
+  "input": {
+    "ruleId": "36900000-0000-4000-8000-000000000101",
+    "legalRuleId": "LR001",
+    "title": "Notice rule 1",
+    "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+    "catalogVersionId": "36900000-0000-4000-8000-000000000001",
+    "catalogVersion": "LCSP-369 provider-free catalog",
+    "catalogRevision": 1,
+    "legalSourceVersionId": "36900000-0000-4000-8000-000000000002",
+    "sourceVersion": "provider-free-source-v1",
+    "indexId": "36900000-0000-4000-8000-000000000003",
+    "indexContentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "citations": [
+      {
+        "chunkId": "fixture-notice-art-1",
+        "documentId": "SYNTHETIC-NOTICE",
+        "locator": "art-1",
+        "contentSha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "content": "Synthetic source text: the operator records a software audit event. This is provider-free fixture data, not an official legal source."
+      }
+    ]
+  },
+  "output1": {
+    "analysis": "Prepared only this selected LegalRule with instruction revision one. This is a generation result, not an applicability or compliance decision.",
+    "legalRequirements": [],
+    "assessmentRules": []
+  },
+  "output2": {
+    "analysis": "Regenerated only this selected LegalRule with updated instruction revision two. The previous catalog and source pins are preserved.",
+    "legalRequirements": [],
+    "assessmentRules": []
+  },
+  "instruction1": {
+    "revision": "fixture-instruction-v1",
+    "fingerprint": "1111111111111111111111111111111111111111111111111111111111111111",
+    "content": "Prepare only the selected synthetic rule using instruction revision one.",
+    "bundleFingerprint": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "instruction2": {
+    "revision": "fixture-instruction-v2",
+    "fingerprint": "2222222222222222222222222222222222222222222222222222222222222222",
+    "content": "Prepare only the selected synthetic rule using updated instruction revision two.",
+    "bundleFingerprint": "4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "inputFingerprint": "5555555555555555555555555555555555555555555555555555555555555555",
+  "updatedInputFingerprint": "6666666666666666666666666666666666666666666666666666666666666666",
+  "actor": "provider-free-admin",
+  "timestamp": "2026-11-16T08:00:00.000Z",
+  "failureCode": "RUNTIME_ERROR",
+  "problemStale": {
+    "ok": false,
+    "problem": {
+      "type": "about:blank",
+      "status": 409,
+      "code": "LEGAL_RULE_CATALOG_REVISION_STALE",
+      "titleKey": "auth.errors.validationFailed.title",
+      "detailKey": "auth.errors.validationFailed.detail",
+      "requiredAction": "NONE",
+      "correlationId": "provider-free-lcsp369-stale",
+      "meta": {}
+    }
+  },
+  "authoring": {
+    "version": "Editable catalog for preparation",
+    "legalRuleId": "LR-NEW",
+    "title": "Explicitly authored notice rule",
+    "description": "A manually entered canonical LegalRule, used to build a selected Preparation Rule Set.",
+    "citationText": "SYNTHETIC-NOTICE|art-1"
+  },
+  "emptyGroupingBacklog": {
+    "versions": []
+  },
+  "emptyLocalizationBacklog": {
+    "counts": {
+      "UNKNOWN_SOURCE": 0,
+      "MIXED_SOURCE": 0,
+      "SOURCE_REVIEW_REQUIRED": 0,
+      "PROVIDER_PENDING": 0,
+      "PROVIDER_FAILED": 0,
+      "OUTPUT_REVIEW_REQUIRED": 0,
+      "READY": 0,
+      "FAILED": 0
+    },
+    "operations": {
+      "pendingJobCount": 0,
+      "oldestPendingAgeSeconds": 0,
+      "retryCount": 0,
+      "failedJobCount": 0,
+      "candidateReviewsAwaitingAction": 0,
+      "sourceReviewsAwaitingAction": 0,
+      "workerEnabled": false,
+      "providerConfigured": false,
+      "batchLimit": 1,
+      "workerLeaseLimit": 1,
+      "maxAttempts": 1,
+      "reviewSlaTargetMinutes": 1,
+      "processingSlaTargetMinutes": 1
+    },
+    "scopes": [],
+    "nextAfterScopeId": null,
+    "hasMore": false
+  },
+  "emptyActivity": {
+    "events": [],
+    "nextCursor": null,
+    "hasMore": false
+  },
+  "emptyActivityStream": ": selected preparation fixture\n\n"
+}
