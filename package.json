@@ -54,7 +54,7 @@
     "@lcsp/web": "workspace:*",
     "@playwright/test": "^1.65.1",
     "@tanstack/ai": "^0.14.0",
-    "@types/node": "^22.15.30",
+    "@types/node": "^22.20.5",
     "dotenv": "16.6.1",
     "dotenv-expand": "12.0.3",
     "husky": "^9.1.7",
