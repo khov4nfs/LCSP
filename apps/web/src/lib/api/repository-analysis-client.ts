@@ -85,8 +85,9 @@ function isAssessmentConnection(
 export type StartRepositoryAnalysisResult = {
   snapshotId: string;
   commitSha: string;
-  scanJobId: string;
-  scanStatus: string;
+  lifecycleState:
+    | typeof ASSESSMENT_LIFECYCLE_STATES.PREPARING
+    | typeof ASSESSMENT_LIFECYCLE_STATES.ACTIVE;
 };
 
 type SnapshotPayload = {
@@ -132,8 +133,12 @@ export function startRepositoryAnalysis(
  * Business purpose: Resume or complete the Web repository setup from the server's authoritative checkpoint.
  * Business rules:
  * - The current Web product supports full-repository scope only and must never resume a subtree snapshot as full-repo.
+ * - A validated completion reports PREPARING while legal inputs are unavailable; only ACTIVE permits advancing to the assessment.
+ * - ACTIVE checkpoints can be resumed without creating a scan or repeating completion. Other lifecycle states fail closed.
  * Execution flow:
- * 1. Reload setup state, pin a full-repo snapshot only when none exists, then complete setup from the persisted snapshot.
+ * 1. Reload setup state and verify the connection and eligible lifecycle.
+ * 2. Pin a full-repo snapshot only when none exists, then validate completion against the persisted snapshot.
+ * 3. Reconcile the saved checkpoint and return its lifecycle so the caller distinguishes waiting for legal inputs from activation.
  * Failure cases:
  * - Missing connection, incompatible scope, invalid lifecycle or mismatched persisted identities fail before further mutation.
  * Side effects:
@@ -149,6 +154,12 @@ async function resumeRepositoryAnalysis(
     state.connection.connectionId !== input.connectionId
   ) {
     throw new Error(GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound);
+  }
+  if (
+    state.lifecycle?.state !== ASSESSMENT_LIFECYCLE_STATES.PREPARING &&
+    state.lifecycle?.state !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE
+  ) {
+    throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid);
   }
 
   if (!state.snapshot) {
@@ -211,17 +222,18 @@ async function resumeRepositoryAnalysis(
     }
   }
 
-  // Also reconcile a scan request whose success response was lost. Failed jobs
-  // are displayed as failed; only the explicit rerun action creates another run.
-  if (state.scanJob) {
-    return {
-      snapshotId: snapshot.id,
-      commitSha: snapshot.commitSha,
-      scanJobId: state.scanJob.id,
-      scanStatus: state.scanJob.status,
-    };
+  if (
+    state.lifecycle?.state !== ASSESSMENT_LIFECYCLE_STATES.PREPARING &&
+    state.lifecycle?.state !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE
+  ) {
+    throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid);
   }
-  throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+  // Preparation state decides whether the customer can advance; hydration jobs do not.
+  return {
+    snapshotId: snapshot.id,
+    commitSha: snapshot.commitSha,
+    lifecycleState: state.lifecycle.state,
+  };
 }
 
 function isSnapshotPayload(payload: unknown): payload is SnapshotPayload {

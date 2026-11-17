@@ -42,6 +42,7 @@ import {
   API_REDIRECT_LOCATIONS,
 } from "@/lib/api/outcome-kinds";
 import { BillingSettingsPanel } from "@/features/billing/components/organisms/billing-settings-panel";
+import { CustomerUsageSettingsPanel } from "@/features/billing/components/organisms/customer-usage-settings-panel";
 import type { MfaVerifyFormValues } from "@/features/auth/schemas/mfa-verify.schema";
 
 import { RepositoriesSettingsSection } from "./repositories-settings-section";
@@ -282,7 +283,7 @@ export function SettingsPage({
           activeSection={activeSection}
           onSectionChange={handleSectionChange}
         />
-        <section className="min-h-0 flex-1 overflow-hidden">
+        <section className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <div className="h-full min-h-0">
             {profile ? (
               <ConfirmAccessDialog
@@ -374,14 +375,11 @@ export function SettingsPage({
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.usage ? (
-              <UnsupportedSettingsPanel
-                titleKey="pages.workspace.settingsHub.usage.title"
-                descriptionKey="pages.workspace.settingsHub.usage.description"
-                rows={[
-                  "pages.workspace.settingsHub.usage.creditUsage",
-                  "pages.workspace.settingsHub.usage.balance",
-                  "pages.workspace.settingsHub.usage.spendingLimit",
-                ]}
+              <CustomerUsageSettingsPanel
+                locale={settingsLocale}
+                onOpenBilling={() =>
+                  handleSectionChange(SETTINGS_SECTION_IDS.billing)
+                }
               />
             ) : null}
 

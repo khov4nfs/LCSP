@@ -10,6 +10,19 @@ export const apiQueryKeys = {
     repositories: () => ["github-integration", "repositories"] as const,
   },
   billing: {
+    /**
+     * Business purpose: Isolate cached customer usage by every active report parameter.
+     * Business rules:
+     * - Preserve fixed timestamps, filters and pagination in the private billing namespace.
+     * Execution flow:
+     * 1. Return the customer usage namespace and the supplied parameters.
+     * Failure cases:
+     * - Query validation belongs to the loader; this key does not normalize invalid values.
+     * Side effects:
+     * - Pure cache-key construction.
+     */
+    usage: (params: Record<string, unknown>) =>
+      ["billing", "usage", params] as const,
     wallet: () => ["billing", "wallet"] as const,
     history: (page: number, pageSize: number) =>
       ["billing", "history", page, pageSize] as const,

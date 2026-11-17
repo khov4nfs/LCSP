@@ -93,6 +93,10 @@ function server(t: TestContext, initial: AssessmentRepositorySetup) {
     failures: new Set<string>(),
     branchHead: originalCommit,
     completionMismatch: false,
+    completionCreatesScan: true,
+    completionState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE as
+      | typeof ASSESSMENT_LIFECYCLE_STATES.ACTIVE
+      | typeof ASSESSMENT_LIFECYCLE_STATES.PREPARING,
   };
   function maybeLoseResponse(stage: string) {
     if (api.failures.delete(stage))
@@ -147,12 +151,12 @@ function server(t: TestContext, initial: AssessmentRepositorySetup) {
             { status: 503 },
           );
         }
-        // Server-owned: completion starts the Root and queues the scan atomically.
+        // Preparation may wait for a compliance rule set before creating a hydration ticket.
         api.state.lifecycle = {
-          state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+          state: api.completionState,
           assessmentRevision: 2,
         };
-        api.state.scanJob = makeJob();
+        api.state.scanJob = api.completionCreatesScan ? makeJob() : null;
         maybeLoseResponse("completion-response");
         return response({
           assessment_id: assessmentId,
@@ -216,7 +220,7 @@ test("shared parsers preserve supported repository URL forms", () => {
   );
 });
 
-test("resume completes a saved snapshot and reads the server-owned scan without repinning", async (t) => {
+test("resume completes a saved snapshot and reports activation without repinning", async (t) => {
   const api = server(t, setup());
   const result = await startRepositoryAnalysis(assessmentId, input);
   assert.deepEqual(
@@ -225,7 +229,7 @@ test("resume completes a saved snapshot and reads the server-owned scan without 
   );
   assert.equal(result.snapshotId, snapshot.id);
   assert.equal(result.commitSha, originalCommit);
-  assert.equal(result.scanJobId, "scan-1");
+  assert.equal(result.lifecycleState, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
 });
 
 test("new setup pins only when no persisted snapshot exists", async (t) => {
@@ -236,6 +240,35 @@ test("new setup pins only when no persisted snapshot exists", async (t) => {
     1,
   );
   assert.equal(writes(api).length, 2);
+});
+
+test("completion reports PREPARING while compliance rules are unavailable", async (t) => {
+  const api = server(t, setup());
+  api.completionCreatesScan = false;
+  api.completionState = ASSESSMENT_LIFECYCLE_STATES.PREPARING;
+  const result = await startRepositoryAnalysis(assessmentId, input);
+  assert.deepEqual(result, {
+    snapshotId: snapshot.id,
+    commitSha: originalCommit,
+    lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+  });
+  assert.equal(writes(api).length, 1);
+});
+
+test("a cancelled assessment with a snapshot cannot complete setup", async (t) => {
+  const api = server(
+    t,
+    setup({
+      lifecycle: {
+        state: ASSESSMENT_LIFECYCLE_STATES.CANCELLED,
+        assessmentRevision: 2,
+      },
+    }),
+  );
+  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
+    message: ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
+  });
+  assert.equal(writes(api).length, 0);
 });
 
 test("new Web setup explicitly pins full-repository scope", async (t) => {
@@ -345,7 +378,7 @@ for (const status of [
   REPOSITORY_SCAN_JOB_STATUSES.completed,
   REPOSITORY_SCAN_JOB_STATUSES.failed,
 ]) {
-  test(`resume returns existing ${status} scan without implicitly rerunning`, async (t) => {
+  test(`resume preserves existing ${status} scan without implicitly rerunning`, async (t) => {
     const api = server(
       t,
       setup({
@@ -357,7 +390,8 @@ for (const status of [
       }),
     );
     const result = await startRepositoryAnalysis(assessmentId, input);
-    assert.equal(result.scanStatus, status);
+    assert.equal(result.lifecycleState, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
+    assert.equal(api.state.scanJob?.status, status);
     assert.equal(writes(api).length, 0);
   });
 }
