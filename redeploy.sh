@@ -167,6 +167,9 @@ fi
 echo "==> Install Node dependencies"
 pnpm install --frozen-lockfile
 
+echo "==> Prepare Git CLI packages"
+pnpm run prepare:cli
+
 echo "==> Install LCSP Agent Runtime"
 if command -v uv >/dev/null 2>&1; then
   uv pip install --python .venv/bin/python ./deepagents

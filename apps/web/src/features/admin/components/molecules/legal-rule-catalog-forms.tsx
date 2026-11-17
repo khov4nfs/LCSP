@@ -1,5 +1,6 @@
 "use client";
-import { FormProvider, useForm } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   legalRuleCatalogSchema,
@@ -8,7 +9,16 @@ import {
 } from "@lcsp/contracts/legal-rule-catalog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { useLegalRuleCommand } from "@/lib/api/legal-rule-catalog-queries";
+import { useLegalSourceListQuery } from "@/lib/api/legal-source-queries";
 import {
   legalRuleCatalogFormSchema,
   legalRuleFormSchema,
@@ -41,20 +51,94 @@ export function LegalRuleCatalogCreateForm({
   sourceId: string;
   onCreated: (id: string) => void;
 }) {
+  const sourcesQuery = useLegalSourceListQuery();
+  const availableSources = useMemo(() => {
+    return (sourcesQuery.data?.items ?? []).flatMap((src) => {
+      const v = src.activeVersion ?? src.latestVersion;
+      if (!v) return [];
+      return [
+        {
+          versionId: v.id,
+          displayName: `${src.name} · ${v.version}`,
+          versionName: v.version,
+        },
+      ];
+    });
+  }, [sourcesQuery.data]);
+
   const form = useForm<CatalogFormValues>({
     resolver: zodResolver(legalRuleCatalogFormSchema),
     defaultValues: { version: "", legalSourceVersionId: sourceId },
+  });
+
+  useEffect(() => {
+    if (availableSources.length > 0) {
+      const current = form.getValues("legalSourceVersionId");
+      const match =
+        availableSources.find((s) => s.versionId === current) ??
+        availableSources.find((s) => s.versionId === sourceId) ??
+        availableSources[0];
+
+      if (match && current !== match.versionId) {
+        form.setValue("legalSourceVersionId", match.versionId, {
+          shouldValidate: true,
+        });
+      }
+      if (match && !form.getValues("version")) {
+        form.setValue("version", `${match.versionName}-catalog`, {
+          shouldValidate: true,
+        });
+      }
+    }
+  }, [availableSources, sourceId, form]);
+
+  const selectedLegalSourceVersionId = useWatch({
+    control: form.control,
+    name: "legalSourceVersionId",
   });
   const save = useLegalRuleCommand("", legalRuleCatalogSchema);
   return (
     <FormProvider {...form}>
       <form
-        className="grid gap-4"
+        className="grid gap-4 pt-1"
         onSubmit={form.handleSubmit(async (input) => {
           const result = await save.mutateAsync(input).catch(() => null);
           if (result) onCreated(result.id);
         })}
       >
+        <div className="space-y-2">
+          <Label>{t("sourceSelectLabel")}</Label>
+          <Select
+            value={selectedLegalSourceVersionId}
+            onValueChange={(val) => {
+              if (!val) return;
+              form.setValue("legalSourceVersionId", val, {
+                shouldValidate: true,
+              });
+              const match = availableSources.find((s) => s.versionId === val);
+              if (match) {
+                form.setValue("version", `${match.versionName}-catalog`, {
+                  shouldValidate: true,
+                });
+              }
+            }}
+          >
+            <SelectTrigger aria-label={t("sourceSelectLabel")}>
+              <SelectValue placeholder={t("chooseSource")}>
+                {availableSources.find(
+                  (s) => s.versionId === selectedLegalSourceVersionId,
+                )?.displayName ?? t("chooseSource")}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {availableSources.map((s) => (
+                <SelectItem key={s.versionId} value={s.versionId}>
+                  {s.displayName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <LegalRuleCatalogField name="version" label="version" />
         <LegalRuleCatalogField name="legalSourceVersionId" label="sourceId" />
         {save.isError ? (
