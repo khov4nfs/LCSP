@@ -126,6 +126,14 @@ export const enLegalRuleCatalog = {
   reason_CITATION_INVALID:
     "A required citation is missing, invalid or not currently effective.",
   reason_CATALOG_EMPTY: "This catalog has no authored rules.",
+  deleteCatalog: "Delete catalog",
+  deleteCatalogTitle: "Delete Legal Rule catalog",
+  deleteCatalogDescription:
+    "Are you sure you want to delete this catalog? All authored rules, selections, and preparation results within this catalog will be permanently deleted. This action cannot be undone.",
+  deleteCatalogConfirm: "Delete catalog permanently",
+  deleteCatalogSuccess: "Catalog deleted successfully.",
+  deleteCatalogConflict:
+    "Cannot delete catalog while preparation runs are active or queued.",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;

@@ -1,4 +1,5 @@
 [
+  "DELETE /admin/legal-rule-catalog/:catalogId",
   "DELETE /admin/legal-source-versions/:versionId",
   "DELETE /admin/legal-source-versions/:versionId/documents/:documentRowId",
   "DELETE /admin/legal-sources/:sourceId",

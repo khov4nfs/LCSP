@@ -127,4 +127,12 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   reason_CITATION_INVALID:
     "Trích dẫn bắt buộc bị thiếu, không hợp lệ hoặc hiện chưa có hiệu lực.",
   reason_CATALOG_EMPTY: "Catalog này chưa có rule được nhập.",
+  deleteCatalog: "Xóa catalog",
+  deleteCatalogTitle: "Xóa LegalRule catalog",
+  deleteCatalogDescription:
+    "Bạn có chắc chắn muốn xóa catalog này? Tất cả các quy tắc đã soạn, phạm vi chọn và kết quả chuẩn bị thuộc catalog sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.",
+  deleteCatalogConfirm: "Xóa vĩnh viễn catalog",
+  deleteCatalogSuccess: "Đã xóa catalog thành công.",
+  deleteCatalogConflict:
+    "Không thể xóa catalog khi đang có tiến trình chuẩn bị quy tắc đang chạy hoặc trong hàng đợi.",
 };

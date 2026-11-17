@@ -35,6 +35,7 @@ export const LEGAL_RULE_CATALOG_EVENTS = {
   SELECTED: "event.legal-rule-catalog.selected.v1",
   PREPARATION_REQUESTED: "event.legal-rule-catalog.preparation-requested.v1",
   RESULT_RECORDED: "event.legal-rule-catalog.result-recorded.v1",
+  DELETED: "event.legal-rule-catalog.deleted.v1",
 } as const;
 export const LEGAL_RULE_INELIGIBILITY_REASONS = {
   SOURCE_UNAVAILABLE: "SOURCE_UNAVAILABLE",
@@ -218,6 +219,13 @@ export const legalRuleCatalogSchema = z.object({
   legalSourceVersionId: id,
 });
 export const legalRuleCatalogListSchema = z.array(legalRuleCatalogSchema);
+export const legalRuleCatalogDeleteResponseSchema = z.strictObject({
+  id,
+  deleted: z.literal(true),
+});
+export type LegalRuleCatalogDeleteResponse = z.infer<
+  typeof legalRuleCatalogDeleteResponseSchema
+>;
 export const legalRuleListItemSchema = z.object({
   id,
   legalRuleId: z.string(),

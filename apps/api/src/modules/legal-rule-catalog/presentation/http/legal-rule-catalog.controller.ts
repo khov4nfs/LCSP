@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -52,6 +53,34 @@ export class LegalRuleCatalogController {
     return resultEnvelope(
       await this.catalog.create(
         request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Permanently delete an idle LegalRule catalog and its associated data.
+   * Business rules:
+   * - Admin authorization required; cannot delete catalogs with active preparation runs.
+   * Execution flow:
+   * 1. Validate catalog UUID
+   * 2. Delegate deletion to catalog service
+   * 3. Return typed envelope result.
+   * Failure cases:
+   * - Missing catalog returns 404; active runs return 409 conflict.
+   * Side effects:
+   * - Deletes catalog and owned rules, selections and batches.
+   */
+  @Delete(":catalogId")
+  @HttpCode(200)
+  async deleteCatalog(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.catalog.deleteCatalog(
+        catalogId,
         req.rbacContext.userId,
         correlation(req),
       ),

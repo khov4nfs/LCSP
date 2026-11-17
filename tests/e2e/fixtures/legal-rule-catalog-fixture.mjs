@@ -91,6 +91,21 @@ export async function handleLegalRuleCatalog(
     success(response, catalog, 201);
     return true;
   }
+  const catalogDeletePath = /^\/([^/]+)$/.exec(path);
+  if (catalogDeletePath && request.method === "DELETE") {
+    const catalogId = catalogDeletePath[1];
+    const index = state.catalogs.findIndex((row) => row.id === catalogId);
+    if (index === -1) {
+      problem(response, 404, "LEGAL_RULE_CATALOG_NOT_FOUND");
+      return true;
+    }
+    state.catalogs.splice(index, 1);
+    state.rules = state.rules.filter(
+      (rule) => rule.catalogVersionId !== catalogId,
+    );
+    success(response, { id: catalogId, deleted: true });
+    return true;
+  }
   const rulesPath = /^\/([^/]+)\/rules$/.exec(path);
   if (rulesPath) {
     const catalog = state.catalogs.find((row) => row.id === rulesPath[1]);
