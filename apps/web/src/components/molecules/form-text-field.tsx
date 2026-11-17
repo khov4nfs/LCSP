@@ -18,6 +18,7 @@ export function FormTextField<T extends FieldValues>({
   labelKey,
   descriptionKey,
   autoComplete,
+  type = "text",
   inputClassName,
   actions,
 }: FormTextFieldProps<T>) {
@@ -32,6 +33,7 @@ export function FormTextField<T extends FieldValues>({
         <Input
           {...register(name)}
           id={id}
+          type={type}
           className={inputClassName}
           autoComplete={autoComplete}
           disabled={formState.isSubmitting}

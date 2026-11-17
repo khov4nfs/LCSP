@@ -1,6 +1,6 @@
 import type { MessageKey } from "@lcsp/i18n";
 import type { FieldValues, Path } from "react-hook-form";
-import type { ReactNode } from "react";
+import type { HTMLInputTypeAttribute, ReactNode } from "react";
 
 export type FormTextFieldProps<T extends FieldValues> = {
   name: Path<T>;
@@ -8,6 +8,7 @@ export type FormTextFieldProps<T extends FieldValues> = {
   labelKey: MessageKey;
   descriptionKey?: MessageKey;
   autoComplete?: string;
+  type?: HTMLInputTypeAttribute;
   inputClassName?: string;
   actions?: ReactNode;
 };

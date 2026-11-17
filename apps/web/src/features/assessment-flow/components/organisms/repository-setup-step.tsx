@@ -2,7 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { type AssessmentRepositoryProvider } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_LIFECYCLE_STATES,
+  type AssessmentRepositoryProvider,
+} from "@lcsp/contracts/assessment";
 import {
   CREDENTIAL_PROVIDERS,
   GITHUB_CREDENTIAL_ERROR_CODES,
@@ -79,6 +82,7 @@ export function RepositorySetupStep({
   const savedConnection = setupState?.connection;
   const savedAnswer = deriveRepositorySetupAnswer(savedConnection ?? null);
   const [submitErrorKey, setSubmitErrorKey] = useState<string>();
+  const [waitingForRules, setWaitingForRules] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [credentialDialogOpen, setCredentialDialogOpen] = useState(false);
   const [credentialDialogMode, setCredentialDialogMode] =
@@ -197,10 +201,25 @@ export function RepositorySetupStep({
     );
   }
 
+  /**
+   * Business purpose: Save a customer's repository input and advance only when the assessment is activated.
+   * Business rules:
+   * - Reuse persisted assessments, connections and snapshots on retries; never delete a saved checkpoint.
+   * - A successful completion that remains PREPARING waits for approved compliance rules and must not navigate as if active.
+   * Execution flow:
+   * 1. Create an assessment only when needed and reconcile its repository connection.
+   * 2. Complete repository preparation and show the legal-input prerequisite or navigate after activation.
+   * 3. Refresh both setup and assessment detail so a same-route retry can leave the PREPARING view.
+   * Failure cases:
+   * - Connection, validation and preparation errors preserve saved inputs and show the mapped error for retry.
+   * Side effects:
+   * - May create assessment/repository records through the API, update query caches and navigate to an activated assessment.
+   */
   async function runSetup(data?: RepositorySetupFormData) {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitErrorKey(undefined);
+    setWaitingForRules(false);
     let assessmentId = workingAssessmentId;
     try {
       if (!assessmentId) {
@@ -227,11 +246,15 @@ export function RepositorySetupStep({
           data.repositoryUrl,
         );
       }
-      await startRepositoryAnalysis(assessmentId, {
+      const result = await startRepositoryAnalysis(assessmentId, {
         connectionId: connection.connectionId,
         branch: connection.defaultBranch,
         sourcePathPrefix: null,
       });
+      if (result.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.PREPARING) {
+        setWaitingForRules(true);
+        return;
+      }
       router.replace(`/assessments/${assessmentId}`);
     } catch (error) {
       // A missing response does not prove rollback. Keep the Assessment and
@@ -240,9 +263,14 @@ export function RepositorySetupStep({
     } finally {
       try {
         if (assessmentId) {
-          await queryClient.invalidateQueries({
-            queryKey: assessmentDomainKeys.setup(assessmentId),
-          });
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: assessmentDomainKeys.setup(assessmentId),
+            }),
+            queryClient.invalidateQueries({
+              queryKey: assessmentDomainKeys.detail(assessmentId),
+            }),
+          ]);
         }
       } finally {
         setIsSubmitting(false);
@@ -294,6 +322,18 @@ export function RepositorySetupStep({
             ) : undefined
           }
         />
+        {waitingForRules ? (
+          <AgentTurn>
+            <Alert role="status">
+              <AlertTitle>
+                {t("pages.assessmentFlow.waitingForRulesTitle")}
+              </AlertTitle>
+              <AlertDescription>
+                {t("pages.assessmentFlow.waitingForRulesDescription")}
+              </AlertDescription>
+            </Alert>
+          </AgentTurn>
+        ) : null}
         {activeErrorKey ? (
           <AgentTurn>
             <Alert variant="destructive">

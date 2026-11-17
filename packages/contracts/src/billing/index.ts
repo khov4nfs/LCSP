@@ -3,6 +3,8 @@ export * from "./admin.ts";
 export * from "./runtime-model.ts";
 export * from "./usage.ts";
 export * from "./usage-analytics.ts";
+export * from "./customer-usage.ts";
+export * from "./customer-pricing.ts";
 export * from "./official-reference-pricing.ts";
 export * from "./prepaid.ts";
 export * from "./codes.ts";
