@@ -19,6 +19,7 @@ const COMMIT_MESSAGE_PATTERN = new RegExp(
   `^(${ALLOWED_TYPES.join("|")})(\\([a-z0-9-]+\\))?!?:\\s+LCSP-[0-9]+\\b.+`,
 );
 const MERGE_COMMIT_PATTERN = /^Merge branch '[^']+' into .+$/;
+const DEPENDABOT_COMMIT_MESSAGE_PATTERN = /^chore\(deps(?:-dev)?\):\s+(?:bump|update)s?\b.+/i;
 
 const messageFile = process.argv.slice(2).find((arg) => arg !== "--");
 
@@ -48,7 +49,10 @@ if (MERGE_COMMIT_PATTERN.test(subject)) {
   process.exit(0);
 }
 
-if (COMMIT_MESSAGE_PATTERN.test(subject)) {
+if (
+  COMMIT_MESSAGE_PATTERN.test(subject) ||
+  DEPENDABOT_COMMIT_MESSAGE_PATTERN.test(subject)
+) {
   process.exit(0);
 }
 
@@ -63,5 +67,6 @@ console.error(
   `  type must be one of: ${ALLOWED_TYPES.join(", ")}`,
 );
 console.error("  LCSP ticket must appear after ':' in the subject");
+console.error("  Dependabot updates may use chore(deps[-dev]): Bump/Update <dependency> ...");
 console.error("  description is required after the LCSP ticket");
 process.exit(1);

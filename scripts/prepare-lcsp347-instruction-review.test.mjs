@@ -42,6 +42,25 @@ async function isolated(run) {
         "utf8",
       ),
     );
+    // Exercise the frozen r3 review input, rather than adding later development instructions to that package.
+    const inventoryPath = path.join(
+      dir,
+      "deepagents/instructions/inventory.json",
+    );
+    const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
+    const reviewedIds = new Set(
+      manifest.entries.map((entry) => entry.sourceId),
+    );
+    inventory.entries = inventory.entries.filter((entry) =>
+      reviewedIds.has(entry.sourceId),
+    );
+    inventory.requiredSourceIds = inventory.requiredSourceIds.filter((id) =>
+      reviewedIds.has(id),
+    );
+    inventory.constructionSites = inventory.constructionSites.filter(
+      (site) => !site.viSourceId || reviewedIds.has(site.viSourceId),
+    );
+    writeFileSync(inventoryPath, JSON.stringify(inventory));
     for (const entry of manifest.entries) {
       for (const relative of [
         entry.vietnameseSourcePath,
@@ -95,6 +114,21 @@ test("I01 & I08 — Exact 59-pair export generates expected pending review packa
           e.reviewerEvidence === null,
       ),
     );
+  }));
+
+test("new development inventory cannot silently expand or approve the frozen r3 package", () =>
+  isolated((dir, invoke) => {
+    writeFileSync(
+      path.join(dir, "deepagents/instructions/inventory.json"),
+      readFileSync(path.join(root, "deepagents/instructions/inventory.json")),
+    );
+    const result = invoke();
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Incomplete or duplicate manifest source inventory/,
+    );
+    assert.equal(existsSync(path.join(dir, resultPath)), false);
   }));
 
 test("I02 — Idempotent retry: identical rerun preserves bytes and mtime as verified no-op", () =>

@@ -1,4 +1,3 @@
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { Inject } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -14,6 +13,8 @@ import {
 } from "../../ports/persistence/index.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { RevokeOwnedSessionCommand } from "./revoke-owned-session.command.ts";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
+import { SessionManagementService } from "../../services/auth/session-management.service.ts";
 
 /**
  * Handles revoking a specific session owned by the authenticated user.
@@ -29,26 +30,39 @@ export class RevokeOwnedSessionHandler implements ICommandHandler<RevokeOwnedSes
     @Inject(AUTH_SESSION_REPOSITORY)
     private readonly sessions: SessionRepository,
     private readonly support: AuthSupportService,
+    private readonly policy: SessionManagementService,
   ) {}
 
   /**
-   * Executes revocation of an owned session.
-   *
-   * @param command - Contains target sessionId, caller auth context, and request metadata.
-   * @returns Success response with revoked session ID.
+   * Business purpose: Revoke one session belonging to the authenticated account.
+   * Business rules:
+   * - Require recent backend-confirmed step-up before the owner-scoped mutation.
+   * - Unknown and foreign session IDs have the same not-found result; repeat revocation is safe.
+   * Execution flow:
+   * 1. Validate the caller and reauthentication proof.
+   * 2. Revoke the target only within the caller's account and acknowledge its ID.
+   * Failure cases:
+   * - Authorization failure prevents mutation; absent targets return NOT_FOUND, not SESSION_INVALID.
+   * Side effects:
+   * - Persists the target revocation; never returns a session token or proof.
    */
   async execute(
     command: RevokeOwnedSessionCommand,
   ): Promise<RevokeOwnedSessionSuccess> {
     const correlationId =
       command.requestMeta.correlationId ?? this.support.createCorrelationId();
+    await this.policy.authorize(
+      command.context,
+      this.support.now(),
+      correlationId,
+    );
     const owned = await this.sessions.revokeOwned(
       command.sessionId,
       command.context.userId,
       this.support.now(),
     );
     if (!owned) {
-      throw authFailure(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
+      throw authFailure(SHARED_ERROR_CODES.notFound, correlationId, {
         reason: AUTH_FAILURE_REASONS.resourceNotFound,
       });
     }

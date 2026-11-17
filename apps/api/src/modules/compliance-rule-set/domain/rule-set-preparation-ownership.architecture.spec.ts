@@ -50,16 +50,15 @@ describe("Rule Set Preparation ownership", () => {
     ).toEqual([]);
   });
 
-  it("is started only by activation, current-source Admin preparation and canonical retry", () => {
+  it("keeps historical starts in explicit Admin/retry handlers and selected starts in the catalog owner", () => {
     const all = sourceFiles(SRC);
     expect(withMatch(all, /new StartRuleSetPreparationCommand\(/u)).toEqual([
       "modules/compliance-rule-set/application/commands/prepare-current-rule-set/prepare-current-rule-set.handler.ts",
       "modules/compliance-rule-set/application/commands/retry-rule-set-preparation/retry-rule-set-preparation.handler.ts",
-      "modules/compliance-rule-set/infrastructure/messaging/legal-source-activated.consumer.ts",
     ]);
   });
 
-  it("is never invoked directly by the Legal Source lifecycle, only through its outbox event", () => {
+  it("keeps the Legal Source lifecycle observational and preparation starts explicit", () => {
     const catalog = sourceFiles(join(SRC, "modules", "legal-source"));
     const ownedCleanupPath =
       "modules/legal-source/application/services/legal-source-deletion.service.ts";
@@ -131,6 +130,12 @@ describe("Rule Set Preparation ownership", () => {
       ),
       "utf8",
     );
-    expect(consumer).not.toMatch(/PrismaService|prisma\./u);
+    expect(consumer).not.toMatch(
+      /PrismaService|prisma\.|StartRuleSetPreparationCommand|commands\.execute/u,
+    );
+    const all = sourceFiles(SRC);
+    expect(withMatch(all, /preparationRuleResult\.create/u)).toEqual([
+      "modules/legal-rule-catalog/application/services/preparation-rule.service.ts",
+    ]);
   });
 });

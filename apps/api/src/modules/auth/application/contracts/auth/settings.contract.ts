@@ -43,3 +43,8 @@ export type RevokeOwnedSessionSuccess = {
   ok: true;
   revoked_session_id: string;
 };
+
+export type RevokeAllSessionsSuccess = {
+  ok: true;
+  revoked_all: true;
+};

@@ -157,7 +157,7 @@ const packet = {
 
 let stopStack = async () => {};
 try {
-  const { q, base, stop, seedLegalSource, activateLegalSource } =
+  const { q, base, stop, seedLegalSource, startPreparationFixture } =
     await startStack({ database, apiPort });
   stopStack = stop;
   const source = await seedLegalSource({
@@ -181,7 +181,7 @@ try {
       packet,
     }),
   );
-  const activation = await activateLegalSource(source);
+  const activation = await startPreparationFixture(source);
   const prepared = await runPython(
     path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
     [base, workerKey, activation.preparationRunId, seedFile, "valid"],

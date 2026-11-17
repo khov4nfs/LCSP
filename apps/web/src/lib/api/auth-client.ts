@@ -150,6 +150,7 @@ export type ConfirmRecoveryOutcome =
     };
 
 export type UpdateProfileRequest = {
+  display_name?: string;
   recovery_email?: string;
   primary_email_address_policy?: AuthPrimaryEmailAddressPolicy;
   backup_recovery_email_policy?: AuthBackupEmailPolicy;
@@ -157,6 +158,7 @@ export type UpdateProfileRequest = {
 
 export type UpdateProfileOutcome =
   | { kind: typeof API_OUTCOME_KINDS.saved }
+  | { kind: typeof API_OUTCOME_KINDS.reauthRequired }
   | { kind: typeof API_OUTCOME_KINDS.mfaRequired }
   | { kind: typeof API_OUTCOME_KINDS.sessionInvalid }
   | {
@@ -779,6 +781,18 @@ export async function confirmPasswordRecovery(
   return toConfirmRecoveryOutcome(payload, ok, problemCode);
 }
 
+/**
+ * Business purpose: Translate profile-save responses into safe account editing outcomes.
+ * Business rules:
+ * - Only successful envelopes count as saved; authentication challenges never count as success.
+ * Execution flow:
+ * 1. Accept success, then classify session, MFA, reauthentication and validation failures.
+ * 2. Return localized failure keys for remaining rejected requests.
+ * Failure cases:
+ * - Unrecognized backend codes remain errors; response payloads and credentials stay hidden.
+ * Side effects:
+ * - None: pure response classification.
+ */
 export function toUpdateProfileOutcome(
   payload: unknown,
   ok: boolean,
@@ -796,6 +810,13 @@ export function toUpdateProfileOutcome(
     return { kind: API_OUTCOME_KINDS.mfaRequired };
   }
 
+  if (
+    problemCode === AUTH_ERROR_CODES.reauthRequired ||
+    getProblemRequiredAction(payload) === REQUIRED_ACTIONS.reauthenticate
+  ) {
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
+  }
+
   if (problemCode === AUTH_ERROR_CODES.validationFailed) {
     return {
       kind: API_OUTCOME_KINDS.validationError,
@@ -811,6 +832,18 @@ export function toUpdateProfileOutcome(
   };
 }
 
+/**
+ * Business purpose: Save supported profile fields for the currently authenticated account.
+ * Business rules:
+ * - Send only the supplied profile patch; backend ownership and MFA policies remain authoritative.
+ * Execution flow:
+ * 1. Submit the patch through the shared authenticated API client.
+ * 2. Map the backend envelope into a profile-save outcome.
+ * Failure cases:
+ * - Transport errors propagate; rejected saves return validation, authentication or error outcomes.
+ * Side effects:
+ * - Requests profile persistence and sanitized auditing through the backend.
+ */
 export async function updateProfile(
   request: UpdateProfileRequest,
 ): Promise<UpdateProfileOutcome> {
@@ -841,22 +874,85 @@ export async function getAuthSessions(): Promise<AuthSessionSummary[]> {
   return payload.sessions;
 }
 
-export async function revokeAuthSession(sessionId: string): Promise<void> {
-  const { payload, ok } = await apiRequest(
+export type SessionActionOutcome = {
+  kind:
+    | typeof API_OUTCOME_KINDS.saved
+    | typeof API_OUTCOME_KINDS.reauthRequired
+    | typeof API_OUTCOME_KINDS.mfaRequired
+    | typeof API_OUTCOME_KINDS.sessionInvalid
+    | typeof API_OUTCOME_KINDS.notFound
+    | typeof API_OUTCOME_KINDS.error;
+};
+
+/**
+ * Business purpose: Revoke an owned session while retaining actionable authentication failures.
+ * Business rules:
+ * - Acknowledge success only when the backend returns the exact requested session ID.
+ * Execution flow:
+ * 1. Send the DELETE through apiRequest and validate the returned target.
+ * 2. Map rejected requests into stable UI outcomes.
+ * Failure cases:
+ * - Malformed acknowledgments and network failures cannot become success.
+ * Side effects:
+ * - Requests backend session revocation; expired sessions use shared redirect handling.
+ */
+export async function revokeAuthSession(
+  sessionId: string,
+): Promise<SessionActionOutcome> {
+  const result = await apiRequest(
     `/api/auth/sessions/${encodeURIComponent(sessionId)}`,
-    {
-      method: "DELETE",
-    },
+    { method: "DELETE" },
   );
+  const data = result.payload as { revoked_session_id?: unknown } | null;
+  return sessionActionOutcome(result, data?.revoked_session_id === sessionId);
+}
+
+/**
+ * Business purpose: End all devices including the current one with explicit server acknowledgment.
+ * Business rules:
+ * - Ordinary local sign-out is insufficient; require revoked_all=true from the backend.
+ * Execution flow:
+ * 1. Delete the caller's sessions through the BFF and classify its confirmed result.
+ * Failure cases:
+ * - Transport failures propagate and failed responses never report completion.
+ * Side effects:
+ * - Revokes all sessions; the BFF removes the cookie only after confirmation.
+ */
+export async function revokeAllAuthSessions(): Promise<SessionActionOutcome> {
+  const result = await apiRequest("/api/auth/sessions", { method: "DELETE" });
+  return sessionActionOutcome(
+    result,
+    (result.payload as { revoked_all?: unknown } | null)?.revoked_all === true,
+  );
+}
+
+/**
+ * Business purpose: Preserve the distinction between a missing target and invalid caller authentication.
+ * Business rules:
+ * - Only a valid acknowledgment on HTTP success reports saved; authorization failures remain actionable.
+ * Execution flow:
+ * 1. Check successful acknowledgment, then canonical problem codes and required actions.
+ * Failure cases:
+ * - Unrecognized problems and malformed acknowledgments produce a recoverable error outcome.
+ * Side effects:
+ * - Pure outcome mapping without logging response contents.
+ */
+function sessionActionOutcome(
+  result: Awaited<ReturnType<typeof apiRequest>>,
+  confirmed: boolean,
+): SessionActionOutcome {
+  if (result.ok && confirmed) return { kind: API_OUTCOME_KINDS.saved };
+  if (result.problemCode === AUTH_ERROR_CODES.sessionInvalid)
+    return { kind: API_OUTCOME_KINDS.sessionInvalid };
+  if (result.problemCode === AUTH_ERROR_CODES.mfaRequired)
+    return { kind: API_OUTCOME_KINDS.mfaRequired };
   if (
-    !ok ||
-    typeof payload !== "object" ||
-    payload === null ||
-    typeof (payload as { revoked_session_id?: unknown }).revoked_session_id !==
-      "string"
-  ) {
-    throw new Error("auth-session-revoke-failed");
-  }
+    result.problemCode === AUTH_ERROR_CODES.reauthRequired ||
+    result.requiredAction === REQUIRED_ACTIONS.reauthenticate
+  )
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
+  if (result.status === 404) return { kind: API_OUTCOME_KINDS.notFound };
+  return { kind: API_OUTCOME_KINDS.error };
 }
 
 export async function signOut(): Promise<void> {

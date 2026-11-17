@@ -1,5 +1,7 @@
 import type { PagesMessages } from "../../types.ts";
+import { viLegalRuleCatalog } from "./legal-rule-catalog.ts";
 export const viPages = {
+  legalRuleCatalog: viLegalRuleCatalog,
   preparationOps: {
     persistedCoverage: "Tiến độ coverage đã lưu",
     title: "Preparation đã chọn — run canonical",
@@ -85,24 +87,24 @@ export const viPages = {
     },
   },
   localizationReview: {
-    nextPage: "Trang ti?p",
-    previousPage: "Trang tr??c",
-    filter: "L?c c?ng vi?c",
-    pageSelection: "?? ch?n tr?n trang n?y (b? ch?n khi chuy?n trang):",
-    batchLimit: "Ch?n t?i ?a 50 tr??ng m?i ??t. Kh?ng b? qua tr??ng ?? ch?n.",
-    batchResults: "K?t qu? t?ng tr??ng",
-    accepted: "?? ghi nh?n",
-    rejected: "B? t? ch?i; ch?a ho?n t?t",
+    nextPage: "Trang tiếp",
+    previousPage: "Trang trước",
+    filter: "Lọc công việc",
+    pageSelection: "Đã chọn trên trang này (bỏ chọn khi chuyển trang):",
+    batchLimit: "Chọn tối đa 50 trường mỗi đợt. Không bỏ qua trường đã chọn.",
+    batchResults: "Kết quả từng trường",
+    accepted: "Đã ghi nhận",
+    rejected: "Bị từ chối; chưa hoàn tất",
     filters: {
-      ALL: "T?t c? c?ng vi?c hi?n t?i",
-      SOURCE_REVIEW_REQUIRED: "C?n duy?t ngu?n",
-      OUTPUT_REVIEW_REQUIRED: "C?n duy?t b?n d?ch",
-      PROVIDER_PENDING: "Ch? nh? cung c?p",
-      PROVIDER_FAILED: "C?n th? l?i nh? cung c?p",
-      FAILED: "Th?t b?i",
-      READY: "S?n s?ng",
-      UNKNOWN_SOURCE: "Ngu?n ch?a r?",
-      MIXED_SOURCE: "Ngu?n h?n h?p",
+      ALL: "Tất cả công việc hiện tại",
+      SOURCE_REVIEW_REQUIRED: "Cần duyệt nguồn",
+      OUTPUT_REVIEW_REQUIRED: "Cần duyệt bản dịch",
+      PROVIDER_PENDING: "Chờ nhà cung cấp",
+      PROVIDER_FAILED: "Cần thử lại nhà cung cấp",
+      FAILED: "Thất bại",
+      READY: "Sẵn sàng",
+      UNKNOWN_SOURCE: "Nguồn chưa rõ",
+      MIXED_SOURCE: "Nguồn hỗn hợp",
     },
 
     title: "Sẵn sàng vận hành bản địa hóa",
@@ -226,7 +228,7 @@ export const viPages = {
     },
     title: "Bộ quy tắc tuân thủ",
     description:
-      "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại, hoặc chuẩn bị phiên bản mới sẽ tự động thay thế phiên bản đang hoạt động sau khi vượt qua kiểm tra.",
+      "Tạo Preparation Rule Set bằng cách chọn LegalRule từ nguồn đã chunk. Xem kết quả riêng từng rule, phân tích lại khi cập nhật instruction và quản lý các phiên bản bộ quy tắc dùng chung hiện có.",
     active: "Bộ quy tắc đang hoạt động",
     unavailable: "Chưa có bộ quy tắc đang hoạt động",
     sourceVersion: "Phiên bản nguồn pháp lý",
@@ -2322,6 +2324,23 @@ export const viPages = {
           dark: "Tối",
         },
       },
+      profile: {
+        emptyName: "Chưa có tên hiển thị. Bạn có thể thêm tên bên dưới.",
+        loading: "Đang tải hồ sơ…",
+        retry: "Thử lại",
+        save: "Lưu thay đổi",
+        saving: "Đang lưu…",
+        saved: "Đã cập nhật hồ sơ.",
+        nameHelp:
+          "Tên hiển thị được dùng trong không gian làm việc. Nhập từ 1–120 ký tự.",
+        nameRequired: "Vui lòng nhập tên hiển thị.",
+        nameTooLong: "Tên hiển thị không được vượt quá 120 ký tự.",
+        nameRejected:
+          "Tên hiển thị chưa được chấp nhận. Vui lòng kiểm tra và thử lại.",
+        saveFailed:
+          "Chưa thể xác nhận cập nhật hồ sơ. Nội dung đã nhập được giữ lại. Vui lòng thử lại.",
+        reauthCancelled: "Đã hủy xác thực. Thay đổi của bạn chưa được lưu.",
+      },
       general: {
         profileTitle: "Hồ sơ",
         fullName: "Tên đầy đủ",
@@ -2564,6 +2583,23 @@ export const viPages = {
           "Gửi hướng dẫn khôi phục theo đúng luồng khôi phục mật khẩu hiện tại của LCSP khi cần đặt lại truy cập.",
       },
       sessions: {
+        revoking: "Đang thu hồi phiên đăng nhập…",
+        refresh: "Tải lại phiên đăng nhập",
+        loading: "Đang tải phiên đăng nhập…",
+        loadFailed: "Không thể tải phiên đăng nhập. Vui lòng thử lại.",
+        actionFailed:
+          "Không thể xác nhận việc thu hồi phiên. Vui lòng thử lại.",
+        cancelled: "Đã hủy xác thực. Chưa thu hồi phiên nào.",
+        verifyAgain: "Cần xác thực lại. Vui lòng thử lại thao tác.",
+        accountFailed:
+          "Không thể tải thông tin bảo mật tài khoản. Hãy thử lại trước khi quản lý phiên.",
+        targetMissing:
+          "Phiên này không còn khả dụng. Hãy tải lại danh sách và thử lại.",
+        expiresAt: "Hết hạn lúc",
+        scopeDescription:
+          "Xem các phiên đăng nhập còn hiệu lực của tài khoản. Chưa có thông tin thiết bị và vị trí.",
+        logoutAllDescription:
+          "Kết thúc mọi phiên hiện có, bao gồm phiên này. Bạn sẽ cần đăng nhập lại.",
         title: "Phiên đăng nhập",
         description:
           "Xem các phiên đã xác thực trong phạm vi workspace hiện tại.",
@@ -2895,6 +2931,9 @@ export const viPages = {
     noEarlierVersion: "Bắt đầu mà không dùng phiên bản trước",
     startingVersion: "Đang bắt đầu…",
     versionSummary: "Tóm tắt phiên bản",
+    versionIdLabel: "ID phiên bản Legal Source",
+    copyVersionId: "Sao chép ID phiên bản",
+    versionIdCopied: "Đã sao chép ID phiên bản",
     sourceLabel: "Nguồn pháp lý",
     sourceLink: "Xem Nguồn pháp lý",
     indexLabel: "Kiểm tra cấu trúc",
@@ -2991,6 +3030,7 @@ export const viPages = {
       other: "Khác",
     },
     deletionBlockerLabels: {
+      CATALOG_REFERENCE_EXISTS: "Catalog Legal Rule chuẩn đang ghim nguồn này và lịch sử chuẩn bị.",
       PROTECTED_REFERENCE_EXISTS:
         "Có Đánh giá, báo cáo hoặc lịch sử bên ngoài được bảo vệ tham chiếu đến nguồn này.",
       NONTERMINAL_WORK_EXISTS:

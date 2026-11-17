@@ -21,12 +21,14 @@ import { RequireSession } from "../../../../platform/rbac/decorators/require-ses
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";
 import {
   RevokeOwnedSessionCommand,
+  RevokeAllSessionsCommand,
   UpdateProfileCommand,
 } from "../../application/commands/index.ts";
 import type {
   AuthProfileSuccess,
   AuthSessionsSuccess,
   RevokeOwnedSessionSuccess,
+  RevokeAllSessionsSuccess,
   UpdateProfileSuccess,
 } from "../../application/contracts/auth/index.ts";
 import {
@@ -91,6 +93,33 @@ export class AuthProfileController {
   ): Promise<AuthSessionsSuccess> {
     return this.queryBus.execute<ListAuthSessionsQuery, AuthSessionsSuccess>(
       new ListAuthSessionsQuery(request.rbacContext),
+    );
+  }
+
+  /**
+   * Business purpose: Sign the authenticated owner out of all existing devices.
+   * Business rules:
+   * - The session guard identifies the owner; the command enforces recent step-up.
+   * Execution flow:
+   * 1. Delegate the authenticated context to the all-sessions revocation command.
+   * Failure cases:
+   * - Command authorization and persistence failures use the shared problem envelope.
+   * Side effects:
+   * - Revokes every active session including the calling session.
+   */
+  @Delete("sessions")
+  @UseGuards(RbacGuard)
+  @RequireSession()
+  async revokeAllSessions(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<RevokeAllSessionsSuccess> {
+    return this.commandBus.execute<
+      RevokeAllSessionsCommand,
+      RevokeAllSessionsSuccess
+    >(
+      new RevokeAllSessionsCommand(request.rbacContext, {
+        correlationId: request.correlationId,
+      }),
     );
   }
 

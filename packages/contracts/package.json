@@ -25,6 +25,7 @@
     "./github-integration/events": "./src/github-integration/events.ts",
     "./compliance-rule-set": "./src/compliance-rule-set/index.ts",
     "./legal-source": "./src/legal-source/index.ts",
+    "./legal-rule-catalog": "./src/legal-rule-catalog/index.ts",
     "./legal-source/event-types": "./src/legal-source/event-types.ts",
     "./legal-source/error-codes": "./src/legal-source/error-codes.ts",
     "./rbac": "./src/rbac/index.ts",
@@ -49,6 +50,6 @@
     "./shared/type-guards": "./src/shared/type-guards.ts"
   },
   "dependencies": {
-    "zod": "4.0.17"
+    "zod": "4.6.6"
   }
 }

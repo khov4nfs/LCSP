@@ -46,10 +46,10 @@ export function SettingsSidebar({
       aria-label={resolveAppMessage(
         "pages.workspace.settingsHub.navigationLabel",
       )}
-      className="flex shrink-0 flex-col border-b border-border/70 bg-muted/30 p-4 md:h-full md:w-60 md:border-r md:border-b-0"
+      className="flex min-w-0 shrink-0 flex-col border-b border-border/70 bg-muted/30 p-4 max-md:pr-12 md:h-full md:w-60 md:border-r md:border-b-0"
       data-component="SettingsSidebar"
     >
-      <div className="relative h-9.5 w-52 shrink-0">
+      <div className="relative hidden h-9.5 w-52 shrink-0 md:block">
         <SearchIcon
           aria-hidden="true"
           className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -71,7 +71,7 @@ export function SettingsSidebar({
           {resolveAppMessage("pages.appShell.settings")}
         </p>
         <nav
-          className="mt-3 flex w-52 flex-col gap-2"
+          className="mt-3 flex w-full gap-2 overflow-x-auto md:w-52 md:flex-col"
           data-component="SettingsTabs"
         >
           {settingsNavigationItems.map((item) => (

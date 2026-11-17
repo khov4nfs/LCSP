@@ -247,7 +247,12 @@ def main() -> int:
     drop_tables = re.findall(r'DROP TABLE "([^"]+)";', DROP.read_text())
     assert len(drop_tables) == 29 and len(set(drop_tables)) == 29
     canonical_models = set(re.findall(r"^model (\w+) \{", (API / "prisma/schema.prisma").read_text(), re.M))
-    assert not canonical_models.intersection(drop_tables), "RELEASE cannot drop a current canonical model"
+    # LCSP-369 recreates these names with a new editable input schema after the immutable W7 drop.
+    restored_catalog = {"LegalRule", "LegalRuleCatalogVersion"}
+    forward = (MIGRATIONS / "20261117090000_editable_legal_rule_preparation/migration.sql").read_text()
+    assert canonical_models.intersection(drop_tables) == restored_catalog
+    assert all(f'CREATE TABLE "{table}"' in forward for table in restored_catalog)
+    assert 'CREATE TABLE "RuleApprovalRecord"' not in forward
     assert DROP.read_text().rstrip().endswith("COMMIT;")
     assert "dotenv" not in config_text(MIGRATIONS)
     if args.self_check:
@@ -411,7 +416,12 @@ def main() -> int:
                 migrate("retirement_upgrade", final_config)
                 with psycopg.connect(base + "retirement_upgrade", row_factory=dict_row) as db:
                     for table in drop_tables:
-                        assert db.execute("SELECT to_regclass(%s) AS relation", ('"' + table + '"',)).fetchone()["relation"] is None
+                        relation = db.execute("SELECT to_regclass(%s) AS relation", ('"' + table + '"',)).fetchone()["relation"]
+                        if table in restored_catalog:
+                            assert relation is not None
+                            assert db.execute(sql.SQL("SELECT count(*) AS count FROM {}").format(sql.Identifier(table))).fetchone()["count"] == 0, "retired catalog data must not be recovered into the new catalog"
+                        else:
+                            assert relation is None
                     assert not db.execute('SELECT 1 FROM "Assessment" WHERE id=%s', (state["terminal"],)).fetchone()
                     assert db.execute('SELECT "assessmentId" FROM "LlmUsageEvent" WHERE id=\'release-usage\'').fetchone()["assessmentId"] is None
                     assert not db.execute('SELECT 1 FROM "OutboxMessage" WHERE "eventType"=\'command.legal-corpus.recovery.requested.v1\'').fetchone()
@@ -420,7 +430,7 @@ def main() -> int:
                     assert not db.execute('SELECT 1 FROM "LegalSourceVersion" WHERE "legalSourceId" IS NULL LIMIT 1').fetchone()
                     assert preserved_database(db, state, renamed=True) == preserved, "canonical data changed across final deploy"
                 assert [saver.get_tuple(config) for config in protected] == originals
-                passed("populated synthetic post-CUTOVER upgrade drops 29 V1 tables; canonical owner/Case/Root/accounting/corpus unchanged")
+                passed("populated synthetic post-CUTOVER upgrade drops 29 V1 tables and creates empty LCSP-369 catalog inputs; canonical owner/Case/Root/accounting/source unchanged")
                 passed("second Prisma deploy is a no-op")
             report["status"] = "PASS"
     except Exception as error:

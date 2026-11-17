@@ -187,6 +187,11 @@ def audit(archive: tarfile.TarFile, expected: dict[str, str], marker: str,
         if Path(path).suffix in TEXT_SUFFIXES or "Dockerfile" in path:
             text = data.decode("utf-8", errors="strict")
             for pattern, label in patterns:
+                # Only the restored canonical input owner's writes are allowed; approval/recovery patterns stay forbidden.
+                if (label == "V1 LegalRule table writer" and
+                        "apps/api/src/modules/legal-rule-catalog/application/services/legal-rule-catalog.service.ts" in variants and
+                        not re.search(r"\bruleApprovalRecord\.", text)):
+                    continue
                 if pattern.search(text):
                     violations.append({"path": path, "reason": label})
     for path in sorted(expected.keys() - found.keys()):
@@ -234,6 +239,10 @@ def self_check(rules: dict) -> None:
             ("app/.env.example", b"example"),
             ("app/deepagents/.env.example", b"example")]
     assert fixture(good)["status"] == "PASS"
+    catalog_writer = "app/apps/api/dist/src/modules/legal-rule-catalog/application/services/legal-rule-catalog.service.js"
+    assert fixture(good + [(catalog_writer, b"legalRule.create({}); legalRuleCatalogVersion.update({});")])["status"] == "PASS"
+    assert fixture(good + [(catalog_writer, b"ruleApprovalRecord.create({});")])["status"] == "FAIL"
+    assert fixture(good + [("app/apps/api/dist/src/hidden.js", b"legalRule.create({});")])["status"] == "FAIL"
     assert fixture([(name, b"changed policy" if name.endswith("check-canonical-terminology.mjs") else data) for name, data in good])["status"] == "FAIL"
     for mutation in [
         [], [("app/deepagents/agent.py", b"changed")],

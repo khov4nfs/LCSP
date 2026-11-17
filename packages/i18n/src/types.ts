@@ -1,3 +1,4 @@
+import type { LegalRuleCatalogMessages } from "./locales/en/legal-rule-catalog.ts";
 export type AuthMessages = {
   errors: {
     authRequired: { title: string; detail: string };
@@ -39,6 +40,7 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  legalRuleCatalog: LegalRuleCatalogMessages;
   preparationOps: {
     persistedCoverage: string;
 
@@ -2099,6 +2101,20 @@ export type PagesMessages = {
           dark: string;
         };
       };
+      profile: {
+        emptyName: string;
+        loading: string;
+        retry: string;
+        save: string;
+        saving: string;
+        saved: string;
+        nameHelp: string;
+        nameRequired: string;
+        nameTooLong: string;
+        nameRejected: string;
+        saveFailed: string;
+        reauthCancelled: string;
+      };
       general: {
         profileTitle: string;
         fullName: string;
@@ -2298,6 +2314,18 @@ export type PagesMessages = {
         recoveryDescription: string;
       };
       sessions: {
+        revoking: string;
+        refresh: string;
+        loading: string;
+        loadFailed: string;
+        actionFailed: string;
+        cancelled: string;
+        verifyAgain: string;
+        accountFailed: string;
+        targetMissing: string;
+        expiresAt: string;
+        scopeDescription: string;
+        logoutAllDescription: string;
         title: string;
         description: string;
         activeTitle: string;
@@ -2495,6 +2523,9 @@ export type PagesMessages = {
     noEarlierVersion: string;
     startingVersion: string;
     versionSummary: string;
+    versionIdLabel: string;
+    copyVersionId: string;
+    versionIdCopied: string;
     sourceLabel: string;
     sourceLink: string;
     indexLabel: string;
@@ -2581,6 +2612,7 @@ export type PagesMessages = {
       other: string;
     };
     deletionBlockerLabels: {
+      CATALOG_REFERENCE_EXISTS: string;
       PROTECTED_REFERENCE_EXISTS: string;
       NONTERMINAL_WORK_EXISTS: string;
       UNSETTLED_INGESTION_EXISTS: string;

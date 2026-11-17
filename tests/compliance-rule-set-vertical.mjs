@@ -18,6 +18,7 @@ import {
   startStack,
   workerKey,
 } from "./support/compliance-rule-set-stack.mjs";
+import { selectedPreparationVertical } from "./support/selected-preparation-vertical.mjs";
 
 const database = "lcsp_compliance_rule_set_vertical";
 const apiPort = Number(
@@ -54,11 +55,19 @@ const DOC = "SYNTHETIC-NOTICE-INSTRUMENT";
 const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 
-const { q, base, post, get, stop, seedLegalSource, activateLegalSource } =
-  await startStack({
-    database,
-    apiPort,
-  });
+const {
+  q,
+  base,
+  post,
+  get,
+  stop,
+  seedLegalSource,
+  startPreparationFixture,
+  activateLegalSource,
+} = await startStack({
+  database,
+  apiPort,
+});
 
 try {
   // ---- seed: two pinned corpora (B changes art-5::cl-1) with valid retrieval indexes -------------
@@ -80,8 +89,7 @@ try {
       }),
     });
   };
-  // Every Legal Source is ACTIVE (ACTIVE) when its activation event arrives; each scenario below
-  // that needs its own automatic preparation gets its own source, since one source has one run.
+  // Each historical fixture uses its own ACTIVE source and explicitly starts its publication run.
   let sourceCounter = 0;
   const freshSource = (variant) =>
     seed(`vertical-${variant}-${(sourceCounter += 1)}`, variant, "ACTIVE");
@@ -105,11 +113,11 @@ try {
       path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
       [base, workerKey, runId, seedFile, mode],
     );
-  /** The Legal Source activation event reaches the real consumer: it starts the one automatic run. */
+  /** Explicit historical fixtures retain publication regression coverage; activation alone starts no work. */
   const startRun = async (legalSourceId) => {
-    const delivery = await activateLegalSource(legalSourceId);
+    const delivery = await startPreparationFixture(legalSourceId);
     eq(delivery.failed, 0, JSON.stringify(delivery));
-    eq(delivery.runs.length, 1, "one source -> one automatic run");
+    eq(delivery.runs.length, 1, "one explicit fixture -> one historical run");
     return {
       preparationRunId: delivery.runs[0].id,
       executionState: delivery.runs[0].executionState,
@@ -142,7 +150,7 @@ try {
     "ACTIVE_COMPLIANCE_RULE_SET_NOT_FOUND",
   );
 
-  // 2. there is NO route that starts a preparation; the activation event does, exactly once
+  // 2. Worker start routes remain absent; source activation alone never starts preparation.
   eq(
     (
       await post("preparations", {
@@ -153,7 +161,13 @@ try {
     404,
     "the worker API exposes no start route",
   );
-  const replayed = await activateLegalSource(legalSourceA, {
+  const observed = await activateLegalSource(legalSourceA, {
+    times: 6,
+    concurrent: true,
+  });
+  eq(observed.failed, 0, JSON.stringify(observed));
+  eq(observed.runs.length, 0, "activation never prepares unselected rules");
+  const replayed = await startPreparationFixture(legalSourceA, {
     times: 6,
     concurrent: true,
   });
@@ -166,7 +180,7 @@ try {
   eq(
     replayed.runs[0].requestedBy,
     "rule-set-preparation-system",
-    "automatic start is system-owned",
+    "explicit historical fixture retains its system actor",
   );
   eq(
     replayed.runs[0].idempotencyKey,
@@ -180,7 +194,7 @@ try {
       )
     ).rows[0].n,
     1,
-    "exactly one paid preparation command for one activation",
+    "exactly one preparation command for the explicit fixture",
   );
   const superseded = await seed("vertical-superseded", "a", "SUPERSEDED");
   eq(
@@ -463,6 +477,8 @@ try {
     0,
     "no approval row is written or required",
   );
+
+  await selectedPreparationVertical({ q, base, sourceId: legalSourceA });
 
   console.log(
     `PASS: ${checks} COMPLIANCE_RULE_SET vertical checks (real API + PostgreSQL + Python agent; model scripted) on ${database}`,

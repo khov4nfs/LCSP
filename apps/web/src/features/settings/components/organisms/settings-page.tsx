@@ -1,27 +1,20 @@
 "use client";
+import { SessionSettingsSection } from "./session-settings-section";
 
 import { LOCALES, type Locale } from "@lcsp/contracts/shared";
 import type { ReactNode } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { resolveMessage } from "@lcsp/i18n";
-import {
-  ChevronDownIcon,
-  InfoIcon,
-  MoreHorizontalIcon,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ChevronDownIcon, InfoIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
+import { CONFIRM_ACCESS_METHODS } from "@/components/types/confirm-access-dialog.types";
 import { ThemePreferenceControl } from "@/components/molecules/theme-preference-control";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -37,16 +30,11 @@ import {
   subscribeToAppLocale,
 } from "@/lib/locale";
 import { cn } from "@/lib/utils";
-import type {
-  AuthSessionSummary,
-  AuthSettingsProfile,
-} from "@/lib/api/auth-client";
 import {
   useAuthSessionsQuery,
   useAuthSettingsProfileQuery,
   useMfaVerifyMutation,
   usePasswordReauthMutation,
-  useRevokeAuthSessionMutation,
 } from "@/lib/api/auth-queries";
 import { useProviderCredentialStatusesQuery } from "@/lib/api/github-repository-queries";
 import {
@@ -57,43 +45,26 @@ import { BillingSettingsPanel } from "@/features/billing/components/organisms/bi
 import type { MfaVerifyFormValues } from "@/features/auth/schemas/mfa-verify.schema";
 
 import { RepositoriesSettingsSection } from "./repositories-settings-section";
+import { ProfileSettingsSection } from "./profile-settings-section";
 import { SettingsSidebar } from "./settings-sidebar";
 import { SETTINGS_SECTION_IDS } from "../../types/settings.types";
 import type { SettingsSectionId } from "../../types/settings.types";
-import type { SettingsAlertMessage } from "../../types/settings-page.types";
+import type {
+  SettingsAlertMessage,
+  SettingsPageProps,
+  SettingsSensitiveAction,
+} from "../../types/settings-page.types";
+import type { ProfileSettingsSectionProps } from "../../types/profile-settings.types";
 import {
-  formatDateTime,
-  normalizeSettingsSection,
-} from "../../utils/settings-page.utils";
-
-type SettingsPageProps = {
-  activeSection?: SettingsSectionId;
-  onSectionChange?: (section: SettingsSectionId) => void;
-  presentation?: "page" | "modal";
-};
-
-const SETTINGS_SENSITIVE_ACTIONS = {
-  revokeSession: "revoke_session",
-  reauthenticateProviderCredential: "reauthenticate_provider_credential",
-} as const;
-
-type SettingsSensitiveAction = {
-  resolveResult?: (success: boolean) => void;
-} & (
-  | {
-      kind: typeof SETTINGS_SENSITIVE_ACTIONS.revokeSession;
-      sessionId: string;
-    }
-  | {
-      kind: typeof SETTINGS_SENSITIVE_ACTIONS.reauthenticateProviderCredential;
-      retry: () => void;
-    }
-);
+  SETTINGS_PRESENTATIONS,
+  SETTINGS_SENSITIVE_ACTIONS,
+} from "../../config/settings-page.config";
+import { normalizeSettingsSection } from "../../utils/settings-page.utils";
 
 export function SettingsPage({
   activeSection: controlledActiveSection,
   onSectionChange,
-  presentation = "page",
+  presentation = SETTINGS_PRESENTATIONS.page,
 }: SettingsPageProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -120,7 +91,6 @@ export function SettingsPage({
   const sessionsQuery = useAuthSessionsQuery();
   const verifyMutation = useMfaVerifyMutation();
   const passwordReauthMutation = usePasswordReauthMutation();
-  const revokeSessionMutation = useRevokeAuthSessionMutation();
   const providerCredentialStatusesQuery = useProviderCredentialStatusesQuery();
 
   const [confirmAccessOpen, setConfirmAccessOpen] = useState(false);
@@ -132,9 +102,6 @@ export function SettingsPage({
     useState<SettingsAlertMessage | null>(null);
 
   const profile = profileQuery.data;
-  const sessions = sessionsQuery.data ?? [];
-
-  const profileLoadFailed = profileQuery.isError || sessionsQuery.isError;
 
   function openSensitiveAction(action: SettingsSensitiveAction) {
     setConfirmAccessMfaError(null);
@@ -153,33 +120,24 @@ export function SettingsPage({
     setConfirmAccessPasswordError(null);
   }
 
-  async function executeRevokeSession(sessionId: string) {
-    try {
-      await revokeSessionMutation.mutateAsync(sessionId);
-      toast.success(
-        resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.sessions.revokedTitle",
-        ),
-      );
-      return true;
-    } catch {
-      toast.error(
-        resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.errors.sessionActionDetail",
-        ),
-      );
-      return false;
-    }
-  }
-
+  /**
+   * Business purpose: Resume the pending Settings action after access has been confirmed.
+   * Business rules:
+   * - Settings challenges release the waiting caller, which owns the pending profile or session mutation.
+   * - Provider credentials retain their existing authenticated retry path.
+   * Execution flow:
+   * 1. Match the pending action and execute it or release its waiting caller.
+   * Failure cases:
+   * - Unrecognized actions fail closed without authorizing the waiting caller.
+   * Side effects:
+   * - May retry credential work or release a Settings reauthentication challenge.
+   */
   async function executeSensitiveAction(
     action: SettingsSensitiveAction,
   ): Promise<boolean> {
     switch (action.kind) {
-      case SETTINGS_SENSITIVE_ACTIONS.revokeSession:
-        return executeRevokeSession(action.sessionId);
+      case SETTINGS_SENSITIVE_ACTIONS.reauthenticateSettings:
+        return true;
       case SETTINGS_SENSITIVE_ACTIONS.reauthenticateProviderCredential:
         action.retry();
         return true;
@@ -272,11 +230,27 @@ export function SettingsPage({
     );
   }
 
-  async function handleRevokeSession(sessionId: string) {
-    openSensitiveAction({
-      kind: SETTINGS_SENSITIVE_ACTIONS.revokeSession,
-      sessionId,
-    });
+  /**
+   * Business purpose: Obtain explicit access confirmation before a sensitive Settings mutation.
+   * Business rules:
+   * - Reuse password/MFA verification; cancellation resolves false and cannot authorize a mutation.
+   * Execution flow:
+   * 1. Open the shared access dialog and wait for its confirmed or canceled outcome.
+   * Failure cases:
+   * - Failed verification keeps the dialog open; dismissal releases the caller without authorization.
+   * Side effects:
+   * - Opens the access dialog and stores the pending completion callback in Settings state.
+   */
+  function requestSettingsReauthentication(
+    mfaRequired: boolean,
+  ): Promise<boolean> {
+    return new Promise((resolveResult) =>
+      openSensitiveAction({
+        kind: SETTINGS_SENSITIVE_ACTIONS.reauthenticateSettings,
+        mfaRequired,
+        resolveResult,
+      }),
+    );
   }
 
   function handleSectionChange(section: SettingsSectionId) {
@@ -289,7 +263,7 @@ export function SettingsPage({
   return (
     <main
       className={
-        presentation === "modal"
+        presentation === SETTINGS_PRESENTATIONS.modal
           ? "flex h-full min-h-0 flex-col overflow-hidden text-foreground md:flex-row"
           : "flex flex-1 flex-col px-4 py-6 text-foreground lg:px-6"
       }
@@ -299,7 +273,7 @@ export function SettingsPage({
     >
       <div
         className={
-          presentation === "modal"
+          presentation === SETTINGS_PRESENTATIONS.modal
             ? "flex min-h-0 flex-1 flex-col md:flex-row"
             : "mx-auto flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm md:min-h-205 md:flex-row"
         }
@@ -309,26 +283,16 @@ export function SettingsPage({
           onSectionChange={handleSectionChange}
         />
         <section className="min-h-0 flex-1 overflow-hidden">
-          {profileLoadFailed ? (
-            <Alert className="mb-5" variant="destructive">
-              <AlertTitle>
-                {resolveMessage(
-                  appLocale,
-                  "pages.workspace.settingsHub.errors.profileLoadTitle",
-                )}
-              </AlertTitle>
-              <AlertDescription>
-                {resolveMessage(
-                  appLocale,
-                  "pages.workspace.settingsHub.errors.profileLoadDetail",
-                )}
-              </AlertDescription>
-            </Alert>
-          ) : null}
-
           <div className="h-full min-h-0">
             {profile ? (
               <ConfirmAccessDialog
+                initialMethod={
+                  pendingSensitiveAction?.kind ===
+                    SETTINGS_SENSITIVE_ACTIONS.reauthenticateSettings &&
+                  pendingSensitiveAction.mfaRequired
+                    ? CONFIRM_ACCESS_METHODS.otp
+                    : CONFIRM_ACCESS_METHODS.password
+                }
                 open={confirmAccessOpen}
                 onOpenChange={(open) => {
                   if (open) {
@@ -379,14 +343,15 @@ export function SettingsPage({
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.general ? (
-              <GeneralSettingsPanel profile={profile} />
+              <GeneralSettingsPanel
+                onReauthenticate={requestSettingsReauthentication}
+              />
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.account ? (
-              <AccountSettingsPanel
-                sessions={sessions}
-                revokePending={revokeSessionMutation.isPending}
-                onRevokeSession={handleRevokeSession}
+              <SessionSettingsSection
+                locale={settingsLocale}
+                onReauthenticate={requestSettingsReauthentication}
               />
             ) : null}
 
@@ -458,281 +423,127 @@ function getServerHashSection() {
 }
 
 function GeneralSettingsPanel({
-  profile,
-}: {
-  profile: AuthSettingsProfile | undefined;
-}) {
+  onReauthenticate,
+}: ProfileSettingsSectionProps) {
   return (
-    <SettingsPanelCanvas dataComponent="GeneralSettingsPanel">
-      <SettingsSectionHeading top="top-10">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.general.profileTitle",
-        )}
-      </SettingsSectionHeading>
-      <SettingsControlRow className="top-18">
-        <label className="text-sm" htmlFor="settings-full-name">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.general.fullName",
-          )}
-        </label>
-        <Input
-          id="settings-full-name"
-          className="h-9 w-51 text-[13px]"
-          value={profile?.display_name ?? ""}
-          readOnly
-        />
-      </SettingsControlRow>
-      <SettingsControlRow className="top-30.5">
-        <label className="text-sm" htmlFor="settings-assistant-name">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.general.assistantName",
-          )}
-        </label>
-        <Input
-          id="settings-assistant-name"
-          className="h-9 w-51 text-[13px]"
-          value={profile?.display_name ?? ""}
-          readOnly
-        />
-      </SettingsControlRow>
-      <SettingsDivider className="top-43.5" />
-      <SettingsSectionHeading top="top-50">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.general.preferencesTitle",
-        )}
-      </SettingsSectionHeading>
-      <SettingsControlRow className="top-58">
-        <span className="text-sm">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.general.appearance",
-          )}
-        </span>
-        <ThemePreferenceControl variant="compact" />
-      </SettingsControlRow>
-      <SettingsDivider className="top-71" />
-      <SettingsControlRow className="top-73">
-        <label className="text-sm" htmlFor="settings-language">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.general.language",
-          )}
-        </label>
-        <SettingsLanguageSelect />
-      </SettingsControlRow>
-      <SettingsDivider className="top-86" />
-      <SettingsControlRow className="top-88">
-        <label className="text-sm" htmlFor="settings-chat-font">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.general.chatFont",
-          )}
-        </label>
-        <ReadonlySelectValue
-          id="settings-chat-font"
-          className="w-43.5"
-          value={resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.general.chatFontInter",
-          )}
-        />
-      </SettingsControlRow>
-      <SettingsDivider className="top-101" />
-      <SettingsSectionHeading top="top-107.5">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.general.notificationsTitle",
-        )}
-      </SettingsSectionHeading>
-      <ReadonlySwitchRow
-        className="top-118"
-        titleKey="pages.workspace.settingsHub.general.assessmentCompletions"
-        descriptionKey="pages.workspace.settingsHub.general.assessmentCompletionsDescription"
-      />
-      <SettingsDivider className="top-130" />
-      <ReadonlySwitchRow
-        className="top-134.5"
-        titleKey="pages.workspace.settingsHub.general.remediationApprovals"
-        descriptionKey="pages.workspace.settingsHub.general.remediationApprovalsDescription"
-      />
-      <SettingsDivider className="top-146.5" />
-    </SettingsPanelCanvas>
-  );
-}
-
-function AccountSettingsPanel({
-  onRevokeSession,
-  revokePending,
-  sessions,
-}: {
-  onRevokeSession: (sessionId: string) => void | Promise<void>;
-  revokePending: boolean;
-  sessions: AuthSessionSummary[];
-}) {
-  return (
-    <SettingsPanelCanvas dataComponent="AccountSettingsPanel">
-      <SettingsControlRow className="top-17.5">
-        <span className="text-sm">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.sessions.logOutAllDevicesTitle",
-          )}
-        </span>
-        <Button className="h-9 w-20 text-[13px]" disabled variant="outline">
-          {resolveMessage(appLocale, "pages.appShell.signOut")}
-        </Button>
-      </SettingsControlRow>
-      <SettingsDivider className="top-30" />
-      <SettingsSectionHeading top="top-37">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.labels.trustedDevices",
-        )}
-      </SettingsSectionHeading>
-      <p className="absolute top-45 left-8.5 text-[13px] text-muted-foreground">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.sessions.trustedDevicesDescription",
-        )}
-      </p>
-      <p className="absolute top-53.5 left-8.5 text-sm text-muted-foreground">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.sessions.noTrustedDevices",
-        )}
-      </p>
-      <SettingsSectionHeading top="top-65">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.sessions.activeTitle",
-        )}
-      </SettingsSectionHeading>
-      <div className="absolute top-74.5 left-8.5 grid w-218 grid-cols-[212px_224px_230px_1fr_48px] text-[13px] font-medium text-muted-foreground">
-        <span>
-          {resolveMessage(appLocale, "pages.workspace.settingsHub.labels.device")}
-        </span>
-        <span>
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.labels.location",
-          )}
-        </span>
-        <span>
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.labels.createdAt",
-          )}
-        </span>
-        <span>
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.labels.updatedAt",
-          )}
-        </span>
-      </div>
-      <SettingsDivider className="top-81" />
-      <div
-        className="absolute top-81.25 left-8.5 max-h-60 w-218 overflow-y-auto overflow-x-hidden"
-        data-component="CompactSessionList"
-      >
-        {sessions.length === 0 ? (
-          <p className="py-5 pl-3 text-sm text-muted-foreground">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.states.noSessions",
-            )}
-          </p>
-        ) : (
-          sessions.map((session) => (
-            <CompactSessionRow
-              key={session.id}
-              session={session}
-              revokePending={revokePending}
-              onRevokeSession={onRevokeSession}
-            />
-          ))
-        )}
-      </div>
-    </SettingsPanelCanvas>
-  );
-}
-
-function CompactSessionRow({
-  onRevokeSession,
-  revokePending,
-  session,
-}: {
-  onRevokeSession: (sessionId: string) => void | Promise<void>;
-  revokePending: boolean;
-  session: AuthSessionSummary;
-}) {
-  const canRevoke = !session.is_current && session.revoked_at === null;
-  return (
-    <div
-      className="group relative grid h-12 grid-cols-[212px_224px_230px_1fr_48px] items-center rounded-lg text-[13px] hover:bg-muted/60 focus-within:bg-muted/60"
-      data-component="CompactSessionRow"
+    <section
+      className="h-full min-h-0 space-y-6 overflow-y-auto px-4 py-8 md:px-8"
+      data-component="GeneralSettingsPanel"
     >
-      <div className="flex items-center gap-2 overflow-hidden pl-3">
-        <span className="truncate">
+      <ProfileSettingsSection onReauthenticate={onReauthenticate} />
+      <Separator />
+      <section
+        className="space-y-5"
+        aria-labelledby="settings-preferences-heading"
+      >
+        <h2 id="settings-preferences-heading" className="text-lg font-semibold">
           {resolveMessage(
             appLocale,
-            "pages.workspace.settingsHub.sessions.webSession",
+            "pages.workspace.settingsHub.general.preferencesTitle",
           )}
-        </span>
-        {session.is_current ? (
-          <Badge className="h-6 rounded-md px-2 text-xs" variant="secondary">
+        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm">
             {resolveMessage(
               appLocale,
-              "pages.workspace.settingsHub.states.currentSession",
+              "pages.workspace.settingsHub.general.appearance",
             )}
-          </Badge>
-        ) : null}
-      </div>
-      <span className="truncate">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.sessions.unknownLocation",
-        )}
-      </span>
-      <span className="truncate">{formatDateTime(session.created_at)}</span>
-      <span className="truncate">{formatDateTime(session.updated_at)}</span>
-      <div className="flex size-12 items-center justify-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                aria-label={resolveMessage(
-                  appLocale,
-                  "pages.workspace.settingsHub.sessions.actionMenuLabel",
-                )}
-                className="size-8 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                disabled={!canRevoke || revokePending}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              />
-            }
-          >
-            <MoreHorizontalIcon aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => void onRevokeSession(session.id)}>
-                {resolveMessage(
-                  appLocale,
-                  "pages.workspace.settingsHub.actions.revoke",
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <Separator className="absolute bottom-0 left-0 w-full" />
-    </div>
+          </span>
+          <ThemePreferenceControl variant="compact" />
+        </div>
+        <Separator />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="text-sm" htmlFor="settings-language">
+            {resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.general.language",
+            )}
+          </label>
+          <SettingsLanguageSelect />
+        </div>
+        <Separator />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="text-sm" htmlFor="settings-chat-font">
+            {resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.general.chatFont",
+            )}
+          </label>
+          <ReadonlySelectValue
+            id="settings-chat-font"
+            className="w-43.5"
+            value={resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.general.chatFontInter",
+            )}
+          />
+        </div>
+      </section>
+      <Separator />
+      <section
+        className="space-y-5"
+        aria-labelledby="settings-notifications-heading"
+      >
+        <h2
+          id="settings-notifications-heading"
+          className="text-lg font-semibold"
+        >
+          {resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.general.notificationsTitle",
+          )}
+        </h2>
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-sm">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.general.assessmentCompletions",
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.general.assessmentCompletionsDescription",
+              )}
+            </p>
+          </div>
+          <Switch
+            checked
+            disabled
+            aria-label={resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.general.assessmentCompletions",
+            )}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-sm">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.general.remediationApprovals",
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.general.remediationApprovalsDescription",
+              )}
+            </p>
+          </div>
+          <Switch
+            checked
+            disabled
+            aria-label={resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.general.remediationApprovals",
+            )}
+          />
+        </div>
+      </section>
+    </section>
   );
 }
 
@@ -791,19 +602,19 @@ function SettingsLanguageSelect() {
             data-component="SettingsLanguageSelectTrigger"
           >
             <span className="min-w-0 truncate">{selectedLanguageLabel}</span>
-            <ChevronDownIcon
-              aria-hidden="true"
-              className="size-3.5 shrink-0"
-            />
+            <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0" />
           </button>
         }
       />
       <DropdownMenuContent
         align="end"
-        className="w-65 rounded-xl border-border bg-popover p-[7px] shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+        className="w-65 rounded-xl border-border bg-popover p-1.75 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
         data-component="SettingsLanguageSelectContent"
       >
-        <DropdownMenuRadioGroup value={locale} onValueChange={handleLocaleChange}>
+        <DropdownMenuRadioGroup
+          value={locale}
+          onValueChange={handleLocaleChange}
+        >
           {LOCALES.map((option) => {
             const selected = option === locale;
             return (
@@ -916,7 +727,10 @@ function CapabilitiesSettingsPanel() {
   return (
     <SettingsPanelCanvas dataComponent="CapabilitiesSettingsPanel">
       <SettingsSectionHeading top="top-10">
-        {resolveMessage(appLocale, "pages.workspace.settingsHub.sections.general")}
+        {resolveMessage(
+          appLocale,
+          "pages.workspace.settingsHub.sections.general",
+        )}
       </SettingsSectionHeading>
       <SettingsControlRow className="top-18">
         <div className="flex flex-col gap-1">
@@ -1010,7 +824,10 @@ function CapabilitiesSettingsPanel() {
           </span>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-[13px] font-medium" htmlFor="settings-domain-input">
+          <label
+            className="text-[13px] font-medium"
+            htmlFor="settings-domain-input"
+          >
             {resolveMessage(
               appLocale,
               "pages.workspace.settingsHub.capabilities.additionalAllowedDomains",

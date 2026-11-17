@@ -238,6 +238,7 @@ const {
   stop,
   seedLegalSource,
   activateLegalSource,
+  startPreparationFixture,
   databaseUrl,
   checkpointDatabaseUrl,
   admission,
@@ -343,7 +344,7 @@ try {
       }),
     );
     // The activation event (delivered to the real consumer) starts the one automatic run.
-    const started = await activateLegalSource(legalSourceId);
+    const started = await startPreparationFixture(legalSourceId);
     eq(started.runs.length, 1, "one Legal Source -> one automatic preparation");
     const result = await runPython(
       path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),

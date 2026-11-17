@@ -2462,6 +2462,35 @@
         "translator": "Codex session-authored schema translation; independent bundle review remains pending",
         "translationRevision": "r4"
       }
+    },
+    {
+      "sourceId": "preparation.selected",
+      "runtimeRole": "rule-set-preparation",
+      "instructionKind": "PHASE",
+      "vietnameseSourcePath": "instructions/vi/preparation-selected.md",
+      "vietnameseSourceRevision": "lcsp-369-development-r1",
+      "runtimeEntryId": "preparation.selected",
+      "required": true,
+      "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
+      "englishCandidatePath": "instructions/candidates/r1/preparation.selected.txt",
+      "migrationReferences": [
+        "rule_set_preparation/selected_rule.py"
+      ],
+      "placeholderSchema": {},
+      "consumers": [
+        {
+          "filePath": "rule_set_preparation/selected_rule.py",
+          "symbolName": "run_selected_rule_preparation",
+          "integrationStatus": "DEVELOPMENT_RUNTIME"
+        }
+      ],
+      "sourceSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
+      "englishCandidateSha256": "4ec5ce3abb9dcb8736ec7e6f9ca8e87dd10644eff15609a6fcf211523f810d78",
+      "candidateOriginSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
+      "translationProvenance": {
+        "translator": "LCSP-369 development instruction; no independent approval claimed",
+        "translationRevision": "r1"
+      }
     }
   ],
   "constructionSites": [
@@ -9777,6 +9806,45 @@
       "placeholderSchema": {},
       "migrationStatus": "NON_MODEL_FACING",
       "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
+    },
+    {
+      "siteId": "ast:rule_set_preparation/selected_rule.py::run_selected_rule_preparation::KEYWORD_SYSTEM_PROMPT::66:d5c4a78da5ba5282",
+      "filePath": "rule_set_preparation/selected_rule.py",
+      "lineNumber": 66,
+      "symbolName": "run_selected_rule_preparation",
+      "constructionSha256": "d5c4a78da5ba52821d29d3ab2805594aec33e8367ed8fa4ffe09c9872ef46c75",
+      "evidence": "content",
+      "astKind": "KEYWORD_SYSTEM_PROMPT",
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation",
+      "runtimeRole": "rule-set-preparation",
+      "runtimePhase": "PREPARATION",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "preparation.selected",
+      "existingSourcePath": "rule_set_preparation/selected_rule.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "LCSP-369 selected runtime loads a fresh, context-pinned development instruction and records exact content/hash; no approval status is asserted."
+    },
+    {
+      "siteId": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation::34e87281b06ae047::1",
+      "filePath": "rule_set_preparation/selected_rule.py",
+      "lineNumber": 66,
+      "symbolName": "run_selected_rule_preparation",
+      "constructionSha256": "34e87281b06ae04756ccb127f7a7826bc2f9d98894dfa5f25a6e80978cb7edb8",
+      "evidence": "tools=[], system_prompt=content,",
+      "constructionType": "MAINTAINED_SYSTEM_INSTRUCTION",
+      "modelFacingConsumer": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation",
+      "runtimeRole": "rule-set-preparation",
+      "runtimePhase": "PREPARATION",
+      "contentAuthority": "LCSP_MAINTAINED",
+      "migrationDecision": "SHARED_SOURCE_CONSUMER",
+      "viSourceId": "preparation.selected",
+      "existingSourcePath": "rule_set_preparation/selected_rule.py",
+      "placeholderSchema": {},
+      "migrationStatus": "SHARED_SOURCE_CONSUMER",
+      "dispositionEvidence": "LCSP-369 selected runtime loads a fresh, context-pinned development instruction and records exact content/hash; no approval status is asserted."
     }
   ],
   "requiredSourceIds": [
@@ -9841,15 +9909,16 @@
     "skill.rule-preparation-material-context",
     "skill.rule-preparation-mixed-claims",
     "skill.rule-preparation-scope-quality",
-    "tools.schema-guidance"
+    "tools.schema-guidance",
+    "preparation.selected"
   ],
   "frameworkInstructions": [
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "TASK_TOOL_DESCRIPTION",
-      "lineNumber": 430,
+      "lineNumber": 536,
       "expressionSha256": "e1cfee5ace5d783a4acd577f07417d111c3c76d1dce56b164f5a15c6980b62e1",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "ApprovedInstructionMiddleware -> approved_tool_specs(tool.task)",
@@ -9860,14 +9929,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "DEFAULT_SUBAGENT_PROMPT",
-      "lineNumber": 387,
+      "lineNumber": 442,
       "expressionSha256": "17db5bc893817d76d61a20bd2a79f719b58308bcfd89e33ec01e75c33292e87c",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Explicit subagent system_prompt; disable general-purpose profile",
@@ -9884,10 +9953,10 @@
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "_FORK_TASK_PREAMBLE",
-      "lineNumber": 358,
+      "lineNumber": 407,
       "expressionSha256": "f00008c4379840e031d4b9a565b47234ddfdf7009f9c38e746fd6c5ed8566e17",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Disable fork mode until a controlled adapter exists",
@@ -9904,11 +9973,11 @@
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "TaskToolSchema",
-      "lineNumber": 417,
-      "expressionSha256": "6e7d262d87e1350835d2a9082a57fe9c1e6f1bf1d52c252c93112dea0070a23a",
+      "lineNumber": 498,
+      "expressionSha256": "da47e67c56aa2e5253ffa57f8a6eb741184543aa7f6553bb7b07cf4720de6085",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs recursively resolves schema guidance and removes unapproved annotation examples",
       "controlStatus": "CONTROLLED",
@@ -9918,14 +9987,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/summarization.py",
       "symbolName": "DEEPAGENTS_DEFAULT_SUMMARY_PROMPT",
-      "lineNumber": 113,
+      "lineNumber": 122,
       "expressionSha256": "dcf6db72a165c31a4942a9a31401583c73f4740c3a4b73d0df1d518faf4dcbc4",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "create_summarization_middleware(summary_prompt=resolved_entry)",
@@ -9941,10 +10010,10 @@
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/summarization.py",
       "symbolName": "_MEDIA_REFERENCE_SUMMARY_PROMPT",
-      "lineNumber": 100,
+      "lineNumber": 109,
       "expressionSha256": "90f58656b6c7338971974c38a0cc5914220f962858c9223b836e0e39fa2789a9",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Include media-reference semantics in resolved summary_prompt",
@@ -9960,11 +10029,11 @@
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "FilesystemMiddleware",
-      "lineNumber": 1720,
-      "expressionSha256": "ffd1d4aa12a9c43cf53c69e1f6def5eabf374c2b1d6a576fb2cfeadd966a2294",
+      "lineNumber": 1903,
+      "expressionSha256": "26b9d38c349646df565c2ec76d91f14069f1d9d475f2d49936c38ad3ebf0bb0d",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "ApprovedInstructionMiddleware projects system/tool/schema instructions; native execution permissions remain intact",
       "controlStatus": "CONTROLLED",
@@ -9974,14 +10043,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "LIST_FILES_TOOL_DESCRIPTION",
-      "lineNumber": 1387,
+      "lineNumber": 1569,
       "expressionSha256": "c6680fd85258fcb338aa9a750d2f5687ec2cbdb4c8241bef05505b10a14f455a",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.ls)",
@@ -9992,14 +10061,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "_READ_FILE_TOOL_DESCRIPTION_TEMPLATE",
-      "lineNumber": 1392,
+      "lineNumber": 1574,
       "expressionSha256": "1e6ff6f06d4e5f0514e2559e6bd19564438c733c0d1f1ef76cee4f1e710e64e7",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.read_file)",
@@ -10010,14 +10079,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "EDIT_FILE_TOOL_DESCRIPTION",
-      "lineNumber": 1426,
+      "lineNumber": 1608,
       "expressionSha256": "c18ea88981b0ea4d9850268f887cdb315e25ac2d0a9fd0482dd5c21277f3bad2",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.edit_file)",
@@ -10028,14 +10097,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "WRITE_FILE_TOOL_DESCRIPTION",
-      "lineNumber": 1435,
+      "lineNumber": 1617,
       "expressionSha256": "176cf9cb1ce4562b05cf71ee452bc5de8f17feaef460e01a787e1a1bcdb7d359",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.write_file)",
@@ -10046,14 +10115,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "GLOB_TOOL_DESCRIPTION",
-      "lineNumber": 1451,
+      "lineNumber": 1633,
       "expressionSha256": "b9d22aaedee0bcd07de980f102e83d44916b38b507eced9b10e86c3a6f9bae55",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.glob)",
@@ -10064,14 +10133,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "_GREP_TOOL_DESCRIPTION_TEMPLATE",
-      "lineNumber": 1463,
+      "lineNumber": 1645,
       "expressionSha256": "4d4ee17e0a68cdff0bd14a0ba9a84afe268b80aa926731d0605214f4cf53a8a1",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.grep)",
@@ -10082,17 +10151,17 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "deepagents",
-      "version": "0.7.17",
+      "version": "0.7.38",
       "filePath": "deepagents/graph.py",
       "symbolName": "create_deep_agent",
-      "lineNumber": 271,
-      "expressionSha256": "e7159ced9c49539a39d93e320a745b7591213842846d6e53f1c7693c5773b292",
+      "lineNumber": 296,
+      "expressionSha256": "a425a21bb56236ffe032d77bd06ef81222deaa1bbe23fc42488ab5499463e284",
       "viSourceId": "framework.injected-policy",
-      "overridePlan": "Final approved request overrides profile additions; uncontrolled extra/excluded middleware is rejected; transport supervisor cannot infer",
+      "overridePlan": "ApprovedInstructionMiddleware projects system/tool/schema guidance after core middleware; profile extras and protected exclusions are rejected; post-guard compatibility/refusal middleware is separately controlled; transport supervisor cannot infer",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
@@ -10104,11 +10173,49 @@
         "agent.py": "574d5e1cfc1ed9963fab056a51adf746519a69f77793be67186e27a9780f2b12",
         "middleware/system_event_dispatch.py": "73948536f61e1e98f5e30d8879b80e72014fbf7ad7c5fda91c4b606271512814"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+    },
+    {
+      "package": "deepagents",
+      "version": "0.7.38",
+      "filePath": "deepagents/middleware/unsupported_content.py",
+      "symbolName": "UnsupportedContentMiddleware",
+      "lineNumber": 117,
+      "expressionSha256": "b77188d420aff341a8aad4163024beb7c49119074276783c0e447c3d91d4c57b",
+      "viSourceId": "framework.injected-policy",
+      "overridePlan": "Post-guard compatibility filter replaces unsupported HumanMessage/ToolMessage blocks only; system messages and approved tool specs remain unchanged",
+      "controlStatus": "CONTROLLED",
+      "reachesModel": true,
+      "controlMode": "POST_GUARD_CONTENT_COMPATIBILITY",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "tests/test_instruction_framework_controls.py": "0b17ea27ba7086925793f67e973b67c6f0c4217eb69710df36d6671818d8a33e"
+      },
+      "activationEvidence": "The post-guard compatibility filter only replaces unsupported HumanMessage/ToolMessage content blocks; SystemMessage and tool specifications are untouched, as asserted by the adapter regression test."
     },
     {
       "package": "langchain",
-      "version": "1.4.2",
+      "version": "1.5.0",
+      "filePath": "langchain/agents/middleware/model_refusal.py",
+      "symbolName": "ModelRefusalMiddleware",
+      "lineNumber": 39,
+      "expressionSha256": "e3f2fcc4df13f5f099a750d1478261ac23b4880f4b43cfd21b36ac44c0b0a9df",
+      "viSourceId": "framework.injected-policy",
+      "overridePlan": "Response-only refusal validation; request, system prompt and approved tool metadata remain unchanged",
+      "controlStatus": "CONTROLLED",
+      "reachesModel": true,
+      "controlMode": "RESPONSE_REFUSAL_CHECK",
+      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
+      "adapterSourceSha256": {
+        "middleware/approved_instructions.py": "8bf428311135fc8a4f8047fbac5db631bb024b4d8eecbe31829d60393a8fe244",
+        "tests/test_instruction_framework_controls.py": "0b17ea27ba7086925793f67e973b67c6f0c4217eb69710df36d6671818d8a33e"
+      },
+      "activationEvidence": "The refusal tail inspects the model response only and passes the original model request unchanged, as asserted by the adapter regression test."
+    },
+    {
+      "package": "langchain",
+      "version": "1.5.0",
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "WRITE_TODOS_SYSTEM_PROMPT",
       "lineNumber": 119,
@@ -10122,11 +10229,11 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
-      "version": "1.4.2",
+      "version": "1.5.0",
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "WRITE_TODOS_TOOL_DESCRIPTION",
       "lineNumber": 52,
@@ -10140,11 +10247,11 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
-      "version": "1.4.2",
+      "version": "1.5.0",
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "TodoListMiddleware",
       "lineNumber": 174,
@@ -10158,14 +10265,14 @@
       "adapterSourceSha256": {
         "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
       },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final model boundary: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
     },
     {
       "package": "langchain",
-      "version": "1.4.2",
+      "version": "1.5.0",
       "filePath": "langchain/agents/middleware/summarization.py",
       "symbolName": "DEFAULT_SUMMARY_PROMPT",
-      "lineNumber": 40,
+      "lineNumber": 55,
       "expressionSha256": "38272908033c56c439a715567bac6f0e0ee5772094b10e662b3d0edc2cc8ede6",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "summary_prompt preserving messages marker and data placeholder",
@@ -10181,7 +10288,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.4.2",
+      "version": "1.5.0",
       "filePath": "langchain/agents/middleware/model_call_limit.py",
       "symbolName": "ModelCallLimitMiddleware",
       "lineNumber": 94,

@@ -352,7 +352,7 @@ export const assessmentRuleSchema = z
   .strict();
 export type AssessmentRuleInput = z.infer<typeof assessmentRuleSchema>;
 
-const assessmentRuleAuthoringSchema = assessmentRuleSchema.extend({
+export const assessmentRuleAuthoringSchema = assessmentRuleSchema.extend({
   legalIntent: z
     .string()
     .trim()

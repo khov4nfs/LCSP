@@ -363,9 +363,10 @@ export async function startStack({
    * Delivers `times` Legal Source activation events for `legalSourceId` to the real consumer (see
    * deliver-legal-source-activation.mjs) and returns that source's Rule Set Preparation runs.
    */
-  async function activateLegalSource(
+  async function deliverSourceFixture(
     legalSourceId,
     { times = 1, concurrent = false } = {},
+    startHistoricalPreparation = false,
   ) {
     const events = Array.from({ length: times }, () => ({
       legalSourceVersionId: legalSourceId,
@@ -375,7 +376,7 @@ export async function startStack({
       "node",
       [
         path.join(root, "tests/support/deliver-legal-source-activation.mjs"),
-        JSON.stringify({ events, concurrent }),
+        JSON.stringify({ events, concurrent, startHistoricalPreparation }),
       ],
       {
         cwd: root,
@@ -400,6 +401,10 @@ export async function startStack({
     ).rows;
     return { ...result, runs, preparationRunId: runs[0]?.id ?? null };
   }
+
+  // Activation is observational; only explicitly named historical fixtures start source-wide runs.
+  const activateLegalSource = (id, options) => deliverSourceFixture(id, options, false);
+  const startPreparationFixture = (id, options) => deliverSourceFixture(id, options, true);
 
   /** Copy a read-only corpus export into this disposable DB; activation still uses the real Admin API. */
   async function seedLegalDocuments(corpus) {
@@ -517,6 +522,7 @@ export async function startStack({
     seedLegalSource,
     seedLegalDocuments,
     activateLegalSource,
+    startPreparationFixture,
     materializeLegalSource,
     databaseUrl,
     checkpointDatabaseUrl,

@@ -25,6 +25,11 @@ const config: Config = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   collectCoverageFrom: ["src/**/*.(t|j)s"],
+  // Native coverage avoids retaining Babel instrumentation for the full API
+  // in the single process used by the database-backed CI coverage run.
+  coverageProvider: "v8",
+  // CI consumes LCOV; skip the HTML tree and per-file console table.
+  coverageReporters: ["text-summary", "lcovonly", "json"],
   coverageDirectory: "../coverage",
   maxWorkers: 1,
   workerIdleMemoryLimit: "768MB",

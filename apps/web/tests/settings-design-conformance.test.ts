@@ -28,14 +28,15 @@ test("modal shell preserves Figma desktop geometry", async () => {
   assert.match(tab, /text-\[13px\]/);
 });
 
-test("General settings panel uses compact Figma rows, not legacy cards", async () => {
+test("General settings composes the profile form with responsive preferences", async () => {
   const [settings, theme] = await Promise.all([
     read("../src/features/settings/components/organisms/settings-page.tsx"),
     read("../src/components/molecules/theme-preference-control.tsx"),
   ]);
 
-  assert.match(settings, /dataComponent="GeneralSettingsPanel"/);
-  assert.match(settings, /id="settings-full-name"[\s\S]*?className="h-9 w-51/);
+  assert.match(settings, /data-component="GeneralSettingsPanel"/);
+  assert.match(settings, /ProfileSettingsSection onReauthenticate/);
+  assert.match(settings, /overflow-y-auto px-4 py-8 md:px-8/);
   assert.match(settings, /ThemePreferenceControl variant="compact"/);
   assert.match(theme, /data-component="CompactThemePreferenceControl"/);
   assert.match(theme, /h-9\.5 w-30/);
@@ -50,12 +51,15 @@ test("General settings panel wires language to the shared EN VI locale preferenc
 
   assert.match(settings, /data-locale={settingsLocale}/);
   assert.match(settings, /SettingsLanguageSelect/);
-  assert.match(settings, /DropdownMenuRadioGroup value={locale}/);
+  assert.match(settings, /DropdownMenuRadioGroup\s+value={locale}/);
   assert.match(settings, /onValueChange={handleLocaleChange}/);
   assert.match(settings, /LOCALES\.map/);
   assert.match(settings, /languageEnglish/);
   assert.match(settings, /languageVietnamese/);
-  assert.doesNotMatch(settings, /ReadonlySelectValue\s*[\r\n]+\s*id="settings-language"/);
+  assert.doesNotMatch(
+    settings,
+    /ReadonlySelectValue\s*[\r\n]+\s*id="settings-language"/,
+  );
   assert.doesNotMatch(settings, /<Select value={locale}/);
   assert.doesNotMatch(settings, /<SelectValue/);
   assert.doesNotMatch(settings, />\{locale\}</);
@@ -88,33 +92,39 @@ test("Settings language select matches Figma trigger and option selected state",
   assert.match(settings, /data-component="SettingsLanguageSelectContent"/);
   assert.match(settings, /w-65/);
   assert.match(settings, /rounded-xl/);
-  assert.match(settings, /p-\[7px\]/);
+  assert.match(settings, /p-1\.75/);
   assert.match(settings, /shadow-\[0_8px_18px_rgba\(0,0,0,0\.35\)\]/);
   assert.match(settings, /data-component="SettingsLanguageSelectOption"/);
   assert.match(settings, /h-9\.5 w-61/);
   assert.match(settings, /data-selected={selected \? "true" : undefined}/);
-  assert.match(settings, /selected && "bg-accent font-medium text-accent-foreground"/);
+  assert.match(
+    settings,
+    /selected && "bg-accent font-medium text-accent-foreground"/,
+  );
   assert.doesNotMatch(
     settings,
     /Japanese|Korean|Chinese \(Simplified\)|French|German/,
   );
 });
 
-test("Account tab hides legacy account presentation and renders compact sessions", async () => {
-  const settings = await read(
-    "../src/features/settings/components/organisms/settings-page.tsx",
-  );
-
-  assert.match(settings, /dataComponent="AccountSettingsPanel"/);
-  assert.match(settings, /logOutAllDevicesTitle/);
-  assert.match(settings, /trustedDevicesDescription/);
-  assert.match(settings, /data-component="CompactSessionRow"/);
-  assert.match(settings, /group-hover:opacity-100/);
-  assert.match(settings, /DropdownMenuTrigger/);
-  assert.doesNotMatch(settings, /<AccountSettingsSection/);
-  assert.doesNotMatch(settings, /<EmailSettingsSection/);
-  assert.doesNotMatch(settings, /<PasswordAuthenticationSettingsSection/);
-  assert.doesNotMatch(settings, /<SessionsSettingsSection/);
+test("Account settings composes a responsive, actionable session section", async () => {
+  const [settings, sessions, row] = await Promise.all([
+    read("../src/features/settings/components/organisms/settings-page.tsx"),
+    read(
+      "../src/features/settings/components/organisms/session-settings-section.tsx",
+    ),
+    read(
+      "../src/features/settings/components/molecules/session-settings-row.tsx",
+    ),
+  ]);
+  assert.match(settings, /SessionSettingsSection/);
+  assert.match(sessions, /data-component="AccountSettingsPanel"/);
+  assert.match(sessions, /logoutAllDescription/);
+  assert.match(sessions, /query.isPending/);
+  assert.match(sessions, /query.isError/);
+  assert.match(sessions, /query.refetch/);
+  assert.match(row, /sm:flex-row/);
+  assert.doesNotMatch(sessions, /trustedDevicesDescription/);
 });
 
 test("Connectors tab matches provider-list structure without inline repository form", async () => {

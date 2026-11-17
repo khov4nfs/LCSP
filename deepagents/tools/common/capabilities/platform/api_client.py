@@ -78,6 +78,51 @@ class WorkerApiClient:
         from tools.common.capabilities.platform.rbac_client import RbacClient
         self.rbac_client = RbacClient(self._base_url, self._api_key)
 
+    def claim_selected_rule_preparation(self, run_id: str) -> dict:
+        """Business purpose: Claim one selected Preparation revision before paid execution.
+
+        Business rules:
+
+        - API ownership/state and pinned-source validation are authoritative; duplicate claims must not invoke a model.
+        Execution flow:
+        1. POST the exact run identity through the existing retrying authenticated adapter.
+        Failure cases:
+        - Permanent claim conflicts propagate without paid work.
+        Side effects:
+        - Claims one API-owned run; no model call occurs here.
+        """
+        return self._post_with_retry("/internal/legal-rule-preparation/claim", {"preparationRunId": run_id}, redact=False)
+
+    def record_selected_rule_instructions(self, run_id: str, receipt: dict) -> dict:
+        """Business purpose: Persist the exact instruction snapshot before selected-rule inference.
+
+        Business rules:
+
+        - The API validates the byte fingerprint and permits only an identical receipt replay.
+        Execution flow:
+        1. Send the server-issued run identity and exact instruction receipt.
+        Failure cases:
+        - State drift or conflicting instructions stops execution through WorkerCallbackError.
+        Side effects:
+        - Persists this result revision's instruction provenance; no provider call.
+        """
+        return self._post_with_retry("/internal/legal-rule-preparation/instructions", {"preparationRunId": run_id, "receipt": receipt}, redact=False)
+
+    def complete_selected_rule_preparation(self, run_id: str, state: str, output: dict | None, failure_code: str | None) -> dict:
+        """Business purpose: Settle one selected rule result independently from the rest of its batch.
+
+        Business rules:
+
+        - Preserve exact legal output for API validation; this shared adapter retries transport, never model work.
+        Execution flow:
+        1. Submit the outcome, output and safe failure code through the existing callback adapter.
+        Failure cases:
+        - Invalid provenance, stale state or conflicting callback replays reject.
+        Side effects:
+        - Persists one result and run outcome through the authoritative API.
+        """
+        return self._post_with_retry("/internal/legal-rule-preparation/complete", {"preparationRunId": run_id, "executionState": state, "output": output, "failureCode": failure_code}, redact=False)
+
     def _post_with_retry(
         self, path: str, payload: dict, *, redact: bool = True, method: str = "POST"
     ) -> dict:

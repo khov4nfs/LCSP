@@ -1,6 +1,7 @@
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
+import { API_OUTCOME_KINDS } from "../src/lib/api/outcome-kinds.ts";
 
 import {
   toConfirmRecoveryOutcome,
@@ -32,7 +33,10 @@ function problem(code: string, status: number) {
 
 test("sign-in routes required MFA without enrollment to the setup flow", () => {
   assert.deepEqual(
-    toSignInOutcome({ ok: true, mfa_required: true, mfa_enrolled: false }, true),
+    toSignInOutcome(
+      { ok: true, mfa_required: true, mfa_enrolled: false },
+      true,
+    ),
     { kind: "mfa_enrollment_required" },
   );
 });
@@ -69,7 +73,10 @@ test("sign-in shows a generic request failure for server errors", () => {
 
 test("MFA enrollment success returns the provisioning URI", () => {
   assert.deepEqual(
-    toEnrollMfaOutcome({ ok: true, totp_uri: "otpauth://totp/LCSP:test" }, true),
+    toEnrollMfaOutcome(
+      { ok: true, totp_uri: "otpauth://totp/LCSP:test" },
+      true,
+    ),
     { kind: "loaded", totpUri: "otpauth://totp/LCSP:test", recoveryCodes: [] },
   );
 });
@@ -121,19 +128,51 @@ test("recovery request treats safe success as a generic requested outcome", () =
 
 test("recovery confirm maps invalid tokens to a safe invalid outcome", () => {
   assert.deepEqual(
-    toConfirmRecoveryOutcome(problem(AUTH_ERROR_CODES.recoveryInvalid, 400), false),
+    toConfirmRecoveryOutcome(
+      problem(AUTH_ERROR_CODES.recoveryInvalid, 400),
+      false,
+    ),
     { kind: "invalid" },
   );
 });
 
 test("profile update maps validation failures to field-safe outcomes", () => {
   assert.deepEqual(
-    toUpdateProfileOutcome(problem(AUTH_ERROR_CODES.validationFailed, 400), false),
+    toUpdateProfileOutcome(
+      problem(AUTH_ERROR_CODES.validationFailed, 400),
+      false,
+    ),
     {
       kind: "validation_error",
       titleKey: "auth.errors.validationFailed.title",
       detailKey: "auth.errors.validationFailed.detail",
     },
+  );
+});
+
+test("profile saves preserve backend authentication challenges instead of reporting success", () => {
+  for (const [code, kind] of [
+    [AUTH_ERROR_CODES.reauthRequired, API_OUTCOME_KINDS.reauthRequired],
+    [AUTH_ERROR_CODES.mfaRequired, API_OUTCOME_KINDS.mfaRequired],
+    [AUTH_ERROR_CODES.sessionInvalid, API_OUTCOME_KINDS.sessionInvalid],
+  ] as const) {
+    assert.deepEqual(toUpdateProfileOutcome(problem(code, 403), false), {
+      kind,
+    });
+  }
+  const failure = problem(AUTH_ERROR_CODES.rbacDenied, 403);
+  assert.deepEqual(
+    toUpdateProfileOutcome(
+      {
+        ...failure,
+        problem: {
+          ...failure.problem,
+          requiredAction: REQUIRED_ACTIONS.reauthenticate,
+        },
+      },
+      false,
+    ),
+    { kind: API_OUTCOME_KINDS.reauthRequired },
   );
 });
 
@@ -148,9 +187,15 @@ test("password re-auth maps invalid credentials to a safe invalid outcome", () =
 });
 
 test("recovery request schema requires a valid work email", () => {
-  assert.equal(recoveryRequestSchema.safeParse({ email: "user@example.com" }).success, true);
+  assert.equal(
+    recoveryRequestSchema.safeParse({ email: "user@example.com" }).success,
+    true,
+  );
   assert.equal(recoveryRequestSchema.safeParse({ email: "" }).success, false);
-  assert.equal(recoveryRequestSchema.safeParse({ email: "not-an-email" }).success, false);
+  assert.equal(
+    recoveryRequestSchema.safeParse({ email: "not-an-email" }).success,
+    false,
+  );
 });
 
 test("recovery confirm schema requires token and a 12-char password", () => {
@@ -171,9 +216,13 @@ test("recovery confirm schema requires token and a 12-char password", () => {
 });
 
 test("profile safety schema accepts blank recovery email and valid addresses only", () => {
-  assert.equal(profileSafetySchema.safeParse({ recovery_email: "" }).success, true);
   assert.equal(
-    profileSafetySchema.safeParse({ recovery_email: "ops@example.com" }).success,
+    profileSafetySchema.safeParse({ recovery_email: "" }).success,
+    true,
+  );
+  assert.equal(
+    profileSafetySchema.safeParse({ recovery_email: "ops@example.com" })
+      .success,
     true,
   );
   assert.equal(

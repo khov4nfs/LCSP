@@ -65,7 +65,7 @@ import { LegalSourceActivatedConsumer } from "../../infrastructure/messaging/leg
 
 /**
  * Real PostgreSQL proof of the shared Compliance Rule Set lifecycle:
- * Legal Source Version -> automatic Rule Set Preparation -> shared immutable rule set that many
+ * Legal Source Version -> explicit historical Preparation fixture -> shared immutable rule set that many
  * assessments pin. Rows are namespaced per run; the immutable tables are never cleaned.
  */
 const databaseUrl = process.env.DATABASE_URL ?? "";
@@ -124,10 +124,7 @@ describeDatabase(
         },
       };
       retry = new RetryRuleSetPreparationHandler(service, commandBus as never);
-      consumer = new LegalSourceActivatedConsumer(
-        {} as RabbitMqClient,
-        commandBus as never,
-      );
+      consumer = new LegalSourceActivatedConsumer({} as RabbitMqClient);
     }, 30_000);
 
     afterAll(async () => {
@@ -224,9 +221,21 @@ describeDatabase(
           randomUUID(),
         ),
       );
+    // Historical source-wide fixtures explicitly start their own legacy runs; activation itself must never dispatch preparation.
+    const startHistoricalFixture = (sourceId: string) =>
+      start.execute(
+        new StartRuleSetPreparationCommand(
+          {
+            legalSourceVersionId: sourceId,
+            idempotencyKey: ruleSetPreparationIdempotencyKey(sourceId),
+          },
+          RULE_SET_PREPARATION_SYSTEM_ACTOR,
+          randomUUID(),
+        ),
+      );
     const activate = async (changed = false) => {
       const source = await createLegalSource(changed);
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
       const result = await submitPacket(run.id);
@@ -251,36 +260,28 @@ describeDatabase(
       if (reason) expect(problem.meta?.reason).toBe(reason);
     }
 
-    it("a Legal Source activation starts exactly one system-owned Rule Set Preparation", async () => {
+    it("a Legal Source activation exposes readiness without implicit preparation", async () => {
       const source = await createLegalSource();
       await consumer.handle(activation(source.id));
-
-      const runs = await runsOf(source.id);
-      expect(runs).toHaveLength(1);
-      expect(runs[0]).toMatchObject({
-        executionState: "QUEUED",
-        requestedBy: RULE_SET_PREPARATION_SYSTEM_ACTOR,
-        idempotencyKey: ruleSetPreparationIdempotencyKey(source.id),
-      });
-      expect(await commandsFor(source.id)).toBe(1);
+      expect(await runsOf(source.id)).toHaveLength(0);
+      expect(await commandsFor(source.id)).toBe(0);
     });
 
-    it("a replayed activation event creates no second run and no second paid command", async () => {
+    it("replayed activation never creates runs or paid commands", async () => {
       const source = await createLegalSource();
-      for (let delivery = 0; delivery < 3; delivery += 1) {
+      for (let delivery = 0; delivery < 3; delivery += 1)
         await consumer.handle(activation(source.id));
-      }
-      expect(await runsOf(source.id)).toHaveLength(1);
-      expect(await commandsFor(source.id)).toBe(1);
+      expect(await runsOf(source.id)).toHaveLength(0);
+      expect(await commandsFor(source.id)).toBe(0);
     });
 
-    it("concurrent deliveries of one activation still yield one logical preparation", async () => {
+    it("concurrent activations never implicitly prepare the source", async () => {
       const source = await createLegalSource();
       await Promise.all(
         Array.from({ length: 8 }, () => consumer.handle(activation(source.id))),
       );
-      expect(await runsOf(source.id)).toHaveLength(1);
-      expect(await commandsFor(source.id)).toBe(1);
+      expect(await runsOf(source.id)).toHaveLength(0);
+      expect(await commandsFor(source.id)).toBe(0);
     });
 
     it("never prepares a superseded, unknown or malformed source and never retries the poison event", async () => {
@@ -292,13 +293,13 @@ describeDatabase(
       await consumer.handle({});
       expect(await runsOf(superseded.id)).toHaveLength(0);
       expect(await commandsFor(superseded.id)).toBe(0);
-      // Only the well-formed events reached the CommandBus; the malformed ones stopped at the adapter.
-      expect(startCommands - before).toBe(2);
+      // Source notifications have no preparation command authority.
+      expect(startCommands - before).toBe(0);
     });
 
     it("a duplicated preparation command cannot claim a run twice, so one run never bills two models", async () => {
       const source = await createLegalSource();
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [run] = await runsOf(source.id);
 
       await expect(claimRun(run.id)).resolves.toMatchObject({
@@ -414,14 +415,14 @@ describeDatabase(
     it("a failed preparation never replaces the current ACTIVE rule set", async () => {
       const current = await activate();
       const source = await createLegalSource(true);
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
       await failRun(run.id);
 
       // A submission that fails mechanical validation is recorded INVALID, never authoritative.
       const invalidSource = await createLegalSource(true);
-      await consumer.handle(activation(invalidSource.id));
+      await startHistoricalFixture(invalidSource.id);
       const [invalidRun] = await runsOf(invalidSource.id);
       await claimRun(invalidRun.id);
       const broken = validPacket();
@@ -447,7 +448,7 @@ describeDatabase(
     it("an operator can retry only the latest failed run and can continue beyond ten attempts", async () => {
       const source = await createLegalSource();
       await makeEligibleSource(source);
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [first] = await runsOf(source.id);
 
       await expectRefusal(
@@ -517,7 +518,7 @@ describeDatabase(
 
     it("refuses to retry a run whose Legal Source Version is no longer the ACTIVE one", async () => {
       const source = await createLegalSource();
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
       await failRun(run.id);
@@ -535,7 +536,7 @@ describeDatabase(
     it("a failed replacement stays retryable while the previous rule set is ACTIVE, which it leaves untouched", async () => {
       const source = await createLegalSource();
       await makeEligibleSource(source);
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [first] = await runsOf(source.id);
       await claimRun(first.id);
       await submitPacket(first.id);
@@ -579,7 +580,7 @@ describeDatabase(
     it("the operations history exposes version, counts, digest, failures and retryability", async () => {
       const source = await createLegalSource();
       await makeEligibleSource(source);
-      await consumer.handle(activation(source.id));
+      await startHistoricalFixture(source.id);
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
       await failRun(run.id);

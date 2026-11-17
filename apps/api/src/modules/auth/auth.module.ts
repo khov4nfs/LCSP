@@ -1,3 +1,4 @@
+import { SessionManagementService } from "./application/services/auth/session-management.service.ts";
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
@@ -31,6 +32,7 @@ import { AUTH_CONTROLLERS } from "./presentation/http/index.ts";
   providers: [
     ...AUTH_PERSISTENCE_PROVIDERS,
     AuthSupportService,
+    SessionManagementService,
     {
       provide: AUTH_RECOVERY_NOTIFIER,
       useClass: RecoveryEmailNotifierService,

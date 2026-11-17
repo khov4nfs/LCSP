@@ -84,7 +84,7 @@ const {
   post,
   stop,
   seedLegalSource,
-  activateLegalSource,
+  startPreparationFixture,
   databaseUrl,
 } = stack;
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
@@ -164,7 +164,7 @@ try {
       sourceBytes: Buffer.from(fixture.sourceBytesBase64, "base64"),
       sourceSha256: fixture.sourceSha256,
     });
-    const prep = await activateLegalSource(legalSource);
+    const prep = await startPreparationFixture(legalSource);
     assert.equal(
       prep.runs.length,
       1,
