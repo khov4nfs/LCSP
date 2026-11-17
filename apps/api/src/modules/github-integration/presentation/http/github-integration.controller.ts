@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Inject,
   Optional,
   Get,
@@ -13,7 +14,10 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
+import {
+  CREDENTIAL_PROVIDERS,
+  PROVIDER_CREDENTIAL_STATUSES,
+} from "@lcsp/contracts/github-integration";
 
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
@@ -32,6 +36,7 @@ import { GitHubCredentialRequestGuard } from "./github-credential-request.guard.
 import { DiscoverGitHubRepositoriesCommand } from "../../application/commands/discover-github-repositories/discover-github-repositories.command.js";
 import { ConnectGitHubCliRepositoryCommand } from "../../application/commands/connect-github-cli-repository/connect-github-cli-repository.command.js";
 import { ConfigureProviderCredentialCommand } from "../../application/commands/configure-provider-credential/configure-provider-credential.command.js";
+import { DisconnectProviderCredentialCommand } from "../../application/commands/disconnect-provider-credential/disconnect-provider-credential.command.js";
 import { ProviderCredentialRequest } from "./dto/provider-credential.request.js";
 import { AssessmentRepositoryConnectionRequest } from "./dto/assessment-repository-connection.request.js";
 import { ConnectAssessmentRepositoryCommand } from "../../application/commands/connect-assessment-repository/connect-assessment-repository.command.js";
@@ -91,13 +96,15 @@ export class GitHubIntegrationController {
     return resultEnvelope(
       await Promise.all(
         providers.map(async (provider) => {
-          const metadata = await activeCredentials.findMetadata({
+          const metadata = await activeCredentials.findLifecycle({
             userId: context.userId,
             provider,
           });
           return {
             provider,
-            configured: metadata !== null,
+            configured:
+              metadata?.status === PROVIDER_CREDENTIAL_STATUSES.active,
+            status: metadata?.status ?? null,
             account: metadata
               ? {
                   id: metadata.providerAccountId,
@@ -198,6 +205,38 @@ export class GitHubIntegrationController {
           context.sessionId,
           body.provider,
           body.credential,
+          request.correlationId as string,
+        ),
+      ),
+    );
+  }
+
+  /**
+   * Guarded disconnect of the caller's own provider credential; requires recent reauthentication.
+   */
+  @Delete("provider-credentials/:provider")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  @ReAuthForSensitiveRoute({
+    routeId: SENSITIVE_ROUTE_IDS.providerCredentialDisconnect,
+    method: "DELETE",
+    pathTemplate: "/provider-credentials/:provider",
+    aliases: [
+      { method: "DELETE", pathTemplate: "/api/provider-credentials/:provider" },
+    ],
+  })
+  async disconnectProviderCredential(
+    @Param("provider") provider: string,
+    @Req() request: GitHubIntegrationRequest,
+  ) {
+    const context = request.rbacContext as RbacRequestContext;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new DisconnectProviderCredentialCommand(
+          context.userId,
+          context.role,
+          context.sessionId,
+          provider,
           request.correlationId as string,
         ),
       ),

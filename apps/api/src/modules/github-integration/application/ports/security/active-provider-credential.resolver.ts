@@ -1,4 +1,7 @@
-import type { CredentialProvider } from "@lcsp/contracts/github-integration";
+import type {
+  CredentialProvider,
+  ProviderCredentialStatus,
+} from "@lcsp/contracts/github-integration";
 import type { CredentialLease } from "../../security/credential-lease.js";
 
 export type ActiveProviderCredentialMetadata = {
@@ -8,6 +11,9 @@ export type ActiveProviderCredentialMetadata = {
   providerLogin: string;
   currentVersion: number;
 };
+
+export type ProviderCredentialLifecycleMetadata =
+  ActiveProviderCredentialMetadata & { status: ProviderCredentialStatus };
 
 export type ResolvedActiveProviderCredential = {
   metadata: ActiveProviderCredentialMetadata;
@@ -28,6 +34,11 @@ export interface ActiveProviderCredentialResolver {
     userId: string;
     provider: CredentialProvider;
   }): Promise<ActiveProviderCredentialMetadata | null>;
+  /** Finds the caller's current credential in any usable-or-failed state, never returning secrets. */
+  findLifecycle(input: {
+    userId: string;
+    provider: CredentialProvider;
+  }): Promise<ProviderCredentialLifecycleMetadata | null>;
   resolveLease(input: {
     userId: string;
     provider: CredentialProvider;

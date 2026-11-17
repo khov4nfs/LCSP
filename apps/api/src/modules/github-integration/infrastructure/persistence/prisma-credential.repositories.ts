@@ -162,6 +162,23 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
     return result.count === 1;
   }
 
+  async markRevoked(
+    id: string,
+    ownerUserId: string,
+    at: Date,
+  ): Promise<boolean> {
+    const result = await this.client.providerCredential.updateMany({
+      where: { id, ownerUserId },
+      data: {
+        status: toCredentialStatus(PROVIDER_CREDENTIAL_STATUSES.revoked),
+        isActive: false,
+        revocationRequestedAt: at,
+        revokedAt: at,
+      },
+    });
+    return result.count === 1;
+  }
+
   async updateVersion(
     id: string,
     ownerUserId: string,

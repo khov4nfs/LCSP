@@ -2744,8 +2744,34 @@ export const viPages = {
         detectAccountFromCredential:
           "Tài khoản sẽ được nhận diện từ credential.",
         disconnect: "Ngắt kết nối",
-        disconnectUnavailable:
-          "API cài đặt hiện chưa hỗ trợ ngắt kết nối provider.",
+        disconnectConfirmTitle:
+          "Ngắt kết nối provider này?",
+        disconnectConfirmDescription:
+          "Token truy cập đã lưu sẽ bị xóa vĩnh viễn. Các repository kết nối qua token này sẽ không thể quét được cho đến khi bạn kết nối lại provider.",
+        disconnectConfirm:
+          "Ngắt kết nối",
+        disconnecting:
+          "Đang ngắt kết nối…",
+        disconnectSuccessTitle:
+          "Đã ngắt kết nối provider",
+        disconnectFailedDescription:
+          "Không thể ngắt kết nối provider. Chưa có thay đổi nào được áp dụng. Vui lòng thử lại.",
+        disconnectReauthCancelled:
+          "Đã hủy xác nhận danh tính. Provider vẫn đang được kết nối.",
+        connectionExpired:
+          "Đã hết hạn",
+        connectionNeedsAttention:
+          "Cần xử lý",
+        statusLoading:
+          "Đang tải kết nối provider…",
+        loadFailedTitle:
+          "Không thể tải kết nối provider",
+        loadFailedDescription:
+          "Chưa xác định được trạng thái kết nối nên không provider nào được hiển thị là đã hoặc chưa kết nối. Vui lòng thử lại.",
+        retry:
+          "Thử lại",
+        noneConnectedDescription:
+          "Chưa kết nối provider Git nào. Hãy kết nối một provider để quét repository của bạn.",
         enterNewPat: "Nhập PAT mới",
         githubRepositoryCredentialSubtitle: "Credential repository GitHub",
         gitlabRepositoryCredentialSubtitle: "Credential repository GitLab",

@@ -48,6 +48,12 @@ export interface ProviderCredentialRepository {
     status: ProviderCredentialStatus,
     safeFailureCode?: GitHubCredentialErrorCode,
   ): Promise<boolean>;
+  /**
+   * Business purpose: Permanently retire an owner's credential after its secret material is destroyed.
+   * Business rules: Only the owning account can retire it; the record becomes inactive and REVOKED.
+   * Failure cases: Returns false when the owner/id pair does not match, so callers never report success.
+   */
+  markRevoked(id: string, ownerUserId: string, at: Date): Promise<boolean>;
   updateVersion(
     id: string,
     ownerUserId: string,

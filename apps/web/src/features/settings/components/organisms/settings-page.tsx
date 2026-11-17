@@ -392,10 +392,16 @@ export function SettingsPage({
                 providerCredentialStatuses={
                   providerCredentialStatusesQuery.data ?? []
                 }
-                onReauthenticate={(retry) =>
+                isLoading={providerCredentialStatusesQuery.isPending}
+                loadFailed={providerCredentialStatusesQuery.isError}
+                onRetry={() => void providerCredentialStatusesQuery.refetch()}
+                onReauthenticate={(retry, onCancel) =>
                   openSensitiveAction({
                     kind: SETTINGS_SENSITIVE_ACTIONS.reauthenticateProviderCredential,
                     retry,
+                    resolveResult: (confirmed) => {
+                      if (!confirmed) onCancel?.();
+                    },
                   })
                 }
               />

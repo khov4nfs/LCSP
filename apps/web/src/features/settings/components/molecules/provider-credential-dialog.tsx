@@ -6,7 +6,7 @@ import type { CredentialProvider } from "@lcsp/contracts/github-integration";
 import { resolveMessage } from "@lcsp/i18n";
 import Image from "next/image";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,20 @@ import {
   githubRepositoryProblemMessageKey,
   type ProviderCredentialStatus,
 } from "@/lib/api/github-repository-client";
-import { useConfigureProviderCredentialMutation } from "@/lib/api/github-repository-queries";
+import {
+  useConfigureProviderCredentialMutation,
+  useDisconnectProviderCredentialMutation,
+} from "@/lib/api/github-repository-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
+
+import {
+  PROVIDER_CONNECTION_LABEL_KEYS,
+  PROVIDER_CONNECTION_TONE_CLASSES,
+} from "../../config/provider-connection.config";
+import type { ProviderReauthenticateHandler } from "../../types/provider-credential.types";
+import { getProviderConnectionState } from "../../utils/provider-connection.utils";
+import { ProviderCredentialDisconnectConfirm } from "./provider-credential-disconnect-confirm";
 
 export const PROVIDER_CREDENTIAL_DIALOG_MODES = {
   connect: "connect",
@@ -39,7 +50,7 @@ type ProviderCredentialDialogProps = {
   mode: ProviderCredentialDialogMode;
   onModeChange: (mode: ProviderCredentialDialogMode) => void;
   onOpenChange: (open: boolean) => void;
-  onReauthenticate?: (retry: () => void) => void;
+  onReauthenticate?: ProviderReauthenticateHandler;
   open: boolean;
   provider: CredentialProvider;
   status?: ProviderCredentialStatus | null;
@@ -71,8 +82,10 @@ const PROVIDER_TITLE_KEYS = {
   },
   [CREDENTIAL_PROVIDERS.azureDevOps]: {
     connect: "pages.workspace.settingsHub.repositories.connectAzureDevOpsTitle",
-    manage: "pages.workspace.settingsHub.repositories.manageAzureDevOpsPatTitle",
-    update: "pages.workspace.settingsHub.repositories.updateAzureDevOpsPatTitle",
+    manage:
+      "pages.workspace.settingsHub.repositories.manageAzureDevOpsPatTitle",
+    update:
+      "pages.workspace.settingsHub.repositories.updateAzureDevOpsPatTitle",
   },
 } as const satisfies Record<
   CredentialProvider,
@@ -120,17 +133,90 @@ export function ProviderCredentialDialog({
   const [organization, setOrganization] = useState("");
   const [reauthRequired, setReauthRequired] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
+  const [disconnectReauthPending, setDisconnectReauthPending] = useState(false);
+  // The verification dialog is a sibling layer; its dismissal must not also close this dialog.
+  const disconnectReauthRef = useRef(false);
   const mutation = useConfigureProviderCredentialMutation();
+  const disconnectMutation = useDisconnectProviderCredentialMutation();
   const accountUsername = status?.account?.username?.trim() ?? "";
 
   function closeCredentialDialog(nextOpen: boolean) {
+    if (!nextOpen && disconnectReauthRef.current) return;
     if (!nextOpen) {
       setCredential("");
       setOrganization("");
       setReauthRequired(false);
       setErrorMessage(null);
+      resetDisconnect();
     }
     onOpenChange(nextOpen);
+  }
+
+  function resetDisconnect() {
+    disconnectReauthRef.current = false;
+    setConfirmingDisconnect(false);
+    setDisconnectError(null);
+    setDisconnectReauthPending(false);
+  }
+
+  /**
+   * Business purpose: Disconnect the provider only after backend confirmation, retrying once after identity confirmation.
+   * Business rules:
+   * - Success is reported only when the backend acknowledges the disconnect; the connection list is refreshed first.
+   * - A challenged request waits for the shared reauthentication flow; cancellation never retries.
+   * Failure cases:
+   * - Any other failure keeps the provider connected, keeps the dialog open and shows an error without success.
+   * Side effects:
+   * - Calls the disconnect mutation, may open reauthentication, and closes the dialog on confirmed success.
+   */
+  function submitDisconnect() {
+    disconnectReauthRef.current = false;
+    setDisconnectError(null);
+    setDisconnectReauthPending(false);
+    disconnectMutation.mutate(provider, {
+      onSuccess: () => {
+        toast.success(
+          resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.repositories.disconnectSuccessTitle",
+          ),
+        );
+        closeCredentialDialog(false);
+      },
+      onError: (error) => {
+        if (
+          error instanceof Error &&
+          "requiredAction" in error &&
+          error.requiredAction === REQUIRED_ACTIONS.reauthenticate &&
+          onReauthenticate
+        ) {
+          disconnectReauthRef.current = true;
+          setDisconnectReauthPending(true);
+          onReauthenticate(
+            () => queueMicrotask(submitDisconnect),
+            () => {
+              disconnectReauthRef.current = false;
+              setDisconnectReauthPending(false);
+              setDisconnectError(
+                resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.repositories.disconnectReauthCancelled",
+                ),
+              );
+            },
+          );
+          return;
+        }
+        setDisconnectError(
+          resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.repositories.disconnectFailedDescription",
+          ),
+        );
+      },
+    });
   }
 
   function changeMode(nextMode: ProviderCredentialDialogMode) {
@@ -138,6 +224,7 @@ export function ProviderCredentialDialog({
     setOrganization("");
     setReauthRequired(false);
     setErrorMessage(null);
+    resetDisconnect();
     onModeChange(nextMode);
   }
 
@@ -221,10 +308,21 @@ export function ProviderCredentialDialog({
         data-mode={mode}
       >
         <CredentialDialogHeader mode={mode} provider={provider} />
-        {mode === PROVIDER_CREDENTIAL_DIALOG_MODES.manage ? (
+        {mode === PROVIDER_CREDENTIAL_DIALOG_MODES.manage &&
+        confirmingDisconnect ? (
+          <ProviderCredentialDisconnectConfirm
+            errorMessage={disconnectError}
+            isPending={disconnectMutation.isPending}
+            onCancel={resetDisconnect}
+            onConfirm={submitDisconnect}
+            reauthPending={disconnectReauthPending}
+          />
+        ) : mode === PROVIDER_CREDENTIAL_DIALOG_MODES.manage ? (
           <ManageCredentialContent
             accountUsername={accountUsername}
+            onDisconnectRequest={() => setConfirmingDisconnect(true)}
             onModeChange={changeMode}
+            status={status}
           />
         ) : (
           <CredentialForm
@@ -441,11 +539,16 @@ function CredentialForm({
 
 function ManageCredentialContent({
   accountUsername,
+  onDisconnectRequest,
   onModeChange,
+  status,
 }: {
   accountUsername: string;
+  onDisconnectRequest: () => void;
   onModeChange: (mode: ProviderCredentialDialogMode) => void;
+  status?: ProviderCredentialStatus | null;
 }) {
+  const connectionState = getProviderConnectionState(status);
   return (
     <div className="mt-4 flex min-h-0 flex-1 flex-col">
       <div className="flex h-11 items-center justify-between rounded-lg border border-border bg-muted/35 px-3">
@@ -455,10 +558,16 @@ function ManageCredentialContent({
             "pages.workspace.settingsHub.repositories.connectionStatus",
           )}
         </span>
-        <span className="text-[13px] font-medium text-primary">
+        <span
+          className={cn(
+            "text-[13px] font-medium",
+            PROVIDER_CONNECTION_TONE_CLASSES[connectionState],
+          )}
+          data-connection-state={connectionState}
+        >
           {resolveMessage(
             appLocale,
-            "pages.workspace.settingsHub.repositories.connected",
+            PROVIDER_CONNECTION_LABEL_KEYS[connectionState],
           )}
         </span>
       </div>
@@ -502,20 +611,13 @@ function ManageCredentialContent({
           className="h-9 w-28"
           type="button"
           variant="destructive"
-          disabled
-          aria-describedby="provider-disconnect-unavailable"
+          onClick={onDisconnectRequest}
         >
           {resolveMessage(
             appLocale,
             "pages.workspace.settingsHub.repositories.disconnect",
           )}
         </Button>
-        <span id="provider-disconnect-unavailable" className="sr-only">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.repositories.disconnectUnavailable",
-          )}
-        </span>
         <Button
           className="h-9 w-29.5"
           type="button"

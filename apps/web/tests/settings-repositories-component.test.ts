@@ -54,7 +54,7 @@ test("provider credential input is isolated in the credential dialog", async () 
   assert.doesNotMatch(dialog, /defaultValue=/);
 });
 
-test("initial configure and rotation refresh the shared provider credential status query", async () => {
+test("initial configure, rotation and disconnect refresh the shared provider credential status query", async () => {
   const [queries, queryKeys] = await Promise.all([
     readFile(queriesPath, "utf8"),
     readFile(queryKeysPath, "utf8"),
@@ -67,7 +67,7 @@ test("initial configure and rotation refresh the shared provider credential stat
   assert.equal(
     queries.match(/apiQueryKeys\.githubIntegration\.providerCredentials\(\)/g)
       ?.length,
-    2,
+    3,
   );
   assert.match(
     queries,
@@ -77,7 +77,10 @@ test("initial configure and rotation refresh the shared provider credential stat
 
 test("successful credential submission clears the plaintext PAT without exposing it", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
-  assert.match(dialog, /function handleMutationSuccess\(\)\s*{\s*setCredential\(""\)/);
+  assert.match(
+    dialog,
+    /function handleMutationSuccess\(\)\s*{\s*setCredential\(""\)/,
+  );
   assert.match(dialog, /type="password"/);
   assert.doesNotMatch(dialog, /setCredential\([^"e]/);
 });
@@ -113,7 +116,10 @@ test("provider rows select mode from configured status and disconnected GitHub h
     connectors,
     /configured[\s\S]*?\? PROVIDER_CREDENTIAL_DIALOG_MODES\.manage[\s\S]*?: PROVIDER_CREDENTIAL_DIALOG_MODES\.connect/,
   );
-  assert.match(connectors, /disabled={!githubConfigured}/);
+  assert.match(
+    connectors,
+    /disabled={!statusesKnown \|\| !hasProviderCredential\(githubStatus\)}/,
+  );
   assert.match(
     connectors,
     /onClick=\{\(\) =>[\s\S]*?openCredentialDialog\(\s*CREDENTIAL_PROVIDERS\.github,\s*PROVIDER_CREDENTIAL_DIALOG_MODES\.update/,
@@ -124,11 +130,17 @@ test("provider credential dialog uses provider-specific Figma titles, not generi
   const [dialog, en, vi] = await Promise.all([
     readFile(credentialDialogPath, "utf8"),
     readFile(
-      new URL("../../../packages/i18n/src/locales/en/pages.ts", import.meta.url),
+      new URL(
+        "../../../packages/i18n/src/locales/en/pages.ts",
+        import.meta.url,
+      ),
       "utf8",
     ),
     readFile(
-      new URL("../../../packages/i18n/src/locales/vi/pages.ts", import.meta.url),
+      new URL(
+        "../../../packages/i18n/src/locales/vi/pages.ts",
+        import.meta.url,
+      ),
       "utf8",
     ),
   ]);
@@ -162,7 +174,10 @@ test("manage and update modes do not fabricate PAT, username, or repository scop
 test("credential mutation submits only provider and credential", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
 
-  assert.match(dialog, /mutation\.mutate\(\s*\{\s*provider,\s*credential:\s*submittedCredential\s*\}/);
+  assert.match(
+    dialog,
+    /mutation\.mutate\(\s*\{\s*provider,\s*credential:\s*submittedCredential\s*\}/,
+  );
   assert.doesNotMatch(dialog, /username:\s*/);
 });
 
@@ -187,4 +202,45 @@ test("all 4 git providers are supported in connector list and disabled state res
   assert.match(connectors, /bitbucketProvider[\s\S]*?supported:\s*true/);
   assert.match(connectors, /azureDevOpsProvider[\s\S]*?supported:\s*true/);
   assert.match(connectors, /disabled={!option\.supported}/);
+});
+
+test("disconnect requires an explicit confirmation step and only reports success after the backend acknowledges it", async () => {
+  const dialog = await readFile(credentialDialogPath, "utf8");
+
+  assert.match(dialog, /ProviderCredentialDisconnectConfirm/);
+  assert.match(
+    dialog,
+    /onDisconnectRequest=\{\(\) => setConfirmingDisconnect\(true\)\}/,
+  );
+  assert.match(dialog, /disconnectMutation\.mutate\(provider,/);
+  assert.doesNotMatch(dialog, /disconnectUnavailable/);
+  const success = dialog.match(
+    /function submitDisconnect\(\)[\s\S]*?onSuccess:\s*\(\)\s*=>\s*{([\s\S]*?)},\s*onError/,
+  );
+  assert.ok(success, "disconnect success handler must exist");
+  assert.match(success[1], /disconnectSuccessTitle/);
+});
+
+test("disconnect reauthentication retries once after confirmation and reports cancellation without retrying", async () => {
+  const dialog = await readFile(credentialDialogPath, "utf8");
+  const section =
+    dialog.match(/function submitDisconnect\(\)[\s\S]*?\n  }\n\n/)?.[0] ?? "";
+
+  assert.match(section, /REQUIRED_ACTIONS\.reauthenticate/);
+  assert.match(section, /queueMicrotask\(submitDisconnect\)/);
+  assert.match(section, /disconnectReauthCancelled/);
+  assert.equal(section.match(/queueMicrotask/g)?.length, 1);
+});
+
+test("connector statuses distinguish loading, failed reads and empty data", async () => {
+  const connectors = await source();
+
+  assert.match(connectors, /isLoading \? \(/);
+  assert.match(connectors, /data-component="ConnectorLoadError"/);
+  assert.match(connectors, /onClick=\{onRetry\}/);
+  assert.match(connectors, /noneConnectedDescription/);
+  assert.match(
+    connectors,
+    /statusesKnown\s*\n?\s*\? CONNECTOR_PROVIDER_OPTIONS\.map/,
+  );
 });

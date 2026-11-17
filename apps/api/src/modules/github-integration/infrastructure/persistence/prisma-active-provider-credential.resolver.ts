@@ -1,11 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { CredentialProvider, ProviderCredentialStatus } from "@prisma/client";
-import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
+import {
+  CREDENTIAL_PROVIDERS,
+  PROVIDER_CREDENTIAL_STATUSES,
+  type ProviderCredentialStatus as ContractCredentialStatus,
+} from "@lcsp/contracts/github-integration";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type {
   ActiveProviderCredentialMetadata,
   ActiveProviderCredentialResolver,
+  ProviderCredentialLifecycleMetadata,
   ResolvedActiveProviderCredential,
 } from "../../application/ports/security/active-provider-credential.resolver.js";
 import {
@@ -93,6 +98,43 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
       : null;
   }
 
+  async findLifecycle(input: {
+    userId: string;
+    provider: CredentialProvider;
+  }): Promise<ProviderCredentialLifecycleMetadata | null> {
+    const row = await this.prisma.providerCredential.findFirst({
+      where: {
+        ownerUserId: input.userId,
+        provider: input.provider,
+        isActive: true,
+      },
+      orderBy: [{ validatedAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        provider: true,
+        providerAccountId: true,
+        providerLogin: true,
+        currentVersion: true,
+        status: true,
+        declaredExpiresAt: true,
+      },
+    });
+    if (!row) return null;
+    const expired =
+      row.declaredExpiresAt !== null && row.declaredExpiresAt <= new Date();
+    return {
+      id: row.id,
+      provider: fromPrismaProvider(row.provider),
+      providerAccountId: row.providerAccountId.toString(),
+      providerLogin: row.providerLogin,
+      currentVersion: row.currentVersion,
+      status:
+        expired && row.status === ProviderCredentialStatus.ACTIVE
+          ? PROVIDER_CREDENTIAL_STATUSES.expired
+          : fromPrismaStatus(row.status),
+    };
+  }
+
   async resolveLease(input: {
     userId: string;
     provider: CredentialProvider;
@@ -115,4 +157,20 @@ function fromPrismaProvider(
     default:
       return CREDENTIAL_PROVIDERS.github;
   }
+}
+
+function fromPrismaStatus(
+  status: ProviderCredentialStatus,
+): ContractCredentialStatus {
+  const values: Record<ProviderCredentialStatus, ContractCredentialStatus> = {
+    [ProviderCredentialStatus.PENDING]: PROVIDER_CREDENTIAL_STATUSES.pending,
+    [ProviderCredentialStatus.ACTIVE]: PROVIDER_CREDENTIAL_STATUSES.active,
+    [ProviderCredentialStatus.INVALID]: PROVIDER_CREDENTIAL_STATUSES.invalid,
+    [ProviderCredentialStatus.EXPIRED]: PROVIDER_CREDENTIAL_STATUSES.expired,
+    [ProviderCredentialStatus.REVOKING]: PROVIDER_CREDENTIAL_STATUSES.revoking,
+    [ProviderCredentialStatus.REVOKED]: PROVIDER_CREDENTIAL_STATUSES.revoked,
+    [ProviderCredentialStatus.STORAGE_ERROR]:
+      PROVIDER_CREDENTIAL_STATUSES.storageError,
+  };
+  return values[status];
 }

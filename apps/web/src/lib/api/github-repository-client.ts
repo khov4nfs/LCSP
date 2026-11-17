@@ -3,8 +3,10 @@ import {
   CREDENTIAL_PROVIDERS,
   GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
+  PROVIDER_CREDENTIAL_STATUSES,
   REPOSITORY_AUTHENTICATION_MODES,
   type CredentialProvider,
+  type ProviderCredentialStatus as ProviderCredentialLifecycleStatus,
   type RepositoryAuthenticationMode,
 } from "@lcsp/contracts/github-integration";
 import type { MessageKey } from "@lcsp/i18n";
@@ -49,6 +51,8 @@ export type GitHubRepositoryConnection = {
 export type ProviderCredentialStatus = {
   provider: CredentialProvider;
   configured: boolean;
+  /** Backend lifecycle state; null/absent when the provider has no credential. */
+  status?: ProviderCredentialLifecycleStatus | null;
   account: { id: string; username: string } | null;
 };
 
@@ -141,6 +145,42 @@ export async function configureProviderCredential(input: {
   return response.payload;
 }
 
+/**
+ * Business purpose: Permanently disconnect the caller's credential for one provider.
+ * Business rules:
+ * - Success requires the backend to acknowledge the same provider as not configured.
+ * - Authentication challenges surface through the error's requiredAction for the caller to resolve.
+ * Execution flow:
+ * 1. Send DELETE through the shared apiRequest helper (the provider is encoded in the path).
+ * 2. Validate the acknowledgment before reporting success.
+ * Failure cases:
+ * - Rejected, malformed or unconfirmed responses throw GitHubRepositoryRequestError and never succeed.
+ * Side effects:
+ * - Destroys the stored credential on the backend; no secret is sent or returned.
+ */
+export async function disconnectProviderCredential(
+  provider: CredentialProvider,
+): Promise<ProviderCredentialStatus> {
+  const response = await apiRequest(
+    `/api/provider-credentials/${encodeURIComponent(provider)}`,
+    { method: "DELETE" },
+  );
+  const payload = response.payload as Record<string, unknown> | null;
+  if (
+    !response.ok ||
+    payload === null ||
+    typeof payload !== "object" ||
+    payload.provider !== provider ||
+    payload.configured !== false
+  ) {
+    throw new GitHubRepositoryRequestError(
+      response.problemCode,
+      response.requiredAction,
+    );
+  }
+  return { provider, configured: false, status: null, account: null };
+}
+
 export async function getProviderCredentialStatuses(): Promise<
   ProviderCredentialStatus[]
 > {
@@ -199,11 +239,29 @@ function isConnection(value: unknown): value is GitHubRepositoryConnection {
   );
 }
 
+/**
+ * Business purpose: Accept only credential status rows the Settings UI can trust.
+ * Business rules:
+ * - Known providers only; a configured provider must carry its account, and lifecycle status must be a contract value.
+ * Execution flow:
+ * 1. Check object shape, provider, optional lifecycle status and the configured/account pairing.
+ * Failure cases:
+ * - Malformed or unknown values return false so callers treat the response as failed, never as connected.
+ * Side effects:
+ * - Pure validation without logging payload contents.
+ */
 function isCredentialStatus(value: unknown): value is ProviderCredentialStatus {
   if (typeof value !== "object" || value === null) return false;
   const item = value as Record<string, unknown>;
-  const account = item.account as Record<string, unknown>;
+  const account = item.account as Record<string, unknown> | null;
+  const knownStatus =
+    item.status === undefined ||
+    item.status === null ||
+    (Object.values(PROVIDER_CREDENTIAL_STATUSES) as unknown[]).includes(
+      item.status,
+    );
   return (
+    knownStatus &&
     (item.provider === CREDENTIAL_PROVIDERS.github ||
       item.provider === CREDENTIAL_PROVIDERS.gitlab ||
       item.provider === CREDENTIAL_PROVIDERS.bitbucket ||
@@ -256,4 +314,3 @@ function isRepositoryConnectionsPayload(
     })
   );
 }
-

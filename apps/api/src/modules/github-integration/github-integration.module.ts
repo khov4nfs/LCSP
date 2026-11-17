@@ -32,6 +32,7 @@ import { GitHubCredentialRequestGuard } from "./presentation/http/github-credent
 import { DiscoverGitHubRepositoriesHandler } from "./application/commands/discover-github-repositories/discover-github-repositories.handler.js";
 import { ConnectGitHubCliRepositoryHandler } from "./application/commands/connect-github-cli-repository/connect-github-cli-repository.handler.js";
 import { ConfigureProviderCredentialHandler } from "./application/commands/configure-provider-credential/configure-provider-credential.handler.js";
+import { DisconnectProviderCredentialHandler } from "./application/commands/disconnect-provider-credential/disconnect-provider-credential.handler.js";
 import { ConnectAssessmentRepositoryHandler } from "./application/commands/connect-assessment-repository/connect-assessment-repository.handler.js";
 import {
   GITHUB_REPOSITORY_PROVIDER,
@@ -103,6 +104,7 @@ import { ReconcileRuntimeHydrationTicketHandler } from "./application/commands/r
     DiscoverGitHubRepositoriesHandler,
     ConnectGitHubCliRepositoryHandler,
     ConfigureProviderCredentialHandler,
+    DisconnectProviderCredentialHandler,
     ConnectAssessmentRepositoryHandler,
     {
       provide: REPOSITORY_PROVIDER_REGISTRY,
