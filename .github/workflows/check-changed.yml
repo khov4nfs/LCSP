@@ -135,10 +135,10 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          ticket="$(printf '%s\\n' "$PR_TITLE" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
+          ticket="$(printf '%s\n' "$PR_TITLE" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
           if [ -z "$ticket" ]; then
             commit_message="$(git log -1 --format=%B "$PR_HEAD_SHA")"
-            ticket="$(printf '%s\\n' "$commit_message" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
+            ticket="$(printf '%s\n' "$commit_message" | grep -oE 'LCSP-[0-9]+' | head -n 1 || true)"
           fi
           # Dependabot cannot interpolate a Jira key into its generated title or commit subject.
           # Link its automatic lint commit to the shared dependency-maintenance issue.
