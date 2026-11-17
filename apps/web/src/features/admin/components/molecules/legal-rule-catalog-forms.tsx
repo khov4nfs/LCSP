@@ -140,15 +140,13 @@ export function LegalRuleCatalogCreateForm({
           </Select>
         </div>
         <LegalRuleCatalogField name="version" label="version" />
+        <LegalRuleCatalogField name="legalSourceVersionId" label="sourceId" />
         {save.isError ? (
           <Alert variant="destructive">
             <AlertDescription>{t("error")}</AlertDescription>
           </Alert>
         ) : null}
-        <Button
-          disabled={save.isPending || !selectedLegalSourceVersionId}
-          type="submit"
-        >
+        <Button disabled={save.isPending} type="submit">
           {save.isPending ? t("loading") : t("create")}
         </Button>
       </form>

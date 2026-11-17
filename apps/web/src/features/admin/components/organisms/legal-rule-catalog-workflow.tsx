@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileTextIcon } from "lucide-react";
 import {
@@ -35,7 +35,6 @@ import {
   useLegalRules,
   useLegalRuleCommand,
 } from "@/lib/api/legal-rule-catalog-queries";
-import { useLegalSourceListQuery } from "@/lib/api/legal-source-queries";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
 import { LEGAL_RULE_FILTER_ALL } from "../../config/legal-rule-catalog.config";
 import {
@@ -101,15 +100,6 @@ export function LegalRuleCatalogWorkflow({
     "/preparations",
     preparationRuleBatchSchema,
   );
-  const sourcesQuery = useLegalSourceListQuery();
-  const sourceNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const src of sourcesQuery.data?.items ?? []) {
-      if (src.activeVersion) map.set(src.activeVersion.id, src.name);
-      if (src.latestVersion) map.set(src.latestVersion.id, src.name);
-    }
-    return map;
-  }, [sourcesQuery.data]);
 
   const currentCatalog = catalogs.data?.find(
     (catalog) => catalog.id === catalogId,
@@ -295,17 +285,14 @@ export function LegalRuleCatalogWorkflow({
             <SelectTrigger aria-label={t("catalog")}>
               <SelectValue placeholder={t("chooseCatalog")}>
                 {currentCatalog
-                  ? `${currentCatalog.version} · rev ${currentCatalog.revision}${sourceNameMap.get(currentCatalog.legalSourceVersionId) ? ` (${sourceNameMap.get(currentCatalog.legalSourceVersionId)})` : ""}`
+                  ? `${currentCatalog.version} · ${currentCatalog.revision}`
                   : t("chooseCatalog")}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {catalogs.data?.map((catalog) => (
                 <SelectItem key={catalog.id} value={catalog.id}>
-                  {catalog.version} · rev {catalog.revision}
-                  {sourceNameMap.get(catalog.legalSourceVersionId)
-                    ? ` (${sourceNameMap.get(catalog.legalSourceVersionId)})`
-                    : ""}
+                  {catalog.version} · {catalog.revision}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -314,7 +301,7 @@ export function LegalRuleCatalogWorkflow({
         <Button variant="outline" onClick={() => setCreateOpen(true)}>
           {t("createCatalog")}
         </Button>
-        {!isCatalogEmpty && catalogId ? (
+        {catalogId ? (
           <>
             <Button
               variant="default"
