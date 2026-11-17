@@ -2445,6 +2445,9 @@ export const viPages = {
           "Chưa ghi nhận lượt gọi model phù hợp khoảng thời gian và bộ lọc này.",
         utcNotice:
           "Bộ lọc ngày và nhóm theo ngày dùng UTC. Thời điểm lượt gọi dùng múi giờ trình duyệt. Báo cáo đến muộn có thể xuất hiện sau khi làm mới; token chưa xác định không được tính là 0 hoặc tự suy ra.",
+        sellingPrice: "Giá bán LCSP ước tính (USD)",
+        sellingPriceNotice:
+          "Chi phí tham chiếu × {multiplier}. Chỉ là ước tính, chưa trừ ví. Chính sách áp dụng cho báo cáo đang xem, không phải khoản thu trong quá khứ.",
         estimatedCost: "Chi phí tham chiếu (USD)",
         knownSubtotal: "Tổng phần đã biết (USD)",
         incompleteCostInvocations: "Lượt gọi chưa đủ dữ liệu ước tính chi phí",

@@ -31,8 +31,8 @@ describe("Customer Usage owner boundary", () => {
       });
       const guard = new RbacGuard(
         new Reflector(),
-        { load: async () => ({ ok: true, session, user }) } as never,
-        { append: async () => {} },
+        { load: () => Promise.resolve({ ok: true, session, user }) } as never,
+        { append: () => Promise.resolve() },
       );
       const request = {
         headers: {},
@@ -43,7 +43,7 @@ describe("Customer Usage owner boundary", () => {
       };
       const context = {
         getClass: () => CustomerUsageController,
-        getHandler: () => CustomerUsageController.prototype.get,
+        getHandler: () => Reflect.get(CustomerUsageController.prototype, "get"),
         switchToHttp: () => ({ getRequest: () => request }),
       } as unknown as ExecutionContext;
       await expect(guard.canActivate(context)).rejects.toMatchObject({

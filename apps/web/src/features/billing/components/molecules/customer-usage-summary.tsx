@@ -12,6 +12,7 @@ import { formatUsageCount } from "../../utils/customer-usage";
 
 export function CustomerUsageSummary({
   summary,
+  sellingPrice,
   locale,
 }: CustomerUsageSummaryProps) {
   return (
@@ -64,6 +65,40 @@ export function CustomerUsageSummary({
           );
         })}
       </div>
+      <Card data-component="CustomerUsageSellingPrice">
+        <CardContent>
+          <dl className="space-y-2">
+            <dt className="text-sm text-muted-foreground">
+              {resolveMessage(
+                locale,
+                "pages.workspace.settingsHub.usage.sellingPrice",
+              )}
+            </dt>
+            <dd className="wrap-anywhere text-xl font-semibold tabular-nums">
+              {sellingPrice.estimatedTotalUsd ??
+                resolveMessage(
+                  locale,
+                  "pages.workspace.settingsHub.usage.partialCost",
+                )}
+            </dd>
+            <dt className="text-sm">
+              {resolveMessage(
+                locale,
+                "pages.workspace.settingsHub.usage.knownSubtotal",
+              )}
+            </dt>
+            <dd className="wrap-anywhere tabular-nums">
+              {sellingPrice.knownSubtotalUsd}
+            </dd>
+          </dl>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {resolveMessage(
+              locale,
+              "pages.workspace.settingsHub.usage.sellingPriceNotice",
+            ).replace("{multiplier}", sellingPrice.multiplier)}
+          </p>
+        </CardContent>
+      </Card>
       <Card>
         <CardContent>
           <dl className="space-y-2">

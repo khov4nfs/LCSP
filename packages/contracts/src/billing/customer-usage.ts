@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customerUsageSellingPriceSchema } from "./customer-pricing.ts";
 import {
   adminUsageQuerySchema,
   adminUsageAnalyticsSchema,
@@ -82,6 +83,7 @@ export const customerUsageAnalyticsSchema = adminUsageAnalyticsSchema
     totalCount: true,
   })
   .extend({
+    sellingPrice: customerUsageSellingPriceSchema,
     breakdowns: z.array(
       z.object({
         dimension: z.enum(CUSTOMER_USAGE_DIMENSIONS),

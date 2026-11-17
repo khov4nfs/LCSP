@@ -24,6 +24,7 @@ export type CustomerUsageFiltersProps = {
 export type CustomerUsageSummaryProps = {
   locale: Locale;
   summary: CustomerUsageAnalytics["summary"];
+  sellingPrice: CustomerUsageAnalytics["sellingPrice"];
 };
 export type CustomerUsageHistoryProps = {
   locale: Locale;

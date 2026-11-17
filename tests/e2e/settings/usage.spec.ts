@@ -87,6 +87,14 @@ test("Usage shows precise tokens and partial costs, paginates and resets pages w
   const state = await setup(page);
   await page.goto("/workspace/settings?section=usage");
   const panel = page.locator('[data-component="CustomerUsageSettingsPanel"]');
+  const sellingPrice = panel.locator(
+    '[data-component="CustomerUsageSellingPrice"]',
+  );
+  await expect(
+    sellingPrice.getByText("LCSP selling estimate (USD)"),
+  ).toBeVisible();
+  await expect(sellingPrice.getByText("0.0018", { exact: true })).toBeVisible();
+  await expect(sellingPrice.getByText(/Reference cost × 1.8/)).toBeVisible();
   await expect(
     panel.getByRole("heading", { name: "AI token usage" }),
   ).toBeVisible();

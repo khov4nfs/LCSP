@@ -2216,6 +2216,8 @@ export type PagesMessages = {
         retry: string;
         empty: string;
         utcNotice: string;
+        sellingPrice: string;
+        sellingPriceNotice: string;
         estimatedCost: string;
         knownSubtotal: string;
         incompleteCostInvocations: string;

@@ -5,6 +5,16 @@ of persisted model invocation receipts, not a wallet-charge ledger.
 
 ## Scope and accounting rules
 
+- LCSP selling estimate uses policy `lcsp-usage-1.8-v1`: the selected report's
+  known reference subtotal multiplied by exactly 1.8. The full selling estimate
+  remains null when the reference estimate is incomplete. Decimal arithmetic
+  preserves sub-attodollar precision rather than rounding each invocation.
+  The API returns this quote separately as `sellingPrice`; original provider
+  costs, persisted receipts and Admin Usage remain unchanged. This is a current
+  report quote, not a historical charge or a wallet debit. Future charge
+  settlement must persist its pricing version and define currency conversion
+  and rounding independently.
+
 - Default to the last 30 inclusive UTC calendar days, with 7/30/90-day shortcuts
   and custom periods capped at 90 days. Provider/model filters match persisted
   values; status filters use the shared model-attempt constants.

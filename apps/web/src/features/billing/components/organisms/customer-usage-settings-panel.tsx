@@ -137,7 +137,11 @@ export function CustomerUsageSettingsPanel({
             </Empty>
           ) : (
             <>
-              <CustomerUsageSummary locale={locale} summary={report.summary} />
+              <CustomerUsageSummary
+                locale={locale}
+                summary={report.summary}
+                sellingPrice={report.sellingPrice}
+              />
               <CustomerUsageBreakdown
                 locale={locale}
                 rows={report.breakdowns}

@@ -1,4 +1,10 @@
 {
+  "sellingPrice": {
+    "version": "lcsp-usage-1.8-v1",
+    "multiplier": "1.8",
+    "knownSubtotalUsd": "0.0018",
+    "estimatedTotalUsd": null
+  },
   "from": "2026-11-01T00:00:00.000Z",
   "to": "2026-11-18T23:59:59.999Z",
   "summary": {

@@ -2439,6 +2439,9 @@ export const enPages = {
         empty: "No recorded model calls match this period and these filters.",
         utcNotice:
           "Date filters and daily groups use UTC. Call times use your browser timezone. Late reports may appear after refresh; unknown token buckets are not counted as zero or reconstructed.",
+        sellingPrice: "LCSP selling estimate (USD)",
+        sellingPriceNotice:
+          "Reference cost × {multiplier}. Estimate only; no wallet debit. This policy applies to the selected report, not historical charges.",
         estimatedCost: "Reference estimate (USD)",
         knownSubtotal: "Known subtotal (USD)",
         incompleteCostInvocations: "Calls with incomplete cost estimates",
