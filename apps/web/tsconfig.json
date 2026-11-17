@@ -35,7 +35,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "src/public/assets/mocks/**/*.json"
   ],
   "exclude": ["node_modules", "dist"],
   "references": [

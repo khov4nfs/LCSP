@@ -810,6 +810,11 @@ export type PagesMessages = {
     question: {
       whyAsking: string;
       unknownRecorded: string;
+      clarificationNeeded: string;
+      confirmed: string;
+      unresolvedFactLabel: string;
+      decisionImpactLabel: string;
+      resolutionAttemptsLabel: string;
     };
     answer: {
       unknown: string;
@@ -838,6 +843,55 @@ export type PagesMessages = {
         NOT_MET: string;
         COMPLIANT: string;
         NON_COMPLIANT: string;
+        UNDETERMINED: string;
+      };
+      rawLegalRule: string;
+      rawLegalRuleExpand: string;
+      rawLegalRuleCollapse: string;
+      viewOriginalDocument: string;
+      viewOriginalFile: string;
+      viewInLegalLibrary: string;
+      effectiveStatus: string;
+      effectiveDate: string;
+      sourceVersion: string;
+      applicabilityTitle: string;
+      applicabilityExplanation: string;
+      targetActivity: string;
+      applicabilityCriteria: string;
+      supportingBasis: string;
+      applicabilityNote: string;
+      legalObligationTitle: string;
+      complianceAssessmentTitle: string;
+      evidenceAndTraceabilityTitle: string;
+      evidenceRole: string;
+      evidenceRoleSupported: string;
+      evidenceRoleGeneral: string;
+      evidenceLocation: string;
+      evidenceGap: string;
+      evidenceGapNotice: string;
+      reasoningAndConclusionTitle: string;
+      askAboutRule: string;
+      jumpToObligation: string;
+      jumpToEvidence: string;
+      criterionTitle: string;
+      evidenceArtifact: string;
+      evidenceTypeRepo: string;
+      evidenceTypeInspection: string;
+      applicableRuleBadge: string;
+      stepFlow: {
+        rule: string;
+        applicability: string;
+        obligation: string;
+        assessment: string;
+        evidence: string;
+        conclusion: string;
+      };
+      synthesis: {
+        step1Title: string;
+        step2Title: string;
+        step3Title: string;
+        step4Title: string;
+        step5Title: string;
       };
     };
     notice: {
@@ -920,6 +974,18 @@ export type PagesMessages = {
       checkpoint: string;
       connection: string;
       notAvailable: string;
+      applicableRules: string;
+      jumpToRule: string;
+      riskSummaryNonCompliant: string;
+      riskSummaryCompliant: string;
+      riskSummaryUndetermined: string;
+      currentlyViewing: string;
+      evidenceCountShort: string;
+      nonCompliantBadge: string;
+      compliantBadge: string;
+      undeterminedBadge: string;
+      assessmentRevision: string;
+      lastUpdated: string;
     };
     report: {
       title: string;

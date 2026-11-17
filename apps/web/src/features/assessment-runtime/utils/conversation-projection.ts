@@ -426,7 +426,11 @@ export function projectConversation(
         const record = decisions.get(event.payload.decisionId);
         const invocation = takeUsage(event, seenInvocations);
         void invocation;
-        if (record) {
+        if (
+          record &&
+          record.decision.applicability ===
+            RULE_DECISION_APPLICABILITIES.APPLICABLE
+        ) {
           closeWork(event.timestamp);
           turns.push({
             kind: CONVERSATION_TURN_KINDS.DECISION,
