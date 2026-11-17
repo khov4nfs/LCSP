@@ -94,20 +94,17 @@ export class PrismaAuthReadRepository implements AuthReadRepository {
   }
 
   /**
-   * Business purpose: Display the account's sessions without reporting stale MFA elevation.
-   *
+   * Business purpose: List only existing active sessions of the authenticated owner.
    * Business rules:
-   * - Session MFA proof is reportable only if its generation is the current confirmed factor.
-   *
+   * - Exclude revoked and expired sessions; expose timestamps and current-session identity only.
+   * - Suppress MFA timestamps unless the current account factor generation matches.
    * Execution flow:
-   * 1. Read account generation and all owned sessions.
-   * 2. Remove stale MFA timestamps from the resulting session list projection.
-   *
+   * 1. Read owner-scoped active sessions and the current MFA generation.
+   * 2. Project safe metadata and mark the calling session.
    * Failure cases:
-   * - Missing or disabled MFA never makes old proof metadata appear verified.
-   *
+   * - Missing expiration or persistence failure rejects the read rather than inventing data.
    * Side effects:
-   * - None: reads and projects session metadata.
+   * - Read-only database projection without session tokens or secrets.
    */
   async listSessions(
     userId: string,
@@ -115,7 +112,12 @@ export class PrismaAuthReadRepository implements AuthReadRepository {
   ): Promise<AuthSessionsSuccess> {
     const [sessions, user] = await Promise.all([
       this.prisma.authRecord.findMany({
-        where: { userId, type: AUTH_RECORD_TYPES.session },
+        where: {
+          userId,
+          type: AUTH_RECORD_TYPES.session,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       }),
       this.prisma.user.findUnique({

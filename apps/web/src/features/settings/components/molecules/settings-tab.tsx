@@ -27,7 +27,7 @@ export function SettingsTab({
       aria-current={active ? "page" : undefined}
       aria-pressed={active}
       className={cn(
-        "h-9 w-52 justify-start gap-3 rounded-lg px-2.5 text-[13px]",
+        "h-9 w-52 shrink-0 justify-start gap-3 rounded-lg px-2.5 text-[13px]",
         active
           ? "bg-accent text-accent-foreground hover:bg-accent"
           : "text-muted-foreground hover:bg-accent/70 hover:text-accent-foreground",

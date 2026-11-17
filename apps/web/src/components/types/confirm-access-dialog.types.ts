@@ -30,8 +30,7 @@ type ConfirmAccessSupportLinkItem = {
 };
 
 export type ConfirmAccessSupportItem =
-  | ConfirmAccessSupportActionItem
-  | ConfirmAccessSupportLinkItem;
+  ConfirmAccessSupportActionItem | ConfirmAccessSupportLinkItem;
 
 export type SignedInAccountPanelProps = {
   accountLabelKey: MessageKey;
@@ -65,6 +64,7 @@ type ConfirmAccessDialogMfaOptions = {
 };
 
 export type ConfirmAccessDialogProps = {
+  initialMethod?: ConfirmAccessMethod;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPasswordSubmit: (
