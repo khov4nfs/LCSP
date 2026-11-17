@@ -1,5 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { AgentExecutionState } from "@prisma/client";
 import {
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_CATALOG_EVENTS,
@@ -17,51 +16,94 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
     catalog?: { id: string; version: string } | null;
     activeRuns?: { id: string } | null;
   }) {
+    const catalogFindUnique =
+      jest.fn<
+        (args: unknown) => Promise<{ id: string; version: string } | null>
+      >();
+    catalogFindUnique.mockResolvedValue(
+      overrides.catalog !== undefined
+        ? overrides.catalog
+        : { id: catalogId, version: "v1-catalog" },
+    );
+
+    const catalogDelete = jest.fn<(args: unknown) => Promise<{ id: string }>>();
+    catalogDelete.mockResolvedValue({ id: catalogId });
+
+    const preparationResultFindFirst =
+      jest.fn<(args: unknown) => Promise<{ id: string } | null>>();
+    preparationResultFindFirst.mockResolvedValue(
+      overrides.activeRuns !== undefined ? overrides.activeRuns : null,
+    );
+
+    const preparationResultDeleteMany =
+      jest.fn<(args: unknown) => Promise<{ count: number }>>();
+    preparationResultDeleteMany.mockResolvedValue({ count: 2 });
+
+    const preparationRuleDeleteMany =
+      jest.fn<(args: unknown) => Promise<{ count: number }>>();
+    preparationRuleDeleteMany.mockResolvedValue({ count: 2 });
+
+    const preparationBatchDeleteMany =
+      jest.fn<(args: unknown) => Promise<{ count: number }>>();
+    preparationBatchDeleteMany.mockResolvedValue({ count: 1 });
+
+    const preparationSelectionDeleteMany =
+      jest.fn<(args: unknown) => Promise<{ count: number }>>();
+    preparationSelectionDeleteMany.mockResolvedValue({ count: 1 });
+
+    const legalRuleDeleteMany =
+      jest.fn<(args: unknown) => Promise<{ count: number }>>();
+    legalRuleDeleteMany.mockResolvedValue({ count: 5 });
+
     const mockTx = {
       legalRuleCatalogVersion: {
-        findUnique: jest
-          .fn<any>()
-          .mockResolvedValue(
-            overrides.catalog !== undefined
-              ? overrides.catalog
-              : { id: catalogId, version: "v1-catalog" },
-          ),
-        delete: jest.fn<any>().mockResolvedValue({ id: catalogId }),
+        findUnique: catalogFindUnique,
+        delete: catalogDelete,
       },
       preparationRuleResult: {
-        findFirst: jest
-          .fn<any>()
-          .mockResolvedValue(
-            overrides.activeRuns !== undefined ? overrides.activeRuns : null,
-          ),
-        deleteMany: jest.fn<any>().mockResolvedValue({ count: 2 }),
+        findFirst: preparationResultFindFirst,
+        deleteMany: preparationResultDeleteMany,
       },
       preparationRule: {
-        deleteMany: jest.fn<any>().mockResolvedValue({ count: 2 }),
+        deleteMany: preparationRuleDeleteMany,
       },
       preparationRuleBatch: {
-        deleteMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+        deleteMany: preparationBatchDeleteMany,
       },
       preparationRuleSelection: {
-        deleteMany: jest.fn<any>().mockResolvedValue({ count: 1 }),
+        deleteMany: preparationSelectionDeleteMany,
       },
       legalRule: {
-        deleteMany: jest.fn<any>().mockResolvedValue({ count: 5 }),
+        deleteMany: legalRuleDeleteMany,
       },
     };
 
     const mockPrisma = {
-      $transaction: jest
-        .fn<any>()
-        .mockImplementation((callback: any) => callback(mockTx)),
+      $transaction: jest.fn(
+        (callback: (tx: typeof mockTx) => Promise<unknown>) => callback(mockTx),
+      ),
     } as unknown as PrismaService;
 
+    const writeInTx =
+      jest.fn<(event: unknown, tx?: unknown) => Promise<void>>();
+    writeInTx.mockResolvedValue(undefined);
+
     const mockAudit = {
-      writeInTx: jest.fn<any>().mockResolvedValue(undefined),
+      writeInTx,
     } as unknown as AuditWriterService;
 
     const service = new LegalRuleCatalogService(mockPrisma, mockAudit);
-    return { service, mockTx, mockAudit };
+    return {
+      service,
+      mockTx,
+      writeInTx,
+      catalogDelete,
+      preparationResultDeleteMany,
+      preparationRuleDeleteMany,
+      preparationBatchDeleteMany,
+      preparationSelectionDeleteMany,
+      legalRuleDeleteMany,
+    };
   }
 
   it("throws 404 when catalog is not found", async () => {
@@ -80,7 +122,7 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
   });
 
   it("throws 409 conflict when active or queued preparation runs exist", async () => {
-    const { service, mockTx } = createService({
+    const { service, catalogDelete } = createService({
       activeRuns: { id: "result-1" },
     });
     await expect(
@@ -94,15 +136,25 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
         }),
       },
     });
-    expect(mockTx.legalRuleCatalogVersion.delete).not.toHaveBeenCalled();
+    expect(catalogDelete).not.toHaveBeenCalled();
   });
 
   it("cascades deletion and writes audit trail when idle", async () => {
-    const { service, mockTx, mockAudit } = createService({});
+    const {
+      service,
+      mockTx,
+      writeInTx,
+      catalogDelete,
+      preparationResultDeleteMany,
+      preparationRuleDeleteMany,
+      preparationBatchDeleteMany,
+      preparationSelectionDeleteMany,
+      legalRuleDeleteMany,
+    } = createService({});
     const result = await service.deleteCatalog(catalogId, actor, cid);
 
     expect(result).toEqual({ id: catalogId, deleted: true });
-    expect(mockTx.preparationRuleResult.deleteMany).toHaveBeenCalledWith({
+    expect(preparationResultDeleteMany).toHaveBeenCalledWith({
       where: {
         preparationRule: {
           legalRule: {
@@ -111,34 +163,34 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
         },
       },
     });
-    expect(mockTx.preparationRule.deleteMany).toHaveBeenCalledWith({
+    expect(preparationRuleDeleteMany).toHaveBeenCalledWith({
       where: {
         legalRule: {
           catalogVersionId: catalogId,
         },
       },
     });
-    expect(mockTx.preparationRuleBatch.deleteMany).toHaveBeenCalledWith({
+    expect(preparationBatchDeleteMany).toHaveBeenCalledWith({
       where: {
         selection: {
           catalogVersionId: catalogId,
         },
       },
     });
-    expect(mockTx.preparationRuleSelection.deleteMany).toHaveBeenCalledWith({
+    expect(preparationSelectionDeleteMany).toHaveBeenCalledWith({
       where: {
         catalogVersionId: catalogId,
       },
     });
-    expect(mockTx.legalRule.deleteMany).toHaveBeenCalledWith({
+    expect(legalRuleDeleteMany).toHaveBeenCalledWith({
       where: {
         catalogVersionId: catalogId,
       },
     });
-    expect(mockTx.legalRuleCatalogVersion.delete).toHaveBeenCalledWith({
+    expect(catalogDelete).toHaveBeenCalledWith({
       where: { id: catalogId },
     });
-    expect(mockAudit.writeInTx).toHaveBeenCalledWith(
+    expect(writeInTx).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: LEGAL_RULE_CATALOG_EVENTS.DELETED,
         resourceId: catalogId,
