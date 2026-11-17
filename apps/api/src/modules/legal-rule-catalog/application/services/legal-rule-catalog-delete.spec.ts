@@ -1,6 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { AgentExecutionState } from "@prisma/client";
-import { LEGAL_RULE_CATALOG_ERRORS, LEGAL_RULE_CATALOG_EVENTS } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  LEGAL_RULE_CATALOG_ERRORS,
+  LEGAL_RULE_CATALOG_EVENTS,
+} from "@lcsp/contracts/legal-rule-catalog";
 import { LegalRuleCatalogService } from "./legal-rule-catalog.service.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
@@ -16,11 +19,21 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
   }) {
     const mockTx = {
       legalRuleCatalogVersion: {
-        findUnique: jest.fn<any>().mockResolvedValue(overrides.catalog !== undefined ? overrides.catalog : { id: catalogId, version: "v1-catalog" }),
+        findUnique: jest
+          .fn<any>()
+          .mockResolvedValue(
+            overrides.catalog !== undefined
+              ? overrides.catalog
+              : { id: catalogId, version: "v1-catalog" },
+          ),
         delete: jest.fn<any>().mockResolvedValue({ id: catalogId }),
       },
       preparationRuleResult: {
-        findFirst: jest.fn<any>().mockResolvedValue(overrides.activeRuns !== undefined ? overrides.activeRuns : null),
+        findFirst: jest
+          .fn<any>()
+          .mockResolvedValue(
+            overrides.activeRuns !== undefined ? overrides.activeRuns : null,
+          ),
         deleteMany: jest.fn<any>().mockResolvedValue({ count: 2 }),
       },
       preparationRule: {
@@ -38,7 +51,9 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
     };
 
     const mockPrisma = {
-      $transaction: jest.fn<any>().mockImplementation((callback: any) => callback(mockTx)),
+      $transaction: jest
+        .fn<any>()
+        .mockImplementation((callback: any) => callback(mockTx)),
     } as unknown as PrismaService;
 
     const mockAudit = {
@@ -51,7 +66,9 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
 
   it("throws 404 when catalog is not found", async () => {
     const { service } = createService({ catalog: null });
-    await expect(service.deleteCatalog(catalogId, actor, cid)).rejects.toMatchObject({
+    await expect(
+      service.deleteCatalog(catalogId, actor, cid),
+    ).rejects.toMatchObject({
       response: {
         ok: false,
         problem: expect.objectContaining({
@@ -66,7 +83,9 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
     const { service, mockTx } = createService({
       activeRuns: { id: "result-1" },
     });
-    await expect(service.deleteCatalog(catalogId, actor, cid)).rejects.toMatchObject({
+    await expect(
+      service.deleteCatalog(catalogId, actor, cid),
+    ).rejects.toMatchObject({
       response: {
         ok: false,
         problem: expect.objectContaining({
