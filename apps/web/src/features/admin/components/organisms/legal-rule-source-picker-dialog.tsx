@@ -29,10 +29,8 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   useLegalSourceVersionQuery,
@@ -126,7 +124,10 @@ export function LegalRuleSourcePickerDialog({
   const activeCatalogRevision = targetCatalog?.revision ?? catalogRevision;
 
   const versionQuery = useLegalSourceVersionQuery(effectiveVersionId);
-  const documents = versionQuery.data?.documents ?? [];
+  const documents = useMemo(
+    () => versionQuery.data?.documents ?? [],
+    [versionQuery.data?.documents],
+  );
 
   const [activeDocId, setActiveDocId] = useState<string>("");
   const [chunkPage, setChunkPage] = useState(1);

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   legalRuleCatalogSchema,
@@ -92,6 +92,10 @@ export function LegalRuleCatalogCreateForm({
     }
   }, [availableSources, sourceId, form]);
 
+  const selectedLegalSourceVersionId = useWatch({
+    control: form.control,
+    name: "legalSourceVersionId",
+  });
   const save = useLegalRuleCommand("", legalRuleCatalogSchema);
   return (
     <FormProvider {...form}>
@@ -105,7 +109,7 @@ export function LegalRuleCatalogCreateForm({
         <div className="space-y-2">
           <Label>{t("sourceSelectLabel")}</Label>
           <Select
-            value={form.watch("legalSourceVersionId")}
+            value={selectedLegalSourceVersionId}
             onValueChange={(val) => {
               if (!val) return;
               form.setValue("legalSourceVersionId", val, {
@@ -122,7 +126,7 @@ export function LegalRuleCatalogCreateForm({
             <SelectTrigger aria-label={t("sourceSelectLabel")}>
               <SelectValue placeholder={t("chooseSource")}>
                 {availableSources.find(
-                  (s) => s.versionId === form.watch("legalSourceVersionId"),
+                  (s) => s.versionId === selectedLegalSourceVersionId,
                 )?.displayName ?? t("chooseSource")}
               </SelectValue>
             </SelectTrigger>
@@ -142,7 +146,7 @@ export function LegalRuleCatalogCreateForm({
           </Alert>
         ) : null}
         <Button
-          disabled={save.isPending || !form.watch("legalSourceVersionId")}
+          disabled={save.isPending || !selectedLegalSourceVersionId}
           type="submit"
         >
           {save.isPending ? t("loading") : t("create")}

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileTextIcon } from "lucide-react";
 import {
@@ -66,7 +66,14 @@ export function LegalRuleCatalogWorkflow({
   sourceId: string | null;
 }) {
   const catalogs = useLegalRuleCatalogs();
-  const [catalogId, setCatalogId] = useState("");
+  const [selectedCatalogId, setSelectedCatalogId] = useState("");
+  const catalogId =
+    selectedCatalogId ||
+    (sourceId
+      ? catalogs.data?.find((c) => c.legalSourceVersionId === sourceId)?.id
+      : null) ||
+    catalogs.data?.[0]?.id ||
+    "";
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<LegalRuleFilter>({ search: "" });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -108,15 +115,6 @@ export function LegalRuleCatalogWorkflow({
     (catalog) => catalog.id === catalogId,
   );
   const busy = selection.isPending || submit.isPending;
-
-  useEffect(() => {
-    if (!catalogId && catalogs.data?.length) {
-      const match = sourceId
-        ? catalogs.data.find((c) => c.legalSourceVersionId === sourceId)
-        : null;
-      setCatalogId((match ?? catalogs.data[0]).id);
-    }
-  }, [catalogs.data, catalogId, sourceId]);
 
   /**
    * Business purpose: Keep the acknowledged Preparation Rule Set reopenable after a page refresh.
@@ -289,7 +287,7 @@ export function LegalRuleCatalogWorkflow({
           <Select
             value={catalogId}
             onValueChange={(id) => {
-              setCatalogId(id ?? "");
+              setSelectedCatalogId(id ?? "");
               setPage(1);
               clearSelection();
             }}
@@ -558,7 +556,7 @@ export function LegalRuleCatalogWorkflow({
             <LegalRuleCatalogCreateForm
               sourceId={sourceId ?? ""}
               onCreated={(id) => {
-                setCatalogId(id);
+                setSelectedCatalogId(id);
                 setCreateOpen(false);
                 setPage(1);
                 clearSelection();
