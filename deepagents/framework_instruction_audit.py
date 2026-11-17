@@ -25,7 +25,7 @@ SURFACES = (
     ("deepagents", "deepagents/middleware/filesystem.py", "WRITE_FILE_TOOL_DESCRIPTION", "approved_tool_specs(tool.write_file)"),
     ("deepagents", "deepagents/middleware/filesystem.py", "GLOB_TOOL_DESCRIPTION", "approved_tool_specs(tool.glob)"),
     ("deepagents", "deepagents/middleware/filesystem.py", "_GREP_TOOL_DESCRIPTION_TEMPLATE", "approved_tool_specs(tool.grep)"),
-    ("deepagents", "deepagents/graph.py", "create_deep_agent", "Final approved request overrides profile additions; uncontrolled extra/excluded middleware is rejected; transport supervisor cannot infer"),
+    ("deepagents", "deepagents/graph.py", "create_deep_agent", "ApprovedInstructionMiddleware projects system/tool/schema guidance after core middleware; profile extras and protected exclusions are rejected; post-guard compatibility/refusal middleware is separately controlled; transport supervisor cannot infer"),
     ("deepagents", "deepagents/middleware/unsupported_content.py", "UnsupportedContentMiddleware", "Post-guard compatibility filter replaces unsupported HumanMessage/ToolMessage blocks only; system messages and approved tool specs remain unchanged"),
     ("langchain", "langchain/agents/middleware/model_refusal.py", "ModelRefusalMiddleware", "Response-only refusal validation; request, system prompt and approved tool metadata remain unchanged"),
     ("langchain", "langchain/agents/middleware/todo.py", "WRITE_TODOS_SYSTEM_PROMPT", "TodoListMiddleware(system_prompt=resolved_entry)"),
