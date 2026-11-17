@@ -173,8 +173,43 @@ export const legalRequirementCoverageSchema = z
     }
   });
 
+/**
+ * Business purpose: Ensure declared material applicability conditions point to valid, unique condition indices.
+ * Business rules:
+ * - When material condition indices are declared, each index must be non-negative and strictly within bounds of applicabilityConditions.
+ * - Indices must be distinct with no duplicates.
+ * Execution flow:
+ * 1. Extract materialConditionIndices from requirement applicabilityLogic or default to empty list.
+ * 2. Check for duplicate indices using a Set.
+ * 3. Verify every index is strictly less than applicabilityConditions length.
+ * 4. Return true if valid, false to trigger schema validation failure.
+ * Failure cases:
+ * - Returns false if duplicate condition indices exist or if any index is out of bounds.
+ * Side effects:
+ * - Pure predicate function; no side effects or state modifications.
+ */
+function refineLegalRequirementMaterialConditions(requirement: {
+  applicabilityLogic?: { materialConditionIndices?: number[] } | undefined;
+  applicabilityConditions: readonly unknown[] | unknown[];
+}): boolean {
+  const indices =
+    requirement.applicabilityLogic?.materialConditionIndices ?? [];
+  return (
+    new Set(indices).size === indices.length &&
+    indices.every(
+      (index) => index < requirement.applicabilityConditions.length,
+    )
+  );
+}
+
+const legalRequirementMaterialConditionsRefinementOptions = {
+  message:
+    "Material applicability indices must be unique declared condition addresses",
+  path: ["applicabilityLogic", "materialConditionIndices"],
+};
+
 /** Agent-authored legal proposition with its context. Meaning only. */
-export const legalRequirementSchema = z
+export const legalRequirementBaseSchema = z
   .object({
     legalRequirementId: idSchema,
     applicabilityMode: z.enum(LEGAL_APPLICABILITY_MODES).optional(),
@@ -214,24 +249,12 @@ export const legalRequirementSchema = z
     sourceRefs: sourceRefListSchema,
     coverage: legalRequirementCoverageSchema,
   })
-  .strict()
-  .refine(
-    (requirement) => {
-      const indices =
-        requirement.applicabilityLogic?.materialConditionIndices ?? [];
-      return (
-        new Set(indices).size === indices.length &&
-        indices.every(
-          (index) => index < requirement.applicabilityConditions.length,
-        )
-      );
-    },
-    {
-      message:
-        "Material applicability indices must be unique declared condition addresses",
-      path: ["applicabilityLogic", "materialConditionIndices"],
-    },
-  );
+  .strict();
+
+export const legalRequirementSchema = legalRequirementBaseSchema.refine(
+  refineLegalRequirementMaterialConditions,
+  legalRequirementMaterialConditionsRefinementOptions,
+);
 export type LegalRequirementInput = z.infer<typeof legalRequirementSchema>;
 
 export const engineeringGraphQuerySchema = z
@@ -784,9 +807,13 @@ export const complianceRuleSetReadModelSchema = z
     lifecycleState: artifactLifecycleStateSchema,
     activatedAt: z.string().nullable(),
     legalRequirements: z.array(
-      legalRequirementSchema
+      legalRequirementBaseSchema
         .omit({ sourceRefs: true })
-        .extend({ sources: z.array(complianceRuleSetResolvedSourceSchema) }),
+        .extend({ sources: z.array(complianceRuleSetResolvedSourceSchema) })
+        .refine(
+          refineLegalRequirementMaterialConditions,
+          legalRequirementMaterialConditionsRefinementOptions,
+        ),
     ),
     assessmentRules: z.array(
       assessmentRuleSchema.omit({ sourceRefs: true }).extend({

@@ -153,7 +153,30 @@ export const repositoryDiscoveryGapSchema = z.strictObject({
   detail: z.string().trim().min(1).max(1000),
 });
 
-export const repositoryDiscoverySourceRangeSchema = z
+/**
+ * Business purpose: Ensure source range boundaries are monotonic and valid.
+ * Business rules:
+ * - A source range's end line must be greater than or equal to its start line.
+ * Execution flow:
+ * 1. Compare endLine against startLine.
+ * 2. Return true if endLine is greater than or equal to startLine; otherwise false.
+ * Failure cases:
+ * - Returns false if endLine strictly precedes startLine.
+ * Side effects:
+ * - Pure predicate function; no side effects or state modifications.
+ */
+function refineRepositoryDiscoverySourceRangeLines(range: {
+  startLine: number;
+  endLine: number;
+}): boolean {
+  return range.endLine >= range.startLine;
+}
+
+const repositoryDiscoverySourceRangeLinesRefinementOptions = {
+  message: "endLine must not precede startLine",
+};
+
+export const repositoryDiscoverySourceRangeBaseSchema = z
   .strictObject({
     rangeId: sha256Schema,
     path: pathSchema,
@@ -185,10 +208,13 @@ export const repositoryDiscoverySourceRangeSchema = z
     unresolvedEdges: z.array(z.string().trim().min(1).max(1000)).max(100),
     coverageGaps: z.array(z.string().trim().min(1).max(1000)).max(100),
     expansionState: z.enum(DISCOVERY_EXPANSION_STATES),
-  })
-  .refine((range) => range.endLine >= range.startLine, {
-    message: "endLine must not precede startLine",
   });
+
+export const repositoryDiscoverySourceRangeSchema =
+  repositoryDiscoverySourceRangeBaseSchema.refine(
+    refineRepositoryDiscoverySourceRangeLines,
+    repositoryDiscoverySourceRangeLinesRefinementOptions,
+  );
 
 export const repositoryDiscoveryResourceLedgerSchema = z.strictObject({
   budget: z.strictObject({
@@ -290,9 +316,14 @@ export const submitRepositoryDiscoverySchema = repositoryDiscoverySchema.extend(
   {
     sourceRanges: z
       .array(
-        repositoryDiscoverySourceRangeSchema.extend({
-          ruleRelevance: z.array(z.never()).max(0),
-        }),
+        repositoryDiscoverySourceRangeBaseSchema
+          .extend({
+            ruleRelevance: z.array(z.never()).max(0),
+          })
+          .refine(
+            refineRepositoryDiscoverySourceRangeLines,
+            repositoryDiscoverySourceRangeLinesRefinementOptions,
+          ),
       )
       .max(10_000),
     ruleCandidates: z.array(z.never()).max(0),
