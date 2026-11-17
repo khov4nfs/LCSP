@@ -1,10 +1,7 @@
-"""Approved model-request boundary for EN instructions and tool metadata.
+"""Approved request projection for EN instructions and tool metadata.
 
-Tool execution continues through the original graph tools and validators. Only
-model-facing descriptions are projected. Unknown tools fail before inference.
-The framework compatibility tail may replace unsupported HumanMessage and
-ToolMessage content blocks; it must not alter the approved system prompt or
-tool specifications. The refusal tail inspects responses only.
+Tool execution continues through the original graph tools and validators.
+The framework tail sanitizes user/tool content; refusal checks responses only.
 """
 from copy import deepcopy
 import json
