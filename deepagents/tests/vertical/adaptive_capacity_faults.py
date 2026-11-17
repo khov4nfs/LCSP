@@ -127,6 +127,7 @@ def main():
 
     Business rules:
     - Only the external model and repository are fixtures; real admission, fencing and recovery must hold.
+    - Quiescence transport stays unavailable until the operator's pre-release denial is observed.
     Execution flow:
     1. Launch owned server/bridge processes, inject faults and verify durable execution/checkpoint state.
     Failure cases:
@@ -247,15 +248,19 @@ def main():
         stale_quiesce=http('POST','/internal/assessment-root-capacity/quiesce',{'hostId':old[0],'incarnationId':str(old[1]),'runId':old_slot['runId']})[0]
         record('STALE_REQUESTS_BEFORE_REPLACEMENT_ROOT_RECLAIM',heartbeatStatus=heartbeat,lateFinishStatus=late_finish,compatibilityClaimStatus=stale_claim,oldIncarnationClaimStatus=old_claim_status,oldIncarnationQuiesceStatus=stale_quiesce)
         scenarios['staleLeaseAndClaimFencing']='PASS' if heartbeat==403 and late_finish==403 and stale_claim in [403,409,422,429] and old_claim_status==409 and stale_quiesce==409 else 'FAILED'
-        (directory/'hold-capacity-reports').touch();(directory/'fail-quiesce-once').touch();(directory/'resume-restored').touch()
+        (directory/'hold-capacity-reports').touch();(directory/'withhold-quiescence').touch();(directory/'resume-restored').touch()
         wait(lambda: first_count('active')>1 or first_count('crash')>1 or all(r[0]=='FAILED' for r in db.execute('SELECT "executionState" FROM "AssessmentRuntime" WHERE "assessmentId"=ANY(%s)',[[active,crash]])),'restored running Roots neither fail closed nor resume',30)
         auto_replayed=first_count('active')>1 or first_count('crash')>1
         scenarios['uncertainModelReplayRefused']='FAILED' if auto_replayed else 'PASS'
         assert not auto_replayed,'A running Root repeated an uncertain model step automatically after server crash'
-        wait(lambda: not (directory/'fail-quiesce-once').exists(),'lost quiescence injection not reached',10)
+        wait(lambda: (directory/'proxy.jsonl').exists(),'lost quiescence injection not reached',10)
         withheld=next(s for s in slots() if s['releasedAt'] is None and s['assessmentId'] in [active,crash])
-        assert replay(withheld['commandId'])==409,'Operator replay admitted work before physical release'
+        replay_status = replay(withheld['commandId'])
+        outbox_status = db.execute('SELECT status FROM "OutboxMessage" WHERE id=%s', [withheld['commandId']]).fetchone()[0]
+        record('OPERATOR_REPLAY_RESPONSE_BEFORE_QUIESCENCE', commandId=withheld['commandId'], httpStatus=replay_status, outboxStatus=outbox_status)
+        assert replay_status==409,f'Operator replay before physical release returned HTTP {replay_status}; outbox={outbox_status}'
         record('OPERATOR_REPLAY_REFUSED_BEFORE_QUIESCENCE',commandId=withheld['commandId'])
+        (directory/'withhold-quiescence').unlink()
         (directory/'hold-capacity-reports').unlink()
         wait(lambda:complete('after-crash'),'queued independent Root did not progress after confirmed death',60)
         wait(lambda:not any(s['releasedAt'] is None for s in slots()),'lost quiescence receipt did not reconcile',20)
