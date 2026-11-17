@@ -2097,6 +2097,7 @@ model AssessmentCase {
   humanRequests        AssessmentHumanRequest[]
   artifacts            AssessmentArtifact[]
   auditRequests        AssessmentRuleAuditRequest[]
+  discoveryRuns        AssessmentDiscoveryRun[]
   repositoryDiscoveries AssessmentRepositoryDiscovery[]
   repositoryDiscoveryExpansions AssessmentRepositoryDiscoveryExpansion[]
   factNeeds             AssessmentFactNeed[]
@@ -2123,6 +2124,45 @@ enum RepositoryDiscoveryExpansionReason {
   SCANNER_COVERAGE_GAP
 }
 
+enum AssessmentDiscoveryRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// Customer-authorized deterministic discovery execution before audit scope selection.
+model AssessmentDiscoveryRun {
+  runId                String                       @id @db.Uuid
+  assessmentId         String
+  requestedBy          String
+  idempotencyKey       String
+  requestDigest        String
+  status               AssessmentDiscoveryRunStatus @default(QUEUED)
+  attempt              Int                          @default(1)
+  repositorySnapshotId String
+  repositoryId         String
+  repositoryCommit     String
+  sourcePathPrefix     String?
+  repositoryScanJobId  String
+  threadId             String
+  leaseToken           String?                      @db.Uuid
+  leaseExpiresAt       DateTime?                    @db.Timestamptz(3)
+  discoveryRecordId    String?                      @db.Uuid
+  workerContentDigest  String?
+  errorCode            String?
+  requestedAt          DateTime                     @default(now()) @db.Timestamptz(3)
+  startedAt            DateTime?                    @db.Timestamptz(3)
+  completedAt          DateTime?                    @db.Timestamptz(3)
+  failedAt             DateTime?                    @db.Timestamptz(3)
+  assessmentCase       AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  repositoryDiscovery  AssessmentRepositoryDiscovery? @relation(fields: [discoveryRecordId, assessmentId], references: [recordId, assessmentId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, requestedAt(sort: Desc)])
+  @@index([status, leaseExpiresAt])
+}
+
 /// Immutable, versioned repository discovery input bound to one assessment snapshot.
 model AssessmentRepositoryDiscovery {
   recordId             String                     @id @db.Uuid
@@ -2141,6 +2181,7 @@ model AssessmentRepositoryDiscovery {
   createdAt            DateTime                   @default(now()) @db.Timestamptz(3)
   assessmentCase       AssessmentCase             @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   expansions           AssessmentRepositoryDiscoveryExpansion[]
+  discoveryRuns        AssessmentDiscoveryRun[]
 
   @@unique([recordId, assessmentId])
   @@unique([assessmentId, cacheIdentity, contentDigest])

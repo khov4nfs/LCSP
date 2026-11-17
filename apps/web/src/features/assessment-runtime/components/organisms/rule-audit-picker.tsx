@@ -37,6 +37,7 @@ import {
 import { copy } from "../../utils/conversation-copy";
 import { RuleAuditOption } from "../molecules/rule-audit-option";
 import { RuleAuditGroup } from "../molecules/rule-audit-group";
+import { AssessmentDiscoveryOverview } from "./assessment-discovery-overview";
 
 /**
  * Business purpose: Let the customer explicitly choose a frozen rule scope in the assessment conversation.
@@ -292,6 +293,13 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
           </CardTitle>
           <CardDescription>{copy("ruleAudit.description")}</CardDescription>
         </CardHeader>
+        <CardContent className="pb-0">
+          <AssessmentDiscoveryOverview
+            assessmentId={assessmentId}
+            rules={rules}
+            canDiscover={!data.latestRequestId}
+          />
+        </CardContent>
         {latest ? (
           <CardContent className="pb-0">
             <div

@@ -1,11 +1,24 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-
 import { repositorySourcePathPrefixSchema } from "../github-integration/source-scope.ts";
 import {
   REPOSITORY_SCANNER_VERSIONS,
   type RepositoryScannerVersion,
 } from "./repository-profile.ts";
+
+export const ASSESSMENT_DISCOVERY_RUN_STATUSES = {
+  queued: "QUEUED",
+  running: "RUNNING",
+  completed: "COMPLETED",
+  failed: "FAILED",
+} as const;
+
+export const startAssessmentDiscoveryRunSchema = z.strictObject({
+  idempotencyKey: z.uuid(),
+});
+export type StartAssessmentDiscoveryRun = z.infer<
+  typeof startAssessmentDiscoveryRunSchema
+>;
 
 export const REPOSITORY_DISCOVERY_VERSIONS = {
   v1: "LCSP_DISCOVERY_V1",
@@ -242,9 +255,7 @@ export const repositoryRuleCandidateSchema = z.strictObject({
   supportingRangeIds: z.array(sha256Schema).max(1000),
   supportingFactIds: z.array(z.uuid()).max(500),
   matchedTerms: z.array(z.string().trim().min(1).max(200)).max(100),
-  applicabilityElements: z
-    .array(z.string().trim().min(1).max(1000))
-    .max(100),
+  applicabilityElements: z.array(z.string().trim().min(1).max(1000)).max(100),
   unresolvedConditions: z.array(z.string().trim().min(1).max(1000)).max(100),
   rationale: z.string().trim().min(1).max(4000),
   limitations: z.array(z.string().trim().min(1).max(1000)).max(100),
@@ -289,6 +300,22 @@ export const submitRepositoryDiscoverySchema = repositoryDiscoverySchema.extend(
 );
 export type SubmitRepositoryDiscovery = z.infer<
   typeof submitRepositoryDiscoverySchema
+>;
+
+export const completeAssessmentDiscoveryRunSchema = z.strictObject({
+  leaseToken: z.uuid(),
+  discovery: submitRepositoryDiscoverySchema,
+});
+export type CompleteAssessmentDiscoveryRun = z.infer<
+  typeof completeAssessmentDiscoveryRunSchema
+>;
+
+export const rejectAssessmentDiscoveryRunSchema = z.strictObject({
+  leaseToken: z.uuid(),
+  errorCode: z.string().trim().min(1).max(200),
+});
+export type RejectAssessmentDiscoveryRun = z.infer<
+  typeof rejectAssessmentDiscoveryRunSchema
 >;
 
 export const repositoryDiscoverySaveResultSchema = z.strictObject({
@@ -406,9 +433,7 @@ const repositoryDiscoverySummaryDetailSchema = z.strictObject({
           supportingUseCaseIds: z.array(sha256Schema).max(10),
           supportingRangeIds: z.array(sha256Schema).max(10),
           supportingFactIds: z.array(z.uuid()).max(10),
-          matchedTerms: z
-            .array(z.string().trim().min(1).max(200))
-            .max(20),
+          matchedTerms: z.array(z.string().trim().min(1).max(200)).max(20),
           applicabilityElements: z
             .array(z.string().trim().min(1).max(1000))
             .max(5),
@@ -416,20 +441,14 @@ const repositoryDiscoverySummaryDetailSchema = z.strictObject({
             .array(z.string().trim().min(1).max(1000))
             .max(5),
           rationale: z.string().trim().min(1).max(1000),
-          limitations: z
-            .array(z.string().trim().min(1).max(1000))
-            .max(5),
+          limitations: z.array(z.string().trim().min(1).max(1000)).max(5),
           authorizesAssessment: z.literal(false),
         }),
       )
       .max(5),
     knownGaps: z.array(repositoryDiscoveryGapSchema).max(5),
-    unsupportedLanguages: z
-      .array(z.string().trim().min(1).max(100))
-      .max(5),
-    unresolvedCalls: z
-      .array(z.string().trim().min(1).max(1000))
-      .max(5),
+    unsupportedLanguages: z.array(z.string().trim().min(1).max(100)).max(5),
+    unresolvedCalls: z.array(z.string().trim().min(1).max(1000)).max(5),
   }),
   createdAt: z.iso.datetime(),
 });
@@ -447,6 +466,60 @@ export const repositoryDiscoverySummarySchema = z.discriminatedUnion(
 export type RepositoryDiscoverySummary = z.infer<
   typeof repositoryDiscoverySummarySchema
 >;
+
+export const assessmentDiscoveryRunViewSchema = z.strictObject({
+  runId: z.uuid(),
+  assessmentId: z.uuid(),
+  status: z.enum(ASSESSMENT_DISCOVERY_RUN_STATUSES),
+  attempt: z.number().int().positive(),
+  repositorySnapshotId: z.string().min(1),
+  repositoryCommit: z.string().regex(/^[a-f0-9]{40,64}$/),
+  sourcePathPrefix: repositorySourcePathPrefixSchema.nullable(),
+  requestedAt: z.iso.datetime(),
+  startedAt: z.iso.datetime().nullable(),
+  completedAt: z.iso.datetime().nullable(),
+  failedAt: z.iso.datetime().nullable(),
+  errorCode: z.string().trim().min(1).max(200).nullable(),
+  discovery: repositoryDiscoverySummarySchema,
+});
+export type AssessmentDiscoveryRunView = z.infer<
+  typeof assessmentDiscoveryRunViewSchema
+>;
+
+export const assessmentDiscoveryLatestRunSchema = z.discriminatedUnion(
+  "available",
+  [
+    z.strictObject({ available: z.literal(false), run: z.null() }),
+    z.strictObject({
+      available: z.literal(true),
+      run: assessmentDiscoveryRunViewSchema,
+    }),
+  ],
+);
+export type AssessmentDiscoveryLatestRun = z.infer<
+  typeof assessmentDiscoveryLatestRunSchema
+>;
+
+export const assessmentDiscoveryRunClaimSchema = z.strictObject({
+  runId: z.uuid(),
+  assessmentId: z.uuid(),
+  leaseToken: z.uuid(),
+  threadId: z.string().trim().min(1).max(500),
+  repositorySnapshotId: z.string().trim().min(1),
+  repositoryId: z.string().trim().min(1),
+  repositoryCommit: z.string().regex(/^[a-f0-9]{40,64}$/),
+  sourcePathPrefix: repositorySourcePathPrefixSchema.nullable(),
+  repositoryScanJobId: z.string().trim().min(1),
+  attempt: z.number().int().positive(),
+  alreadyCompleted: z.boolean(),
+});
+export type AssessmentDiscoveryRunClaim = z.infer<
+  typeof assessmentDiscoveryRunClaimSchema
+>;
+
+export const failAssessmentDiscoveryRunSchema = z.strictObject({
+  errorCode: z.string().trim().min(1).max(200),
+});
 
 export const repositoryDiscoveryRangePageQuerySchema = z.strictObject({
   recordId: z.uuid(),

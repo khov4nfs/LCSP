@@ -728,6 +728,91 @@ def test_root_backend_factory_indexes_the_hydrated_snapshot_for_graph_tools(tmp_
     assert submitted[0]["contentDigest"] == submitted[0]["discoveryId"]
 
 
+
+@pytest.mark.parametrize(
+    ("override", "should_scan"),
+    [
+        ({}, False),
+        ({"repositoryCommit": "b" * 40}, True),
+        ({"sourcePathPrefix": "other-service"}, True),
+        ({"graphIndexVersion": "old-graph"}, True),
+        ({"repositorySnapshotId": "stale-snapshot"}, True),
+    ],
+)
+def test_root_reuses_only_current_governed_discovery(
+    tmp_path, monkeypatch, override: dict[str, Any], should_scan: bool
+) -> None:
+    """A completed pre-scope artifact skips another scan only when exact repository and graph pins match."""
+    from types import SimpleNamespace
+    from assessment_root.boundary import sandbox_backend_factory
+    from tools.common.capabilities.platform import codebase_memory, repository_sandbox
+    from tools.common.capabilities.platform import repository_scanner
+
+    sandbox = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    monkeypatch.setattr(repository_sandbox, "resolve_repository_thread_backend", lambda _config: sandbox)
+    monkeypatch.setattr(repository_sandbox, "hydrate_repository", lambda _backend, **_pins: None)
+    monkeypatch.setattr(codebase_memory, "ensure_codebase_memory_index", lambda _backend: None)
+    monkeypatch.setattr(
+        codebase_memory,
+        "active_codebase_memory_index",
+        lambda: SimpleNamespace(index_stamp="current-graph"),
+    )
+    scan_calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(repository_scanner, "ensure_repository_profile", lambda *_a, **_kw: {})
+    monkeypatch.setattr(
+        repository_scanner,
+        "ensure_repository_discovery",
+        lambda *_a, **kw: (scan_calls.append(kw) or {"repositoryId": "repository-123"}),
+    )
+
+    client = FakeClient()
+    claim = client.claim(ASSESSMENT)
+    context = client.context()
+    expected = {
+        "repositorySnapshotId": context["repositorySnapshotId"],
+        "repositoryId": context["repositoryId"],
+        "repositoryCommit": context["repositoryCommit"],
+        "sourcePathPrefix": context.get("sourcePathPrefix"),
+        "graphIndexVersion": "current-graph",
+    }
+    expected.update(override)
+    submitted: list[dict[str, Any]] = []
+    sandbox_backend_factory(
+        claim,
+        context,
+        discovery_lookup=lambda: {"available": True, "discovery": expected},
+        discovery_sink=submitted.append,
+    )
+    assert bool(scan_calls) is should_scan
+    assert bool(submitted) is should_scan
+
+
+def test_root_missing_discovery_falls_back_without_hiding_scan_errors(
+    tmp_path, monkeypatch
+) -> None:
+    """When an exact pre-scope result does not exist, the previous pinned scan path remains live."""
+    from tools.common.capabilities.platform import codebase_memory, repository_sandbox, repository_scanner
+    from assessment_root.boundary import sandbox_backend_factory
+
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    monkeypatch.setattr(repository_sandbox, "resolve_repository_thread_backend", lambda _config: backend)
+    monkeypatch.setattr(repository_sandbox, "hydrate_repository", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(codebase_memory, "ensure_codebase_memory_index", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(codebase_memory, "active_codebase_memory_index", lambda: None)
+    monkeypatch.setattr(repository_scanner, "ensure_repository_profile", lambda *_args, **_kwargs: {})
+    scans: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        repository_scanner,
+        "ensure_repository_discovery",
+        lambda *_args, **kwargs: (scans.append(kwargs) or {"ok": True}),
+    )
+    client = FakeClient()
+    claim = client.claim(ASSESSMENT)
+    context = client.context()
+    sandbox_backend_factory(claim, context, discovery_lookup=lambda: {"available": False}, discovery_sink=lambda _: None)
+    assert len(scans) == 1
+
+
 def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_tools(tmp_path) -> None:
     client = FakeClient()
     run = _run(tmp_path, client)

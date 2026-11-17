@@ -707,6 +707,26 @@ export type PagesMessages = {
       localizationFailed: string;
       title: string;
       description: string;
+      discovery: {
+        title: string;
+        description: string;
+        start: string;
+        retry: string;
+        running: string;
+        failed: string;
+        error: string;
+        summary: string;
+        investigationOnly: string;
+        preview: string;
+        allCandidates: string;
+        loadMore: string;
+        contextQuestions: string;
+        contextAdvisory: string;
+        candidateLoadFailed: string;
+        needsContext: string;
+        candidate: string;
+        noCandidates: string;
+      };
       search: string;
       selectedCount: string;
       resultsCount: string;

@@ -28,6 +28,7 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   AssessmentRecordState,
+  Prisma,
   RepositoryDiscoveryVersion as PrismaRepositoryDiscoveryVersion,
   RepositoryScannerVersion as PrismaRepositoryScannerVersion,
 } from "@prisma/client";
@@ -129,86 +130,140 @@ export class AssessmentRepositoryDiscoveryService {
         correlationId: input.correlationId,
         requireActive: false,
       });
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-        true,
-      );
-      this.assertArtifactPins(discovery, pins, input.correlationId);
-
-      const [rules, acceptedFacts] = await Promise.all([
-        tx.assessmentRule.findMany({
-          where: { ruleSetVersionId: pins.ruleSetVersionId },
-          orderBy: [{ ordinal: "asc" }, { assessmentRuleId: "asc" }],
-          select: {
-            assessmentRuleId: true,
-            assessmentRuleVersion: true,
-            concept: true,
-            applicabilityGuidance: true,
-            criteria: true,
-            contract: true,
-            ordinal: true,
-          },
-        }),
-        tx.assessmentCaseFact.findMany({
-          where: {
-            assessmentId: input.assessmentId,
-            state: AssessmentRecordState.ACCEPTED,
-          },
-          orderBy: [{ caseRevision: "asc" }, { factId: "asc" }],
-          select: { factId: true, statement: true },
-        }),
-      ]);
-      const enriched = buildRepositoryDiscoveryRuleCandidates({
+      return this.saveAuthorizedInTx(tx, {
+        assessmentId: input.assessmentId,
+        correlationId: input.correlationId,
         discovery,
-        rules,
-        acceptedFacts,
       });
+    });
+  }
 
-      const inserted = await tx.assessmentRepositoryDiscovery.createMany({
-        data: [
-          {
-            recordId: randomUUID(),
-            assessmentId: input.assessmentId,
-            repositorySnapshotId: pins.repositorySnapshotId,
-            repositoryId: pins.repositoryId,
-            repositoryCommit: pins.repositoryCommit.toLowerCase(),
-            sourcePathPrefix: pins.sourcePathPrefix,
-            scannerVersion: PrismaRepositoryScannerVersion.LCSP_PRE_SCAN_V1,
-            discoveryVersion:
-              PrismaRepositoryDiscoveryVersion.LCSP_DISCOVERY_V1,
-            scannerSignature: enriched.scannerSignature,
-            graphIndexVersion: enriched.graphIndexVersion,
-            cacheIdentity: enriched.cacheIdentity,
-            contentDigest: enriched.contentDigest,
-            payload: enriched,
-          },
-        ],
-        skipDuplicates: true,
-      });
-      const row = await tx.assessmentRepositoryDiscovery.findUnique({
-        where: {
-          assessmentId_cacheIdentity_contentDigest: {
-            assessmentId: input.assessmentId,
-            cacheIdentity: enriched.cacheIdentity,
-            contentDigest: enriched.contentDigest,
-          },
+  /**
+   * Business purpose: Persist one validated Discovery artifact after a caller has established either Root or pre-scope discovery authority.
+   *
+   * Business rules:
+   * - The caller must hold the surrounding transaction and authorize the exact assessment before invoking this method.
+   * - Repository pins, strict no-raw-source schema, deterministic identity, API-owned rule candidates, and accepted-fact enrichment remain identical for every authority path.
+   * - Exact cache/content replay returns the existing immutable row.
+   *
+   * Execution flow:
+   * 1. Validate the submitted artifact schema, digest, discovery identity, and cache identity.
+   * 2. Load current server pins and match every artifact coordinate.
+   * 3. Enrich candidates from pinned rules and accepted facts, append the immutable row conflict-safely, and return its receipt.
+   *
+   * Failure cases:
+   * - Invalid content, stale pins, malformed metadata, or a missing post-insert row aborts the caller's transaction.
+   *
+   * Side effects:
+   * - May append one AssessmentRepositoryDiscovery row and reads rules/facts; it never authorizes audit scope or writes evidence, facts, or decisions.
+   */
+  async saveAuthorizedInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      correlationId: string;
+      discovery: SubmitRepositoryDiscovery;
+    },
+  ): Promise<RepositoryDiscoverySaveResult> {
+    const parsed = submitRepositoryDiscoverySchema.safeParse(input.discovery);
+    if (!parsed.success) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    const discovery = parsed.data;
+    const expectedDigest = computeRepositoryDiscoveryDigest(discovery);
+    const expectedCacheIdentity =
+      computeRepositoryDiscoveryCacheIdentity(discovery);
+    if (
+      discovery.contentDigest !== expectedDigest ||
+      discovery.discoveryId !== expectedDigest ||
+      discovery.cacheIdentity !== expectedCacheIdentity
+    ) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    const pins = await this.support.loadPins(
+      tx,
+      input.assessmentId,
+      input.correlationId,
+      true,
+    );
+    this.assertArtifactPins(discovery, pins, input.correlationId);
+    const [rules, acceptedFacts] = await Promise.all([
+      tx.assessmentRule.findMany({
+        where: { ruleSetVersionId: pins.ruleSetVersionId },
+        orderBy: [{ ordinal: "asc" }, { assessmentRuleId: "asc" }],
+        select: {
+          assessmentRuleId: true,
+          assessmentRuleVersion: true,
+          concept: true,
+          applicabilityGuidance: true,
+          criteria: true,
+          contract: true,
+          ordinal: true,
         },
-      });
-      if (!row) {
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
-          input.correlationId,
-          { status: HttpStatus.INTERNAL_SERVER_ERROR },
-        );
-      }
-      return repositoryDiscoverySaveResultSchema.parse({
-        recordId: row.recordId,
-        cacheIdentity: row.cacheIdentity,
-        contentDigest: row.contentDigest,
-        replayed: inserted.count === 0,
-      });
+      }),
+      tx.assessmentCaseFact.findMany({
+        where: {
+          assessmentId: input.assessmentId,
+          state: AssessmentRecordState.ACCEPTED,
+        },
+        orderBy: [{ caseRevision: "asc" }, { factId: "asc" }],
+        select: { factId: true, statement: true },
+      }),
+    ]);
+    const enriched = buildRepositoryDiscoveryRuleCandidates({
+      discovery,
+      rules,
+      acceptedFacts,
+    });
+    const inserted = await tx.assessmentRepositoryDiscovery.createMany({
+      data: [
+        {
+          recordId: randomUUID(),
+          assessmentId: input.assessmentId,
+          repositorySnapshotId: pins.repositorySnapshotId,
+          repositoryId: pins.repositoryId,
+          repositoryCommit: pins.repositoryCommit.toLowerCase(),
+          sourcePathPrefix: pins.sourcePathPrefix,
+          scannerVersion: PrismaRepositoryScannerVersion.LCSP_PRE_SCAN_V1,
+          discoveryVersion: PrismaRepositoryDiscoveryVersion.LCSP_DISCOVERY_V1,
+          scannerSignature: enriched.scannerSignature,
+          graphIndexVersion: enriched.graphIndexVersion,
+          cacheIdentity: enriched.cacheIdentity,
+          contentDigest: enriched.contentDigest,
+          payload: enriched,
+        },
+      ],
+      skipDuplicates: true,
+    });
+    const row = await tx.assessmentRepositoryDiscovery.findUnique({
+      where: {
+        assessmentId_cacheIdentity_contentDigest: {
+          assessmentId: input.assessmentId,
+          cacheIdentity: enriched.cacheIdentity,
+          contentDigest: enriched.contentDigest,
+        },
+      },
+    });
+    if (!row) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        input.correlationId,
+        { status: HttpStatus.INTERNAL_SERVER_ERROR },
+      );
+    }
+    return repositoryDiscoverySaveResultSchema.parse({
+      recordId: row.recordId,
+      cacheIdentity: row.cacheIdentity,
+      contentDigest: row.contentDigest,
+      replayed: inserted.count === 0,
     });
   }
 
@@ -407,106 +462,181 @@ export class AssessmentRepositoryDiscoveryService {
         input.assessmentId,
         input.correlationId,
       );
-      const row = await tx.assessmentRepositoryDiscovery.findFirst({
-        where: this.currentPinWhere(input.assessmentId, pins),
-        orderBy: [{ createdAt: "desc" }, { recordId: "desc" }],
+      return this.summaryForPinsInTx(tx, pins, input.correlationId);
+    });
+  }
+
+  /**
+   * Business purpose: Expose an owner's already verified pre-scope discovery without granting Root lease access.
+   *
+   * Business rules:
+   * - Only the assessment owner may read; candidate recommendations remain non-authoritative.
+   * - An optional record ID restricts the result to the exact discovery run, never an unrelated newer artifact.
+   * - The source and rule-set pins must still match the server-owned case.
+   *
+   * Execution flow:
+   * 1. Validate owner identity in the same read transaction.
+   * 2. Load current immutable pins and the exact requested discovery record if provided.
+   * 3. Reuse the strict integrity-checked bounded Root projection.
+   *
+   * Failure cases:
+   * - Foreign assessment or corrupted discovery fails closed; absence remains explicitly unavailable.
+   *
+   * Side effects:
+   * - Read-only projection; does not create rule selection, evidence, or facts.
+   */
+  async getOwnerSummary(input: {
+    assessmentId: string;
+    ownerId: string;
+    correlationId: string;
+    recordId?: string;
+  }): Promise<RepositoryDiscoverySummary> {
+    return this.prisma.$transaction(async (tx) => {
+      const assessment = await tx.assessment.findUnique({
+        where: { id: input.assessmentId },
+        select: { ownerId: true },
       });
-      if (!row) {
-        return repositoryDiscoverySummarySchema.parse({
-          available: false,
-          discovery: null,
-        });
+      if (!assessment || assessment.ownerId !== input.ownerId) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.RUNTIME_NOT_FOUND,
+          input.correlationId,
+          { status: HttpStatus.NOT_FOUND },
+        );
       }
-      const discovery = this.parseVerifiedRow(row, pins, input.correlationId);
-      const durableExpansionCount =
-        await tx.assessmentRepositoryDiscoveryExpansion.count({
-          where: {
-            assessmentId: input.assessmentId,
-            repositoryDiscoveryId: row.recordId,
-          },
-        });
+      const pins = await this.support.loadPins(
+        tx,
+        input.assessmentId,
+        input.correlationId,
+      );
+      return this.summaryForPinsInTx(
+        tx,
+        pins,
+        input.correlationId,
+        input.recordId,
+      );
+    });
+  }
+
+  /**
+   * Business purpose: Share the identical pin-checked, bounded Discovery summary across Root and customer reads.
+   *
+   * Business rules:
+   * - Caller has already established worker-lease or owner authorization.
+   * - Exact-pin queries and strict content digests reject cross-assessment or stale source data.
+   * - A missing exact record remains unavailable and is never proof of no AI use.
+   *
+   * Execution flow:
+   * 1. Load the pinned artifact and independently verify its integrity.
+   * 2. Return only bounded counts and previews with remaining coverage limits.
+   *
+   * Failure cases:
+   * - Integrity, source or digest mismatch rejects; missing artifact is explicitly absent.
+   *
+   * Side effects:
+   * - Read-only DB access.
+   */
+  private async summaryForPinsInTx(
+    tx: Prisma.TransactionClient,
+    pins: PinnedCase,
+    correlationId: string,
+    recordId?: string,
+  ): Promise<RepositoryDiscoverySummary> {
+    const row = await tx.assessmentRepositoryDiscovery.findFirst({
+      where: {
+        ...this.currentPinWhere(pins.assessmentId, pins),
+        ...(recordId ? { recordId } : {}),
+      },
+      orderBy: [{ createdAt: "desc" }, { recordId: "desc" }],
+    });
+    if (!row) {
       return repositoryDiscoverySummarySchema.parse({
-        available: true,
-        discovery: {
-          recordId: row.recordId,
-          repositorySnapshotId: row.repositorySnapshotId,
-          repositoryId: row.repositoryId,
-          repositoryCommit: row.repositoryCommit,
-          sourcePathPrefix: row.sourcePathPrefix,
-          scannerVersion: row.scannerVersion,
-          discoveryVersion: row.discoveryVersion,
-          scannerSignature: row.scannerSignature,
-          graphIndexVersion: row.graphIndexVersion,
-          cacheIdentity: row.cacheIdentity,
-          contentDigest: row.contentDigest,
-          sourceRangeCount: discovery.sourceRanges.length,
-          aiUseCaseCount: discovery.aiUseCases.length,
-          ruleCandidateCount: discovery.ruleCandidates.length,
-          knownGapCount: discovery.knownGaps.length,
-          unsupportedLanguageCount: discovery.unsupportedLanguages.length,
-          unresolvedCallCount: discovery.unresolvedCalls.length,
-          resourceBudget: discovery.resourceLedger.budget,
-          resourceUsage: discovery.resourceLedger.usage,
-          remainingBudget: discovery.resourceLedger.remaining,
-          coverageImpact: discovery.resourceLedger.coverageImpact,
-          expansionCount:
-            discovery.resourceLedger.expansionHistory.length +
-            durableExpansionCount,
-          preview: {
-            ranges: discovery.sourceRanges.slice(0, 5).map((range) => ({
-              rangeId: range.rangeId,
-              path: range.path,
-              startLine: range.startLine,
-              endLine: range.endLine,
-              symbol: range.symbol,
-              signalType: range.signalType,
-              sourceClassification: range.sourceClassification,
-              reachability: range.reachability,
-              observationStatus: range.observationStatus,
-              evidenceStrength: range.evidenceStrength,
-              explanation: range.explanation.slice(0, 500),
-              useCaseIds: range.useCaseIds.slice(0, 5),
-            })),
-            aiUseCases: discovery.aiUseCases.slice(0, 5).map((useCase) => ({
-              useCaseId: useCase.useCaseId,
-              name: useCase.name,
-              observationStatus: useCase.observationStatus,
-              providerOrFramework: useCase.providerOrFramework,
-              invocationRangeIds: useCase.invocationRangeIds.slice(0, 10),
-              unresolvedQuestions: useCase.unresolvedQuestions.slice(0, 5),
-            })),
-            ruleCandidates: discovery.ruleCandidates
-              .slice(0, 5)
-              .map((candidate) => ({
-                assessmentRuleId: candidate.assessmentRuleId,
-                assessmentRuleVersion: candidate.assessmentRuleVersion,
-                state: candidate.state,
-                supportingUseCaseIds: candidate.supportingUseCaseIds.slice(
-                  0,
-                  10,
-                ),
-                supportingRangeIds: candidate.supportingRangeIds.slice(0, 10),
-                supportingFactIds: candidate.supportingFactIds.slice(0, 10),
-                matchedTerms: candidate.matchedTerms.slice(0, 20),
-                applicabilityElements: candidate.applicabilityElements.slice(
-                  0,
-                  5,
-                ),
-                unresolvedConditions: candidate.unresolvedConditions.slice(
-                  0,
-                  5,
-                ),
-                rationale: candidate.rationale.slice(0, 1_000),
-                limitations: candidate.limitations.slice(0, 5),
-                authorizesAssessment: candidate.authorizesAssessment,
-              })),
-            knownGaps: discovery.knownGaps.slice(0, 5),
-            unsupportedLanguages: discovery.unsupportedLanguages.slice(0, 5),
-            unresolvedCalls: discovery.unresolvedCalls.slice(0, 5),
-          },
-          createdAt: row.createdAt.toISOString(),
+        available: false,
+        discovery: null,
+      });
+    }
+    const discovery = this.parseVerifiedRow(row, pins, correlationId);
+    const durableExpansionCount =
+      await tx.assessmentRepositoryDiscoveryExpansion.count({
+        where: {
+          assessmentId: pins.assessmentId,
+          repositoryDiscoveryId: row.recordId,
         },
       });
+    return repositoryDiscoverySummarySchema.parse({
+      available: true,
+      discovery: {
+        recordId: row.recordId,
+        repositorySnapshotId: row.repositorySnapshotId,
+        repositoryId: row.repositoryId,
+        repositoryCommit: row.repositoryCommit,
+        sourcePathPrefix: row.sourcePathPrefix,
+        scannerVersion: row.scannerVersion,
+        discoveryVersion: row.discoveryVersion,
+        scannerSignature: row.scannerSignature,
+        graphIndexVersion: row.graphIndexVersion,
+        cacheIdentity: row.cacheIdentity,
+        contentDigest: row.contentDigest,
+        sourceRangeCount: discovery.sourceRanges.length,
+        aiUseCaseCount: discovery.aiUseCases.length,
+        ruleCandidateCount: discovery.ruleCandidates.length,
+        knownGapCount: discovery.knownGaps.length,
+        unsupportedLanguageCount: discovery.unsupportedLanguages.length,
+        unresolvedCallCount: discovery.unresolvedCalls.length,
+        resourceBudget: discovery.resourceLedger.budget,
+        resourceUsage: discovery.resourceLedger.usage,
+        remainingBudget: discovery.resourceLedger.remaining,
+        coverageImpact: discovery.resourceLedger.coverageImpact,
+        expansionCount:
+          discovery.resourceLedger.expansionHistory.length +
+          durableExpansionCount,
+        preview: {
+          ranges: discovery.sourceRanges.slice(0, 5).map((range) => ({
+            rangeId: range.rangeId,
+            path: range.path,
+            startLine: range.startLine,
+            endLine: range.endLine,
+            symbol: range.symbol,
+            signalType: range.signalType,
+            sourceClassification: range.sourceClassification,
+            reachability: range.reachability,
+            observationStatus: range.observationStatus,
+            evidenceStrength: range.evidenceStrength,
+            explanation: range.explanation.slice(0, 500),
+            useCaseIds: range.useCaseIds.slice(0, 5),
+          })),
+          aiUseCases: discovery.aiUseCases.slice(0, 5).map((useCase) => ({
+            useCaseId: useCase.useCaseId,
+            name: useCase.name,
+            observationStatus: useCase.observationStatus,
+            providerOrFramework: useCase.providerOrFramework,
+            invocationRangeIds: useCase.invocationRangeIds.slice(0, 10),
+            unresolvedQuestions: useCase.unresolvedQuestions.slice(0, 5),
+          })),
+          ruleCandidates: discovery.ruleCandidates
+            .slice(0, 5)
+            .map((candidate) => ({
+              assessmentRuleId: candidate.assessmentRuleId,
+              assessmentRuleVersion: candidate.assessmentRuleVersion,
+              state: candidate.state,
+              supportingUseCaseIds: candidate.supportingUseCaseIds.slice(0, 10),
+              supportingRangeIds: candidate.supportingRangeIds.slice(0, 10),
+              supportingFactIds: candidate.supportingFactIds.slice(0, 10),
+              matchedTerms: candidate.matchedTerms.slice(0, 20),
+              applicabilityElements: candidate.applicabilityElements.slice(
+                0,
+                5,
+              ),
+              unresolvedConditions: candidate.unresolvedConditions.slice(0, 5),
+              rationale: candidate.rationale.slice(0, 1_000),
+              limitations: candidate.limitations.slice(0, 5),
+              authorizesAssessment: candidate.authorizesAssessment,
+            })),
+          knownGaps: discovery.knownGaps.slice(0, 5),
+          unsupportedLanguages: discovery.unsupportedLanguages.slice(0, 5),
+          unresolvedCalls: discovery.unresolvedCalls.slice(0, 5),
+        },
+        createdAt: row.createdAt.toISOString(),
+      },
     });
   }
 
@@ -631,51 +761,122 @@ export class AssessmentRepositoryDiscoveryService {
         input.assessmentId,
         input.correlationId,
       );
-      const row = await tx.assessmentRepositoryDiscovery.findFirst({
-        where: {
-          recordId: input.recordId,
-          ...this.currentPinWhere(input.assessmentId, pins),
-        },
+      return this.detailForPinsInTx(tx, pins, input);
+    });
+  }
+
+  /**
+   * Business purpose: Let the owner inspect every relevant rule candidate in bounded pages.
+   * Business rules:
+   * - Only the owner of the assessment may read the immutable pin-bound discovery artifact.
+   * - The discovery collection is investigative metadata, not a legal decision or audit scope.
+   * Execution flow:
+   * 1. Validate assessment ownership and current repository pins.
+   * 2. Return the same integrity-checked bounded detail page as the worker tool plane.
+   * Failure cases:
+   * - Foreign, missing or tampered artifacts reject with the standard problem envelope.
+   * Side effects:
+   * - Read-only customer projection, no fact or audit authorization.
+   */
+  async getOwnerDetailPage(input: {
+    assessmentId: string;
+    ownerId: string;
+    correlationId: string;
+    recordId: string;
+    collection: RepositoryDiscoveryDetailPageQuery["collection"];
+    offset: number;
+    limit: number;
+  }): Promise<RepositoryDiscoveryDetailPage> {
+    return this.prisma.$transaction(async (tx) => {
+      const assessment = await tx.assessment.findUnique({
+        where: { id: input.assessmentId },
+        select: { ownerId: true },
       });
-      if (!row) {
+      if (!assessment || assessment.ownerId !== input.ownerId) {
         throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_NOT_FOUND,
+          ASSESSMENT_DOMAIN_ERROR_CODES.RUNTIME_NOT_FOUND,
           input.correlationId,
           { status: HttpStatus.NOT_FOUND },
         );
       }
-      const discovery = this.parseVerifiedRow(row, pins, input.correlationId);
-      const items =
-        input.collection === DISCOVERY_DETAIL_COLLECTIONS.aiUseCases
-          ? discovery.aiUseCases
-          : input.collection === DISCOVERY_DETAIL_COLLECTIONS.ruleCandidates
-            ? discovery.ruleCandidates
-            : input.collection === DISCOVERY_DETAIL_COLLECTIONS.knownGaps
-              ? discovery.knownGaps
-              : input.collection ===
-                  DISCOVERY_DETAIL_COLLECTIONS.unsupportedLanguages
-                ? discovery.unsupportedLanguages
-                : discovery.unresolvedCalls;
-      if (input.offset > items.length) {
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
-          input.correlationId,
-          { status: HttpStatus.UNPROCESSABLE_ENTITY },
-        );
-      }
-      return repositoryDiscoveryDetailPageSchema.parse({
-        recordId: row.recordId,
-        contentDigest: row.contentDigest,
-        collection: input.collection,
-        total: items.length,
-        offset: input.offset,
-        limit: input.limit,
-        nextOffset:
-          input.offset + input.limit < items.length
-            ? input.offset + input.limit
-            : null,
-        items: items.slice(input.offset, input.offset + input.limit),
-      });
+      const pins = await this.support.loadPins(
+        tx,
+        input.assessmentId,
+        input.correlationId,
+      );
+      return this.detailForPinsInTx(tx, pins, input);
+    });
+  }
+
+  /**
+   * Business purpose: Return one page of verified source/use-case/candidate metadata under the current pins.
+   * Business rules:
+   * - The caller already holds owner or Root lease authority, and the exact artifact identity is required.
+   * - The same semantic projection and page limits apply to both read surfaces.
+   * Execution flow:
+   * 1. Load exact immutable record and revalidate its digest/source pins.
+   * 2. Return a bounded collection page with a continuation cursor.
+   * Failure cases:
+   * - Missing/tampered artifacts and invalid offsets fail closed.
+   * Side effects:
+   * - Read-only database projection.
+   */
+  private async detailForPinsInTx(
+    tx: Prisma.TransactionClient,
+    pins: PinnedCase,
+    input: {
+      assessmentId: string;
+      correlationId: string;
+      recordId: string;
+      collection: RepositoryDiscoveryDetailPageQuery["collection"];
+      offset: number;
+      limit: number;
+    },
+  ): Promise<RepositoryDiscoveryDetailPage> {
+    const row = await tx.assessmentRepositoryDiscovery.findFirst({
+      where: {
+        recordId: input.recordId,
+        ...this.currentPinWhere(input.assessmentId, pins),
+      },
+    });
+    if (!row) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_NOT_FOUND,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    const discovery = this.parseVerifiedRow(row, pins, input.correlationId);
+    const items =
+      input.collection === DISCOVERY_DETAIL_COLLECTIONS.aiUseCases
+        ? discovery.aiUseCases
+        : input.collection === DISCOVERY_DETAIL_COLLECTIONS.ruleCandidates
+          ? discovery.ruleCandidates
+          : input.collection === DISCOVERY_DETAIL_COLLECTIONS.knownGaps
+            ? discovery.knownGaps
+            : input.collection ===
+                DISCOVERY_DETAIL_COLLECTIONS.unsupportedLanguages
+              ? discovery.unsupportedLanguages
+              : discovery.unresolvedCalls;
+    if (input.offset > items.length) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    return repositoryDiscoveryDetailPageSchema.parse({
+      recordId: row.recordId,
+      contentDigest: row.contentDigest,
+      collection: input.collection,
+      total: items.length,
+      offset: input.offset,
+      limit: input.limit,
+      nextOffset:
+        input.offset + input.limit < items.length
+          ? input.offset + input.limit
+          : null,
+      items: items.slice(input.offset, input.offset + input.limit),
     });
   }
 

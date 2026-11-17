@@ -55,6 +55,30 @@ This amendment preserves the frozen intent and changes the delivery sequence fro
 - Scanner/cache evolution remains compatible with historical V1 profiles through explicit signature/version refresh semantics; it never silently reinterprets an old cache artifact.
 - Evaluation compares pinned before/after runs over the same repositories and rules for recall, precision, false negatives, source reads, tokens, latency, cache overhead, question quality, evidence reuse, invalidation correctness, and legal accuracy. Only executed measurements may be recorded.
 
+## Final Remediation Amendment — Customer-Visible Discovery-First Workflow (2026-11-17)
+
+This amendment adds the remaining customer workflow without changing the frozen safety boundaries or removing the existing direct selected-rule path. Discovery becomes a separately authorized, idempotent, restartable pre-scope operation over the already pinned snapshot and existing Repository Scanner/Codebase Memory. It must finish and expose its non-authoritative result before an optional context interview or customer scope confirmation; it must not create a synthetic rule decision or silently authorize any rule.
+
+The customer projection must keep three meanings separate: technical candidate relevance, unresolved legal applicability context, and an explicitly selected audit scope. Candidate rules and source findings are recommendations only. Rules omitted from the customer's request remain `NOT_SELECTED`, never `NOT_APPLICABLE`. A direct `SELECTED_RULES` or `FULL_RULE_SET` submission remains valid without discovery-first onboarding.
+
+Human answers follow `raw answer -> typed normalization -> predicate-aware semantic classification -> canonical-scope conflict check -> immutable proposal -> accepted fact or pending review`. Ambiguous, hedged, contradictory, or semantically unsafe text cannot become accepted authority. Pending proposals require an owner-authorized accept/reject/correct workflow; replay, case revision, checkpoint, scope, and transaction guarantees remain unchanged.
+
+Candidate matching may normalize controlled engineering terminology and use pinned rule metadata, discovery use-case/data-flow links, graph relationships, accepted facts, and unresolved FactNeeds. It may rank candidates but must expose unmatched/incomplete coverage and cannot establish applicability or compliance. Evaluation must cover the complete pre-scope-to-decision workflow with deterministic CI fixtures and must label model-dependent metrics as unmeasured until actually executed.
+
+### Revalidated Finding Status at `e12ef4fae8813a19dcb9c644465d3f9d1a4428a5`
+
+| Finding | Status | Current evidence / remaining gap |
+|---|---|---|
+| Separately authorized discovery before rule selection | OPEN | `AssessmentRuleAuditService.submit()` still creates the selected audit and dispatches Root; `AssessmentRuntimeAuthority.claimRoot()` rejects customer-selected execution without a current audit request. |
+| Customer-visible discovery result | OPEN | Existing Discovery HTTP routes require worker API key and Root lease; the web application has no owner projection for use cases, findings, gaps, candidates, or rationales. |
+| Pre-assessment Context Interview | PARTIALLY_FIXED | Typed FactNeed, HumanRequest, immutable proposal, and accepted-fact infrastructure exists, but opening/resuming questions still assumes selected-rule Root authority and pending proposals have no owner resolution command. |
+| Explicit customer scope confirmation | PARTIALLY_FIXED | `SELECTED_RULES` and `FULL_RULE_SET` are explicit and authoritative, but the picker does not consume discovery candidates or distinguish unresolved recommendations. |
+| Predicate-aware answer semantics | PARTIALLY_FIXED | Typed validation, raw-answer retention, unknown behavior, and limited EN/VI ambiguity/conflict guards exist; arbitrary high-impact predicate semantics and canonical-scope conflict enforcement remain incomplete. |
+| Candidate rule matching quality | PARTIALLY_FIXED | Matching is deterministic, bounded, explainable, and non-authoritative, but remains predominantly lexical and underuses controlled terminology, graph/use-case relationships, and unresolved FactNeeds. |
+| Evidence reuse before targeted investigation | PARTIALLY_FIXED | Root receives pinned discovery priorities and audited expansion, but criterion-level sufficiency and compatible accepted-evidence reuse are not yet automatically planned. |
+| Direct/indirect selective invalidation | FIXED | Normalized evidence/fact dependencies, affected decision/report invalidation, unrelated complete-dependency preservation, and fail-closed incomplete history are implemented and regression tested. |
+| End-to-end workflow evaluation | OPEN | The checked-in 13-case scanner corpus measures only scanner behavior; Interview, recommendation, selection, evidence reuse, decision correctness, and model-token effects are not yet measured. |
+
 ### Current State Classification at `caf06e5e3b611be2536111587cf5b7719b773bc9`
 
 | Requirement | Status | Evidence / gap |
@@ -258,3 +282,35 @@ Use API-owned typed state for semantic identity and acceptance; models propose b
 - `pnpm run check:contracts` -- contract value-set policy passes.
 - `git diff --check` -- patch integrity passes.
 - `gh pr checks 498 --watch` -- required checks pass on the exact pushed SHA.
+
+## Implementation Checkpoint — Pre-Scope Discovery (2026-11-17)
+
+This checkpoint records executable changes without modifying the approved frozen intent or claiming the full remediation is complete.
+
+### Delivered in the current local worktree
+
+- **Customer-initiated discovery authority:** A separate `AssessmentDiscoveryRun` persistence model, additive migration, owner-authenticated run/start/latest/details API, bounded worker claim/complete/fail contracts, and transactional outbox command `command.assessment.discovery.requested.v1`. No `RuleDecision` or audit membership is authored.
+- **Model-free worker:** `AssessmentDiscoveryBoundary` uses the existing scoped repository hydration, Codebase Memory, RepositoryProfile and Discovery scanner. Source snapshots and worker lease are validated by API, with guarded retries and failure settlement.
+- **Customer-facing recommendation view:** BFF and EN/VI picker panel expose a voluntary pre-audit scan, status, AI-use-case summary, outstanding contextual questions, candidate/rationale preview, and customer-triggered paginated candidate inventory. `NEEDS_CONTEXT` is advisory and does not become `NOT_APPLICABLE` or an automatically selected audit rule.
+- **Versioned reuse:** Assessment Root can reuse the already persisted Discovery metadata only if server-verified snapshot/repository/commit/source scope and current Codebase Memory graph stamp match exactly. Otherwise its previous bounded discovery behavior remains in place.
+- **Workflow compatibility:** The existing direct `SELECTED_RULES` and `FULL_RULE_SET` APIs are unchanged; read-only historic Discovery remains available after an assessment changes lifecycle. Strict commit pinning, customer ownership, bounded data contracts and worker idempotency are covered by tests.
+
+### Executed local checks
+
+- Targeted API unit tests (assessment discovery, rule matcher, source paging, HITL integrity, route allowlist and type normalization) passed on the local changes.
+- Existing Web test suite: **421 passed, 0 failed**; new Discovery BFF-specific tests: **3 passed**.
+- Python Assessment Root, Discovery and RabbitMQ-related tests: **200 passed, 0 failed**.
+- `pnpm run lint`, `pnpm run typecheck:run`, `pnpm run check:business-logic-docs`, Prisma schema validation and the additive DiscoveryRun migration test passed.
+- Offline synthetic 13-case Discovery scanner evaluation: baseline AI-use-case precision **0.80**, recall **0.4444**; Discovery V1 precision **1.00**, recall **1.00**. These are **synthetic scanner-only** results, not end-to-end model, cost, Interview or legal-accuracy results.
+
+### Still open (do not claim accepted)
+
+- **Pre-scope Context Interview:** Customer-visible outstanding questions are advisory only; no owner-authorized canonical FactNeed answer/confirmation workflow has yet been added before selected audit. Do not persist raw questionnaire answers as accepted legal facts by bypassing existing HumanRequest and checkpoint authorities.
+- **Pending fact proposals:** The approved accept/reject/correct workflow and full predicate-aware semantic consistency checks remain incomplete.
+- **Assessment evidence reuse:** Root can avoid repeating the Discovery scanner for exact matched pins, but still must verify source evidence and legal elements; criterion-level accepted-evidence planning is not complete.
+- **End-to-end benchmark:** Full Discovery → Interview → recommendation → customer selection → assessment → RuleDecision accuracy and actual LLM token savings remain unmeasured. Current synthetic metrics must not be represented as legal verification.
+- **Delivery integration:** Native browser interaction, disposable-DB migration execution, GitHub CI at a new pushed commit and deployment have not been verified in this checkpoint. Push is not authorized to an unrelated `origin` remote.
+
+### Next safe delivery gates
+
+The pre-scope interview requires a distinct, narrowly scoped human-resolution authority compatible with the existing typed FactNeed, immutable raw answer/evidence, tenant and deployment scope, native checkpoint lifecycle and fail-closed accepted-fact path. Implement it with direct and adversarial tests before enabling customer-facing answer submission. Do not copy selected-audit `AssessmentHumanRequest` rows with fabricated rule IDs simply to unlock the UI.

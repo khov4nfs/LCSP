@@ -201,6 +201,13 @@ export const ASSESSMENT_ROOT_COMMAND_TYPES = {
 export type AssessmentRootCommandType =
   (typeof ASSESSMENT_ROOT_COMMAND_TYPES)[keyof typeof ASSESSMENT_ROOT_COMMAND_TYPES];
 
+/** Deterministic, no-model repository discovery requested before customer audit selection. */
+export const ASSESSMENT_DISCOVERY_COMMAND_TYPES = {
+  DISCOVERY_REQUESTED: "command.assessment.discovery.requested.v1",
+} as const;
+export type AssessmentDiscoveryCommandType =
+  (typeof ASSESSMENT_DISCOVERY_COMMAND_TYPES)[keyof typeof ASSESSMENT_DISCOVERY_COMMAND_TYPES];
+
 /** Customer-safe activity label keys written by the domain boundary. */
 export const ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS = {
   FACT_ACCEPTED: "assessment.activity.factAccepted",
