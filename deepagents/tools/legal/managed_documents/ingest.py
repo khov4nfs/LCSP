@@ -13,7 +13,7 @@ from tools.legal.managed_documents.chunker import (
 from tools.legal.managed_documents.extract import MEDIA_MARKDOWN, ExtractionError, extract_document
 
 INGEST_TOOL = "managed-document-ingest"
-INGEST_TOOL_VERSION = "1.2.0"  # 1.2: Article-Clause-Point chunks, unclassified fallback markers, explicit extraction gaps
+INGEST_TOOL_VERSION = "1.3.0"  # 1.3: positional PDF masthead/page-number filtering and provision hierarchy context metadata
 
 FAILURE_UNSUPPORTED = "UNSUPPORTED_MEDIA_TYPE"
 FAILURE_EXTRACTION = "EXTRACTION_FAILED"

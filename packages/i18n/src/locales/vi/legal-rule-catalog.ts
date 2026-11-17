@@ -135,4 +135,12 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   deleteCatalogSuccess: "Đã xóa catalog thành công.",
   deleteCatalogConflict:
     "Không thể xóa catalog khi đang có tiến trình chuẩn bị quy tắc đang chạy hoặc trong hàng đợi.",
+  eligibleLeafProvisions: "quy định đủ điều kiện",
+  compositionPreview: "Ngữ cảnh pháp lý được ghép",
+  articleLevel: "Điều",
+  clauseLevel: "Khoản",
+  pointLevel: "Điểm",
+  unresolvedContentNotice:
+    "Một phần nội dung nguồn chưa được phân loại và vẫn được giữ để rà soát pháp lý.",
+  selectedDocumentFiles: "tài liệu",
 };

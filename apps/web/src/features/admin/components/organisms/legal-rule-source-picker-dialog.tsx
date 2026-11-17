@@ -1,20 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileTextIcon, CheckIcon, Loader2Icon } from "lucide-react";
-import type { z } from "zod";
 import {
-  legalRuleSavedSchema,
-  legalRuleCitationSchema,
+  LEGAL_RULE_LIMITS,
+  LEGAL_RULE_SOURCE_PROVISION_LEVELS,
   legalRuleCatalogSchema,
+  type LegalRuleSourceProvision,
 } from "@lcsp/contracts/legal-rule-catalog";
-import {
-  legalSourceChunkViewSchema,
-  type LegalSourceDocumentView,
-} from "@lcsp/contracts/legal-source";
-
-type LegalRuleCitation = z.infer<typeof legalRuleCitationSchema>;
-type LegalSourceChunkView = z.infer<typeof legalSourceChunkViewSchema>;
+import type { LegalSourceDocumentView } from "@lcsp/contracts/legal-source";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,23 +29,24 @@ import {
 } from "@/components/ui/dialog";
 import {
   useLegalSourceVersionQuery,
-  useLegalSourceChunkPageQuery,
   useLegalSourceListQuery,
 } from "@/lib/api/legal-source-queries";
 import {
   legalRuleCatalogKey,
   useLegalRuleCatalogs,
+  useLegalRuleSourceProvisions,
+  useImportLegalRuleSourceProvision,
 } from "@/lib/api/legal-rule-catalog-queries";
-import { useQueryClient } from "@tanstack/react-query";
 import { ApiRequestError, apiValidated } from "@/lib/api/api-request";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
 
 interface SelectedProvisionItem {
-  chunkId: string;
+  sourceVersionId: string;
+  legalRuleId: string;
   locator: string;
-  content: string;
   documentId: string;
   documentTitle: string;
+  description: string;
 }
 
 export interface LegalRuleSourcePickerDialogProps {
@@ -66,15 +62,15 @@ export interface LegalRuleSourcePickerDialogProps {
  * Business purpose: Allow administrators to visually pick a legal source, browse its document files, and select provisions across multiple files to populate a catalog without manual ID entry.
  * Business rules:
  * - Administrators pick a legal source from available versions without typing any identifiers.
- * - Selections are preserved across multiple document files within the active source version.
- * - Each selected provision is converted into a canonical LegalRule citing its exact document and locator.
- * - Rules are saved against advancing catalog revisions to ensure optimistic concurrency consistency.
+ * - Only server-projected EFFECTIVE Article–Clause–Point leaves are selectable; parent metadata is composed independently of pagination.
+ * - Selections are keyed by source-version-scoped leaf identity and remain available across pages and documents.
+ * - The import endpoint recomputes rule identity, description and exact citations from the catalog's pinned source.
  * Execution flow:
  * 1. Discover available legal source versions and resolve the target catalog.
  * 2. Query document files belonging to the selected legal source version.
- * 3. On document click, query its indexed provisions with pagination.
+ * 3. On document click, query server-composed eligible leaf provisions with pagination.
  * 4. Allow granular single-rule, page-wide, and cross-file multi-selection.
- * 5. On confirmation, sequentially persist all chosen rules into the target catalog.
+ * 5. On confirmation, resolve one pinned catalog per selected source version and sequentially import each selected leaf.
  * Failure cases:
  * - Source query failure renders an error state; save failure interrupts subsequent writes and surfaces an alert.
  * Side effects:
@@ -84,7 +80,6 @@ export function LegalRuleSourcePickerDialog({
   open,
   onOpenChange,
   catalogId,
-  catalogRevision,
   initialLegalSourceVersionId,
   onImported,
 }: LegalRuleSourcePickerDialogProps) {
@@ -130,9 +125,6 @@ export function LegalRuleSourcePickerDialog({
     );
   }, [catalogsQuery.data, effectiveVersionId, catalogId]);
 
-  const activeCatalogId = targetCatalog?.id ?? "";
-  const activeCatalogRevision = targetCatalog?.revision ?? catalogRevision;
-
   const versionQuery = useLegalSourceVersionQuery(effectiveVersionId);
   const documents = useMemo(
     () => versionQuery.data?.documents ?? [],
@@ -140,7 +132,7 @@ export function LegalRuleSourcePickerDialog({
   );
 
   const [activeDocId, setActiveDocId] = useState<string>("");
-  const [chunkPage, setChunkPage] = useState(1);
+  const [provisionPage, setProvisionPage] = useState(1);
   const [selectedProvisions, setSelectedProvisions] = useState<
     Map<string, SelectedProvisionItem>
   >(new Map());
@@ -150,158 +142,172 @@ export function LegalRuleSourcePickerDialog({
   } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const importProvisionMutation = useImportLegalRuleSourceProvision();
+
   const activeDoc = useMemo(() => {
     if (!documents.length) return null;
     return documents.find((doc) => doc.id === activeDocId) ?? documents[0];
   }, [documents, activeDocId]);
 
-  const effectiveDocId = activeDoc?.id ?? "";
-
-  const chunksQuery = useLegalSourceChunkPageQuery({
-    versionId: effectiveVersionId,
-    documentRowId: effectiveDocId,
-    page: chunkPage,
-    pageSize: 50,
-  });
-
-  const chunks = chunksQuery.data?.items ?? [];
-  const totalChunkCount = chunksQuery.data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalChunkCount / 50));
+  const provisionsQuery = useLegalRuleSourceProvisions(
+    effectiveVersionId,
+    activeDoc?.documentId ?? "",
+    provisionPage,
+  );
+  const provisions = provisionsQuery.data?.items ?? [];
+  const totalProvisionCount = provisionsQuery.data?.total ?? 0;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalProvisionCount / LEGAL_RULE_LIMITS.pageSize),
+  );
 
   const countsByDocId = useMemo(() => {
     const map = new Map<string, number>();
     for (const item of selectedProvisions.values()) {
-      map.set(item.documentId, (map.get(item.documentId) ?? 0) + 1);
+      const key = `${item.sourceVersionId}::${item.documentId}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
     }
     return map;
   }, [selectedProvisions]);
 
   const uniqueFilesCount = useMemo(() => {
     return new Set(
-      Array.from(selectedProvisions.values()).map((p) => p.documentId),
+      Array.from(selectedProvisions.values()).map(
+        (p) => `${p.sourceVersionId}::${p.documentId}`,
+      ),
     ).size;
   }, [selectedProvisions]);
 
-  function toggleChunk(
-    chunk: LegalSourceChunkView,
+  /**
+   * Business purpose: Toggle one server-approved legal leaf without losing selections made elsewhere.
+   * Business rules: The stable source-version-scoped LegalRule identity prevents duplicate imports through repeated UI paths.
+   * Execution flow: Copy the current selection map, remove the existing identity or add its composed preview, then publish the map.
+   * Failure cases: Missing provision identity cannot be selected because it is supplied by the validated projection contract.
+   * Side effects: Updates dialog-local selection state only.
+   */
+  function toggleProvision(
+    provision: LegalRuleSourceProvision,
     document: LegalSourceDocumentView,
   ) {
-    const isEligible =
-      chunk.legalEffectStatus === "EFFECTIVE" ||
-      chunk.legalEffectStatus === "UNKNOWN";
-    if (!isEligible) return;
-
     const next = new Map(selectedProvisions);
-    if (next.has(chunk.id)) {
-      next.delete(chunk.id);
+    if (next.has(provision.legalRuleId)) {
+      next.delete(provision.legalRuleId);
     } else {
-      next.set(chunk.id, {
-        chunkId: chunk.id,
-        locator: chunk.locator,
-        content: chunk.content,
+      next.set(provision.legalRuleId, {
+        sourceVersionId: provision.sourceVersionId,
+        legalRuleId: provision.legalRuleId,
+        locator: provision.locator,
         documentId: document.documentId,
         documentTitle: document.title,
+        description: provision.description,
       });
     }
     setSelectedProvisions(next);
   }
 
+  /**
+   * Business purpose: Select every eligible leaf shown on the current server page.
+   * Business rules: The server projection excludes unclassified and ineligible chunks; parent selections expand only when the server marks a substantive parent as a leaf.
+   * Execution flow: Add each visible leaf by its stable identity while retaining other page/document selections.
+   * Failure cases: An absent document or empty page is a no-op.
+   * Side effects: Updates dialog-local selection state only.
+   */
   function selectAllInCurrentPage() {
     if (!activeDoc) return;
     const next = new Map(selectedProvisions);
-    for (const chunk of chunks) {
-      if (
-        chunk.legalEffectStatus === "EFFECTIVE" ||
-        chunk.legalEffectStatus === "UNKNOWN"
-      ) {
-        next.set(chunk.id, {
-          chunkId: chunk.id,
-          locator: chunk.locator,
-          content: chunk.content,
-          documentId: activeDoc.documentId,
-          documentTitle: activeDoc.title,
-        });
-      }
+    for (const provision of provisions) {
+      next.set(provision.legalRuleId, {
+        sourceVersionId: provision.sourceVersionId,
+        legalRuleId: provision.legalRuleId,
+        locator: provision.locator,
+        documentId: activeDoc.documentId,
+        documentTitle: activeDoc.title,
+        description: provision.description,
+      });
     }
     setSelectedProvisions(next);
   }
 
+  /**
+   * Business purpose: Clear selected provisions only from the currently displayed source document.
+   * Business rules: Source version is part of document scope so switching versions cannot clear another version's choices.
+   * Execution flow: Remove selection entries matching the active source version and document identity.
+   * Failure cases: Missing document is a no-op.
+   * Side effects: Updates dialog-local selection state only.
+   */
   function deselectCurrentDoc() {
     if (!activeDoc) return;
     const next = new Map(selectedProvisions);
     for (const [key, val] of next.entries()) {
-      if (val.documentId === activeDoc.documentId) {
+      if (
+        val.sourceVersionId === effectiveVersionId &&
+        val.documentId === activeDoc.documentId
+      ) {
         next.delete(key);
       }
     }
     setSelectedProvisions(next);
   }
 
+  /**
+   * Business purpose: Import each selected eligible leaf into the catalog pinned to its exact source version.
+   * Business rules: Every import sends only document/leaf identity and the current catalog revision; the backend recomposes legal text and citations.
+   * Execution flow: Group selections by source version, find or create each matching catalog, then import each leaf sequentially while advancing the revision.
+   * Failure cases: Any source, catalog, revision or citation rejection stops later writes and leaves selections available for review.
+   * Side effects: Creates a missing editable catalog, saves selected LegalRules, advances catalog revisions, and closes the dialog after all writes succeed.
+   */
   async function handleImport() {
     if (selectedProvisions.size === 0) return;
     const items = Array.from(selectedProvisions.values());
     setSavingProgress({ current: 0, total: items.length });
     setSaveError(null);
 
-    let currentRev = activeCatalogRevision;
-    let resolvedCatalogId = activeCatalogId;
-
     try {
-      if (!resolvedCatalogId) {
-        const src = availableSources.find(
-          (s) => s.versionId === effectiveVersionId,
-        );
-        const newCatalog = await apiValidated(
-          "/api/admin/legal-rule-catalog",
-          legalRuleCatalogSchema,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              version: `${src?.versionName ?? "v1.0"}-catalog`,
-              legalSourceVersionId: effectiveVersionId,
-            }),
-          },
-        );
-        resolvedCatalogId = newCatalog.id;
-        currentRev = newCatalog.revision;
+      let completed = 0;
+      const bySource = new Map<string, SelectedProvisionItem[]>();
+      for (const item of items) {
+        bySource.set(item.sourceVersionId, [
+          ...(bySource.get(item.sourceVersionId) ?? []),
+          item,
+        ]);
       }
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        setSavingProgress({ current: i + 1, total: items.length });
-
-        const cleanDocId = item.documentId
-          .trim()
-          .replace(/[^a-zA-Z0-9_-]/g, "_");
-        const cleanLocator = item.locator.trim().replace(/\s+/g, "-");
-        const legalRuleId = `${cleanDocId}-${cleanLocator}`.slice(0, 128);
-
-        const citationLocatorRefs: LegalRuleCitation[] = [
-          { documentId: item.documentId, locator: item.locator },
-        ];
-
-        const title = `${item.documentTitle} - ${item.locator}`.slice(0, 512);
-        const description =
-          item.content.trim() || `${item.documentTitle} - ${item.locator}`;
-
-        const result = await apiValidated(
-          `/api/admin/legal-rule-catalog/${resolvedCatalogId}/rules`,
-          legalRuleSavedSchema,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              legalRuleId,
-              title,
-              description,
-              citationLocatorRefs,
-              expectedRevision: currentRev,
-            }),
-          },
+      for (const [sourceVersionId, provisionsForSource] of bySource) {
+        let catalog = catalogsQuery.data?.find(
+          (candidate) =>
+            candidate.id === catalogId &&
+            candidate.legalSourceVersionId === sourceVersionId,
+        ) ?? catalogsQuery.data?.find(
+          (candidate) => candidate.legalSourceVersionId === sourceVersionId,
         );
-
-        currentRev = result.catalogRevision;
+        if (!catalog) {
+          const src = availableSources.find(
+            (source) => source.versionId === sourceVersionId,
+          );
+          catalog = await apiValidated(
+            "/api/admin/legal-rule-catalog",
+            legalRuleCatalogSchema,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                version: `${src?.versionName ?? "source"}-catalog`,
+                legalSourceVersionId: sourceVersionId,
+              }),
+            },
+          );
+        }
+        let currentRev = catalog.revision;
+        for (const item of provisionsForSource) {
+          completed += 1;
+          setSavingProgress({ current: completed, total: items.length });
+          const result = await importProvisionMutation.mutateAsync({
+            catalogId: catalog.id,
+            documentId: item.documentId,
+            locator: item.locator,
+            expectedRevision: currentRev,
+          });
+          currentRev = result.catalogRevision;
+        }
       }
 
       await queryClient.invalidateQueries({ queryKey: legalRuleCatalogKey });
@@ -310,13 +316,13 @@ export function LegalRuleSourcePickerDialog({
       onImported?.();
       onOpenChange(false);
     } catch (err: unknown) {
-      const msg =
+      const message =
         err instanceof ApiRequestError && err.problemCode
           ? `${t("error")}: ${err.problemCode}`
           : err instanceof Error
             ? err.message
             : t("error");
-      setSaveError(msg);
+      setSaveError(message);
       setSavingProgress(null);
     }
   }
@@ -348,7 +354,7 @@ export function LegalRuleSourcePickerDialog({
                   if (!val) return;
                   setSelectedSourceVersionId(val);
                   setActiveDocId("");
-                  setChunkPage(1);
+                  setProvisionPage(1);
                 }}
               >
                 <SelectTrigger className="h-8 min-w-64 text-xs font-medium">
@@ -393,14 +399,15 @@ export function LegalRuleSourcePickerDialog({
                 <div className="flex flex-col gap-1.5">
                   {documents.map((doc) => {
                     const isSelected = (activeDoc?.id ?? "") === doc.id;
-                    const pickedCount = countsByDocId.get(doc.documentId) ?? 0;
+                    const pickedCount =
+                      countsByDocId.get(`${effectiveVersionId}::${doc.documentId}`) ?? 0;
                     return (
                       <button
                         key={doc.id}
                         type="button"
                         onClick={() => {
                           setActiveDocId(doc.id);
-                          setChunkPage(1);
+                          setProvisionPage(1);
                         }}
                         className={`flex items-start justify-between gap-2 rounded-lg p-2.5 text-left transition-colors ${
                           isSelected
@@ -447,7 +454,7 @@ export function LegalRuleSourcePickerDialog({
                       {activeDoc?.title ?? t("selectFileToViewProvisions")}
                     </h4>
                     <p className="text-xs text-muted-foreground">
-                      {totalChunkCount} điều khoản · Trang {chunkPage}/{totalPages}
+                      {totalProvisionCount} {t("eligibleLeafProvisions")} · {t("page")} {provisionPage}/{totalPages}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -456,7 +463,7 @@ export function LegalRuleSourcePickerDialog({
                       variant="outline"
                       className="h-8 text-xs"
                       onClick={selectAllInCurrentPage}
-                      disabled={!chunks.length || savingProgress !== null}
+                      disabled={!provisions.length || savingProgress !== null}
                     >
                       {t("selectAllInPage")}
                     </Button>
@@ -466,7 +473,9 @@ export function LegalRuleSourcePickerDialog({
                       className="h-8 text-xs"
                       onClick={deselectCurrentDoc}
                       disabled={
-                        !countsByDocId.get(activeDoc?.documentId ?? "") ||
+                        !countsByDocId.get(
+                          `${effectiveVersionId}::${activeDoc?.documentId ?? ""}`,
+                        ) ||
                         savingProgress !== null
                       }
                     >
@@ -477,67 +486,72 @@ export function LegalRuleSourcePickerDialog({
 
                 {/* Provisions items list */}
                 <div className="min-h-0 flex-1 divide-y overflow-y-auto pr-1">
-                {chunksQuery.isPending ? (
+                {provisionsQuery.isPending ? (
                   <div className="space-y-3 p-4">
                     <Skeleton className="h-14 w-full" />
                     <Skeleton className="h-14 w-full" />
                     <Skeleton className="h-14 w-full" />
                   </div>
-                ) : chunks.length === 0 ? (
+                ) : provisionsQuery.isError ? (
+                  <p className="py-8 text-center text-sm text-destructive">
+                    {t("error")}
+                  </p>
+                ) : provisions.length === 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">
                     {t("noChunksInDocument")}
                   </p>
                 ) : (
-                  chunks.map((chunk) => {
-                    const isChecked = selectedProvisions.has(chunk.id);
-                    const isEligible =
-                      chunk.legalEffectStatus === "EFFECTIVE" ||
-                      chunk.legalEffectStatus === "UNKNOWN";
+                  provisions.map((provision) => {
+                    const isChecked = selectedProvisions.has(provision.legalRuleId);
+                    const levelMessageKey = {
+                      [LEGAL_RULE_SOURCE_PROVISION_LEVELS.ARTICLE]: "articleLevel",
+                      [LEGAL_RULE_SOURCE_PROVISION_LEVELS.CLAUSE]: "clauseLevel",
+                      [LEGAL_RULE_SOURCE_PROVISION_LEVELS.POINT]: "pointLevel",
+                    }[provision.level];
                     return (
                       <div
-                        key={chunk.id}
+                        key={provision.legalRuleId}
                         onClick={() =>
-                          isEligible && activeDoc && toggleChunk(chunk, activeDoc)
+                          activeDoc && toggleProvision(provision, activeDoc)
                         }
-                        className={`flex items-start gap-3 p-3 transition-colors ${
-                          !isEligible
-                            ? "cursor-not-allowed bg-muted/10 opacity-50"
-                            : isChecked
-                              ? "cursor-pointer bg-muted/20 hover:bg-muted/30"
-                              : "cursor-pointer hover:bg-muted/30"
+                        className={`flex cursor-pointer items-start gap-3 p-3 transition-colors hover:bg-muted/30 ${
+                          isChecked ? "bg-muted/20" : ""
                         }`}
                       >
                         <Checkbox
-                          id={`chk-${chunk.id}`}
+                          id={`rule-${provision.legalRuleId}`}
                           checked={isChecked}
-                          disabled={!isEligible}
+                          onClick={(event) => event.stopPropagation()}
                           onCheckedChange={() =>
-                            isEligible &&
-                            activeDoc &&
-                            toggleChunk(chunk, activeDoc)
+                            activeDoc && toggleProvision(provision, activeDoc)
                           }
                           className="mt-1"
                         />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-xs font-semibold text-primary">
-                              {chunk.locator}
+                              {provision.locator}
                             </span>
-                            <Badge
-                              variant={isEligible ? "outline" : "destructive"}
-                              className="text-xs"
-                            >
-                              {chunk.legalEffectStatus}
+                            <Badge variant="outline" className="text-xs">
+                              {t(levelMessageKey)}
                             </Badge>
                           </div>
-                          <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                            {chunk.content}
+                          <p className="mt-1 text-xs font-medium text-foreground">
+                            {t("compositionPreview")}
+                          </p>
+                          <p className="mt-1 line-clamp-5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                            {provision.description}
                           </p>
                         </div>
                       </div>
                     );
                   })
                 )}
+                {provisionsQuery.data?.limitations.length ? (
+                  <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+                    {t("unresolvedContentNotice")}
+                  </p>
+                ) : null}
               </div>
 
               {/* Pagination */}
@@ -547,21 +561,21 @@ export function LegalRuleSourcePickerDialog({
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs"
-                    disabled={chunkPage <= 1 || chunksQuery.isFetching}
-                    onClick={() => setChunkPage((p) => Math.max(1, p - 1))}
+                    disabled={provisionPage <= 1 || provisionsQuery.isFetching}
+                    onClick={() => setProvisionPage((p) => Math.max(1, p - 1))}
                   >
                     {t("previous")}
                   </Button>
                   <span className="text-muted-foreground">
-                    Trang {chunkPage} / {totalPages}
+                    {t("page")} {provisionPage} / {totalPages}
                   </span>
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs"
-                    disabled={chunkPage >= totalPages || chunksQuery.isFetching}
+                    disabled={provisionPage >= totalPages || provisionsQuery.isFetching}
                     onClick={() =>
-                      setChunkPage((p) => Math.min(totalPages, p + 1))
+                      setProvisionPage((p) => Math.min(totalPages, p + 1))
                     }
                   >
                     {t("next")}
@@ -582,18 +596,17 @@ export function LegalRuleSourcePickerDialog({
           <div className="text-xs text-muted-foreground">
             {selectedProvisions.size > 0 ? (
               <span>
-                Đã chọn:{" "}
                 <strong className="font-semibold text-foreground">
                   {selectedProvisions.size}
                 </strong>{" "}
-                quy tắc từ{" "}
+                {t("selectedProvisionsCount")} ·{" "}
                 <strong className="font-semibold text-foreground">
                   {uniqueFilesCount}
                 </strong>{" "}
-                file
+                {t("selectedDocumentFiles")}
               </span>
             ) : (
-              <span>Chưa chọn quy tắc nào.</span>
+              <span>{t("noSelection")}</span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -610,7 +623,9 @@ export function LegalRuleSourcePickerDialog({
               type="button"
               size="sm"
               disabled={
-                selectedProvisions.size === 0 || savingProgress !== null
+                selectedProvisions.size === 0 ||
+                savingProgress !== null ||
+                !catalogsQuery.isSuccess
               }
               onClick={() => void handleImport()}
             >

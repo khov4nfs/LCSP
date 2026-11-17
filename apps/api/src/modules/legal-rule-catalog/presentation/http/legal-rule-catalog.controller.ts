@@ -60,6 +60,30 @@ export class LegalRuleCatalogController {
   }
 
   /**
+   * Business purpose: Return the server-composed eligible provision page for the LegalRule source picker.
+   * Business rules:
+   * - Admin authorization applies; the requested source version must pass catalog lifecycle and retrieval-index eligibility.
+   * Execution flow:
+   * 1. Validate bounded source/document/pagination query fields.
+   * 2. Delegate full-document hierarchy resolution to the catalog service.
+   * 3. Return the canonical success envelope.
+   * Failure cases:
+   * - Invalid query, missing document, or unavailable source is rejected through shared validation/problem handling.
+   * Side effects:
+   * - Reads source rows only; no catalog, chunk, or review-coverage mutation.
+   */
+  @Get("source-provisions")
+  async sourceProvisions(
+    @Query(body(C.legalRuleSourceProvisionQuerySchema))
+    query: C.LegalRuleSourceProvisionQuery,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.catalog.sourceProvisions(query, correlation(req)),
+    );
+  }
+
+  /**
    * Business purpose: Permanently delete an idle LegalRule catalog and its associated data.
    * Business rules:
    * - Admin authorization required; cannot delete catalogs with active preparation runs.
@@ -107,6 +131,37 @@ export class LegalRuleCatalogController {
   ) {
     return resultEnvelope(
       await this.catalog.saveRule(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Import one eligible Article–Clause–Point leaf into a catalog pinned to its source version.
+   * Business rules:
+   * - Admin authorization applies; the server recomputes description, identity and citations from the catalog's pinned source.
+   * Execution flow:
+   * 1. Validate catalog UUID and the requested document/locator/revision.
+   * 2. Recompute source eligibility and hierarchy composition in the catalog service.
+   * 3. Return the existing saved-rule acknowledgement envelope.
+   * Failure cases:
+   * - Ineligible leaves, excessive context, stale revisions and invalid citations use shared typed problem handling.
+   * Side effects:
+   * - Saves one rule, advances catalog revision, and writes the existing audit event.
+   */
+  @Post(":catalogId/source-provisions/import")
+  @HttpCode(200)
+  async importSourceProvision(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.legalRuleSourceProvisionImportSchema))
+    request: C.LegalRuleSourceProvisionImport,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.catalog.importSourceProvision(
         catalogId,
         request,
         req.rbacContext.userId,

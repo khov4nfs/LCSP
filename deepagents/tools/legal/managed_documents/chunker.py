@@ -300,7 +300,13 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
         )
         if clause_chunks:
             if article_body and (not article_lead_in.endswith(":") or article_has_prior_sentence):
-                chunks.append(Chunk(article_locator, list(intro), dict(current_article)))
+                chunks.append(
+                    Chunk(
+                        article_locator,
+                        list(intro),
+                        {**current_article, "independentlySubstantive": True},
+                    )
+                )
             chunks.extend(clause_chunks)
         elif article_body:
             chunks.append(Chunk(article_locator, list(intro), dict(current_article)))
@@ -355,6 +361,7 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
                 **chapter_info,
                 "articleNumber": number,
                 "articleTitle": match.group(2).strip(),
+                "articleHeading": line.text,
             }
             article_locator = f"{article_prefix}{number.lower()}"
             intro = [line]
@@ -367,8 +374,20 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
             number = match.group(1)
             last_clause += 1
             article_lead_in = "\n".join(line.text for line in intro[1:]).strip()
-            clause_hierarchy = {**current_article, "clauseNumber": number}
-            if article_lead_in:
+            article_body = intro[1:]
+            article_has_prior_sentence = any(
+                item.text.rstrip().endswith((".", ";", "?", "!"))
+                for item in article_body[:-1]
+            )
+            article_is_setup_only = article_lead_in.endswith(":") and not article_has_prior_sentence
+            clause_numbering = re.match(r"^\s*\d+[.)]", line.text)
+            clause_hierarchy = {
+                **current_article,
+                "clauseNumber": number,
+                "clauseHeading": line.text,
+                "clauseNumbering": clause_numbering.group(0).strip() if clause_numbering else f"{number}.",
+            }
+            if article_lead_in and article_is_setup_only:
                 clause_hierarchy["articleLeadIn"] = article_lead_in
             current_clause = Chunk(
                 f"{article_locator}{LOCATOR_SEPARATOR}{clause_prefix}{number}",
@@ -385,17 +404,15 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
             )
             clause_context_lines.extend(line.text for line in current_clause.lines[1:])
             clause_lead_in = "\n".join(clause_context_lines).strip()
-            if clause_lead_in:
-                # A colon marks setup text for the points. Keep it in hierarchy context instead of a duplicate parent body.
-                current_clause.hierarchy["clauseLeadIn"] = clause_lead_in
             clause_has_prior_sentence = any(
                 text.rstrip().endswith((".", ";", "?", "!")) for text in clause_context_lines[:-1]
             )
-            if (
-                clause_lead_in.endswith(":")
-                and not clause_has_prior_sentence
-                and current_clause in clause_chunks
-            ):
+            clause_is_setup_only = clause_lead_in.endswith(":") and not clause_has_prior_sentence
+            if clause_is_setup_only:
+                current_clause.hierarchy["clauseLeadIn"] = clause_lead_in
+            elif clause_lead_in:
+                current_clause.hierarchy["independentlySubstantive"] = True
+            if (clause_is_setup_only or not clause_lead_in) and current_clause in clause_chunks:
                 clause_chunks.remove(current_clause)
             current_point = Chunk(
                 f"{current_clause.locator}{LOCATOR_SEPARATOR}{point['locatorPrefix']}{label}",
