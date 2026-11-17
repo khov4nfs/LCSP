@@ -239,7 +239,7 @@ jobs:
       rabbitmq:
         image: rabbitmq:4-management
         ports:
-          - "5672"
+          - 5678:5672
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping"
           --health-interval 10s
@@ -258,18 +258,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      LCSP_TEST_RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5678/%2F
     steps:
       - uses: actions/checkout@v4
       - name: Configure integration service endpoints
         env:
           PGPORT: ${{ job.services.postgres.ports['5432'] }}
-          RABBITMQ_PORT: ${{ job.services.rabbitmq.ports['5672'] }}
         run: |
           printf '%s\n' \
             "PGPORT=$PGPORT" \
             "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:$PGPORT/lcsp364_capacity?schema=public" \
-            "LCSP_TEST_CAPACITY_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:$PGPORT/lcsp364_capacity?schema=public" \
-            "LCSP_TEST_RABBITMQ_URL=amqp://guest:guest@127.0.0.1:$RABBITMQ_PORT/%2F" >> "$GITHUB_ENV"
+            "LCSP_TEST_CAPACITY_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:$PGPORT/lcsp364_capacity?schema=public" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
