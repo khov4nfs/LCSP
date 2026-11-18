@@ -74,9 +74,11 @@ def test_selected_async_client_pool_closes_before_its_event_loop():
 
         def do_GET(self):
             peers.append(self.client_address)
+            body = b"selected-rule fixture"
             self.send_response(200)
-            self.send_header("Content-Length", "0")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
+            self.wfile.write(body)
 
         def log_message(self, *args):
             pass
@@ -94,7 +96,7 @@ def test_selected_async_client_pool_closes_before_its_event_loop():
             assert not client.is_closed()
             assert client.timeout == 10
             for _ in range(2):
-                assert (await client.get("/", cast_to=httpx.Response)).status_code == 200
+                assert await client.get("/", cast_to=bytes) == b"selected-rule fixture"
         assert client.is_closed()
         return client
 
