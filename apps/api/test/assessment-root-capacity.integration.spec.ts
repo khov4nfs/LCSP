@@ -19,6 +19,7 @@ import {
   HUMAN_RESOLUTION_REQUEST_STATUSES,
 } from "@lcsp/contracts/assessment";
 import {
+  type Prisma,
   PrismaClient,
   AgentExecutionState,
   AssessmentLifecycleState,
@@ -42,6 +43,7 @@ import {
   ROOT_CAPACITY_REASONS as Reasons,
   ROOT_CAPACITY_METRIC_SOURCES as Sources,
   rootCapacityPolicySchema,
+  type RootCapacityDatabaseMetrics,
   type RootCapacityRuntimeMetrics,
 } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
@@ -1784,6 +1786,36 @@ integration(
       });
       await a.release(one);
       expect((await b.reserve(recovery)).admitted).toBe(true);
+    });
+
+    it("evaluates freshness after slow database measurements without treating their sample as future-dated", async () => {
+      const instrumented = a as unknown as {
+        measurements: (
+          tx: Prisma.TransactionClient,
+          runtime: RootCapacityRuntimeMetrics,
+        ) => Promise<RootCapacityDatabaseMetrics>;
+      };
+      const measure = instrumented.measurements.bind(
+        a,
+      ) as typeof instrumented.measurements;
+      instrumented.measurements = async (...args) => {
+        await new Promise((resolve) => setTimeout(resolve, 6000));
+        return measure(...args);
+      };
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        const result = await report(a, {
+          hostId: host,
+          incarnationId,
+          liveRunIds: [],
+          metrics: metrics(),
+        });
+        expect(result.effective).toBe(2);
+        expect(result.reason).not.toBe(Reasons.stale);
+        expect((await b.reserve(await enqueue())).admitted).toBe(true);
+      } finally {
+        instrumented.measurements = measure;
+      }
     });
 
     it("withholds admission on stale telemetry and preserves audited versioned manual rollback", async () => {
