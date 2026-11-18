@@ -139,14 +139,20 @@ test("LegalRuleResultRevision does not show any ID, catalog pins, or instruction
 
 test("LegalRuleResultDialog renders activity above regenerate button, with button right-aligned", async () => {
   const fs = await import("node:fs/promises");
+  const fsSync = await import("node:fs");
   const path = await import("node:path");
-  const fileContent = await fs.readFile(
+  const candidates = [
     path.resolve(
       process.cwd(),
       "apps/web/src/features/admin/components/molecules/legal-rule-catalog-result.tsx",
     ),
-    "utf-8",
-  );
+    path.resolve(
+      process.cwd(),
+      "src/features/admin/components/molecules/legal-rule-catalog-result.tsx",
+    ),
+  ];
+  const targetPath = candidates.find((c) => fsSync.existsSync(c))!;
+  const fileContent = await fs.readFile(targetPath, "utf-8");
 
   // 1. Verify activity details appears before regenerate button
   const activityIdx = fileContent.indexOf("<LegalRuleRunActivity");
@@ -401,4 +407,60 @@ test("LegalSourceListCard suppresses duplicate active status when latest version
     true,
     "Must show newer distinct draft version",
   );
+});
+
+test("resolvePreparationFailureDetails resolves structured diagnostic info from events and codes", async () => {
+  const { resolvePreparationFailureDetails } = await import(
+    "../src/features/admin/utils/legal-rule-formatter"
+  );
+  const t = (k: string) => k;
+
+  // 1. TerminalCredentialError
+  const credDetails = resolvePreparationFailureDetails({
+    failureCode: "SELECTED_RULE_PREPARATION_FAILED",
+    executionState: "FAILED",
+    events: [
+      {
+        eventType: "MODEL_CALL_FAILED",
+        data: {
+          error_type: "TerminalCredentialError",
+          last_attempt_error_class: "AnthropicConnectionError",
+          provider: "anthropic",
+          model: "claude-sonnet-4-6",
+        },
+      },
+    ],
+    t,
+  });
+  assert.ok(credDetails);
+  assert.equal(credDetails.title, "failureCredentialTitle");
+  assert.equal(credDetails.provider, "anthropic");
+  assert.equal(credDetails.model, "claude-sonnet-4-6");
+  assert.equal(credDetails.technicalCode, "SELECTED_RULE_PREPARATION_FAILED");
+
+  // 2. Rate limit
+  const rateLimitDetails = resolvePreparationFailureDetails({
+    failureCode: "TOKEN_LIMIT_EXCEEDED",
+    executionState: "FAILED",
+    t,
+  });
+  assert.ok(rateLimitDetails);
+  assert.equal(rateLimitDetails.title, "failureRateLimitTitle");
+
+  // 3. Ineligible source
+  const ineligDetails = resolvePreparationFailureDetails({
+    failureCode: "LEGAL_RULE_SOURCE_INELIGIBLE",
+    executionState: "FAILED",
+    t,
+  });
+  assert.ok(ineligDetails);
+  assert.equal(ineligDetails.title, "failureSourceTitle");
+
+  // 4. Returns null for non-failed state
+  const notFailed = resolvePreparationFailureDetails({
+    failureCode: null,
+    executionState: "SUCCEEDED",
+    t,
+  });
+  assert.equal(notFailed, null);
 });

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -31,13 +31,17 @@ import {
 } from "@/lib/api/legal-rule-catalog-queries";
 import { canonicalExecutionLabel } from "@/features/workspace/utils/assessment-runtime-formatter";
 import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
-import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
+import {
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  type AssessmentAgentStreamEvent,
+} from "@lcsp/contracts/evidence";
 import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
 import {
   projectPreparationActivity,
   preparationTokenUsage,
 } from "../../utils/rule-set-preparation-activity";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
+import { resolvePreparationFailureDetails } from "../../utils/legal-rule-formatter";
 import { LEGAL_RULE_COMPARE_NONE } from "../../config/legal-rule-catalog.config";
 
 type ResultRevision = PreparationRuleHistory["results"][number];
@@ -60,12 +64,21 @@ type ResultRevision = PreparationRuleHistory["results"][number];
 export function LegalRuleResultRevision({
   result,
   current,
+  events,
 }: {
   result: ResultRevision;
-  current: boolean;
+  current?: boolean;
+  events?: AssessmentAgentStreamEvent[];
 }) {
   const reqs = result.output?.legalRequirements ?? [];
   const rules = result.output?.assessmentRules ?? [];
+  const failureDetails = resolvePreparationFailureDetails({
+    failureCode: result.failureCode,
+    executionState: result.executionState,
+    events,
+    t: (key) => t(key as Parameters<typeof t>[0]),
+  });
+
   return (
     <article className="min-w-0 space-y-6 rounded-xl border bg-card/50 p-6 shadow-xs">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
@@ -85,11 +98,67 @@ export function LegalRuleResultRevision({
         ) : null}
       </div>
 
-      {result.failureCode ? (
-        <Alert variant="destructive" className="px-4 py-3">
-          <AlertDescription className="text-sm font-medium">
-            {t("failure")}: <span className="font-mono">{result.failureCode}</span>
-          </AlertDescription>
+      {failureDetails ? (
+        <Alert
+          variant="destructive"
+          className="space-y-3 rounded-xl border-destructive/40 bg-destructive/10 p-5 shadow-xs"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <AlertTitle className="text-sm font-bold tracking-tight text-destructive">
+                {failureDetails.title}
+              </AlertTitle>
+              <AlertDescription className="text-xs leading-relaxed text-destructive/95">
+                {failureDetails.description}
+              </AlertDescription>
+            </div>
+            {failureDetails.technicalCode ? (
+              <Badge
+                variant="outline"
+                className="shrink-0 border-destructive/40 bg-background/50 font-mono text-[10px] text-destructive"
+              >
+                {failureDetails.technicalCode}
+              </Badge>
+            ) : null}
+          </div>
+
+          {failureDetails.guidance ? (
+            <div className="border-t border-destructive/20 pt-2 text-xs leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                {t("guidance")}:
+              </span>{" "}
+              {failureDetails.guidance}
+            </div>
+          ) : null}
+
+          {failureDetails.provider || failureDetails.errorClass ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-destructive/15 pt-2 text-[11px] text-muted-foreground">
+              {failureDetails.provider ? (
+                <span>
+                  {t("providerLabel")}:{" "}
+                  <strong className="text-foreground">
+                    {failureDetails.provider}
+                  </strong>
+                </span>
+              ) : null}
+              {failureDetails.model ? (
+                <span>
+                  {t("model")}:{" "}
+                  <strong className="text-foreground">
+                    {failureDetails.model}
+                  </strong>
+                </span>
+              ) : null}
+              {failureDetails.errorClass ? (
+                <span>
+                  {t("errorClassLabel")}:{" "}
+                  <code className="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                    {failureDetails.errorClass}
+                  </code>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </Alert>
       ) : null}
 
@@ -413,6 +482,14 @@ export function LegalRuleRunActivity({ result }: { result: ResultRevision }) {
                         ? `${item.details.provider} / `
                         : ""}
                       {item.details.model}
+                    </p>
+                  ) : null}
+                  {isFailed &&
+                  (item.details.lastAttemptErrorClass ||
+                    item.details.errorType) ? (
+                    <p className="mt-1 font-mono text-xs text-destructive">
+                      {item.details.lastAttemptErrorClass ??
+                        item.details.errorType}
                     </p>
                   ) : null}
                 </div>
