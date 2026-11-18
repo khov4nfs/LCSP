@@ -1,11 +1,12 @@
 # Model routing: the single authority for which model every agent role uses.
-# This configuration uses one official Anthropic model and intentionally defines no fallbacks.
+# Uses the Anthropic Messages API; ANTHROPIC_BASE_URL selects the endpoint.
+# This configuration intentionally defines no fallbacks.
 version: 1
 
 routes:
   anthropic-primary:
     provider: anthropic
-    model: claude-sonnet-5-5
+    model: claude-sonnet-4-6
     options:
       context_window_tokens: 1000000
       max_output_tokens: 65536

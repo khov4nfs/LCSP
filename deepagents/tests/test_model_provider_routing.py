@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import httpx
+
 import model_policy as mp
 
 
@@ -61,3 +63,32 @@ def test_direct_anthropic_keeps_its_independent_credential(monkeypatch, set_mode
     assert captured["spec"] == "anthropic:claude-sonnet-4-6"
     assert captured["api_key"] == "direct-anthropic-key"
     assert "base_url" not in captured
+
+
+def test_anthropic_gateway_uses_native_messages_endpoint(monkeypatch, set_model_routes) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_URL", raising=False)
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://gpt.teamsoclo.site/")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "gateway-key,second-gateway-key")
+    _one_route(set_model_routes, "anthropic", "claude-sonnet-4-6")
+    requests = []
+
+    def send(client, request, **kwargs):
+        requests.append(request)
+        return httpx.Response(200, request=request, json={
+            "id": "offline-message", "type": "message", "role": "assistant",
+            "model": "claude-sonnet-4-6", "content": [{"type": "text", "text": "OK"}],
+            "stop_reason": "end_turn", "stop_sequence": None,
+            "usage": {"input_tokens": 3, "output_tokens": 1},
+        })
+
+    monkeypatch.setattr(httpx.Client, "send", send)
+    model = mp.resolve_agent_model("root")
+    result = model.invoke("Reply OK", max_tokens=8)
+
+    assert result.content == "OK"
+    assert len(requests) == 1
+    assert requests[0].method == "POST"
+    assert str(requests[0].url) == "https://gpt.teamsoclo.site/v1/messages"
+    assert requests[0].headers["x-api-key"] == "gateway-key"
+    assert str(model._async_client.base_url) == "https://gpt.teamsoclo.site/"
+    assert mp.model_route_config(model).provider == "anthropic"
