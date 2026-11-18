@@ -1,0 +1,38 @@
+[
+  {
+    "assessmentId": "11111111-1111-4111-8111-111111111111",
+    "title": "E-Commerce Checkout & Payment Audit",
+    "context": "checkout-service",
+    "updatedAt": "Updated 10 min ago",
+    "artifacts": [
+      {
+        "ref": {
+          "assessmentId": "11111111-1111-4111-8111-111111111111",
+          "type": "FINAL_REPORT",
+          "resourceId": "11111111-1111-4111-8111-111111111111"
+        },
+        "title": "Final Compliance Audit Report (Decree 13/2023/ND-CP)",
+        "context": "Complete statutory audit report with signed findings",
+        "status": "AVAILABLE"
+      }
+    ]
+  },
+  {
+    "assessmentId": "22222222-2222-4222-8222-222222222222",
+    "title": "User Authentication & MFA Gateway",
+    "context": "auth-service",
+    "updatedAt": "Updated 1 hour ago",
+    "artifacts": [
+      {
+        "ref": {
+          "assessmentId": "22222222-2222-4222-8222-222222222222",
+          "type": "FINAL_REPORT",
+          "resourceId": "22222222-2222-4222-8222-222222222222"
+        },
+        "title": "Security Verification & Credential Audit Report",
+        "context": "Law on Cyberinformation Security compliance",
+        "status": "UPDATING"
+      }
+    ]
+  }
+]

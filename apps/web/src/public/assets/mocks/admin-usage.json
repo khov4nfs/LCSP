@@ -1,0 +1,285 @@
+{
+  "from": "2026-11-01T00:00:00.000Z",
+  "to": "2026-11-18T23:59:59.999Z",
+  "summary": {
+    "calls": 2,
+    "successfulResponses": 1,
+    "failedAttempts": 1,
+    "unresolvedAttempts": 0,
+    "usageUnknownInvocations": 1,
+    "unpricedInvocations": 1,
+    "incompleteCostInvocations": 1,
+    "tokens": {
+      "inputTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "inputTokensIncludingCache": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "cachedInputTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "cacheWriteTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "cacheWrite5mTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "cacheWrite1hTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "outputTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "visibleOutputTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "reasoningTokens": {
+        "known": "0",
+        "unknownInvocations": 2
+      },
+      "totalTokens": {
+        "known": "9007199254740993",
+        "unknownInvocations": 1
+      }
+    },
+    "knownEstimatedCostUsd": "0.001",
+    "estimatedCostUsd": null
+  },
+  "breakdowns": [
+    {
+      "dimension": "PROVIDER",
+      "key": "provider-a",
+      "summary": {
+        "calls": 2,
+        "successfulResponses": 1,
+        "failedAttempts": 1,
+        "unresolvedAttempts": 0,
+        "usageUnknownInvocations": 1,
+        "unpricedInvocations": 1,
+        "incompleteCostInvocations": 1,
+        "tokens": {
+          "inputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "inputTokensIncludingCache": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cachedInputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWriteTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWrite5mTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWrite1hTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "outputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "visibleOutputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "reasoningTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "totalTokens": {
+            "known": "9007199254740993",
+            "unknownInvocations": 1
+          }
+        },
+        "knownEstimatedCostUsd": "0.001",
+        "estimatedCostUsd": null
+      }
+    },
+    {
+      "dimension": "MODEL",
+      "key": "model-a",
+      "summary": {
+        "calls": 2,
+        "successfulResponses": 1,
+        "failedAttempts": 1,
+        "unresolvedAttempts": 0,
+        "usageUnknownInvocations": 1,
+        "unpricedInvocations": 1,
+        "incompleteCostInvocations": 1,
+        "tokens": {
+          "inputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "inputTokensIncludingCache": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cachedInputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWriteTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWrite5mTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWrite1hTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "outputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "visibleOutputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "reasoningTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "totalTokens": {
+            "known": "9007199254740993",
+            "unknownInvocations": 1
+          }
+        },
+        "knownEstimatedCostUsd": "0.001",
+        "estimatedCostUsd": null
+      }
+    },
+    {
+      "dimension": "DAY",
+      "key": "2026-11-18",
+      "summary": {
+        "calls": 2,
+        "successfulResponses": 1,
+        "failedAttempts": 1,
+        "unresolvedAttempts": 0,
+        "usageUnknownInvocations": 1,
+        "unpricedInvocations": 1,
+        "incompleteCostInvocations": 1,
+        "tokens": {
+          "inputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "inputTokensIncludingCache": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cachedInputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWriteTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWrite5mTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "cacheWrite1hTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "outputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "visibleOutputTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "reasoningTokens": {
+            "known": "0",
+            "unknownInvocations": 2
+          },
+          "totalTokens": {
+            "known": "9007199254740993",
+            "unknownInvocations": 1
+          }
+        },
+        "knownEstimatedCostUsd": "0.001",
+        "estimatedCostUsd": null
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "inv-admin-01",
+      "invocationId": "inv-exec-001",
+      "runId": "33333333-3333-4333-8333-333333333333",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "agentRole": "LEGAL_AUDITOR",
+      "provider": "google",
+      "model": "gemini-1.5-pro",
+      "attemptStatus": "COMPLETED",
+      "failureClass": null,
+      "tokens": {
+        "inputTokens": null,
+        "inputTokensIncludingCache": null,
+        "cachedInputTokens": null,
+        "cacheWriteTokens": null,
+        "cacheWrite5mTokens": null,
+        "cacheWrite1hTokens": null,
+        "outputTokens": null,
+        "visibleOutputTokens": null,
+        "reasoningTokens": null,
+        "totalTokens": "9007199254740993"
+      },
+      "referenceCost": null,
+      "occurredAt": "2026-11-18T01:15:00.000Z"
+    },
+    {
+      "id": "inv-admin-02",
+      "invocationId": "inv-exec-002",
+      "runId": "33333333-3333-4333-8333-333333333333",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "agentRole": "STATUTORY_VALIDATOR",
+      "provider": "anthropic",
+      "model": "claude-3-7-sonnet",
+      "attemptStatus": "COMPLETED",
+      "failureClass": null,
+      "tokens": {
+        "inputTokens": null,
+        "inputTokensIncludingCache": null,
+        "cachedInputTokens": null,
+        "cacheWriteTokens": null,
+        "cacheWrite5mTokens": null,
+        "cacheWrite1hTokens": null,
+        "outputTokens": null,
+        "visibleOutputTokens": null,
+        "reasoningTokens": null,
+        "totalTokens": null
+      },
+      "referenceCost": null,
+      "occurredAt": "2026-11-18T01:45:00.000Z"
+    }
+  ],
+  "page": 1,
+  "pageSize": 25,
+  "totalCount": 2
+}

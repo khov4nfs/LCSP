@@ -165,7 +165,20 @@
         }
       ],
       "facts": [],
-      "artifacts": []
+      "artifacts": [
+        {
+          "artifactId": "11111111-1111-4111-8111-111111111111",
+          "kind": "FINAL_REPORT",
+          "lifecycleState": "ACTIVE",
+          "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
+          "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+          "repositoryCommit": "c14f518a29b48c1e7a3d90214e6b5c92847120a1",
+          "caseRevision": 1,
+          "contentSha256": "0279d28939d50571e8bf91372df7d0a8945c46d9708f3312541a91ca06b7dbe1",
+          "sizeBytes": 4106,
+          "createdAt": "2026-11-18T02:00:00.000Z"
+        }
+      ]
     },
     "usage": {
       "invocationCount": 14,
@@ -246,7 +259,7 @@
     "activatedAt": "2024-12-25T00:00:00.000Z",
     "documents": [
       {
-        "id": "doc-row-nd-147",
+        "id": "11111111-1111-4111-8111-111111111111",
         "documentId": "nghi-dinh-so-147-2024-nd-cp",
         "title": "Nghị định số 147/2024/NĐ-CP về quản lý, cung cấp, sử dụng dịch vụ Internet và thông tin trên mạng",
         "sourceUrl": "https://vanban.chinhphu.vn/?pageid=27160&docid=211756",
@@ -257,7 +270,7 @@
         "hasOriginal": true
       },
       {
-        "id": "doc-row-nd-13",
+        "id": "22222222-2222-4222-8222-222222222222",
         "documentId": "nghi-dinh-so-13-2023-nd-cp",
         "title": "Nghị định số 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân",
         "sourceUrl": "https://vanban.chinhphu.vn/?pageid=27160&docid=207705",
