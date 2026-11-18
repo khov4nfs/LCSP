@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileTextIcon, CheckIcon, Loader2Icon } from "lucide-react";
 import {
   LEGAL_RULE_LIMITS,
+  LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS,
   LEGAL_RULE_SOURCE_PROVISION_LEVELS,
   legalRuleCatalogSchema,
   type LegalRuleSourceProvision,
@@ -72,7 +73,7 @@ export interface LegalRuleSourcePickerDialogProps {
  * 4. Allow granular single-rule, page-wide, and cross-file multi-selection.
  * 5. On confirmation, resolve one pinned catalog per selected source version and sequentially import each selected leaf.
  * Failure cases:
- * - Source query failure renders an error state; save failure interrupts subsequent writes and surfaces an alert.
+ * - Source query failure renders an error state; provisions without EFFECTIVE source status remain unselectable and are explained; save failure interrupts subsequent writes and surfaces an alert.
  * Side effects:
  * - Emits multiple rule creation API requests and advances catalog revisions; closes dialog on completion.
  */
@@ -156,6 +157,18 @@ export function LegalRuleSourcePickerDialog({
   );
   const provisions = provisionsQuery.data?.items ?? [];
   const totalProvisionCount = provisionsQuery.data?.total ?? 0;
+  const hasNonEffectiveStatus =
+    provisionsQuery.data?.limitations.some(
+      (limitation) =>
+        limitation.reason ===
+        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.EFFECT_NOT_EFFECTIVE,
+    ) ?? false;
+  const hasOtherLimitations =
+    provisionsQuery.data?.limitations.some(
+      (limitation) =>
+        limitation.reason !==
+        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.EFFECT_NOT_EFFECTIVE,
+    ) ?? false;
   const totalPages = Math.max(
     1,
     Math.ceil(totalProvisionCount / LEGAL_RULE_LIMITS.pageSize),
@@ -498,7 +511,11 @@ export function LegalRuleSourcePickerDialog({
                   </p>
                 ) : provisions.length === 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">
-                    {t("noChunksInDocument")}
+                    {t(
+                      hasNonEffectiveStatus
+                        ? "noEligibleEffectiveProvisions"
+                        : "noChunksInDocument",
+                    )}
                   </p>
                 ) : (
                   provisions.map((provision) => {
@@ -547,7 +564,12 @@ export function LegalRuleSourcePickerDialog({
                     );
                   })
                 )}
-                {provisionsQuery.data?.limitations.length ? (
+                {hasNonEffectiveStatus ? (
+                  <p className="border-t px-3 py-2 text-xs text-muted-foreground">
+                    {t("sourceEffectNotEligibleNotice")}
+                  </p>
+                ) : null}
+                {hasOtherLimitations ? (
                   <p className="border-t px-3 py-2 text-xs text-muted-foreground">
                     {t("unresolvedContentNotice")}
                   </p>

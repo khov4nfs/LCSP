@@ -45,6 +45,10 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   addSelectedRulesToCatalog: "Thêm các rule đã chọn vào catalog",
   noDocumentsInSource: "Nguồn pháp lý này chưa có tài liệu nào.",
   noChunksInDocument: "Tài liệu này chưa có điều khoản nào được lập chỉ mục.",
+  noEligibleEffectiveProvisions:
+    "Điều khoản đã được lập chỉ mục, nhưng hiện chưa có điều khoản nào có trạng thái EFFECTIVE kèm dẫn chiếu nguồn.",
+  sourceEffectNotEligibleNotice:
+    "Chunk có trạng thái UNKNOWN, REPEALED hoặc FUTURE vẫn được giữ trong Legal Source nhưng không thể nhập. Nếu nguồn có thẩm quyền xác nhận trạng thái, hãy cập nhật metadata hiệu lực và dẫn chiếu nguồn trong phiên bản DRAFT.",
   sourceSelectLabel: "Nguồn pháp lý",
   chooseSource: "Chọn nguồn pháp lý",
   importSuccess: "Đã thêm các rule vào catalog thành công.",
