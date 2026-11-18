@@ -19,6 +19,11 @@ const routes = [
     response: C.preparationRuleHistorySchema,
   },
   {
+    method: "GET",
+    pattern: /^source-provisions$/,
+    response: C.legalRuleSourceProvisionPageSchema,
+  },
+  {
     method: "POST",
     pattern: /^$/,
     request: C.legalRuleCatalogWriteSchema,
@@ -28,6 +33,12 @@ const routes = [
     method: "POST",
     pattern: /^[^/]+\/rules$/,
     request: C.legalRuleWriteSchema,
+    response: C.legalRuleSavedSchema,
+  },
+  {
+    method: "POST",
+    pattern: /^[^/]+\/source-provisions\/import$/,
+    request: C.legalRuleSourceProvisionImportSchema,
     response: C.legalRuleSavedSchema,
   },
   {

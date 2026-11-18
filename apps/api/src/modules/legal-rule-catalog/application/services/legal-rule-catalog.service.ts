@@ -65,7 +65,7 @@ type SourceProvisionChunk = {
  * 4. Return stable source identities, bounded descriptions, exact citations and explicit context limitations.
  *
  * Failure cases:
- * - Unclassified, non-effective, malformed-locator or context-incomplete chunks are omitted; overlong or unresolved context is returned as a typed limitation, never truncated.
+ * - Unclassified and malformed-locator chunks are omitted; non-effective and context-incomplete provisions are returned as typed limitations, never treated as eligible or silently presented as absent.
  *
  * Side effects:
  * - None: this deterministic projection reads immutable source rows and creates no LegalRule or source mutation.
@@ -331,8 +331,13 @@ export function composeLegalSourceProvisions(input: {
       group.chunks.some(
         (chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE,
       )
-    )
+    ) {
+      addLimitation(
+        group.identityLocator,
+        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.EFFECT_NOT_EFFECTIVE,
+      );
       continue;
+    }
     const hasDescendant = sourceGroups.some(
       (candidate) =>
         candidate.segments.length > group.segments.length &&
