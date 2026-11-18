@@ -41,7 +41,11 @@ import {
 } from "@/lib/api/legal-rule-catalog-queries";
 import { useComplianceRuleSetHistoryQuery } from "@/lib/api/compliance-rule-set-queries";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
-import { LEGAL_RULE_FILTER_ALL } from "../../config/legal-rule-catalog.config";
+import {
+  LEGAL_RULE_FILTER_ALL,
+  LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES,
+} from "../../config/legal-rule-catalog.config";
+import { selectLegalRulePreparationFilter } from "../../utils/legal-rule-preparation-filter";
 import {
   LegalRuleCatalogCreateForm,
   LegalRuleCatalogRuleForm,
@@ -493,7 +497,7 @@ export function LegalRuleCatalogWorkflow({
           </div>
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="legal-rule-search">{t("search")}</Label>
                 <Input
@@ -508,23 +512,25 @@ export function LegalRuleCatalogWorkflow({
               <div className="space-y-2">
                 <Label>{t("status")}</Label>
                 <Select
-                  value={filters.state ?? LEGAL_RULE_FILTER_ALL}
+                  value={
+                    filters.withAssessmentRules
+                      ? LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES
+                      : (filters.state ?? LEGAL_RULE_FILTER_ALL)
+                  }
                   onValueChange={(value) => {
-                    setFilters({
-                      ...filters,
-                      state:
-                        value === LEGAL_RULE_FILTER_ALL
-                          ? undefined
-                          : (value as LegalRuleFilter["state"]),
-                    });
+                    setFilters((current) =>
+                      selectLegalRulePreparationFilter(current, value),
+                    );
                     setPage(1);
                   }}
                 >
                   <SelectTrigger aria-label={t("status")}>
                     <SelectValue>
-                      {filters.state
-                        ? t(`state_${filters.state}`)
-                        : t("allStates")}
+                      {filters.withAssessmentRules
+                        ? t("preparedWithAssessmentRules")
+                        : filters.state
+                          ? t(`state_${filters.state}`)
+                          : t("allStates")}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -536,24 +542,13 @@ export function LegalRuleCatalogWorkflow({
                         {t(`state_${state}`)}
                       </SelectItem>
                     ))}
+                    <SelectItem
+                      value={LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES}
+                    >
+                      {t("preparedWithAssessmentRules")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="flex items-center gap-2 pt-7">
-                <Checkbox
-                  id="legal-rule-with-assessment-rules"
-                  checked={filters.withAssessmentRules === true}
-                  onCheckedChange={(checked) => {
-                    setFilters({
-                      ...filters,
-                      withAssessmentRules: checked === true || undefined,
-                    });
-                    setPage(1);
-                  }}
-                />
-                <Label htmlFor="legal-rule-with-assessment-rules">
-                  {t("preparedWithAssessmentRules")}
-                </Label>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
