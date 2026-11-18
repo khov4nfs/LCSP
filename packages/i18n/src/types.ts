@@ -1763,6 +1763,8 @@ export type PagesMessages = {
     createAccount: string;
     newToLcsp: string;
     forgotPassword: string;
+    showPassword: string;
+    hidePassword: string;
     errors: {
       emailRequired: string;
       emailInvalid: string;
@@ -2055,6 +2057,16 @@ export type PagesMessages = {
       loadMoreAssessments: string;
       notAvailable: string;
       noOperationalItems: string;
+      noAnomalies: string;
+      reconciled: string;
+      unreconciled: string;
+      totalTokens: string;
+      inputTokens: string;
+      outputTokens: string;
+      activities: string;
+      runsUnit: string;
+      viewActivities: string;
+      hideActivities: string;
       failedAssessments: string;
       blockedAssessments: string;
       runtimeVersion: string;
