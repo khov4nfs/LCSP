@@ -13,7 +13,12 @@ from pydantic import Field
 import instruction_source_inventory
 import runtime_instruction_bundle as instructions
 from rule_set_preparation import selected_rule
-from tools.common.capabilities.platform.api_client import WorkerCallbackError
+from tools.common.capabilities.platform.api_client import (
+    SELECTED_RULE_INVALID_CALLBACK,
+    SELECTED_RULE_INVALID_RESULT,
+    WorkerCallbackError,
+)
+from tools.common.capabilities.platform.correlation import get_correlationId
 
 pytestmark = pytest.mark.production_instruction_bundle
 
@@ -42,8 +47,7 @@ class SelectedFixtureApi:
         self.receipts = []
         self.completions = []
         self.duplicate = False
-        self.reject_output = False
-        self.ambiguous = False
+        self.reject_output = None
 
     def claim_selected_rule_preparation(self, run_id):
         self.claims.append(run_id)
@@ -58,10 +62,8 @@ class SelectedFixtureApi:
 
     def complete_selected_rule_preparation(self, run_id, state, output, failure_code):
         self.completions.append((run_id, state, output, failure_code))
-        if self.ambiguous:
-            raise WorkerCallbackError("ambiguous callback", status_code=503)
         if self.reject_output and state == "SUCCEEDED":
-            raise WorkerCallbackError("invalid output", status_code=422)
+            raise self.reject_output
         return {"resultId": f"result-{run_id}"}
 
 
@@ -122,19 +124,23 @@ def test_missing_instruction_fails_only_claimed_item_before_model_work(runtime_a
     assert api.completions[0][0:2] == ("missing-instruction", "FAILED")
 
 
-def test_rejected_result_settles_item_failure_without_a_second_model_call(runtime_assets):
+@pytest.mark.parametrize("status,code", [(422, SELECTED_RULE_INVALID_RESULT), (400, SELECTED_RULE_INVALID_CALLBACK)])
+def test_rejected_result_settles_item_failure_without_a_second_model_call(runtime_assets, status, code):
     api, model = SelectedFixtureApi(), SelectedFixtureModel()
-    api.reject_output = True
+    api.reject_output = WorkerCallbackError("invalid output", status_code=status, error_code=code)
     assert selected_rule.run_selected_rule_preparation(api, "rejected-result", model=model)["state"] == "FAILED"
     assert len(model.calls) == 1
     assert [entry[1] for entry in api.completions] == ["SUCCEEDED", "FAILED"]
+    assert api.completions[-1][2:] == (None, "SELECTED_RULE_PREPARATION_FAILED")
 
 
-def test_ambiguous_completion_never_rewrites_success_or_reruns_the_model(runtime_assets):
+@pytest.mark.parametrize("status,code", [(None, None), (503, None), (409, None), (400, None), (422, None)])
+def test_unconfirmed_completion_never_rewrites_success_or_reruns_the_model(runtime_assets, status, code):
     api, model = SelectedFixtureApi(), SelectedFixtureModel()
-    api.ambiguous = True
-    with pytest.raises(WorkerCallbackError):
+    api.reject_output = WorkerCallbackError("unconfirmed callback", status_code=status, error_code=code)
+    with pytest.raises(WorkerCallbackError) as raised:
         selected_rule.run_selected_rule_preparation(api, "uncertain-callback", model=model)
+    assert raised.value is api.reject_output
     assert len(model.calls) == 1
     assert len(api.completions) == 1 and api.completions[0][1] == "SUCCEEDED"
 
@@ -161,12 +167,19 @@ def test_existing_boundary_routes_selected_identity_without_running_whole_source
     from rule_set_preparation.boundary import RuleSetPreparationBoundary
 
     calls = []
-    monkeypatch.setattr(selected_rule, "run_selected_rule_preparation", lambda api, run_id: calls.append((api, run_id)) or {"state": "SUCCEEDED"})
+    previous_correlation = get_correlationId()
+
+    def run(api, run_id):
+        calls.append((api, run_id, get_correlationId()))
+        return {"state": "SUCCEEDED"}
+
+    monkeypatch.setattr(selected_rule, "run_selected_rule_preparation", run)
     config = SimpleNamespace(nestjs_api_base_url="http://api.invalid", worker_api_key="fixture")
     boundary = RuleSetPreparationBoundary(config, api_client="selected-api", runner=lambda *_: pytest.fail("unselected whole-source work must not run"))
     result = boundary.handle({"preparationRunId": "selected-run", "preparationRuleResultId": "selected-result"}, "correlation")
     assert result["state"] == "SUCCEEDED"
-    assert calls == [("selected-api", "selected-run")]
+    assert calls == [("selected-api", "selected-run", "correlation")]
+    assert get_correlationId() == previous_correlation
 
 
 def test_deadline_cancels_active_stream_and_settles_failure_once(runtime_assets, monkeypatch):
@@ -209,5 +222,6 @@ def test_provider_failure_preserves_safe_code_without_logging_body(runtime_asset
     assert len(api.completions) == 1
     assert events[-1]["data"]["provider_error_code"] == "overloaded_error"
     assert "overloaded_error" in caplog.text
+    assert "cause_types=OverloadedError" in caplog.text
     assert "secret-provider-body" not in caplog.text
     assert "secret-wrapper-message" not in caplog.text

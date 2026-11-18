@@ -4,13 +4,15 @@ from unittest.mock import patch, MagicMock
 from pydantic import ValidationError
 
 from tools.common.capabilities.platform.api_client import (
+    SELECTED_RULE_INVALID_CALLBACK,
+    SELECTED_RULE_INVALID_RESULT,
     WorkerApiClient,
     WorkerCallbackError,
 )
 from tools.common.capabilities.platform.callback_schemas import (
     SettledUsagePayload,
 )
-from tools.common.capabilities.platform.correlation import set_correlationId
+from tools.common.capabilities.platform.correlation import activate_correlation_id, set_correlationId
 
 
 @pytest.fixture
@@ -197,6 +199,34 @@ def test_legal_callback_still_rejects_a_cancelled_execution(client):
             post.assert_not_called()
     finally:
         active_agent_stream_cancel.reset(token)
+
+
+@pytest.mark.parametrize("status,code", [(400, SELECTED_RULE_INVALID_CALLBACK), (422, SELECTED_RULE_INVALID_RESULT)])
+def test_selected_completion_logs_only_safe_paths_and_run_identity(client, status, code):
+    field = "output.legalRequirements.0.sourceRefs"
+    response = httpx.Response(status, json={"ok": False, "problem": {
+        "code": code,
+        "meta": {"issues": f"{field},output.credential=PRIVATE", "requirements": "PRIVATE_REQUIREMENT"},
+    }})
+    with (
+        activate_correlation_id("selected-correlation"),
+        patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post,
+        patch("tools.common.capabilities.platform.api_client.logger") as logger,
+        pytest.raises(WorkerCallbackError) as caught,
+    ):
+        client.complete_selected_rule_preparation("selected-run", "SUCCEEDED", {}, None)
+    assert (caught.value.status_code, caught.value.error_code) == (status, code)
+    assert "PRIVATE" not in str(caught.value)
+    post.assert_called_once()
+    assert post.call_args.kwargs["headers"]["X-Correlation-Id"] == "selected-correlation"
+    logger.warning.assert_called_once_with(
+        "selected_rule_callback_invalid_output",
+        preparation_run_id="selected-run",
+        correlationId="selected-correlation",
+        status_code=status,
+        error_code=code,
+        validation_paths=[field],
+    )
 
 
 @pytest.mark.parametrize("method,args", [

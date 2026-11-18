@@ -1,17 +1,19 @@
 """Recover streamed gateway overloads without replaying tools or hiding credential failures."""
 import asyncio
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
-from anthropic import APIStatusError
+from anthropic import APIConnectionError, APIStatusError
 from conftest import use_model_routes
 from langchain.agents.middleware import ModelRequest, ModelResponse, ModelRetryMiddleware
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
 
-from anthropic_stream_usage import anthropic_first_output_timeout, init_chat_model, _first_output_timeout, _stream_usage
+from anthropic_stream_usage import anthropic_async_client_scope, anthropic_first_output_timeout, init_chat_model, _first_output_timeout, _stream_usage
 from middleware.failure_policy import ProviderFirstOutputTimeout, retry_model_error
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
@@ -23,7 +25,11 @@ def overloaded():
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
-@pytest.mark.parametrize("failure", [overloaded, lambda: ProviderFirstOutputTimeout("silent stream")])
+@pytest.mark.parametrize("failure", [
+    overloaded,
+    lambda: ProviderFirstOutputTimeout("silent stream"),
+    lambda: APIConnectionError(request=httpx.Request("POST", "https://provider.invalid/v1/messages")),
+])
 @pytest.mark.parametrize("recovers", [False, True])
 @pytest.mark.asyncio
 async def test_interruption_reaches_bounded_model_retry(monkeypatch, asynchronous, failure, recovers):
@@ -58,6 +64,69 @@ async def test_interruption_reaches_bounded_model_retry(monkeypatch, asynchronou
                 retry.wrap_model_call(request, lambda r: routes.wrap_model_call(r, lambda r: tokens.wrap_model_call(r, handler)))
         assert handler.call_count == 3
     assert all(not dead for dead in slots._DEAD_CREDENTIAL_SLOTS.values())
+
+
+def test_selected_async_client_pool_closes_before_its_event_loop():
+    peers = []
+
+    class KeepAliveHandler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_GET(self):
+            peers.append(self.client_address)
+            self.send_response(200)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), KeepAliveHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+
+    async def run():
+        model = init_chat_model("anthropic:fixture", api_key="offline-key", base_url=base_url, timeout=10)
+        async with anthropic_async_client_scope():
+            client = model._async_client
+            assert client is model._async_client
+            assert not client.is_closed()
+            assert client.timeout == 10
+            for _ in range(2):
+                assert (await client.get("/", cast_to=httpx.Response)).status_code == 200
+        assert client.is_closed()
+        return client
+
+    try:
+        assert asyncio.run(run()) is not asyncio.run(run())
+        assert peers[0] == peers[1]
+        assert peers[2] == peers[3]
+        assert peers[0] != peers[2]
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_selected_scope_closes_client():
+    model = init_chat_model("anthropic:fixture", api_key="offline-key")
+    entered = asyncio.Event()
+    clients = []
+
+    async def run():
+        async with anthropic_async_client_scope():
+            clients.append(model._async_client)
+            entered.set()
+            await asyncio.Future()
+
+    task = asyncio.create_task(run())
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert clients[0].is_closed()
 
 
 @pytest.mark.asyncio

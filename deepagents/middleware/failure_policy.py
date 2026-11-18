@@ -1,4 +1,5 @@
 """Shared terminal failure classification for model calls and queue delivery."""
+from anthropic import APIConnectionError as AnthropicAPIConnectionError, APITimeoutError as AnthropicAPITimeoutError
 from langchain_anthropic.chat_models import AnthropicModelNotFoundError
 from langchain.agents.structured_output import StructuredOutputError
 from langchain_core.exceptions import (
@@ -248,14 +249,15 @@ def is_auth_failure(error: BaseException) -> bool:
 
 
 def is_retryable_provider_interruption(error: BaseException) -> bool:
-    """Business purpose: Retain recoverable overload and silent-stream failures for bounded model retry.
+    """Business purpose: Retain recoverable provider interruptions for bounded model retry.
 
     Business rules:
     - Authentication and quota failures do not qualify; HTTP 529 and structured overloaded_error qualify even after an SSE HTTP 200.
     - A selected-rule first-output timeout qualifies without treating every credential exhaustion as recoverable.
+    - Anthropic connection failures qualify; SDK request timeouts retain their existing treatment.
     Execution flow:
     1. Exclude authentication and quota rejection.
-    2. Check the stream error code/status, then walk causes for the typed first-output timeout.
+    2. Check the stream error code/status, then walk causes for a first-output timeout or connection failure.
     Failure cases:
     - Unrecognized exception types return false; authentication and depleted-quota rejections never gain retry permission from a nested overload code.
     Side effects:
@@ -270,6 +272,10 @@ def is_retryable_provider_interruption(error: BaseException) -> bool:
     while current is not None and id(current) not in seen:
         seen.add(id(current))
         if isinstance(current, ProviderFirstOutputTimeout):
+            return True
+        if isinstance(current, AnthropicAPITimeoutError):
+            return False
+        if isinstance(current, AnthropicAPIConnectionError):
             return True
         current = current.__cause__ or current.__context__
     return False

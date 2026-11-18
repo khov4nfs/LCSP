@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import {
   Prisma,
@@ -38,6 +38,7 @@ import {
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import {
   canonicalJson,
@@ -1042,6 +1043,24 @@ export class PreparationRuleService {
 }
 
 /**
+ * Business purpose: Identify the structural field that prevented a selected result from being recorded.
+ * Business rules:
+ * - Report only schema field paths supplied by the validation code; authored data and citation values stay private.
+ * Execution flow:
+ * 1. Return the catalog result rejection with the field path and request correlation.
+ * Failure cases:
+ * - Always rejects settlement with HTTP 422 so the worker can record a failed attempt.
+ * Side effects:
+ * - Throws a typed problem without changing run state.
+ */
+function rejectSelectedOutput(cid: string, issues: string): never {
+  throw problemException(E.RESULT_INVALID, cid, {
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    meta: { issues },
+  });
+}
+
+/**
  * Business purpose: Validate selected preparation structure and provenance without deciding legal applicability.
  * Business rules:
  * - References stay within pinned chunks; AssessmentRule parents must be present, assessable and uniquely identified.
@@ -1049,7 +1068,7 @@ export class PreparationRuleService {
  * 1. Parse canonical downstream contracts
  * 2. Verify unique identities, source allowlist and parent links.
  * Failure cases:
- * - Invalid structure, duplicates, foreign sources or missing/non-assessable parents return RESULT_INVALID.
+ * - Invalid structure, duplicates, foreign sources or missing/non-assessable parents return RESULT_INVALID with a safe field path.
  * Side effects:
  * - Pure validation; no semantic decision, publication or model work.
  */
@@ -1059,7 +1078,7 @@ export function validateSelectedOutput(
   cid: string,
 ): void {
   const parsed = preparationRuleOutputSchema.safeParse(output);
-  if (!parsed.success) catalogFailure(E.RESULT_INVALID, cid, 422);
+  if (!parsed.success) rejectSelectedOutput(cid, "output");
   const requirements = new Map(
     output.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
   );
@@ -1069,51 +1088,58 @@ export function validateSelectedOutput(
   const relationIds = new Set(
     output.contextRelations.map((edge) => edge.relationId),
   );
-  if (
-    requirements.size !== output.legalRequirements.length ||
-    assessmentIds.size !== output.assessmentRules.length ||
-    relationIds.size !== output.contextRelations.length ||
-    validateAssessmentRuleBindings(output).length
-  )
-    catalogFailure(E.RESULT_INVALID, cid, 422);
+  if (requirements.size !== output.legalRequirements.length)
+    rejectSelectedOutput(cid, "output.legalRequirements.legalRequirementId");
+  if (assessmentIds.size !== output.assessmentRules.length)
+    rejectSelectedOutput(cid, "output.assessmentRules.assessmentRuleId");
+  if (relationIds.size !== output.contextRelations.length)
+    rejectSelectedOutput(cid, "output.contextRelations.relationId");
   const allowed = new Set(
     input.citations.map((ref) =>
       canonicalJson([ref.documentId, ref.locator, ref.contentSha256]),
     ),
   );
   const prefix = `${input.ruleId}:`;
-  for (const rule of output.legalRequirements) {
+  for (const [index, rule] of output.legalRequirements.entries()) {
+    const path = `output.legalRequirements.${index}`;
+    if (!rule.legalRequirementId.startsWith(prefix))
+      rejectSelectedOutput(cid, `${path}.legalRequirementId`);
+    if (!rule.operativePropositions?.length)
+      rejectSelectedOutput(cid, `${path}.operativePropositions`);
     if (
-      !rule.legalRequirementId.startsWith(prefix) ||
-      !rule.operativePropositions?.length ||
       !declaresApplicabilityScope(
         rule.coverage.state,
         rule.applicabilityConditions,
         rule.applicabilityMode,
       )
     )
-      catalogFailure(E.RESULT_INVALID, cid, 422);
+      rejectSelectedOutput(
+        cid,
+        `${path}.applicabilityConditions,${path}.applicabilityMode`,
+      );
     const own = new Set(rule.sourceRefs.map((ref) => canonicalJson(ref)));
     if (
       rule.operativePropositions.some((proposition) =>
         proposition.sourceRefs.some((ref) => !own.has(canonicalJson(ref))),
       )
     )
-      catalogFailure(E.RESULT_INVALID, cid, 422);
+      rejectSelectedOutput(cid, `${path}.operativePropositions.sourceRefs`);
   }
-  for (const rule of [...output.legalRequirements, ...output.assessmentRules]) {
-    if (
-      !rule.sourceRefs.length ||
-      rule.sourceRefs.some(
-        (ref) =>
-          !allowed.has(
-            canonicalJson([ref.documentId, ref.locator, ref.contentSha256]),
-          ),
+  for (const collection of ["legalRequirements", "assessmentRules"] as const) {
+    for (const [index, rule] of output[collection].entries()) {
+      if (
+        !rule.sourceRefs.length ||
+        rule.sourceRefs.some(
+          (ref) =>
+            !allowed.has(
+              canonicalJson([ref.documentId, ref.locator, ref.contentSha256]),
+            ),
+        )
       )
-    )
-      catalogFailure(E.RESULT_INVALID, cid, 422);
+        rejectSelectedOutput(cid, `output.${collection}.${index}.sourceRefs`);
+    }
   }
-  for (const edge of output.contextRelations) {
+  for (const [index, edge] of output.contextRelations.entries()) {
     if (
       !edge.relationId.startsWith(prefix) ||
       !requirements.has(edge.fromLegalRequirementId) ||
@@ -1128,11 +1154,13 @@ export function validateSelectedOutput(
           ]),
         ))
     )
-      catalogFailure(E.RESULT_INVALID, cid, 422);
+      rejectSelectedOutput(cid, `output.contextRelations.${index}`);
   }
-  for (const rule of output.assessmentRules) {
+  for (const [index, rule] of output.assessmentRules.entries()) {
+    const path = `output.assessmentRules.${index}`;
+    if (!rule.assessmentRuleId.startsWith(prefix))
+      rejectSelectedOutput(cid, `${path}.assessmentRuleId`);
     if (
-      !rule.assessmentRuleId.startsWith(prefix) ||
       rule.legalRequirementIds.some(
         (id) =>
           !requirements.has(id) ||
@@ -1140,6 +1168,8 @@ export function validateSelectedOutput(
             LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
       )
     )
-      catalogFailure(E.RESULT_INVALID, cid, 422);
+      rejectSelectedOutput(cid, `${path}.legalRequirementIds`);
   }
+  if (validateAssessmentRuleBindings(output).length)
+    rejectSelectedOutput(cid, "output.assessmentRules");
 }

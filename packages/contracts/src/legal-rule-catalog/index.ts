@@ -44,7 +44,11 @@ export const LEGAL_RULE_INELIGIBILITY_REASONS = {
   CITATION_INVALID: "CITATION_INVALID",
   CATALOG_EMPTY: "CATALOG_EMPTY",
 } as const;
-export const LEGAL_RULE_LIMITS = { catalogRules: 10000, pageSize: 50 } as const;
+export const LEGAL_RULE_LIMITS = {
+  catalogRules: 10000,
+  pageSize: 50,
+  preparedArtifacts: 256,
+} as const;
 export const LEGAL_RULE_SOURCE_PROVISION_LEVELS = {
   ARTICLE: "ARTICLE",
   CLAUSE: "CLAUSE",
@@ -230,9 +234,16 @@ function normalizeSelectedRuleOutput(
 export const preparationRuleOutputSchema = z
   .strictObject({
     analysis: text.max(100000),
-    legalRequirements: z.array(legalRequirementSchema).max(256),
-    assessmentRules: z.array(assessmentRuleAuthoringSchema).max(256),
-    contextRelations: z.array(legalContextRelationSchema).max(256).default([]),
+    legalRequirements: z
+      .array(legalRequirementSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+    assessmentRules: z
+      .array(assessmentRuleAuthoringSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+    contextRelations: z
+      .array(legalContextRelationSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts)
+      .default([]),
   })
   .transform(normalizeSelectedRuleOutput);
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;

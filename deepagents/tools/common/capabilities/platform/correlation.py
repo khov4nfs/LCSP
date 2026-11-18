@@ -1,6 +1,7 @@
 """Propagate correlation identifiers across worker execution contexts."""
 
 import contextvars
+from contextlib import contextmanager
 import uuid
 
 _cid: contextvars.ContextVar[str] = contextvars.ContextVar(
@@ -26,6 +27,27 @@ def set_correlationId(cid: str) -> None:
 def get_correlationId() -> str:
     """Return the correlation identifier associated with the current context."""
     return _cid.get()
+
+
+@contextmanager
+def activate_correlation_id(correlation_id: str):
+    """Business purpose: Trace the callbacks for one selected preparation to its dispatch.
+
+    Business rules:
+    - Nested worker calls inherit the dispatch identity for the duration of that run.
+    Execution flow:
+    1. Set the current dispatch identity.
+    2. Restore the previously active identity when the run exits.
+    Failure cases:
+    - A failed or cancelled run still restores the prior identity.
+    Side effects:
+    - Updates the context-local correlation used for callback headers and diagnostics.
+    """
+    token = _cid.set(correlation_id)
+    try:
+        yield
+    finally:
+        _cid.reset(token)
 
 
 def set_user_id(uid: str) -> None:
