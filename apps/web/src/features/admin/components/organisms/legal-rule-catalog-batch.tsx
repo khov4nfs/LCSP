@@ -12,6 +12,7 @@ import {
   usePreparationRuleBatch,
 } from "@/lib/api/legal-rule-catalog-queries";
 import { canonicalExecutionLabel } from "@/features/workspace/utils/assessment-runtime-formatter";
+import { getRuleDisplayTitle } from "../../utils/legal-rule-formatter";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
 
 /**
@@ -81,7 +82,7 @@ export function LegalRuleCatalogBatch({
           >
             <div className="min-w-0 flex-1">
               <p className="font-medium">
-                {item.legalRuleId} · {item.title}
+                {getRuleDisplayTitle(item)}
               </p>
               <p className="text-sm">
                 {canonicalExecutionLabel(item.executionState)}

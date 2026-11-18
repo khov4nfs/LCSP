@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
+import { appLocale } from "@/lib/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +68,7 @@ export function AuthTextField({
   className,
   inputClassName,
   trailing,
+  type,
   ...inputProps
 }: ComponentProps<typeof Input> & {
   id: string;
@@ -74,6 +78,14 @@ export function AuthTextField({
   inputClassName?: string;
   trailing?: ReactNode;
 }) {
+  const isPasswordField = type === "password";
+  const [showPassword, setShowPassword] = useState(false);
+  const resolvedType = isPasswordField
+    ? showPassword
+      ? "text"
+      : "password"
+    : type;
+
   return (
     <Field
       data-invalid={Boolean(error) || undefined}
@@ -85,18 +97,49 @@ export function AuthTextField({
       <div className="relative">
         <Input
           id={id}
+          type={resolvedType}
           aria-invalid={Boolean(error)}
           className={cn(
             "h-10 rounded-lg border-input bg-background px-3 py-0 text-[13px] text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 md:text-[13px]",
-            trailing ? "pr-24" : undefined,
+            isPasswordField && trailing
+              ? "pr-32"
+              : isPasswordField
+                ? "pr-10"
+                : trailing
+                  ? "pr-24"
+                  : undefined,
             inputClassName,
           )}
           {...inputProps}
         />
         {trailing ? (
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] leading-none text-muted-foreground">
+          <span
+            className={cn(
+              "pointer-events-none absolute top-1/2 -translate-y-1/2 text-[11px] leading-none text-muted-foreground",
+              isPasswordField ? "right-10" : "right-3",
+            )}
+          >
             {trailing}
           </span>
+        ) : null}
+        {isPasswordField ? (
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={resolveMessage(
+              appLocale,
+              (showPassword
+                ? "pages.signIn.hidePassword"
+                : "pages.signIn.showPassword") as MessageKey,
+            )}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {showPassword ? (
+              <EyeOffIcon className="size-4" aria-hidden="true" />
+            ) : (
+              <EyeIcon className="size-4" aria-hidden="true" />
+            )}
+          </button>
         ) : null}
       </div>
       {error ? (

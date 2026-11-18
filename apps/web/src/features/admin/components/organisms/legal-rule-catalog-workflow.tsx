@@ -43,6 +43,10 @@ import {
   LegalRuleCatalogRuleForm,
 } from "../molecules/legal-rule-catalog-forms";
 import { LegalRuleResultDialog } from "../molecules/legal-rule-catalog-result";
+import {
+  formatLegalProvisions,
+  getRuleDisplayTitle,
+} from "../../utils/legal-rule-formatter";
 import { LegalRuleCatalogBatch } from "./legal-rule-catalog-batch";
 import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
 
@@ -456,7 +460,7 @@ export function LegalRuleCatalogWorkflow({
                 <li key={rule.id} className="flex items-start gap-3 py-4">
                   <Checkbox
                     id={`select-${rule.id}`}
-                    aria-label={`${t("selectRule")} ${rule.legalRuleId}`}
+                    aria-label={`${t("selectRule")} ${getRuleDisplayTitle(rule)}`}
                     checked={selectedIds.has(rule.id)}
                     disabled={!!rule.ineligibleReason || busy}
                     onCheckedChange={() => toggleRule(rule.id)}
@@ -466,19 +470,11 @@ export function LegalRuleCatalogWorkflow({
                       htmlFor={`select-${rule.id}`}
                       className="font-semibold"
                     >
-                      {rule.legalRuleId} · {rule.title}
+                      {getRuleDisplayTitle(rule)}
                     </Label>
-                    <p className="mt-1 text-sm">{rule.description}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {currentCatalog?.version} · {t(`state_${rule.state}`)}
+                    <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">
+                      {formatLegalProvisions(rule.description)}
                     </p>
-                    <ul className="mt-1 text-xs text-muted-foreground">
-                      {rule.citationLocatorRefs.map((ref) => (
-                        <li key={`${ref.documentId}:${ref.locator}`}>
-                          {ref.documentId} · {ref.locator}
-                        </li>
-                      ))}
-                    </ul>
                     {rule.ineligibleReason ? (
                       <p className="mt-1 text-sm text-destructive">
                         {t(`reason_${rule.ineligibleReason}`)}
