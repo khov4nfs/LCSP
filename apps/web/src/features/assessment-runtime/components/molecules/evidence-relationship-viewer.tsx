@@ -5,15 +5,12 @@ import {
   FileCodeIcon,
   SearchIcon,
   AlertCircleIcon,
-  CheckCircle2Icon,
-  XCircleIcon,
   ArrowUpRightIcon,
   CopyIcon,
   CheckIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { ASSESSMENT_EVIDENCE_TYPES } from "@lcsp/contracts/assessment-domain";
 import type { LegalRuleEvidenceItem } from "../../types/legal-rule-output.types";
 import { copy } from "../../utils/conversation-copy";
@@ -79,7 +76,7 @@ export function EvidenceRelationshipViewer({
                     ) : (
                       <SearchIcon className="size-3 text-sky-500" aria-hidden="true" />
                     )}
-                    <span>{item.type}</span>
+                    <span>{copy(isSource ? "decision.evidenceTypeRepo" : item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE ? "decision.evidenceTypeInspection" : "decision.evidence")}</span>
                   </Badge>
 
                   {item.path ? (
@@ -114,7 +111,7 @@ export function EvidenceRelationshipViewer({
                       ) : (
                         <CopyIcon className="size-3.5" aria-hidden="true" />
                       )}
-                      <span className="sr-only">Copy path</span>
+                      <span className="sr-only">{copy("decision.copyPath")}</span>
                     </Button>
                   )}
 
@@ -149,7 +146,7 @@ export function EvidenceRelationshipViewer({
               {/* Search coverage scopes and queries */}
               {item.scopes && item.scopes.length > 0 && (
                 <div className="text-xs text-muted-foreground">
-                  <span className="font-medium">Scopes: </span>
+                  <span className="font-medium">{copy("decision.searchScopes")} </span>
                   <span className="font-mono">{item.scopes.join(", ")}</span>
                 </div>
               )}
@@ -159,8 +156,8 @@ export function EvidenceRelationshipViewer({
                   {item.queries.map((q, qIdx) => (
                     <div key={qIdx} className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
                       <span className="font-semibold text-primary">{q.tool}:</span>
-                      <span className="truncate">"{q.query}"</span>
-                      <span>({q.resultCount} results)</span>
+                      <span className="truncate">&quot;{q.query}&quot;</span>
+                      <span>({copy("decision.searchResults", { count: q.resultCount })})</span>
                     </div>
                   ))}
                 </div>

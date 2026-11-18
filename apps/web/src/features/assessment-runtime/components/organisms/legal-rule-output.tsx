@@ -38,6 +38,15 @@ type LegalRuleOutputProps = {
 
 type ActiveDetailSection = "evidence" | "rawRule" | "synthesis" | "applicability" | null;
 
+/**
+ * Business purpose: Present a recorded compliance decision with its legal basis and evidence.
+ * Business rules: Keep source content intact and translate interface captions using the active locale.
+ * Execution flow:
+ * 1. Resolve the decision, linked sources and evidence into the existing presentation model.
+ * 2. Show the result and let customers expand its supporting details or ask a follow-up question.
+ * Failure cases: Missing supporting records use the presentation model's existing fallbacks.
+ * Side effects: Reads cached assessment queries and updates local disclosure and composer state.
+ */
 export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
   const assessmentId = turn.record.assessmentId;
   const detailQuery = useAssessmentDetailQuery(assessmentId);
@@ -50,7 +59,6 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
 
   const applicabilityRef = useRef<HTMLDivElement>(null);
   const obligationRef = useRef<HTMLDivElement>(null);
-  const assessmentRef = useRef<HTMLDivElement>(null);
   const evidenceRef = useRef<HTMLDivElement>(null);
   const conclusionRef = useRef<HTMLDivElement>(null);
   const rawRuleRef = useRef<HTMLDivElement>(null);
@@ -99,6 +107,14 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
     }
   };
 
+  /**
+   * Business purpose: Help the customer ask about the currently displayed legal requirement.
+   * Business rules: Use the selected language and preserve the requirement's concept and locator.
+   * Execution flow:
+   * 1. Build the translated question and focus the existing composer when present.
+   * Failure cases: Without a composer, no draft is changed.
+   * Side effects: Replaces the local composer draft; does not submit a message.
+   */
   const handleAskAboutRule = () => {
     const prompt = copy("decision.askAboutRulePrompt", {
       concept: model.identity.concept,
@@ -108,9 +124,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
       'textarea[data-slot="chat-input"], input[data-slot="chat-input"], textarea',
     );
     if (composer) {
-      composer.value = prompt.includes("{")
-        ? `Hỏi thêm về quy định: ${model.identity.concept} (${model.identity.locator})`
-        : prompt;
+      composer.value = prompt;
       composer.focus();
     }
   };
@@ -211,10 +225,10 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
             <div className="flex-1 space-y-1">
               <div className="font-semibold text-sm text-foreground">
                 {isCompliant
-                  ? "Đạt tiêu chuẩn tuân thủ pháp luật"
+                  ? copy("decision.verdict.compliant")
                   : isNonCompliant
-                    ? "Phát hiện không tuân thủ nghĩa vụ pháp luật bắt buộc"
-                    : "Chưa đủ căn cứ xác định tuân thủ"}
+                    ? copy("decision.verdict.nonCompliant")
+                    : copy("decision.verdict.undetermined")}
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">
                 {model.compliance.rationale}
@@ -246,7 +260,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
 
       {/* 2. PROGRESSIVE DISCLOSURE ACTION BAR (Các nút bấm xem chi tiết khi người dùng cần) */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-b border-border/60 py-2">
-        <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Chi tiết đánh giá">
+        <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label={copy("decision.details")}>
           <Button
             type="button"
             variant={activeSection === "evidence" ? "secondary" : "outline"}
@@ -255,7 +269,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
             className="h-8 text-xs font-medium gap-1.5"
           >
             <FileCode2Icon className="size-3.5 text-primary" aria-hidden="true" />
-            <span>Xem bằng chứng code ({model.evidenceList.length})</span>
+            <span>{copy("decision.viewEvidence", { count: model.evidenceList.length })}</span>
             {activeSection === "evidence" ? (
               <ChevronUpIcon className="size-3" aria-hidden="true" />
             ) : (
@@ -271,7 +285,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
             className="h-8 text-xs font-medium gap-1.5"
           >
             <BookOpenIcon className="size-3.5 text-indigo-500" aria-hidden="true" />
-            <span>Nguyên văn văn bản luật</span>
+            <span>{copy("decision.rawLegalRule")}</span>
             {activeSection === "rawRule" ? (
               <ChevronUpIcon className="size-3" aria-hidden="true" />
             ) : (
@@ -287,7 +301,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
             className="h-8 text-xs font-medium gap-1.5"
           >
             <ListTreeIcon className="size-3.5 text-purple-500" aria-hidden="true" />
-            <span>Lập luận 5 bước</span>
+            <span>{copy("decision.reasoning")}</span>
             {activeSection === "synthesis" ? (
               <ChevronUpIcon className="size-3" aria-hidden="true" />
             ) : (
@@ -303,7 +317,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
             className="h-8 text-xs font-medium gap-1.5"
           >
             <InfoIcon className="size-3.5 text-sky-500" aria-hidden="true" />
-            <span>Cơ sở áp dụng</span>
+            <span>{copy("decision.applicabilityTitle")}</span>
             {activeSection === "applicability" ? (
               <ChevronUpIcon className="size-3" aria-hidden="true" />
             ) : (
@@ -321,7 +335,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
           className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5 ml-auto"
         >
           <MessageSquareShareIcon className="size-3.5" aria-hidden="true" />
-          <span>Hỏi tiếp về quy định này</span>
+          <span>{copy("decision.askAboutRule")}</span>
         </Button>
       </div>
 

@@ -848,7 +848,7 @@ export const viPages = {
       },
     },
     transcriptLabel: "Cuộc trò chuyện đánh giá",
-    agentName: "Assessment Root",
+    agentName: "Trợ lý Pháp lý",
     userName: "Bạn",
     opening: "Tôi bắt đầu đánh giá của bạn.",
     openingRepository: "Kho mã: {repository} tại {commit}.",
@@ -886,11 +886,11 @@ export const viPages = {
       whyAsking: "Vì sao tôi hỏi",
       unknownRecorded:
         "Đã ghi nhận. Câu hỏi này vẫn mở cho đến khi có thông tin.",
-      clarificationNeeded: "Cần xác minh thông tin nghiệp vụ (Human-in-the-Loop)",
-      confirmed: "Đã phản hồi thông tin",
-      unresolvedFactLabel: "Mục tiêu xác minh:",
-      decisionImpactLabel: "Tác động đánh giá:",
-      resolutionAttemptsLabel: "Đã kiểm tra mã nguồn:",
+      clarificationNeeded: "Cần thêm thông tin từ bạn",
+      confirmed: "Đã ghi nhận câu trả lời",
+      unresolvedFactLabel: "Thông tin cần biết:",
+      decisionImpactLabel: "Tại sao điều này quan trọng:",
+      resolutionAttemptsLabel: "Đã kiểm tra:",
     },
     answer: {
       unknown: "Tôi không biết",
@@ -904,6 +904,20 @@ export const viPages = {
       failed: "Không thể gửi câu trả lời. Vui lòng thử lại.",
       staleConflict:
         "Đã có phiên bản mới hơn. Bản nháp của bạn đã được giữ lại; vui lòng kiểm tra và gửi lại.",
+    },
+    preview: {
+      loading: "Đang chuẩn bị đánh giá cho bạn…",
+      repository: "Đánh giá tuân thủ: {repository}",
+      active: "Đang đánh giá",
+      revision: "Phiên bản {revision} · {commit}",
+      conversation: "Trao đổi và kết quả đánh giá",
+      request:
+        "Đánh giá nhật ký đăng nhập và xác thực đa yếu tố (MFA) theo Nghị định 147/2024/NĐ-CP và Nghị định 13/2023/NĐ-CP.",
+      introduction:
+        "Tôi đã rà soát hai quy định pháp luật áp dụng cho {repository}. Dưới đây là kết quả, bằng chứng và một vài câu hỏi cần bạn bổ sung thông tin.",
+      history: "Câu trả lời trước đó của bạn",
+      confirm: "Xác nhận giúp chúng tôi",
+      tellMore: "Chia sẻ thêm với chúng tôi",
     },
     decision: {
       ruleFallback: "Quy tắc đánh giá {id}",
@@ -923,6 +937,18 @@ export const viPages = {
         UNDETERMINED: "Chưa xác định",
       },
       rawLegalRule: "Nội dung quy định nguyên văn",
+      details: "Chi tiết đánh giá",
+      viewEvidence: "Xem bằng chứng ({count})",
+      reasoning: "Vì sao có kết luận này",
+      askAboutRulePrompt: "Giải thích thêm về {concept} ({locator}).",
+      verdict: {
+        compliant: "Đáp ứng quy định này",
+        nonCompliant: "Quy định này cần được khắc phục",
+        undetermined: "Cần thêm thông tin để đánh giá quy định này",
+      },
+      copyPath: "Sao chép đường dẫn tệp",
+      searchScopes: "Phạm vi tìm kiếm:",
+      searchResults: "{count} kết quả",
       rawLegalRuleExpand: "Xem toàn văn điều khoản",
       rawLegalRuleCollapse: "Thu gọn văn bản",
       viewOriginalDocument: "Mở văn bản gốc",
@@ -955,7 +981,7 @@ export const viPages = {
       criterionTitle: "Tiêu chí đánh giá",
       evidenceArtifact: "Bằng chứng kỹ thuật",
       evidenceTypeRepo: "Mã nguồn repository",
-      evidenceTypeInspection: "Kiểm tra cấu hình",
+      evidenceTypeInspection: "Tìm kiếm trong kho mã",
       applicableRuleBadge: "Quy định áp dụng",
       stepFlow: {
         rule: "Quy định pháp lý",
@@ -1001,7 +1027,7 @@ export const viPages = {
       downloadPdf: "Tải PDF",
     },
     bar: {
-      working: "Assessment Root đang làm việc…",
+      working: "Đang rà soát tuân thủ cho bạn…",
       stop: "Dừng",
       stopping: "Đang dừng…",
       continue: "Tiếp tục đánh giá",
@@ -1067,6 +1093,8 @@ export const viPages = {
       undeterminedBadge: "Chưa xác định",
       assessmentRevision: "Bản sửa đổi",
       lastUpdated: "Cập nhật gần nhất",
+      commit: "Commit: {commit}",
+      revisionValue: "Phiên bản {revision}",
     },
     report: {
       title: "Báo cáo đánh giá",
@@ -1142,7 +1170,7 @@ export const viPages = {
       lineage: "Dòng thực thi runtime",
       facts: "Các sự thật đã chấp nhận",
       evidence: "Bằng chứng đã chấp nhận",
-      humanResolutions: "Lịch sử phản hồi từ con người",
+      humanResolutions: "Phản hồi của bạn",
       decisions: "Quyết định quy tắc & độ bao phủ",
       events: "Dòng thời gian sự kiện chính thức",
       artifacts: "Các artifact đã tạo",
@@ -1683,7 +1711,7 @@ export const viPages = {
       showcaseRepositoryLine: "Đã kết nối · GitHub · payment-service · 9f31ca2",
       showcaseThoughtLong: "Đã suy nghĩ 18 giây",
       showcaseRepositoryInvestigated:
-        "Assessment Root đã điều tra mã nguồn đã ghim và ghi nhận bằng chứng kèm tham chiếu nguồn.",
+        "Trợ lý Pháp lý đã kiểm tra tài liệu đã ghim và ghi nhận bằng chứng kèm tham chiếu nguồn.",
       showcaseStepGithub: "Đã kết nối kho mã GitHub",
       showcaseStepClone: "Đã sao chép kho lưu trữ mã nguồn",
       showcaseStepScan: "Đã quét mã nguồn",
@@ -1713,7 +1741,7 @@ export const viPages = {
       showcaseWorkflowRepositoryInput: "Kho mã đã ghim",
       showcaseWorkflowHumanResolution: "Làm rõ khi cần",
       showcaseWorkflowRuleSet: "Bộ quy tắc tuân thủ đã ghim",
-      showcaseWorkflowRoot: "Assessment Root",
+      showcaseWorkflowRoot: "Trợ lý Pháp lý",
       showcaseWorkflowCompletion: "Xác thực hoàn tất",
       showcaseStatusPassed: "Đạt",
       showcaseStatusRunning: "Đang chạy",
@@ -1749,10 +1777,10 @@ export const viPages = {
         "Ghim phiên bản mã nguồn, quét các dịch vụ liên quan và giữ mỗi phát hiện gắn với đúng đoạn mã cùng đường thực thi tạo ra nó.",
       evidenceTitle: "Đồ thị bằng chứng chương trình",
       evidenceDescription:
-        "Bằng chứng giữ tham chiếu nguồn, nguồn gốc và giới hạn độ bao phủ để Assessment Root đánh giá.",
-      humanEyebrow: "Bối cảnh có trọng tâm",
+        "Bằng chứng giữ tham chiếu nguồn, nguồn gốc và giới hạn độ bao phủ để hệ thống Trợ lý Pháp lý đánh giá.",
+      humanEyebrow: "Ý kiến chuyên gia",
       humanContextDescription:
-        "Assessment Root điều tra bằng chứng sẵn có trước khi hỏi về thông tin quan trọng còn thiếu. Câu trả lời giải quyết yêu cầu làm rõ và tiếp tục cùng luồng đánh giá.",
+        "Trợ lý Pháp lý xem xét toàn bộ bằng chứng trước khi hỏi bạn về thông tin còn thiếu. Câu trả lời của bạn được ghi nhận và phân tích tiếp tục tự động.",
       remediationTitle: "Khắc phục và xác minh",
       remediationDescription:
         "Chuyển khoảng thiếu đã xác nhận thành công việc rà soát mã có mục tiêu, kiểm tra lint, kiểu dữ liệu, kiểm thử và bảo mật rồi quét lại đúng phạm vi bị ảnh hưởng.",
@@ -1773,7 +1801,7 @@ export const viPages = {
         "Đề xuất khắc phục và công việc rà soát mã có mục tiêu",
       outputVerification: "Kết quả xác minh và lịch sử quét lại có mục tiêu",
       humanContextTitle:
-        "Bổ sung bối cảnh nghiệp vụ đúng nơi mã nguồn không thể tự kết luận.",
+        "Chuyên môn của bạn, áp dụng đúng nơi cần thiết.",
       findingsTitle: "Rà soát phát hiện với bằng chứng đã được đính kèm.",
       remediationEyebrow: "Khắc phục + xác minh",
       verificationTitle:
@@ -1784,7 +1812,7 @@ export const viPages = {
         "LCSP hiển thị điều phối, quyền truy cập bên ngoài và kiểm soát mức sử dụng ngay cạnh phiên đánh giá thay vì giấu trong công cụ riêng.",
       capabilityOneTitle: "Phiên đánh giá được điều phối",
       capabilityOneDescription:
-        "Một Assessment Root điều tra kho mã và danh mục pháp lý đã ghim, yêu cầu thông tin từ con người khi cần và xác thực hoàn tất.",
+        "Một Trợ lý Pháp lý kiểm tra tài liệu và danh mục pháp lý đã ghim, chỉ hỏi khi thiếu thông tin nghiệp vụ và xác thực hoàn tất.",
       capabilityOneMeta: "Đầu vào đã ghim · Điều tra · Làm rõ · Hoàn tất",
       capabilityTwoTitle: "Connector có kiểm soát",
       capabilityTwoDescription:

@@ -184,7 +184,7 @@ export function AssessmentContextPanel({
             </span>
             {commit ? (
               <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">
-                Commit: {commit}
+                {copy("context.commit", { commit })}
               </span>
             ) : null}
           </Fact>
@@ -408,7 +408,7 @@ export function AssessmentContextPanel({
                         </span>
                       )}
 
-                      <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground truncate max-w-[130px]">
+                      <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground truncate max-w-32.5">
                         <FileCode2Icon className="size-3 shrink-0" aria-hidden="true" />
                         <span className="truncate">{evidenceHint}</span>
                       </span>
@@ -443,7 +443,7 @@ export function AssessmentContextPanel({
           </Fact>
           <Fact label={copy("context.assessmentRevision")}>
             <span className="font-mono text-foreground">
-              Rev {assessment?.lifecycle?.assessmentRevision ?? 1}
+              {copy("context.revisionValue", { revision: assessment?.lifecycle?.assessmentRevision ?? 1 })}
             </span>
           </Fact>
           <Fact label={copy("context.connection")}>

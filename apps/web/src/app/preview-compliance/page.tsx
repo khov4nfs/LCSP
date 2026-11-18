@@ -1,34 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { LCSPLogo } from "@/components/atoms/lcsp-logo";
+import { useAppLocale } from "@/components/providers/locale-provider";
+import { copy } from "@/features/assessment-runtime/utils/conversation-copy";
 import mockData from "@/public/assets/mocks/enterprise-legal-compliance-workspace.json";
 import { LegalRuleOutput } from "@/features/assessment-runtime/components/organisms/legal-rule-output";
 import { AssessmentContextPanel } from "@/features/assessment-runtime/components/organisms/assessment-context-panel";
 import { ConversationQuestionTurn } from "@/features/assessment-runtime/components/molecules/conversation-question-turn";
 import { ConversationAnswerTurn } from "@/features/assessment-runtime/components/molecules/conversation-answer-turn";
-import { setAppLocale } from "@/lib/locale";
 import {
   CONVERSATION_TURN_KINDS,
   type DecisionRecord,
-  type DecisionTurn,
   type QuestionTurn,
   type AnswerTurn,
 } from "@/features/assessment-runtime/types/conversation.types";
 import type { StructuredAnswer } from "@/features/assessment-runtime/types/structured-answer.types";
 import type { AssessmentHumanRequestView } from "@lcsp/contracts/assessment-domain";
 
+/**
+ * Business purpose: Preview compliance findings and customer questions in the selected language.
+ * Business rules: Use fixture data only; respect the application locale without changing its cookie.
+ * Execution flow:
+ * 1. Seed the preview cache and show the findings with translated guidance.
+ * 2. Display submitted sample answers within this preview session.
+ * Failure cases: Missing sample questions or decisions are omitted from the preview.
+ * Side effects: Seeds the local query cache and holds sample answers in component state.
+ */
 export default function PreviewCompliancePage() {
+  const locale = useAppLocale();
+  const t = (key: string, params?: Record<string, string | number>) =>
+    copy(key, params, locale);
   const queryClient = useQueryClient();
-  const [ready, setReady] = useState(false);
+  const ready = useSyncExternalStore(
+    (notify) => queryClient.getQueryCache().subscribe(notify),
+    () => queryClient.getQueryData(["assessment", mockData.detail.assessment_id, "detail", locale]) !== undefined,
+    () => false,
+  );
   const [requests, setRequests] = useState<AssessmentHumanRequestView[]>(
     () => (mockData.requests?.requests ?? []) as AssessmentHumanRequestView[],
   );
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, AnswerTurn>>({});
 
   useEffect(() => {
-    setAppLocale("vi");
-
     const assessmentId = mockData.detail.assessment_id;
     // Seed React Query cache
     queryClient.setQueryData(["assessment", assessmentId, "detail", "vi"], mockData.detail);
@@ -36,6 +51,7 @@ export default function PreviewCompliancePage() {
     queryClient.setQueryData(["assessment", assessmentId, "repository-setup"], mockData.repositorySetup);
     queryClient.setQueryData(["assessment", assessmentId, "provenance"], mockData.provenance);
     queryClient.setQueryData(["assessment", assessmentId, "rule-audit-catalog", "vi"], mockData.catalog);
+    queryClient.setQueryData(["assessment", assessmentId, "rule-audit-catalog", "en"], mockData.catalog);
     queryClient.setQueryData(["assessment", assessmentId, "human-requests", "vi"], mockData.requests);
     queryClient.setQueryData(["assessment", assessmentId, "human-requests", "en"], mockData.requests);
     queryClient.setQueryData(["legal-library", "vi"], mockData.library);
@@ -49,11 +65,10 @@ export default function PreviewCompliancePage() {
       mockData.chunksDoc13
     );
 
-    setReady(true);
   }, [queryClient]);
 
   if (!ready) {
-    return <div className="p-8 text-muted-foreground">Đang khởi tạo dữ liệu đánh giá tuân thủ...</div>;
+    return <div className="p-8 text-muted-foreground">{t("preview.loading")}</div>;
   }
 
   const decisions = (mockData.detail.case?.decisions ?? []) as DecisionRecord[];
@@ -126,19 +141,17 @@ export default function PreviewCompliancePage() {
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur px-6 py-3">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="font-semibold text-base tracking-tight text-foreground">
-              LCSP Enterprise LegalTech
-            </span>
+            <LCSPLogo />
             <span className="text-muted-foreground">/</span>
             <span className="text-sm font-medium text-muted-foreground">
-              Đánh giá tuân thủ repository: acme/notice-service
+              {t("preview.repository", { repository: mockData.repositorySetup.connection.repositoryFullName })}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              Active Assessment
+              {t("preview.active")}
             </span>
-            <span className="text-xs text-muted-foreground">Rev 4 (c14f518)</span>
+            <span className="text-xs text-muted-foreground">{t("preview.revision", { revision: mockData.detail.lifecycle.assessmentRevision, commit: mockData.detail.case.repositoryCommit.slice(0, 7) })}</span>
           </div>
         </div>
       </header>
@@ -146,26 +159,22 @@ export default function PreviewCompliancePage() {
       {/* Main Visual Compliance Workspace Grid */}
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 p-6 lg:grid-cols-12">
         {/* Left / Center: Conversation & Legal Rule Outputs & HITL Interventions */}
-        <section className="space-y-6 lg:col-span-8" aria-label="Conversation and Legal Rules">
+        <section className="space-y-6 lg:col-span-8" aria-label={t("preview.conversation")}>
           {/* User message simulating conversation turn */}
           <div className="flex justify-end">
             <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-3 text-sm text-primary-foreground shadow-sm">
               <p className="font-medium">
-                Đánh giá tuân thủ quy định lưu trữ nhật ký xác thực người dùng và cơ chế xác thực đa yếu tố (MFA) theo Nghị định 147/2024/NĐ-CP và Nghị định 13/2023/NĐ-CP.
+                {t("preview.request")}
               </p>
-              <div className="mt-1 text-right text-[11px] text-primary-foreground/70">10:45 AM</div>
             </div>
           </div>
 
           {/* AI Legal Compliance intro note */}
           <div className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              AI
-            </div>
             <div className="flex-1 space-y-2">
-              <div className="text-xs text-muted-foreground font-medium">LCSP Legal Engine • 10:46 AM</div>
+              <div className="text-xs text-muted-foreground font-medium">{t("agentName")}</div>
               <p className="text-sm leading-relaxed text-foreground">
-                Hệ thống đã rà soát <strong>2 Legal Rules</strong> có hiệu lực và xác định là <strong>Applicable</strong> đối với dịch vụ mạng xã hội và quản lý tài khoản của repository <code>acme/notice-service</code>. Mỗi quy định được phân tích độc lập theo chu trình truy xuất nguồn gốc:
+                {t("preview.introduction", { repository: mockData.repositorySetup.connection.repositoryFullName })}
               </p>
             </div>
           </div>
@@ -175,7 +184,7 @@ export default function PreviewCompliancePage() {
             {req5 ? (
               <div className="space-y-3 rounded-xl border bg-card/40 p-4 shadow-sm" data-slot="hitl-demo-resolved">
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Lịch sử tương tác Human-in-the-Loop (Đã hoàn tất)
+                  {t("preview.history")}
                 </div>
                 <ConversationQuestionTurn
                   turn={makeQuestionTurn(req5, 1)}
@@ -211,7 +220,7 @@ export default function PreviewCompliancePage() {
                   kind: CONVERSATION_TURN_KINDS.DECISION,
                   decisionId: decisions[0].decisionId,
                   assessmentRuleId: decisions[0].decision.assessmentRuleId,
-                  concept: "Lưu trữ nhật ký người dùng tối thiểu 90 ngày",
+                  concept: mockData.detail.case.coverage[0].concept,
                   record: decisions[0],
                 }}
               />
@@ -221,8 +230,7 @@ export default function PreviewCompliancePage() {
             {req1 ? (
               <div className="space-y-3 rounded-xl border bg-card/60 p-4 shadow-sm" data-slot="hitl-demo-boolean">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                  <span>Tương tác Human-in-the-Loop 1: Câu hỏi Nhị phân (Boolean Yes / No)</span>
-                  <span className="rounded bg-amber-500/10 px-2 py-0.5 font-mono text-[10px]">Type: BOOLEAN</span>
+                  <span>{t("preview.confirm")}</span>
                 </div>
                 <ConversationQuestionTurn
                   turn={makeQuestionTurn(req1, 4)}
@@ -240,8 +248,7 @@ export default function PreviewCompliancePage() {
             {req2 ? (
               <div className="space-y-3 rounded-xl border bg-card/60 p-4 shadow-sm" data-slot="hitl-demo-select">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                  <span>Tương tác Human-in-the-Loop 2: Lựa chọn danh sách (Single-Select Dropdown)</span>
-                  <span className="rounded bg-blue-500/10 px-2 py-0.5 font-mono text-[10px]">Type: SINGLE_SELECT (&gt;5 choices)</span>
+                  <span>{t("answer.selectOne")}</span>
                 </div>
                 <ConversationQuestionTurn
                   turn={makeQuestionTurn(req2, 5)}
@@ -266,7 +273,7 @@ export default function PreviewCompliancePage() {
                   kind: CONVERSATION_TURN_KINDS.DECISION,
                   decisionId: decisions[1].decisionId,
                   assessmentRuleId: decisions[1].decision.assessmentRuleId,
-                  concept: "Xác thực đa yếu tố & bảo vệ dữ liệu cá nhân",
+                  concept: mockData.detail.case.coverage[1].concept,
                   record: decisions[1],
                 }}
               />
@@ -276,8 +283,7 @@ export default function PreviewCompliancePage() {
             {req3 ? (
               <div className="space-y-3 rounded-xl border bg-card/60 p-4 shadow-sm" data-slot="hitl-demo-multiselect">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  <span>Tương tác Human-in-the-Loop 3: Nhiều lựa chọn (Multi-Select Checkboxes)</span>
-                  <span className="rounded bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px]">Type: MULTI_SELECT</span>
+                  <span>{t("answer.selectMany")}</span>
                 </div>
                 <ConversationQuestionTurn
                   turn={makeQuestionTurn(req3, 7)}
@@ -295,8 +301,7 @@ export default function PreviewCompliancePage() {
             {req4 ? (
               <div className="space-y-3 rounded-xl border bg-card/60 p-4 shadow-sm" data-slot="hitl-demo-text">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  <span>Tương tác Human-in-the-Loop 4: Văn bản tự do (Text Input / Composer)</span>
-                  <span className="rounded bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px]">Type: FREE_TEXT</span>
+                  <span>{t("preview.tellMore")}</span>
                 </div>
                 <ConversationQuestionTurn
                   turn={makeQuestionTurn(req4, 8)}
@@ -313,7 +318,7 @@ export default function PreviewCompliancePage() {
         </section>
 
         {/* Right Sidebar: Assessment Context Panel */}
-        <aside className="lg:col-span-4" aria-label="Assessment Context">
+        <aside className="lg:col-span-4" aria-label={t("context.title")}>
           <div className="sticky top-20 rounded-xl border bg-card p-5 shadow-sm">
             <AssessmentContextPanel
               assessmentId={mockData.detail.assessment_id}

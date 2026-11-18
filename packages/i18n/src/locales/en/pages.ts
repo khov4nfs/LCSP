@@ -843,7 +843,7 @@ export const enPages = {
       },
     },
     transcriptLabel: "Assessment conversation",
-    agentName: "Assessment Root",
+    agentName: "Legal AI",
     userName: "You",
     opening: "I'm starting your assessment.",
     openingRepository: "Repository: {repository} at {commit}.",
@@ -881,11 +881,11 @@ export const enPages = {
       whyAsking: "Why I'm asking",
       unknownRecorded:
         "Recorded. This question stays open until the fact is available.",
-      clarificationNeeded: "Business Verification Required (Human-in-the-Loop)",
-      confirmed: "Information Confirmed",
-      unresolvedFactLabel: "Verification Goal:",
-      decisionImpactLabel: "Assessment Impact:",
-      resolutionAttemptsLabel: "Source Code Inspected:",
+      clarificationNeeded: "Your input needed",
+      confirmed: "Answer recorded",
+      unresolvedFactLabel: "What we need to know:",
+      decisionImpactLabel: "Why this matters:",
+      resolutionAttemptsLabel: "Already checked:",
     },
     answer: {
       unknown: "I don't know",
@@ -899,6 +899,20 @@ export const enPages = {
       failed: "Your answer could not be sent. Try again.",
       staleConflict:
         "A newer revision is available. Your draft was saved; review and submit again.",
+    },
+    preview: {
+      loading: "Getting your assessment ready…",
+      repository: "Compliance review: {repository}",
+      active: "Assessment in progress",
+      revision: "Revision {revision} · {commit}",
+      conversation: "Assessment conversation and findings",
+      request:
+        "Review user login logs and multi-factor authentication (MFA) against Decree 147/2024/NĐ-CP and Decree 13/2023/NĐ-CP.",
+      introduction:
+        "I've reviewed two legal requirements that apply to {repository}. Below you'll find the findings, supporting evidence, and a few questions where I need your help.",
+      history: "Your earlier response",
+      confirm: "Confirm a detail",
+      tellMore: "Tell us more",
     },
     decision: {
       ruleFallback: "Assessment rule {id}",
@@ -917,7 +931,19 @@ export const enPages = {
         NON_COMPLIANT: "Non-compliant",
         UNDETERMINED: "Undetermined",
       },
-      rawLegalRule: "Raw Legal Rule",
+      rawLegalRule: "Original legal text",
+      details: "Assessment details",
+      viewEvidence: "View evidence ({count})",
+      reasoning: "How we reached this conclusion",
+      askAboutRulePrompt: "Tell me more about {concept} ({locator}).",
+      verdict: {
+        compliant: "Meets this requirement",
+        nonCompliant: "This requirement needs attention",
+        undetermined: "More information is needed to assess this requirement",
+      },
+      copyPath: "Copy file path",
+      searchScopes: "Search scope:",
+      searchResults: "{count} results",
       rawLegalRuleExpand: "View full text",
       rawLegalRuleCollapse: "Collapse text",
       viewOriginalDocument: "Open original document",
@@ -950,7 +976,7 @@ export const enPages = {
       criterionTitle: "Evaluation Criterion",
       evidenceArtifact: "Technical Evidence",
       evidenceTypeRepo: "Repository Code",
-      evidenceTypeInspection: "Configuration Inspection",
+      evidenceTypeInspection: "Repository search",
       applicableRuleBadge: "Applicable",
       stepFlow: {
         rule: "Legal Rule",
@@ -998,7 +1024,7 @@ export const enPages = {
       downloadPdf: "Download PDF",
     },
     bar: {
-      working: "Assessment Root is working…",
+      working: "Reviewing your compliance…",
       stop: "Stop",
       stopping: "Stopping…",
       continue: "Continue assessment",
@@ -1065,6 +1091,8 @@ export const enPages = {
       undeterminedBadge: "Undetermined",
       assessmentRevision: "Revision",
       lastUpdated: "Last updated",
+      commit: "Commit: {commit}",
+      revisionValue: "Revision {revision}",
     },
     report: {
       title: "Assessment report",
@@ -1140,7 +1168,7 @@ export const enPages = {
       lineage: "Runtime execution lineage",
       facts: "Accepted facts",
       evidence: "Accepted evidence",
-      humanResolutions: "Human resolution history",
+      humanResolutions: "Your responses",
       decisions: "Rule decisions & coverage",
       events: "Canonical event timeline",
       artifacts: "Generated artifacts",
@@ -1454,7 +1482,7 @@ export const enPages = {
     authEyebrow: "Governance, without the guesswork",
     authTitle: "Move every AI assessment forward with evidence.",
     authDescription:
-      "LCSP connects pinned source, evidence, human resolution and decisions in one assessment workspace.",
+      "LCSP connects your source, evidence, expert review and decisions in one compliance workspace.",
     runtimePanelTitle: "Runtime activity",
     runtimePanelRepository: "Repository",
     runtimePanelProvider: "Provider",
@@ -1678,7 +1706,7 @@ export const enPages = {
       showcaseRepositoryLine: "Connected · GitHub · payment-service · 9f31ca2",
       showcaseThoughtLong: "Thought for 18s",
       showcaseRepositoryInvestigated:
-        "The Assessment Root investigated the pinned source and recorded evidence with source references.",
+        "The Legal AI reviewed the selected source and recorded evidence with source references.",
       showcaseStepGithub: "Connected to GitHub repository",
       showcaseStepClone: "Cloned source archive",
       showcaseStepScan: "Scanned source code",
@@ -1701,14 +1729,14 @@ export const enPages = {
         "In-scope graph nodes linked to evidence claim coverage.",
       showcaseViewGraph: "View evidence graph",
       showcaseHumanResolution:
-        "Source investigation cannot establish who can override this decision. Please confirm the responsible role.",
+        "The AI could not determine this from the source alone. Please confirm the responsible role.",
       showcaseComposer: "Write a message...",
       showcaseRepositoryContext: "Repository context",
       showcaseWorkflow: "Workflow",
       showcaseWorkflowRepositoryInput: "Pinned repository",
-      showcaseWorkflowHumanResolution: "Human resolution, if needed",
+      showcaseWorkflowHumanResolution: "Expert review, if needed",
       showcaseWorkflowRuleSet: "Pinned compliance rule set",
-      showcaseWorkflowRoot: "Assessment Root",
+      showcaseWorkflowRoot: "Legal AI Engine",
       showcaseWorkflowCompletion: "Completion validation",
       showcaseStatusPassed: "Passed",
       showcaseStatusRunning: "Running",
@@ -1741,10 +1769,10 @@ export const enPages = {
         "Pin the source revision, scan the relevant services, and keep every finding connected to the exact code and execution path that produced it.",
       evidenceTitle: "Program Evidence Graph",
       evidenceDescription:
-        "Evidence preserves source references, provenance and bounded coverage for the Assessment Root.",
-      humanEyebrow: "Targeted context",
+        "Evidence preserves source references, provenance and bounded coverage for the Legal AI engine.",
+      humanEyebrow: "Expert input",
       humanContextDescription:
-        "The Assessment Root investigates available evidence before asking for a material fact. Answers resolve a Human Resolution Request and resume the same assessment thread.",
+        "The Legal AI reviews all available evidence before asking you for missing facts. Your answer is recorded and the analysis continues automatically.",
       remediationTitle: "Remediation and verification",
       remediationDescription:
         "Translate confirmed gaps into targeted code-review work, verify lint, types, tests, and security checks, then re-scan the affected scope.",
@@ -1762,7 +1790,7 @@ export const enPages = {
       outputDocument: "Guarded reports with traceable source references",
       outputRemediation: "Targeted remediation proposals and code-review work",
       outputVerification: "Verification results and targeted re-scan history",
-      humanContextTitle: "Targeted human context where code cannot decide.",
+      humanContextTitle: "Your expertise, applied exactly where it matters.",
       findingsTitle: "Review findings with the evidence already attached.",
       remediationEyebrow: "Remediate + verify",
       verificationTitle:
@@ -1773,9 +1801,9 @@ export const enPages = {
         "LCSP keeps orchestration, external access, and usage controls visible alongside the assessment instead of hiding them in separate tooling.",
       capabilityOneTitle: "Orchestrated assessment",
       capabilityOneDescription:
-        "One Assessment Root investigates the pinned repository and compliance rule set, requests missing human facts when necessary, and validates completion.",
+        "One Legal AI engine reviews the pinned repository and compliance rule set, asks only when a business fact is missing, and validates completion.",
       capabilityOneMeta:
-        "Pinned inputs · Investigation · Human resolution · Completion",
+        "Setup · Analysis · Expert review · Completion",
       capabilityTwoTitle: "Controlled connectors",
       capabilityTwoDescription:
         "Connect GitHub, Bitbucket, or Azure DevOps while keeping repository and workspace scope explicit.",
@@ -2830,7 +2858,7 @@ export const enPages = {
       completedWithoutDuration: "Thought",
     },
     repositorySetupDescription:
-      "Connect the repository and pin its source. The Assessment Root investigates it and requests a human fact only when necessary.",
+      "Connect the repository and pin its source. The Legal AI reviews it and asks only when a business fact is missing.",
     providerQuestion: "Choose Git provider",
     providerHelp:
       "Select a provider to open the secure connector. A repository and pinned commit are required for investigation.",

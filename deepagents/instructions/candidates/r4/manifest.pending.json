@@ -2,8 +2,8 @@
   "bundleSchemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
   "bundleId": "lcsp-fact-need-provenance-r4-2026-11-16",
   "approvalStatus": "PENDING",
-  "vietnameseInventorySha256": "81d828fcfacfdd833d6d989178012092613f25723d4fbd4646a8c1515af88077",
-  "englishBundleSha256": "a193fd70bf62e77e56e18a74749cc3b4d3d6c609ec8fc3b961c0d9f0e87e0c88",
+  "vietnameseInventorySha256": "2f2b85b38670f441c952c61a10537d661aa9faf3d233fe146b57ca38207d7653",
+  "englishBundleSha256": "d278b576657ceecbb02d7657ac65632f4d42a64d225f5ef9e294e8d35dd1db6d",
   "entries": [
     {
       "sourceId": "assessment-root.continuation",
@@ -25,9 +25,9 @@
       "sourceId": "assessment-root.system",
       "vietnameseSourcePath": "assessment_root/instructions.vi.md",
       "vietnameseSourceRevision": "lcsp-347-draft-r1",
-      "vietnameseSourceSha256": "b84cc05bfecff6197854286d552b67a43faa9cd2f5e1c3b3dcf602635b58df95",
+      "vietnameseSourceSha256": "a34cb14639a58145feeb645feb5c85950913b0fe5f2f3283fafc6c5911216b79",
       "englishRuntimePath": "instructions/candidates/r1/assessment-root.system.txt",
-      "englishRuntimeSha256": "8f7b3aa1100b3aca4289ddbd03c4755e2e677881d29e139e065671094a3484ac"
+      "englishRuntimeSha256": "b990ec9ee453393529b852a0a8262d96273c5466ad8b8c7cf4b397cd4e7d7cac"
     },
     {
       "sourceId": "assessment-tool.accept_case_fact.guidance",

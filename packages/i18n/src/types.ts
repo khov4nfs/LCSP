@@ -828,6 +828,18 @@ export type PagesMessages = {
       failed: string;
       staleConflict: string;
     };
+    preview: {
+      loading: string;
+      repository: string;
+      active: string;
+      revision: string;
+      conversation: string;
+      request: string;
+      introduction: string;
+      history: string;
+      confirm: string;
+      tellMore: string;
+    };
     decision: {
       ruleFallback: string;
       rationale: string;
@@ -846,6 +858,18 @@ export type PagesMessages = {
         UNDETERMINED: string;
       };
       rawLegalRule: string;
+      details: string;
+      viewEvidence: string;
+      reasoning: string;
+      askAboutRulePrompt: string;
+      verdict: {
+        compliant: string;
+        nonCompliant: string;
+        undetermined: string;
+      };
+      copyPath: string;
+      searchScopes: string;
+      searchResults: string;
       rawLegalRuleExpand: string;
       rawLegalRuleCollapse: string;
       viewOriginalDocument: string;
@@ -986,6 +1010,8 @@ export type PagesMessages = {
       undeterminedBadge: string;
       assessmentRevision: string;
       lastUpdated: string;
+      commit: string;
+      revisionValue: string;
     };
     report: {
       title: string;

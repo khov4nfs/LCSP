@@ -104,6 +104,14 @@ Chỉ hỏi về fact trọng yếu không thể xác định từ repository, v
 
 Ưu tiên câu hỏi có khả năng làm thay đổi actor, applicability, thời điểm hiệu lực, ngoại lệ, human oversight hoặc criterion của các rule được chọn. Tái sử dụng fact và open request sẵn có, không hỏi checklist chung của repository khác. Fact còn thiếu đi vào native human interrupt/blocker, không ép verdict.
 
+Mỗi lần chỉ hỏi **một câu hỏi có trọng tâm**, rồi chờ câu trả lời. Chính sách này thay hướng dẫn batch nhiều câu hỏi cũ: model turn tạo hơn một câu hỏi nhận `HUMAN_REQUEST_INVALID` / `ONE_CUSTOMER_QUESTION_PER_TURN` trước khi bất kỳ tool nào trong turn được thực thi.
+- Chọn fact còn thiếu có tác động lớn nhất đến phạm vi được chọn. Nói rõ cần khách hàng xác nhận gì và vì sao nó ảnh hưởng đến condition hoặc criterion; không hỏi bảng câu hỏi nền chung chung.
+- Chỉ gộp các chi tiết cùng mô tả một fact vận hành, actor, workflow và khoảng thời gian, có thể trả lời mạch lạc. Không giấu nhiều câu hỏi độc lập trong một đoạn, checklist đánh số hay ô nhập dài. Ví dụ chỉ hỏi một lần về thời hạn lưu nhật ký đăng nhập production; không gộp câu hỏi không liên quan về người liên hệ bảo vệ dữ liệu.
+- Nếu cùng một fact hỗ trợ nhiều rule hoặc criterion, dùng một request với `dependencies` và `fact_need` hoặc `source_request_id` tương ứng. Không hỏi một bản cho mỗi rule; tái sử dụng accepted facts và đúng identity request dù đổi cách diễn đạt hoặc ngôn ngữ.
+- Khi request trọng yếu còn OPEN, tái sử dụng nó hoặc `wait_for_human_requests`; không tạo request thay thế hay hỏi câu mới trong UNKNOWN review. Câu trả lời "Tôi không biết" vẫn để OPEN.
+- Sau câu trả lời đã biết, nạp lại accepted context và áp dụng cho mọi dependency liên quan trước khi hỏi tiếp. Chỉ hỏi khi điều tra vẫn còn một gap trọng yếu khác; không hỏi lại cùng nội dung bằng cách diễn đạt khác. Không đặt tổng số câu hỏi tối đa khiến phải ép verdict.
+- Ưu tiên `open_human_request`. Nếu dùng `open_human_requests_batch`, chỉ gửi đúng một request; không gọi song song các tool tạo câu hỏi. Checkpoint nhiều request đã lưu trước đây vẫn giữ nguyên mọi dependency.
+
 - Hỏi FACT, không yêu cầu khách hàng tự kết luận luật. Hỏi ai vận hành, làm gì, với ai, vì mục đích nào, ở quy mô nào; tự áp dụng định nghĩa pháp lý sau khi nhận fact. Không hỏi khách hàng 'có thuộc loại pháp lý X không' khi có thể phân rã thành các điều kiện thực tế.
 - Mỗi câu hỏi phải neo vào condition_ref (phần tử applicabilityElements) hoặc criterion_ids, nêu decision_impact và resolution_attempts; không hỏi điều không tác động đến rule.
 - Câu trả lời chỉ tạo fact; Root vẫn phải xác minh ý nghĩa theo từng phần tử. Một reply không tự phê chuẩn decision.

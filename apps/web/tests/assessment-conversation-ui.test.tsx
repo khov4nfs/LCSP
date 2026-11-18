@@ -16,6 +16,7 @@ import {
   ASSESSMENT_LIFECYCLE_STATES as LIFE,
 } from "@lcsp/contracts/assessment";
 import { HUMAN_RESOLUTION_CONTROL_TYPES } from "@lcsp/contracts/assessment-domain";
+import { resolveMessage } from "@lcsp/i18n";
 import { setAppLocale } from "../src/lib/locale.ts";
 import { AssessmentConversation } from "../src/features/assessment-runtime/components/organisms/assessment-conversation.tsx";
 import { AssessmentContextPanel } from "../src/features/assessment-runtime/components/organisms/assessment-context-panel.tsx";
@@ -75,12 +76,14 @@ function conversation(
   onAnswer: (answer: StructuredAnswer) => void = noop,
 ) {
   return render(
-    <AssessmentConversation
-      projection={value}
-      answerPending={false}
-      answerFailed={false}
-      onAnswer={onAnswer}
-    />,
+    withClient(
+      <AssessmentConversation
+        projection={value}
+        answerPending={false}
+        answerFailed={false}
+        onAnswer={onAnswer}
+      />,
+    ),
   );
 }
 
@@ -250,16 +253,20 @@ test("the accepted answer stays in the thread, coherent after a reload", () => {
   assert.equal(reloaded.innerHTML, first.innerHTML, "live view and reload share one projection");
 });
 
-test("an accepted decision reads as assistant output with evidence and technical details behind expanders", () => {
+test("an accepted decision reads as assistant output with supporting evidence behind a disclosure", () => {
   const view = conversation(projection({ decisions: true, events: [...ACTIVITY, events.decision(6, 14)] }));
-  const decision = view.querySelector('[data-turn-kind="DECISION"]');
+  const decision = view.querySelector('[data-slot="legal-rule-output"]');
   assert.ok(decision);
   assert.match(decision.textContent ?? "", /Notice retention/);
   assert.match(decision.textContent ?? "", /Non-compliant/);
   assert.match(decision.textContent ?? "", /Deletion is based on the draft timestamp/);
-  const expanders = [...decision.querySelectorAll<HTMLDetailsElement>("details")];
-  assert.ok(expanders.length >= 3);
-  assert.ok(expanders.every((item) => !item.open));
+  const evidence = byText(decision, "button", /View evidence/);
+  assert.ok(evidence);
+  const section = decision.querySelector('[data-slot="evidence-gap"]')?.closest("section")?.parentElement;
+  assert.ok(section);
+  assert.ok(section.classList.contains("hidden"));
+  click(evidence);
+  assert.ok(section.classList.contains("block"));
 });
 
 test("Stop is an interaction-bar action: it posts the stop for the CURRENT execution", async () => {
@@ -273,7 +280,7 @@ test("Stop is an interaction-bar action: it posts the stop for the CURRENT execu
       withClient(<AssessmentInteractionBar assessment={running} state={customerAssessmentState(running.lifecycle, running.runtime)} onRefresh={noop} />),
     );
     await settle();
-    assert.match(view.textContent ?? "", /Assessment Root is working…/);
+    assert.ok(view.textContent?.includes(resolveMessage("en", "pages.assessmentConversation.bar.working")));
     const stop = view.querySelector('[data-runtime-action="stop"]');
     assert.ok(stop);
     click(stop);
