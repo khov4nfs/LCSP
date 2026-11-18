@@ -48,7 +48,7 @@ def test_adapter_kwargs_are_transport_only(monkeypatch) -> None:
     assert "use_responses_api" not in mp.provider_init_kwargs("apx")
     assert mp.provider_init_kwargs("apx", "openai")["base_url"] == "https://api.apmix.ai/v1"
     assert mp.provider_init_kwargs("apx", "openai")["use_responses_api"] is False
-    assert mp.provider_init_kwargs("anthropic") == {}
+    assert mp.provider_init_kwargs("anthropic") == {"timeout": 7}
     for provider in ("openai", "google_genai", "apx", "inception", "miraiapi"):
         assert not {"reasoning", "thinking_level", "temperature", "model"} & set(
             mp.provider_init_kwargs(provider)

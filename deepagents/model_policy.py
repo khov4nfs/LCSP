@@ -67,7 +67,10 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
             "timeout": llm_provider_timeout_seconds(),
         },
     ),
-    "anthropic": ("anthropic", "anthropic", lambda: {}),
+    "anthropic": (
+        "anthropic", "anthropic",
+        lambda: {"timeout": llm_provider_timeout_seconds()},
+    ),
     "google_genai": (
         "google_genai",
         "google_genai",
