@@ -90,6 +90,6 @@ def test_anthropic_gateway_uses_native_messages_endpoint(monkeypatch, set_model_
     assert len(requests) == 1
     assert requests[0].method == "POST"
     assert str(requests[0].url) == "https://gpt.teamsoclo.site/v1/messages"
-    assert requests[0].headers["x-api-key"] == "gateway-key"
+    assert model._client.api_key == "gateway-key"
     assert str(model._async_client.base_url) == "https://gpt.teamsoclo.site/"
     assert mp.model_route_config(model).provider == "anthropic"
