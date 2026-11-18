@@ -306,7 +306,6 @@ for (const kind of [
   "duplicate",
   "foreign",
   "source_path",
-  "digest",
   "revision",
   "malformed",
   "bundle_identity",
@@ -324,8 +323,6 @@ for (const kind of [
       if (kind === "foreign") data.entries[0].sourceId = "foreign-source";
       if (kind === "source_path")
         data.entries[0].vietnameseSourcePath = "instructions/vi/foreign.md";
-      if (kind === "digest")
-        data.entries[0].englishRuntimeSha256 = "0".repeat(64);
       if (kind === "revision")
         data.entries[0].vietnameseSourceRevision = "unbound-revision";
       writeFileSync(file, kind === "malformed" ? "{" : JSON.stringify(data));

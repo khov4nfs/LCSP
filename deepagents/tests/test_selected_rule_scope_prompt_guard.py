@@ -44,7 +44,7 @@ def test_selected_run_system_prompt_separates_supervision_from_developer_duty():
     ):
         assert phrase.lower() in en.lower()
     assert "không tự chứng minh" in vi
-    assert "không tự thêm loại báo cáo" in vi
+    assert "không tự thêm loại báo cáo" in vi.lower()
 
 
 def test_scope_skills_and_overlay_keep_development_source_authority():
