@@ -8,7 +8,11 @@ import { successJson } from "@/lib/server/problem-json";
 const MOCK_ASSET_PATH_SEGMENTS = ["src", "public", "assets", "mocks"] as const;
 
 export function isMockModeEnabled(): boolean {
-  return false;
+  return (
+    process.env.MOCK_MODE === "true" ||
+    process.env.MDA_LOCAL_DEV === "1" ||
+    process.env.NEXT_PUBLIC_MOCK_MODE === "true"
+  );
 }
 
 export async function mockJsonResponse(

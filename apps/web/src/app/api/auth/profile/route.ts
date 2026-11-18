@@ -18,23 +18,43 @@ import {
   validatedUpstreamJson,
 } from "@/lib/server/upstream-request";
 
+/**
+ * Business purpose: Retrieve the authenticated user's profile and active session roles.
+ *
+ * Business rules:
+ * - Requires a valid session token from either cookie or authorization header.
+ * - In mock mode, maps session identities to their respective customer or administrator profiles.
+ *
+ * Execution flow:
+ * 1. Extract and validate session token from the incoming request.
+ * 2. Return local mock profile representation if mock mode is active.
+ * 3. Forward request to upstream authentication service and validate returned profile.
+ *
+ * Failure cases:
+ * - Missing or invalid session tokens return 401 Unauthorized problem envelopes.
+ * - Upstream failures or invalid payloads return upstream unavailable or validation problems.
+ *
+ * Side effects:
+ * - None: read-only profile lookup.
+ */
 export async function GET(request: NextRequest) {
   const session = requireSessionToken(request);
   if (!session.ok) return session.response;
 
   if (isMockModeEnabled()) {
+    const isAdmin = session.token === "mock-session:admin";
     return successJson({
-      user_id: "mock-user",
-      email: "minhpnq1807@gmail.com",
+      user_id: isAdmin ? "mock-admin-user" : "mock-user",
+      email: isAdmin ? "admin@example.com" : "minhpnq1807@gmail.com",
       email_verified: true,
-      display_name: "Phan Nguyen Quoc Minh",
+      display_name: isAdmin ? "System Administrator" : "Phan Nguyen Quoc Minh",
       recovery_email: "minhpnq1807@gmail.com",
       primary_email_address_policy:
         AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES.accountEmail,
       backup_recovery_email_policy: AUTH_BACKUP_EMAIL_POLICIES.recoveryEmail,
       created_at: new Date("2026-07-01T08:00:00.000Z").toISOString(),
       updated_at: new Date("2026-07-31T20:00:00.000Z").toISOString(),
-      role: AUTH_USER_ROLES.customer,
+      role: isAdmin ? AUTH_USER_ROLES.admin : AUTH_USER_ROLES.customer,
       mfa_enrolled: true,
       mfa_enrolled_at: new Date("2026-07-31T19:10:00.000Z").toISOString(),
       mfa_verified: true,

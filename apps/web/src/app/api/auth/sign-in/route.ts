@@ -23,6 +23,25 @@ type SignInApiSuccess = {
   user: { subject_attributes: { role: AuthUserRole } };
 };
 
+/**
+ * Business purpose: Authenticate user credentials and establish a secure authenticated session.
+ *
+ * Business rules:
+ * - Credentials must be validated against known identity providers or mock credentials.
+ * - Successfully authenticated users receive an HTTP-only secure session cookie.
+ *
+ * Execution flow:
+ * 1. Parse JSON credential payload from incoming authentication request.
+ * 2. Validate credentials against local mock accounts if mock mode is active, or forward to upstream.
+ * 3. Issue session cookie and return authentication state and user role.
+ *
+ * Failure cases:
+ * - Invalid JSON payloads or invalid credentials return 401 Unauthorized problem envelopes.
+ * - Upstream failures or network timeouts return service unavailable problem responses.
+ *
+ * Side effects:
+ * - Sets the secure session cookie on the outgoing HTTP response.
+ */
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => null);
   if (isMockModeEnabled()) {
@@ -41,6 +60,23 @@ export async function POST(request: Request) {
       response.cookies.set(
         SESSION_COOKIE_NAME,
         "mock-session:manager",
+        sessionCookieOptions,
+      );
+      return response;
+    }
+
+    if (
+      credentials.email === "admin@example.com" ||
+      credentials.email === "admin@lcsp.local" ||
+      (typeof credentials.email === "string" && credentials.email.startsWith("admin"))
+    ) {
+      const response = successJson({
+        mfa_enrolled: false,
+        role: AUTH_USER_ROLES.admin,
+      });
+      response.cookies.set(
+        SESSION_COOKIE_NAME,
+        "mock-session:admin",
         sessionCookieOptions,
       );
       return response;
