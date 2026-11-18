@@ -68,7 +68,7 @@ test("first bootstrap discovers gh and creates one local KEK", () =>
     });
   }));
 
-test("GitLab bootstrap enables the provider for local development", () =>
+test("GitLab bootstrap persists its CLI path without retired provider flags", () =>
   withTempEnv(async (root, envFilePath) => {
     const executablePath = path.join(root, "glab.exe");
     writeFileSync(executablePath, "fake-glab", "utf8");
@@ -83,13 +83,12 @@ test("GitLab bootstrap enables the provider for local development", () =>
       envFilePath,
       spawnSyncImpl,
     });
-    assert.equal(
-      parse(readFileSync(envFilePath)).GITLAB_PROVIDER_ENABLED,
-      "true",
-    );
+    assert.deepEqual(parse(readFileSync(envFilePath)), {
+      GITLAB_CLI_EXECUTABLE_PATH: "glab.exe",
+    });
   }));
 
-test("Bitbucket bootstrap enables the provider for local development", () =>
+test("Bitbucket bootstrap persists its CLI path without retired provider flags", () =>
   withTempEnv(async (root, envFilePath) => {
     const executablePath = path.join(root, "bb.exe");
     writeFileSync(executablePath, "fake-bb", "utf8");
@@ -110,13 +109,12 @@ test("Bitbucket bootstrap enables the provider for local development", () =>
       envFilePath,
       spawnSyncImpl,
     });
-    assert.equal(
-      parse(readFileSync(envFilePath)).BITBUCKET_PROVIDER_ENABLED,
-      "true",
-    );
+    assert.deepEqual(parse(readFileSync(envFilePath)), {
+      BITBUCKET_CLI_EXECUTABLE_PATH: "bb.exe",
+    });
   }));
 
-test("Azure DevOps bootstrap enables the provider for local development", () =>
+test("Azure DevOps bootstrap persists its CLI path without retired provider flags", () =>
   withTempEnv(async (root, envFilePath) => {
     const executablePath = path.join(root, "az.exe");
     writeFileSync(executablePath, "fake-az", "utf8");
@@ -137,10 +135,9 @@ test("Azure DevOps bootstrap enables the provider for local development", () =>
       envFilePath,
       spawnSyncImpl,
     });
-    assert.equal(
-      parse(readFileSync(envFilePath)).AZURE_DEVOPS_PROVIDER_ENABLED,
-      "true",
-    );
+    assert.deepEqual(parse(readFileSync(envFilePath)), {
+      AZURE_DEVOPS_CLI_EXECUTABLE_PATH: "az.exe",
+    });
   }));
 
 test("second bootstrap reuses the existing local KEK", () =>

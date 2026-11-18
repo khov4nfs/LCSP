@@ -1,5 +1,6 @@
 # Model routing: the single authority for which model every agent role uses.
-# This configuration uses one official Anthropic model and intentionally defines no fallbacks.
+# Uses the Anthropic Messages API; ANTHROPIC_BASE_URL selects the endpoint.
+# This configuration intentionally defines no fallbacks.
 version: 1
 
 routes:

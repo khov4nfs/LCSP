@@ -125,8 +125,13 @@ export async function bootstrapLocalGitHubCli(options = {}) {
 }
 
 /**
- * Resolves the pinned GitLab CLI for local development before run.mjs starts
- * the API.
+ * Business purpose: Prepare the pinned GitLab CLI for local repository access.
+ * Business rules: Skip production; persist only the executable path, without retired provider flags.
+ * Execution flow:
+ * 1. Check the configured executable, then PATH, then install the pinned release if necessary.
+ * 2. Persist/apply the resolved path when requested and return its version and location.
+ * Failure cases: Download, executable validation and environment write failures propagate to stop preparation.
+ * Side effects: May download/extract the CLI, update the local env file/process, and log non-secret CLI metadata.
  */
 export async function bootstrapLocalGitLabCli(options = {}) {
   const repoRoot = options.repoRoot ?? process.cwd();
@@ -173,10 +178,6 @@ export async function bootstrapLocalGitLabCli(options = {}) {
       repoRoot,
       executablePath,
     ),
-    GITLAB_PROVIDER_ENABLED:
-      env.GITLAB_PROVIDER_ENABLED ??
-      fileValues.GITLAB_PROVIDER_ENABLED ??
-      "true",
   };
   if (options.persist !== false) writeEnvValues(envFilePath, updates);
   if (options.applyToProcessEnv ?? false) {
@@ -196,8 +197,13 @@ export async function bootstrapLocalGitLabCli(options = {}) {
 }
 
 /**
- * Resolves the Bitbucket CLI for local development before run.mjs starts
- * the API.
+ * Business purpose: Prepare the Bitbucket CLI for local repository access.
+ * Business rules: Skip production; persist only the executable path, without retired provider flags.
+ * Execution flow:
+ * 1. Check the configured executable, then PATH, then create the managed CLI if necessary.
+ * 2. Persist/apply the resolved path when requested and return its version and location.
+ * Failure cases: CLI creation and environment write failures propagate to stop preparation.
+ * Side effects: May create the managed CLI, update the local env file/process, and log non-secret CLI metadata.
  */
 export async function bootstrapLocalBitbucketCli(options = {}) {
   const repoRoot = options.repoRoot ?? process.cwd();
@@ -242,7 +248,6 @@ export async function bootstrapLocalBitbucketCli(options = {}) {
       repoRoot,
       executablePath,
     ),
-    BITBUCKET_PROVIDER_ENABLED: "true",
   };
   if (options.persist !== false && Object.keys(updates).length > 0) {
     writeEnvValues(envFilePath, updates);
@@ -264,8 +269,13 @@ export async function bootstrapLocalBitbucketCli(options = {}) {
 }
 
 /**
- * Resolves the Azure DevOps CLI for local development before run.mjs starts
- * the API.
+ * Business purpose: Discover an available Azure DevOps CLI for local repository access.
+ * Business rules: Skip production; persist only the executable path, without retired provider flags.
+ * Execution flow:
+ * 1. Check the configured executable, then PATH, leaving the path empty if neither is runnable.
+ * 2. Persist/apply the path when requested and return the optional CLI location.
+ * Failure cases: A missing CLI is allowed; environment write failures propagate to stop preparation.
+ * Side effects: May update the local env file/process and log the available CLI location; never installs Azure CLI.
  */
 export async function bootstrapLocalAzureDevOpsCli(options = {}) {
   const repoRoot = options.repoRoot ?? process.cwd();
@@ -303,8 +313,6 @@ export async function bootstrapLocalAzureDevOpsCli(options = {}) {
     AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath
       ? toPortableExecutablePath(repoRoot, executablePath)
       : "",
-    AZURE_DEVOPS_PROVIDER_ENABLED:
-      env.AZURE_DEVOPS_PROVIDER_ENABLED ?? (executablePath ? "true" : "false"),
   };
   if (options.persist !== false && Object.keys(updates).length > 0) {
     writeEnvValues(envFilePath, updates);
