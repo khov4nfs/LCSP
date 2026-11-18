@@ -55,6 +55,8 @@ test("the preview follows locale changes and uses friendly question and finding 
     await settle();
     assert.ok(question.textContent?.includes(resolveMessage("vi", "pages.assessmentConversation.question.confirmed")));
     assert.equal(question.querySelectorAll("button").length, 0);
+    assert.deepEqual(stub.calls, [], "the preview must not request live assessment data");
+    assert.equal(client.getQueryCache().getAll().length, 0, "preview fixtures must not alter the workspace cache");
   } finally {
     act(() => client.clear());
     stub.restore();

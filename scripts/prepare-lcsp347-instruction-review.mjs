@@ -40,8 +40,18 @@ if (existsSync(devInventoryPath)) {
 }
 const archivedVietnameseSources = new Map([
   [
+    "assessment-root.system",
+    "instructions/revisions/r5/before/assessment-root.vi.md",
+  ],
+  [
     "tools.schema-guidance",
     "instructions/revisions/r4/before/tool-schema-guidance.json",
+  ],
+]);
+const archivedEnglishCandidates = new Map([
+  [
+    "assessment-root.system",
+    "instructions/revisions/r5/before/assessment-root.system.txt",
   ],
 ]);
 if (manifest.bundleId !== inventory.bundleId)
@@ -81,7 +91,11 @@ const entries = inventory.entries.map((entry) => {
       pinned.vietnameseSourceSha256,
       archivedVietnameseSources.get(entry.sourceId),
     ),
-    en = read(pinned.englishRuntimePath, pinned.englishRuntimeSha256);
+    en = read(
+      pinned.englishRuntimePath,
+      pinned.englishRuntimeSha256,
+      archivedEnglishCandidates.get(entry.sourceId),
+    );
   if (
     entry.vietnameseSourcePath !== pinned.vietnameseSourcePath ||
     entry.vietnameseSourceRevision !== pinned.vietnameseSourceRevision ||

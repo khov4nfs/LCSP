@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LCSPLogo } from "@/components/atoms/lcsp-logo";
 import { useAppLocale } from "@/components/providers/locale-provider";
 import { copy } from "@/features/assessment-runtime/utils/conversation-copy";
@@ -18,10 +18,11 @@ import {
 } from "@/features/assessment-runtime/types/conversation.types";
 import type { StructuredAnswer } from "@/features/assessment-runtime/types/structured-answer.types";
 import type { AssessmentHumanRequestView } from "@lcsp/contracts/assessment-domain";
+import { LEGAL_SOURCE_QUERY_KEYS } from "@/lib/api/legal-source-queries";
 
 /**
  * Business purpose: Preview compliance findings and customer questions in the selected language.
- * Business rules: Use fixture data only; respect the application locale without changing its cookie.
+ * Business rules: Use an isolated fixture cache; respect the application locale without changing its cookie.
  * Execution flow:
  * 1. Seed the preview cache and show the findings with translated guidance.
  * 2. Display submitted sample answers within this preview session.
@@ -29,21 +30,10 @@ import type { AssessmentHumanRequestView } from "@lcsp/contracts/assessment-doma
  * Side effects: Seeds the local query cache and holds sample answers in component state.
  */
 export default function PreviewCompliancePage() {
-  const locale = useAppLocale();
-  const t = (key: string, params?: Record<string, string | number>) =>
-    copy(key, params, locale);
-  const queryClient = useQueryClient();
-  const ready = useSyncExternalStore(
-    (notify) => queryClient.getQueryCache().subscribe(notify),
-    () => queryClient.getQueryData(["assessment", mockData.detail.assessment_id, "detail", locale]) !== undefined,
-    () => false,
-  );
-  const [requests, setRequests] = useState<AssessmentHumanRequestView[]>(
-    () => (mockData.requests?.requests ?? []) as AssessmentHumanRequestView[],
-  );
-  const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, AnswerTurn>>({});
-
-  useEffect(() => {
+  const [queryClient] = useState(() => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { staleTime: Infinity, gcTime: Infinity, retry: false } },
+    });
     const assessmentId = mockData.detail.assessment_id;
     // Seed React Query cache
     queryClient.setQueryData(["assessment", assessmentId, "detail", "vi"], mockData.detail);
@@ -54,22 +44,37 @@ export default function PreviewCompliancePage() {
     queryClient.setQueryData(["assessment", assessmentId, "rule-audit-catalog", "en"], mockData.catalog);
     queryClient.setQueryData(["assessment", assessmentId, "human-requests", "vi"], mockData.requests);
     queryClient.setQueryData(["assessment", assessmentId, "human-requests", "en"], mockData.requests);
-    queryClient.setQueryData(["legal-library", "vi"], mockData.library);
-    queryClient.setQueryData(["legal-library", "en"], mockData.library);
+    queryClient.setQueryData(LEGAL_SOURCE_QUERY_KEYS.library, mockData.library);
     queryClient.setQueryData(
-      ["legal-source", "chunks", "doc-row-nd-147", 1],
+      [...LEGAL_SOURCE_QUERY_KEYS.libraryChunks("doc-row-nd-147"), 1, 50],
       mockData.chunksDoc147
     );
     queryClient.setQueryData(
-      ["legal-source", "chunks", "doc-row-nd-13", 1],
+      [...LEGAL_SOURCE_QUERY_KEYS.libraryChunks("doc-row-nd-13"), 1, 50],
       mockData.chunksDoc13
     );
+    return queryClient;
+  });
+  return <QueryClientProvider client={queryClient}><PreviewComplianceContent /></QueryClientProvider>;
+}
 
-  }, [queryClient]);
-
-  if (!ready) {
-    return <div className="p-8 text-muted-foreground">{t("preview.loading")}</div>;
-  }
+/**
+ * Business purpose: Demonstrate localized findings and answers without changing a real assessment.
+ * Business rules: Read only the isolated preview fixtures; sample answers have no domain authority.
+ * Execution flow:
+ * 1. Render the sample findings and questions in the selected locale.
+ * 2. Keep submitted sample answers in this component's conversation history.
+ * Failure cases: Omit absent fixture questions and findings rather than inventing content.
+ * Side effects: Updates local sample-answer state only; no API writes or shared-cache changes.
+ */
+function PreviewComplianceContent() {
+  const locale = useAppLocale();
+  const t = (key: string, params?: Record<string, string | number>) =>
+    copy(key, params, locale);
+  const [requests, setRequests] = useState<AssessmentHumanRequestView[]>(
+    () => (mockData.requests?.requests ?? []) as AssessmentHumanRequestView[],
+  );
+  const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, AnswerTurn>>({});
 
   const decisions = (mockData.detail.case?.decisions ?? []) as DecisionRecord[];
 
