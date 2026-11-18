@@ -55,14 +55,14 @@ def test_default_file_loads_without_override(monkeypatch):
     assert routes.fallbacks == {}
     assert (routes.config("anthropic-primary").provider, routes.config("anthropic-primary").model) == (
         "anthropic",
-        "claude-sonnet-5-5",
+        "claude-sonnet-4-6",
     )
     for role in ("root", "assessment-root", "repository-researcher", "rule-set-preparation"):
         assert role in routes.roles
         assert routes.roles[role] == "anthropic-primary"
     assert set(routes.routes) == {"anthropic-primary"}
     assert routes.routes["anthropic-primary"]["provider"] == "anthropic"
-    assert routes.routes["anthropic-primary"]["model"] == "claude-sonnet-5-5"
+    assert routes.routes["anthropic-primary"]["model"] == "claude-sonnet-4-6"
 
 
 def test_default_path_is_cwd_independent(monkeypatch, tmp_path):
@@ -321,7 +321,7 @@ def test_workflow_roles_use_single_official_anthropic_route_without_fallback(mon
         assert (primary.provider, primary.protocol, primary.model) == (
             "anthropic",
             "anthropic",
-            "claude-sonnet-5-5",
+            "claude-sonnet-4-6",
         )
         assert primary.route_id == "anthropic-primary"
         assert primary.options["streaming"] is True

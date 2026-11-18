@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import httpx
+import anthropic._client as anthropic_client
 
 import model_policy as mp
 
@@ -70,19 +70,20 @@ def test_anthropic_gateway_uses_native_messages_endpoint(monkeypatch, set_model_
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://gpt.teamsoclo.site/")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "gateway-key,second-gateway-key")
     _one_route(set_model_routes, "anthropic", "claude-sonnet-4-6")
+    sdk_httpx = getattr(anthropic_client, "httpx2", None) or anthropic_client.httpx
     requests = []
 
-    def send(client, request, **kwargs):
+    def send(request, **kwargs):
         requests.append(request)
-        return httpx.Response(200, request=request, json={
+        return sdk_httpx.Response(200, request=request, json={
             "id": "offline-message", "type": "message", "role": "assistant",
             "model": "claude-sonnet-4-6", "content": [{"type": "text", "text": "OK"}],
             "stop_reason": "end_turn", "stop_sequence": None,
             "usage": {"input_tokens": 3, "output_tokens": 1},
         })
 
-    monkeypatch.setattr(httpx.Client, "send", send)
     model = mp.resolve_agent_model("root")
+    monkeypatch.setattr(model._client._client, "send", send)
     result = model.invoke("Reply OK", max_tokens=8)
 
     assert result.content == "OK"
