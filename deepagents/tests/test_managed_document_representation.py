@@ -1,8 +1,8 @@
-"""Legal-source representation (INV-R1, INV-R5): lossless chunk partition and honest extraction.
+"""Legal-source representation (INV-R1, INV-R5): provision projection and honest extraction.
 
 Provider-free and network-free. Every document here is synthetic or taken from the frozen source-agnostic oracle
-(read-only); nothing names a real instrument. The partition property is asserted for every profile and every
-oracle text, with a negative control proving the checker itself can fail.
+(read-only); nothing names a real instrument. Extracted pages remain authoritative while the retrieval projection
+contains classified Article-Clause-Point provisions or explicitly unclassified review material.
 """
 
 from __future__ import annotations
@@ -22,7 +22,6 @@ from tools.legal.managed_documents.chunker import (
     chunk_document,
     load_profiles,
     sha256_ref,
-    to_lines,
 )
 from tools.legal.managed_documents.extract import (
     CELL_SEPARATOR,
@@ -59,20 +58,6 @@ STATUTE = (
 # ----------------------------------------------------------------------------------------- helpers
 
 
-def normalised(text: str, *, markdown: bool = False) -> list[str]:
-    return [line.text for line in to_lines([text], strip_markdown_markers=markdown)]
-
-
-def chunk_lines(chunks) -> list[str]:  # noqa: ANN001
-    return [line for chunk in chunks for line in chunk["content"].split("\n")]
-
-
-def partition_defects(source: list[str], chunks) -> dict[str, list[str]]:  # noqa: ANN001
-    """Lines the chunks lost or invented (multiset difference in both directions)."""
-    expected, actual = Counter(source), Counter(chunk_lines(chunks))
-    return {"missing": list((expected - actual).elements()), "extra": list((actual - expected).elements())}
-
-
 def portfolio_texts() -> dict[str, tuple[str, bool]]:
     """Plain-text rendering of every oracle item that has a text, keyed by item id (markdown flag second)."""
     if not ORACLE.exists():
@@ -90,13 +75,13 @@ def synthetic_text() -> str:
     return "\n".join(json.loads(SYNTHETIC.read_text(encoding="utf-8"))["pages"])
 
 
-# ------------------------------------------------------------------- A1: lossless chunk partition
+# ------------------------------------------------------------------- A1: provision projection contract
 
 
-class TestLosslessPartition:
+class TestProvisionProjection:
     @pytest.mark.parametrize("profile", PROFILES)
     @pytest.mark.parametrize("name", ["policy", "statute", "synthetic-instrument", *sorted(portfolio_texts())])
-    def test_every_line_belongs_to_exactly_one_chunk(self, name, profile):
+    def test_projection_preserves_source_pages_and_marks_non_provisions(self, name, profile):
         if name == "policy":
             text, markdown = POLICY, False
         elif name == "statute":
@@ -105,36 +90,48 @@ class TestLosslessPartition:
             text, markdown = synthetic_text(), False
         else:
             text, markdown = portfolio_texts()[name]
-        source = normalised(text, markdown=markdown)
-        result = chunk_document([text], profile=profile, markdown=markdown)
+        pages = [text]
+        original_pages = pages.copy()
+        result = chunk_document(pages, profile=profile, markdown=markdown)
 
-        assert partition_defects(source, result.chunks) == {"missing": [], "extra": []}
-        # Chunks are emitted in document order, so the concatenation reproduces the line sequence exactly.
-        assert chunk_lines(result.chunks) == source
+        assert pages == original_pages
         locators = [chunk["locator"] for chunk in result.chunks]
         assert len(locators) == len(set(locators)), "locators must be unique"
         assert all(chunk["content"].strip() for chunk in result.chunks)
         assert all(chunk["contentSha256"] == sha256_ref(chunk["content"]) for chunk in result.chunks)
+        assert all(not locator.startswith(("front-matter", "chap-")) for locator in locators)
+        for chunk in result.chunks:
+            if chunk["locator"].startswith("art-"):
+                assert chunk["hierarchy"].get("structureClassification") != "UNCLASSIFIED"
+            else:
+                assert chunk["hierarchy"].get("structureClassification") == "UNCLASSIFIED"
 
-    def test_the_checker_can_fail(self):
-        result = chunk_document([POLICY], profile="NUMBERED_SECTIONS")
-        source = normalised(POLICY)
-        assert partition_defects(source, result.chunks[:-1])["missing"] == ["1. Legal hold suspends deletion."]
-        assert partition_defects(source, [*result.chunks, result.chunks[0]])["extra"], "a duplicated chunk is a defect too"
+    def test_source_extraction_keeps_preamble_while_provision_projection_omits_it(self):
+        extraction = extract_document(MEDIA_TEXT, STATUTE.encode("utf-8"))
+        result = chunk_document(extraction.pages, profile="ARTICLES")
+        assert extraction.pages == [STATUTE]
+        assert "Preamble: Whereas operators process data" in extraction.pages[0]
+        assert "Article 1. Definitions" in extraction.pages[0]
+        article = next(chunk for chunk in result.chunks if chunk["locator"] == "art-1")
+        assert "Article 1. Definitions" in article["content"]
+        assert all("Preamble:" not in chunk["content"] for chunk in result.chunks)
 
     def test_a_pages_list_is_partitioned_like_its_joined_text(self):
         pages = ["Front matter line\nArticle 1. One\nbody one", "continues here\nArticle 2. Two\nbody two"]
+        original_pages = pages.copy()
         result = chunk_document(pages, profile="ARTICLES")
-        assert partition_defects([line.text for line in to_lines(pages)], result.chunks) == {"missing": [], "extra": []}
-        assert (result.chunks[1]["pageStart"], result.chunks[1]["pageEnd"]) == (1, 2)
+        assert pages == original_pages
+        assert [chunk["locator"] for chunk in result.chunks] == ["art-1", "art-2"]
+        assert "body one\ncontinues here" in result.chunks[0]["content"]
+        assert (result.chunks[0]["pageStart"], result.chunks[0]["pageEnd"]) == (1, 2)
+        assert (result.chunks[1]["pageStart"], result.chunks[1]["pageEnd"]) == (2, 2)
 
-    # --- (a) numbered sections that repeat a number keep their body -----------------------------------
+    # --- (a) numbered outlines remain reviewable but are not validated legal provisions ----------------
 
     def test_repeated_section_numbers_keep_every_body_under_dup_locators(self):
         result = chunk_document([POLICY], profile="NUMBERED_SECTIONS")
         by_locator = {chunk["locator"]: chunk["content"] for chunk in result.chunks}
         assert [chunk["locator"] for chunk in result.chunks] == [
-            "front-matter",
             "sec-1",
             "sec-2",
             "sec-3",
@@ -146,6 +143,10 @@ class TestLosslessPartition:
         assert by_locator["sec-1::dup-2"] == "1. Staff must delete customer records after 30 days."
         assert by_locator["sec-2::dup-2"] == "2. Staff must not copy records to personal devices."
         assert by_locator["sec-1::dup-3"] == "1. Legal hold suspends deletion."
+        assert all(
+            chunk["hierarchy"]["structureClassification"] == "UNCLASSIFIED"
+            for chunk in result.chunks
+        )
 
     def test_a_distinct_numbering_is_unchanged(self):
         outline = "1 Purpose\ntext\n1.1 Detail\nmore\n2 Rules\nx\n"
@@ -154,50 +155,52 @@ class TestLosslessPartition:
 
     # --- (b) chapter heading and the text before the first article -----------------------------------
 
-    def test_a_chapter_heading_and_its_introduction_become_a_chapter_chunk(self):
+    def test_chapter_heading_is_not_a_provision_and_its_introduction_stays_reviewable(self):
         result = chunk_document([STATUTE], profile="ARTICLES")
         by_locator = {chunk["locator"]: chunk for chunk in result.chunks}
-        chapter = by_locator["chap-i"]
-        assert chapter["content"] == "Chapter I\nGeneral provisions\nThis Chapter applies only to operators established in the territory."
-        assert chapter["hierarchy"] == {"chapterNumber": "I", "chapterTitle": "General provisions"}
-        assert [chunk["locator"] for chunk in result.chunks][:3] == ["front-matter", "chap-i", "art-1"]
-        # the chapter that has no text of its own still keeps its heading line
+        chapter_intro = by_locator["unstructured-0001"]
+        assert chapter_intro["content"] == "This Chapter applies only to operators established in the territory."
+        assert chapter_intro["hierarchy"]["structureClassification"] == "UNCLASSIFIED"
+        assert "chap-i" not in by_locator and "front-matter" not in by_locator
+        assert "art-1" in by_locator
         bare = chunk_document(["Chapter II\nArticle 1. One\nbody\n"], profile="ARTICLES")
-        assert bare.chunks[0]["locator"] == "chap-ii" and bare.chunks[0]["content"] == "Chapter II"
+        assert [chunk["locator"] for chunk in bare.chunks] == ["art-1"]
 
     @pytest.mark.parametrize("heading", ["Chapter I.", "Chapter I — General", "Chapter I: General", "Part 1 – General", "Chương I: QUY ĐỊNH CHUNG"])
-    def test_a_delimited_chapter_heading_opens_a_chapter_chunk(self, heading):
+    def test_a_delimited_chapter_heading_is_not_emitted_as_a_provision(self, heading):
         result = chunk_document([f"{heading}\nArticle 1. One\nbody\n"], profile="ARTICLES")
-        assert result.chunks[0]["locator"].startswith("chap-")
-        assert result.chunks[0]["content"].startswith(heading.split(" ")[0])
+        assert [chunk["locator"] for chunk in result.chunks] == ["art-1"]
+        assert all(heading not in chunk["content"] for chunk in result.chunks)
 
     def test_the_same_chapter_number_in_two_parts_stays_distinct(self):
         text = "Part 1\nChapter I\nArticle 1. One\nx\nPart 2\nChapter I\nArticle 2. Two\ny\n"
         result = chunk_document([text], profile="ARTICLES")
         locators = [c["locator"] for c in result.chunks]
         assert len(locators) == len(set(locators))
-        assert partition_defects(normalised(text), result.chunks) == {"missing": [], "extra": []}
+        assert locators == ["art-1", "art-2"]
 
     # --- (c) front matter -----------------------------------------------------------------------------
 
-    def test_front_matter_is_a_chunk_and_still_counted(self):
+    def test_front_matter_is_not_a_chunk_but_is_still_counted(self):
         result = chunk_document([STATUTE], profile="ARTICLES")
-        front = result.chunks[0]
-        assert front["locator"] == "front-matter"
-        assert front["content"] == "THE DATA ACT\nPreamble: Whereas operators process data, this Act is adopted."
-        assert result.front_matter_characters == sum(len(line) + 1 for line in front["content"].split("\n"))
+        assert all(chunk["locator"] != "front-matter" for chunk in result.chunks)
+        assert result.front_matter_characters == len(
+            "THE DATA ACT\nPreamble: Whereas operators process data, this Act is adopted.\n"
+        )
 
     def test_there_is_no_front_matter_chunk_when_the_text_starts_with_a_heading(self):
         result = chunk_document(["Article 1. One\nbody\nArticle 2. Two\nbody\n"], profile="ARTICLES")
         assert all(chunk["locator"] != "front-matter" for chunk in result.chunks)
         assert result.front_matter_characters == 0
 
-    def test_a_structured_profile_without_structure_still_keeps_everything_once(self):
+    def test_a_structured_profile_without_structure_keeps_unclassified_review_content(self):
         text = "nothing that looks like a heading\nsecond line\n"
         for profile in ("ARTICLES", "NUMBERED_SECTIONS"):
             result = chunk_document([text], profile=profile)
             assert result.profile == "PARAGRAPHS"
-            assert partition_defects(normalised(text), result.chunks) == {"missing": [], "extra": []}
+            assert len(result.chunks) == 1
+            assert result.chunks[0]["content"] == "nothing that looks like a heading\nsecond line"
+            assert result.chunks[0]["hierarchy"]["structureClassification"] == "UNCLASSIFIED"
 
     def test_locators_of_repeated_headings_never_collide(self):
         text = "Article 1. A\nx\nArticle 1. B\ny\nArticle 1. C\nz\n"

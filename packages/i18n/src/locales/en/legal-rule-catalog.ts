@@ -35,7 +35,7 @@ export const enLegalRuleCatalog = {
   browseSourceDocuments: "Pick rules from source documents",
   sourcePickerTitle: "Select Legal Rules from source documents",
   sourcePickerDescription:
-    "Click into each document to inspect provisions and select the rules to add. No manual ID entry required.",
+    "Select eligible legal leaves and review their composed Article, Clause, and Point context before importing.",
   documentsInSource: "Document files",
   provisionsInFile: "Provisions / rules in file",
   selectAllInPage: "Select all on page",
@@ -44,6 +44,14 @@ export const enLegalRuleCatalog = {
   addSelectedRulesToCatalog: "Add selected rules to catalog",
   noDocumentsInSource: "No documents found in this legal source.",
   noChunksInDocument: "No provisions indexed for this document.",
+  eligibleLeafProvisions: "eligible provisions",
+  compositionPreview: "Composed legal context",
+  articleLevel: "Article",
+  clauseLevel: "Clause",
+  pointLevel: "Point",
+  unresolvedContentNotice:
+    "Some source text could not be classified and remains available for legal review.",
+  selectedDocumentFiles: "documents",
   sourceSelectLabel: "Legal source",
   chooseSource: "Choose legal source",
   importSuccess: "Successfully added rules to catalog.",

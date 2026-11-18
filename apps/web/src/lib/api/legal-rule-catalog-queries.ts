@@ -13,6 +13,64 @@ export const legalRuleCatalogKey = ["admin", "legal-rule-catalog"] as const;
 const root = "/api/admin/legal-rule-catalog";
 
 /**
+ * Business purpose: Browse complete server-composed Article–Clause–Point provision leaves for one source document.
+ * Business rules:
+ * - Source version, document, and page partition the cache; the server resolves ancestors from every persisted chunk.
+ *
+ * Execution flow:
+ * 1. Build a bounded query string and validate the returned provision projection.
+ * 2. Keep the result under a document-specific query key.
+ *
+ * Failure cases:
+ * - Missing identities disable the request; transport, authorization, and schema errors remain query errors.
+ *
+ * Side effects:
+ * - Performs a read-only API request and subscribes to the query cache.
+ */
+export function useLegalRuleSourceProvisions(
+  sourceVersionId: string,
+  documentId: string,
+  page: number,
+) {
+  const params = new URLSearchParams({
+    sourceVersionId,
+    documentId,
+    page: String(page),
+    pageSize: String(C.LEGAL_RULE_LIMITS.pageSize),
+  });
+  return useQuery({
+    queryKey: [
+      ...legalRuleCatalogKey,
+      "source-provisions",
+      sourceVersionId,
+      documentId,
+      page,
+    ],
+    enabled: Boolean(sourceVersionId && documentId),
+    /**
+     * Business purpose: Read the selected page of server-composed eligible source leaves.
+     * Business rules:
+     * - The API owns ancestry, effectiveness, and classification; the browser does not request ancestor chunks itself.
+     *
+     * Execution flow:
+     * 1. Send the pinned source/document/page query through the shared API client.
+     * 2. Validate the full response contract before caching it.
+     *
+     * Failure cases:
+     * - Missing documents, ineligible versions, and malformed responses remain query errors.
+     *
+     * Side effects:
+     * - Performs a read-only BFF request and populates the keyed query cache.
+     */
+    queryFn: () =>
+      apiValidated(
+        `${root}/source-provisions?${params}`,
+        C.legalRuleSourceProvisionPageSchema,
+      ),
+  });
+}
+
+/**
  * Business purpose: Read editable catalog identities for the integrated Preparation workflow.
  * Business rules:
  * - API session/Admin checks govern access; no catalog is created implicitly.
@@ -237,6 +295,72 @@ export function useLegalRuleCommand<TInput, TOutput>(
      * - Cache failures propagate through the mutation lifecycle.
      * Side effects:
      * - Marks catalog and result queries stale and can trigger read refetches.
+     */
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}
+
+/**
+ * Business purpose: Import one server-validated source leaf into the catalog pinned to its source version.
+ * Business rules:
+ * - The caller sends only catalog/document/leaf identity and expected revision; the API recomputes composition and citations.
+ *
+ * Execution flow:
+ * 1. POST the bounded identity to the catalog-scoped import route.
+ * 2. Validate the saved-rule acknowledgement.
+ *
+ * Failure cases:
+ * - Ineligible leaves, stale catalog revisions, and API/schema failures remain mutation errors.
+ *
+ * Side effects:
+ * - Saves one LegalRule through catalog authority and invalidates catalog reads after success.
+ */
+export function useImportLegalRuleSourceProvision() {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Send one source leaf identity for authoritative LegalRule import.
+     * Business rules:
+     * - Caller-supplied prose and citation references are excluded; the API recomputes them against the pinned catalog source.
+     *
+     * Execution flow:
+     * 1. Remove the catalog identity from the request body.
+     * 2. POST the leaf request and validate the saved-rule response.
+     *
+     * Failure cases:
+     * - Eligibility, revision, authority, or response-contract failures reject the mutation.
+     *
+     * Side effects:
+     * - Requests one LegalRule save through the shared authenticated API client.
+     */
+    mutationFn: (
+      input: C.LegalRuleSourceProvisionImport & { catalogId: string },
+    ) => {
+      const { catalogId, ...request } = input;
+      return apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/source-provisions/import`,
+        C.legalRuleSavedSchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      );
+    },
+    /**
+     * Business purpose: Refresh catalog and preparation reads after a successful source import.
+     * Business rules:
+     * - Cache invalidation occurs only after the API returns a schema-valid acknowledgement.
+     *
+     * Execution flow:
+     * 1. Invalidate the shared LegalRule Catalog query prefix.
+     *
+     * Failure cases:
+     * - Query-client invalidation failures propagate through mutation lifecycle handling.
+     *
+     * Side effects:
+     * - Marks matching query entries stale and refetches active observers.
      */
     onSuccess: () =>
       client.invalidateQueries({ queryKey: legalRuleCatalogKey }),

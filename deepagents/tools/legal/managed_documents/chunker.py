@@ -4,11 +4,10 @@ The heading vocabulary of every profile lives in ``config/legal_structure_profil
 module only applies the patterns it is given. Legacy locators remain retrieval/provenance addresses.
 Canonical legal hierarchy and semantic accounting use the derived document AST and Agent claim graph.
 
-The chunks are a lossless partition (INV-R1): every normalised non-empty line of the extracted text
-belongs to exactly one chunk. Text before the first heading becomes a front-matter chunk, the heading
-line (and any introductory text) of a chapter becomes a chapter-level chunk, and a repeated locator
-keeps its text under a ``::dup-N`` locator. Only a single line longer than the chunk bound is cut
-(``::part-N``), at a whitespace boundary where one exists; every other line stays whole.
+Article-profile chunks follow the deepest recognized Article–Clause–Point level. Source pages remain
+the lossless record: unclassified preamble and structural headings are not given legal chunk locators.
+Repeated provision locators keep distinct text under ``::dup-N``; oversized chunks are bounded with
+``::part-N`` while retaining their source hashes and hierarchy metadata.
 """
 
 from __future__ import annotations
@@ -193,23 +192,25 @@ def _compile(pattern: str) -> re.Pattern[str]:
 
 
 def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chunk | None, list[Chunk], int]:
-    """Return the front-matter chunk, structural chunks, and front-matter character count.
+    """Return Article–Clause–Point chunks and the count of source text before the first Article.
 
-    Business purpose: Partition source lines by the configured chapter/article/clause/point hierarchy while preserving addressable legacy locators.
+    Business purpose: Build retrieval chunks from actual Article, Clause, and Point provisions while preserving source wording and hierarchy context.
 
     Business rules:
     - Heading patterns and locator prefixes come only from the selected structure profile.
-    - A clause opens only when its number is the next sequential clause; other numbered lines remain text.
-    - Content before the first structural heading remains in a front-matter chunk, and chapter introduction remains attached to its chapter chunk.
+    - A Clause opens only when its number is the next sequential clause; other numbered lines remain with their current provision.
+    - Articles without Clauses produce Article chunks; Clauses with Points produce Point chunks, with Article and Clause lead-ins retained in hierarchy metadata.
+    - Independently substantive Article or Clause text remains its own chunk; setup-only lead-ins ending in a colon are context for child provisions.
+    - Preamble and chapter heading lines remain in extracted source pages and do not become legal chunks; non-heading chapter introduction text is retained as explicitly unclassified content.
 
     Execution flow:
-    1. Compile the selected profile's available level patterns and initialize front matter and hierarchy state.
-    2. Walk lines in order, closing prior article/chapter chunks when a new heading changes scope.
-    3. Assign article, sequential clause, and optional point lines to their current chunk while retaining hierarchy metadata.
-    4. Close the final structures and return front matter, structural chunks, and the recorded front-matter character count.
+    1. Compile the selected profile's Article, Clause, Point, and optional chapter patterns.
+    2. Walk source lines in order, recording chapter metadata while excluding chapter heading lines from chunk bodies.
+    3. Assign Article, sequential Clause, and Point text to the deepest applicable chunk and attach parent lead-ins as hierarchy context.
+    4. Retain non-heading chapter introduction text as unclassified, close all provisions, and report pre-Article source length.
 
     Failure cases:
-    - Missing required profile keys or invalid configured patterns propagate errors; unrecognized headings stay in the current text chunk.
+    - Missing required profile keys or invalid configured patterns propagate errors; unrecognized lines stay attached to a provision or are explicitly marked unclassified.
 
     Side effects:
     - Mutates only in-memory chunk lists and hierarchy state; no source file or persisted legal-source record is changed.
@@ -224,12 +225,10 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
     clause_re = _compile(clause["pattern"])
     point_re = _compile(point["pattern"]) if point else None
     article_prefix, clause_prefix = article["locatorPrefix"], clause["locatorPrefix"]
-    chapter_prefix = (chapter or {}).get("locatorPrefix") or "chap-"
-
     chunks: list[Chunk] = []
     front: list[Line] = []
     chapter_info: dict[str, Any] = {}
-    chapter_chunk: Chunk | None = None  # the chapter heading and its text up to the first article
+    chapter_intro: list[Line] = []
     current_article: dict[str, Any] | None = None
     article_locator = ""
     intro: list[Line] = []
@@ -237,21 +236,56 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
     current_clause: Chunk | None = None
     current_point: Chunk | None = None
     last_clause = 0
+    unclassified_number = 0
+
+    def preserve_unclassified(source_lines: list[Line], metadata: dict[str, Any]) -> Chunk | None:
+        """Retain non-heading source text without assigning it an Article–Clause–Point identity.
+
+        Business purpose: Keep potentially operative text that falls outside the configured legal hierarchy visible with an explicit classification limitation.
+
+        Business rules:
+        - Only non-empty source lines are retained, in their original order.
+        - The returned locator is unstructured and its hierarchy marks the text UNCLASSIFIED; it is not a legal provision locator.
+
+        Execution flow:
+        1. Ignore an empty line group.
+        2. Allocate a unique unstructured locator and attach the supplied source context plus the classification warning.
+
+        Failure cases:
+        - Malformed line or metadata values propagate ordinary Python errors; no legal structure is inferred to repair them.
+
+        Side effects:
+        - Increments only this parser's in-memory unclassified locator counter.
+        """
+        nonlocal unclassified_number
+        if not source_lines:
+            return None
+        unclassified_number += 1
+        return Chunk(
+            f"unstructured-{unclassified_number:04d}",
+            list(source_lines),
+            {
+                **metadata,
+                "structureClassification": "UNCLASSIFIED",
+                "classificationNote": "No Article-Clause-Point locator could be assigned without inference.",
+            },
+        )
 
     def close_article() -> None:
         """Business purpose: Finalize the current article's introductory and clause chunks before another article begins.
 
         Business rules:
-        - Article introduction is emitted separately only when clause chunks exist; otherwise the article locator owns its text.
-        - Clause and point chunks remain in their source order and retain their existing hierarchy metadata.
+        - An Article with no Clause keeps its heading and body in one Article chunk; a heading with no body does not become a chunk.
+        - With Clauses, independently substantive Article text is retained as an Article chunk; setup-only lead-ins are carried in child hierarchy metadata.
+        - Clause/Point chunks remain in source order; Point chunks carry their Clause lead-in as hierarchy context.
 
         Execution flow:
         1. Return without changes when no article is open.
-        2. Append any required article introduction and all collected clause/point chunks.
-        3. Reset article-local text and numbering state for the next article.
+        2. Keep body-bearing Article text at Article level when no Clauses exist, or retain only independently substantive Article text above child chunks.
+        3. Append all collected Clause/Point chunks and reset article-local state for the next Article.
 
         Failure cases:
-        - An empty current article is still emitted with its article locator; malformed state errors propagate normally.
+        - A heading-only Article is omitted from retrieval chunks but remains in extracted source pages; malformed state errors propagate normally.
 
         Side effects:
         - Appends finalized chunks and resets variables captured from the enclosing in-memory parser.
@@ -259,37 +293,50 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
         nonlocal intro, clause_chunks, current_clause, current_point, current_article, last_clause
         if current_article is None:
             return
+        article_body = intro[1:]
+        article_lead_in = "\n".join(line.text for line in article_body).strip()
+        article_has_prior_sentence = any(
+            line.text.rstrip().endswith((".", ";", "?", "!")) for line in article_body[:-1]
+        )
         if clause_chunks:
-            if intro:
-                chunks.append(Chunk(article_locator, list(intro), dict(current_article)))
+            if article_body and (not article_lead_in.endswith(":") or article_has_prior_sentence):
+                chunks.append(
+                    Chunk(
+                        article_locator,
+                        list(intro),
+                        {**current_article, "independentlySubstantive": True},
+                    )
+                )
             chunks.extend(clause_chunks)
-        else:
+        elif article_body:
             chunks.append(Chunk(article_locator, list(intro), dict(current_article)))
         intro, clause_chunks, current_clause, last_clause = [], [], None, 0
         current_article = None
         current_point = None
 
     def close_chapter() -> None:
-        """Business purpose: Finalize the current chapter-level chunk before a new chapter or end of source.
+        """Business purpose: Retain any chapter introduction without creating a chunk for the chapter heading.
 
         Business rules:
-        - Chapter heading text and any introduction before the first article remain grouped in the chapter chunk.
-        - No chapter chunk is created when the parser has not opened one.
+        - Chapter heading and title lines are structural metadata, not legal chunk bodies.
+        - Non-heading text before the first Article remains available as an unclassified chunk with its chapter metadata.
+        - No chunk is created when the chapter contains only its heading.
 
         Execution flow:
-        1. Check whether a chapter chunk is open.
-        2. Append it to the structural chunk sequence and clear the open-chapter reference.
+        1. Check whether unclassified chapter introduction text exists.
+        2. Append it with an explicit classification warning and clear the introduction buffer.
 
         Failure cases:
-        - An absent chapter is a valid no-op; list or closure failures propagate without inventing another chunk.
+        - An empty introduction is a valid no-op; malformed source metadata propagates without inventing legal hierarchy.
 
         Side effects:
-        - Appends one in-memory chunk and clears the parser's captured chapter reference when present.
+        - Appends at most one in-memory unclassified chunk and clears the captured introduction lines.
         """
-        nonlocal chapter_chunk
-        if chapter_chunk is not None:
-            chunks.append(chapter_chunk)
-            chapter_chunk = None
+        nonlocal chapter_intro
+        retained = preserve_unclassified(chapter_intro, chapter_info)
+        if retained is not None:
+            chunks.append(retained)
+        chapter_intro = []
 
     index = 0
     while index < len(lines):
@@ -299,15 +346,13 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
             close_article()
             close_chapter()
             title = match.group(2).strip()
-            heading = [line]
             if not title and chapter.get("titleOnNextLine") and index + 1 < len(lines):
                 following = lines[index + 1].text
                 if not (article_re.match(following) or clause_re.match(following)) and len(following) <= 160:
                     title = following
-                    heading.append(lines[index + 1])
                     index += 1
             chapter_info = {"chapterNumber": match.group(1), "chapterTitle": title}
-            chapter_chunk = Chunk(f"{chapter_prefix}{match.group(1).lower()}", heading, dict(chapter_info))
+            chapter_intro = []
         elif match := article_re.match(text):
             close_article()
             close_chapter()
@@ -316,6 +361,7 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
                 **chapter_info,
                 "articleNumber": number,
                 "articleTitle": match.group(2).strip(),
+                "articleHeading": line.text,
             }
             article_locator = f"{article_prefix}{number.lower()}"
             intro = [line]
@@ -327,15 +373,47 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
             # Only the next clause number opens a clause; other numbered lines are part of the text.
             number = match.group(1)
             last_clause += 1
+            article_lead_in = "\n".join(line.text for line in intro[1:]).strip()
+            article_body = intro[1:]
+            article_has_prior_sentence = any(
+                item.text.rstrip().endswith((".", ";", "?", "!"))
+                for item in article_body[:-1]
+            )
+            article_is_setup_only = article_lead_in.endswith(":") and not article_has_prior_sentence
+            clause_numbering = re.match(r"^\s*\d+[.)]", line.text)
+            clause_hierarchy = {
+                **current_article,
+                "clauseNumber": number,
+                "clauseHeading": line.text,
+                "clauseNumbering": clause_numbering.group(0).strip() if clause_numbering else f"{number}.",
+            }
+            if article_lead_in and article_is_setup_only:
+                clause_hierarchy["articleLeadIn"] = article_lead_in
             current_clause = Chunk(
                 f"{article_locator}{LOCATOR_SEPARATOR}{clause_prefix}{number}",
                 [line],
-                {**current_article, "clauseNumber": number},
+                clause_hierarchy,
             )
             clause_chunks.append(current_clause)
             current_point = None
         elif current_clause is not None and point_re and (match := point_re.match(text)):
             label = match.group(1).lower()
+            clause_match = clause_re.match(current_clause.lines[0].text)
+            clause_context_lines = (
+                [clause_match.group(2).strip()] if clause_match and clause_match.group(2).strip() else []
+            )
+            clause_context_lines.extend(line.text for line in current_clause.lines[1:])
+            clause_lead_in = "\n".join(clause_context_lines).strip()
+            clause_has_prior_sentence = any(
+                text.rstrip().endswith((".", ";", "?", "!")) for text in clause_context_lines[:-1]
+            )
+            clause_is_setup_only = clause_lead_in.endswith(":") and not clause_has_prior_sentence
+            if clause_is_setup_only:
+                current_clause.hierarchy["clauseLeadIn"] = clause_lead_in
+            elif clause_lead_in:
+                current_clause.hierarchy["independentlySubstantive"] = True
+            if (clause_is_setup_only or not clause_lead_in) and current_clause in clause_chunks:
+                clause_chunks.remove(current_clause)
             current_point = Chunk(
                 f"{current_clause.locator}{LOCATOR_SEPARATOR}{point['locatorPrefix']}{label}",
                 [line],
@@ -344,15 +422,14 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chu
             clause_chunks.append(current_point)
         elif current_article is not None:
             (current_point.lines if current_point else current_clause.lines if current_clause else intro).append(line)
-        elif chapter_chunk is not None:
-            chapter_chunk.lines.append(line)  # introductory text of the chapter, before its first article
+        elif chapter_info:
+            chapter_intro.append(line)
         else:
             front.append(line)
         index += 1
     close_article()
     close_chapter()
-    front_chunk = Chunk(front_matter_locator(), front, {}) if front else None
-    return front_chunk, chunks, sum(len(line.text) + 1 for line in front)
+    return None, chunks, sum(len(line.text) + 1 for line in front)
 
 
 def _heading_count(lines: list[Line], profile: dict[str, Any]) -> int:
@@ -386,17 +463,17 @@ def _heading_count(lines: list[Line], profile: dict[str, Any]) -> int:
 
 
 def _chunk_numbered_outline(lines: list[Line], profile: dict[str, Any]) -> tuple[Chunk | None, list[Chunk], int]:
-    """Business purpose: Partition source lines into numbered-outline sections and retain text before the first section as front matter.
+    """Business purpose: Partition source lines into explicitly requested numbered-outline sections without assigning a locator to preamble text.
 
     Business rules:
     - A matching line opens a section only when it stays under the configured heading length and does not end in a continuation comma or semicolon.
     - Each dotted section number produces a hierarchical legacy locator; repeated locators are disambiguated later by `chunk_document`.
-    - Lines that do not open a section remain attached to the prior section or to front matter when no section exists.
+    - Lines that do not open a section remain attached to the prior section or stay in immutable extracted pages when no section exists.
 
     Execution flow:
     1. Compile the profile pattern and scan lines in order, opening eligible sections and accumulating their following text.
     2. Build chunks with dotted hierarchical locators and recorded section number/title metadata.
-    3. Return the optional front-matter chunk, section chunks, and front-matter character count.
+    3. Return section chunks and the size of text before the first section for provenance.
 
     Failure cases:
     - Missing profile keys or invalid patterns propagate errors; nonmatching text is preserved instead of discarded.
@@ -424,8 +501,7 @@ def _chunk_numbered_outline(lines: list[Line], profile: dict[str, Any]) -> tuple
         # A number that restarts (list items inside a section) repeats the locator; ``chunk_document`` keeps
         # such a section under a ``::dup-N`` locator instead of dropping its text.
         chunks.append(Chunk(locator, body, {"sectionNumber": number, "sectionTitle": title}))
-    front_chunk = Chunk(front_matter_locator(), front, {}) if front else None
-    return front_chunk, chunks, sum(len(line.text) + 1 for line in front)
+    return None, chunks, sum(len(line.text) + 1 for line in front)
 
 
 # --- profile: paragraph windows -------------------------------------------------------------------
@@ -624,14 +700,16 @@ def chunk_document(pages: list[str], *, profile: str, markdown: bool = False) ->
 
     Business rules:
     - The configured profile file owns profile order, heading patterns, locator prefixes, and maximum chunk characters.
-    - AUTO selects the first configured profile meeting the minimum heading count, otherwise paragraph windows; a structured profile with no structure also falls back to paragraphs.
-    - Every nonempty normalized source line is retained. Oversized structural chunks become bounded `::part-N` windows; individual lines stay whole unless a line itself exceeds the bound. Repeated locators receive `::dup-N`.
+    - AUTO selects configured Article structure when present; paragraph fallback chunks are explicitly marked UNCLASSIFIED and are not legal provision locators.
+    - Extracted pages remain the lossless source. Recognized preamble and chapter heading/title lines are not Article-profile chunks; generic paragraph windows are marked UNCLASSIFIED.
+    - Hierarchy lead-ins and source page ranges remain available as metadata.
+    - Oversized chunks become bounded `::part-N` windows; repeated locators receive `::dup-N` and each stored body receives its own content hash.
     - The API's maximum chunk-count acceptance rule is enforced by the ingestion caller, not by this chunking function.
 
     Execution flow:
     1. Load configuration and normalize extracted pages into source lines, optionally stripping Markdown heading markers.
     2. Select or validate the requested profile and run its heading-tree, numbered-outline, or paragraph partitioner.
-    3. Fall back to paragraph windows when a structured profile finds no structural chunks.
+    3. When no Article structure is available, retain generic text as paragraph windows marked UNCLASSIFIED rather than provision chunks.
     4. Split oversized chunks, preserve unique locators, and emit content hashes, hierarchy, and page ranges.
 
     Failure cases:
@@ -661,10 +739,10 @@ def chunk_document(pages: list[str], *, profile: str, markdown: bool = False) ->
 
         Business rules:
         - Heading-tree and numbered-outline profile kinds use their dedicated locator builders.
-        - Other configured profile kinds use paragraph windows with the configured character limit.
+        - Paragraph-window profiles omit configured chapter heading/title lines and use the configured character limit.
 
         Execution flow:
-        1. Read the named profile specification.
+        1. Read the named profile specification and select the source lines to partition.
         2. Dispatch by its configured kind to the corresponding chunk-building function.
 
         Failure cases:
@@ -678,13 +756,63 @@ def chunk_document(pages: list[str], *, profile: str, markdown: bool = False) ->
             return _chunk_heading_tree(lines, spec)
         if spec["kind"] == "numbered-outline":
             return _chunk_numbered_outline(lines, spec)
+        article_profile = profiles.get("ARTICLES")
+        chapter = None
+        if article_profile:
+            chapter = next(
+                (
+                    level
+                    for level in article_profile.get("levels", [])
+                    if level.get("name") == "chapter"
+                ),
+                None,
+            )
+        if chapter:
+            chapter_re = _compile(chapter["pattern"])
+            article_re = _compile(
+                next(
+                    level["pattern"]
+                    for level in article_profile["levels"]
+                    if level["name"] == "article"
+                )
+            )
+            clause_re = _compile(
+                next(
+                    level["pattern"]
+                    for level in article_profile["levels"]
+                    if level["name"] == "clause"
+                )
+            )
+            filtered: list[Line] = []
+            skip_chapter_title = False
+            for line in lines:
+                match = chapter_re.match(line.text)
+                if match:
+                    skip_chapter_title = bool(chapter.get("titleOnNextLine") and not match.group(2).strip())
+                    continue
+                if skip_chapter_title:
+                    skip_chapter_title = False
+                    if len(line.text) <= 160 and not (article_re.match(line.text) or clause_re.match(line.text)):
+                        continue
+                filtered.append(line)
+            return _chunk_paragraphs(filtered, spec, limit)
         return _chunk_paragraphs(lines, spec, limit)
 
     front_chunk, structural, front = run(chosen)
-    if not structural and chosen != PROFILE_PARAGRAPHS:
-        # A structured profile that found no structure still has to keep the text.
+    if not structural and not front_chunk and chosen != PROFILE_PARAGRAPHS:
+        # Preserve unmatched source text as explicitly unclassified paragraph windows.
+        unclassified_source_length = front
         chosen = PROFILE_PARAGRAPHS
         front_chunk, structural, front = run(chosen)
+        front = max(front, unclassified_source_length)
+    if chosen == PROFILE_PARAGRAPHS or profiles[chosen]["kind"] == "numbered-outline":
+        for chunk in structural:
+            chunk.hierarchy.update(
+                {
+                    "structureClassification": "UNCLASSIFIED",
+                    "classificationNote": "No Article-Clause-Point locator could be assigned without inference.",
+                }
+            )
     raw = ([front_chunk] if front_chunk else []) + structural
 
     chunks: list[dict[str, Any]] = []

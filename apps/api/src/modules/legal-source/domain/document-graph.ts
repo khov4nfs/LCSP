@@ -374,12 +374,13 @@ function parseText(document: StructuralSourceDocument, pages: string[]) {
  *
  * Business rules:
  * - Existing chunk text is retained; hierarchy comes only from recorded chapter metadata and recognized locator segments.
+ * - A chunk explicitly marked UNCLASSIFIED stays under an unstructured node even if its locator resembles an Article, Clause, or Point.
  * - Retrieval suffixes are not treated as legal hierarchy, and character spans remain null because legacy chunk offsets are not document offsets.
  * - Points recognized inside a legacy clause get structural nodes while the chunk remains mapped to its original clause owner.
  *
  * Execution flow:
  * 1. Create a document root and sort chunks by locator for stable processing.
- * 2. Build chapter and supported locator hierarchy from stored metadata, assigning each chunk to its structural owner.
+ * 2. Build chapter metadata and supported locator hierarchy for classified chunks; route unclassified chunks to an unstructured owner.
  * 3. Split lettered points into child nodes where recognized and aggregate stored page spans upward.
  * 4. Clear unavailable character spans and return both nodes and chunk-owner mappings.
  *
@@ -423,8 +424,11 @@ function adaptLegacy(document: StructuralSourceDocument) {
         );
       parent = byPath.get(p)!;
     }
-    // part-/dup- retrieval suffixes never become a legal hierarchy level.
-    const parts = chunk.locator.replace(/::part-\d+$/u, "").split("::");
+    // Retrieval suffixes and explicit UNCLASSIFIED markers never become legal hierarchy levels.
+    const parts =
+      h.structureClassification === "UNCLASSIFIED"
+        ? []
+        : chunk.locator.replace(/::part-\d+$/u, "").split("::");
     for (const [index, part] of parts.entries()) {
       const match = /^(art|cl|pt|sec|annex|schedule)-(.+)$/u.exec(part);
       if (!match) continue;
@@ -1118,20 +1122,21 @@ export function buildLegalDocumentGraph(
 }
 
 /**
- * Business purpose: Split each legal-document graph node into bounded retrieval windows that preserve exact source offsets and content hashes.
+ * Business purpose: Split substantive legal-document graph content into bounded retrieval windows that preserve exact source offsets and content hashes.
  *
  * Business rules:
  * - A requested window must be a safe integer of at least two characters and no larger than the configured maximum.
  * - Window boundaries must not divide a UTF-16 surrogate pair, and each unit remains linked to its source node.
+ * - Formal document preambles and nodes containing only an exact configured structural heading are omitted from retrieval units, but remain in the canonical graph.
  *
  * Execution flow:
  * 1. Validate the requested window size against the configured retrieval limit.
- * 2. Walk each node's content in bounded windows, adjusting a boundary when it would split a surrogate pair.
- * 3. Emit deterministic unit identities, ordinals, source character ranges, and SHA-256 content hashes.
+ * 2. Skip only retrieval-only structural content, then walk remaining node content in bounded windows.
+ * 3. Adjust surrogate-pair boundaries and emit deterministic unit identities, ordinals, source ranges, and SHA-256 hashes.
  *
  * Failure cases:
  * - An unsafe, too-small, or over-limit window size raises `Invalid retrieval window size`.
- * - Empty node content yields no retrieval units; malformed node values propagate runtime errors.
+ * - Empty or structural-only node content yields no retrieval units; malformed node values propagate runtime errors.
  *
  * Side effects:
  * - None: the function derives retrieval-unit records in memory without modifying the source nodes.
@@ -1147,7 +1152,12 @@ export function buildLegalRetrievalUnits(
   )
     throw new Error("Invalid retrieval window size");
   const retrievalUnits: LegalDocumentGraph["retrievalUnits"] = [];
+  const nodesWithChildren = new Set(
+    nodes.flatMap((node) => (node.parentNodeId ? [node.parentNodeId] : [])),
+  );
   for (const node of nodes) {
+    if (isRetrievalOnlyStructure(node, nodesWithChildren.has(node.nodeId)))
+      continue;
     let start = 0,
       ordinal = 0;
     while (start < node.content.length) {
@@ -1174,4 +1184,53 @@ export function buildLegalRetrievalUnits(
     }
   }
   return retrievalUnits;
+}
+
+/**
+ * Business purpose: Keep unclassified document-root text and heading-only graph nodes out of ordinary retrieval while preserving source and review coverage.
+ *
+ * Business rules:
+ * - A document root is excluded only when it has recognized structural children; other nodes are excluded only when their full text exactly matches a configured heading and recorded title.
+ * - A heading with additional body text remains retrievable; this check does not classify legal effect or provision validity.
+ *
+ * Execution flow:
+ * 1. Check whether a document root owns text outside recognized structural children.
+ * 2. Match other node text against its configured structural heading pattern, label, and title.
+ * 3. Return true only when the full node body is that heading, optionally with its recorded title on the next line.
+ *
+ * Failure cases:
+ * - Unsupported node types, unrecognized headings, and title mismatches remain retrievable; malformed node text propagates ordinary string errors.
+ *
+ * Side effects:
+ * - None: the predicate reads node metadata and content without changing the canonical graph.
+ */
+function isRetrievalOnlyStructure(
+  node: LegalDocumentNode,
+  hasChildren: boolean,
+): boolean {
+  const lines = node.content
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/^\s*#{1,6}\s+/u, "").trim())
+    .filter(Boolean);
+  if (node.nodeType === N.DOCUMENT && hasChildren && lines.length > 0)
+    return true;
+  if (lines.length === 0) return false;
+  const spec = LEGAL_STRUCTURE_HEADINGS.find(
+    (candidate) => candidate.type === node.nodeType,
+  );
+  if (!spec) return false;
+  const match = spec.pattern.exec(lines[0]);
+  if (
+    !match ||
+    normalized(match[1] ?? "").toLocaleLowerCase("en-US") !==
+      normalized(node.label).toLocaleLowerCase("en-US")
+  )
+    return false;
+  if (lines.length === 1)
+    return normalized(match[2] ?? "") === normalized(node.title);
+  return (
+    lines.length === 2 &&
+    !match[2]?.trim() &&
+    normalized(lines[1]) === normalized(node.title)
+  );
 }

@@ -551,7 +551,7 @@ export const legalSourceIngestionResultSchema = z.discriminatedUnion(
         pageCount: z.number().int().nullable(),
         textSha256: sha256Schema,
         characterCount: z.number().int().min(1),
-        /** Size of the text before the first heading (informational: that text is also persisted as a front-matter chunk). */
+        /** Size of source text before the first recognized heading; the immutable extracted pages retain it even when it has no legal chunk locator. */
         frontMatterCharacters: z.number().int().min(0).optional(),
         /** Immutable extracted text for parser rebuilds, including front matter and page boundaries. */
         pages: z.array(z.string().max(8000000)).min(1).max(3000).optional(),

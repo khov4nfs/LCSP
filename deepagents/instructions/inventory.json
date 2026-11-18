@@ -7909,9 +7909,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::follow_legal_reference::PROMOTED_TOOL_DOCSTRING::816:cb4d03b8e165e907",
+      "siteId": "ast:rule_set_preparation/source_graph.py::follow_legal_reference::PROMOTED_TOOL_DOCSTRING::927:cb4d03b8e165e907",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 816,
+      "lineNumber": 927,
       "symbolName": "follow_legal_reference",
       "constructionSha256": "cb4d03b8e165e9073eff1a2a46f616028a54807c9e13af6b9bc90fc406ea3a1e",
       "evidence": "\"\"\"Inspect/follow one explicit reference, retaining RESOLVED/AMBIGUOUS/UNRESOLVED state and candidates.\n\n        Business purpose: Inspect one explicit legal reference with its unresolved state and candidate provisions intact.\n\n        Business rules:\n        - Use a known pinned reference; a resolved target and unresolved candidate list are distinct retrieval paths.\n        Execution flow:\n        1. Find the reference or return its pinned-source error.\n        2. Publish reference-follow activity and retrieve its target or candidates with bounded source text.\n        Failure cases:\n        - Unrecognized identity returns REFERENCE_NOT_IN_PINNED_SOURCE; ambiguity is retained rather than silently resolved.\n        Side effects:\n        - Reads pinned source and publishes reference activity; does not mutate reference accounting.\n        \"\"\"",
@@ -7929,9 +7929,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::get_legal_node::PROMOTED_TOOL_DOCSTRING::771:be3a684f637f6033",
+      "siteId": "ast:rule_set_preparation/source_graph.py::get_legal_node::PROMOTED_TOOL_DOCSTRING::882:be3a684f637f6033",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 771,
+      "lineNumber": 882,
       "symbolName": "get_legal_node",
       "constructionSha256": "be3a684f637f6033b03cc537b104b554a302bde639dd2dff156c10c6f37ff603",
       "evidence": "\"\"\"Read an exact pinned node with its source/path/physical locator; request later content windows when truncated.\n\n        Business purpose: Read an exact pinned legal node with its source, structural path and physical locator.\n\n        Business rules:\n        - Unrecognized nodes cannot leave the pinned graph; later content windows must be requested when hasMore is true.\n        Execution flow:\n        1. Find the pinned node and select the requested content window.\n        2. Publish source-inspection activity and return the window with offset and continuation metadata.\n        Failure cases:\n        - Unrecognized identities return NODE_NOT_IN_PINNED_SOURCE; schema-invalid windows receive correction feedback.\n        Side effects:\n        - Reads immutable source and publishes source-node inspection progress; does not mark review complete.\n        \"\"\"",
@@ -7949,9 +7949,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::inspect_legal_node::PROMOTED_TOOL_DOCSTRING::795:0645b1ae3486a19a",
+      "siteId": "ast:rule_set_preparation/source_graph.py::inspect_legal_node::PROMOTED_TOOL_DOCSTRING::906:0645b1ae3486a19a",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 795,
+      "lineNumber": 906,
       "symbolName": "inspect_legal_node",
       "constructionSha256": "0645b1ae3486a19ac2da44d6d9d0a963bab1df2bf715a38efdeeb0e5d2681c76",
       "evidence": "\"\"\"Traverse PARENT, CHILDREN, SIBLINGS, ANCESTORS, REFERENCES, REFERENCED_BY, CHUNKS or bounded CONTEXT without re-searching text.\n\n        Business purpose: Traverse a known legal node's structural or reference context without repeating text search.\n\n        Business rules:\n        - Accept only the declared traversal set, including descendants and bounded chunk/context retrieval.\n        Execution flow:\n        1. Publish traversal activity for a known node and supported traversal.\n        2. Return the graph's bounded traversal result.\n        Failure cases:\n        - Unrecognized nodes or invalid traversal retain the resolver's explicit error; schema errors remain tool feedback.\n        Side effects:\n        - Read-only graph access plus a progress event for valid traversals.\n        \"\"\"",
@@ -7969,9 +7969,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::list_legal_documents::PROMOTED_TOOL_DOCSTRING::703:ae02d34d4b4ce328",
+      "siteId": "ast:rule_set_preparation/source_graph.py::list_legal_documents::PROMOTED_TOOL_DOCSTRING::814:ae02d34d4b4ce328",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 703,
+      "lineNumber": 814,
       "symbolName": "list_legal_documents",
       "constructionSha256": "ae02d34d4b4ce328830d5c7d16c727f3cc1c7cda34a54ac71ba9134b313f87c3",
       "evidence": "\"\"\"List pinned documents and their exact identifiers, without source bodies or a global node index.\n\n        Business purpose: List pinned documents and exact identifiers without source bodies or a global node index.\n\n        Business rules:\n        - Clamp page size to the existing source-tool maximum and keep offset nonnegative.\n        Execution flow:\n        1. Retrieve the document-root metadata page and serialize it with pinned provenance.\n        Failure cases:\n        - An exhausted page returns no nodes with truthful totals; graph integrity errors propagate.\n        Side effects:\n        - Read-only source access; no review or claim is persisted.\n        \"\"\"",
@@ -7989,9 +7989,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::list_legal_structure::PROMOTED_TOOL_DOCSTRING::720:855d24eca0384885",
+      "siteId": "ast:rule_set_preparation/source_graph.py::list_legal_structure::PROMOTED_TOOL_DOCSTRING::831:855d24eca0384885",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 720,
+      "lineNumber": 831,
       "symbolName": "list_legal_structure",
       "constructionSha256": "855d24eca038488553f3422d3cb1e73e85ee5ce901984e8a9a4762768d8468d5",
       "evidence": "\"\"\"List a document's structure or a parent's children; filter ARTICLE, CLAUSE, POINT, CHAPTER, ANNEX or TABLE. Metadata only, paginated.\n\n        Business purpose: List one document's structure or a parent's children for directed legal reading.\n\n        Business rules:\n        - Document ID, optional parent/type filters and pagination follow StructureArgs; bodies are excluded.\n        Execution flow:\n        1. Retrieve the filtered structural metadata page and return it as JSON.\n        Failure cases:\n        - Unmatched document or parent filters return an empty page; invalid arguments receive schema correction feedback.\n        Side effects:\n        - Read-only pinned metadata retrieval.\n        \"\"\"",
@@ -8009,9 +8009,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::resolve_legal_provision::PROMOTED_TOOL_DOCSTRING::737:e7b3430759382d41",
+      "siteId": "ast:rule_set_preparation/source_graph.py::resolve_legal_provision::PROMOTED_TOOL_DOCSTRING::848:e7b3430759382d41",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 737,
+      "lineNumber": 848,
       "symbolName": "resolve_legal_provision",
       "constructionSha256": "e7b3430759382d41dc6b6ef44ac7c9ee55b923e20c568bc5f2c11dde7f20f031",
       "evidence": "\"\"\"Read by printed document identifier and exact legal locator. Returns explicit ambiguity; never guesses between repeated labels.\n\n        Business purpose: Read a provision by printed document identifier and legal locator without guessing repeated labels.\n\n        Business rules:\n        - Preserve RESOLVED, AMBIGUOUS and UNRESOLVED results from the pinned graph resolver.\n        Execution flow:\n        1. Resolve the supplied address and serialize its bounded source candidates and resolution state.\n        Failure cases:\n        - Invalid locator syntax is reported explicitly; absent or repeated addresses never become fabricated unique matches.\n        Side effects:\n        - Read-only source retrieval; no legal-reference decision is persisted.\n        \"\"\"",
@@ -8029,9 +8029,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:rule_set_preparation/source_graph.py::search_legal_nodes::PROMOTED_TOOL_DOCSTRING::754:cba59d02377c32e9",
+      "siteId": "ast:rule_set_preparation/source_graph.py::search_legal_nodes::PROMOTED_TOOL_DOCSTRING::865:cba59d02377c32e9",
       "filePath": "rule_set_preparation/source_graph.py",
-      "lineNumber": 754,
+      "lineNumber": 865,
       "symbolName": "search_legal_nodes",
       "constructionSha256": "cba59d02377c32e9cfdcdac521111d63e7c3f441fcfe1e4724450ac3663e9ccf",
       "evidence": "\"\"\"Search pinned legal nodes with BM25; return exact source identity and structural paths, bounded and paginated.\n\n        Business purpose: Search pinned legal nodes with BM25 and return exact source identity and structural paths.\n\n        Business rules:\n        - Search results are bounded and paginated retrieval leads; their rank does not establish legal meaning.\n        Execution flow:\n        1. Run the pinned lexical search and serialize its source page.\n        Failure cases:\n        - No matches returns an empty page; invalid query/page arguments receive schema feedback.\n        Side effects:\n        - Read-only search using the graph cache; no claim or review completion is recorded.\n        \"\"\"",

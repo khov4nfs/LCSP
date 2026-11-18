@@ -28,6 +28,7 @@ export const LEGAL_RULE_CATALOG_ERRORS = {
   EMPTY: "LEGAL_RULE_SELECTION_EMPTY",
   CONFLICT: "LEGAL_RULE_PREPARATION_CONFLICT",
   TOO_LARGE: "LEGAL_RULE_SELECTION_TOO_LARGE",
+  SOURCE_CONTEXT_TOO_LARGE: "LEGAL_RULE_SOURCE_CONTEXT_TOO_LARGE",
   RESULT_INVALID: "LEGAL_RULE_RESULT_INVALID",
 } as const;
 export const LEGAL_RULE_CATALOG_EVENTS = {
@@ -44,6 +45,17 @@ export const LEGAL_RULE_INELIGIBILITY_REASONS = {
   CATALOG_EMPTY: "CATALOG_EMPTY",
 } as const;
 export const LEGAL_RULE_LIMITS = { catalogRules: 10000, pageSize: 50 } as const;
+export const LEGAL_RULE_SOURCE_PROVISION_LEVELS = {
+  ARTICLE: "ARTICLE",
+  CLAUSE: "CLAUSE",
+  POINT: "POINT",
+} as const;
+export const LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS = {
+  CONTEXT_TOO_LARGE: "SOURCE_CONTEXT_TOO_LARGE",
+  CONTEXT_UNRESOLVED: "SOURCE_CONTEXT_UNRESOLVED",
+  STRUCTURAL_ONLY: "STRUCTURAL_ONLY",
+  UNCLASSIFIED: "UNCLASSIFIED",
+} as const;
 const id = z.string().uuid();
 const text = z.string().trim().min(1).max(12000);
 const fingerprint = z.string().regex(/^[a-f0-9]{64}$/u);
@@ -59,6 +71,56 @@ export const legalRuleWriteSchema = z.strictObject({
   expectedRevision: z.number().int().positive(),
 });
 export type LegalRuleWrite = z.infer<typeof legalRuleWriteSchema>;
+export const legalRuleSourceProvisionQuerySchema = z.strictObject({
+  sourceVersionId: id,
+  documentId: z.string().trim().min(1).max(256),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(LEGAL_RULE_LIMITS.pageSize).default(LEGAL_RULE_LIMITS.pageSize),
+});
+export type LegalRuleSourceProvisionQuery = z.infer<
+  typeof legalRuleSourceProvisionQuerySchema
+>;
+export const legalRuleSourceProvisionImportSchema = z.strictObject({
+  documentId: z.string().trim().min(1).max(256),
+  locator: z.string().trim().min(1).max(512),
+  expectedRevision: z.number().int().positive(),
+});
+export type LegalRuleSourceProvisionImport = z.infer<
+  typeof legalRuleSourceProvisionImportSchema
+>;
+export const legalRuleSourceProvisionSchema = z.strictObject({
+  sourceVersionId: id,
+  documentId: z.string().trim().min(1).max(256),
+  documentTitle: z.string().trim().min(1).max(512),
+  locator: z.string().trim().min(1).max(512),
+  legalRuleId: z.string().trim().min(1).max(128),
+  title: text.max(512),
+  description: text,
+  citationLocatorRefs: z.array(legalRuleCitationSchema).min(1).max(64),
+  level: z.enum(LEGAL_RULE_SOURCE_PROVISION_LEVELS),
+});
+export const legalRuleSourceProvisionLimitationSchema = z.strictObject({
+  locator: z.string().trim().min(1).max(512),
+  reason: z.enum(LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS),
+});
+export type LegalRuleSourceProvisionLimitation = z.infer<
+  typeof legalRuleSourceProvisionLimitationSchema
+>;
+export const legalRuleSourceProvisionPageSchema = z.strictObject({
+  sourceVersionId: id,
+  documentId: z.string().trim().min(1).max(256),
+  total: z.number().int().min(0),
+  page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+  items: z.array(legalRuleSourceProvisionSchema),
+  limitations: z.array(legalRuleSourceProvisionLimitationSchema),
+});
+export type LegalRuleSourceProvisionPage = z.infer<
+  typeof legalRuleSourceProvisionPageSchema
+>;
+export type LegalRuleSourceProvision = z.infer<
+  typeof legalRuleSourceProvisionSchema
+>;
 export const legalRuleCatalogWriteSchema = z.strictObject({
   version: z.string().trim().min(1).max(128),
   legalSourceVersionId: id,

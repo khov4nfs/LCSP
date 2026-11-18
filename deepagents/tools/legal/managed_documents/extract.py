@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from xml.etree import ElementTree
 
 MEDIA_PDF = "application/pdf"
@@ -45,6 +46,11 @@ _BLOCK_TAGS = {
 _CELL_TAGS = {"td", "th"}
 _SKIPPED_TAGS = {"script", "style", "noscript", "template", "head", "svg"}
 _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_PDF_GAZETTE_MASTHEAD = re.compile(
+    r"^CÔNG\s+BÁO(?:\s*/\s*SỐ\s+\d+\s*/\s*NGÀY\s+\d{1,2}[-/.]\d{1,2}[-/.]\d{4})?$",
+    re.IGNORECASE,
+)
+_PDF_PAGE_NUMBER = re.compile(r"^\d{1,4}$")
 
 
 class ExtractionError(Exception):
@@ -854,6 +860,205 @@ def _ocr_pdf_pages(data: bytes, page_numbers: list[int]) -> dict[int, str]:
         raise ExtractionError("EXTRACTION_FAILED") from error
 
 
+def _pdf_native_page_text(page: Any) -> tuple[str, list[tuple[str, float]], float, float, int]:
+    """Business purpose: Extract native PDF text together with conservative line-position evidence.
+
+    Business rules:
+    - Text is returned exactly as pypdf extracts it; only finite visitor coordinates are considered positional evidence.
+    - Rotated or geometrically invalid pages remain available but cannot authorize layout filtering.
+
+    Execution flow:
+    1. Collect visitor text fragments and their text-matrix vertical coordinates.
+    2. Group fragments sharing a baseline into candidate source lines.
+    3. Return native text, line positions, page bounds and rotation for later conservative filtering.
+
+    Failure cases:
+    - Unsupported visitor extraction falls back to plain native text with no position evidence.
+
+    Side effects:
+    - Reads one PDF page in memory and does not alter source bytes or persist extracted content.
+    """
+    fragments: list[tuple[str, float | None]] = []
+
+    def visitor_text(
+        text: str,
+        _cm: Any,
+        text_matrix: Any,
+        _font: Any,
+        _font_size: float,
+    ) -> None:
+        """Business purpose: Capture one native text fragment and its vertical source position.
+
+        Business rules:
+        - A coordinate is retained only when the text matrix exposes a finite vertical value.
+
+        Execution flow:
+        1. Ignore whitespace-only fragments.
+        2. Read the visitor text-matrix y coordinate when available.
+
+        Failure cases:
+        - Invalid matrices retain the text fragment with unknown position.
+
+        Side effects:
+        - Appends one transient fragment to the enclosing page extraction buffer.
+        """
+        if not text or not text.strip():
+            return
+        try:
+            y_position = float(text_matrix[5])
+        except (IndexError, TypeError, ValueError):
+            y_position = None
+        fragments.append((text, y_position))
+
+    try:
+        native_text = page.extract_text(visitor_text=visitor_text) or ""
+    except (TypeError, AttributeError):
+        native_text = page.extract_text() or ""
+        fragments = []
+
+    positioned_fragments = [
+        (text, y_position)
+        for text, y_position in fragments
+        if y_position is not None
+    ]
+    positioned_fragments.sort(key=lambda item: -item[1])
+    grouped: list[tuple[float, list[str]]] = []
+    for text, y_position in positioned_fragments:
+        if grouped and abs(grouped[-1][0] - y_position) <= 2.5:
+            grouped[-1][1].append(text)
+        else:
+            grouped.append((y_position, [text]))
+    positioned_lines = [
+        ("".join(parts).strip(), y_position)
+        for y_position, parts in grouped
+        if "".join(parts).strip()
+    ]
+
+    try:
+        bounds = page.mediabox
+        lower_y = float(bounds.lower_left[1])
+        upper_y = float(bounds.upper_right[1])
+        rotation = int(page.rotation or 0) % 360
+        if upper_y <= lower_y:
+            lower_y = upper_y = 0.0
+    except (AttributeError, IndexError, TypeError, ValueError):
+        lower_y = upper_y = 0.0
+        rotation = 1
+    return native_text, positioned_lines, lower_y, upper_y, rotation
+
+
+def _pdf_layout_noise_keys(
+    pages: list[tuple[str, list[tuple[str, float]], float, float, int]],
+) -> list[set[str]]:
+    """Business purpose: Identify only strongly corroborated PDF publication headers and printed page numbers.
+
+    Business rules:
+    - A candidate must be a complete positioned line in the top or bottom 12 percent of an unrotated page.
+    - Gazette mastheads require an exact issue/date form or repetition across pages; page numbers require a consistent page-to-print-number sequence.
+    - Top-margin numbers also require an identified publication masthead on that page, protecting provision numbering near page starts.
+    - Legal wording elsewhere, partial lines and all OCR-only text are preserved.
+
+    Execution flow:
+    1. Normalize complete positioned lines and map them to page-margin locations.
+    2. Select exact gazette mastheads supported by their form or repeated occurrence.
+    3. Select margin page numbers only when multiple pages establish a consistent sequence.
+    4. Return per-page exact line keys for removal from native text.
+
+    Failure cases:
+    - Missing geometry, page rotation, non-margin placement or inconsistent sequence yields no removal authorization.
+
+    Side effects:
+    - Computes transient filtering evidence only; the original PDF bytes and stored pages remain unchanged.
+    """
+    candidates: list[list[tuple[str, float, str]]] = []
+    masthead_pages: dict[str, set[int]] = {}
+    for page_index, (_text, lines, lower_y, upper_y, rotation) in enumerate(pages):
+        page_candidates: list[tuple[str, float, str]] = []
+        height = upper_y - lower_y
+        if rotation == 0 and height > 0:
+            for line, y_position in lines:
+                key = " ".join(unicodedata.normalize("NFC", line).upper().split())
+                fraction = (y_position - lower_y) / height
+                margin = "top" if fraction >= 0.88 else "bottom" if fraction <= 0.12 else ""
+                if not margin:
+                    continue
+                if _PDF_GAZETTE_MASTHEAD.fullmatch(key):
+                    page_candidates.append((key, fraction, "masthead"))
+                    masthead_pages.setdefault(key, set()).add(page_index)
+                elif _PDF_PAGE_NUMBER.fullmatch(key):
+                    page_candidates.append((key, fraction, margin))
+        candidates.append(page_candidates)
+
+    removal_keys = [set() for _ in pages]
+    for page_index, page_candidates in enumerate(candidates):
+        for key, _fraction, kind in page_candidates:
+            if kind != "masthead":
+                continue
+            has_issue_identity = bool(re.search(r"/\s*SỐ\s+\d+\s*/\s*NGÀY\s+", key))
+            if has_issue_identity or len(masthead_pages.get(key, set())) >= 2:
+                removal_keys[page_index].add(key)
+
+    numbered: list[tuple[int, int, str]] = []
+    for page_index, page_candidates in enumerate(candidates):
+        for key, fraction, margin in page_candidates:
+            if _PDF_PAGE_NUMBER.fullmatch(key):
+                numbered.append((page_index, int(key), margin))
+    for page_index, page_number, margin in numbered:
+        if margin == "top" and not any(
+            kind == "masthead" and fraction >= 0.88
+            for _key, fraction, kind in candidates[page_index]
+        ):
+            continue
+        consistent_peer = any(
+            peer_page != page_index
+            and peer_margin == margin
+            and page_number - page_index == peer_number - peer_page
+            for peer_page, peer_number, peer_margin in numbered
+        )
+        if consistent_peer:
+            line_key = next(
+                key
+                for key, _fraction, candidate_margin in candidates[page_index]
+                if candidate_margin == margin and _PDF_PAGE_NUMBER.fullmatch(key)
+                and int(key) == page_number
+            )
+            removal_keys[page_index].add(line_key)
+    return removal_keys
+
+
+def _remove_positionally_confirmed_pdf_lines(text: str, keys: set[str]) -> str:
+    """Business purpose: Remove only exact native-text lines authorized by PDF layout evidence.
+
+    Business rules:
+    - A source line is removed only when its full normalized text matches a positioned margin candidate exactly once on that page.
+    - Text order, punctuation and all nonmatching legal wording remain unchanged.
+
+    Execution flow:
+    1. Normalize each native line solely for exact candidate comparison.
+    2. Count matching candidates and retain duplicate matches to protect possible body quotations.
+    3. Join remaining source lines in their original order.
+
+    Failure cases:
+    - Empty candidate sets or duplicate matching lines preserve the original page text.
+
+    Side effects:
+    - Produces filtered extracted text in memory; original PDF bytes and other pages are untouched.
+    """
+    if not keys:
+        return text
+    lines = text.splitlines()
+    normalized = [
+        " ".join(unicodedata.normalize("NFC", line).upper().split())
+        for line in lines
+    ]
+    counts = {key: normalized.count(key) for key in keys}
+    return "\n".join(
+        line
+        for line, key in zip(lines, normalized, strict=True)
+        if key not in keys or counts.get(key, 0) != 1
+    )
+
+
 def _pdf_pages(data: bytes) -> tuple[list[str], bool]:
     """Business purpose: Read legal PDF text with bounded pagination and OCR for image-bearing pages lacking text.
 
@@ -862,7 +1067,7 @@ def _pdf_pages(data: bytes) -> tuple[list[str], bool]:
     - OCR applies only to text-empty pages with images; genuinely blank pages remain empty for gap reporting.
     Execution flow:
     1. Load the PDF and validate encryption/page limits.
-    2. Extract native text from every page.
+    2. Extract native text and remove only positionally confirmed publication mastheads/page numbers.
     3. OCR selected scanned pages and return the page texts with an OCR-used flag.
     Failure cases:
     - Missing parser, invalid/encrypted/oversized PDF or supported parser/OCR failures raise EXTRACTION_FAILED; empty pages are not fabricated.
@@ -880,13 +1085,21 @@ def _pdf_pages(data: bytes) -> tuple[list[str], bool]:
             raise ExtractionError("EXTRACTION_FAILED")
         if len(reader.pages) > MAX_PDF_PAGES:
             raise ExtractionError("EXTRACTION_FAILED")
-        pages = [page.extract_text() or "" for page in reader.pages]
+        page_records = [_pdf_native_page_text(page) for page in reader.pages]
+        noise_keys = _pdf_layout_noise_keys(page_records)
+        pages = [
+            _remove_positionally_confirmed_pdf_lines(record[0], noise_keys[index])
+            for index, record in enumerate(page_records)
+        ]
         # Empty text on an image-bearing page needs OCR; a genuinely blank page remains an explicit gap.
         scanned = [number for number, page in enumerate(reader.pages, start=1)
                    if not pages[number - 1].strip() and len(page.images)]
         if scanned:
             for number, text in _ocr_pdf_pages(data, scanned).items():
-                pages[number - 1] = text
+                pages[number - 1] = _remove_positionally_confirmed_pdf_lines(
+                    text,
+                    noise_keys[number - 1],
+                )
         return pages, bool(scanned)
     except ExtractionError:
         raise

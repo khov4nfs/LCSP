@@ -345,6 +345,88 @@ class PinnedSourceGraph:
         """
         return self.locator_nodes.get((document_id, locator))
 
+    def is_retrieval_only_structure(self, node_id, content=None):
+        """Identify text that belongs only to document structure for ordinary retrieval projections.
+
+        Business purpose: Keep document-root prefaces and heading-only source nodes out of ordinary search while preserving their source nodes and review coverage.
+
+        Business rules:
+        - A document root with structural children is not an ordinary provision result; its own unclassified text remains stored and reviewable.
+        - Other structural nodes qualify only when all content is their recorded heading label/title, with no body text.
+        - Unclassified chunks, substantive unstructured blocks, and uncertain heading matches remain retrievable; only front-matter-only unstructured nodes are excluded.
+
+        Execution flow:
+        1. Read the supplied chunk text or the node's content and normalize its non-empty lines.
+        2. Exclude document-root text only when the node has structural children.
+        3. Compare structural node label/title against the entire one-line heading or two-line heading/title body.
+
+        Failure cases:
+        - Invalid node IDs propagate lookup errors; unsupported types and non-exact matches remain eligible for retrieval.
+
+        Side effects:
+        - None: this projection predicate does not change graph nodes, legal status, or review coverage.
+        """
+        node = self.nodes[node_id]
+        text = content if content is not None else node.get("content", "")
+        lines = [
+            re.sub(r"^\s*#{1,6}\s+", "", line).strip()
+            for line in text.strip().splitlines()
+            if line.strip()
+        ]
+        if (
+            content is None
+            and node["nodeType"] == "DOCUMENT"
+            and self.children.get(node_id)
+        ):
+            return True
+        if content is None and node["nodeType"] == "UNSTRUCTURED_BLOCK":
+            chunk_ids = self.chunk_ids.get(node_id, [])
+            if chunk_ids and all(
+                str(self.chunks[cid].get("locator", "")).split("::part-", 1)[0]
+                == "front-matter"
+                for cid in chunk_ids
+            ):
+                return True
+        structural_types = {
+            "ARTICLE",
+            "CHAPTER",
+            "CLAUSE",
+            "ITEM",
+            "PARAGRAPH",
+            "PART",
+            "POINT",
+            "SCHEDULE",
+            "SECTION",
+            "SUBCHAPTER",
+            "SUBPARAGRAPH",
+            "SUBSECTION",
+            "TABLE",
+            "TITLE",
+            "ANNEX",
+        }
+        if node["nodeType"] not in structural_types or not 1 <= len(lines) <= 2:
+            return False
+        title = str(node.get("title", "")).strip()
+        if title:
+            if len(lines) == 1 and lines[0].casefold().endswith(title.casefold()):
+                heading = lines[0][: -len(title)].strip()
+            elif len(lines) == 2 and lines[1].casefold() == title.casefold():
+                heading = lines[0]
+            else:
+                return False
+        elif len(lines) == 1:
+            heading = lines[0]
+        else:
+            return False
+        label = re.escape(str(node["label"]))
+        return bool(
+            re.search(
+                r"(?<![\w])" + label + r"(?![\w])\s*[.:-]?\s*$",
+                heading,
+                re.I,
+            )
+        )
+
     def review_node_ids(self):
         """Business purpose: Reuse the set of pinned legal nodes requiring primary review.
 
@@ -595,10 +677,11 @@ class PinnedSourceGraph:
 
         Business rules:
         - BM25 ranking is a retrieval aid and cannot establish a legal obligation or semantic conclusion.
+        - Document-root text outside recognized hierarchy and exact heading-only nodes are omitted from the returned search projection.
         - Equal scores use node identity for deterministic ordering.
         Execution flow:
         1. Tokenize the query and score matching postings using source length statistics.
-        2. Rank candidate identities and return their bounded page.
+        2. Exclude retrieval-only structure, rank remaining candidate identities, and return their bounded page.
         Failure cases:
         - No lexical matches returns an empty pinned result; incomplete returned bodies retain truncation metadata.
         Side effects:
@@ -611,7 +694,10 @@ class PinnedSourceGraph:
             inverse = math.log(1 + (total - len(posting) + 0.5) / (len(posting) + 0.5))
             for node_id, frequency in posting.items():
                 scores[node_id] += inverse * frequency * 2.2 / (frequency + 1.2 * (0.25 + 0.75 * self.lengths[node_id] / self.average_length))
-        ids = sorted(scores, key=lambda nid: (-scores[nid], nid))
+        ids = sorted(
+            (nid for nid in scores if not self.is_retrieval_only_structure(nid)),
+            key=lambda nid: (-scores[nid], nid),
+        )
         return self.bounded_nodes(ids, limit=limit, offset=offset)
 
     def inspect(self, node_id, traversal, limit, offset):
@@ -620,10 +706,11 @@ class PinnedSourceGraph:
         Business rules:
         - Only supported traversal kinds are accepted; unresolved reference targets retain reference metadata.
         - Chunks and retrieval units share the page's character allowance and report truncation.
+        - CHUNKS retrieval omits formal preambles and retrieval-only structure; retained UNCLASSIFIED chunks keep their hierarchy marker and unresolved status.
         Execution flow:
         1. Verify the requested node exists.
-        2. Select chunk/reference pages or structural neighbors for the requested traversal.
-        3. Return bounded source content and pagination/provenance metadata.
+        2. Select chunk/reference pages or structural neighbors, filtering only retrieval-only structural text from CHUNKS.
+        3. Return bounded source content and pagination/provenance metadata without changing review coverage.
         Failure cases:
         - Unrecognized nodes return NODE_NOT_IN_PINNED_SOURCE; unsupported traversal returns INVALID_STRUCTURAL_TRAVERSAL; cyclic ancestors fail explicitly.
         Side effects:
@@ -633,7 +720,27 @@ class PinnedSourceGraph:
             return {**self.base(), "error": "NODE_NOT_IN_PINNED_SOURCE"}
         node = self.nodes[node_id]
         if traversal == "CHUNKS":
-            ids = [cid for nid in [node_id, *self.ancestors(node_id)] for cid in self.chunk_ids.get(nid, [])]
+            chunk_entries = []
+            for owner_id in [node_id, *self.ancestors(node_id)]:
+                for cid in self.chunk_ids.get(owner_id, []):
+                    chunk = self.chunks[cid]
+                    hierarchy = chunk.get("hierarchy")
+                    is_unclassified = (
+                        isinstance(hierarchy, dict)
+                        and hierarchy.get("structureClassification")
+                        == "UNCLASSIFIED"
+                    )
+                    locator = str(chunk.get("locator", "")).split(
+                        "::part-", 1
+                    )[0]
+                    if locator != "front-matter" and (
+                        is_unclassified
+                        or not self.is_retrieval_only_structure(
+                            owner_id, chunk.get("content", "")
+                        )
+                    ):
+                        chunk_entries.append((cid, owner_id))
+            ids = [cid for cid, _ in chunk_entries]
             chunks = []
             budget = MAX_CHARACTERS
             for cid in ids[offset:offset + limit]:
@@ -641,7 +748,11 @@ class PinnedSourceGraph:
                 content = chunk["content"][:budget]
                 budget -= len(content)
                 chunks.append({**chunk, "content": content, "truncated": len(content) < len(chunk["content"])})
-            units = self.units.get(node_id, [])
+            units = (
+                []
+                if self.is_retrieval_only_structure(node_id)
+                else self.units.get(node_id, [])
+            )
             page = []
             for unit in units[offset:offset + limit]:
                 content = unit["content"][:budget]
