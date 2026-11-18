@@ -24,6 +24,7 @@ from middleware.failure_policy import (
     is_provider_quota_exhaustion,
     is_provider_refusal,
     is_provider_route_incompatibility,
+    is_retryable_provider_interruption,
     is_structured_output_rejection,
     is_terminal_task_error,
 )
@@ -217,6 +218,7 @@ def _exhaustion_error(errors: list[BaseException]) -> BaseException:
     Business rules:
     - If every route failed structured-output validation, retain the first structured-output rejection.
     - If every route refused the sample, retain the first refusal so outer model retry can resample.
+    - Uniform overload or silent-stream failures retain their last cause for bounded retry instead of reporting dead credentials.
     - Mixed or other failures become a terminal credential-route exhaustion error.
 
     Execution flow:
@@ -236,6 +238,8 @@ def _exhaustion_error(errors: list[BaseException]) -> BaseException:
     # instead of a terminal "exhausted" that no retry may follow.
     if errors and all(is_provider_refusal(error) for error in errors):
         return errors[0]
+    if errors and all(is_retryable_provider_interruption(error) for error in errors):
+        return errors[-1]
     return TerminalCredentialError("All configured LLM provider routes exhausted; task stopped")
 
 

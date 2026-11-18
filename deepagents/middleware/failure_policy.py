@@ -66,6 +66,12 @@ class TerminalCredentialError(RuntimeError):
     """Every configured credential has failed; do not retry the list."""
 
 
+class ProviderFirstOutputTimeout(TimeoutError):
+    """The provider stream produced no model output before its startup deadline."""
+
+    code = "provider_first_output_timeout"
+
+
 class TerminalSchemaError(ValueError):
     """Structured output repair would repeat a failed task."""
 
@@ -239,6 +245,34 @@ def is_auth_failure(error: BaseException) -> bool:
     but it is not a terminal task error: credential and provider fallback may continue.
     """
     return error_status(error) in _AUTH_FAILURE_STATUSES or _is_credential_model_error(error)
+
+
+def is_retryable_provider_interruption(error: BaseException) -> bool:
+    """Business purpose: Retain recoverable overload and silent-stream failures for bounded model retry.
+
+    Business rules:
+    - Authentication and quota failures do not qualify; HTTP 529 and structured overloaded_error qualify even after an SSE HTTP 200.
+    - A selected-rule first-output timeout qualifies without treating every credential exhaustion as recoverable.
+    Execution flow:
+    1. Exclude authentication and quota rejection.
+    2. Check the stream error code/status, then walk causes for the typed first-output timeout.
+    Failure cases:
+    - Unrecognized exception types return false; authentication and depleted-quota rejections never gain retry permission from a nested overload code.
+    Side effects:
+    - Pure exception classification; no inference, credential health changes or persistence.
+    """
+    if is_auth_failure(error) or is_provider_quota_exhaustion(error):
+        return False
+    if error_status(error) == 529 or "overloaded_error" in _error_codes(error):
+        return True
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, ProviderFirstOutputTimeout):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def is_provider_capacity_failure(error: BaseException) -> bool:

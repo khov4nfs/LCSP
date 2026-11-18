@@ -1,6 +1,8 @@
 """Keep reported start usage when an Anthropic-compatible stream omits final fields."""
 from __future__ import annotations
 
+import asyncio
+from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
@@ -8,6 +10,7 @@ from typing import Any
 from langchain.chat_models import init_chat_model as native_init_chat_model
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages.ai import UsageMetadata, subtract_usage
+from middleware.failure_policy import ProviderFirstOutputTimeout
 
 
 @dataclass
@@ -17,6 +20,28 @@ class _StreamUsage:
 
 
 _stream_usage: ContextVar[_StreamUsage | None] = ContextVar("anthropic_stream_usage", default=None)
+_first_output_timeout: ContextVar[float | None] = ContextVar("anthropic_first_output_timeout", default=None)
+
+
+@contextmanager
+def anthropic_first_output_timeout(seconds: float):
+    """Business purpose: Give selected-rule inference a scoped deadline for the first generated output.
+
+    Business rules:
+    - Only the current async context inherits this deadline; unrelated model roles retain their configured transport policy.
+    Execution flow:
+    1. Bind the startup timeout for this inference scope.
+    2. Restore the preceding scope after success, failure or cancellation.
+    Failure cases:
+    - Exceptions propagate without leaving a timeout override on another invocation.
+    Side effects:
+    - Sets and restores one context variable; no model calls or persistence.
+    """
+    token = _first_output_timeout.set(seconds)
+    try:
+        yield
+    finally:
+        _first_output_timeout.reset(token)
 
 
 class UsagePreservingChatAnthropic(ChatAnthropic):
@@ -47,22 +72,34 @@ class UsagePreservingChatAnthropic(ChatAnthropic):
 
         Business rules:
         - Each asynchronous stream receives its own usage accumulator; usage must not leak across concurrent calls.
+        - A scoped startup deadline ignores empty metadata/usage chunks and stops applying once model content or tool-call output begins.
 
         Execution flow:
         1. Bind the stream accumulator, yield native asynchronous chunks, and restore context when the iterator closes.
 
         Failure cases:
-        - Provider failures and cancellation propagate with context cleanup in the finally block.
+        - A silent startup raises ProviderFirstOutputTimeout for bounded retry; provider failures and cancellation retain context cleanup.
 
         Side effects:
         - Sets and restores stream-local context and delegates provider I/O to the native client.
         """
         token = _stream_usage.set(_StreamUsage())
+        stream = super()._astream(*args, **kwargs)
         try:
-            async for chunk in super()._astream(*args, **kwargs):
-                yield chunk
+            async with asyncio.timeout(_first_output_timeout.get()) as startup:
+                async for chunk in stream:
+                    if startup.when() is not None and (chunk.message.content or chunk.message.tool_call_chunks):
+                        startup.reschedule(None)
+                    yield chunk
+        except TimeoutError as error:
+            if startup.expired():
+                raise ProviderFirstOutputTimeout("Provider stream produced no model output before its startup deadline") from error
+            raise
         finally:
-            _stream_usage.reset(token)
+            try:
+                await stream.aclose()
+            finally:
+                _stream_usage.reset(token)
 
     def _make_message_chunk_from_anthropic_event(self, event, **kwargs):
         """Business purpose: Retain Anthropic input/cache usage across partial events and emit additive usage deltas for accounting.
