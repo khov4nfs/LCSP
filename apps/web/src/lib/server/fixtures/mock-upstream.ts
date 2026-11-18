@@ -1,3 +1,9 @@
+import {
+  AUTH_ACCOUNT_STATUSES,
+  AUTH_AUDIT_EVENT_TYPES,
+} from "@lcsp/contracts/auth";
+import { PROVIDER_CREDENTIAL_STATUSES } from "@lcsp/contracts/github-integration";
+
 import { readMockJson } from "./response";
 import type {
   UpstreamBinaryResult,
@@ -5,12 +11,26 @@ import type {
   UpstreamRequestResult,
 } from "../upstream-request";
 
+/**
+ * Business purpose: Supply deterministic upstream responses for explicitly enabled mock sessions.
+ * Business rules:
+ * - The caller must gate fixture dispatch on mock mode; these responses do not prove live state.
+ * - Use canonical account, audit and provider credential values for their respective payloads.
+ * Execution flow:
+ * 1. Match the upstream path and select its fixture projection, including the mock actor role.
+ * 2. Return a success envelope for a matching fixture or null for an unhandled path.
+ * Failure cases:
+ * - Missing or invalid JSON fixtures reject the request; unhandled paths remain available to upstream fetch.
+ * Side effects:
+ * - Read-only fixture loading; no accounts, sessions or other backend state are changed.
+ */
 export async function getMockUpstreamResponse(
   path: string | URL,
   init: UpstreamRequestInit = {},
 ): Promise<UpstreamRequestResult | null> {
   const pathStr = typeof path === "string" ? path : path.pathname + path.search;
-  const pathname = typeof path === "string" ? path.split("?")[0] : path.pathname;
+  const pathname =
+    typeof path === "string" ? path.split("?")[0] : path.pathname;
 
   // 1. Auth Profile
   if (pathname === "/auth/profile") {
@@ -84,7 +104,7 @@ export async function getMockUpstreamResponse(
       recentActivity: [
         {
           id: "evt-1",
-          eventType: "AUTH_ADMIN_USER_SUSPENDED",
+          eventType: AUTH_AUDIT_EVENT_TYPES.authAdminUserSuspended,
           actionKey: "pages.admin.overview.recentActivity.suspendedAccount",
           occurredAt: "2026-09-11T10:24:00.000Z",
           adminEmail: "admin@example.com",
@@ -130,7 +150,7 @@ export async function getMockUpstreamResponse(
           fullName: "Alice Admin",
           email: "alice@company.com",
           role: "ADMIN",
-          status: "ACTIVE",
+          status: AUTH_ACCOUNT_STATUSES.active,
           createdAt: "2026-01-01T00:00:00.000Z",
           lastActiveAt: "2026-09-09T00:00:00.000Z",
           assessmentCount: 10,
@@ -140,7 +160,7 @@ export async function getMockUpstreamResponse(
           fullName: "Bob Customer",
           email: "bob@client.io",
           role: "CUSTOMER",
-          status: "ACTIVE",
+          status: AUTH_ACCOUNT_STATUSES.active,
           createdAt: "2026-02-01T00:00:00.000Z",
           lastActiveAt: "2026-11-10T00:00:00.000Z",
           assessmentCount: 3,
@@ -150,7 +170,7 @@ export async function getMockUpstreamResponse(
           fullName: "Lifecycle Test User",
           email: "lcsp299@example.com",
           role: "CUSTOMER",
-          status: "ACTIVE",
+          status: AUTH_ACCOUNT_STATUSES.active,
           createdAt: "2026-09-01T00:00:00.000Z",
           lastActiveAt: null,
           assessmentCount: 0,
@@ -373,8 +393,13 @@ export async function getMockUpstreamResponse(
     const workspaceMock = await readMockJson<{
       detail: Record<string, unknown>;
     }>("enterprise-legal-compliance-workspace.json");
-    const { owner_id, case: _, usage, correlationId, ...item } =
-      workspaceMock.detail;
+    const {
+      owner_id,
+      case: _,
+      usage,
+      correlationId,
+      ...item
+    } = workspaceMock.detail;
     return okResult({
       assessments: [item],
       total: 1,
@@ -409,7 +434,9 @@ export async function getMockUpstreamResponse(
       return okResult({ available: false, run: null });
     }
     if (pathname.includes("/repository-setup")) {
-      return okResult((workspaceMock as Record<string, unknown>).repositorySetup);
+      return okResult(
+        (workspaceMock as Record<string, unknown>).repositorySetup,
+      );
     }
     if (pathname.includes("/report")) {
       const wire = await readMockJson<{
@@ -475,7 +502,7 @@ export async function getMockUpstreamResponse(
       {
         provider: "GITHUB",
         configured: true,
-        status: "ACTIVE",
+        status: PROVIDER_CREDENTIAL_STATUSES.active,
         account: "enterprise-org",
       },
       {
@@ -604,8 +631,9 @@ export async function getMockUpstreamBinaryResponse(
   }
 
   if (pathStr.includes(".pdf")) {
-    const body = new TextEncoder().encode("%PDF-1.4 mock pdf content %%EOF")
-      .buffer;
+    const body = new TextEncoder().encode(
+      "%PDF-1.4 mock pdf content %%EOF",
+    ).buffer;
     return {
       body,
       result: null,

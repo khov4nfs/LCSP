@@ -55,13 +55,14 @@ export function upstreamUrl(path: string): URL {
  *
  * Business rules:
  * - Automatically injects bearer authorization and locale headers when provided.
- * - When mock mode is enabled, intercepts matching paths before network attempts.
+ * - Only explicit mock mode may intercept matching paths before network attempts.
+ * - Live upstream failures must remain failures rather than returning fixture data.
  *
  * Execution flow:
  * 1. Prepare request headers with bearer tokens and display locale.
  * 2. Check mock mode dispatcher and return mock envelope if available.
  * 3. Perform network fetch to configured upstream base URL.
- * 4. Return result envelope or fallback mock / service unavailable envelope on connection failure.
+ * 4. Return the result envelope or a service unavailable envelope on connection failure.
  *
  * Failure cases:
  * - Unreachable upstream services return 503 UpstreamUnavailable problem envelopes.
@@ -99,10 +100,6 @@ export async function upstreamRequest(
   ).catch(() => null);
 
   if (response === null) {
-    const mock = await getMockUpstreamResponse(path, init);
-    if (mock) {
-      return mock;
-    }
     const result = problemEnvelope(SHARED_ERROR_CODES.upstreamUnavailable, 503);
     return {
       result,
