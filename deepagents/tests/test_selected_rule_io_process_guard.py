@@ -42,15 +42,15 @@ def test_packaged_skill_copies_and_development_overlay_match_runtime_registry():
     assert "QUY TRÌNH" in text("skills/rule-preparation-actor-stage/SKILL.vi.md")
 
 
-def test_output_schema_rejects_evidence_first_instruction_semantics():
+def test_generated_output_schema_preserves_existing_evidence_contract():
+    # The JSON schema is code-generated from Zod. Instruction wording must not
+    # change these validated fields or introduce new compulsory file artifacts.
     schema = json.loads(text("rule_set_preparation/selected-output.schema.json"))
     rule = schema["properties"]["assessmentRules"]["items"]["properties"]
-    for name in ("investigationGoals", "requiredEvidence"):
-        desc = rule[name]["description"]
-        assert "INPUT" in desc and "OUTPUT" in desc or "developer" in desc
-        assert "not" in desc.lower()
+    assert rule["investigationGoals"]["type"] == "array"
+    assert rule["requiredEvidence"]["type"] == "array"
     focus = rule["criteria"]["items"]["properties"]["investigationFocus"]["description"]
-    assert all(x in focus for x in ("INPUT", "OUTPUT", "PROCESS"))
+    assert "investigation strategy" in focus.lower()
 
 
 def test_inventory_instruction_loading_requires_no_manual_approval_or_instruction_sha():

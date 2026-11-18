@@ -447,7 +447,7 @@
                   "minLength": 1
                 },
                 "investigationFocus": {
-                  "description": "Optional narrower repository investigation focus for an actual, pinned developer obligation after checking its INPUT trigger, required/prohibited OUTPUT and responsible PROCESS step. Never treat an external report or inspection record as a mandatory software output or legal predicate; this field is evidence strategy only, not a new obligation, exception or threshold.",
+                  "description": "Optional narrower evidence focus within the inherited normative statement, such as one storage surface or control. An investigation strategy, never a replacement legal predicate or a new obligation, exception or threshold.",
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 8000
@@ -460,7 +460,6 @@
             }
           },
           "investigationGoals": {
-            "description": "Repository investigation steps only for a source-supported, repository-verifiable developer obligation. Check INPUT triggers, actual OUTPUT requirements/prohibitions and the responsible PROCESS step before proposing any goal. Not a legal mandate to create a report, file, API or monitoring process; do not use for purely external/public-authority acts or duplicate the same duty by alternative evidence paths.",
             "maxItems": 64,
             "type": "array",
             "items": {
@@ -599,7 +598,6 @@
             }
           },
           "requiredEvidence": {
-            "description": "Suggested kinds of evidence for the specific developer-controlled behavior already required by a pinned proposition, not additional legal obligations, required software outputs or a claim that missing repository documents prove noncompliance. Separate repository evidence from actual external organizational performance; preserve alternative legal methods as alternatives.",
             "maxItems": 64,
             "type": "array",
             "items": {
