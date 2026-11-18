@@ -46,11 +46,18 @@ def clear_runtime_bundle_cache() -> None:
 
 
 def production_runtime_bundle(*, fresh: bool = False) -> "ApprovedEnglishRuntimeBundle":
-    """Load EN instructions directly from the registered paths; no approval or SHA gate.
+    """Business purpose: Load registered EN model instructions without approval or SHA checks.
 
-    Every selected-rule invocation receives a fresh, context-pinned snapshot.
-    Missing/invalid/unregistered inputs fail closed rather than fall back.
-    Changing an instruction file requires neither a reviewer nor a checksum update.
+    Business rules:
+    - Use only inventory-registered VI/EN paths; neither approval nor content hash gates loading.
+    - Process caching and run-local snapshots preserve stable text during a model invocation.
+    Execution flow:
+    1. Resolve the registered instruction paths and reject incomplete or duplicate identities.
+    2. Read non-empty UTF-8 source and runtime text, then create the immutable run view.
+    Failure cases:
+    - Missing, empty, unsafe, malformed or unregistered assets fail closed.
+    Side effects:
+    - Read instruction files and optionally cache a process-scoped bundle.
     """
     global _RUNTIME_BUNDLE_CACHE
     scoped = _SCOPED_RUNTIME_BUNDLE.get()
@@ -190,7 +197,18 @@ def _safe_relative_path(value: object, code: str) -> Path:
 
 
 def _read_asset(root: Path, relative: object, code: str) -> bytes:
-    """Read registered UTF-8 instruction text without any hash validation."""
+    """Business purpose: Read one trusted-path instruction file without a checksum.
+
+    Business rules:
+    - Resolve paths within the configured root and require non-empty valid UTF-8 text.
+    Execution flow:
+    1. Normalize the relative path and resolve it under the trusted asset root.
+    2. Read and validate the exact text bytes.
+    Failure cases:
+    - Missing, empty, invalid-encoding or escaping paths are rejected.
+    Side effects:
+    - Read one file without changing filesystem or runtime state.
+    """
     resolved_root = root.resolve()
     path = (resolved_root / _safe_relative_path(relative, code)).resolve()
     if not path.is_relative_to(resolved_root):

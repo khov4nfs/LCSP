@@ -39,7 +39,7 @@ def test_selected_run_system_prompt_separates_supervision_from_developer_duty():
         "NON_ASSESSABLE",
         "nonRepositoryDuty=true",
         "requiredEvidence",
-        "investigationGoals",
+        "investigationGoal",
         "no AssessmentRule",
     ):
         assert phrase.lower() in en.lower()

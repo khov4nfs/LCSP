@@ -15,12 +15,26 @@ SCHEMA_VERSION = "LCSP_EN_RUNTIME_BUNDLE_V1"
 
 
 def _read_utf8(root: Path, raw: object, code: str) -> str:
+    """Business purpose: Validate one registered source or English instruction asset.
+
+    Business rules:
+    - No approval or checksum is required; files must be non-empty UTF-8.
+    Execution flow:
+    1. Resolve the path beneath the given asset root.
+    2. Validate UTF-8 content and return the relative path.
+    Failure cases:
+    - Missing, invalid, empty or unsafe paths fail closed with a stable error.
+    Side effects:
+    - Read one file; do not mutate its contents.
+    """
     if not isinstance(raw, str) or not raw:
         raise RuntimeInstructionBundleError(code)
     from instruction_source_inventory import safe_path
     try:
         path = safe_path(root, raw)
         content = path.read_text(encoding="utf-8")
+    except RuntimeInstructionBundleError:
+        raise
     except (OSError, UnicodeError, ValueError, TypeError) as error:
         raise RuntimeInstructionBundleError(code) from error
     if not content.strip():
@@ -29,7 +43,19 @@ def _read_utf8(root: Path, raw: object, code: str) -> str:
 
 
 def compile_candidate(source_root: Path, inventory_path: Path, output_path: Path) -> dict[str, Any]:
-    """Create a reproducible list of VI/EN instruction paths, without approval or hashes."""
+    """Business purpose: Produce a complete VI/EN instruction asset registry.
+
+    Business rules:
+    - Human sign-off and SHA-256 are not prerequisites for instruction updates.
+    - Duplicate IDs, missing text, bad encoding and unsafe paths are prohibited.
+    Execution flow:
+    1. Validate registered identities and resolve Vietnamese and English asset paths.
+    2. Write a deterministic manifest containing paths, not hashes or approval records.
+    Failure cases:
+    - Invalid inventory, missing required assets or mismatched source sets reject output.
+    Side effects:
+    - Persist the generated registry file, without editing instruction sources.
+    """
     try:
         inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:

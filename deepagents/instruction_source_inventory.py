@@ -221,8 +221,17 @@ def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, r
     if owned_files - paths:
         raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_UNREGISTERED_FILE")
     declared = payload["constructionSites"]
-    current = {site["siteId"]: site for site in discover(root)}
-    if set(current) != {site["siteId"] for site in declared} or len(declared) != len(current):
+    # Instruction edits do not require a checksum/approval revision. Audit
+    # construction *surfaces*, not hashes of their text or source-line numbers.
+    # New, removed or reclassified model-facing consumers remain a hard error.
+    def surface_counts(sites: list[dict]) -> Counter:
+        return Counter(
+            (site["filePath"], site["symbolName"], site.get("astKind", "LEGACY_LINE"))
+            for site in sites
+        )
+
+    current = discover(root)
+    if surface_counts(current) != surface_counts(declared):
         raise RuntimeInstructionBundleError("INSTRUCTION_CONSTRUCTION_COVERAGE_DRIFT")
     required = {"constructionType", "modelFacingConsumer", "runtimeRole", "runtimePhase", "contentAuthority", "migrationDecision", "viSourceId", "existingSourcePath", "placeholderSchema", "migrationStatus"}
     for site in declared:

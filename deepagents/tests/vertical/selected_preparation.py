@@ -28,6 +28,19 @@ def main():
         asset = Path(directory, "instructions/candidates/r1/preparation.selected.txt")
         asset.parent.mkdir(parents=True)
         asset.write_text("Stale process-cached instruction", encoding="utf-8")
+        vi_source = Path(directory, "instructions/vi/preparation-selected.md")
+        vi_source.parent.mkdir(parents=True, exist_ok=True)
+        vi_source.write_text("Nguồn hướng dẫn tiếng Việt", encoding="utf-8")
+        (Path(directory) / "instructions/inventory.json").write_text(json.dumps({
+            "schemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
+            "bundleId": "selected-vertical-fixture",
+            "requiredSourceIds": ["preparation.selected"],
+            "entries": [{
+                "sourceId": "preparation.selected",
+                "vietnameseSourcePath": "instructions/vi/preparation-selected.md",
+                "englishCandidatePath": "instructions/candidates/r1/preparation.selected.txt",
+            }],
+        }), encoding="utf-8")
         instructions.clear_runtime_bundle_cache()
         stale = instructions.production_runtime_bundle()
         asset.write_text(f"Selected preparation instruction {revision}", encoding="utf-8")
