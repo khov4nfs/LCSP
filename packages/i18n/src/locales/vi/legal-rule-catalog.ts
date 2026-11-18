@@ -158,4 +158,54 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   unresolvedContentNotice:
     "Một phần nội dung nguồn chưa được phân loại và vẫn được giữ để rà soát pháp lý.",
   selectedDocumentFiles: "tài liệu",
+  guidance: "Hướng dẫn xử lý",
+  providerLabel: "Nhà cung cấp",
+  errorClassLabel: "Loại lỗi",
+  failureDetailsTitle: "Chuẩn bị quy tắc thất bại",
+  failureDetailsHelp: "Chi tiết nguyên nhân gián đoạn cho lần chạy này.",
+  failureCredentialTitle: "Lỗi cấu hình hoặc xác thực API",
+  failureCredentialDesc:
+    "Không thể kết nối hoặc xác thực với mô hình AI do API Key hoặc thông tin xác thực bị thiếu, không hợp lệ hoặc đã hết hạn.",
+  failureCredentialGuidance:
+    "Kiểm tra lại cấu hình biến môi trường API Key trên máy chủ hoặc liên hệ quản trị viên.",
+  failureConnectionTitle: "Lỗi kết nối tới máy chủ AI",
+  failureConnectionDesc:
+    "Hệ thống không thể kết nối tới API của nhà cung cấp AI trong thời gian cho phép.",
+  failureConnectionGuidance:
+    "Kiểm tra đường truyền mạng tới nhà cung cấp mô hình hoặc thử phân tích lại sau giây lát.",
+  failureRateLimitTitle: "Vượt giới hạn gọi API (Rate Limit / Quota)",
+  failureRateLimitDesc:
+    "Tài khoản nhà cung cấp AI tạm thời bị giới hạn tần suất yêu cầu hoặc đã hết quota token.",
+  failureRateLimitGuidance:
+    "Vui lòng đợi vài phút trước khi thử lại hoặc kiểm tra số dư hạn mức tài khoản AI.",
+  failureTimeoutTitle: "Quá thời gian chờ phản hồi từ AI",
+  failureTimeoutDesc:
+    "Mô hình AI không phản hồi kết quả trong thời gian chờ tối đa cho phép.",
+  failureTimeoutGuidance:
+    "Bấm 'Phân tích lại rule này' để thử lại hoặc tăng thời gian chờ cấu hình của mô hình.",
+  failureSchemaTitle: "Lỗi cấu trúc dữ liệu đầu ra",
+  failureSchemaDesc:
+    "Mô hình AI phản hồi dữ liệu không đúng định dạng quy chuẩn của bộ quy tắc tuân thủ.",
+  failureSchemaGuidance:
+    "Bấm 'Phân tích lại rule này' để mô hình tạo lại cấu trúc hợp lệ.",
+  failureBudgetTitle: "Vượt ngân sách thực thi mô hình",
+  failureBudgetDesc:
+    "Tiến trình đã sử dụng hết số lượt gọi mô hình hoặc token được cấp phép.",
+  failureBudgetGuidance:
+    "Kiểm tra cấu hình ngân sách thực thi của agent hoặc thử lại với quy tắc ngắn gọn hơn.",
+  failureSourceTitle: "Nguồn pháp lý chưa đủ điều kiện",
+  failureSourceDesc:
+    "Tài liệu nguồn chưa được lập chỉ mục đầy đủ, không có sẵn hoặc điều khoản trích dẫn không có hiệu lực.",
+  failureSourceGuidance:
+    "Kiểm tra lại trạng thái lập chỉ mục của nguồn pháp lý trong mục Nguồn pháp lý.",
+  failureCitationTitle: "Dẫn chiếu điều khoản không hợp lệ",
+  failureCitationDesc:
+    "Trích dẫn quy tắc bị thiếu hoặc không khớp với văn bản nguồn đã lập chỉ mục.",
+  failureCitationGuidance:
+    "Kiểm tra lại danh sách trích dẫn của quy tắc để đảm bảo locator khớp với văn bản nguồn.",
+  failureGenericTitle: "Quá trình phân tích quy tắc thất bại",
+  failureGenericDesc:
+    "Gặp sự cố trong quá trình chạy mô hình AI để trích xuất quy tắc tuân thủ.",
+  failureGenericGuidance:
+    "Bấm 'Phân tích lại rule này' để thử lại hoặc kiểm tra nhật ký hoạt động bên dưới.",
 };
