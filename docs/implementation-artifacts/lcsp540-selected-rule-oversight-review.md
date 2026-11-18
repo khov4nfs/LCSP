@@ -39,3 +39,27 @@
 - Legal gold approval: **PENDING**.
 - Live-model semantic rerun: **NOT_RUN**.
 - Production verified: **NOT_RUN**.
+
+## Điều kiện bổ sung — INPUT, OUTPUT, QUY TRÌNH
+
+**Mục tiêu:** Tách chọn nguồn để Preparation khỏi phân tích nghĩa vụ. Việc selection theo ID/filter/catalog revision chỉ xác nhận *đầu vào hợp lệ*, không xác nhận một nghĩa vụ đã áp dụng cho hệ thống cụ thể hoặc sẽ luôn sinh AssessmentRule.
+
+| Trục | Câu hỏi cần trả lời từ nguồn luật đã pin | Kết quả khi thiếu hoặc chỉ thuộc external |
+| --- | --- | --- |
+| INPUT | Nguồn điều chỉnh loại dữ liệu, yêu cầu, hệ thống, đối tượng và ngưỡng/điều kiện kích hoạt nào? Có câu dẫn cha, ngoại lệ, thời gian và AND/OR không? | Giữ điều kiện chưa biết để Assessment kiểm tra; không mặc định đúng hoặc áp rộng |
+| OUTPUT | Luật bắt buộc/cấm phần mềm trả về, hiển thị, tạo, ngăn hoặc xử lý output nào, nếu có? | Không mặc nhiên biến báo cáo, tài liệu kiểm tra hay đánh giá độc lập thành output kỹ thuật |
+| QUY TRÌNH | Ai thực hiện bước nào, ở giai đoạn nào, bằng chứng nằm trong repo hay ở tổ chức/cơ quan ngoài repo? | Giữ external duty có căn cứ theo NON_ASSESSABLE; không tạo repo rule cho thẩm quyền quản lý của Nhà nước |
+
+### Kiểm thử hành vi
+
+- **Điều 10(5)(b)**: Nếu chỉ có phương thức giám sát hệ thống rủi ro trung bình, không tự tạo output báo cáo và không sinh quy trình developer giám sát liên tục. Điều kiện rủi ro trung bình là trigger/source context, không phải trạng thái khách hàng đã được chứng minh.
+- **Positive control — design duty riêng:** nếu nguồn đã pin buộc Developer hoặc Provider thiết kế, kiểm thử hay chặn một đầu ra cụ thể dưới điều kiện đã định, giữ nghĩa vụ và sinh một AssessmentRule gọn để kiểm tra phần có thể chứng minh bằng repo; không loại chỉ vì điều khoản liên quan giai đoạn sử dụng.
+- **Mixed control:** điều khoản có cả bước design của Developer và kiểm tra ngoài repo của Deployer hoặc cơ quan; phân tách theo actor/process, không gộp ba bước thành một rule hoặc bỏ sót developer branch.
+- **Unknown input:** không có dữ kiện hệ thống khách hàng nào được đưa vào Preparation; gắn điều kiện chưa rõ, không xuất APPLICABLE/COMPLIANT/NOT_APPLICABLE.
+- **Evidence != duty:** file vắng mặt không tự chứng minh vi phạm nghĩa vụ external; file hiện diện không chứng minh hoàn tất thủ tục ngoài repo.
+
+### Ranh giới triển khai
+
+Giữ nguyên bulk/explicit selection authorization, idempotency, catalog version lock, exact legal source citations và API request contract. Thay đổi hướng dẫn và schema description chỉ ảnh hưởng cách model tạo *candidate result*; không sửa luật nguồn, không ép sửa enum, không bỏ nguồn legal/provenance. Instruction được nạp theo path/UTF-8 trực tiếp; không có manual instruction approval hay checksum gate. Các yêu cầu chứng minh legal accuracy bằng model thật vẫn tách biệt với việc chỉnh instruction.
+
+**Trạng thái xác minh:** source-level/static checks có thể phát hiện thiếu wiring; chưa chứng minh chất lượng model qua controlled negative/positive/mixed run và các expected outcomes trên phải được đối chiếu nguồn luật thực tế, không coi chính bảng này là independently reviewed legal gold.

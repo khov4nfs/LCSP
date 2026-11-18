@@ -32,3 +32,7 @@ Việc chung số Điều hoặc chung chủ đề không phải quan hệ mater
 ## Cổng xác nhận chủ thể trong câu bị động
 
 Trường hợp quy phạm dùng cấu trúc “hệ thống được kiểm tra/giám sát”, “hoạt động được thực hiện qua báo cáo, kiểm tra hoặc đánh giá”: xác định đó là **cơ chế giám sát** hay **nghĩa vụ được giao trực tiếp** trước khi gán actor. Đối chiếu câu dẫn và phạm vi nguồn đã pin; không tự chuyển đối tượng được giám sát thành chủ thể bắt buộc lập báo cáo, và không gán Developer/Provider/Deployer khi nguồn không xác định. Không suy ra duty tạo hồ sơ kỹ thuật chỉ vì văn bản nhắc “báo cáo”. Có thể cần giữ cơ chế giám sát làm context, nhưng không đưa thành Development AssessmentRule nếu thiếu hành vi thiết kế/phát triển do luật thực sự yêu cầu. Actor chưa rõ thì LEGAL_REVIEW_REQUIRED, không bịa operative claim. Đừng tự biến yêu cầu quản lý của cơ quan có thẩm quyền thành trách nhiệm của khách hàng.
+
+## Xác định actor theo INPUT — OUTPUT — QUY TRÌNH
+
+Câu chữ về hệ thống/đầu ra/điều kiện không tự xác định ai chịu nghĩa vụ. Với từng hành vi pháp lý, đối chiếu câu dẫn cha để biết actor thật, điều kiện input, output bắt buộc/bị cấm (nếu có) và bước thực hiện. Không gán Developer chỉ vì hành vi có thể được hỗ trợ bằng software; không gán Deployer chỉ vì luật nhắc hệ thống sau triển khai. Nếu chủ thể là cơ quan giám sát, không đổi thành nghĩa vụ của doanh nghiệp bị giám sát. Nếu nghĩa vụ mixed, tách riêng hành động từng actor; chỉ tạo AssessmentRule development khi có hành vi thiết kế/phát triển có căn cứ và kiểm chứng được.

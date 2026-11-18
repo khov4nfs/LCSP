@@ -15,3 +15,7 @@ Với mỗi candidate, giải thích actor, action, stage, nguồn, ancestor và
 ## Ranh giới giám sát hành chính và hồ sơ kỹ thuật
 
 Không được lấy hình thức cơ quan kiểm tra/giám sát (báo cáo, chọn mẫu, đánh giá độc lập) làm căn cứ tự tạo rule yêu cầu developer nộp/lưu hồ sơ hay cài đặt logging, dashboard hoặc quy trình kiểm tra liên tục. Đối chiếu verb pháp lý, addressee và điều kiện gắn trực tiếp với nghĩa vụ development; không suy từ câu bị động. Nếu chỉ có cơ chế quản lý hoặc hành vi vận hành độc lập, giữ full-source ledger và loại khỏi AssessmentRule development. Nếu law có một developer safeguard riêng, giữ duy nhất phần đó, gắn đủ điều kiện/ngoại lệ và không nhập nghĩa vụ vận hành. Không tạo ba criteria lặp chỉ vì source liệt kê ba cách thực hiện giám sát.
+
+## Phân tích obligation theo INPUT / OUTPUT / QUY TRÌNH
+
+Trước khi chiếu DEVELOPMENT_ONLY, xác định chính xác loại dữ liệu/tình huống/điều kiện kích hoạt, đầu ra hoặc hành vi cấm/bắt buộc mà nguồn luật đặt ra, và bước nào thuộc trách nhiệm developer. Nguồn có nhắc báo cáo, khai báo hoặc chứng từ không mặc nhiên yêu cầu phần mềm tạo đầu ra ấy. Giữ điều kiện chưa biết để Assessment kiểm tra sau, không tự đánh giá repository ở Preparation. Chỉ đưa phần developer có predicate nguồn và kiểm chứng kỹ thuật vào AssessmentRule; nghĩa vụ độc lập thuộc cơ quan/operation giữ ở legal ledger, không ép thành checklist code.
