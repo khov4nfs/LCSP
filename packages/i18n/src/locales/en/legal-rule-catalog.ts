@@ -44,6 +44,10 @@ export const enLegalRuleCatalog = {
   addSelectedRulesToCatalog: "Add selected rules to catalog",
   noDocumentsInSource: "No documents found in this legal source.",
   noChunksInDocument: "No provisions indexed for this document.",
+  noEligibleEffectiveProvisions:
+    "Provisions are indexed, but none currently have a source-backed EFFECTIVE status.",
+  sourceEffectNotEligibleNotice:
+    "Chunks with UNKNOWN, REPEALED, or FUTURE status remain in Legal Source but cannot be imported. If an authoritative source confirms a status, update its legal-effect metadata and source reference in a DRAFT version.",
   eligibleLeafProvisions: "eligible provisions",
   compositionPreview: "Composed legal context",
   articleLevel: "Article",
