@@ -11,3 +11,7 @@ Giữ mọi duty thật trong full-source semantic graph và accounting. Require
 Output catalog, checklist và review context development không chứa duty độc lập về launch, vận hành production, downstream use, thương mại hoặc quản lý hành chính. Chỉ mang predicate context tối thiểu có verified directed dependency tới duty development còn lại: definition, scope, risk tier, trigger, qualifier, exception, effective date hoặc reference. Không chép cả đoạn vận hành hoặc duty lân cận. Giữ đúng source locator và provenance.
 
 Với mỗi candidate, giải thích actor, action, stage, nguồn, ancestor và lý do giữ/loại/tách. Nghĩa vụ thiết kế safeguard trước sử dụng khác hành vi vận hành production. Overlay không phê duyệt catalog, không thay structural validation; chỉ server được xác nhận hợp lệ và ACTIVE.
+
+## Ranh giới giám sát hành chính và hồ sơ kỹ thuật
+
+Không được lấy hình thức cơ quan kiểm tra/giám sát (báo cáo, chọn mẫu, đánh giá độc lập) làm căn cứ tự tạo rule yêu cầu developer nộp/lưu hồ sơ hay cài đặt logging, dashboard hoặc quy trình kiểm tra liên tục. Đối chiếu verb pháp lý, addressee và điều kiện gắn trực tiếp với nghĩa vụ development; không suy từ câu bị động. Nếu chỉ có cơ chế quản lý hoặc hành vi vận hành độc lập, giữ full-source ledger và loại khỏi AssessmentRule development. Nếu law có một developer safeguard riêng, giữ duy nhất phần đó, gắn đủ điều kiện/ngoại lệ và không nhập nghĩa vụ vận hành. Không tạo ba criteria lặp chỉ vì source liệt kê ba cách thực hiện giám sát.

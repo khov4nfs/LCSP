@@ -1453,7 +1453,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "SCOPE",
       "vietnameseSourcePath": "instructions/vi/preparation-development.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "preparation.development-overlay",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -1469,12 +1469,12 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a8cddcb07f3ac9fe0bd4d7637935aa2d2a335e5e0388004dfcd331c1158a9e71",
-      "englishCandidateSha256": "3514c77fae290608653162ebbc6b9dbbc9741ec7c35ae552c45b51822f0f9d7b",
-      "candidateOriginSha256": "a8cddcb07f3ac9fe0bd4d7637935aa2d2a335e5e0388004dfcd331c1158a9e71",
+      "sourceSha256": "104baa56863dfb39614654ab603b97edf3b8c1b2fd741118b18d14eeba8089a5",
+      "englishCandidateSha256": "c59c0e2ee6e7b2aac10299722ee5a82f24ea9bb3d2161924393afc3de6bc273a",
+      "candidateOriginSha256": "104baa56863dfb39614654ab603b97edf3b8c1b2fd741118b18d14eeba8089a5",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     },
     {
@@ -2158,7 +2158,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "SKILL",
       "vietnameseSourcePath": "skills/rule-preparation-actor-stage/SKILL.vi.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "skill.rule-preparation-actor-stage",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -2174,12 +2174,12 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "56e7d4a8aa9662ee535319b7d80c2d4d17852de983063614b59818cdff674d4e",
-      "englishCandidateSha256": "f3a7e32d3b19c1f325318f7b5e3f104ede87f37fa6ba07912edbb1ee731780a1",
-      "candidateOriginSha256": "56e7d4a8aa9662ee535319b7d80c2d4d17852de983063614b59818cdff674d4e",
+      "sourceSha256": "1c552824d8bbf2199f8e108fce567885d9f165ed9ec6f0301751c230d9e25f15",
+      "englishCandidateSha256": "1af8191b7653cb8aa31be0a70cb1b7ac6849d757e41682df216efe78725eafae",
+      "candidateOriginSha256": "1c552824d8bbf2199f8e108fce567885d9f165ed9ec6f0301751c230d9e25f15",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     },
     {
@@ -2245,7 +2245,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "SKILL",
       "vietnameseSourcePath": "skills/rule-preparation-scope-quality/SKILL.vi.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "skill.rule-preparation-scope-quality",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -2261,12 +2261,12 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "c277521c9b1188b75b3e88e6697ea4dc6c8d42fdcc1021c1766145c511fb40d3",
-      "englishCandidateSha256": "b61a06e1a96a9e2fd1a5fe7dddb804d0315c409013343026ee0c67d571309996",
-      "candidateOriginSha256": "c277521c9b1188b75b3e88e6697ea4dc6c8d42fdcc1021c1766145c511fb40d3",
+      "sourceSha256": "6d9c1c1a321a8e2231f013606386eb2e77988b73903a741e86928c16b60b2559",
+      "englishCandidateSha256": "39201b937ace69bc9b46a8fae4185eabb7453edede8eac81656117519259098a",
+      "candidateOriginSha256": "6d9c1c1a321a8e2231f013606386eb2e77988b73903a741e86928c16b60b2559",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     },
     {
@@ -2468,7 +2468,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "PHASE",
       "vietnameseSourcePath": "instructions/vi/preparation-selected.md",
-      "vietnameseSourceRevision": "lcsp-369-development-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "preparation.selected",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -2484,12 +2484,12 @@
           "integrationStatus": "DEVELOPMENT_RUNTIME"
         }
       ],
-      "sourceSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
-      "englishCandidateSha256": "4ec5ce3abb9dcb8736ec7e6f9ca8e87dd10644eff15609a6fcf211523f810d78",
-      "candidateOriginSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
+      "sourceSha256": "9cac9d460474c7a7ad01ed5e9d78eb0049b7e91751c8805e7d6e00a565cab647",
+      "englishCandidateSha256": "2f769fb4cd6ab6e36a0468c9f62eddd2e543d39f980a1ab86190a29236cb6024",
+      "candidateOriginSha256": "9cac9d460474c7a7ad01ed5e9d78eb0049b7e91751c8805e7d6e00a565cab647",
       "translationProvenance": {
-        "translator": "LCSP-369 development instruction; no independent approval claimed",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     }
   ],

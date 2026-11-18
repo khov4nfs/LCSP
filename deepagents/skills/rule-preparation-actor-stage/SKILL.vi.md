@@ -28,3 +28,7 @@ Không bãi bỏ/đánh NOT_APPLICABLE, không dùng NO_REQUIREMENT cho một du
 Trong bản projection DEVELOPMENT_ONLY, không đưa Điều/Khoản/Điểm, AssessmentRule hoặc đoạn context chỉ dành cho deploy, production operation, sử dụng hay quản lý nhà nước. Nếu một khoản trộn nhiều chủ thể thì phải tách từng hành vi; chỉ bỏ nhánh non-development, giữ nhánh developer có căn cứ.
 
 Việc chung số Điều hoặc chung chủ đề không phải quan hệ material. Ngoại lệ phải được xác minh cùng nguồn/quan hệ hướng, chỉ giữ predicate tối thiểu. Full legal ledger và validation không được cắt.
+
+## Cổng xác nhận chủ thể trong câu bị động
+
+Trường hợp quy phạm dùng cấu trúc “hệ thống được kiểm tra/giám sát”, “hoạt động được thực hiện qua báo cáo, kiểm tra hoặc đánh giá”: xác định đó là **cơ chế giám sát** hay **nghĩa vụ được giao trực tiếp** trước khi gán actor. Đối chiếu câu dẫn và phạm vi nguồn đã pin; không tự chuyển đối tượng được giám sát thành chủ thể bắt buộc lập báo cáo, và không gán Developer/Provider/Deployer khi nguồn không xác định. Không suy ra duty tạo hồ sơ kỹ thuật chỉ vì văn bản nhắc “báo cáo”. Có thể cần giữ cơ chế giám sát làm context, nhưng không đưa thành Development AssessmentRule nếu thiếu hành vi thiết kế/phát triển do luật thực sự yêu cầu. Actor chưa rõ thì LEGAL_REVIEW_REQUIRED, không bịa operative claim. Đừng tự biến yêu cầu quản lý của cơ quan có thẩm quyền thành trách nhiệm của khách hàng.

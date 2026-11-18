@@ -42,3 +42,7 @@ Nếu chưa có scope ledger, validator và approval phía server, kết quả p
 DEVELOPMENT_ONLY view không được chứa bất kỳ Điều/Khoản/Điểm, criterion, nhiệm vụ audit hoặc đoạn diễn giải nào chỉ thuộc deploy, vận hành production, sử dụng hay công tác quản lý nhà nước. Chỉ được giữ một predicate pháp lý tối thiểu khi có directed edge đã xác minh tới một development claim, đủ nguồn/locator và điều kiện/ngoại lệ.
 
 Context edge đang chờ hoặc không chứng minh được không được tự giữ. Khoản mixed chưa tách mệnh đề thì đánh dấu REVIEW_REQUIRED, không đưa nguyên văn hỗn hợp vào development review. Test phải xác nhận sourceText bị loại không rò rỉ, chứ không chỉ kiểm số lượng AssessmentRule.
+
+## Gate bổ sung — chống biến phương thức giám sát thành checklist hồ sơ
+
+Trước khi duyệt một AssessmentRule: (a) đối chiếu câu chữ nguồn, câu dẫn và đúng chủ thể; (b) phân biệt hoạt động cơ quan giám sát, nghĩa vụ vận hành, hồ sơ ngoại hệ thống và control kỹ thuật của developer; (c) chứng minh predicate development trước khi đề xuất code search; (d) kiểm `criteria`, `investigationGoals`, `requiredEvidence` không lặp và không bịa ra thời hạn, tần suất, loại tài liệu hay nơi lưu; (e) nếu source chỉ nói hệ thống “được giám sát qua báo cáo/kiểm tra chọn mẫu/đánh giá độc lập”, không tự áp một nghĩa vụ tạo/lưu ba loại hồ sơ lên developer. Với duty ngoài repository có actor có căn cứ, giữ LegalRequirement NON_ASSESSABLE và không tạo AssessmentRule; với actor không rõ, dừng tại review gap, không gán chủ thể để lấp schema. Không đồng nhất “ngoài development” với NOT_APPLICABLE.
