@@ -12,6 +12,25 @@ import {
 } from "@/lib/server/session-token";
 import { upstreamJson, upstreamRequest } from "@/lib/server/upstream-request";
 
+/**
+ * Business purpose: Return workspace organization and current user summary context.
+ *
+ * Business rules:
+ * - Requires an authenticated session in good standing without pending multi-factor challenges.
+ * - In mock mode, loads workspace layout and metadata fixtures.
+ *
+ * Execution flow:
+ * 1. Validate session token presence and status.
+ * 2. Return mock workspace fixture when mock mode is enabled.
+ * 3. In production mode, verify profile upstream and map to workspace summary envelope.
+ *
+ * Failure cases:
+ * - Missing session returns 401 AuthRequired.
+ * - Unfinished MFA enrollment or verification returns 403 MfaRequired.
+ *
+ * Side effects:
+ * - None: read-only workspace query.
+ */
 export async function GET(request: NextRequest) {
   if (isMockModeEnabled()) {
     const sessionToken = readSessionToken(request);
@@ -20,7 +39,10 @@ export async function GET(request: NextRequest) {
         status: 403,
       });
     }
-    if (sessionToken === "mock-session:manager") {
+    if (
+      sessionToken === "mock-session:manager" ||
+      sessionToken?.startsWith("mock-session:")
+    ) {
       return successJson(await readMockJson("workspace.json"));
     }
 

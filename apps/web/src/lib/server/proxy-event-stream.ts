@@ -1,8 +1,37 @@
+import { isMockModeEnabled } from "./fixtures/response";
+
+/**
+ * Business purpose: Forward server-sent event (SSE) streams from upstream runtime services to the client.
+ *
+ * Business rules:
+ * - Transparently streams realtime assessment execution events and preparation activity.
+ * - In mock mode, provides an open keep-alive stream to prevent client EventSource retry storms.
+ *
+ * Execution flow:
+ * 1. Return mock SSE stream if mock mode is active.
+ * 2. Connect to upstream event stream with cancellation propagation.
+ * 3. Pipe incoming SSE byte chunks to downstream client.
+ *
+ * Failure cases:
+ * - Upstream failures or connection aborts terminate stream gracefully.
+ *
+ * Side effects:
+ * - Opens an active streaming HTTP connection.
+ */
 export async function proxyEventStream(
   url: string | URL,
   headers: HeadersInit,
   signal: AbortSignal,
 ): Promise<Response> {
+  if (isMockModeEnabled()) {
+    return new Response(new TextEncoder().encode(": connected\n\n"), {
+      headers: {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache, no-transform",
+        connection: "keep-alive",
+      },
+    });
+  }
   const upstream = new AbortController();
   const abort = () => upstream.abort();
   signal.addEventListener("abort", abort, { once: true });

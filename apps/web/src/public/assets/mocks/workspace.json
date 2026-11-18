@@ -1,6 +1,15 @@
 {
+  "user_id": "mock-customer-user",
+  "display_name": "Phan Nguyen Quoc Minh",
+  "email": "minhpnq1807@gmail.com",
+  "role": "CUSTOMER",
+  "user": {
+    "id": "mock-customer-user",
+    "display_name": "Phan Nguyen Quoc Minh",
+    "role": "CUSTOMER"
+  },
   "organization": { "id": "org-lcsp", "name": "LCSP" },
-  "membership": { "role": "Manager" },
+  "membership": { "role": "CUSTOMER" },
   "granted_actions": [
     "assessment:create",
     "assessment:list",

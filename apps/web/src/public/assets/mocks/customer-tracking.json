@@ -1,0 +1,197 @@
+{
+  "overview": {
+    "actions": [
+      {
+        "requestId": "11111111-1111-4111-8111-111111111111",
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "assessmentName": "E-Commerce Checkout & Payment Audit",
+        "assessmentRuleId": "RULE-DEC-13-DATA-LOCALIZATION",
+        "question": "Does the system store personal data of Vietnamese citizens domestically?",
+        "unresolvedFact": "Storage location of primary database cluster",
+        "actionReason": "HUMAN_FACT_REQUIRED",
+        "createdAt": "2026-11-18T00:00:00.000Z",
+        "destinationUrl": "/assessments/11111111-1111-4111-8111-111111111111"
+      }
+    ],
+    "changes": [
+      {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "assessmentName": "E-Commerce Checkout & Payment Audit",
+        "changeType": "REPORT_READY",
+        "titleKey": "pages.tracking.changes.reportReadyTitle",
+        "descriptionKey": "pages.tracking.changes.reportReadyDescription",
+        "title": "Final Compliance Audit Report is ready",
+        "description": "Assessment completed with verified compliance evidence",
+        "occurredAt": "2026-11-18T01:00:00.000Z",
+        "destinationUrl": "/assessments/11111111-1111-4111-8111-111111111111/report"
+      }
+    ],
+    "actionsPagination": {
+      "total": 1,
+      "limit": 8,
+      "offset": 0,
+      "hasMore": false
+    },
+    "changesPagination": {
+      "total": 1,
+      "limit": 8,
+      "offset": 0,
+      "hasMore": false
+    },
+    "complianceSummary": {
+      "compliantCount": 18,
+      "nonCompliantCount": 2,
+      "notApplicableCount": 4,
+      "unresolvedCount": 1,
+      "totalRulesEvaluated": 25
+    },
+    "assessments": [
+      {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "name": "E-Commerce Checkout & Payment Audit",
+        "lifecycleState": "ACTIVE",
+        "executionState": "COMPLETED",
+        "repository": {
+          "name": "checkout-service",
+          "owner": "enterprise-org",
+          "pinnedCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "latestCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observedAt": "2026-11-18T00:00:00.000Z",
+          "freshnessStatus": "FRESHNESS_CURRENT",
+          "isStale": false
+        },
+        "ruleSet": {
+          "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+          "ruleSetName": "Decree 13/2023/ND-CP Personal Data Protection",
+          "ruleSetVersion": "v2026.08.31",
+          "isCurrent": true
+        },
+        "trust": {
+          "isTrustworthy": true,
+          "trustStatus": "TRUSTED",
+          "reason": null
+        },
+        "compliance": {
+          "compliantCount": 18,
+          "nonCompliantCount": 2,
+          "notApplicableCount": 4,
+          "unresolvedCount": 1
+        },
+        "report": {
+          "hasFinalReport": true,
+          "finalReportArtifactId": "11111111-1111-4111-8111-111111111111",
+          "finalReportCreatedAt": "2026-11-18T01:00:00.000Z",
+          "isReady": true
+        },
+        "pendingActionCount": 1,
+        "updatedAt": "2026-11-18T01:00:00.000Z"
+      },
+      {
+        "assessmentId": "22222222-2222-4222-8222-222222222222",
+        "name": "User Authentication & MFA Gateway",
+        "lifecycleState": "ACTIVE",
+        "executionState": "ACTIVE",
+        "repository": {
+          "name": "auth-service",
+          "owner": "enterprise-org",
+          "pinnedCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "latestCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "observedAt": "2026-11-18T02:00:00.000Z",
+          "freshnessStatus": "FRESHNESS_CURRENT",
+          "isStale": false
+        },
+        "ruleSet": {
+          "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+          "ruleSetName": "Decree 13/2023/ND-CP Personal Data Protection",
+          "ruleSetVersion": "v2026.08.31",
+          "isCurrent": true
+        },
+        "trust": {
+          "isTrustworthy": true,
+          "trustStatus": "IN_PROGRESS",
+          "reason": null
+        },
+        "compliance": {
+          "compliantCount": 8,
+          "nonCompliantCount": 0,
+          "notApplicableCount": 2,
+          "unresolvedCount": 0
+        },
+        "report": {
+          "hasFinalReport": false,
+          "finalReportArtifactId": null,
+          "finalReportCreatedAt": null,
+          "isReady": false
+        },
+        "pendingActionCount": 0,
+        "updatedAt": "2026-11-18T02:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "total": 2,
+      "limit": 50,
+      "offset": 0,
+      "hasMore": false
+    },
+    "correlationId": "mock-tracking-correlation-id",
+    "generatedAt": "2026-11-18T02:00:00.000Z"
+  },
+  "obligations": {
+    "items": [
+      {
+        "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
+        "ruleSetVersion": "v2026.08.31",
+        "assessmentRuleId": "RULE-DEC-13-DATA-LOCALIZATION",
+        "concept": "Domestic storage of personal data (Decree 13/2023/ND-CP Article 26)",
+        "compliantCount": 1,
+        "nonCompliantCount": 0,
+        "notApplicableCount": 0,
+        "unresolvedCount": 0,
+        "affectedAssessmentCount": 1,
+        "assessments": [
+          {
+            "assessmentId": "11111111-1111-4111-8111-111111111111",
+            "assessmentName": "E-Commerce Checkout & Payment Audit",
+            "outcome": "COMPLIANT",
+            "freshnessStatus": "FRESHNESS_CURRENT",
+            "observedAt": "2026-11-18T00:00:00.000Z",
+            "trustStatus": "TRUSTED"
+          }
+        ]
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "limit": 50,
+      "offset": 0,
+      "hasMore": false
+    },
+    "evaluationSummary": {
+      "evaluatedAssessmentCount": 2,
+      "notEvaluatedAssessmentCount": 0
+    },
+    "generatedAt": "2026-11-18T02:00:00.000Z"
+  },
+  "reports": {
+    "items": [
+      {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "assessmentName": "E-Commerce Checkout & Payment Audit",
+        "repositoryName": "checkout-service",
+        "repositoryOwner": "enterprise-org",
+        "artifactId": "11111111-1111-4111-8111-111111111111",
+        "createdAt": "2026-11-18T01:00:00.000Z",
+        "freshnessStatus": "FRESHNESS_CURRENT",
+        "observedAt": "2026-11-18T00:00:00.000Z",
+        "trustStatus": "TRUSTED"
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "limit": 50,
+      "offset": 0,
+      "hasMore": false
+    },
+    "generatedAt": "2026-11-18T02:00:00.000Z"
+  }
+}

@@ -9,6 +9,11 @@ import {
   resultJson,
   successJson,
 } from "@/lib/server/problem-json";
+import { isMockModeEnabled } from "./fixtures/response";
+import {
+  getMockUpstreamBinaryResponse,
+  getMockUpstreamResponse,
+} from "./fixtures/mock-upstream";
 
 const upstreamBaseUrl =
   process.env.LCSP_API_BASE_URL ?? "http://localhost:3001";
@@ -28,7 +33,7 @@ export type UpstreamRequestResult = {
   problemCode?: string;
 };
 
-type UpstreamBinaryResult = {
+export type UpstreamBinaryResult = {
   body: ArrayBuffer | null;
   result: WebAppResult | null;
   ok: boolean;
@@ -45,6 +50,26 @@ export function upstreamUrl(path: string): URL {
   return new URL(path, upstreamBaseUrl);
 }
 
+/**
+ * Business purpose: Execute an upstream HTTP request with standard credentials, headers, and mock interception.
+ *
+ * Business rules:
+ * - Automatically injects bearer authorization and locale headers when provided.
+ * - Only explicit mock mode may intercept matching paths before network attempts.
+ * - Live upstream failures must remain failures rather than returning fixture data.
+ *
+ * Execution flow:
+ * 1. Prepare request headers with bearer tokens and display locale.
+ * 2. Check mock mode dispatcher and return mock envelope if available.
+ * 3. Perform network fetch to configured upstream base URL.
+ * 4. Return the result envelope or a service unavailable envelope on connection failure.
+ *
+ * Failure cases:
+ * - Unreachable upstream services return 503 UpstreamUnavailable problem envelopes.
+ *
+ * Side effects:
+ * - Issues an HTTP request to upstream services or reads mock json fixtures.
+ */
 export async function upstreamRequest(
   path: string | URL,
   init: UpstreamRequestInit = {},
@@ -56,6 +81,13 @@ export async function upstreamRequest(
   }
   if (locale && !requestHeaders.has("x-lcsp-locale")) {
     requestHeaders.set("x-lcsp-locale", locale);
+  }
+
+  if (isMockModeEnabled()) {
+    const mock = await getMockUpstreamResponse(path, init);
+    if (mock) {
+      return mock;
+    }
   }
 
   const response = await fetch(
@@ -124,6 +156,13 @@ export async function upstreamBinaryRequest(
   }
   if (locale && !requestHeaders.has("x-lcsp-locale")) {
     requestHeaders.set("x-lcsp-locale", locale);
+  }
+
+  if (isMockModeEnabled()) {
+    const mock = await getMockUpstreamBinaryResponse(path, init);
+    if (mock) {
+      return mock;
+    }
   }
 
   const response = await fetch(
