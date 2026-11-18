@@ -1,6 +1,8 @@
 """Provider-free native graph proof for selected Preparation execution and instruction refresh."""
+import asyncio
 import json
 from hashlib import sha256
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -165,3 +167,47 @@ def test_existing_boundary_routes_selected_identity_without_running_whole_source
     result = boundary.handle({"preparationRunId": "selected-run", "preparationRuleResultId": "selected-result"}, "correlation")
     assert result["state"] == "SUCCEEDED"
     assert calls == [("selected-api", "selected-run")]
+
+
+def test_deadline_cancels_active_stream_and_settles_failure_once(runtime_assets, monkeypatch):
+    cancelled = []
+    events = []
+
+    async def waiting_stream(*args, **kwargs):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.append(True)
+
+    monkeypatch.setattr(selected_rule, "create_agent", lambda **kwargs: SimpleNamespace(ainvoke=waiting_stream))
+    monkeypatch.setattr(selected_rule, "llm_provider_timeout_seconds", lambda: 0.02)
+    monkeypatch.setattr(selected_rule, "publish_agent_stream_event", lambda *args, **kwargs: events.append(kwargs))
+    api = SelectedFixtureApi()
+    result = selected_rule.run_selected_rule_preparation(api, "slow-stream", model=SelectedFixtureModel())
+    assert cancelled == [True]
+    assert result["state"] == "FAILED"
+    assert api.completions == [("slow-stream", "FAILED", None, "SELECTED_RULE_PREPARATION_FAILED")]
+    assert events[-1]["data"]["error_type"] == "TimeoutError"
+
+
+def test_provider_failure_preserves_safe_code_without_logging_body(runtime_assets, monkeypatch, caplog):
+    class OverloadedError(Exception):
+        body = {"error": {"type": "overloaded_error", "message": "secret-provider-body"}}
+
+    async def overloaded_stream(*args, **kwargs):
+        try:
+            raise OverloadedError("secret-provider-body")
+        except OverloadedError as cause:
+            raise RuntimeError("secret-wrapper-message") from cause
+
+    events = []
+    monkeypatch.setattr(selected_rule, "create_agent", lambda **kwargs: SimpleNamespace(ainvoke=overloaded_stream))
+    monkeypatch.setattr(selected_rule, "publish_agent_stream_event", lambda *args, **kwargs: events.append(kwargs))
+    api = SelectedFixtureApi()
+    result = selected_rule.run_selected_rule_preparation(api, "overloaded", model=SelectedFixtureModel())
+    assert result["state"] == "FAILED"
+    assert len(api.completions) == 1
+    assert events[-1]["data"]["provider_error_code"] == "overloaded_error"
+    assert "overloaded_error" in caplog.text
+    assert "secret-provider-body" not in caplog.text
+    assert "secret-wrapper-message" not in caplog.text
