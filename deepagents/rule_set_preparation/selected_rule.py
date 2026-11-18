@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from anthropic_stream_usage import anthropic_first_output_timeout
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from langgraph.errors import NodeCancelledError
@@ -30,6 +31,7 @@ async def _invoke_selected_rule(agent: Any, payload: dict[str, Any]) -> dict[str
 
     Business rules:
     - The configured provider timeout also bounds the entire selected graph, including retries and active streams.
+    - Anthropic streams must begin model output within a configurable startup window; metadata and keepalives cannot consume the whole run deadline.
     - Use native async cancellation so a timed-out provider invocation is not left running in a detached worker.
     Execution flow:
     1. Start the selected graph with its existing concurrency configuration.
@@ -40,7 +42,8 @@ async def _invoke_selected_rule(agent: Any, payload: dict[str, Any]) -> dict[str
     - Executes the governed model graph and cancels its asynchronous work on expiry; persistence remains with the caller.
     """
     async with asyncio.timeout(llm_provider_timeout_seconds()):
-        return await agent.ainvoke(payload, config=agent_graph_config({"max_concurrency": 1, "recursion_limit": 16}))
+        with anthropic_first_output_timeout(min(llm_provider_timeout_seconds(), _positive_env("LCSP_SELECTED_RULE_FIRST_OUTPUT_TIMEOUT_SECONDS", 60))):
+            return await agent.ainvoke(payload, config=agent_graph_config({"max_concurrency": 1, "recursion_limit": 16}))
 
 
 def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = None) -> dict[str, Any]:

@@ -23,6 +23,7 @@ from middleware.failure_policy import (
     is_paid_admission_error,
     is_provider_capacity_failure,
     is_provider_quota_exhaustion,
+    is_retryable_provider_interruption,
     is_terminal_task_error,
 )
 from model_policy import attach_model_route, model_route_config, route_for_model
@@ -121,6 +122,7 @@ def _is_retryable_transient_error(error: BaseException) -> bool:
 
     Business rules:
     - Terminal task errors are never transient for credential rotation.
+    - Recognized overload events and first-output timeouts remain transient even when an SSE connection has HTTP status 200.
     - Explicit retryable HTTP statuses and statuses at or above 500 are transient; without a status, timeout names, provider API errors, and local timeout/connection errors qualify.
 
     Execution flow:
@@ -130,7 +132,7 @@ def _is_retryable_transient_error(error: BaseException) -> bool:
     4. Fall back to local TimeoutError or ConnectionError classification.
 
     Failure cases:
-    - A present status outside the retryable set returns false without overriding it from the exception type.
+    - Outside recognized stream interruptions, a present status outside the retryable set returns false without overriding it from the exception type.
     - Unrecognized failures return false.
 
     Side effects:
@@ -138,6 +140,8 @@ def _is_retryable_transient_error(error: BaseException) -> bool:
     """
     if _is_terminal_model_error(error):
         return False
+    if is_retryable_provider_interruption(error):
+        return True
     status = _error_status(error)
     if status in _RETRYABLE_TRANSIENT_STATUSES:
         return True
@@ -831,10 +835,10 @@ class TokenFallbackMiddleware(AgentMiddleware):
         1. Initialize per-call attempted-slot, transient-retry, authentication, and recovery state.
         2. Repeatedly request the next attempt plan; for a cooldown plan, report a wait heartbeat, sleep once, clear that cooldown, and re-plan.
         3. Invoke each planned slot under safe attempt context, recording eligible failures and slot health.
-        4. Mark a successful slot healthy and return its response; if no plan remains, raise terminal credential exhaustion chained from the first failure.
+        4. Mark a successful slot healthy; on exhaustion preserve uniform stream interruptions for bounded retry or raise terminal credential exhaustion.
 
         Failure cases:
-        - Propagate any error _record_failure marks non-rotatable; raise TerminalCredentialError when all allowed slots and recovery attempts fail.
+        - Propagate non-rotatable errors; preserve uniformly recoverable stream interruptions for outer bounded retry, otherwise raise TerminalCredentialError on exhaustion.
 
         Side effects:
         - Invokes provider inference, may sleep and emit heartbeat/log events, and updates in-process credential health and cooldown state.
@@ -845,6 +849,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
         saw_auth_failure = False
         recovery_retry_used = False
         attempt_count = 0
+        interruptions: list[Exception] = []
         while True:
             order, wait, transient_recovery = self._next_step(
                 provider=provider,
@@ -904,9 +909,13 @@ class TokenFallbackMiddleware(AgentMiddleware):
                     ):
                         transient_retry_index = index
                     first_error = first_error or error
+                    if is_retryable_provider_interruption(error):
+                        interruptions.append(error)
                     continue
                 self._mark_healthy(provider=provider, env_name=env_name, index=index)
                 return response
+        if interruptions and len(interruptions) == attempt_count:
+            raise interruptions[-1]
         raise TerminalCredentialError("All configured retryable provider credential slots failed; task stopped") from first_error
 
     async def _arun_with_fallback(self, request, handler, provider: str, env_name: str, tokens: tuple[str, ...]):
@@ -921,10 +930,10 @@ class TokenFallbackMiddleware(AgentMiddleware):
         1. Initialize per-call attempted-slot, transient-retry, authentication, and recovery state.
         2. Repeatedly request the next attempt plan; for a cooldown plan, report a wait heartbeat, await one sleep, clear that cooldown, and re-plan.
         3. Await each planned slot under safe attempt context, recording eligible failures and slot health.
-        4. Mark a successful slot healthy and return its response; if no plan remains, raise terminal credential exhaustion chained from the first failure.
+        4. Mark a successful slot healthy; on exhaustion preserve uniform stream interruptions for bounded retry or raise terminal credential exhaustion.
 
         Failure cases:
-        - Propagate any error _record_failure marks non-rotatable; raise TerminalCredentialError when all allowed slots and recovery attempts fail.
+        - Propagate non-rotatable errors; preserve uniformly recoverable stream interruptions for outer bounded retry, otherwise raise TerminalCredentialError on exhaustion.
 
         Side effects:
         - Awaits provider inference, may await cooldowns and emit heartbeat/log events, and updates in-process credential health and cooldown state.
@@ -935,6 +944,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
         saw_auth_failure = False
         recovery_retry_used = False
         attempt_count = 0
+        interruptions: list[Exception] = []
         while True:
             order, wait, transient_recovery = self._next_step(
                 provider=provider,
@@ -994,9 +1004,13 @@ class TokenFallbackMiddleware(AgentMiddleware):
                     ):
                         transient_retry_index = index
                     first_error = first_error or error
+                    if is_retryable_provider_interruption(error):
+                        interruptions.append(error)
                     continue
                 self._mark_healthy(provider=provider, env_name=env_name, index=index)
                 return response
+        if interruptions and len(interruptions) == attempt_count:
+            raise interruptions[-1]
         raise TerminalCredentialError("All configured retryable provider credential slots failed; task stopped") from first_error
 
 __all__ = [
