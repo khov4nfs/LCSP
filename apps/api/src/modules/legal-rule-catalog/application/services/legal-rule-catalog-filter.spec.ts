@@ -14,19 +14,31 @@ describe("LegalRuleCatalogService.filter", () => {
     {} as PrismaService,
     {} as AuditWriterService,
   );
-  const items = [
-    { id: "with-rules", state: STATES.PREPARED, assessmentRuleCount: 3 },
-    { id: "without-rules", state: STATES.PREPARED, assessmentRuleCount: 0 },
-    { id: "failed", state: STATES.FAILED, assessmentRuleCount: 0 },
-    { id: "stale", state: STATES.STALE, assessmentRuleCount: 2 },
-    { id: "running", state: STATES.RUNNING, assessmentRuleCount: 1 },
-  ].map((item) => ({
-    ...item,
-    legalRuleId: item.id,
-    title: item.id,
+  const item = (
+    id: string,
+    state: LegalRuleListItem["state"],
+    assessmentRuleCount: number,
+  ): LegalRuleListItem => ({
+    id,
+    legalRuleId: id,
+    title: id,
     description: "",
     citationLocatorRefs: [],
-  })) as LegalRuleListItem[];
+    state,
+    ineligibleReason: null,
+    lastResultId: null,
+    lastRunId: null,
+    lastResultRevision: null,
+    lastOutcome: null,
+    assessmentRuleCount,
+  });
+  const items = [
+    item("with-rules", STATES.PREPARED, 3),
+    item("without-rules", STATES.PREPARED, 0),
+    item("failed", STATES.FAILED, 0),
+    item("stale", STATES.STALE, 2),
+    item("running", STATES.RUNNING, 1),
+  ];
 
   it("returns only current prepared items with persisted assessment rules", () => {
     const query: LegalRuleFilter = {

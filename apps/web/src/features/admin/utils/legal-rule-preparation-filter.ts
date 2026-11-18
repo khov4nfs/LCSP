@@ -28,8 +28,10 @@ import {
  */
 export function selectLegalRulePreparationFilter(
   current: LegalRuleFilter,
-  value: string,
+  value: string | null,
 ): LegalRuleFilter {
+  if (value === null) return current;
+
   if (value === LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES) {
     return { ...current, state: undefined, withAssessmentRules: true };
   }
@@ -38,7 +40,7 @@ export function selectLegalRulePreparationFilter(
     return { ...current, state: undefined, withAssessmentRules: undefined };
   }
 
-  const state = LEGAL_RULE_PREPARATION_STATES.find(
+  const state = Object.values(LEGAL_RULE_PREPARATION_STATES).find(
     (candidate) => candidate === value,
   );
   return state

@@ -5,6 +5,7 @@ import {
   AgentExecutionState,
   AuthUserRole,
   PreparationExecutionContract,
+  Prisma,
   PrismaClient,
   RuleSetPreparationFailureReason,
 } from "@prisma/client";
@@ -287,7 +288,7 @@ describeDatabase(
             revision: 1,
             inputSnapshot: resultInput,
             inputFingerprint: fingerprint,
-            output,
+            ...(output === null ? { output: Prisma.DbNull } : { output }),
             ...(input.executionState === AgentExecutionState.FAILED
               ? { failureCode: "RUNTIME_ERROR" }
               : {}),
@@ -436,9 +437,9 @@ describeDatabase(
         sourceEffectStatus: "IN_FORCE",
         legalEffectStatus: "EFFECTIVE",
       });
-      expect(
-        persistedFirst.activation?.selectedPreparationResults,
-      ).toMatchObject(persistedFirst.selectedPreparationResults);
+      expect(persistedFirst.activation?.selectedPreparationResults).toEqual(
+        persistedFirst.selectedPreparationResults,
+      );
 
       const firstRead = await readModel.load(
         { id: first.ruleSetVersionId },
