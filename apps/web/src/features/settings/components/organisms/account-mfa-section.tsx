@@ -12,15 +12,13 @@ import {
 } from "@/lib/api/auth-queries";
 import { apiQueryKeys } from "@/lib/api/query-keys";
 import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
-import { MfaSetupForm } from "../molecules/mfa-setup-form";
-import { RecoveryCodesPanel } from "../molecules/recovery-codes-panel";
+import { MfaSetupForm } from "./mfa-setup-form";
+import { RecoveryCodesPanel } from "./recovery-codes-panel";
 import { SecurityActionConfirmation } from "../molecules/security-action-confirmation";
-import {
-  ACCOUNT_SECURITY_ACTIONS,
-  type AccountSecurityAction,
-} from "../../config/account-security.config";
+import { ACCOUNT_SECURITY_ACTIONS } from "../../config/account-security.config";
 import type {
-  SecurityEditorProps,
+  AccountMfaSectionProps,
+  AccountSecurityAction,
   AccountMfaOutcome,
 } from "../../types/account-security.types";
 import { runAccountSecurityAction } from "../../utils/account-security.utils";
@@ -31,7 +29,7 @@ export function AccountMfaSection({
   onReauthenticate,
   readFailed,
   readVersion,
-}: SecurityEditorProps) {
+}: AccountMfaSectionProps) {
   const enroll = useMfaEnrollMutation();
   const disable = useDisableMfaMutation();
   const generate = useGenerateMfaRecoveryCodesMutation();

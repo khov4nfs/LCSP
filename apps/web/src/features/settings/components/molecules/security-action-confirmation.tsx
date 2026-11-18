@@ -27,9 +27,15 @@ export function SecurityActionConfirmation({
         if (!open) onCancel();
       }}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent
+        className="max-w-md"
+        closeLabel={resolveMessage(
+          locale,
+          "pages.workspace.settingsHub.reauth.close",
+        )}
+      >
+        <DialogHeader className="flex-col gap-2">
+          <DialogTitle className="text-lg leading-6 font-semibold">
             {resolveMessage(
               locale,
               disabling
@@ -46,7 +52,7 @@ export function SecurityActionConfirmation({
             )}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
+        <DialogFooter className="flex-row justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             {resolveMessage(
               locale,

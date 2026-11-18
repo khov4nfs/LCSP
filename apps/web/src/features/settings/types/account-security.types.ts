@@ -6,7 +6,10 @@ import type {
 } from "@/lib/api/auth-client";
 import type { GenerateMfaRecoveryCodesOutcome } from "@/lib/api/types/mfa-recovery-codes.types";
 import type { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
-import type { AccountSecurityAction } from "../config/account-security.config";
+import type { ACCOUNT_SECURITY_ACTIONS } from "../config/account-security.config";
+
+export type AccountSecurityAction =
+  (typeof ACCOUNT_SECURITY_ACTIONS)[keyof typeof ACCOUNT_SECURITY_ACTIONS];
 
 export type AccountSecurityProps = {
   locale: Locale;
@@ -16,6 +19,9 @@ export type AccountSecurityProps = {
 export type SecurityEditorProps = AccountSecurityProps & {
   profile: AuthSettingsProfile;
   readFailed: boolean;
+};
+
+export type AccountMfaSectionProps = SecurityEditorProps & {
   readVersion: number;
 };
 

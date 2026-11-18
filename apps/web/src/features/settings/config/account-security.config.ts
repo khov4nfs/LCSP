@@ -30,5 +30,3 @@ export const ACCOUNT_SECURITY_ACTIONS = {
   disable: "DISABLE",
   regenerate: "REGENERATE",
 } as const;
-export type AccountSecurityAction =
-  (typeof ACCOUNT_SECURITY_ACTIONS)[keyof typeof ACCOUNT_SECURITY_ACTIONS];

@@ -40,7 +40,6 @@ export function AccountSettingsPanel(props: AccountSecurityProps) {
             key={`email-${profile.user_id}`}
             profile={profile}
             readFailed={query.isError}
-            readVersion={query.dataUpdatedAt}
             {...props}
           />
           <Separator />
