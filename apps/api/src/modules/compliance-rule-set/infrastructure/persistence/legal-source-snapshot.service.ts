@@ -1,6 +1,7 @@
 import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "@lcsp/contracts/legal-source";
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -133,6 +134,129 @@ export class LegalSourceSnapshotLoader {
           legalSourceVersionId,
           await pinnedMaterializationId(this.prisma, run.id),
         ),
+        legalSourceVersionId,
+        retrievalIndexValid: validIndex !== null,
+        chunks: chunks.map((chunk) => ({
+          ...chunk,
+          sourceEffectStatus:
+            effectByDocument.get(chunk.documentId) ?? "UNKNOWN",
+        })),
+      },
+      foreignHashes,
+    };
+  }
+
+  /**
+   * Business purpose: Validate selected-result publication against the exact source version without inventing a full-source review frontier.
+   *
+   * Business rules:
+   * - Persisted document roles, validated index state, exact chunk locators/hashes, and legal-effect metadata define source authority.
+   * - The snapshot omits the semantic graph because selected results have no frozen full-source graph frontier; source references still resolve against canonical chunks.
+   *
+   * Execution flow:
+   * 1. Read source documents, chunks, and a validated retrieval-index marker through the caller's transaction.
+   * 2. Identify submitted hash mismatches and look for matching hashes in other Legal Source Versions.
+   * 3. Return the source facts used by the Rule Set integrity validator.
+   *
+   * Failure cases:
+   * - Persistence errors propagate; missing or stale source facts remain validation failures and are never replaced with a newer source version.
+   *
+   * Side effects:
+   * - Read-only transaction queries; no source, graph, Preparation, or review record is written.
+   */
+  async loadSelected(
+    tx: Prisma.TransactionClient,
+    legalSourceVersionId: string,
+    packet: ComplianceRuleSetPacket,
+  ): Promise<{ snapshot: LegalSourceSnapshot; foreignHashes: Set<string> }> {
+    const [documents, chunks, validIndex] = await Promise.all([
+      tx.legalSourceDocument.findMany({
+        where: { legalSourceVersionId },
+        select: {
+          documentId: true,
+          sourceEffectStatus: true,
+          corpusRole: true,
+        },
+      }),
+      tx.legalDocumentChunk.findMany({
+        where: { legalSourceVersionId },
+        select: {
+          id: true,
+          documentId: true,
+          locator: true,
+          contentSha256: true,
+          legalStatus: true,
+          legalEffectStatus: true,
+          legalStatusSourceRef: true,
+        },
+      }),
+      tx.legalRetrievalIndex.findFirst({
+        where: {
+          legalSourceVersionId,
+          status: "VALID",
+          validatedAt: { not: null },
+        },
+        select: { id: true },
+      }),
+    ]);
+    const effectByDocument = new Map(
+      documents.map((document) => [
+        document.documentId,
+        document.sourceEffectStatus,
+      ]),
+    );
+    const pinnedHash = new Map(
+      chunks.map((chunk) => [sourceClaimKey(chunk), chunk.contentSha256]),
+    );
+    const claims = [
+      ...packet.legalRequirements.flatMap((rule) => rule.sourceRefs),
+      ...packet.assessmentRules.flatMap((rule) => rule.sourceRefs),
+      ...packet.contextRelations.flatMap((relation) =>
+        relation.toSourceRef ? [relation.toSourceRef] : [],
+      ),
+    ];
+    const stale = [
+      ...new Map(
+        claims
+          .filter(
+            (claim) =>
+              pinnedHash.has(sourceClaimKey(claim)) &&
+              pinnedHash.get(sourceClaimKey(claim)) !== claim.contentSha256,
+          )
+          .map(
+            (claim) =>
+              [
+                `${sourceClaimKey(claim)}|${claim.contentSha256}`,
+                claim,
+              ] as const,
+          ),
+      ).values(),
+    ];
+    const foreignHashes = new Set<string>();
+    if (stale.length) {
+      const foreign = await tx.legalDocumentChunk.findMany({
+        where: {
+          legalSourceVersionId: { not: legalSourceVersionId },
+          OR: stale.map((claim) => ({
+            documentId: claim.documentId,
+            locator: claim.locator,
+            contentSha256: claim.contentSha256,
+          })),
+        },
+        select: { documentId: true, locator: true, contentSha256: true },
+      });
+      for (const chunk of foreign)
+        foreignHashes.add(`${sourceClaimKey(chunk)}|${chunk.contentSha256}`);
+    }
+    return {
+      snapshot: {
+        referenceOnlyDocumentIds: documents
+          .filter(
+            (document) =>
+              document.corpusRole ===
+              LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY,
+          )
+          .map((document) => document.documentId),
         legalSourceVersionId,
         retrievalIndexValid: validIndex !== null,
         chunks: chunks.map((chunk) => ({

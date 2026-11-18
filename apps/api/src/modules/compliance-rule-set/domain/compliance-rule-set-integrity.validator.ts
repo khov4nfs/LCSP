@@ -254,18 +254,19 @@ export function validateAssessmentRuleBindings(
 }
 
 /**
- * Business purpose: Verify that a complete Rule Set packet is structurally valid and bound to one pinned Legal Source version.
+ * Business purpose: Verify a Rule Set packet against one pinned Legal Source, with full-source semantic review required by default.
  *
  * Business rules:
  * - Requirement, AssessmentRule, context-relation and per-rule criterion identities must be unique; source-reference bindings and entity links must be valid.
  * - Every source citation must resolve to the exact pinned chunk/hash with current legal-effect status and provenance.
  * - Assessment applicability, criteria, scope declarations, and evidence requests must preserve linked Requirement structure; this validator does not interpret or repair legal meaning.
+ * - Full-source publication requires the pinned document AST and semantic claim accounting. Selected-result publication may skip only that full-source gate because each selected output has separate identity and source-binding validation and carries no full-source review claim.
  * - A successful result exposes only server-resolved source bindings; failures remain explicit and prevent activation upstream.
  *
  * Execution flow:
  * 1. Require a valid retrieval index and nonempty requirements/rules, then check identities and derived AssessmentRule bindings.
  * 2. Resolve source references against the pinned snapshot and collect clean citation bindings, status, and mixed-source failures.
- * 3. Verify rule links, context-relation links, coverage, applicability-scope declaration, and semantic-claim graph integrity.
+ * 3. Verify rule links, context-relation links, coverage, and applicability-scope declaration; verify semantic-claim graph integrity when required.
  * 4. Return the accumulated failures, clean resolved chunks, and structural/retrieval coverage.
  *
  * Failure cases:
@@ -279,6 +280,7 @@ export function validateComplianceRuleSetPacket(
   packet: ComplianceRuleSetPacket,
   legalSource: LegalSourceSnapshot,
   isForeignChunkHash: ForeignChunkHashLookup,
+  options: { requireSemanticGraph?: boolean } = {},
 ): RuleSetValidationResult {
   const referenceOnly = new Set(
     legalSource.referenceOnlyDocumentIds ??
@@ -631,7 +633,16 @@ export function validateComplianceRuleSetPacket(
       }
     }
   }
-  const semantic = validateSemanticClaimGraph(packet, legalSource);
+  const semantic =
+    options.requireSemanticGraph === false
+      ? {
+          failures: [] as ComplianceRuleSetValidationFailure[],
+          coverage: {
+            structuralSource: { total: 0, accounted: 0 },
+            semanticClaims: { relevant: 0, accounted: 0, unaccounted: 0 },
+          },
+        }
+      : validateSemanticClaimGraph(packet, legalSource);
   failures.push(...semantic.failures);
 
   const seen = new Set<string>();

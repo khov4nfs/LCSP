@@ -102,7 +102,7 @@ export function useLegalRuleCatalogs() {
 /**
  * Business purpose: Browse one server-filtered catalog page while selection remains independent.
  * Business rules:
- * - Catalog, page and filters partition the cache; the browser never computes Select all totals.
+ * - Catalog, page and filters (including persisted Assessment Rule availability) partition the cache; the browser never computes Select all totals.
  * Execution flow:
  * 1. Register the page query
  * 2. Send bounded normalized query parameters.
@@ -118,6 +118,7 @@ export function useLegalRules(catalogId: string, query: C.LegalRuleList) {
     search: query.search,
   });
   if (query.state) params.set("state", query.state);
+  if (query.withAssessmentRules) params.set("withAssessmentRules", "true");
   return useQuery({
     queryKey: [...legalRuleCatalogKey, "rules", catalogId, query],
     enabled: !!catalogId,
@@ -298,6 +299,70 @@ export function useLegalRuleCommand<TInput, TOutput>(
      */
     onSuccess: () =>
       client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}
+
+/**
+ * Business purpose: Activate only the explicitly confirmed prepared Assessment Rules selected by an Admin.
+ *
+ * Business rules:
+ * - The API revalidates each exact result revision; the browser cannot publish or mark rules ACTIVE optimistically.
+ * - A successful publication refreshes catalog result views and the shared ACTIVE Rule Set/history reads.
+ *
+ * Execution flow:
+ * 1. POST the selected result identities and idempotency key through the shared API client.
+ * 2. Validate the server's activation acknowledgement.
+ * 3. Invalidate catalog and ACTIVE Rule Set caches after the server confirms the transaction.
+ *
+ * Failure cases:
+ * - Stale/ineligible selections, authorization errors, network failures, and malformed responses remain mutation errors.
+ *
+ * Side effects:
+ * - One explicit server publication request and cache invalidation; no client-side Rule Set state is written.
+ */
+export function useLegalRuleActivation(catalogId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Submit the exact Admin-confirmed selected-result manifest for server-side activation.
+     * Business rules:
+     * - Keep the user's selected result IDs, revisions, expected catalog revision, and idempotency key intact for backend revalidation.
+     * Execution flow:
+     * 1. POST the manifest to the catalog-scoped activation route through the shared schema-validating API client.
+     * Failure cases:
+     * - Authorization, stale-result, source-integrity, network, or response-contract failures reject the mutation.
+     * Side effects:
+     * - Sends one publication command; it does not change client or server lifecycle state itself.
+     */
+    mutationFn: (input: C.LegalRuleActivationRequest) =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/assessment-rules/activate`,
+        C.legalRuleActivationResultSchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        },
+      ),
+    /**
+     * Business purpose: Refresh the selected-result catalog and canonical Rule Set views after activation is acknowledged.
+     * Business rules:
+     * - Cache invalidation occurs only after the backend confirms successful atomic publication.
+     * Execution flow:
+     * 1. Mark catalog/result and Admin Rule Set queries stale together.
+     * Failure cases:
+     * - A failed invalidation remains visible to the mutation lifecycle; no success is synthesized.
+     * Side effects:
+     * - Triggers eligible React Query refetches for current subscribers.
+     */
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+        client.invalidateQueries({
+          queryKey: ["admin", "compliance-rule-sets"],
+        }),
+      ]);
+    },
   });
 }
 
