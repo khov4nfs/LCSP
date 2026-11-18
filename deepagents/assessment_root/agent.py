@@ -10,6 +10,7 @@ from __future__ import annotations
 from runtime_instruction_bundle import runtime_instruction
 
 from pathlib import Path
+import json
 import os
 from typing import Any, Sequence
 
@@ -17,7 +18,7 @@ from deepagents import create_deep_agent
 from deepagents.backends import CompositeBackend
 from deepagents.middleware.filesystem import FilesystemPermission
 from langchain.agents.middleware import AgentMiddleware, AgentState, TodoListMiddleware, TracePolicy, hook_config, omit_payload
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from langgraph.runtime import Runtime
 
@@ -157,21 +158,49 @@ class AssessmentCompletionMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["model"])
     def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
-        """Business purpose: Keep Root working until the API accepts the requested audit scope.
+        """Business purpose: Keep clarification focused and Root working until the API accepts the requested audit scope.
 
         Business rules:
         - A model final message cannot substitute for selected-scope or full-report completion.
+        - A new model turn may request at most one customer question, including batch and unresolvable-fact tools.
+        - Reject the whole tool turn before execution when it would ask multiple questions; saved tool/checkpoint replay stays unchanged.
         Execution flow:
         1. Inspect the model response.
-        2. Reload canonical status.
-        3. Request another tool-using turn if unfinished.
+        2. Return tool feedback and request one focused question when a new turn exceeds the question limit.
+        3. Reload canonical status and request another tool-using turn if unfinished.
         Failure cases:
+        - Multiple questions return HUMAN_REQUEST_INVALID without executing any tool from that turn.
         - Open human blockers without native interrupt reject completion.
         Side effects:
         - Reads API context and adds a native continuation message; no legal decision is persisted.
         """
         response = state["messages"][-1]
-        if not isinstance(response, AIMessage) or response.tool_calls:
+        if not isinstance(response, AIMessage):
+            return None
+        question_count = 0
+        for call in response.tool_calls:
+            if call["name"] in {"open_human_request", "report_human_fact_unresolvable"}:
+                question_count += 1
+            elif call["name"] == "open_human_requests_batch":
+                requests = call["args"].get("requests")
+                if isinstance(requests, list):
+                    question_count += len(requests)
+        if question_count > 1:
+            feedback = json.dumps({
+                "ok": False,
+                "code": "HUMAN_REQUEST_INVALID",
+                "reason": "ONE_CUSTOMER_QUESTION_PER_TURN",
+                "maxQuestions": 1,
+                "requestedQuestions": question_count,
+            })
+            return {
+                "messages": [
+                    ToolMessage(content=feedback, tool_call_id=call["id"], name=call["name"])
+                    for call in response.tool_calls
+                ],
+                "jump_to": "model",
+            }
+        if response.tool_calls:
             return None
         context = self.run.client.context()
         if context["lifecycleState"] in {"COMPLETE", "PAUSED", "FAILED"} or (context.get("auditRequest") or {}).get("status") == "COMPLETED":

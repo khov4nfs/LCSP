@@ -1037,8 +1037,9 @@ def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_
     assert run.case_revision == 1 and not agent.get_state(config).next
 
 
-def test_root_human_batch_tool_atomic_interrupt_and_replay(tmp_path) -> None:
+def test_legacy_root_human_batch_checkpoint_replays_under_single_question_policy(tmp_path, monkeypatch) -> None:
     from langgraph.types import Command
+    from assessment_root.agent import AssessmentCompletionMiddleware
 
     class BatchHumanClient(FakeClient):
         def post_human_requests_batch(self, body):
@@ -1077,9 +1078,12 @@ def test_root_human_batch_tool_atomic_interrupt_and_replay(tmp_path) -> None:
         _call("open_human_requests_batch", {"requests": batch_requests}, "batch-call"),
         *complete_root_messages(),
     ])
-    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
     config = {"configurable": {"thread_id": THREAD}}
-    result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+    # Reproduce a saved multi-question checkpoint created before the new admission policy.
+    with monkeypatch.context() as legacy:
+        legacy.setattr(AssessmentCompletionMiddleware, "after_model", lambda self, state, runtime: None)
+        old_agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
+        result = old_agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
 
     # Verifies atomic native interrupt containing all open request IDs
     interrupt_reqs = result["__interrupt__"][0].value["requestIds"]
@@ -1089,6 +1093,7 @@ def test_root_human_batch_tool_atomic_interrupt_and_replay(tmp_path) -> None:
     # Resume once resolved
     client.open_requests = []
     client.case_revision = 1
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
     agent.invoke(Command(resume={result["__interrupt__"][0].id: {"resolved": True}}), config)
 
     # Verifies crash/replay idempotency: exact same idempotency keys generated

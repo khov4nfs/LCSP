@@ -131,6 +131,7 @@ function ChoiceAnswer(props: ShapeProps) {
           type="button"
           variant="outline"
           size="sm"
+          className="transition-all hover:border-primary hover:bg-primary/5"
           disabled={unavailable}
           onClick={() =>
             props.onSubmit({ doesNotKnow: false, answer: choice.value })
@@ -164,16 +165,16 @@ function MultiChoiceAnswer(props: ShapeProps) {
           <label
             key={choice.value}
             htmlFor={id}
-            className="flex cursor-pointer items-center gap-2 text-sm"
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg border bg-card/60 px-3 py-2 text-sm font-medium transition-colors hover:bg-accent/40 has-checked:border-primary/60 has-checked:bg-primary/5"
           >
             <input
               id={id}
               type="checkbox"
               checked={picked.includes(choice.value)}
               onChange={() => toggle(choice.value)}
-              className="size-4 accent-primary focus-visible:ring-2 focus-visible:ring-ring"
+              className="size-4 rounded accent-primary focus-visible:ring-2 focus-visible:ring-ring"
             />
-            {choice.label}
+            <span>{choice.label}</span>
           </label>
         );
       })}

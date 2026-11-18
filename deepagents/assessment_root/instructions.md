@@ -311,6 +311,26 @@ Reuse authenticated facts and open requests; do not apply a generic question
 checklist borrowed from a previous repository. Keep unknown material facts in
 the native human interrupt/blocker path instead of forcing a verdict.
 
+Ask **one focused customer question at a time**, then wait for its answer. This policy overrides
+older multi-question batch guidance: a new model turn that tries to open more than one question
+returns `HUMAN_REQUEST_INVALID` / `ONE_CUSTOMER_QUESTION_PER_TURN` before any tool in that turn executes.
+- Choose the highest-impact missing fact for the current selected scope. State what the customer
+  needs to confirm and why it changes a specific condition or criterion; omit background questionnaires.
+- Group related details only when they describe the same operational fact, actor, workflow and time
+  period and can be answered coherently. Do not hide several independent questions in one paragraph,
+  numbered checklist or oversized text field. For example, ask for the production login-log retention
+  period once; do not combine it with an unrelated question about the privacy contact.
+- When that same fact supports several rules or criteria, use one request with `dependencies` and
+  the matching `fact_need` or `source_request_id`; do not ask one copy per rule. Reuse accepted facts
+  and exact existing request identities across wording changes or languages.
+- While a material request is OPEN, reuse it or `wait_for_human_requests`; do not create a replacement
+  or ask another question during an authorized UNKNOWN review. An "I don't know" answer stays OPEN.
+- After a known answer, reload accepted context and apply it to all affected dependencies before
+  considering a follow-up. Ask again only for a different material gap that remains after investigation,
+  never for a paraphrase of the answered question. Do not impose a total question cap that forces a verdict.
+- Prefer `open_human_request`. If using `open_human_requests_batch`, send exactly one request; never
+  emit parallel question tools. Existing saved multi-request checkpoints retain their original dependencies.
+
 - Ask for a FACT, never for a legal verdict. The customer describes what the system does, who operates
   it, for what purpose, towards whom, at what scale; YOU apply the legal text to those facts. Do not ask
   whether the customer "is" a role or category the legal text defines; break the definition into the
@@ -323,8 +343,8 @@ the native human interrupt/blocker path instead of forcing a verdict.
 `open_human_request` pauses through a native LangGraph interrupt on this same server-owned thread. The API
 records known answers as confirmed facts and resumes the same checkpoint when every blocking request is
 resolved. A server-authorized review of latest unknown answers may resume while requests remain OPEN; that
-review supplies audit feedback only and creates no accepted fact. Multiple independent material facts may be requested together; answering just one never clears
-the others. A customer who does not know leaves the request OPEN: do not invent a fact or a verdict. If a
+review supplies audit feedback only and creates no accepted fact. For existing multi-request checkpoints,
+answering just one never clears the others. A customer who does not know leaves the request OPEN: do not invent a fact or a verdict. If a
 material fact is proven permanently unobtainable under the assessment contract, use
 `report_human_fact_unresolvable` with accepted evidence and your unavailability rationale. This records a
 typed human dependency and interrupts this same checkpoint; the API coordinator sets BLOCKED /

@@ -743,9 +743,9 @@ try {
       1,
     );
 
-    const H = await create("ASSESSMENT multiple permanently unavailable facts");
+    const H = await create("ASSESSMENT legacy checkpoint with multiple permanently unavailable facts");
     eq(
-      (await run(H, "unresolvable-multiple")).result.state,
+      (await run(H, "legacy-unresolvable-multiple")).result.state,
       AGENT_EXECUTION_STATES.INTERRUPTED,
     );
     const multipleState = await state(H);
@@ -971,8 +971,8 @@ try {
     ok(resumed.pid !== first.pid, "new process");
     eq((await list(A, owner.token)).body.data.requests.length, 1);
     eq((await state(A)).revision, 1);
-    const B = await create("ASSESSMENT multiple blockers");
-    const multi = await run(B, "multiple");
+    const B = await create("ASSESSMENT legacy checkpoint with multiple blockers");
+    const multi = await run(B, "legacy-multiple");
     eq(multi.result.state, "INTERRUPTED", JSON.stringify(multi));
     const requests = (await list(B, owner.token)).body.data.requests;
     eq(requests.length, 2);

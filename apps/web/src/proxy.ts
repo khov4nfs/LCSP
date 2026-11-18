@@ -133,6 +133,7 @@ export const config = {
     "/pricing",
     "/en/:path*",
     "/vi/:path*",
+    "/preview-compliance",
     "/workspace/:path*",
     "/assessments/:path*",
     "/laws/:path*",

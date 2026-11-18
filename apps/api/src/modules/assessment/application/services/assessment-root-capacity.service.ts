@@ -755,9 +755,10 @@ export class AssessmentRootCapacityService {
    * - Incarnation fencing and one row lock serialize reports, reconciliations and decisions.
    * - A comparison version rejects delayed snapshots issued before any newer reservation/release/control.
    * - Evaluation interval and cooldown state survive API/controller restart; no leader TTL grants admission.
+   * - Evaluate freshness after database measurements finish; retain the runtime sample's original timestamp.
    * Execution flow:
    * 1. Validate report ordering, reconcile quiescent work and persist fresh runtime measurements.
-   * 2. When due, measure authoritative demand/resources and run the bottleneck policy.
+   * 2. Measure authoritative demand/resources, then evaluate freshness and capacity using the current clock.
    * 3. Commit the new ceiling and its immutable sanitized receipt together.
    * Failure cases:
    * - Stale owner/out-of-order report or DB errors reject; no live Root is cancelled or freed by a timer.
@@ -787,13 +788,13 @@ export class AssessmentRootCapacityService {
           });
         }
         const recovered = await this.reconcile(tx, input.liveRunIds);
-        const now = new Date();
         const policy = rootCapacityPolicySchema.parse(row.policy);
+        const database = await this.measurements(tx, input.metrics);
+        const now = new Date();
         const due =
           !row.evaluatedAt ||
           now.getTime() - row.evaluatedAt.getTime() >=
             policy.evaluationSeconds * 1000;
-        const database = await this.measurements(tx, input.metrics);
         const calculated = decideRootCapacity(
           policy,
           row,

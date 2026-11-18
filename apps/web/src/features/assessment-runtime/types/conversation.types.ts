@@ -116,7 +116,7 @@ export type AnswerTurn = TurnBase & {
   selectedLabel?: string | null;
   doesNotKnow: boolean;
 };
-type DecisionRecord = NonNullable<
+export type DecisionRecord = NonNullable<
   AssessmentDetail["case"]
 >["decisions"][number];
 export type DecisionTurn = TurnBase & {

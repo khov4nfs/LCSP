@@ -5,12 +5,15 @@ import json
 import os
 import sys
 import uuid
+from contextlib import nullcontext
+from unittest.mock import patch
 
 from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from assessment_root.client import AssessmentRuntimeClient, AssessmentApiError
+from assessment_root.agent import AssessmentCompletionMiddleware
 from assessment_root.runner import run_assessment_root
 from vertical.scripted_root import DynamicScriptedModel, _call, _tool_results
 
@@ -35,16 +38,16 @@ def main() -> None:
         result = next(r for r in reversed(_tool_results(messages)) if "assessmentRules" in r)
         criteria.update({r["assessmentRuleId"]: r["criterionIds"] for r in result["assessmentRules"]})
         return _call("grep", {"pattern": "notification_owner", "path": "/"}, "search")
-    if mode in {"ask", "multiple", "crash", "crash-before-checkpoint"}:
+    if mode in {"ask", "legacy-multiple", "crash", "crash-before-checkpoint"}:
         steps = [lambda m: _call("get_assessment_context", {}, "context"),
                  lambda m: _call("get_pinned_rule_set", {}, "rules"), load_criteria]
         def ask(messages):
             calls = [{"name": "open_human_request", "args": question("ER-RET", "one", criteria), "id": "human-one"}]
-            if mode == "multiple":
+            if mode == "legacy-multiple":
                 calls.append({"name": "open_human_request", "args": question("ER-XREF", "two", criteria), "id": "human-two"})
             return AIMessage(content="", tool_calls=calls)
         steps.append(ask)
-    if mode in {"unresolvable", "unresolvable-crash", "unresolvable-crash-before-checkpoint", "unresolvable-multiple", "unresolvable-rejected"}:
+    if mode in {"unresolvable", "unresolvable-crash", "unresolvable-crash-before-checkpoint", "legacy-unresolvable-multiple", "unresolvable-rejected"}:
         steps = [lambda m: _call("get_assessment_context", {}, "context"),
                  lambda m: _call("get_pinned_rule_set", {}, "rules"),
                  lambda m: (load_criteria(m), _call("cite_repository_source", {"path": "README.md", "start_line": 1, "end_line": 1}, "source"))[1],
@@ -53,7 +56,7 @@ def main() -> None:
                      "unavailability_rationale": "The historical ownership records were permanently lost and no alternate source exists under the assessment contract.",
                      "evidence_ids": [_tool_results(m)[-1]["evidenceId"]],
                  }, "unresolvable")]
-        if mode == "unresolvable-multiple":
+        if mode == "legacy-unresolvable-multiple":
             steps[-1] = lambda m: AIMessage(content="", tool_calls=[{
                 "name": "report_human_fact_unresolvable",
                 "args": {**question(rule, suffix, criteria),
@@ -107,7 +110,9 @@ def main() -> None:
             persist(body)
             os._exit(74)
         client.post_human_request = crash_after_request
-    with PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
+    # Only these fixtures create pre-policy checkpoints; ordinary/resumed runs use the real guard.
+    legacy_policy = patch.object(AssessmentCompletionMiddleware, "after_model", lambda self, state, runtime: None) if mode in {"legacy-multiple", "legacy-unresolvable-multiple"} else nullcontext()
+    with legacy_policy, PostgresSaver.from_conn_string(os.environ["LANGGRAPH_CHECKPOINT_DATABASE_URL"]) as saver:
         saver.setup()
         result = run_assessment_root(client, assessment_id,
             backend_factory=lambda claim, context: (FilesystemBackend(root_dir=repo_dir, virtual_mode=True), None),
