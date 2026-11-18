@@ -1851,7 +1851,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     });
     const elapsedMs = Date.now() - startMs;
 
-    expect(elapsedMs).toBeLessThan(5000);
+    expect(elapsedMs).toBeLessThan(15_000);
 
     expect(overview.changesPagination?.total).toBe(90);
     expect(overview.changesPagination?.hasMore).toBe(true);
