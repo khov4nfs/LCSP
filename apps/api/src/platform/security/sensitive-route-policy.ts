@@ -7,6 +7,7 @@ type SensitiveRouteDefinition = {
 export const SENSITIVE_ROUTE_IDS = {
   githubCliRepositoryDiscovery: "GITHUB_CLI_REPOSITORY_DISCOVERY",
   githubCliRepositoryConnect: "GITHUB_CLI_REPOSITORY_CONNECT",
+  providerCredentialDisconnect: "PROVIDER_CREDENTIAL_DISCONNECT",
   mfaRecoveryCodesGenerate: "MFA_RECOVERY_CODES_GENERATE",
   mfaDisable: "MFA_DISABLE",
 } as const;

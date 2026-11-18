@@ -2836,8 +2836,34 @@ export const enPages = {
         detectAccountFromCredential:
           "Account will be detected from the credential.",
         disconnect: "Disconnect",
-        disconnectUnavailable:
-          "Disconnect is not available from the current settings API.",
+        disconnectConfirmTitle:
+          "Disconnect this provider?",
+        disconnectConfirmDescription:
+          "This permanently deletes the stored access token. Repositories connected through it can no longer be scanned until you connect the provider again.",
+        disconnectConfirm:
+          "Disconnect",
+        disconnecting:
+          "Disconnecting…",
+        disconnectSuccessTitle:
+          "Provider disconnected",
+        disconnectFailedDescription:
+          "We could not disconnect the provider. Nothing was changed. Try again.",
+        disconnectReauthCancelled:
+          "Identity confirmation was canceled. The provider is still connected.",
+        connectionExpired:
+          "Expired",
+        connectionNeedsAttention:
+          "Needs attention",
+        statusLoading:
+          "Loading provider connections…",
+        loadFailedTitle:
+          "Provider connections could not be loaded",
+        loadFailedDescription:
+          "The connection status is unknown, so no provider is shown as connected or disconnected. Try again.",
+        retry:
+          "Retry",
+        noneConnectedDescription:
+          "No Git provider is connected yet. Connect one to scan your repositories.",
         enterNewPat: "Enter a new PAT",
         githubRepositoryCredentialSubtitle: "GitHub repository credential",
         gitlabRepositoryCredentialSubtitle: "GitLab repository credential",

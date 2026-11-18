@@ -5,6 +5,7 @@ import {
   SETTINGS_PRESENTATIONS,
   SETTINGS_SENSITIVE_ACTIONS,
 } from "../config/settings-page.config";
+import type { ProviderReauthenticateHandler } from "./provider-credential.types";
 import type { SettingsSectionId } from "./settings.types";
 
 export type SettingsPageProps = {
@@ -33,5 +34,10 @@ export type SettingsAlertMessage = {
 
 export type RepositoriesSettingsSectionProps = {
   providerCredentialStatuses?: ProviderCredentialStatus[];
-  onReauthenticate?: (retry: () => void) => void;
+  /** Distinguishes an unfinished load from an empty result. */
+  isLoading?: boolean;
+  /** True when statuses could not be read; the connection state is then unknown, not empty. */
+  loadFailed?: boolean;
+  onRetry?: () => void;
+  onReauthenticate?: ProviderReauthenticateHandler;
 };
