@@ -28,6 +28,20 @@ export const enLegalRuleCatalog = {
   search: "Search rules",
   status: "Preparation state",
   allStates: "All states",
+  preparedWithAssessmentRules: "Prepared with Assessment Rules",
+  assessmentRuleCount: "Assessment Rules",
+  selectForActivation: "Select for activation",
+  activateSelectedAssessmentRules: "Activate selected Assessment Rules",
+  activationSelectedCount: "Selected prepared results",
+  activateConfirmTitle: "Activate selected Assessment Rules?",
+  activateConfirmDescription:
+    "These selected persisted results will form the next ACTIVE Rule Set and replace the current one, if present.",
+  activateConfirmImpact:
+    "The new Rule Set contains only Assessment Rules from these selected results. Existing Assessments keep their pinned version; new Assessments use the replacement.",
+  currentActiveRuleCount: "Assessment Rules in the current ACTIVE Rule Set",
+  noActiveRuleSet: "No ACTIVE Rule Set is currently published",
+  activating: "Activating…",
+  activationSuccess: "Selected rules are now in ACTIVE Rule Set",
   empty: "No rules match these filters.",
   emptyCatalogRulesTitle: "This catalog has no rules yet",
   emptyCatalogRules:

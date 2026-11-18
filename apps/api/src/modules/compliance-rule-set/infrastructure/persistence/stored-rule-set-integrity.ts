@@ -57,7 +57,7 @@ export function storedRuleSetIntegrityValid(
           ...((inventory?.graph as { targetDate?: string } | undefined)
             ?.targetDate
             ? {
-                targetDate: (inventory.graph as { targetDate: string })
+                targetDate: (inventory?.graph as { targetDate: string })
                   .targetDate,
               }
             : {}),
@@ -65,7 +65,7 @@ export function storedRuleSetIntegrityValid(
             ?.reviewFrontier
             ? {
                 reviewFrontier: (
-                  inventory.graph as {
+                  inventory?.graph as {
                     reviewFrontier: NonNullable<
                       ComplianceRuleSetPacket["semanticGraph"]
                     >["reviewFrontier"];

@@ -1708,9 +1708,10 @@ model ComplianceRuleSetVersion {
   id                      String                                @id @default(uuid())
   version                 String                                @unique
   legalSourceVersionId    String
-  preparationRunId        String                                @unique
+  preparationRunId        String?                               @unique
   lifecycleState          ArtifactLifecycleState                @default(BUILDING)
   ruleSetDigest           String
+  selectedPreparationResults Json?
   validationOutcome       ComplianceRuleSetValidationOutcome?
   validationFailures      Json                                  @default("[]")
   createdAt               DateTime                              @default(now())
@@ -1718,7 +1719,7 @@ model ComplianceRuleSetVersion {
   activatedAt             DateTime?
   supersededAt            DateTime?
   legalSourceVersion      LegalSourceVersion                    @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
-  preparationRun          RuleSetPreparationRun                 @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  preparationRun          RuleSetPreparationRun?                @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
   rules                   LegalRequirement[]
   assessmentRules         AssessmentRule[]
   provenance              LegalRequirementProvenance[]
@@ -2000,18 +2001,19 @@ model LegalRequirementContextRelation {
 model ComplianceRuleSetActivationRecord {
   id                             String                             @id @default(uuid())
   ruleSetVersionId               String                             @unique
-  preparationRunId               String                             @unique
+  preparationRunId               String?                            @unique
   idempotencyKey                 String                             @unique
   requestDigest                  String
   validationOutcome              ComplianceRuleSetValidationOutcome
   validationFailures             Json                               @default("[]")
+  selectedPreparationResults     Json?
   previousActiveRuleSetVersionId String?
   outboxEventId                  String?
   correlationId                  String
   createdAt                      DateTime                           @default(now())
   ruleSet                        ComplianceRuleSetVersion           @relation("ActivationTarget", fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
   previousActive                 ComplianceRuleSetVersion?          @relation("ActivationPrevious", fields: [previousActiveRuleSetVersionId], references: [id], onDelete: Restrict)
-  preparationRun                 RuleSetPreparationRun              @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  preparationRun                 RuleSetPreparationRun?             @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
 
   @@index([previousActiveRuleSetVersionId])
 }

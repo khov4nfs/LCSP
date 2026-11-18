@@ -19,6 +19,7 @@ import {
   legalRuleCitationSchema,
   legalRuleListItemSchema,
   preparationRuleInputSchema,
+  preparationRuleOutputSchema,
   type LegalRuleWrite,
   type LegalRuleList,
   type LegalRuleSelection,
@@ -1042,7 +1043,7 @@ export class LegalRuleCatalogService {
   /**
    * Business purpose: Project eligibility and preparation freshness from canonical rows.
    * Business rules:
-   * - No model calls; a VALID index and every exact citation are required. Catalog size is bounded at write time.
+   * - No model calls; a VALID index and every exact citation are required. Counts reflect the latest parseable persisted output; PREPARED additionally requires a successful run and a matching current input snapshot, source pin, and fingerprint.
    * Execution flow:
    * 1. Read catalog/rules/latest results
    * 2. Resolve chunk metadata in one query
@@ -1162,6 +1163,17 @@ export class LegalRuleCatalogService {
               })),
             };
       const last = rule.preparation?.results[0] ?? null;
+      const resultInput = last
+        ? preparationRuleInputSchema.safeParse(last.inputSnapshot)
+        : null;
+      const currentResult = Boolean(
+        last &&
+        input &&
+        resultInput?.success &&
+        last.preparationRun.legalSourceVersionId === source.id &&
+        last.inputFingerprint === preparationInputFingerprint(input) &&
+        preparationInputFingerprint(resultInput.data) === last.inputFingerprint,
+      );
       const state = reason
         ? S.INELIGIBLE
         : !last
@@ -1169,12 +1181,18 @@ export class LegalRuleCatalogService {
           : last.preparationRun.executionState === AgentExecutionState.QUEUED ||
               last.preparationRun.executionState === AgentExecutionState.RUNNING
             ? S.RUNNING
-            : last.inputFingerprint !== preparationInputFingerprint(input!)
+            : !currentResult
               ? S.STALE
               : last.preparationRun.executionState ===
                   AgentExecutionState.SUCCEEDED
                 ? S.PREPARED
                 : S.FAILED;
+      const parsedOutput = last?.output
+        ? preparationRuleOutputSchema.safeParse(last.output)
+        : null;
+      const assessmentRuleCount = parsedOutput?.success
+        ? parsedOutput.data.assessmentRules.length
+        : 0;
       return {
         id: rule.id,
         legalRuleId: rule.legalRuleId,
@@ -1185,7 +1203,9 @@ export class LegalRuleCatalogService {
         ineligibleReason: reason,
         lastResultId: last?.id ?? null,
         lastRunId: last?.preparationRunId ?? null,
+        lastResultRevision: last?.revision ?? null,
         lastOutcome: last?.preparationRun.executionState ?? null,
+        assessmentRuleCount,
         input,
       };
     });
@@ -1233,7 +1253,7 @@ export class LegalRuleCatalogService {
   /**
    * Business purpose: Apply the same server filter to page reads and Select all matching.
    * Business rules:
-   * - Search spans stable identity, title, description and citation text; state filtering is exact.
+   * - Search spans stable identity, title, description and citation text; state filtering is exact. Assessment Rule filtering requires a current PREPARED result with a non-zero persisted rule count.
    * Execution flow:
    * 1. Normalize search
    * 2. Retain matching entries.
@@ -1249,12 +1269,18 @@ export class LegalRuleCatalogService {
       description: string;
       citationLocatorRefs: unknown;
       state: string;
+      assessmentRuleCount: number;
     },
-  >(items: T[], query: Pick<LegalRuleList, "search" | "state">): T[] {
+  >(
+    items: T[],
+    query: Pick<LegalRuleList, "search" | "state" | "withAssessmentRules">,
+  ): T[] {
     const search = query.search.toLocaleLowerCase("en-US");
     return items.filter(
       (item) =>
         (!query.state || item.state === query.state) &&
+        (!query.withAssessmentRules ||
+          (item.state === S.PREPARED && item.assessmentRuleCount > 0)) &&
         (!search ||
           `${item.legalRuleId} ${item.title} ${item.description} ${JSON.stringify(item.citationLocatorRefs)}`
             .toLocaleLowerCase("en-US")

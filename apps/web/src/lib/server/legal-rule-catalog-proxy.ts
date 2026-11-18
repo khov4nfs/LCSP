@@ -43,6 +43,12 @@ const routes = [
   },
   {
     method: "POST",
+    pattern: /^[^/]+\/assessment-rules\/activate$/,
+    request: C.legalRuleActivationRequestSchema,
+    response: C.legalRuleActivationResultSchema,
+  },
+  {
+    method: "POST",
     pattern: /^selections$/,
     request: C.legalRuleSelectionSchema,
     response: C.legalRuleSelectionResultSchema,

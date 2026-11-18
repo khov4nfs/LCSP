@@ -79,5 +79,6 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
     GetComplianceRuleSetVersionHandler,
     GetComplianceRuleSetResultHandler,
   ],
+  exports: [ComplianceRuleSetActivation, LegalSourceSnapshotLoader],
 })
 export class ComplianceRuleSetModule {}
