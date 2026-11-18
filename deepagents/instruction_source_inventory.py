@@ -225,6 +225,18 @@ def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, r
     # construction *surfaces*, not hashes of their text or source-line numbers.
     # New, removed or reclassified model-facing consumers remain a hard error.
     def surface_counts(sites: list[dict]) -> Counter:
+        """Business purpose: Count registered model-facing construction surfaces.
+
+        Business rules:
+        - Structure, consumer identity and source kind matter; content hashes do not.
+        Execution flow:
+        1. Project each discovered site to its file, owner and AST kind.
+        2. Count duplicate structural surfaces deterministically.
+        Failure cases:
+        - Invalid site metadata raises instead of being silently skipped.
+        Side effects:
+        - None; the declared ledger and discovered surfaces are not changed.
+        """
         return Counter(
             (site["filePath"], site["symbolName"], site.get("astKind", "LEGACY_LINE"))
             for site in sites
