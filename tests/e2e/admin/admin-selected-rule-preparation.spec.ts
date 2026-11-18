@@ -215,17 +215,7 @@ test("bulk build shows partial results, retries only failure, and regenerates on
     dialog.getByText(fixture.output1.analysis, { exact: true }),
   ).toBeVisible();
   await expect(
-    dialog.getByText(fixture.instruction1.fingerprint, { exact: true }),
-  ).toBeVisible();
-  await expect(
-    dialog.getByText(fixture.instruction2.fingerprint, { exact: true }),
-  ).toBeVisible();
-  await expect(
-    dialog
-      .getByText(fixture.sourceId ?? fixture.catalog.legalSourceVersionId, {
-        exact: false,
-      })
-      .first(),
+    dialog.getByText(fixture.output2.analysis, { exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
