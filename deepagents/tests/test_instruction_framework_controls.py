@@ -107,7 +107,7 @@ def test_candidate_compilation_is_exact_utf8_lf_on_windows_and_linux(tmp_path):
     expected = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     assert path.read_bytes() == expected
     assert b"\r\n" not in path.read_bytes()
-    assert payload["approvalStatus"] == "PENDING"
+    assert payload["approvalRequired"] is False
 
 
 

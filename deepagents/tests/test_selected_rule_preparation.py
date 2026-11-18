@@ -1,7 +1,6 @@
 """Provider-free native graph proof for selected Preparation execution and instruction refresh."""
 import asyncio
 import json
-from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
@@ -76,6 +75,19 @@ def runtime_assets(tmp_path, monkeypatch):
     candidate.mkdir(parents=True)
     asset = candidate / "preparation.selected.txt"
     asset.write_text("Instruction snapshot one", encoding="utf-8")
+    source = tmp_path / "instructions/vi"
+    source.mkdir(parents=True)
+    (source / "preparation-selected.md").write_text("Hướng dẫn gốc", encoding="utf-8")
+    (tmp_path / "instructions/inventory.json").write_text(json.dumps({
+        "schemaVersion": "LCSP_EN_RUNTIME_BUNDLE_V1",
+        "bundleId": "test-live-instructions",
+        "requiredSourceIds": ["preparation.selected"],
+        "entries": [{
+            "sourceId": "preparation.selected",
+            "vietnameseSourcePath": "instructions/vi/preparation-selected.md",
+            "englishCandidatePath": "instructions/candidates/r1/preparation.selected.txt",
+        }],
+    }), encoding="utf-8")
     instructions.clear_runtime_bundle_cache()
     yield asset
     instructions.clear_runtime_bundle_cache()
@@ -91,7 +103,8 @@ def test_native_selected_graph_refreshes_instruction_cache_and_processes_only_on
     assert len(model.calls) == 1
     assert [message.content for message in model.calls[0] if isinstance(message, SystemMessage)] == ["Instruction snapshot two"]
     assert "selected-canonical-rule" in model.calls[0][-1].content
-    assert api.receipts[0][1]["fingerprint"] == sha256(b"Instruction snapshot two").hexdigest()
+    assert "fingerprint" not in api.receipts[0][1]
+    assert "bundleFingerprint" not in api.receipts[0][1]
     assert api.receipts[0][1]["content"] == "Instruction snapshot two"
     assert api.completions[0][0:2] == ("run-selected", "SUCCEEDED")
     # Fresh selected snapshots do not replace another invocation's process-cached view.
@@ -105,7 +118,7 @@ def test_each_regeneration_picks_up_new_instruction_bytes(runtime_assets):
     runtime_assets.write_text("Changed instruction for regeneration", encoding="utf-8")
     selected_rule.run_selected_rule_preparation(api, "run-two", model=model)
     assert len(model.calls) == 2
-    assert api.receipts[0][1]["fingerprint"] != api.receipts[1][1]["fingerprint"]
+    assert api.receipts[0][1]["content"] != api.receipts[1][1]["content"]
     assert api.receipts[0][1]["revision"] != api.receipts[1][1]["revision"]
 
 

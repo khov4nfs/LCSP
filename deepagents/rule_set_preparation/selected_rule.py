@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-from hashlib import sha256
 import json
 import logging
 from pathlib import Path
@@ -56,7 +55,7 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
     - A rejected/ambiguous result callback never causes another paid invocation or a fabricated success.
     Execution flow:
     1. Claim the selected run; stop duplicate delivery before model construction.
-    2. Load fresh instructions, record their exact bytes/hash and construct the governed agent.
+    2. Load fresh instructions, record their exact text and construct the governed agent.
     3. Invoke the bounded structured-output graph using only this rule's pinned input.
     4. Persist the result or safe failure through the existing API client and publish progress.
     Failure cases:
@@ -80,13 +79,9 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
     try:
         with runtime_instruction_snapshot() as bundle:
             content = bundle.instruction("preparation.selected")
-            metadata = bundle.manifest_metadata()
-            bundle_hash = sha256(json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
             receipt = {
-                "revision": f"preparation.selected@sha256:{sha256(content.encode('utf-8')).hexdigest()}",
-                "fingerprint": sha256(content.encode("utf-8")).hexdigest(),
+                "revision": f"preparation.selected@run:{run_id}",
                 "content": content,
-                "bundleFingerprint": bundle_hash,
             }
             api.record_selected_rule_instructions(run_id, receipt)
             schema = json.loads(Path(__file__).with_name("selected-output.schema.json").read_text(encoding="utf-8"))
@@ -97,7 +92,7 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
                 middleware=[AgentRoleMiddleware("rule-set-preparation"), AgentRunBudgetMiddleware(run_quotas={"model_calls": _positive_env("LCSP_RSP_MAX_MODEL_CALLS", 4)}), *MODEL_GOVERNANCE_MIDDLEWARE],
                 checkpointer=False,
             )
-            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_PREPARATION", "result_revision": claim["revision"], "instruction_sha256": receipt["fingerprint"]})
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_PREPARATION", "result_revision": claim["revision"]})
             response = asyncio.run(_invoke_selected_rule(agent, {"messages": [{"role": "user", "content": json.dumps(claim["input"], ensure_ascii=False)}]}))
             output = response.get("structured_response")
             if not isinstance(output, dict):

@@ -249,9 +249,10 @@ export const preparationRuleOutputSchema = z
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;
 export const preparationInstructionReceiptSchema = z.strictObject({
   revision: z.string().trim().min(1).max(256),
-  fingerprint,
   content: z.string().min(1).max(200000),
-  bundleFingerprint: fingerprint,
+  // Deprecated receipt fields remain optional to read historical result records.
+  fingerprint: fingerprint.optional(),
+  bundleFingerprint: fingerprint.optional(),
 });
 export const preparationRuleCompleteSchema = z.strictObject({
   preparationRunId: id,

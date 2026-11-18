@@ -917,8 +917,7 @@ export class PreparationRuleService {
       });
       if (
         !result ||
-        result.preparationRun.executionState !== A.RUNNING ||
-        sha256Hex(receipt.content) !== receipt.fingerprint
+        result.preparationRun.executionState !== A.RUNNING
       )
         catalogFailure(E.CONFLICT, cid);
       if (

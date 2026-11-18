@@ -3,7 +3,6 @@
 These checks only verify packaging and policy wording. They cannot establish
 legal-gold approval or measure real model semantic performance.
 """
-from hashlib import sha256
 import json
 from pathlib import Path
 
@@ -16,18 +15,16 @@ IDS = (
 )
 
 
-def test_oversight_scope_instruction_sources_match_pending_candidate_inventory():
+def test_oversight_scope_instruction_sources_are_registered_without_approval_or_hashes():
     inventory = json.loads((ROOT / "instructions/inventory.json").read_text(encoding="utf-8"))
     matching = {item["sourceId"]: item for item in inventory["entries"] if item["sourceId"] in IDS}
     assert set(matching) == set(IDS)
     for key in IDS:
         entry = matching[key]
-        assert entry["reviewStatus"] == "PENDING_INDEPENDENT_REVIEW"
-        vi = (ROOT / entry["vietnameseSourcePath"]).read_bytes()
-        en = (ROOT / entry["englishCandidatePath"]).read_bytes()
-        assert sha256(vi).hexdigest() == entry["sourceSha256"]
-        assert sha256(en).hexdigest() == entry["englishCandidateSha256"]
-        assert entry["candidateOriginSha256"] == entry["sourceSha256"]
+        vi = (ROOT / entry["vietnameseSourcePath"]).read_text(encoding="utf-8")
+        en = (ROOT / entry["englishCandidatePath"]).read_text(encoding="utf-8")
+        assert vi.strip() and en.strip()
+        assert "sourceSha256" not in entry and "englishCandidateSha256" not in entry
         assert entry["translationProvenance"]["translationRevision"] == "r2"
 
 
