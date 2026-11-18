@@ -915,10 +915,7 @@ export class PreparationRuleService {
         where: { preparationRunId: runId },
         include: { preparationRun: true },
       });
-      if (
-        !result ||
-        result.preparationRun.executionState !== A.RUNNING
-      )
+      if (!result || result.preparationRun.executionState !== A.RUNNING)
         catalogFailure(E.CONFLICT, cid);
       if (
         result.instructionReceipt &&
