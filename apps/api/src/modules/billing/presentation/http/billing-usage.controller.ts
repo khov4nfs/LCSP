@@ -5,7 +5,7 @@ import {
   billingLlmUsageReportSchema,
   type BillingLlmUsageReportRequest,
 } from "@lcsp/contracts/billing";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RecordLlmUsageCommand } from "../../application/commands/record-llm-usage/record-llm-usage.command.js";

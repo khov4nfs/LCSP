@@ -12,7 +12,7 @@ import {
   type WorkerAgentStreamEventRequest,
 } from "@lcsp/contracts/evidence";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { PublishAgentStreamEventCommand } from "../../application/commands/publish-agent-stream-event/publish-agent-stream-event.command.js";

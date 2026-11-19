@@ -9,7 +9,7 @@ import {
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { AdminUsersController } from "./admin-users.controller.js";
 
 type ProblemResponse = {

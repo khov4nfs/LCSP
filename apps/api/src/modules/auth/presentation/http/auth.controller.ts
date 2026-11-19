@@ -17,7 +17,7 @@ import {
   type SignUpInput,
 } from "@lcsp/contracts/auth";
 
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import {
   RevokeSessionCommand,
   SignInCommand,

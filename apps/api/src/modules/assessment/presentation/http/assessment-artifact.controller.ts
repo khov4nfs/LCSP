@@ -22,7 +22,7 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { GetAssessmentReportQuery } from "../../application/queries/get-assessment-report/get-assessment-report.query.js";

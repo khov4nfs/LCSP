@@ -24,7 +24,7 @@ import {
   type AssessmentProvenanceExport,
 } from "@lcsp/contracts/assessment-domain";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";

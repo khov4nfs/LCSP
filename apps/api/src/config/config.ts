@@ -90,6 +90,7 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
     OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
     OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
+    CORS_ALLOWED_ORIGINS: Joi.string().allow("").default(""),
     GITHUB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
       "GITHUB_CLI_EXECUTABLE_PATH",
       workspaceRoot,
@@ -356,6 +357,11 @@ export function config(): AppConfig {
       googleClientSecret: env.OAUTH_GOOGLE_CLIENT_SECRET ?? "",
       allowedRedirectOrigins: parseRedirectOrigins(
         env.OAUTH_ALLOWED_REDIRECT_ORIGINS ?? "",
+      ),
+    },
+    cors: {
+      allowedOrigins: parseRedirectOrigins(
+        env.CORS_ALLOWED_ORIGINS || env.OAUTH_ALLOWED_REDIRECT_ORIGINS || "",
       ),
     },
     githubCli: {

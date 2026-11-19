@@ -374,6 +374,9 @@ describe("config()", () => {
         googleClientSecret: VALID_ENV.OAUTH_GOOGLE_CLIENT_SECRET,
         allowedRedirectOrigins: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_ORIGINS],
       },
+      cors: {
+        allowedOrigins: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_ORIGINS],
+      },
       githubCli: {
         executablePath: VALID_ENV.GITHUB_CLI_EXECUTABLE_PATH,
         metadataTimeoutMs: 15000,

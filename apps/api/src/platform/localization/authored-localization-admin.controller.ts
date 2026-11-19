@@ -27,7 +27,7 @@ import type { z } from "zod";
 import { RbacGuard } from "../rbac/rbac.guard.js";
 import { RequireRoles } from "../rbac/decorators/require-roles.decorator.js";
 import type { AuthenticatedRequest } from "../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../platform/http/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../http/filters/error.factory.js";
 import { AuthoredLocalizationService } from "./authored-localization.service.js";
 

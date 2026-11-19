@@ -22,7 +22,7 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   claimAssessmentRootRequestSchema,
 } from "@lcsp/contracts/assessment-domain";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";

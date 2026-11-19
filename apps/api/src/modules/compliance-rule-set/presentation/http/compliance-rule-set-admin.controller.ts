@@ -40,7 +40,7 @@ import {
   type PreparationSourceUnitsRequest,
   type PreparationGeneratedCatalogRequest,
 } from "@lcsp/contracts/compliance-rule-set";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import {

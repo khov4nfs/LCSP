@@ -2,7 +2,7 @@ import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus, Injectable, type PipeTransform } from "@nestjs/common";
 import type { z } from "zod";
 
-import { problemException } from "../../platform/http/filters/error.factory.js";
+import { problemException } from "../filters/error.factory.js";
 
 const SAFE_EXPECTED_TYPES: ReadonlySet<string> = new Set([
   "array",

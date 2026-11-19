@@ -10,7 +10,7 @@ import {
 
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { GetAdminOverviewQuery } from "../../application/queries/index.ts";
 
 /**

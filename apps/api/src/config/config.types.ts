@@ -92,10 +92,15 @@ export const NODE_ENVS = {
 
 export type NodeEnv = (typeof NODE_ENVS)[keyof typeof NODE_ENVS];
 
+export interface CorsConfig {
+  allowedOrigins: string[];
+}
+
 export interface AppConfig {
   nodeEnv: NodeEnv;
   database: DatabaseConfig;
   oauth: OAuthConfig;
+  cors: CorsConfig;
   githubCli: GithubCliConfig;
   gitlabCli: GitlabCliConfig;
   bitbucketCli: BitbucketCliConfig;

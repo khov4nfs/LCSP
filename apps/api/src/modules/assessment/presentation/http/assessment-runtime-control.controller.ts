@@ -15,7 +15,7 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import {
   claimAssessmentRootRequestSchema,
   ASSESSMENT_DOMAIN_ERROR_CODES,
