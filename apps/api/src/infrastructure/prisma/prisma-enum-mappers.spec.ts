@@ -86,13 +86,17 @@ describe("prisma-enum-mappers", () => {
   describe("Silent Fallback Hazard Reproducer (RED Test)", () => {
     it("R01: throws an Error when mapping an unknown contract provider (refuses silent GITHUB fallback)", () => {
       expect(() =>
-        toPrismaCredentialProvider("unknown_provider" as unknown as CredentialProvider),
+        toPrismaCredentialProvider(
+          "unknown_provider" as unknown as CredentialProvider,
+        ),
       ).toThrow("Unsupported credential provider");
     });
 
     it("R02: throws an Error when mapping an unknown Prisma credential provider (refuses silent GITHUB fallback)", () => {
       expect(() =>
-        fromPrismaCredentialProvider("UNKNOWN_PRISMA" as unknown as PrismaCredentialProvider),
+        fromPrismaCredentialProvider(
+          "UNKNOWN_PRISMA" as unknown as PrismaCredentialProvider,
+        ),
       ).toThrow("Unsupported Prisma credential provider");
     });
   });
@@ -125,7 +129,9 @@ describe("prisma-enum-mappers", () => {
     it("round-trips AuthBackupEmailPolicy", () => {
       for (const policy of Object.values(AUTH_BACKUP_EMAIL_POLICIES)) {
         expect(
-          fromPrismaAuthBackupEmailPolicy(toPrismaAuthBackupEmailPolicy(policy)),
+          fromPrismaAuthBackupEmailPolicy(
+            toPrismaAuthBackupEmailPolicy(policy),
+          ),
         ).toBe(policy);
       }
       for (const prismaPolicy of Object.values(PrismaAuthBackupEmailPolicy)) {
@@ -179,7 +185,9 @@ describe("prisma-enum-mappers", () => {
       }
       for (const prismaType of Object.values(PrismaOutboxAggregateType)) {
         expect(
-          toPrismaOutboxAggregateType(fromPrismaOutboxAggregateType(prismaType)),
+          toPrismaOutboxAggregateType(
+            fromPrismaOutboxAggregateType(prismaType),
+          ),
         ).toBe(prismaType);
       }
     });
@@ -191,9 +199,9 @@ describe("prisma-enum-mappers", () => {
         );
       }
       for (const prismaStatus of Object.values(PrismaOutboxStatus)) {
-        expect(
-          toPrismaOutboxStatus(fromPrismaOutboxStatus(prismaStatus)),
-        ).toBe(prismaStatus);
+        expect(toPrismaOutboxStatus(fromPrismaOutboxStatus(prismaStatus))).toBe(
+          prismaStatus,
+        );
       }
     });
 

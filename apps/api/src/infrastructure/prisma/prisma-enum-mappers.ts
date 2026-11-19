@@ -193,10 +193,7 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
     OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
   [PrismaOutboxAggregateType.REPOSITORY_SNAPSHOT]:
     OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
-} as const satisfies Record<
-  PrismaOutboxAggregateType,
-  OutboxAggregateType
->;
+} as const satisfies Record<PrismaOutboxAggregateType, OutboxAggregateType>;
 
 const OUTBOX_STATUS_TO_PRISMA = {
   [OUTBOX_STATUSES.pending]: PrismaOutboxStatus.PENDING,

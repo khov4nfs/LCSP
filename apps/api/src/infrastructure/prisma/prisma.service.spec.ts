@@ -2,10 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { ConfigService } from "@nestjs/config";
 
 import type { AppConfig } from "../../config/config.types.js";
-import {
-  prismaConnectionConfig,
-  PrismaService,
-} from "./prisma.service.js";
+import { prismaConnectionConfig, PrismaService } from "./prisma.service.js";
 
 describe("PrismaService & prismaConnectionConfig", () => {
   describe("prismaConnectionConfig", () => {
