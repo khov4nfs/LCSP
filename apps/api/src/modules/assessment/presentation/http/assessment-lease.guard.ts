@@ -9,7 +9,7 @@ import {
   Injectable,
 } from "@nestjs/common";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
 export const ASSESSMENT_LEASE_HEADER = "x-assessment-lease";

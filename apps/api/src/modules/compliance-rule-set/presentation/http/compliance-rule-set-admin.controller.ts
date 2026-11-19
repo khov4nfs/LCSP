@@ -47,7 +47,7 @@ import {
   resultEnvelope,
   problemException,
 } from "../../../../platform/http/filters/error.factory.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
 import { RuleCatalogGroupsService } from "../../infrastructure/persistence/rule-catalog-groups.service.js";
 import {

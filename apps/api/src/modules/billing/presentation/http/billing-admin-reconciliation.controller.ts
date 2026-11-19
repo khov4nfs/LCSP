@@ -20,7 +20,7 @@ import {
   type BillingAdminRejectRequest,
   type BillingAdminResolveRequest,
 } from "@lcsp/contracts/billing";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";

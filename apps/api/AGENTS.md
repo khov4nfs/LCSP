@@ -110,3 +110,4 @@ const doc = await prisma.document.findFirst({
 - [ ] Run import policy check: `pnpm run check:imports`
 - [ ] Verify explanatory comments are added on all changed code, especially core domain, PBAC, transactions, and security boundaries.
 - [ ] Verify no controller imports `prisma` or `*repository*` directly.
+- [ ] Verify HTTP lifecycle primitives (filters, interceptors, pipes, middlewares) strictly reside in `apps/api/src/platform/http/` without re-export facades.

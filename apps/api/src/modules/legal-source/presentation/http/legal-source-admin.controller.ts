@@ -44,7 +44,7 @@ import {
   legalSourceDeletionImpactResponseSchema,
 } from "@lcsp/contracts/legal-source";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";

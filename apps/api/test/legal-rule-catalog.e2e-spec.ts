@@ -36,7 +36,7 @@ import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
-import { WorkerApiKeyGuard } from "../src/common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../src/platform/rbac/guards/worker-api-key.guard.js";
 import { LegalRuleCatalogService } from "../src/modules/legal-rule-catalog/application/services/legal-rule-catalog.service.js";
 import { PreparationRuleService } from "../src/modules/legal-rule-catalog/application/services/preparation-rule.service.js";
 import {

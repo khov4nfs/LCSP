@@ -28,7 +28,7 @@ import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validatio
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
 import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
 import { DeleteAssessmentCommand } from "../../application/commands/delete-assessment/delete-assessment.command.js";

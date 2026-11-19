@@ -47,7 +47,7 @@ import {
   type RootCapacityRuntimeMetrics,
 } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
-import { WorkerApiKeyGuard } from "../src/common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../src/platform/rbac/guards/worker-api-key.guard.js";
 import { AssessmentRootCapacityService } from "../src/modules/assessment/application/services/assessment-root-capacity.service.js";
 import { AssessmentRootCapacityController } from "../src/modules/assessment/presentation/http/assessment-root-capacity.controller.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";

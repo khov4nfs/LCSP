@@ -12,7 +12,7 @@ import {
   legalGraphQuerySchema,
   type LegalGraphQuery,
 } from "@lcsp/contracts/legal-source";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { LegalDocumentGraphService } from "../../application/services/legal-document-graph.service.js";

@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { AUDIT_EVENT_TYPES } from "@lcsp/contracts/audit";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { Response } from "express";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import type { AssessmentSessionExportLoader } from "../../infrastructure/persistence/assessment-session-export.loader.js";
 import { AssessmentSessionExportController } from "./assessment-session-export.controller.js";

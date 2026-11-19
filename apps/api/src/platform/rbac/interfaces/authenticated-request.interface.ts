@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import type { RbacRequestContext } from "../../platform/rbac/interfaces/rbac-request.interface.js";
+import type { RbacRequestContext } from "./rbac-request.interface.js";
 
 type ExpressRoutePath = string | RegExp | Array<string | RegExp>;
 

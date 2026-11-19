@@ -21,9 +21,9 @@ import type { RegisterOfficialSourceSnapshotRequest } from "../../application/co
 import { GetActiveLegalSourceQuery } from "../../application/queries/get-active-legal-source/get-active-legal-source.query.js";
 
 import { randomUUID } from "node:crypto";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { LegalSourceService } from "../../application/services/legal-source.service.js";
 import { OfficialSourceSnapshotService } from "../../application/services/official-source-snapshot.service.js";
 

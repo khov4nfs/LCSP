@@ -19,7 +19,7 @@ import {
   type OAuthStartInput,
 } from "@lcsp/contracts/auth";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.ts";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.ts";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { RequireSession } from "../../../../platform/rbac/decorators/require-session.decorator.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";

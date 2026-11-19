@@ -2,7 +2,7 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { ASSESSMENT_RUNTIME_CONTROL_ACTIONS } from "@lcsp/contracts/evidence";
 import { Body, Controller, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";

@@ -79,3 +79,11 @@
 - **Context / Symptom**: Bandit AST security scan flagged `B314:blacklist` on `xml.etree.ElementTree.fromstring` in DOCX parsing files (`tools/legal/managed_documents/extract.py`, `official_text_extraction.py`, and `crawl_congbao_docx.py`).
 - **Root Cause**: Python's standard library `xml.etree.ElementTree` is vulnerable to quadratic XML entity expansion attacks (Billion Laughs / DoS) and XML External Entity (XXE / CWE-20) injections when parsing untrusted Office Open XML (`word/document.xml`).
 - **Resolution & Invariant**: Always parse XML from user-uploaded or external documents with `defusedxml.ElementTree.fromstring` (from the `defusedxml` package). Catch `DefusedXmlException` alongside `ParseError` and assert entity rejection with a dedicated security regression test.
+
+### [2026-11-19] [BACKEND/NESTJS] Clean HTTP Pipeline Structure & Prohibition of Re-export Facades
+- **Context / Symptom**: User corrected two architectural violations during backend optimization: (1) Leaking middleware and pipes into root `src/` or `common/` instead of unifying under `platform/http/`, and (2) Relying on temporary re-export facades to mask moved files.
+- **Root Cause**: Treating `common/` as a catch-all folder causes fragmentation where some HTTP mechanisms (filters, interceptors) live in `platform/http/` while others (pipes, guards) scatter elsewhere. Using re-export facades leaves dead/lazy redirection files that violate Clean Architecture purity.
+- **Resolution & Invariant**:
+  1. **Unified HTTP Boundary**: All HTTP lifecycle components in NestJS must strictly live under `apps/api/src/platform/http/` in dedicated subdirectories: `filters/`, `interceptors/`, `pipes/`, and `middlewares/`.
+  2. **Zero Re-Export Facades**: Never leave backward-compatibility re-export files (`export * from ...`) when relocating files. Update all consumer import paths directly at the call sites across the entire repository.
+  3. **Preserve User Scope & Directives**: Never jump ahead to audit or refactor other modules without explicit instruction from the user.
