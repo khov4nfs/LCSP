@@ -7,13 +7,16 @@ describe("renderMailTemplate", () => {
       recoveryLink: "https://lcsp.example.com/auth/reset?token=xyz123",
     });
 
-    expect(rendered).toContain("https://lcsp.example.com/auth/reset?token=xyz123");
+    expect(rendered).toContain(
+      "https://lcsp.example.com/auth/reset?token=xyz123",
+    );
     expect(rendered).toContain("Password recovery");
     expect(rendered).not.toContain("{{recoveryLink}}");
   });
 
   it("escapes special HTML characters to prevent XSS injection in email clients", () => {
-    const maliciousInput = 'https://lcsp.example.com/reset?a=<script>alert("xss")</script>&b=\'test\'';
+    const maliciousInput =
+      "https://lcsp.example.com/reset?a=<script>alert(\"xss\")</script>&b='test'";
     const rendered = renderMailTemplate("recovery-email.html", {
       recoveryLink: maliciousInput,
     });
