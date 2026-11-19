@@ -1,3 +1,6 @@
+// Enforce server-only execution: billing upstream response validator
+import "server-only";
+
 import type { ZodType } from "zod";
 
 import {

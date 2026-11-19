@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy tracking queries and metrics
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import type { z } from "zod";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";

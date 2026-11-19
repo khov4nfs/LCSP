@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy assessment runtime control actions
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import {
   assessmentRuntimeControlRequestSchema,

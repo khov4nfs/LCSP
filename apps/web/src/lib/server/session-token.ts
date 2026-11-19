@@ -1,3 +1,6 @@
+// Enforce server-only execution: prevent session token extraction helper from leaking into client bundles
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
