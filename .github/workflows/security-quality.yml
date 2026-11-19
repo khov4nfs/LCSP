@@ -92,6 +92,30 @@ jobs:
           auto-enrich: false
           create-fix-pr: false
 
+  architecture-and-standards:
+    name: Architecture Boundaries & Dead Code Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Architecture Boundaries Check
+        run: pnpm run check:architecture
+
   api-coverage:
     name: API coverage
     # Match API unit tests: Ubuntu 24.04 blocks Chromium's user-namespace sandbox by default.

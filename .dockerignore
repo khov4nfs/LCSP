@@ -36,6 +36,8 @@ likec4
 .rtk
 .husky
 .venv
+# Scoped and root agent instructions and markdown docs are excluded from release images
+**/AGENTS.md
 AGENTS.md
 CLAUDE.md
 CHANGELOG.md

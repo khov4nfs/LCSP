@@ -23,6 +23,15 @@ trigger: always_on
 - Reusable field molecules/organisms should bind through `FormProvider`/`useFormContext`/`Controller` instead of manual `value`/`error`/callback threading from every parent.
 - Keep autosave, submit orchestration, and step navigation in the feature form container; keep field rendering and field-level binding in atomic components.
 
+## Mandatory Explanatory Comments Policy (Core-First Invariant)
+
+- **Universal Rule**: Every code change, refactoring, bugfix, or configuration adjustment across the repository MUST include clear, human-readable explanatory comments directly above or alongside the modified code.
+- **Strict Core Priority**: Changes affecting **core architecture** (contracts, domain logic, authentication/PBAC, tenant isolation, DB transactions, security gates, and CI pipelines) MUST explicitly document:
+  1. The architectural/business rationale (**Why** the change was made).
+  2. The execution mechanism (**How** it works and prevents edge cases or regressions).
+  3. Boundary invariants (**What** security or cross-layer contracts are maintained).
+- Never submit or complete modifications to core systems without clear inline explanatory comments.
+
 ## Debugging and bug-fixing protocol
 
 When debugging, fixing a bug, or tracing an error, the response **must** include two clearly labelled sections before or alongside any code change:
@@ -31,3 +40,11 @@ When debugging, fixing a bug, or tracing an error, the response **must** include
 2. **Fix** – Explain _how_ the fix works: what changed, why it resolves the root cause, and any trade-offs or follow-up risks.
 
 Do not skip either section even for seemingly trivial fixes. If both sections can be stated in one sentence each, that is acceptable, but they must appear.
+
+### Mandatory Red-Test First Policy (TDD Reproducer)
+
+- **Zero Blind Fixes**: Before touching or modifying any production code or business logic to fix a reported bug, the agent **MUST** first author or run a focused, minimal reproduction test that asserts the expected behavior and reproduces the bug.
+- **Verify Failure (RED)**: Run the fast scoped test runner for the reproduction test and confirm that it fails (exit code non-zero). Never skip this step — if the reproducer does not fail before the fix, the test is invalid.
+- **Apply Minimal Fix**: Implement the targeted fix to resolve the identified root cause.
+- **Verify Success (GREEN)**: Re-run the reproduction test and confirm it now passes (exit code 0).
+- **Permanent Regression Lock**: The reproduction test must be preserved in the test suite so the issue can never silently regress.
