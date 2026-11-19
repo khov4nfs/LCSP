@@ -23,7 +23,7 @@ def test_selected_preparation_includes_three_dimension_legal_gate_in_both_langua
         assert phrase.lower() in en.lower()
     assert "lựa chọn" not in vi or "Chọn ID/chọn tất cả" in vi
     assert "Explicit ID/bulk rule selection" in en
-    assert "not an applicability verdict" in en
+    assert "not an applicability verdict" in en.replace("**", "")
 
 
 def test_packaged_skill_copies_and_development_overlay_match_runtime_registry():
