@@ -2,8 +2,10 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Optional } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { z } from "zod";
+import type { AppConfig } from "../../config/config.types.js";
 import { getRepoRoot } from "../logging/logging-context.js";
 
 export const chunkedManifestSchema = z.strictObject({
@@ -18,8 +20,15 @@ export type ChunkedManifest = z.infer<typeof chunkedManifestSchema>;
 export class ArtifactStorageService {
   private readonly storagePath: string;
 
-  constructor() {
+  constructor(
+    @Optional()
+    private readonly configService?: ConfigService<AppConfig>,
+  ) {
+    const configuredPath =
+      this.configService?.get("storage", { infer: true })?.artifactStoragePath;
+
     this.storagePath =
+      configuredPath ||
       process.env.LCSP_ARTIFACT_STORAGE_PATH ||
       path.join(getRepoRoot(), "tmp", "lcsp-storage");
     const chunksDir = path.join(this.storagePath, "chunks");

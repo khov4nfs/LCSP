@@ -17,6 +17,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService<AppConfig, true>);
   const corsConfig = configService.get("cors", { infer: true });
+  const port = configService.get("port", { infer: true }) ?? 3000;
 
   // Enterprise network edge layers: Helmet, Gzip compression, and strict CORS whitelist
   applyNetworkEdgeMiddleware(app, {
@@ -24,7 +25,7 @@ async function bootstrap() {
   });
 
   app.use(httpBodyParser());
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(port);
 }
 
 void bootstrap();

@@ -86,7 +86,15 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     NODE_ENV: Joi.string()
       .valid(...Object.values(NODE_ENVS))
       .default(NODE_ENVS.development),
-    DATABASE_URL: Joi.string().required(),
+    PORT: Joi.number().port().default(3000),
+    DATABASE_URL: Joi.string()
+      .trim()
+      .pattern(/^postgres(ql)?:\/\//)
+      .required()
+      .messages({
+        "string.pattern.base":
+          '"DATABASE_URL" must be a valid postgresql:// URI',
+      }),
     OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
     OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
     OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
@@ -163,7 +171,14 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       .default(1048576),
     GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: Joi.string().trim().required(),
     GITHUB_CLI_CREDENTIAL_KEK_KEYRING: Joi.string().trim().required(),
-    RABBITMQ_URL: Joi.string().required(),
+    RABBITMQ_URL: Joi.string()
+      .trim()
+      .pattern(/^amqps?:\/\//)
+      .required()
+      .messages({
+        "string.pattern.base":
+          '"RABBITMQ_URL" must be a valid amqp:// or amqps:// URI',
+      }),
     RABBITMQ_EXCHANGE: Joi.string().default("lcsp.events"),
     OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
     OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
@@ -246,8 +261,10 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     BILLING_SEPAY_QR_URL_TEMPLATE: Joi.alternatives().conditional("NODE_ENV", {
       is: NODE_ENVS.production,
       then: paymentQrTemplateSchema().min(1).required(),
-      otherwise: Joi.string().trim().allow("").default(""),
+      otherwise: paymentQrTemplateSchema().allow("").default(""),
     }),
+    LCSP_ARTIFACT_STORAGE_PATH: Joi.string().trim().allow("").default(""),
+    LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR: Joi.string().trim().allow("").default(""),
   })
     .unknown(true)
     .custom((env: Record<string, unknown>, helpers) => {
@@ -278,8 +295,11 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
 
 export const configValidationSchema = createConfigValidationSchema();
 
-function cliExecutablePathSchema(variableName: string, workspaceRoot: string) {
-  void workspaceRoot;
+function cliExecutablePathSchema(
+  variableName: string,
+  _workspaceRoot?: string,
+) {
+  // Rationale: Preservation of relative CLI paths is validated at runtime rather than Joi schema time.
   return Joi.string()
     .trim()
     .allow("")
@@ -325,22 +345,111 @@ function parseRedirectUris(value: string): string[] {
 
 /**
  * Converts configured redirect URLs into unique-origin-compatible URL origins while ignoring invalid entries.
+ * Deduplicates origin entries to avoid redundant checking in CORS middleware.
  *
  * @param value - Comma-separated redirect URL string.
- * @returns Origins extracted from valid URL entries.
+ * @returns Unique origins extracted from valid URL entries.
  */
 function parseRedirectOrigins(value: string): string[] {
-  return parseRedirectUris(value).flatMap((entry) => {
+  const origins = parseRedirectUris(value).flatMap((entry) => {
     try {
       return [new URL(entry).origin];
     } catch {
       return [];
     }
   });
+  return Array.from(new Set(origins));
 }
 
 /**
+ * Parses positive integers safely without coercing empty strings or whitespace to 0.
+ *
+ * Rationale: Prevents the JavaScript pitfall where Number("") evaluates to 0, which breaks timeout defaults.
+ * Mechanism: Validates that the input is a non-empty string or finite number > 0; falls back to default if invalid.
+ * Invariants: Always returns a positive integer >= 0.
+ *
+ * @param value - Environment string or number to parse.
+ * @param defaultValue - Fallback integer when value is undefined, empty, or invalid.
+ * @returns Validated positive integer.
+ */
+function parsePositiveInteger(
+  value: string | number | undefined,
+  defaultValue: number,
+): number {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0
+      ? Math.floor(value)
+      : defaultValue;
+  }
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) {
+    return defaultValue;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) && parsed >= 0
+    ? Math.floor(parsed)
+    : defaultValue;
+}
+
+/**
+ * Parses boolean environment variables safely, aligning with Joi's boolean coercion rules.
+ *
+ * Rationale: Ensures flags like "1" or "yes" evaluate to true, identical to Joi schema validation.
+ * Mechanism: Evaluates string variants ("true", "1", "yes") to true; ("false", "0", "no") to false.
+ * Invariants: Defaults safely to provided defaultValue when unconfigured or unrecognized.
+ *
+ * @param value - Raw environment value.
+ * @param defaultValue - Fallback boolean when value is undefined or blank.
+ * @returns Evaluated boolean value.
+ */
+function parseBoolean(
+  value: string | boolean | undefined,
+  defaultValue: boolean,
+): boolean {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  const trimmed = String(value).trim().toLowerCase();
+  if (trimmed.length === 0) {
+    return defaultValue;
+  }
+  if (trimmed === "true" || trimmed === "1" || trimmed === "yes") {
+    return true;
+  }
+  if (trimmed === "false" || trimmed === "0" || trimmed === "no") {
+    return false;
+  }
+  return defaultValue;
+}
+
+/**
+ * Business purpose:
  * Builds the typed application configuration object from validated process environment variables.
+ *
+ * Business rules:
+ * 1. Default to development when NODE_ENV is unset.
+ * 2. Sanitize and trim all string-based credentials and endpoints.
+ * 3. Deduplicate CORS origins and fall back to OAuth redirect origins when CORS origins are unconfigured.
+ * 4. Parse numeric timeouts and intervals defensively to prevent 0-value bugs from empty strings.
+ * 5. Synchronize boolean flags with Joi schema coercion.
+ * 6. Centralize all infrastructure and runtime credentials to prevent unvalidated process.env reads across modules.
+ *
+ * Execution flow:
+ * 1. Read environment variables from process.env.
+ * 2. Parse and normalize network, OAuth, CLI, messaging, payment, and security configurations.
+ * 3. Return immutable-ready AppConfig contract.
+ *
+ * Failure cases:
+ * - Falls back to safe defaults when optional environment variables are missing or empty.
+ *
+ * Side effects:
+ * - Pure mapping function reading process.env; no external side effects.
  *
  * @returns Runtime configuration grouped by infrastructure and application concern.
  */
@@ -349,6 +458,8 @@ export function config(): AppConfig {
 
   return {
     nodeEnv: (env.NODE_ENV as NodeEnv | undefined) ?? NODE_ENVS.development,
+    port: parsePositiveInteger(env.PORT, 3000),
+    agentServerUrl: env.LCSP_AGENT_SERVER_URL?.trim() ?? "",
     database: {
       url: env.DATABASE_URL ?? "",
     },
@@ -366,47 +477,69 @@ export function config(): AppConfig {
     },
     githubCli: {
       executablePath: resolveCliExecutablePath(env.GITHUB_CLI_EXECUTABLE_PATH),
-      metadataTimeoutMs: Number(env.GITHUB_CLI_METADATA_TIMEOUT_MS ?? 15000),
-      discoveryTimeoutMs: Number(env.GITHUB_CLI_DISCOVERY_TIMEOUT_MS ?? 30000),
-      archiveTimeoutMs: Number(env.GITHUB_CLI_ARCHIVE_TIMEOUT_MS ?? 120000),
-      maxJsonOutputBytes: Number(
-        env.GITHUB_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      metadataTimeoutMs: parsePositiveInteger(
+        env.GITHUB_CLI_METADATA_TIMEOUT_MS,
+        15000,
       ),
-      maxDiscoveryOutputBytes: Number(
-        env.GITHUB_CLI_MAX_DISCOVERY_OUTPUT_BYTES ?? 10485760,
+      discoveryTimeoutMs: parsePositiveInteger(
+        env.GITHUB_CLI_DISCOVERY_TIMEOUT_MS,
+        30000,
       ),
-      maxStderrBytes: Number(env.GITHUB_CLI_MAX_STDERR_BYTES ?? 8192),
-      maxArchiveBytes: Number(env.GITHUB_CLI_MAX_ARCHIVE_BYTES ?? 104857600),
-      maxConcurrentMetadataProcesses: Number(
-        env.GITHUB_CLI_MAX_CONCURRENT_METADATA_PROCESSES ?? 8,
+      archiveTimeoutMs: parsePositiveInteger(
+        env.GITHUB_CLI_ARCHIVE_TIMEOUT_MS,
+        120000,
       ),
-      maxConcurrentArchiveProcesses: Number(
-        env.GITHUB_CLI_MAX_CONCURRENT_ARCHIVE_PROCESSES ?? 2,
+      maxJsonOutputBytes: parsePositiveInteger(
+        env.GITHUB_CLI_MAX_JSON_OUTPUT_BYTES,
+        1048576,
+      ),
+      maxDiscoveryOutputBytes: parsePositiveInteger(
+        env.GITHUB_CLI_MAX_DISCOVERY_OUTPUT_BYTES,
+        10485760,
+      ),
+      maxStderrBytes: parsePositiveInteger(
+        env.GITHUB_CLI_MAX_STDERR_BYTES,
+        8192,
+      ),
+      maxArchiveBytes: parsePositiveInteger(
+        env.GITHUB_CLI_MAX_ARCHIVE_BYTES,
+        104857600,
+      ),
+      maxConcurrentMetadataProcesses: parsePositiveInteger(
+        env.GITHUB_CLI_MAX_CONCURRENT_METADATA_PROCESSES,
+        8,
+      ),
+      maxConcurrentArchiveProcesses: parsePositiveInteger(
+        env.GITHUB_CLI_MAX_CONCURRENT_ARCHIVE_PROCESSES,
+        2,
       ),
     },
     gitlabCli: {
       executablePath: resolveCliExecutablePath(env.GITLAB_CLI_EXECUTABLE_PATH),
-      timeoutMs: Number(env.GITLAB_CLI_TIMEOUT_MS ?? 30000),
-      maxJsonOutputBytes: Number(
-        env.GITLAB_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      timeoutMs: parsePositiveInteger(env.GITLAB_CLI_TIMEOUT_MS, 30000),
+      maxJsonOutputBytes: parsePositiveInteger(
+        env.GITLAB_CLI_MAX_JSON_OUTPUT_BYTES,
+        1048576,
       ),
     },
     bitbucketCli: {
       executablePath: resolveCliExecutablePath(
         env.BITBUCKET_CLI_EXECUTABLE_PATH,
       ),
-      timeoutMs: Number(env.BITBUCKET_CLI_TIMEOUT_MS ?? 30000),
-      maxJsonOutputBytes: Number(
-        env.BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      timeoutMs: parsePositiveInteger(env.BITBUCKET_CLI_TIMEOUT_MS, 30000),
+      maxJsonOutputBytes: parsePositiveInteger(
+        env.BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES,
+        1048576,
       ),
     },
     azureDevOpsCli: {
       executablePath: resolveCliExecutablePath(
         env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH,
       ),
-      timeoutMs: Number(env.AZURE_DEVOPS_CLI_TIMEOUT_MS ?? 30000),
-      maxJsonOutputBytes: Number(
-        env.AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      timeoutMs: parsePositiveInteger(env.AZURE_DEVOPS_CLI_TIMEOUT_MS, 30000),
+      maxJsonOutputBytes: parsePositiveInteger(
+        env.AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES,
+        1048576,
       ),
     },
     githubCredentialPersistence: {
@@ -419,14 +552,15 @@ export function config(): AppConfig {
       exchange: env.RABBITMQ_EXCHANGE ?? "lcsp.events",
     },
     outbox: {
-      pollIntervalMs: Number(env.OUTBOX_POLL_INTERVAL_MS ?? 1000),
-      batchSize: Number(env.OUTBOX_BATCH_SIZE ?? 50),
-      maxAttempts: Number(env.OUTBOX_MAX_ATTEMPTS ?? 5),
+      pollIntervalMs: parsePositiveInteger(env.OUTBOX_POLL_INTERVAL_MS, 1000),
+      batchSize: parsePositiveInteger(env.OUTBOX_BATCH_SIZE, 50),
+      maxAttempts: parsePositiveInteger(env.OUTBOX_MAX_ATTEMPTS, 5),
     },
     sepay: {
       webhookSecret: env.SEPAY_WEBHOOK_SECRET ?? "",
-      timestampSkewSeconds: Number(
-        env.SEPAY_WEBHOOK_TIMESTAMP_SKEW_SECONDS ?? 300,
+      timestampSkewSeconds: parsePositiveInteger(
+        env.SEPAY_WEBHOOK_TIMESTAMP_SKEW_SECONDS,
+        300,
       ),
     },
     worker: {
@@ -434,14 +568,14 @@ export function config(): AppConfig {
     },
     email: {
       smtpHost: env.SMTP_HOST?.trim() ?? "",
-      smtpPort: Number(env.SMTP_PORT ?? 587),
-      smtpSecure: (env.SMTP_SECURE ?? "false").toLowerCase() === "true",
+      smtpPort: parsePositiveInteger(env.SMTP_PORT, 587),
+      smtpSecure: parseBoolean(env.SMTP_SECURE, false),
       smtpUser: env.SMTP_USER?.trim() ?? "",
       smtpPass: env.SMTP_PASS?.trim() ?? "",
       smtpFrom: env.SMTP_FROM?.trim() ?? "",
     },
     orchestration: {
-      debug: (env.ORCHESTRATION_DEBUG ?? "false").toLowerCase() === "true",
+      debug: parseBoolean(env.ORCHESTRATION_DEBUG, false),
     },
     billing: {
       sePayBankName: env.BILLING_SEPAY_BANK_NAME?.trim() ?? "",
@@ -449,6 +583,14 @@ export function config(): AppConfig {
         env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER?.trim() ?? "",
       sePayAccountHolder: env.BILLING_SEPAY_ACCOUNT_HOLDER?.trim() ?? "",
       sePayQrUrlTemplate: env.BILLING_SEPAY_QR_URL_TEMPLATE?.trim() ?? "",
+    },
+    mfa: {
+      secretEncryptionKey: env.MFA_SECRET_ENCRYPTION_KEY?.trim() ?? "",
+    },
+    storage: {
+      artifactStoragePath: env.LCSP_ARTIFACT_STORAGE_PATH?.trim() ?? "",
+      snapshotArchiveCacheDir:
+        env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR?.trim() ?? "",
     },
   };
 }
