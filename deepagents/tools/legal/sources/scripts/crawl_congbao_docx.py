@@ -16,7 +16,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urlparse
-from xml.etree import ElementTree
+from defusedxml import ElementTree
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -169,8 +169,25 @@ def extract_title(page: str) -> str:
 
 
 def extract_docx_paragraphs(docx: bytes) -> list[str]:
+    """Extract paragraphs from fetched Công báo DOCX binary.
+
+    Business purpose: Parse paragraphs from official Công báo DOCX downloads safely.
+
+    Business rules:
+    - Defend against XXE and quadratic entity expansion (Bandit B314 / CWE-20) via defusedxml.
+    - Preserve non-empty textual paragraphs only.
+    Execution flow:
+    1. Read word/document.xml from the DOCX ZIP archive.
+    2. Parse XML safely using defusedxml ElementTree.
+    3. Collect and normalize text from WordprocessingML paragraphs.
+    Failure cases:
+    - Raises BadZipFile on corrupted ZIP; DefusedXmlException on entity injection.
+    Side effects:
+    - Pure in-memory extraction.
+    """
     with zipfile.ZipFile(BytesIO(docx)) as archive:
         document = archive.read("word/document.xml")
+    # Business rationale: Defused XML parser guards against XXE attacks in downloaded gazette documents.
     root = ElementTree.fromstring(document)
     paragraphs: list[str] = []
     for paragraph in root.iter(f"{WORDPROCESSINGML_NAMESPACE}p"):

@@ -74,3 +74,8 @@
 - **Context / Symptom**: CI took 15-20 minutes on every commit because all 12 heavy jobs (Windows VM, Docker build, Python, Playwright) ran even for minor CSS/frontend edits.
 - **Root Cause**: The aggregator gatekeeper job (`v2-release-gate`) evaluated `job["result"] != "success"`. Because skipped jobs have status `"skipped"`, path-filtered jobs caused false positive gate failures, forcing all jobs to run unconditionally.
 - **Resolution & Invariant**: In any aggregator/release-gate job asserting downstream results, ALWAYS allow both `"success"` and `"skipped"`: `job["result"] not in ("success", "skipped")`. Only fail on `"failure"` or `"cancelled"`.
+
+### [2026-11-19] [SECURITY/PYTHON] XXE and Entity Expansion Prevention with defusedxml (Bandit B314)
+- **Context / Symptom**: Bandit AST security scan flagged `B314:blacklist` on `xml.etree.ElementTree.fromstring` in DOCX parsing files (`tools/legal/managed_documents/extract.py`, `official_text_extraction.py`, and `crawl_congbao_docx.py`).
+- **Root Cause**: Python's standard library `xml.etree.ElementTree` is vulnerable to quadratic XML entity expansion attacks (Billion Laughs / DoS) and XML External Entity (XXE / CWE-20) injections when parsing untrusted Office Open XML (`word/document.xml`).
+- **Resolution & Invariant**: Always parse XML from user-uploaded or external documents with `defusedxml.ElementTree.fromstring` (from the `defusedxml` package). Catch `DefusedXmlException` alongside `ParseError` and assert entity rejection with a dedicated security regression test.

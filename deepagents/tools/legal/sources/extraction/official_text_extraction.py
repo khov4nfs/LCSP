@@ -11,7 +11,7 @@ from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Protocol
-from xml.etree import ElementTree
+from defusedxml import ElementTree
 
 WORDPROCESSINGML_NAMESPACE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
@@ -532,9 +532,25 @@ def _extract_html_blocks(html: str) -> list[str]:
 
 
 def _extract_docx_paragraphs(docx_bytes: bytes) -> list[str]:
-    """Extract non-empty WordprocessingML paragraphs from DOCX bytes."""
+    """Extract non-empty WordprocessingML paragraphs from DOCX bytes.
+
+    Business purpose: Extract clean, normalized paragraph text from official legal DOCX snapshots.
+
+    Business rules:
+    - Parse XML safely via defusedxml to guard against XML external entity (XXE) and billion laughs expansion attacks (Bandit B314 / CWE-20).
+    - Omit empty or whitespace-only paragraphs.
+    Execution flow:
+    1. Read word/document.xml from the in-memory ZIP archive.
+    2. Parse XML safely using defusedxml ElementTree.
+    3. Iterate through all <w:p> paragraph elements and concatenate <w:t> text fragments.
+    Failure cases:
+    - Invalid DOCX archives raise BadZipFile; malicious XML entities raise DefusedXmlException.
+    Side effects:
+    - Pure in-memory transformation.
+    """
     with zipfile.ZipFile(BytesIO(docx_bytes)) as archive:
         document = archive.read("word/document.xml")
+    # Business rationale: Defused XML parser prevents XXE and entity expansion vulnerabilities when reading WordprocessingML.
     root = ElementTree.fromstring(document)
     paragraphs: list[str] = []
     for paragraph in root.iter(f"{WORDPROCESSINGML_NAMESPACE}p"):
