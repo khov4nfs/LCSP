@@ -23,6 +23,11 @@ trigger: always_on
 - Reusable field molecules/organisms should bind through `FormProvider`/`useFormContext`/`Controller` instead of manual `value`/`error`/callback threading from every parent.
 - Keep autosave, submit orchestration, and step navigation in the feature form container; keep field rendering and field-level binding in atomic components.
 
+## Git Commit & PR Authorization Policy
+
+- **Explicit Command Only**: NEVER execute `git commit`, `git push`, or `gh pr create` unless the user explicitly commands it in their prompt (e.g. "commit", "push", "tạo PR").
+- **Local Stage First**: Always stop at modifying local files, verifying tests/lints, and presenting the findings/diffs for user review.
+
 ## Mandatory Explanatory Comments Policy (Core-First Invariant)
 
 - **Universal Rule**: Every code change, refactoring, bugfix, or configuration adjustment across the repository MUST include clear, human-readable explanatory comments directly above or alongside the modified code.

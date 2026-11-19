@@ -37,6 +37,11 @@
 - **Root Cause**: A valid UUID from one tenant can be passed by an actor in another tenant.
 - **Resolution & Invariant**: Always use `prisma.model.findFirst({ where: { id, workspaceId: user.workspaceId } })` to enforce tenant ownership at the query level.
 
+### [2026-11-19] [PROCESS] Explicit User Authorization Required for Git Commit, Push, and PR Creation
+- **Context / Symptom**: User explicitly directed: "sau này chỉ khi tôi bảo commit và push mới được tự tạo pr" (In the future, only create a commit, push, or open a PR when the user explicitly requests it).
+- **Root Cause**: Proactive automatic committing, pushing, and PR opening can bypass the developer's local inspection and manual testing steps before changes are published to the remote repository.
+- **Resolution & Invariant**: After performing code changes, refactoring, or bugfixes, the agent MUST stop at the local workspace stage and present verification evidence. The agent is STRICTLY FORBIDDEN from running `git commit`, `git push`, or `gh pr create` without explicit confirmation/instruction from the user (e.g. "hãy commit", "push lên", "tạo PR").
+
 ### [2026-11-19] [PROCESS] Mandatory Explanatory Comments on ALL Code & Configuration Changes (Core-First Invariant)
 - **Context / Symptom**: User emphasized that explanatory comments must NOT be restricted to CI workflows alone, but MUST be present on ALL modifications throughout the repository, with the highest priority and strictness on changes affecting the project's core (architecture, domain logic, contracts, security gates, transactions, PBAC, data models).
 - **Root Cause**: Code modifications, especially in core layers, often carry hidden assumptions, complex invariants, or non-obvious trade-offs. Future maintainers and reviewers cannot easily deduce the technical "Why" behind the change from the diff alone without clear inline context.
