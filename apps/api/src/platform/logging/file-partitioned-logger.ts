@@ -4,6 +4,16 @@ import * as path from "node:path";
 import { getLoggingContext, getRepoRoot } from "./logging-context.js";
 
 export class FilePartitionedLogger extends ConsoleLogger {
+  /**
+   * Tracks partitioned assessment directories that have already been created on disk.
+   *
+   * Rationale: Prevents costly synchronous fs.mkdirSync filesystem calls on every single
+   * log write during rapid assessment log streams.
+   * Mechanism: Retains directory paths in an in-memory Set; only issues mkdirSync on cache miss.
+   * Invariants: If directory creation fails, the path is not cached, preserving fail-safe retry.
+   */
+  private static readonly ensuredLogDirs = new Set<string>();
+
   override log(message: unknown, ...optionalParams: unknown[]) {
     super.log(message, ...optionalParams);
     this.writeToFile("run.log", message, optionalParams);
@@ -50,7 +60,10 @@ export class FilePartitionedLogger extends ConsoleLogger {
         `user_${userId}`,
         `assessment_${assessmentId}`,
       );
-      fs.mkdirSync(logDir, { recursive: true });
+      if (!FilePartitionedLogger.ensuredLogDirs.has(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+        FilePartitionedLogger.ensuredLogDirs.add(logDir);
+      }
 
       const context = optionalParams[optionalParams.length - 1];
       const contextStr = typeof context === "string" ? ` [${context}]` : "";

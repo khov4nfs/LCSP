@@ -28,11 +28,20 @@ export class RabbitMqClient implements OnModuleDestroy {
   private readonly exchangeType = "topic";
 
   /**
-   * Creates the RabbitMQ client for a configured broker URL.
+   * Creates the RabbitMQ client for a configured broker URL and optional topic exchange name.
+   *
+   * Rationale: Allows ConfigService-driven exchange configuration via Nest DI without
+   * relying on spontaneous process.env reads, enabling multi-tenant isolation and hermetic testing.
+   * Mechanism: Stores the optional exchangeName in the instance for lazy channel assertion.
+   * Invariants: Preserves backwards compatibility for existing call sites with a default fallback.
    *
    * @param url - AMQP connection URL used when opening the broker connection.
+   * @param exchangeName - Optional topic exchange name resolved from AppConfig.
    */
-  constructor(private readonly url: string) {}
+  constructor(
+    private readonly url: string,
+    private readonly exchangeName?: string,
+  ) {}
 
   /**
    * Ensures that a usable RabbitMQ channel has been established.
@@ -288,9 +297,13 @@ export class RabbitMqClient implements OnModuleDestroy {
   /**
    * Resolves the exchange name used when asserting the publisher channel.
    *
-   * @returns Exchange name from the environment, or the default LCSP event exchange.
+   * Rationale: Prioritizes explicit runtime configuration injected via constructor over
+   * spontaneous process.env access, ensuring hermetic test environments and tenant isolation.
+   * Mechanism: Checks instance exchangeName property first, then process.env, finally "lcsp.events".
+   *
+   * @returns Exchange name from runtime configuration, environment, or the default LCSP event exchange.
    */
   private resolveExchangeName(): string {
-    return process.env.RABBITMQ_EXCHANGE ?? "lcsp.events";
+    return this.exchangeName || process.env.RABBITMQ_EXCHANGE || "lcsp.events";
   }
 }

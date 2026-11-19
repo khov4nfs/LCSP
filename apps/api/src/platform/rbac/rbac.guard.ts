@@ -19,7 +19,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 
-import type { AuthenticatedRequest } from "../../platform/rbac/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "./interfaces/authenticated-request.interface.js";
 import {
   AUTHORIZATION_DECISION_REPOSITORY,
   type AuthorizationDecisionRepository,

@@ -284,4 +284,22 @@ describe("RabbitMqClient", () => {
     expect(channel.close).toHaveBeenCalledTimes(1);
     expect(connection.close).toHaveBeenCalledTimes(1);
   });
+
+  it("uses the explicitly configured exchange name instead of falling back to default or process.env", async () => {
+    const channel = makeChannel();
+    const connection = makeConnection(channel);
+    connect.mockResolvedValue(connection);
+
+    const customExchange = "custom.tenant.events";
+    const client = new RabbitMqClient("amqp://fake", customExchange);
+    await client.ensureConnected();
+
+    expect(channel.assertExchange).toHaveBeenCalledWith(
+      customExchange,
+      "topic",
+      {
+        durable: true,
+      },
+    );
+  });
 });
