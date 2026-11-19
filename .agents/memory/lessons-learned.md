@@ -45,6 +45,14 @@
   2. How the new/modified logic operates and prevents regressions.
   3. Any side-effects, boundaries, or constraints being enforced.
 
+### [2026-11-19] [DEAD-CODE] Pruning Verified Unused Files Discovered by Knip
+- **Context / Symptom**: 10 orphan files (8 in `apps/web` and 2 in `apps/api`) were detected by `knip` dead code audit.
+- **Root Cause**: During earlier refactorings, components (like `form-card`, `assessments-directory`), old DTOs, and utility helpers (`query-params.ts`) were replaced by centralized contracts, `upstream-request.ts`, or updated UI layouts, but the legacy files were left unreferenced in the repository.
+- **Resolution & Invariant**: Whenever deleting dead code reported by Knip, always verify:
+  1. `git grep` yields zero incoming imports or consumer references.
+  2. Workspace `pnpm run typecheck` (`tsc -b`) compiles with exit code 0.
+  3. `pnpm run check:business-logic-docs` passes without baseline violation.
+
 ### [2026-11-19] [CI/CD] Scoped Paths Filtering Markdown Exclusion & Workflow Triggers
 - **Context / Symptom**: CI triggered Python worker tests, Docker e2e, Windows VMs, and API e2e even though only markdown instructions and CI workflow files were modified.
 - **Root Cause**: Two issues combined:
