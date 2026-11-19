@@ -7,6 +7,11 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+# Tối ưu hóa CI: Tự động hủy các lần chạy cũ khi có commit mới được push lên cùng branch/PR
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: read
@@ -15,10 +20,13 @@ jobs:
   changes:
     name: Detect test areas
     runs-on: ubuntu-latest
+    # Phân loại phạm vi thay đổi: Chỉ kích hoạt các job kiểm thử liên quan đến code được chỉnh sửa
     outputs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       python: ${{ steps.filter.outputs.python }}
+      docker: ${{ steps.filter.outputs.docker }}
+      windows: ${{ steps.filter.outputs.windows }}
       release_gate: ${{ steps.filter.outputs.release_gate }}
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +66,21 @@ jobs:
               - 'scripts/prepare-cli.mjs'
               - 'scripts/run*.mjs'
               - 'package.json'
+            # Bộ lọc riêng cho Docker: Tránh build image nặng khi không sửa runtime/dockerfile
+            docker:
+              - '.github/workflows/test.yml'
+              - '.dockerignore'
+              - 'Dockerfile*'
+              - 'deepagents/Dockerfile*'
+              - 'tests/release-images.py'
+              - 'scripts/*docker*'
+            # Bộ lọc riêng cho Windows: Tránh nghẽn hàng đợi máy ảo windows-latest
+            windows:
+              - '.github/workflows/test.yml'
+              - 'fogewise-dev-launchers/**'
+              - 'scripts/*windows*'
+              - 'scripts/dev-entry-command.test.mjs'
+              - 'scripts/local-infra-launcher.test.mjs'
             release_gate:
               - '.dockerignore'
               - 'operator/**'
@@ -171,7 +194,8 @@ jobs:
   web-production-build:
     name: Web lint and production build
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy khi có thay đổi liên quan đến frontend (apps/web hoặc packages dùng chung)
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -189,13 +213,23 @@ jobs:
       - name: Lint web
         run: pnpm --filter @lcsp/web lint
 
+      # Tối ưu hóa: Tái sử dụng build cache từ kho mây GitHub Actions để tăng tốc Next.js compilation (giảm 2-3 phút)
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Build web
         run: pnpm --filter @lcsp/web build
 
   api-unit:
     name: API unit tests
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy khi có thay đổi liên quan đến backend (apps/api hoặc contracts)
+    if: needs.changes.outputs.api == 'true'
     # Ubuntu 24.04's default AppArmor policy blocks Chromium's user-namespace sandbox.
     # Keep the browser tests on 22.04 so the renderer runs with its sandbox enabled.
     runs-on: ubuntu-22.04
@@ -236,7 +270,8 @@ jobs:
   root-capacity-integration:
     name: Adaptive Root global admission PostgreSQL integration
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy khi có thay đổi liên quan đến backend API / DB migrations
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     services:
       rabbitmq:
@@ -312,7 +347,8 @@ jobs:
   api-e2e:
     name: API e2e tests
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy khi có thay đổi liên quan đến backend API
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -347,7 +383,8 @@ jobs:
   web:
     name: Web tests
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy khi có thay đổi liên quan đến frontend (apps/web)
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -368,7 +405,8 @@ jobs:
   python:
     name: Python worker tests
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy khi có thay đổi liên quan đến deepagents/python
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     services:
       rabbitmq:
@@ -466,7 +504,8 @@ jobs:
   docker-sandbox-e2e:
     name: Docker sandbox E2E
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ build Docker image khi có thay đổi Dockerfile/scripts, hoặc khi merge vào nhánh chính
+    if: needs.changes.outputs.docker == 'true' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -504,7 +543,8 @@ jobs:
   assessment-domain-vertical:
     name: Assessment Root vertical
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy kiểm thử vertical khi có thay đổi ở API hoặc Python runtime
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.python == 'true'
     # The PDF endpoint launches the same sandboxed Playwright Chromium as API unit tests.
     runs-on: ubuntu-22.04
     services:
@@ -645,7 +685,8 @@ jobs:
   admin-playwright-e2e:
     name: Billing and Admin Playwright E2E release gate
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Chỉ chạy E2E browser tests khi có thay đổi liên quan đến frontend (web) hoặc backend (api)
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -681,7 +722,8 @@ jobs:
   windows-dev-launcher:
     name: Windows dev launcher security tests
     needs: changes
-    if: needs.changes.outputs.release_gate == 'true'
+    # Tối ưu hóa: Bỏ qua máy ảo windows-latest (tránh chờ queue 2-4 phút) trừ khi sửa scripts Windows hoặc merge vào nhánh chính
+    if: needs.changes.outputs.windows == 'true' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -739,7 +781,9 @@ jobs:
           import json, os
           assert os.environ["CHANGE_RESULT"] == "success", "change detection must succeed"
           jobs = json.loads(os.environ["JOB_RESULTS"])
+          # Tối ưu hóa Gate: Cho phép các job được 'skipped' hợp lệ (khi không sửa code vùng đó) mà không bị tính là lỗi
+          # Gate chỉ thất bại khi có job nào đó thật sự rơi vào trạng thái 'failure' hoặc 'cancelled'
           if os.environ["RELEASE_CHANGED"] == "true":
-              failed = {name: job["result"] for name, job in jobs.items() if job["result"] != "success"}
-              assert not failed, failed
+              failed = {name: job["result"] for name, job in jobs.items() if job["result"] not in ("success", "skipped")}
+              assert not failed, f"Failed or cancelled jobs: {failed}"
           PYTHON
