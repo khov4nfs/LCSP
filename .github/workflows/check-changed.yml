@@ -40,11 +40,14 @@ jobs:
           # responses cannot fail change detection.
           token: ""
           list-files: shell
+          # Bộ lọc phạm vi: Chỉ kích hoạt kiểm tra/autofix mã nguồn khi có thay đổi code thực tế
+          # Loại trừ tài liệu markdown (!**/*.md) và chính file workflow để tránh kích hoạt autofix vô ích khi chỉ sửa doc/CI
           filters: |
             api:
-              - '.github/workflows/check-changed.yml'
               - 'apps/api/**'
+              - '!apps/api/**/*.md'
               - 'packages/contracts/**'
+              - '!packages/contracts/**/*.md'
               - 'scripts/check-branch-name.mjs'
               - 'scripts/check-import-policy.mjs'
               - 'package.json'
@@ -52,10 +55,12 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'tsconfig*.json'
             web:
-              - '.github/workflows/check-changed.yml'
               - 'apps/web/**'
+              - '!apps/web/**/*.md'
               - 'packages/contracts/**'
+              - '!packages/contracts/**/*.md'
               - 'packages/i18n/**'
+              - '!packages/i18n/**/*.md'
               - 'scripts/check-branch-name.mjs'
               - 'scripts/check-import-policy.mjs'
               - 'package.json'
@@ -63,9 +68,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'tsconfig*.json'
             python:
-              - '.github/workflows/check-changed.yml'
               - 'deepagents/**'
+              - '!deepagents/**/*.md'
               - 'deepagents-langgraph/**'
+              - '!deepagents-langgraph/**/*.md'
 
   autofix:
     name: Auto-fix imports and lint

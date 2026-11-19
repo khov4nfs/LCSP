@@ -45,8 +45,9 @@ INTEGRATION_NAMES = {
     "test_docker_sandbox_ensure_repository_profile_e2e",
 }
 EXCLUDED_SOURCE = re.compile(
+    # Bỏ qua tests, cache, artifacts và các file tài liệu markdown (.md) khỏi source manifest
     r"(^|/)(tests?|decision|node_modules|dist|\.venv|\.next|__pycache__|tmp)/"
-    r"|\.(spec|test)\.[cm]?[jt]sx?$"
+    r"|\.(spec|test)\.[cm]?[jt]sx?$|\.md$"
 )
 PRIVATE_PATH = re.compile(
     r"(^|/)(\.git|\.github|\.env(?:\.[^/]+)?|\.legal-source|\.corpus|\.chroma|\.billing|"
@@ -55,7 +56,8 @@ PRIVATE_PATH = re.compile(
     r"\.gemini|\.bmad|_bmad|\.ua|\.code-review-graph|\.codebase-memory|"
     r"\.understand-anything|\.understand|\.playwright[^/]*|__pycache__|tests?)(/|$)"
     r"|^(?:deepagents/)?(?:frozen|graft|graphify-out|artifacts|output|tmp|docs|docs-vn)(/|$)"
-    r"|^(?:AGENTS|CLAUDE|CHANGELOG|DESIGN|RTK|deep-research-report)\.md$"
+    # Scoped AGENTS.md and agent instructions must never enter release candidate images or trigger rootfs audit failures.
+    r"|(?:^|/)(?:AGENTS|CLAUDE|CHANGELOG|DESIGN|RTK|deep-research-report)\.md$"
     # Private local agent session/handoff transcripts must never be part of an image.
     r"|^(?:codex|claude)-session-[^/]*\.md$"
 )

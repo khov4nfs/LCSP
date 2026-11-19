@@ -45,6 +45,13 @@
   2. How the new/modified logic operates and prevents regressions.
   3. Any side-effects, boundaries, or constraints being enforced.
 
+### [2026-11-19] [CI/CD] Scoped Paths Filtering Markdown Exclusion & Workflow Triggers
+- **Context / Symptom**: CI triggered Python worker tests, Docker e2e, Windows VMs, and API e2e even though only markdown instructions and CI workflow files were modified.
+- **Root Cause**: Two issues combined:
+  1. `dorny/paths-filter` was matching `apps/api/**`, `apps/web/**`, and `deepagents/**` without negative patterns for `.md` files (`!**/*.md`), treating documentation edits as production source changes.
+  2. The workflow file itself (`.github/workflows/test.yml`) was listed under every target filter (`docker:`, `windows:`, `python:`), forcing all heavy jobs to run whenever CI comments or cache configurations were touched.
+- **Resolution & Invariant**: Always append negative exclusion patterns (`!apps/api/**/*.md`, `!apps/web/**/*.md`, `!deepagents/**/*.md`) to scoped filters. Never list the workflow file itself under heavy execution jobs (`docker:`, `windows:`) unless those specific runners are the target of the test.
+
 ### [2026-11-19] [PROCESS] Strict Preservation of Architectural Invariants in AGENTS.md
 - **Context / Symptom**: User emphasized that whenever updating `AGENTS.md` or scoped agent rule files, the core structure, established conventions, and existing baseline principles must NEVER be broken, altered, or diluted.
 - **Root Cause**: Overwriting or casually paraphrasing rule files can accidentally omit critical established constraints (such as Atomic Design boundaries, 5-section business logic JSDoc, Result Envelope format, or SCREAMING_SNAKE_CASE enums).

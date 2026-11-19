@@ -38,45 +38,52 @@ jobs:
         with:
           token: ""
           list-files: shell
+          # Bộ lọc phạm vi kiểm thử (Scoped Paths Filtering)
+          # Tối ưu hóa:
+          # 1. Loại trừ toàn bộ các file tài liệu Markdown (!**/*.md) để việc sửa đổi tài liệu/AGENTS.md không kích hoạt test nặng
+          # 2. Không kích hoạt docker/windows VM/python worker khi chỉ sửa file test.yml cấu hình
           filters: |
             api:
-              - '.github/workflows/test.yml'
               - 'apps/api/**'
+              - '!apps/api/**/*.md'
               - 'packages/contracts/**'
+              - '!packages/contracts/**/*.md'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'tsconfig*.json'
             web:
-              - '.github/workflows/test.yml'
               - 'apps/web/**'
+              - '!apps/web/**/*.md'
               - 'packages/contracts/**'
+              - '!packages/contracts/**/*.md'
               - 'packages/i18n/**'
+              - '!packages/i18n/**/*.md'
               - 'tests/**'
+              - '!tests/**/*.md'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'tsconfig*.json'
             python:
-              - '.github/workflows/test.yml'
               - 'deepagents/**'
+              - '!deepagents/**/*.md'
               - 'deepagents-langgraph/**'
+              - '!deepagents-langgraph/**/*.md'
               - 'scripts/dev-entry.mjs'
               - 'scripts/dev-stop.test.mjs'
               - 'scripts/prepare-cli.mjs'
               - 'scripts/run*.mjs'
               - 'package.json'
-            # Bộ lọc riêng cho Docker: Tránh build image nặng khi không sửa runtime/dockerfile
+            # Bộ lọc riêng cho Docker: Chỉ chạy khi sửa đổi runtime dockerfile/release-images script
             docker:
-              - '.github/workflows/test.yml'
               - '.dockerignore'
               - 'Dockerfile*'
               - 'deepagents/Dockerfile*'
               - 'tests/release-images.py'
               - 'scripts/*docker*'
-            # Bộ lọc riêng cho Windows: Tránh nghẽn hàng đợi máy ảo windows-latest
+            # Bộ lọc riêng cho Windows: Chỉ chạy khi sửa đổi launchers của Windows
             windows:
-              - '.github/workflows/test.yml'
               - 'fogewise-dev-launchers/**'
               - 'scripts/*windows*'
               - 'scripts/dev-entry-command.test.mjs'
@@ -87,13 +94,20 @@ jobs:
               - '.github/workflows/test.yml'
               - 'fogewise-dev-launchers/**'
               - 'apps/api/**'
+              - '!apps/api/**/*.md'
               - 'apps/web/**'
+              - '!apps/web/**/*.md'
               - 'deepagents/**'
+              - '!deepagents/**/*.md'
               - 'deepagents-langgraph/**'
+              - '!deepagents-langgraph/**/*.md'
               - 'packages/contracts/**'
+              - '!packages/contracts/**/*.md'
               - 'packages/i18n/**'
+              - '!packages/i18n/**/*.md'
               - 'scripts/**'
               - 'tests/**'
+              - '!tests/**/*.md'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
