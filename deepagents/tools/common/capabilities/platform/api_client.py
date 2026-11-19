@@ -28,6 +28,8 @@ logger = get_logger(__name__)
 
 _AGENT_STREAM_NETWORK_BACKOFF_SECONDS = 2.0
 SELECTED_RULE_COMPLETE_PATH = "/internal/legal-rule-preparation/complete"
+SELECTED_RULE_VALIDATE_PATH = "/internal/legal-rule-preparation/validate"
+SELECTED_RULE_OUTPUT_PATHS = (SELECTED_RULE_COMPLETE_PATH, SELECTED_RULE_VALIDATE_PATH)
 SELECTED_RULE_INVALID_CALLBACK = "LEGAL_RULE_CATALOG_REQUEST_INVALID"
 SELECTED_RULE_INVALID_RESULT = "LEGAL_RULE_RESULT_INVALID"
 SELECTED_RULE_OUTPUT_REJECTIONS = {
@@ -57,10 +59,13 @@ class WorkerCallbackError(Exception):
         *,
         status_code: int | None = None,
         error_code: str | None = None,
+        issue_paths: tuple[str, ...] = (),
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.error_code = error_code
+        # Bounded structural field paths only; never submitted values.
+        self.issue_paths = issue_paths
         self.callback_client_error = (
             status_code is not None and 400 <= status_code < 500
         )
@@ -131,6 +136,21 @@ class WorkerApiClient:
         """
         return self._post_with_retry(SELECTED_RULE_COMPLETE_PATH, {"preparationRunId": run_id, "executionState": state, "output": output, "failureCode": failure_code}, redact=False)
 
+    def validate_selected_rule_output(self, run_id: str, output: dict) -> dict:
+        """Business purpose: Ask the API whether a drafted selected-rule result would be accepted before it is settled.
+
+        Business rules:
+
+        - The API owns the validation; this dry run persists nothing and its transport is retried, never model work.
+        Execution flow:
+        1. Submit the run identity and draft through the existing retrying authenticated adapter.
+        Failure cases:
+        - A structurally invalid draft raises WorkerCallbackError carrying safe field paths so the author can repair it.
+        Side effects:
+        - Read-only on the API side; no run state changes.
+        """
+        return self._post_with_retry(SELECTED_RULE_VALIDATE_PATH, {"preparationRunId": run_id, "output": output}, redact=False)
+
     def _post_with_retry(
         self, path: str, payload: dict, *, redact: bool = True, method: str = "POST"
     ) -> dict:
@@ -192,11 +212,12 @@ class WorkerApiClient:
                     message = client_error_message(resp.status_code)
                     if error_code:
                         message = f"{error_code}: {message}"
+                    issue_paths: tuple[str, ...] = ()
                     if (
-                        path == SELECTED_RULE_COMPLETE_PATH
+                        path in SELECTED_RULE_OUTPUT_PATHS
                         and (resp.status_code, error_code) in SELECTED_RULE_OUTPUT_REJECTIONS
                     ):
-                        self._log_selected_rule_rejection(resp, payload["preparationRunId"], cid, error_code)
+                        issue_paths = self._log_selected_rule_rejection(resp, payload["preparationRunId"], cid, error_code)
                     if resp.status_code == 400 and error_code == "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID" and path in (
                         InternalPath.COMPLIANCE_RULE_SET_VALIDATIONS,
                         InternalPath.COMPLIANCE_RULE_SET_SUBMISSIONS,
@@ -221,6 +242,7 @@ class WorkerApiClient:
                         message,
                         status_code=resp.status_code,
                         error_code=error_code,
+                        issue_paths=issue_paths,
                     )
 
                 if resp.status_code >= 500:
@@ -273,7 +295,7 @@ class WorkerApiClient:
         raise WorkerCallbackError(unexpected_error_message())
 
     @staticmethod
-    def _log_selected_rule_rejection(response: httpx.Response, run_id: str, correlation_id: str, error_code: str) -> None:
+    def _log_selected_rule_rejection(response: httpx.Response, run_id: str, correlation_id: str, error_code: str) -> tuple[str, ...]:
         """Business purpose: Identify rejected selected rule results across the worker and API.
 
         Business rules:
@@ -284,7 +306,7 @@ class WorkerApiClient:
         Failure cases:
         - Missing, oversized, or unrecognized metadata still yields a rejection event with an empty list of paths.
         Side effects:
-        - Emits a warning without writing run state or logging submitted values.
+        - Emits a warning without writing run state or logging submitted values; returns the retained paths.
         """
         problem = response.json().get("problem")
         meta = problem.get("meta") if isinstance(problem, dict) else None
@@ -299,6 +321,7 @@ class WorkerApiClient:
             error_code=error_code,
             validation_paths=paths,
         )
+        return tuple(paths)
 
     def _response_error_code(self, response) -> str | None:
         """Extract a typed error code from supported API/problem response shapes."""

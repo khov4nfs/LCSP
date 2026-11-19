@@ -63,3 +63,21 @@
 Giữ nguyên bulk/explicit selection authorization, idempotency, catalog version lock, exact legal source citations và API request contract. Thay đổi hướng dẫn và schema description chỉ ảnh hưởng cách model tạo *candidate result*; không sửa luật nguồn, không ép sửa enum, không bỏ nguồn legal/provenance. Instruction được nạp theo path/UTF-8 trực tiếp; không có manual instruction approval hay checksum gate. Các yêu cầu chứng minh legal accuracy bằng model thật vẫn tách biệt với việc chỉnh instruction.
 
 **Trạng thái xác minh:** source-level/static checks có thể phát hiện thiếu wiring; chưa chứng minh chất lượng model qua controlled negative/positive/mixed run và các expected outcomes trên phải được đối chiếu nguồn luật thực tế, không coi chính bảng này là independently reviewed legal gold.
+
+## Điều kiện vận hành — giảm FAILED/retry thủ công
+
+- Trước khi settle, worker gọi dry-run `POST /internal/legal-rule-preparation/validate` (dùng đúng `validateSelectedOutput` của bước complete, không ghi gì). Chỉ khi API trả về từ chối cấu trúc 400/422 (kèm field path an toàn) worker mới cho model **một** lượt sửa trong phần thời gian còn lại của deadline (`LCSP_SELECTED_RULE_MAX_REPAIRS`, mặc định 1, tối đa 3, `0` = tắt; bỏ qua nếu còn < 30 giây).
+- Dry-run không khả dụng/không kết luận được (5xx, mạng, 409) thì không chặn: bước complete vẫn là nơi quyết định cuối cùng. Output hợp lệ không tốn thêm lượt gọi model.
+- Rule không đủ căn cứ (không có actor/nghĩa vụ được pin, hoặc chỉ là chế độ giám sát hành chính) vẫn trả `legalRequirements`/`assessmentRules` rỗng — được chấp nhận là SUCCEEDED, không sinh AssessmentRule; lượt sửa chỉ được xóa artifact không có căn cứ, không được bịa nội dung.
+- Vẫn **NOT_RUN**: đo lường model thật (tỷ lệ repair, false positive/negative); các test hiện tại chỉ chứng minh wiring.
+
+## Hiệu chỉnh chống quá chặt (actor, dẫn chiếu chéo, INPUT/OUTPUT/PROCESS)
+
+Phản hồi từ lần test trước: cổng actor, điều kiện ở điều khoản khác và việc áp INPUT/OUTPUT/PROCESS đang chặn cả rule đáng giữ. `preparation.selected` (EN + VI) nay theo nguyên tắc **giữ nghĩa vụ có căn cứ; bất định được ghi lại, không dùng để xóa**:
+
+- Actor: xác định theo thứ tự điểm → câu dẫn cha → citation được cung cấp → bên xây dựng hệ thống như nguồn gọi tên; mơ hồ chỉ là ghi chú legal review. Ca loại bỏ chỉ còn thủ tục thuần của cơ quan nhà nước (Điều 10(5)(b)).
+- Dẫn chiếu/điều kiện ở điều khoản khác không được cung cấp → `unresolvedConditionBindings` / applicability condition, không phải lý do bỏ rule.
+- INPUT/OUTPUT/PROCESS mô tả và giới hạn phạm vi, không phải cổng đạt/trượt; PROCESS (i) → AssessmentRule, (ii) → NON_ASSESSABLE, (iii) → giải thích trong `analysis`; mixed thì tách.
+- Phép phản chứng chỉ cắt/thu hẹp tiêu chí, không xóa LegalRequirement; kết quả rỗng chỉ khi nguồn không nêu nghĩa vụ và phải nêu lý do.
+- Chưa đổi: skill actor-stage, scope-quality và overlay dev-scope (luồng full-source, không nạp vào selected run).
+- Vẫn **NOT_RUN**: chạy lại các rule trước đây từng bị chặn với model thật để xác nhận chúng lọt và ca Điều 10(5)(b) vẫn bị loại đúng.

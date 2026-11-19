@@ -229,6 +229,22 @@ def test_selected_completion_logs_only_safe_paths_and_run_identity(client, statu
     )
 
 
+def test_selected_dry_run_exposes_only_safe_paths_to_the_repair_pass(client):
+    field = "output.assessmentRules.1.legalRequirementIds"
+    response = httpx.Response(422, json={"ok": False, "problem": {
+        "code": "LEGAL_RULE_RESULT_INVALID",
+        "meta": {"issues": f"{field},output.credential=PRIVATE"},
+    }})
+    with (
+        patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post,
+        pytest.raises(WorkerCallbackError) as caught,
+    ):
+        client.validate_selected_rule_output("selected-run", {"analysis": "draft"})
+    assert post.call_args.args[0].endswith("/internal/legal-rule-preparation/validate")
+    assert caught.value.issue_paths == (field,)
+    assert "PRIVATE" not in str(caught.value)
+
+
 @pytest.mark.parametrize("method,args", [
     ("validate_compliance_rule_set", ("preparation-1", {})),
     ("submit_compliance_rule_set", ("preparation-1", "submit-1", {})),

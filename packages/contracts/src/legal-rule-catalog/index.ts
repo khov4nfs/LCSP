@@ -273,6 +273,13 @@ export const preparationRuleCompleteSchema = z.strictObject({
 export type PreparationRuleComplete = z.infer<
   typeof preparationRuleCompleteSchema
 >;
+// Dry-run request: the worker asks the API to apply the settlement validation before it accepts a result.
+export const preparationRuleValidateSchema = preparationRuleCompleteSchema
+  .pick({ preparationRunId: true })
+  .extend({ output: preparationRuleOutputSchema });
+export type PreparationRuleValidate = z.infer<
+  typeof preparationRuleValidateSchema
+>;
 export const preparationRuleClaimSchema = z.strictObject({
   preparationRunId: id,
 });

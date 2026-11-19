@@ -47,6 +47,14 @@ class SelectedFixtureApi:
         self.completions = []
         self.duplicate = False
         self.reject_output = None
+        self.validations = []
+        self.draft_rejections = []
+
+    def validate_selected_rule_output(self, run_id, output):
+        self.validations.append((run_id, output))
+        if self.draft_rejections:
+            raise self.draft_rejections.pop(0)
+        return {"valid": True}
 
     def claim_selected_rule_preparation(self, run_id):
         self.claims.append(run_id)
@@ -238,3 +246,70 @@ def test_provider_failure_preserves_safe_code_without_logging_body(runtime_asset
     assert "cause_types=OverloadedError" in caplog.text
     assert "secret-provider-body" not in caplog.text
     assert "secret-wrapper-message" not in caplog.text
+
+
+class RepairingFixtureModel(SelectedFixtureModel):
+    """Returns an invalid draft first and a corrected draft once the rejection feedback arrives."""
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.calls.append(messages)
+        repaired = any("rejected by structural validation" in str(getattr(m, "content", "")) for m in messages)
+        analysis = "corrected" if repaired else "draft"
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content="", tool_calls=[{
+            "name": "SelectedPreparationRuleResult", "id": f"fixture-{analysis}",
+            "args": {"analysis": analysis, "legalRequirements": [], "assessmentRules": []},
+        }]))])
+
+
+def _rejection(paths=("output.legalRequirements.0.legalRequirementId",)):
+    return WorkerCallbackError("invalid output", status_code=422, error_code=SELECTED_RULE_INVALID_RESULT, issue_paths=tuple(paths))
+
+
+def test_structurally_invalid_draft_is_repaired_once_before_settlement(runtime_assets):
+    api, model = SelectedFixtureApi(), RepairingFixtureModel()
+    api.draft_rejections = [_rejection()]
+    assert selected_rule.run_selected_rule_preparation(api, "repairable", model=model)["state"] == "SUCCEEDED"
+    assert len(model.calls) == 2
+    feedback = model.calls[1][-1].content
+    assert "output.legalRequirements.0.legalRequirementId" in feedback
+    assert "selected-canonical-rule:" in feedback
+    # Only the corrected draft is persisted; the invalid draft never settles as FAILED.
+    assert [(entry[1], entry[2]["analysis"]) for entry in api.completions] == [("SUCCEEDED", "corrected")]
+
+
+def test_valid_draft_costs_no_extra_model_call(runtime_assets):
+    api, model = SelectedFixtureApi(), SelectedFixtureModel()
+    assert selected_rule.run_selected_rule_preparation(api, "valid-draft", model=model)["state"] == "SUCCEEDED"
+    assert len(model.calls) == 1 and len(api.validations) == 1
+
+
+def test_repair_is_bounded_and_final_rejection_still_fails_the_item(runtime_assets):
+    api, model = SelectedFixtureApi(), RepairingFixtureModel()
+    api.draft_rejections = [_rejection(), _rejection()]
+    api.reject_output = WorkerCallbackError("invalid output", status_code=422, error_code=SELECTED_RULE_INVALID_RESULT)
+    assert selected_rule.run_selected_rule_preparation(api, "still-invalid", model=model)["state"] == "FAILED"
+    assert len(model.calls) == 2
+    assert [entry[1] for entry in api.completions] == ["SUCCEEDED", "FAILED"]
+
+
+def test_inconclusive_dry_run_settles_without_repair(runtime_assets):
+    api, model = SelectedFixtureApi(), SelectedFixtureModel()
+    api.draft_rejections = [WorkerCallbackError("unavailable", status_code=503)]
+    assert selected_rule.run_selected_rule_preparation(api, "dry-run-down", model=model)["state"] == "SUCCEEDED"
+    assert len(model.calls) == 1
+
+
+def test_repair_can_be_disabled(runtime_assets, monkeypatch):
+    monkeypatch.setenv("LCSP_SELECTED_RULE_MAX_REPAIRS", "0")
+    api, model = SelectedFixtureApi(), SelectedFixtureModel()
+    api.draft_rejections = [_rejection()]
+    selected_rule.run_selected_rule_preparation(api, "no-repair", model=model)
+    assert len(model.calls) == 1 and not api.validations
+
+
+def test_no_repair_when_too_little_deadline_remains(runtime_assets, monkeypatch):
+    monkeypatch.setattr(selected_rule, "llm_provider_timeout_seconds", lambda: 5)
+    api, model = SelectedFixtureApi(), SelectedFixtureModel()
+    api.draft_rejections = [_rejection()]
+    selected_rule.run_selected_rule_preparation(api, "short-deadline", model=model)
+    assert len(model.calls) == 1

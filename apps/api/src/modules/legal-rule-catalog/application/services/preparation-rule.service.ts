@@ -19,8 +19,10 @@ import {
   preparationInstructionReceiptSchema,
   type PreparationRuleInput,
   type PreparationRuleComplete,
+  // Shared contracts type activation, output collection, and rule validation.
   type LegalRuleActivationRequest,
   type PreparationRuleOutput,
+  type PreparationRuleValidate,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
   AUDIT_ACTOR_TYPES,
@@ -929,6 +931,39 @@ export class PreparationRuleService {
         });
       return { recorded: true };
     });
+  }
+
+  /**
+   * Business purpose: Let the worker learn whether a drafted selected-rule result would be accepted, so a fixable structural mistake is repaired before the run settles as FAILED.
+   * Business rules:
+   * - Only a RUNNING selected run with a recorded instruction receipt can be checked; the exact settlement validation is reused, so a dry run can never accept what completion would reject.
+   * - Diagnostics are limited to structural field paths; authored values and citation content are never echoed.
+   * Execution flow:
+   * 1. Load the run's result and pinned input snapshot.
+   * 2. Reject runs that are not RUNNING or have no instruction receipt.
+   * 3. Apply the shared selected-output validation to the draft.
+   * Failure cases:
+   * - A run without a selected result returns NOT_FOUND; non-running runs return CONFLICT; invalid drafts return RESULT_INVALID with a safe field path.
+   * Side effects:
+   * - Read-only: no result, run state, audit event or outbox message is written.
+   */
+  async validate(request: PreparationRuleValidate, cid: string) {
+    const result = await this.prisma.preparationRuleResult.findUnique({
+      where: { preparationRunId: request.preparationRunId },
+      include: { preparationRun: true },
+    });
+    if (!result) catalogFailure(E.NOT_FOUND, cid, 404);
+    if (
+      result.preparationRun.executionState !== A.RUNNING ||
+      !result.instructionReceipt
+    )
+      catalogFailure(E.CONFLICT, cid);
+    validateSelectedOutput(
+      preparationRuleInputSchema.parse(result.inputSnapshot),
+      request.output,
+      cid,
+    );
+    return { valid: true as const };
   }
 
   /**

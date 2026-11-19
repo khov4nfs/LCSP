@@ -62,3 +62,21 @@ def test_inventory_instruction_loading_requires_no_manual_approval_or_instructio
         assert "sourceSha256" not in row
         assert "englishCandidateSha256" not in row
         assert "candidateOriginSha256" not in row
+
+
+def test_selected_prompt_preserves_supported_duties_instead_of_blocking_on_uncertainty():
+    # Static wiring only: guards against the gates drifting back into delete-on-doubt.
+    en = text("instructions/candidates/r1/preparation.selected.txt").replace("**", "")
+    vi = text("instructions/vi/preparation-selected.md").replace("**", "")
+    for phrase in (
+        "Default: preserve a source-supported duty",
+        "ambiguity of actor is a legal-review note, not a ground to drop the duty",
+        "is never a reason to drop the duty",
+        "Trim criteria, not duties",
+        "never removes a duty",
+        "empty is the exception",
+    ):
+        assert phrase in en, phrase
+    for phrase in ("Mặc định: giữ nghĩa vụ có căn cứ nguồn", "Cắt tiêu chí, không cắt nghĩa vụ", "rỗng là ngoại lệ"):
+        assert phrase in vi, phrase
+    assert "unresolvedConditionBindings" in en and "unresolvedConditionBindings" in vi
