@@ -27,9 +27,7 @@ export function resolveCorsOrigin(
   callback: (err: Error | null, allow?: boolean) => void,
 ) => void {
   const allowedSet = new Set(
-    allowedOrigins
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0),
+    allowedOrigins.map((item) => item.trim()).filter((item) => item.length > 0),
   );
 
   return (origin, callback) => {
