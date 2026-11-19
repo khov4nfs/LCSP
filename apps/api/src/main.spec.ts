@@ -29,9 +29,12 @@ jest.unstable_mockModule("./app.module.js", () => ({
   AppModule: class FakeAppModule {},
 }));
 
-jest.unstable_mockModule("./platform/logging/file-partitioned-logger.js", () => ({
-  FilePartitionedLogger: class FakeLogger {},
-}));
+jest.unstable_mockModule(
+  "./platform/logging/file-partitioned-logger.js",
+  () => ({
+    FilePartitionedLogger: class FakeLogger {},
+  }),
+);
 
 jest.unstable_mockModule("./platform/http/index.js", () => ({
   applyNetworkEdgeMiddleware: jest.fn(),
