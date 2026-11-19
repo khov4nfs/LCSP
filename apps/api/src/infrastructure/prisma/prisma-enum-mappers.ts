@@ -193,8 +193,9 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
     OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
   [PrismaOutboxAggregateType.REPOSITORY_SNAPSHOT]:
     OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
-} as const satisfies Partial<
-  Record<PrismaOutboxAggregateType, OutboxAggregateType>
+} as const satisfies Record<
+  PrismaOutboxAggregateType,
+  OutboxAggregateType
 >;
 
 const OUTBOX_STATUS_TO_PRISMA = {
@@ -493,36 +494,40 @@ export function fromPrismaRepositoryScanTriggerSource(
   return PRISMA_REPOSITORY_SCAN_TRIGGER_SOURCE_TO_CONTRACT[source];
 }
 
+const CREDENTIAL_PROVIDER_TO_PRISMA = {
+  [CREDENTIAL_PROVIDERS.github]: PrismaCredentialProvider.GITHUB,
+  [CREDENTIAL_PROVIDERS.gitlab]: PrismaCredentialProvider.GITLAB,
+  [CREDENTIAL_PROVIDERS.bitbucket]: PrismaCredentialProvider.BITBUCKET,
+  [CREDENTIAL_PROVIDERS.azureDevOps]: PrismaCredentialProvider.AZURE_DEVOPS,
+} as const satisfies Record<CredentialProvider, PrismaCredentialProvider>;
+
+const PRISMA_CREDENTIAL_PROVIDER_TO_CONTRACT = {
+  [PrismaCredentialProvider.GITHUB]: CREDENTIAL_PROVIDERS.github,
+  [PrismaCredentialProvider.GITLAB]: CREDENTIAL_PROVIDERS.gitlab,
+  [PrismaCredentialProvider.BITBUCKET]: CREDENTIAL_PROVIDERS.bitbucket,
+  [PrismaCredentialProvider.AZURE_DEVOPS]: CREDENTIAL_PROVIDERS.azureDevOps,
+} as const satisfies Record<PrismaCredentialProvider, CredentialProvider>;
+
 /** Maps credential provider from the contract layer to Prisma. @param provider - Contract credential provider. @returns Prisma credential provider. */
 export function toPrismaCredentialProvider(
   provider: CredentialProvider,
 ): PrismaCredentialProvider {
-  switch (provider) {
-    case CREDENTIAL_PROVIDERS.gitlab:
-      return PrismaCredentialProvider.GITLAB;
-    case CREDENTIAL_PROVIDERS.bitbucket:
-      return PrismaCredentialProvider.BITBUCKET;
-    case CREDENTIAL_PROVIDERS.azureDevOps:
-      return PrismaCredentialProvider.AZURE_DEVOPS;
-    default:
-      return PrismaCredentialProvider.GITHUB;
+  const mapped = CREDENTIAL_PROVIDER_TO_PRISMA[provider];
+  if (!mapped) {
+    throw new Error(`Unsupported credential provider: ${provider}`);
   }
+  return mapped;
 }
 
 /** Maps credential provider from Prisma to the contract layer. @param provider - Prisma credential provider. @returns Contract credential provider. */
 export function fromPrismaCredentialProvider(
   provider: PrismaCredentialProvider,
 ): CredentialProvider {
-  switch (provider) {
-    case PrismaCredentialProvider.GITLAB:
-      return CREDENTIAL_PROVIDERS.gitlab;
-    case PrismaCredentialProvider.BITBUCKET:
-      return CREDENTIAL_PROVIDERS.bitbucket;
-    case PrismaCredentialProvider.AZURE_DEVOPS:
-      return CREDENTIAL_PROVIDERS.azureDevOps;
-    default:
-      return CREDENTIAL_PROVIDERS.github;
+  const mapped = PRISMA_CREDENTIAL_PROVIDER_TO_CONTRACT[provider];
+  if (!mapped) {
+    throw new Error(`Unsupported Prisma credential provider: ${provider}`);
   }
+  return mapped;
 }
 
 const LEGAL_SOURCE_DOCUMENT_ORIGIN_TO_PRISMA = {
@@ -605,19 +610,36 @@ export function fromPrismaLegalSourceDocumentIngestionState(
   return PRISMA_LEGAL_SOURCE_DOCUMENT_INGESTION_STATE_TO_CONTRACT[state];
 }
 
+const LEGAL_SOURCE_DOCUMENT_CORPUS_ROLE_TO_PRISMA = {
+  [CorpusRoles.OPERATIVE]: PrismaCorpusRole.OPERATIVE,
+  [CorpusRoles.REFERENCE_ONLY]: PrismaCorpusRole.REFERENCE_ONLY,
+} as const satisfies Record<LegalSourceDocumentCorpusRole, PrismaCorpusRole>;
+
+const PRISMA_LEGAL_SOURCE_DOCUMENT_CORPUS_ROLE_TO_CONTRACT = {
+  [PrismaCorpusRole.OPERATIVE]: CorpusRoles.OPERATIVE,
+  [PrismaCorpusRole.REFERENCE_ONLY]: CorpusRoles.REFERENCE_ONLY,
+} as const satisfies Record<PrismaCorpusRole, LegalSourceDocumentCorpusRole>;
+
+/** Maps legal source document corpus role from the contract layer to Prisma. */
 export function toPrismaLegalSourceDocumentCorpusRole(
   role: LegalSourceDocumentCorpusRole,
 ): PrismaCorpusRole {
-  return {
-    [CorpusRoles.OPERATIVE]: PrismaCorpusRole.OPERATIVE,
-    [CorpusRoles.REFERENCE_ONLY]: PrismaCorpusRole.REFERENCE_ONLY,
-  }[role];
+  const mapped = LEGAL_SOURCE_DOCUMENT_CORPUS_ROLE_TO_PRISMA[role];
+  if (!mapped) {
+    throw new Error(`Unsupported legal source document corpus role: ${role}`);
+  }
+  return mapped;
 }
+
+/** Maps legal source document corpus role from Prisma to the contract layer. */
 export function fromPrismaLegalSourceDocumentCorpusRole(
   role: PrismaCorpusRole,
 ): LegalSourceDocumentCorpusRole {
-  return {
-    [PrismaCorpusRole.OPERATIVE]: CorpusRoles.OPERATIVE,
-    [PrismaCorpusRole.REFERENCE_ONLY]: CorpusRoles.REFERENCE_ONLY,
-  }[role];
+  const mapped = PRISMA_LEGAL_SOURCE_DOCUMENT_CORPUS_ROLE_TO_CONTRACT[role];
+  if (!mapped) {
+    throw new Error(
+      `Unsupported Prisma legal source document corpus role: ${role}`,
+    );
+  }
+  return mapped;
 }

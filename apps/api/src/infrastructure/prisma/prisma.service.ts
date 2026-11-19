@@ -1,51 +1,79 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import type { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+import type { AppConfig } from "../../config/config.types.js";
+
 /**
  * Business purpose:
- * Keep persisted instants and runtime lease checks consistent with the PostgreSQL adapter's UTC date encoding.
+ * Validates the database connection string and ensures persisted instants and runtime lease checks
+ * strictly encode dates in UTC through the PostgreSQL adapter options.
  *
  * Business rules:
+ * - Database URL must be non-empty and specify either postgresql: or postgres: protocol.
  * - Every Prisma connection uses UTC, regardless of server, role, database, or URL timezone defaults.
- * - Preserve connection credentials and unrelated startup options; URL options take precedence over PGOPTIONS.
+ * - Preserve connection credentials and existing startup options; URL options take precedence over PGOPTIONS.
  *
  * Execution flow:
- * 1. Resolve the startup options that the PostgreSQL driver would otherwise inherit.
- * 2. Append the UTC setting after those options and place it inside the URL so URL parsing cannot override it.
- * 3. Return the same enforced options for connections using environment defaults without a URL.
+ * 1. Validate that the connection string is non-empty and well-formed.
+ * 2. Assert that the protocol is PostgreSQL-compatible.
+ * 3. Resolve existing startup options from searchParams or PGOPTIONS.
+ * 4. Append the `-c timezone=UTC` flag to force UTC timezone on the database session.
+ * 5. Return the finalized connection string and option string for the PrismaPg adapter.
  *
  * Failure cases:
- * - A malformed non-empty database URL is rejected without including credentials in the error.
- * - Invalid existing PostgreSQL startup options still fail when the driver opens its connection.
+ * - Empty or blank database URL throws descriptive configuration error.
+ * - Non-PostgreSQL protocols (e.g. mysql:, http:) throw descriptive validation error without leaking credentials.
+ * - Malformed URL strings throw descriptive error without printing credentials.
  *
  * Side effects:
- * - Pure configuration construction; it does not change environment variables, server settings, or stored timestamps.
+ * - Pure configuration transformation; does not alter environment variables, files, or persistent state.
+ *
+ * @param databaseUrl - Target PostgreSQL connection URL.
+ * @param inheritedOptions - Driver options inherited from the process environment (e.g. PGOPTIONS).
+ * @returns Object containing the UTC-enforced connection string and options.
  */
-function prismaConnectionConfig(databaseUrl: string, inheritedOptions: string) {
-  let connectionString = databaseUrl;
-  let startupOptions = inheritedOptions;
-  if (databaseUrl) {
-    let url: URL;
-    try {
-      url = new URL(databaseUrl);
-    } catch {
-      throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL");
-    }
-    startupOptions =
-      url.searchParams.getAll("options").at(-1) || inheritedOptions;
-    startupOptions = `${startupOptions} -c timezone=UTC`.trim();
-    url.searchParams.set("options", startupOptions);
-    connectionString = url.toString();
-  } else {
-    startupOptions = `${startupOptions} -c timezone=UTC`.trim();
+export function prismaConnectionConfig(
+  databaseUrl: string,
+  inheritedOptions: string,
+): { connectionString: string; options: string } {
+  // Rationale: Guard against silent connection crashes caused by empty connection strings in PrismaPg adapter.
+  const trimmed = databaseUrl?.trim() ?? "";
+  if (trimmed.length === 0) {
+    throw new Error(
+      "DATABASE_URL must be a non-empty PostgreSQL connection URL",
+    );
   }
-  return { connectionString, options: startupOptions };
+
+  // Mechanism: Parse via standard URL to validate scheme and preserve search params cleanly.
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL");
+  }
+
+  // Invariant: Enforce PostgreSQL scheme to prevent accidental non-Postgres connection attempts.
+  if (url.protocol !== "postgresql:" && url.protocol !== "postgres:") {
+    throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL");
+  }
+
+  let startupOptions =
+    url.searchParams.getAll("options").at(-1) || inheritedOptions;
+  startupOptions = `${startupOptions} -c timezone=UTC`.trim();
+  url.searchParams.set("options", startupOptions);
+
+  return { connectionString: url.toString(), options: startupOptions };
 }
 
 /**
  * Provides the shared Prisma client configured with the PostgreSQL adapter and managed by the Nest module lifecycle.
+ *
+ * Rationale: Centralizes database access and enforces UTC session handling across the application.
+ * Mechanism: Resolves database connection credentials from ConfigService (or fallback process.env) and manages connection lifecycle.
+ * Invariants: Single database connection pool per Nest application instance; always connects on boot and disconnects on shutdown.
  */
 @Injectable()
 export class PrismaService
@@ -53,15 +81,23 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   /**
-   * Creates the Prisma client with UTC sessions while preserving configured connection options.
+   * Creates the Prisma client with UTC sessions while resolving configuration from ConfigService.
+   *
+   * @param configService - Optional Nest ConfigService injected via DI container.
    */
-  constructor() {
+  constructor(
+    @Optional()
+    private readonly configService?: ConfigService<AppConfig, true>,
+  ) {
+    const databaseUrl =
+      configService?.get("database", { infer: true })?.url ||
+      process.env.DATABASE_URL ||
+      "";
+    const inheritedOptions = process.env.PGOPTIONS ?? "";
+
     super({
       adapter: new PrismaPg(
-        prismaConnectionConfig(
-          process.env.DATABASE_URL ?? "",
-          process.env.PGOPTIONS ?? "",
-        ),
+        prismaConnectionConfig(databaseUrl, inheritedOptions),
       ),
     });
   }
