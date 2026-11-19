@@ -106,3 +106,11 @@
   2. **Safe Chaining on Config Properties**: Always apply `?.trim()` when accessing string properties from configuration objects that may be undefined.
   3. **In-Memory Directory Caching**: Cache created directory paths in a static `Set<string>` to avoid repetitive synchronous `fs.mkdirSync` syscalls.
   4. **Clean Sibling Imports**: Subdirectories within `src/platform/` must use direct relative paths (`./interfaces/` or `../rbac/`), never `../../platform/...`.
+
+### [2026-11-20] [BACKEND/NESTJS] API Entrypoint Bootstrap Hardening & NodeNext ESM Export Specifiers
+- **Context / Symptom**: `main.ts` executed an unexported `void bootstrap();` without error handling, missing `app.enableShutdownHooks()`; root export files (`index.ts` and `security.ts`) exported relative specifiers ending in `.ts` instead of `.js`.
+- **Root Cause**: Scaffolding default `main.ts` often executes unexported functions that spontaneously bind ports when imported into test harnesses, while lacking OS signal hooks (`SIGTERM`/`SIGINT`) for graceful teardown in containerized deployments. In TypeScript with `moduleResolution: NodeNext`, exporting raw `.ts` extensions leaks `.ts` specifiers into emitted `.d.ts` declaration maps, causing consumer resolution failures in strict ESM packages.
+- **Resolution & Invariant**:
+  1. **Exported, Testable Bootstrap**: Always export `bootstrap()` and guard spontaneous invocation with `if (process.env.NODE_ENV !== "test")`.
+  2. **Graceful Shutdown**: Call `app.enableShutdownHooks()` so Nest triggers `onModuleDestroy()` across all providers (RabbitMQ channel/connection cleanup, Prisma connection pool disconnection).
+  3. **NodeNext ESM Consistency**: All export and import specifiers in TypeScript source files MUST use the standard `.js` extension, never raw `.ts`.
