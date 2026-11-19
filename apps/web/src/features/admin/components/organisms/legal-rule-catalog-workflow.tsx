@@ -61,7 +61,8 @@ import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
 /**
  * Business purpose: Build a Preparation Rule Set from explicitly selected canonical rules after chunking.
  * Business rules:
- * - No rule starts selected; build and activation selections persist across server pages/filters. Assessment Rule filtering and activation candidates reflect only current successful persisted outputs.
+ * - No rule starts selected; build and activation selections persist across server pages/filters. The normal list exposes Preparation selection, while the prepared-with-rules filter exposes activation selection, so each row has one action-specific checkbox.
+ * - Assessment Rule filtering and activation candidates reflect only current successful persisted outputs.
  * Execution flow:
  * 1. Choose/edit the catalog
  * 2. Select eligible rules
@@ -138,6 +139,7 @@ export function LegalRuleCatalogWorkflow({
     (catalog) => catalog.id === catalogId,
   );
   const busy = selection.isPending || submit.isPending || activate.isPending;
+  const selectingForActivation = filters.withAssessmentRules === true;
   const selectedAssessmentRuleCount = [...activationSelection.values()].reduce(
     (total, item) => total + item.assessmentRuleCount,
     0,
@@ -552,13 +554,15 @@ export function LegalRuleCatalogWorkflow({
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                disabled={busy || !rules.data?.eligibleTotal}
-                onClick={() => void selectAll()}
-              >
-                {t("selectAll")}
-              </Button>
+              {!selectingForActivation ? (
+                <Button
+                  variant="outline"
+                  disabled={busy || !rules.data?.eligibleTotal}
+                  onClick={() => void selectAll()}
+                >
+                  {t("selectAll")}
+                </Button>
+              ) : null}
               <Button
                 variant="ghost"
                 disabled={
@@ -574,21 +578,27 @@ export function LegalRuleCatalogWorkflow({
                   {selectedIds.size}
                 </strong>
               </span>
-              <Button
-                disabled={!selectedIds.size || busy}
-                onClick={() => void previewSelection()}
-              >
-                {busy ? t("loading") : t("prepare")}
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={
-                  !activationSelection.size || !ruleSetHistory.isSuccess || busy
-                }
-                onClick={() => setActivationConfirming(true)}
-              >
-                {t("activateSelectedAssessmentRules")}
-              </Button>
+              {!selectingForActivation ? (
+                <Button
+                  disabled={!selectedIds.size || busy}
+                  onClick={() => void previewSelection()}
+                >
+                  {busy ? t("loading") : t("prepare")}
+                </Button>
+              ) : null}
+              {selectingForActivation ? (
+                <Button
+                  variant="destructive"
+                  disabled={
+                    !activationSelection.size ||
+                    !ruleSetHistory.isSuccess ||
+                    busy
+                  }
+                  onClick={() => setActivationConfirming(true)}
+                >
+                  {t("activateSelectedAssessmentRules")}
+                </Button>
+              ) : null}
             </div>
             {activationSelection.size ? (
               <p className="text-sm text-muted-foreground" role="status">
@@ -617,23 +627,26 @@ export function LegalRuleCatalogWorkflow({
               {rules.data?.items.map((rule) => (
                 <li key={rule.id} className="flex items-start gap-3 py-4">
                   <div className="flex flex-col gap-3 pt-1">
-                    <Checkbox
-                      id={`select-${rule.id}`}
-                      aria-label={`${t("selectRule")} ${getRuleDisplayTitle(rule)}`}
-                      checked={selectedIds.has(rule.id)}
-                      disabled={!!rule.ineligibleReason || busy}
-                      onCheckedChange={() => toggleRule(rule.id)}
-                    />
-                    {rule.state === STATES.PREPARED &&
-                    rule.assessmentRuleCount > 0 ? (
+                    {selectingForActivation ? (
+                      rule.state === STATES.PREPARED &&
+                      rule.assessmentRuleCount > 0 ? (
+                        <Checkbox
+                          id={`activate-${rule.id}`}
+                          aria-label={`${t("selectForActivation")} ${getRuleDisplayTitle(rule)}`}
+                          checked={activationSelection.has(rule.id)}
+                          disabled={busy}
+                          onCheckedChange={() => toggleActivationRule(rule)}
+                        />
+                      ) : null
+                    ) : (
                       <Checkbox
-                        id={`activate-${rule.id}`}
-                        aria-label={`${t("selectForActivation")} ${getRuleDisplayTitle(rule)}`}
-                        checked={activationSelection.has(rule.id)}
-                        disabled={busy}
-                        onCheckedChange={() => toggleActivationRule(rule)}
+                        id={`select-${rule.id}`}
+                        aria-label={`${t("selectRule")} ${getRuleDisplayTitle(rule)}`}
+                        checked={selectedIds.has(rule.id)}
+                        disabled={!!rule.ineligibleReason || busy}
+                        onCheckedChange={() => toggleRule(rule.id)}
                       />
-                    ) : null}
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <Label

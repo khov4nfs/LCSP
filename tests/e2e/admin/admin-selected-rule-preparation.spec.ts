@@ -12,6 +12,15 @@ const fixture = JSON.parse(
     "utf8",
   ),
 );
+const preparedActivationPage = JSON.parse(
+  await readFile(
+    new URL(
+      "../../../apps/web/src/public/assets/mocks/legal-rule-catalog-prepared-activation.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 const en = enPages.legalRuleCatalog,
   vi = viPages.legalRuleCatalog;
 const pagePath = "/admin/compliance-rule-sets";
@@ -61,6 +70,48 @@ async function chooseCatalog(page: Page, locale = "en") {
     }),
   ).toBeVisible();
 }
+
+test("prepared results expose one activation checkbox in activation mode", async ({
+  page,
+}) => {
+  await page.route(
+    /\/api\/admin\/legal-rule-catalog\/[^/]+\/rules(?:\?.*)?$/u,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        json: { ok: true, data: preparedActivationPage },
+      }),
+  );
+  await openWorkflow(page);
+  await chooseCatalog(page);
+  await page.getByRole("combobox", { name: en.status, exact: true }).click();
+  await page
+    .getByRole("option", {
+      name: en.preparedWithAssessmentRules,
+      exact: true,
+    })
+    .click();
+
+  const row = page
+    .getByRole("listitem")
+    .filter({ hasText: fixture.rules[0].legalRuleId });
+  const checkbox = row.getByRole("checkbox");
+  await expect(checkbox).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: en.selectAll, exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: en.prepare, exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", {
+      name: en.activateSelectedAssessmentRules,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await checkbox.check();
+  await expect(checkbox).toBeChecked();
+});
 
 test("cross-page explicit selection, changed filters and server Select all retain exact scope with no implicit preparation", async ({
   page,
