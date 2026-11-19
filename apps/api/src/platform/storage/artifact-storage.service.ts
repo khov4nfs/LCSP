@@ -24,8 +24,9 @@ export class ArtifactStorageService {
     @Optional()
     private readonly configService?: ConfigService<AppConfig>,
   ) {
-    const configuredPath =
-      this.configService?.get("storage", { infer: true })?.artifactStoragePath;
+    const configuredPath = this.configService?.get("storage", {
+      infer: true,
+    })?.artifactStoragePath;
 
     this.storagePath =
       configuredPath ||

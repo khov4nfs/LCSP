@@ -32,8 +32,9 @@ export class MfaSecretCipherService implements MfaSecretCipher {
    * - None; pure cryptographic transformation.
    */
   encrypt(plaintext: string): string {
-    const key = this.configService?.get("mfa", { infer: true })
-      ?.secretEncryptionKey;
+    const key = this.configService?.get("mfa", {
+      infer: true,
+    })?.secretEncryptionKey;
     return encryptMfaSecret(plaintext, key);
   }
 
@@ -57,8 +58,9 @@ export class MfaSecretCipherService implements MfaSecretCipher {
    * - None; pure cryptographic transformation.
    */
   decrypt(ciphertext: string): string {
-    const key = this.configService?.get("mfa", { infer: true })
-      ?.secretEncryptionKey;
+    const key = this.configService?.get("mfa", {
+      infer: true,
+    })?.secretEncryptionKey;
     return decryptMfaSecret(ciphertext, key);
   }
 }

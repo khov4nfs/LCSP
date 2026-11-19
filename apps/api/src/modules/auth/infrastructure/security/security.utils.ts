@@ -28,7 +28,10 @@ function deriveMfaEncKey(keyOverride?: string): Buffer {
   return crypto.createHash("sha256").update(raw).digest();
 }
 
-export function encryptMfaSecret(plaintext: string, secretKey?: string): string {
+export function encryptMfaSecret(
+  plaintext: string,
+  secretKey?: string,
+): string {
   const key = deriveMfaEncKey(secretKey);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
@@ -40,7 +43,10 @@ export function encryptMfaSecret(plaintext: string, secretKey?: string): string 
   return `${iv.toString("hex")}.${ciphertext.toString("hex")}.${tag.toString("hex")}`;
 }
 
-export function decryptMfaSecret(encrypted: string, secretKey?: string): string {
+export function decryptMfaSecret(
+  encrypted: string,
+  secretKey?: string,
+): string {
   const parts = encrypted.split(".");
   if (parts.length !== 3) throw new Error("Invalid MFA secret ciphertext");
   const [ivHex, ciphertextHex, tagHex] = parts;

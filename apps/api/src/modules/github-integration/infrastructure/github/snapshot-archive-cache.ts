@@ -73,8 +73,9 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
     @Optional()
     private readonly configService?: ConfigService<AppConfig>,
   ) {
-    const configuredDir =
-      this.configService?.get("storage", { infer: true })?.snapshotArchiveCacheDir;
+    const configuredDir = this.configService?.get("storage", {
+      infer: true,
+    })?.snapshotArchiveCacheDir;
     this.rootDirectory =
       configuredDir ||
       process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR?.trim() ||
