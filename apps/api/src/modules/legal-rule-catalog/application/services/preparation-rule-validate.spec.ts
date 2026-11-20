@@ -84,7 +84,7 @@ function service(
 
 const receipt = { revision: "r", content: "instruction" };
 
-it("accepts a repository rule for a prohibition with pinned marking scope", async () => {
+it("accepts a repository rule for a prohibition with pinned marking scope", () => {
   const documentId = "LAW-134-2025-QH15";
   const sources = ["art-7", "art-7::cl-5", "art-11::cl-2"].map((locator) => ({
     documentId,
@@ -186,20 +186,24 @@ it("accepts a repository rule for a prohibition with pinned marking scope", asyn
   });
 
   expect(() => validateSelectedOutput(selected, output, "cid")).not.toThrow();
-  await expect(async () =>
+  expect(() =>
     validateSelectedOutput(
       { ...selected, citations: selected.citations.slice(0, 2) },
       output,
       "cid",
     ),
-  ).rejects.toMatchObject({
-    response: {
-      problem: {
-        code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
-        meta: { issues: "output.contextRelations.0" },
-      },
-    },
-  });
+  ).toThrow(
+    expect.objectContaining({
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+          meta: expect.objectContaining({
+            issues: "output.contextRelations.0",
+          }),
+        }),
+      }),
+    }),
+  );
 });
 
 describe("PreparationRuleService.validate", () => {

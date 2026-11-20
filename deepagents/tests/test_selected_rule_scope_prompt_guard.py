@@ -31,20 +31,13 @@ def test_oversight_scope_instruction_sources_are_registered_without_approval_or_
 def test_selected_run_system_prompt_separates_supervision_from_developer_duty():
     vi = (ROOT / "instructions/vi/preparation-selected.md").read_text(encoding="utf-8")
     en = (ROOT / "instructions/candidates/r1/preparation.selected.txt").read_text(encoding="utf-8")
-    assert "## Cổng kiểm tra pháp lý trước khi sinh AssessmentRule" in vi
-    assert "## Mandatory legal-to-AssessmentRule gate" in en
-    for phrase in (
-        "passive",
-        "public-authority",
-        "NON_ASSESSABLE",
-        "nonRepositoryDuty=true",
-        "requiredEvidence",
-        "investigationGoal",
-        "no AssessmentRule",
-    ):
-        assert phrase.lower() in en.lower()
-    assert "không tự chứng minh" in vi
-    assert "không tự thêm loại báo cáo" in vi.lower()
+    assert "passive description of government inspection alone does not establish a customer duty" in en
+    assert "câu bị động mô tả cách cơ quan kiểm tra chưa đủ để xác lập nghĩa vụ" in vi
+    for prompt in (en, vi):
+        assert "nonRepositoryDuty=true" in prompt
+        assert "coverage.state=NON_ASSESSABLE" in prompt
+    assert "Never reference a NON_ASSESSABLE requirement from an AssessmentRule" in en
+    assert "AssessmentRule không tham chiếu requirement NON_ASSESSABLE" in vi
 
 
 def test_scope_skills_and_overlay_keep_development_source_authority():
@@ -64,14 +57,17 @@ def test_scope_skills_and_overlay_keep_development_source_authority():
     assert "Administrative supervision versus developer controls" in overlay
 
 
-def test_negative_supervision_case_is_not_a_fake_legal_gold_approval():
-    # Source-derived regression scenario, not a provider/live-model test:
-    source = (
-        "Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát "
-        "thông qua báo cáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập"
-    )
-    assert "được giám sát" in source
-    prompt = (ROOT / "instructions/candidates/r1/preparation.selected.txt").read_text(encoding="utf-8")
-    assert "supervision by reports, sample inspection or independent assessment" in prompt.lower()
-    assert "not by itself" in prompt.lower()
-    assert "return empty" in prompt.lower()
+def test_supervision_examples_leave_outputs_empty_only_for_procedure_without_duty():
+    vi = (ROOT / "instructions/vi/preparation-selected.md").read_text(encoding="utf-8")
+    en = (ROOT / "instructions/candidates/r1/preparation.selected.txt").read_text(encoding="utf-8")
+    vi_example = next(line for line in vi.splitlines() if line.startswith("- **Giám sát hành chính:**"))
+    en_example = next(line for line in en.splitlines() if line.startswith("- **Administrative supervision:**"))
+
+    assert "Giám sát thông qua báo cáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập" in vi_example
+    assert "chưa xác lập nghĩa vụ của nhà phát triển" in vi_example
+    assert "Giữ mọi nghĩa vụ được quy định riêng" in vi_example
+    assert "chỉ quy định thủ tục giám sát, trả legalRequirements và assessmentRules rỗng" in vi_example
+    assert "Supervision by reports, sample inspection or independent assessment" in en_example
+    assert "does not by itself impose a developer duty" in en_example
+    assert "Preserve any separately stated duty" in en_example
+    assert "only the supervision procedure, return empty legalRequirements and assessmentRules" in en_example
