@@ -38,7 +38,8 @@ describe("PrismaService & prismaConnectionConfig", () => {
 
   describe("PrismaService dependency injection", () => {
     it("R04: resolves connection configuration from ConfigService when injected", () => {
-      const getSpy = jest.fn((key: string) => {
+      const getSpy = jest.fn((key: string, options?: unknown) => {
+        void options;
         if (key === "database") {
           return {
             url: "postgresql://config-user:config-pass@localhost:5432/config_db",
