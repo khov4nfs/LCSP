@@ -24,7 +24,6 @@ const mockFn = <T = void>(val?: T) =>
 describe("VerifyMfaOtpHandler", () => {
   const now = 1_700_000_000_000;
   const correlationId = "test-corr-id";
-  const plaintextSecret = "JBSWY3DPEHPK3PXP";
   const encryptedSecret = "encrypted-secret-payload";
 
   const createMockSupport = () => ({
