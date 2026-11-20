@@ -93,7 +93,10 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
       throw authFailure(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
-    if (!verifySecret(password, user.passwordHash)) {
+    // Rationale (Why): Asynchronous scrypt prevents blocking event loop during re-authentication.
+    // Mechanism (How): Await non-blocking verifySecret.
+    // Invariants (What): Constant-time check preserves timing security without thread blocking.
+    if (!(await verifySecret(password, user.passwordHash))) {
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,

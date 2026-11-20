@@ -76,21 +76,25 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
       });
     }
 
-    // scryptSync is deliberately performed outside the transaction/DB lock.
+    // Rationale (Why): Asynchronous scrypt prevents blocking the Node.js event loop during sign-up.
+    // Mechanism (How): Await non-blocking hashSecret for password and session token hashes.
+    // Invariants (What): Non-blocking execution returns format-valid hashes before DB transaction.
+    const passwordHash = await hashSecret(password);
     const user = new User({
       email: normalizedEmail,
       displayName: displayName.trim(),
-      passwordHash: hashSecret(password),
+      passwordHash,
       emailVerified: true,
       role: AUTH_USER_ROLES.customer,
     });
     const sessionToken = issueOpaqueToken();
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+    const tokenHash = await hashSecret(sessionToken);
     const session = new Session({
       userId: user.id,
       accessVersion: user.accessVersion,
       mfaGenerationId: user.mfaGenerationId,
-      tokenHash: hashSecret(sessionToken),
+      tokenHash,
       expiresAt: expiresAt.getTime(),
     });
 

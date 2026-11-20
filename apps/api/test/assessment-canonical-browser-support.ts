@@ -6,7 +6,7 @@ import {
   Prisma,
   PrismaClient,
 } from "@prisma/client";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.js";
 
 /**
  * CANONICAL.4 browser fixture for the real API GET/SSE projection paths.
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
         data: {
           id: OWNER_ID,
           email: AUTH_EMAIL,
-          passwordHash: hashSecret(AUTH_PASSWORD),
+          passwordHash: hashSecretSync(AUTH_PASSWORD),
           emailVerified: true,
           failedLoginCount: 0,
           role: PrismaAuthUserRole.CUSTOMER,

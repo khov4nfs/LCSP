@@ -106,6 +106,37 @@ describe("OutboxDlqService", () => {
           provide: OutboxRepository,
           useValue: {
             findDlqMessages,
+            acquireRootCapacityLock: jest
+              .fn<OutboxRepository["acquireRootCapacityLock"]>()
+              .mockResolvedValue(undefined),
+            lockAndGetDlqMessage: jest
+              .fn<OutboxRepository["lockAndGetDlqMessage"]>()
+              .mockImplementation((id: string) => {
+                if (currentMessageRow) {
+                  return Promise.resolve({
+                    id: currentMessageRow.id as string,
+                    status: currentMessageRow.status as string,
+                    eventType: currentMessageRow.eventType as string,
+                    aggregateType: currentMessageRow.aggregateType as string,
+                    aggregateId: currentMessageRow.aggregateId as string,
+                    errorMessage:
+                      (currentMessageRow.errorMessage as string | null) ?? null,
+                  });
+                }
+                return Promise.resolve(null);
+              }),
+            resetRootAdmissionIntent: jest
+              .fn<OutboxRepository["resetRootAdmissionIntent"]>()
+              .mockResolvedValue(true),
+            transitionDlqToPending: jest
+              .fn<OutboxRepository["transitionDlqToPending"]>()
+              .mockResolvedValue(true),
+            cancelDlqMessage: jest
+              .fn<OutboxRepository["cancelDlqMessage"]>()
+              .mockResolvedValue(true),
+            deleteDlqMessage: jest
+              .fn<OutboxRepository["deleteDlqMessage"]>()
+              .mockResolvedValue(true),
           },
         },
         {

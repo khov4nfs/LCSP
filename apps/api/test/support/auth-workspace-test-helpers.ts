@@ -18,7 +18,7 @@ import { PrismaClient } from "@prisma/client";
 import {
   encryptMfaSecret,
   generateTotpSecret,
-  hashSecret,
+  hashSecretSync,
   totpForTime,
 } from "../../src/modules/auth/infrastructure/security/security.utils.js";
 
@@ -89,7 +89,7 @@ async function ensureAuthUser(
       id: input.userId,
       email: input.email,
       displayName: input.displayName,
-      passwordHash: hashSecret("CorrectHorseBatteryStaple!"),
+      passwordHash: hashSecretSync("CorrectHorseBatteryStaple!"),
       emailVerified: true,
       failedLoginCount: 0,
       role: input.role,
@@ -343,7 +343,7 @@ export async function seedAuthWorkspaceFixture(
         id: approvedUserId,
         email: "manager@acme.test",
         displayName: "Acme Manager",
-        passwordHash: hashSecret("CorrectHorseBatteryStaple!"),
+        passwordHash: hashSecretSync("CorrectHorseBatteryStaple!"),
         emailVerified: true,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.customer,
@@ -351,7 +351,7 @@ export async function seedAuthWorkspaceFixture(
       {
         id: unverifiedUserId,
         email: "pending@acme.test",
-        passwordHash: hashSecret("VerifyMe123!"),
+        passwordHash: hashSecretSync("VerifyMe123!"),
         emailVerified: false,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.customer,
@@ -359,7 +359,7 @@ export async function seedAuthWorkspaceFixture(
       {
         id: noMembershipUserId,
         email: "nomembership@acme.test",
-        passwordHash: hashSecret("NoMembership123!"),
+        passwordHash: hashSecretSync("NoMembership123!"),
         emailVerified: true,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.admin,
@@ -367,7 +367,7 @@ export async function seedAuthWorkspaceFixture(
       {
         id: revokedMembershipUserId,
         email: "revoked-member@acme.test",
-        passwordHash: hashSecret("RevokedMembership123!"),
+        passwordHash: hashSecretSync("RevokedMembership123!"),
         emailVerified: true,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.admin,

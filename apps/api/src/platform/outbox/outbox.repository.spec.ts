@@ -292,4 +292,101 @@ describe("OutboxRepository", () => {
       );
     });
   });
+
+  describe("DLQ repository methods", () => {
+    it("acquireRootCapacityLock executes capacity upsert and row lock", async () => {
+      const repository = new OutboxRepository({} as PrismaService);
+      const $executeRaw = jest.fn<() => Promise<number>>().mockResolvedValue(1);
+      const $queryRaw = jest.fn<() => Promise<unknown[]>>().mockResolvedValue([{ id: "singleton" }]);
+      const tx = { $executeRaw, $queryRaw } as unknown as Prisma.TransactionClient;
+
+      await repository.acquireRootCapacityLock(tx);
+
+      expect($executeRaw).toHaveBeenCalled();
+      expect($queryRaw).toHaveBeenCalled();
+    });
+
+    it("lockAndGetDlqMessage returns locked row when found and null when absent", async () => {
+      const repository = new OutboxRepository({} as PrismaService);
+      const mockRow = {
+        id: "msg-1",
+        status: OUTBOX_STATUSES.dlq,
+        eventType: "event.test",
+        aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+        aggregateId: "asmt-1",
+        errorMessage: "failure",
+      };
+      const $queryRaw = jest
+        .fn<() => Promise<unknown[]>>()
+        .mockResolvedValueOnce([mockRow])
+        .mockResolvedValueOnce([]);
+      const tx = { $queryRaw } as unknown as Prisma.TransactionClient;
+
+      const found = await repository.lockAndGetDlqMessage("msg-1", tx);
+      expect(found).toEqual(mockRow);
+
+      const notFound = await repository.lockAndGetDlqMessage("msg-2", tx);
+      expect(notFound).toBeNull();
+    });
+
+    it("resetRootAdmissionIntent returns true when update succeeds and false when 0 rows updated", async () => {
+      const repository = new OutboxRepository({} as PrismaService);
+      const $executeRaw = jest
+        .fn<() => Promise<number>>()
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+      const tx = { $executeRaw } as unknown as Prisma.TransactionClient;
+
+      const success = await repository.resetRootAdmissionIntent("cmd-1", "asmt-1", tx);
+      expect(success).toBe(true);
+
+      const failed = await repository.resetRootAdmissionIntent("cmd-2", "asmt-1", tx);
+      expect(failed).toBe(false);
+    });
+
+    it("transitionDlqToPending returns true when transitioned and false when not in DLQ", async () => {
+      const repository = new OutboxRepository({} as PrismaService);
+      const $executeRaw = jest
+        .fn<() => Promise<number>>()
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+      const tx = { $executeRaw } as unknown as Prisma.TransactionClient;
+
+      const success = await repository.transitionDlqToPending("msg-1", tx);
+      expect(success).toBe(true);
+
+      const failed = await repository.transitionDlqToPending("msg-2", tx);
+      expect(failed).toBe(false);
+    });
+
+    it("cancelDlqMessage returns true when cancelled and false when not found", async () => {
+      const repository = new OutboxRepository({} as PrismaService);
+      const $executeRaw = jest
+        .fn<() => Promise<number>>()
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+      const tx = { $executeRaw } as unknown as Prisma.TransactionClient;
+
+      const success = await repository.cancelDlqMessage("msg-1", tx);
+      expect(success).toBe(true);
+
+      const failed = await repository.cancelDlqMessage("msg-2", tx);
+      expect(failed).toBe(false);
+    });
+
+    it("deleteDlqMessage returns true when deleted and false when not found", async () => {
+      const repository = new OutboxRepository({} as PrismaService);
+      const $executeRaw = jest
+        .fn<() => Promise<number>>()
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+      const tx = { $executeRaw } as unknown as Prisma.TransactionClient;
+
+      const success = await repository.deleteDlqMessage("msg-1", tx);
+      expect(success).toBe(true);
+
+      const failed = await repository.deleteDlqMessage("msg-2", tx);
+      expect(failed).toBe(false);
+    });
+  });
 });

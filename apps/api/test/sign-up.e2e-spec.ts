@@ -22,7 +22,7 @@ import {
   GITHUB_REPOSITORY_PROVIDER,
   type GitHubRepositoryProviderPort,
 } from "../src/modules/github-integration/application/ports/github-repository-provider.port.js";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import type { AuthProfileSuccess } from "../src/modules/auth/application/contracts/auth/settings.contract.js";
 import type { SignUpResponse } from "../src/modules/auth/application/contracts/auth/sign-up.contract.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -299,7 +299,7 @@ describe("Self sign-up endpoint (e2e)", () => {
     const users = app.get(PrismaUserRepository);
     const staleUser = await users.findById(userId);
     assert.ok(staleUser);
-    const newHash = hashSecret("AnotherNewPassword456!");
+    const newHash = hashSecretSync("AnotherNewPassword456!");
     await prisma.user.update({
       where: { id: userId },
       data: { passwordHash: newHash, accessVersion: { increment: 1 } },

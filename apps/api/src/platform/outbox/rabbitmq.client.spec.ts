@@ -26,6 +26,40 @@ interface FakeChannel {
   >;
   emit(event: string, ...args: unknown[]): void;
   close: ReturnType<typeof jest.fn<() => Promise<void>>>;
+  assertQueue: ReturnType<
+    typeof jest.fn<
+      (
+        queue: string,
+        options?: unknown,
+      ) => Promise<{ queue: string; messageCount: number; consumerCount: number }>
+    >
+  >;
+  bindQueue: ReturnType<
+    typeof jest.fn<
+      (
+        queue: string,
+        source: string,
+        pattern: string,
+        args?: unknown,
+      ) => Promise<void>
+    >
+  >;
+  prefetch: ReturnType<
+    typeof jest.fn<(count: number, global?: boolean) => Promise<void>>
+  >;
+  consume: ReturnType<
+    typeof jest.fn<
+      (
+        queue: string,
+        onMessage: (msg: any) => void,
+        options?: unknown,
+      ) => Promise<{ consumerTag: string }>
+    >
+  >;
+  ack: ReturnType<typeof jest.fn<(message: any, allUpTo?: boolean) => void>>;
+  nack: ReturnType<
+    typeof jest.fn<(message: any, allUpTo?: boolean, requeue?: boolean) => void>
+  >;
 }
 
 interface FakeConnection {
@@ -79,6 +113,36 @@ function makeChannel(): FakeChannel {
       }
     },
     close: jest.fn<() => Promise<void>>(() => Promise.resolve()),
+    assertQueue: jest.fn<
+      (
+        queue: string,
+        options?: unknown,
+      ) => Promise<{ queue: string; messageCount: number; consumerCount: number }>
+    >(() =>
+      Promise.resolve({ queue: "test", messageCount: 0, consumerCount: 0 }),
+    ),
+    bindQueue: jest.fn<
+      (
+        queue: string,
+        source: string,
+        pattern: string,
+        args?: unknown,
+      ) => Promise<void>
+    >(() => Promise.resolve()),
+    prefetch: jest.fn<(count: number, global?: boolean) => Promise<void>>(() =>
+      Promise.resolve(),
+    ),
+    consume: jest.fn<
+      (
+        queue: string,
+        onMessage: (msg: any) => void,
+        options?: unknown,
+      ) => Promise<{ consumerTag: string }>
+    >(() => Promise.resolve({ consumerTag: "test-tag" })),
+    ack: jest.fn<(message: any, allUpTo?: boolean) => void>(),
+    nack: jest.fn<
+      (message: any, allUpTo?: boolean, requeue?: boolean) => void
+    >(),
   };
 }
 
@@ -301,5 +365,119 @@ describe("RabbitMqClient", () => {
         durable: true,
       },
     );
+  });
+
+  it("nacks with requeue: false on malformed JSON payload (RED reproducer)", async () => {
+    const channel = makeChannel();
+    connect.mockResolvedValue(makeConnection(channel));
+    const client = new RabbitMqClient("amqp://fake");
+
+    let consumerCallback!: (msg: any) => void;
+    channel.consume.mockImplementation((queue, cb) => {
+      consumerCallback = cb;
+      return Promise.resolve({ consumerTag: "tag" });
+    });
+
+    await client.consume({
+      queue: "test-queue",
+      routingKey: "test.key",
+      handler: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const badMessage = {
+      content: Buffer.from("{malformed json"),
+      fields: { redelivered: false },
+      properties: {},
+    };
+
+    await consumerCallback(badMessage);
+    expect(channel.nack).toHaveBeenCalledWith(badMessage, false, false);
+  });
+
+  it("nacks with requeue: false when payload is not an object (RED reproducer)", async () => {
+    const channel = makeChannel();
+    connect.mockResolvedValue(makeConnection(channel));
+    const client = new RabbitMqClient("amqp://fake");
+
+    let consumerCallback!: (msg: any) => void;
+    channel.consume.mockImplementation((queue, cb) => {
+      consumerCallback = cb;
+      return Promise.resolve({ consumerTag: "tag" });
+    });
+
+    await client.consume({
+      queue: "test-queue",
+      routingKey: "test.key",
+      handler: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const nonObjectMessage = {
+      content: Buffer.from(JSON.stringify(["not", "an", "object"])),
+      fields: { redelivered: false },
+      properties: {},
+    };
+
+    await consumerCallback(nonObjectMessage);
+    expect(channel.nack).toHaveBeenCalledWith(nonObjectMessage, false, false);
+  });
+
+  it("nacks with requeue: false when handler fails on an already-redelivered message (RED reproducer)", async () => {
+    const channel = makeChannel();
+    connect.mockResolvedValue(makeConnection(channel));
+    const client = new RabbitMqClient("amqp://fake");
+
+    let consumerCallback!: (msg: any) => void;
+    channel.consume.mockImplementation((queue, cb) => {
+      consumerCallback = cb;
+      return Promise.resolve({ consumerTag: "tag" });
+    });
+
+    const handler = jest
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new Error("Downstream handler failure"));
+    await client.consume({
+      queue: "test-queue",
+      routingKey: "test.key",
+      handler,
+    });
+
+    const redeliveredMessage = {
+      content: Buffer.from(JSON.stringify({ valid: "payload" })),
+      fields: { redelivered: true },
+      properties: {},
+    };
+
+    await consumerCallback(redeliveredMessage);
+    expect(channel.nack).toHaveBeenCalledWith(redeliveredMessage, false, false);
+  });
+
+  it("nacks with requeue: true when handler fails on first delivery attempt", async () => {
+    const channel = makeChannel();
+    connect.mockResolvedValue(makeConnection(channel));
+    const client = new RabbitMqClient("amqp://fake");
+
+    let consumerCallback!: (msg: any) => void;
+    channel.consume.mockImplementation((queue, cb) => {
+      consumerCallback = cb;
+      return Promise.resolve({ consumerTag: "tag" });
+    });
+
+    const handler = jest
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new Error("First-time transient error"));
+    await client.consume({
+      queue: "test-queue",
+      routingKey: "test.key",
+      handler,
+    });
+
+    const firstDeliveryMessage = {
+      content: Buffer.from(JSON.stringify({ valid: "payload" })),
+      fields: { redelivered: false },
+      properties: {},
+    };
+
+    await consumerCallback(firstDeliveryMessage);
+    expect(channel.nack).toHaveBeenCalledWith(firstDeliveryMessage, false, true);
   });
 });

@@ -10,7 +10,7 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { authFailure } from "../../errors/auth-application.error.ts";
 import {
-  hashSecret,
+  hashSecretSync,
   verifySecret,
 } from "../../../../../platform/security/crypto.utils.js";
 import type { SignInSuccess } from "../../contracts/auth/sign-in.contract.ts";
@@ -25,7 +25,10 @@ import {
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { SignInCommand } from "./sign-in.command.ts";
 
-const DECOY_PASSWORD_HASH = hashSecret(
+// Rationale (Why): Offline module initialization hash prevents timing attacks without blocking event loop on requests.
+// Mechanism (How): Computed once at import time via hashSecretSync with fixed salt.
+// Invariants (What): DECOY_PASSWORD_HASH is non-null and format-valid for scrypt comparison.
+const DECOY_PASSWORD_HASH = hashSecretSync(
   "decoy-password-for-constant-time-compare",
 );
 
@@ -86,9 +89,10 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
     const password = payload.password;
     const user = await users.findByPrimaryEmail(email.toLowerCase());
     if (!user) {
-      // Run the same scrypt-based comparison as the found-user path so the
-      // response latency doesn't reveal whether the email is registered.
-      verifySecret(password, DECOY_PASSWORD_HASH);
+      // Rationale (Why): Asynchronous scrypt prevents blocking the Node.js event loop during decoy checks.
+      // Mechanism (How): Await promisified verifySecret.
+      // Invariants (What): Execution latency remains consistent with found-user paths.
+      await verifySecret(password, DECOY_PASSWORD_HASH);
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: null,
@@ -114,7 +118,10 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
       );
     }
 
-    if (!verifySecret(password, user.passwordHash)) {
+    // Rationale (Why): Asynchronous password verification runs off-thread to eliminate event loop starvation.
+    // Mechanism (How): Await non-blocking verifySecret.
+    // Invariants (What): Constant-time check preserves timing security without main thread blocking.
+    if (!(await verifySecret(password, user.passwordHash))) {
       const current = await users.recordFailedLoginAttempt(
         user.id,
         user.passwordHash,

@@ -136,4 +136,44 @@ describe("dev-unsafe-trace", () => {
 
     writeSpy.mockRestore();
   });
+
+  describe("environment whitelist enforcement", () => {
+    it("allows development and test environments when enabled", () => {
+      process.env.LCSP_DEV_UNSAFE_TRACE = "true";
+      process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
+
+      process.env.NODE_ENV = "development";
+      expect(unsafeDevTraceEnabled()).toBe(true);
+      expect(unsafeDevUnfilteredEnabled()).toBe(true);
+
+      process.env.NODE_ENV = "test";
+      expect(unsafeDevTraceEnabled()).toBe(true);
+      expect(unsafeDevUnfilteredEnabled()).toBe(true);
+    });
+
+    it("throws an error for non-whitelisted environments (production, staging, preview, uat, empty)", () => {
+      process.env.LCSP_DEV_UNSAFE_TRACE = "true";
+      process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
+
+      const disallowed = ["production", "staging", "preview", "uat", "", "ci", "custom"];
+      for (const env of disallowed) {
+        process.env.NODE_ENV = env;
+        expect(() => unsafeDevTraceEnabled()).toThrow(
+          /LCSP_DEV_UNSAFE_TRACE must only be enabled in allowed environments/,
+        );
+        expect(() => unsafeDevUnfilteredEnabled()).toThrow(
+          /LCSP_DEV_UNSAFE_UNFILTERED must only be enabled in allowed environments/,
+        );
+      }
+    });
+
+    it("does not throw if tracing is disabled regardless of environment", () => {
+      process.env.LCSP_DEV_UNSAFE_TRACE = "false";
+      process.env.LCSP_DEV_UNSAFE_UNFILTERED = "false";
+      process.env.NODE_ENV = "production";
+
+      expect(unsafeDevTraceEnabled()).toBe(false);
+      expect(unsafeDevUnfilteredEnabled()).toBe(false);
+    });
+  });
 });

@@ -1616,6 +1616,74 @@ describe("AssessmentRuntimeEventService", () => {
       "canonical snapshot database unavailable",
     );
   });
+
+  describe("bounded LRU cache for assessmentOwnerIds", () => {
+    it("caches resolved ownerId and prevents duplicate DB lookups", async () => {
+      const findUnique = jest
+        .fn<() => Promise<{ ownerId: string } | null>>()
+        .mockResolvedValue({ ownerId: "owner-1" });
+      const prisma = {
+        assessment: { findUnique },
+      };
+      const service = new AssessmentRuntimeEventService(prisma as never);
+
+      const first = await service.resolveAssessmentOwnerId("asmt-1");
+      const second = await service.resolveAssessmentOwnerId("asmt-1");
+
+      expect(first).toBe("owner-1");
+      expect(second).toBe("owner-1");
+      expect(findUnique).toHaveBeenCalledTimes(1);
+      expect(service.getAssessmentOwnerCacheSize()).toBe(1);
+    });
+
+    it("returns null when assessment is not found and does not cache null", async () => {
+      const findUnique = jest
+        .fn<() => Promise<{ ownerId: string } | null>>()
+        .mockResolvedValue(null);
+      const prisma = {
+        assessment: { findUnique },
+      };
+      const service = new AssessmentRuntimeEventService(prisma as never);
+
+      const result = await service.resolveAssessmentOwnerId("non-existent");
+      expect(result).toBeNull();
+      expect(service.getAssessmentOwnerCacheSize()).toBe(0);
+    });
+
+    it("bounds cache size at 1,000 entries and evicts oldest items in LRU order", async () => {
+      const findUnique = jest
+        .fn<(args: { where: { id: string } }) => Promise<{ ownerId: string }>>()
+        .mockImplementation((args) =>
+          Promise.resolve({ ownerId: `owner-for-${args.where.id}` }),
+        );
+      const prisma = {
+        assessment: { findUnique },
+      };
+      const service = new AssessmentRuntimeEventService(prisma as never);
+
+      // Insert 1,000 items
+      for (let i = 0; i < 1000; i++) {
+        await service.resolveAssessmentOwnerId(`asmt-${i}`);
+      }
+      expect(service.getAssessmentOwnerCacheSize()).toBe(1000);
+
+      // Access asmt-0 to promote it to most recently used
+      await service.resolveAssessmentOwnerId("asmt-0");
+      expect(findUnique).toHaveBeenCalledTimes(1000); // from cache
+
+      // Add one more item (asmt-1000) - this should evict asmt-1 (since asmt-0 was promoted)
+      await service.resolveAssessmentOwnerId("asmt-1000");
+      expect(service.getAssessmentOwnerCacheSize()).toBe(1000);
+
+      // asmt-0 should still be in cache (promoted)
+      await service.resolveAssessmentOwnerId("asmt-0");
+      expect(findUnique).toHaveBeenCalledTimes(1001); // 1001 total calls, asmt-0 was a cache hit!
+
+      // asmt-1 was the oldest and got evicted, so accessing it calls DB
+      await service.resolveAssessmentOwnerId("asmt-1");
+      expect(findUnique).toHaveBeenCalledTimes(1002); // required DB lookup because it was evicted!
+    });
+  });
 });
 
 it("fails a replay read when canonical runtime-event storage is unavailable", async () => {

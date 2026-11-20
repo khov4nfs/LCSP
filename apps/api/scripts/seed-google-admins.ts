@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { toPrismaAuthUserRole } from "../src/infrastructure/prisma/prisma-enum-mappers.ts";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.ts";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.ts";
 
 const ADMIN_EMAILS = [
   "minhpnq1807@gmail.com",
@@ -34,14 +34,14 @@ async function main() {
         create: {
           id: randomUUID(),
           email,
-          passwordHash: hashSecret(adminPassword),
+          passwordHash: hashSecretSync(adminPassword),
           emailVerified: true,
           failedLoginCount: 0,
           role: toPrismaAuthUserRole(AUTH_USER_ROLES.admin),
         },
         update: {
           emailVerified: true,
-          passwordHash: hashSecret(adminPassword),
+          passwordHash: hashSecretSync(adminPassword),
           failedLoginCount: 0,
           role: toPrismaAuthUserRole(AUTH_USER_ROLES.admin),
         },

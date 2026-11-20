@@ -72,7 +72,7 @@ export class RbacContextLoader {
       const session = await this.sessions.findByFingerprint(fingerprint);
       if (
         !session ||
-        !verifySecret(token, session.tokenHash) ||
+        !(await verifySecret(token, session.tokenHash)) ||
         !session.isActive(now)
       ) {
         return { ok: false, reason: RBAC_REASON_CODES.sessionInvalid };

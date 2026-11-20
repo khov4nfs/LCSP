@@ -10,6 +10,8 @@ import { HttpException, HttpStatus } from "@nestjs/common";
 import { z } from "zod";
 
 import { ZodValidationPipe } from "./zod-validation.pipe.ts";
+import { requestStorage } from "../../logging/logging-context.js";
+import type { Request } from "express";
 
 /**
  * Unit test suite for ZodValidationPipe.
@@ -244,5 +246,69 @@ describe("ZodValidationPipe", () => {
     // Accepts valid password
     const valid = reauthPipe.transform({ password: "secure-password" });
     expect(valid).toEqual({ password: "secure-password" });
+  });
+
+  describe("distributed tracing correlationId propagation", () => {
+    const testSchema = z.object({ value: z.string().min(5) });
+    const testPipe = new ZodValidationPipe(testSchema);
+
+    it("generates a non-empty UUID fallback correlationId when outside request context", () => {
+      try {
+        testPipe.transform({ value: "bad" });
+        expect(true).toBe(false);
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        const res = (err as HttpException).getResponse() as {
+          problem: { correlationId: string };
+        };
+        expect(res.problem.correlationId).toBeDefined();
+        expect(typeof res.problem.correlationId).toBe("string");
+        expect(res.problem.correlationId.length).toBeGreaterThan(0);
+        expect(res.problem.correlationId).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        );
+      }
+    });
+
+    it("propagates correlationId from req.correlationId when requestStorage is active", () => {
+      const mockReq = {
+        correlationId: "trace-ctx-abc-123",
+        headers: {},
+      } as unknown as Request;
+
+      requestStorage.run(mockReq, () => {
+        try {
+          testPipe.transform({ value: "bad" });
+          expect(true).toBe(false);
+        } catch (err) {
+          expect(err).toBeInstanceOf(HttpException);
+          const res = (err as HttpException).getResponse() as {
+            problem: { correlationId: string };
+          };
+          expect(res.problem.correlationId).toBe("trace-ctx-abc-123");
+        }
+      });
+    });
+
+    it("propagates correlationId from x-correlation-id header when requestStorage is active", () => {
+      const mockReq = {
+        headers: {
+          "x-correlation-id": "header-trace-xyz-789",
+        },
+      } as unknown as Request;
+
+      requestStorage.run(mockReq, () => {
+        try {
+          testPipe.transform({ value: "bad" });
+          expect(true).toBe(false);
+        } catch (err) {
+          expect(err).toBeInstanceOf(HttpException);
+          const res = (err as HttpException).getResponse() as {
+            problem: { correlationId: string };
+          };
+          expect(res.problem.correlationId).toBe("header-trace-xyz-789");
+        }
+      });
+    });
   });
 });

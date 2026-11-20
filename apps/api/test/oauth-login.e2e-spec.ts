@@ -14,7 +14,7 @@ import type {
   OAuthCallbackSuccess,
   OAuthStartSuccess,
 } from "../src/modules/auth/application/contracts/auth/oauth.contract.js";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -425,7 +425,7 @@ describe("OAuth login (e2e)", () => {
       data: {
         id: userId,
         email: `oauth-${input.providerAccountId}@acme.test`,
-        passwordHash: hashSecret("UnusedPassword123!"),
+        passwordHash: hashSecretSync("UnusedPassword123!"),
         emailVerified: input.emailVerified,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.customer,

@@ -2,7 +2,9 @@ import * as crypto from "node:crypto";
 
 export {
   hashSecret,
+  hashSecretSync,
   verifySecret,
+  verifySecretSync,
   issueOpaqueToken,
   issueOAuthStateToken,
   fingerprintToken,
