@@ -120,7 +120,7 @@ def _repair_messages(claim_input: dict[str, Any], draft: dict[str, Any], rejecti
 
     Business rules:
     - Feedback carries bounded field paths only; the draft and pinned input are the model's own earlier data, never new customer or legal facts.
-    - A repair may remove an unsupported artifact but must not invent legal meaning, sources or applicability to satisfy the schema.
+    - A repair may remove an unsupported artifact but must not invent legal meaning, sources or applicability to satisfy the schema. Source-supported unconditional duties retain their explicit mode without adding conditions.
     Execution flow:
     1. Replay the pinned input and the rejected draft.
     2. Add the rejected field paths and the structural invariants.
@@ -136,7 +136,8 @@ def _repair_messages(claim_input: dict[str, Any], draft: dict[str, Any], rejecti
         "Return one corrected, complete result for the same selected rule. Change only what is needed to fix those fields and keep the legal analysis. "
         f"Invariants: every legalRequirementId, assessmentRuleId and relationId starts with \"{rule_id}:\"; every sourceRef is copied exactly from the supplied citations "
         "(documentId, locator, contentSha256) and operativeProposition sourceRefs are a subset of the requirement's sourceRefs; "
-        "an AssessmentRule references only requirements returned in this result and never a NON_ASSESSABLE one; a COVERED_BY_ASSESSMENT_RULES requirement declares applicability conditions. "
+        "an AssessmentRule references only requirements returned in this result and never a NON_ASSESSABLE one; "
+        "a COVERED_BY_ASSESSMENT_RULES requirement needs applicabilityConditions unless its explicit applicabilityMode is UNCONDITIONAL, which requires an empty condition list and source support. "
         "If a requirement or rule cannot be supported by the pinned source, remove it instead of inventing content."
     )
     return [

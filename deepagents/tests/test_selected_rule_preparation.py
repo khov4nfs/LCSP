@@ -273,6 +273,8 @@ def test_structurally_invalid_draft_is_repaired_once_before_settlement(runtime_a
     feedback = model.calls[1][-1].content
     assert "output.legalRequirements.0.legalRequirementId" in feedback
     assert "selected-canonical-rule:" in feedback
+    assert "applicabilityMode is UNCONDITIONAL" in feedback
+    assert "requires an empty condition list and source support" in feedback
     # Only the corrected draft is persisted; the invalid draft never settles as FAILED.
     assert [(entry[1], entry[2]["analysis"]) for entry in api.completions] == [("SUCCEEDED", "corrected")]
 

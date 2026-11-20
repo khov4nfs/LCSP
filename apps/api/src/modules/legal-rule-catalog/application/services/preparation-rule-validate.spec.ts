@@ -1,10 +1,19 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { AgentExecutionState } from "@prisma/client";
 import {
+  LEGAL_CONTEXT_RELATION_KINDS,
+  LEGAL_OPERATIVE_MODALITIES,
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
+} from "@lcsp/contracts/compliance-rule-set";
+import {
   LEGAL_RULE_CATALOG_ERRORS,
+  preparationRuleOutputSchema,
   type PreparationRuleValidate,
 } from "@lcsp/contracts/legal-rule-catalog";
-import { PreparationRuleService } from "./preparation-rule.service.js";
+import {
+  PreparationRuleService,
+  validateSelectedOutput,
+} from "./preparation-rule.service.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
 const uuid = (n: number) =>
@@ -74,6 +83,124 @@ function service(
 }
 
 const receipt = { revision: "r", content: "instruction" };
+
+it("accepts a repository rule for a prohibition with pinned marking scope", async () => {
+  const documentId = "LAW-134-2025-QH15";
+  const sources = ["art-7", "art-7::cl-5", "art-11::cl-2"].map((locator) => ({
+    documentId,
+    locator,
+    contentSha256: `sha256:${"a".repeat(64)}`,
+  }));
+  const [heading, prohibition, markingScope] = sources;
+  const selected = {
+    ...input,
+    citations: [
+      { ...heading, chunkId: "heading", content: "Các hành vi bị nghiêm cấm" },
+      {
+        ...prohibition,
+        chunkId: "prohibition",
+        content: "Tẩy xóa, làm sai lệch dấu bắt buộc.",
+      },
+      {
+        ...markingScope,
+        chunkId: "marking",
+        content:
+          "Nhà cung cấp bảo đảm dấu máy đọc trên âm thanh, hình ảnh, video do AI tạo ra.",
+      },
+    ],
+  };
+  const legalRequirementId = `${input.ruleId}:preserve-required-mark`;
+  const assessmentRuleId = `${input.ruleId}:check-export-mark`;
+  const title = "Giữ nguyên dấu máy đọc bắt buộc khi xuất nội dung AI";
+  const output = preparationRuleOutputSchema.parse({
+    analysis:
+      "Kiểm tra phần cấm tẩy xóa hoặc làm sai lệch dấu trong luồng xuất nội dung.",
+    legalRequirements: [
+      {
+        legalRequirementId,
+        title,
+        proposition: "Không tẩy xóa hoặc làm sai lệch dấu máy đọc bắt buộc.",
+        operativePropositions: [
+          {
+            actor: "Nhà cung cấp trong phạm vi trách nhiệm đánh dấu",
+            modality: LEGAL_OPERATIVE_MODALITIES.PROHIBITION,
+            action:
+              "Tẩy xóa hoặc làm sai lệch dấu máy đọc bắt buộc khi xuất nội dung thuộc phạm vi.",
+            sourceRefs: [heading, prohibition],
+          },
+        ],
+        applicabilityConditions: [
+          "Âm thanh, hình ảnh hoặc video do hệ thống AI tạo ra thuộc diện phải đánh dấu máy đọc.",
+        ],
+        qualifiers: [],
+        exceptions: [],
+        nonRepositoryDuty: false,
+        sourceRefs: [heading, prohibition],
+        coverage: {
+          state: LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES,
+          nonAssessableReason: null,
+        },
+      },
+    ],
+    assessmentRules: [
+      {
+        assessmentRuleId,
+        legalRequirementIds: [legalRequirementId],
+        concept: title,
+        criteria: [
+          {
+            criterionId: "preserve-mark",
+            legalRequirementIds: [legalRequirementId],
+            investigationFocus:
+              "Đối chiếu dấu bắt buộc trước và sau luồng xuất nội dung.",
+          },
+        ],
+        investigationGoals: [
+          "Lần theo xử lý dấu trong luồng xuất nội dung thuộc phạm vi.",
+        ],
+        startingNodeTypes: [],
+        targetNodeTypes: [],
+        edgeStrategies: [],
+        graphQueries: [],
+        keywords: [],
+        commonApis: [],
+        commonLibraries: [],
+        patterns: [],
+        requiredEvidence: [
+          "Mã hoặc kiểm thử cho thấy dấu được xử lý thế nào trong luồng xuất.",
+        ],
+        supportingEvidence: [],
+        negativeEvidence: [],
+        sourceRefs: [heading, prohibition],
+      },
+    ],
+    contextRelations: [
+      {
+        relationId: `${input.ruleId}:marking-scope`,
+        kind: LEGAL_CONTEXT_RELATION_KINDS.SCOPE,
+        fromLegalRequirementId: legalRequirementId,
+        toLegalRequirementId: null,
+        toSourceRef: markingScope,
+      },
+    ],
+  });
+
+  expect(() => validateSelectedOutput(selected, output, "cid")).not.toThrow();
+  await expect(async () =>
+    validateSelectedOutput(
+      { ...selected, citations: selected.citations.slice(0, 2) },
+      output,
+      "cid",
+    ),
+  ).rejects.toMatchObject({
+    response: {
+      problem: {
+        code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+        meta: { issues: "output.contextRelations.0" },
+      },
+    },
+  });
+});
 
 describe("PreparationRuleService.validate", () => {
   it("accepts a structurally valid empty result without writing anything", async () => {
