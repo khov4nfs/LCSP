@@ -3,6 +3,7 @@ import {
   generateTotpSecret,
   resetTotpReplayTracker,
   totpForTime,
+  unconsumeTotpOtp,
   verifyTotpOtp,
 } from "./totp.utils.js";
 
@@ -36,6 +37,23 @@ describe("TotpUtils — RFC 6238 Replay Attack Reproducer", () => {
     expect(verifyTotpOtp(secret, otp, t0)).toBe(false);
 
     resetTotpReplayTracker();
+    expect(verifyTotpOtp(secret, otp, t0)).toBe(true);
+  });
+
+  it("permits retry when unconsumeTotpOtp is called on transactional rollback", () => {
+    resetTotpReplayTracker();
+    const secret = generateTotpSecret();
+    const t0 = 1700000000000;
+    const otp = totpForTime(secret, t0);
+
+    // Initial attempt marks step as consumed
+    expect(verifyTotpOtp(secret, otp, t0)).toBe(true);
+    expect(verifyTotpOtp(secret, otp, t0)).toBe(false);
+
+    // Transaction fails, unconsume the step
+    unconsumeTotpOtp(secret, t0);
+
+    // Retry should now succeed
     expect(verifyTotpOtp(secret, otp, t0)).toBe(true);
   });
 

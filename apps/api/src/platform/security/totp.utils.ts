@@ -25,6 +25,22 @@ export function resetTotpReplayTracker(): void {
 }
 
 /**
+ * Unmarks a consumed TOTP time-step if the surrounding database transaction rolled back.
+ * Rationale (Why): When audit or database write fails in verifyProof, the OTP
+ * consumption is transactionally rolled back. This function allows the in-memory
+ * tracker to stay consistent with the database rollback so valid retries succeed.
+ * Mechanism (How): Deletes keys matching `${secretHash}:${candidateStep}` for candidate steps in window.
+ * Invariants (What): Only unmarks candidate steps within the active TOTP_WINDOW_STEPS drift window.
+ */
+export function unconsumeTotpOtp(secret: string, nowMs: number): void {
+  const secretHash = crypto.createHash("sha256").update(secret).digest("hex");
+  const step = Math.floor(nowMs / 1000 / 30);
+  for (let i = -TOTP_WINDOW_STEPS; i <= TOTP_WINDOW_STEPS; i++) {
+    consumedTotpSteps.delete(`${secretHash}:${step + i}`);
+  }
+}
+
+/**
  * Prunes expired step entries from the replay tracking map.
  */
 function pruneExpiredTotpSteps(nowMs: number): void {

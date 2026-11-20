@@ -48,8 +48,11 @@ export async function bootstrap(): Promise<void> {
   await app.listen(port);
 }
 
-// Automatically bootstrap when executed as the main application process (outside test runners)
-if (process.env.NODE_ENV !== "test") {
+// Automatically bootstrap when executed as the main application process (outside unit test runners like Jest)
+if (
+  process.env.JEST_WORKER_ID === undefined &&
+  !process.env.LCSP_DISABLE_AUTO_BOOTSTRAP
+) {
   bootstrap().catch((error: unknown) => {
     const logger = new Logger("Bootstrap");
     logger.error("Failed to bootstrap API application", error);

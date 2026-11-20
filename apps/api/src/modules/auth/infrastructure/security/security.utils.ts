@@ -15,6 +15,7 @@ export {
   generateTotpSecret,
   totpForTime,
   verifyTotpOtp,
+  unconsumeTotpOtp,
 } from "../../../../platform/security/totp.utils.js";
 
 // ─── MFA Secret Encryption (AES-256-GCM) ──────────────────────────
