@@ -317,7 +317,8 @@ export class AssessmentRuntimeEventService {
     if (!assessment) return null;
 
     if (this.assessmentOwnerIds.size >= MAX_ASSESSMENT_OWNER_CACHE_ENTRIES) {
-      const oldestKey = this.assessmentOwnerIds.keys().next().value;
+      const oldestKey = this.assessmentOwnerIds.keys().next().value as
+        string | undefined;
       if (oldestKey !== undefined) {
         this.assessmentOwnerIds.delete(oldestKey);
       }

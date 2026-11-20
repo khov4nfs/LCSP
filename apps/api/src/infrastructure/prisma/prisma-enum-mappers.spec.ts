@@ -1,7 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-  AuditExportStatus as PrismaAuditExportStatus,
-  AuditResourceType as PrismaAuditResourceType,
   AuthBackupEmailPolicy as PrismaAuthBackupEmailPolicy,
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,

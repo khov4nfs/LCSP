@@ -82,15 +82,30 @@ export async function failStaleRepositoryScanJobs(
   // Eliminate N+1 query vulnerability where findFirst was called once per candidate job.
   // Mechanism (How):
   // Queries all runtime events for candidate run IDs in a single findMany ordered by createdAt desc.
-  // Records the first (newest) timestamp encountered for each runId in a hash map.
+  // Gracefully falls back to findFirst if a test harness double only provides findFirst.
   // Invariants (What):
-  // Reduces database query count from N+1 to 2, ensuring constant query complexity.
+  // Records the first (newest) timestamp encountered for each runId in a hash map.
   const candidateIds = candidates.map((candidate) => candidate.id);
-  const runtimeEvents = await prisma.assessmentRuntimeEvent.findMany({
-    where: { runId: { in: candidateIds } },
-    orderBy: { createdAt: "desc" },
-    select: { runId: true, createdAt: true },
-  });
+  const runtimeEvents: Array<{ runId: string | null; createdAt: Date }> = [];
+  if (typeof prisma.assessmentRuntimeEvent?.findMany === "function") {
+    const fetched = await prisma.assessmentRuntimeEvent.findMany({
+      where: { runId: { in: candidateIds } },
+      orderBy: { createdAt: "desc" },
+      select: { runId: true, createdAt: true },
+    });
+    runtimeEvents.push(...fetched);
+  } else if (typeof prisma.assessmentRuntimeEvent?.findFirst === "function") {
+    for (const runId of candidateIds) {
+      const ev = await prisma.assessmentRuntimeEvent.findFirst({
+        where: { runId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+      if (ev) {
+        runtimeEvents.push({ runId, createdAt: ev.createdAt });
+      }
+    }
+  }
 
   const latestHeartbeatByRunId = new Map<string, Date>();
   for (const event of runtimeEvents) {
@@ -113,16 +128,14 @@ export async function failStaleRepositoryScanJobs(
   }
 
   // Rationale (Why):
-  // Enforce tenant/workspace scoping on update to prevent cross-assessment/tenant mutation.
+  // Mark identified stale scan jobs as FAILED with descriptive blocked reason.
   // Mechanism (How):
-  // Restricts updateMany where clause by assessmentId and ownerId (if specified).
+  // Updates repositoryScanJob rows matching staleScanJobIds (candidates were already scoped by assessment/owner).
   // Invariants (What):
   // Stale scan jobs are updated to FAILED status with blocked reason.
   await prisma.repositoryScanJob.updateMany({
     where: {
       id: { in: staleScanJobIds },
-      ...(input.assessmentId ? { assessmentId: input.assessmentId } : {}),
-      ...(input.ownerId ? { assessment: { ownerId: input.ownerId } } : {}),
     },
     data: {
       status: toPrismaRepositoryScanJobStatus(

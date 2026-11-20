@@ -116,9 +116,13 @@ async function callTranslationProviderAdapter(
     });
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
-      throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE);
+      throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE, {
+        cause: error,
+      });
     }
-    throw new Error(AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED);
+    throw new Error(AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED, {
+      cause: error,
+    });
   }
 
   if (!response.ok) {

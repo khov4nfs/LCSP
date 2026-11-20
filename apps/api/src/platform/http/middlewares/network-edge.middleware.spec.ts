@@ -1,4 +1,5 @@
-import { Controller, Get, Res } from "@nestjs/common";
+import type { Server } from "node:http";
+import { Controller, Get, Res, type INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { Response } from "express";
 import request from "supertest";
@@ -83,7 +84,8 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
   });
 
   describe("Integration with Nest Application via applyNetworkEdgeMiddleware", () => {
-    let app: any;
+    let app: INestApplication;
+    let server: Server;
 
     beforeAll(async () => {
       const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -95,6 +97,7 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
         allowedOrigins: ["https://app.lcsp.vn"],
       });
       await app.init();
+      server = app.getHttpServer() as Server;
     });
 
     afterAll(async () => {
@@ -102,9 +105,7 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
     });
 
     it("applies Helmet security headers (nosniff, frameguard) on real endpoints", async () => {
-      const res = await request(app.getHttpServer()).get(
-        "/test-network-edge/headers",
-      );
+      const res = await request(server).get("/test-network-edge/headers");
       expect(res.status).toBe(200);
       expect(res.headers["x-content-type-options"]).toBe("nosniff");
       expect(res.headers["x-frame-options"]).toBe("SAMEORIGIN");
@@ -113,7 +114,7 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
     });
 
     it("compresses large JSON payloads when client accepts gzip", async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(server)
         .get("/test-network-edge/large-payload")
         .set("Accept-Encoding", "gzip");
       expect(res.status).toBe(200);
@@ -121,7 +122,7 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
     });
 
     it("never compresses text/event-stream to avoid AI streaming buffering", async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(server)
         .get("/test-network-edge/sse-stream")
         .set("Accept-Encoding", "gzip");
       expect(res.status).toBe(200);
@@ -129,7 +130,7 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
     });
 
     it("never compresses PDF binaries", async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(server)
         .get("/test-network-edge/pdf-binary")
         .set("Accept-Encoding", "gzip");
       expect(res.status).toBe(200);
@@ -137,7 +138,7 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
     });
 
     it("handles CORS preflight correctly with LCSP custom headers", async () => {
-      const res = await request(app.getHttpServer())
+      const res = await request(server)
         .options("/test-network-edge/headers")
         .set("Origin", "https://app.lcsp.vn")
         .set("Access-Control-Request-Method", "GET")

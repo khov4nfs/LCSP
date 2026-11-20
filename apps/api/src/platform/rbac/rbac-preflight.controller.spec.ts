@@ -36,7 +36,7 @@ describe("RbacPreflightController", () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       RbacPreflightController,
-    );
+    ) as unknown[];
     expect(guards).toBeDefined();
     expect(guards).toContain(WorkerApiKeyGuard);
   });

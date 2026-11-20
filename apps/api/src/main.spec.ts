@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockApp = {
-  get: jest.fn((token: unknown) => {
+  get: jest.fn(() => {
     return {
       get: jest.fn((key: string) => {
         if (key === "cors") return { allowedOrigins: ["https://example.com"] };

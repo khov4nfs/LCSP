@@ -11,12 +11,13 @@ import { getRepoRoot } from "../logging/logging-context.js";
 /**
  * Strict regex for content-addressed artifact chunks:
  * Rationale (Why): Prevents CWE-22 directory traversal attacks (e.g. `..`, `../etc/passwd`)
- * and guarantees that only genuine chunk identifiers (`chunk-<index>`, 64-hex SHA-256 digest, or `hash.chunk`)
+ * and guarantees that only genuine chunk identifiers (`chunk-<index>`, `<name>.chunk`, 64-hex SHA-256 digest)
  * can ever be addressed in storage.
- * Mechanism (How): Matches either canonical `chunk-<index>` format or 64 lower-case hex characters with optional `.chunk`.
- * Invariants (What): Never matches path separators, relative traversal sequences, or arbitrary filenames.
+ * Mechanism (How): Matches either canonical `chunk-<index>` format, safe alphanumeric name with `.chunk`, or 64 lower-case hex characters.
+ * Invariants (What): Never matches path separators, relative traversal sequences, or arbitrary non-chunk filenames.
  */
-export const CHUNK_ID_PATTERN = /^(?:chunk-\d+|[a-f0-9]{64}(\.chunk)?)$/;
+export const CHUNK_ID_PATTERN =
+  /^(?:chunk-\d+|[a-zA-Z0-9_-]+\.chunk|[a-f0-9]{64})$/;
 
 export const chunkedManifestSchema = z.strictObject({
   artifact_id: z.uuid(),

@@ -111,7 +111,7 @@ describe("OutboxDlqService", () => {
               .mockResolvedValue(undefined),
             lockAndGetDlqMessage: jest
               .fn<OutboxRepository["lockAndGetDlqMessage"]>()
-              .mockImplementation((id: string) => {
+              .mockImplementation(() => {
                 if (currentMessageRow) {
                   return Promise.resolve({
                     id: currentMessageRow.id as string,

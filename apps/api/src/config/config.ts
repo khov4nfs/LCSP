@@ -82,6 +82,7 @@ function isValidSmtpFrom(value: string): boolean {
 }
 
 export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
+  void workspaceRoot;
   return Joi.object({
     NODE_ENV: Joi.string()
       .valid(...Object.values(NODE_ENVS))
@@ -101,7 +102,6 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     CORS_ALLOWED_ORIGINS: Joi.string().allow("").default(""),
     GITHUB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
       "GITHUB_CLI_EXECUTABLE_PATH",
-      workspaceRoot,
     ),
     GITHUB_CLI_METADATA_TIMEOUT_MS: Joi.number()
       .integer()
@@ -141,7 +141,6 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       .default(2),
     GITLAB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
       "GITLAB_CLI_EXECUTABLE_PATH",
-      workspaceRoot,
     ),
     GITLAB_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
     GITLAB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
@@ -150,7 +149,6 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       .default(1048576),
     BITBUCKET_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
       "BITBUCKET_CLI_EXECUTABLE_PATH",
-      workspaceRoot,
     ),
     BITBUCKET_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
     BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
@@ -159,7 +157,6 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       .default(1048576),
     AZURE_DEVOPS_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
       "AZURE_DEVOPS_CLI_EXECUTABLE_PATH",
-      workspaceRoot,
     ),
     AZURE_DEVOPS_CLI_TIMEOUT_MS: Joi.number()
       .integer()
@@ -295,10 +292,7 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
 
 export const configValidationSchema = createConfigValidationSchema();
 
-function cliExecutablePathSchema(
-  variableName: string,
-  _workspaceRoot?: string,
-) {
+function cliExecutablePathSchema(variableName: string) {
   // Rationale: Preservation of relative CLI paths is validated at runtime rather than Joi schema time.
   return Joi.string()
     .trim()

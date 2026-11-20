@@ -38,20 +38,21 @@ describe("PrismaService & prismaConnectionConfig", () => {
 
   describe("PrismaService dependency injection", () => {
     it("R04: resolves connection configuration from ConfigService when injected", () => {
+      const getSpy = jest.fn((key: string) => {
+        if (key === "database") {
+          return {
+            url: "postgresql://config-user:config-pass@localhost:5432/config_db",
+          };
+        }
+        return undefined;
+      });
       const mockConfigService = {
-        get: jest.fn((key: string) => {
-          if (key === "database") {
-            return {
-              url: "postgresql://config-user:config-pass@localhost:5432/config_db",
-            };
-          }
-          return undefined;
-        }),
+        get: getSpy,
       } as unknown as ConfigService<AppConfig, true>;
 
       const service = new PrismaService(mockConfigService);
       expect(service).toBeDefined();
-      expect(mockConfigService.get).toHaveBeenCalledWith("database", {
+      expect(getSpy).toHaveBeenCalledWith("database", {
         infer: true,
       });
     });

@@ -1,8 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { HttpStatus } from "@nestjs/common";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
-  AUTHORED_LOCALIZATION_CODES,
   AUTHORED_LOCALIZATION_ENTITIES,
   AUTHORED_SOURCE_LANGUAGES,
 } from "@lcsp/contracts/assessment-domain";

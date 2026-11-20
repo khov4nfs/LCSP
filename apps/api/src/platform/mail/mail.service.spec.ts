@@ -7,8 +7,8 @@ const mockSendMail = jest.fn<
 >(() => Promise.resolve({ messageId: "msg-123" }));
 
 const mockCreateTransport = jest.fn<
-  (options: unknown) => { sendMail: typeof mockSendMail }
->((_options) => ({
+  (options?: unknown) => { sendMail: typeof mockSendMail }
+>(() => ({
   sendMail: mockSendMail,
 }));
 

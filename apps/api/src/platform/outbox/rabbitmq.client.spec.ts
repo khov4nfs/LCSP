@@ -398,7 +398,8 @@ describe("RabbitMqClient", () => {
       properties: {},
     };
 
-    await consumerCallback(badMessage);
+    consumerCallback(badMessage);
+    await new Promise((resolve) => setImmediate(resolve));
     expect(channel.nack).toHaveBeenCalledWith(badMessage, false, false);
   });
 
@@ -425,7 +426,8 @@ describe("RabbitMqClient", () => {
       properties: {},
     };
 
-    await consumerCallback(nonObjectMessage);
+    consumerCallback(nonObjectMessage);
+    await new Promise((resolve) => setImmediate(resolve));
     expect(channel.nack).toHaveBeenCalledWith(nonObjectMessage, false, false);
   });
 
@@ -455,7 +457,8 @@ describe("RabbitMqClient", () => {
       properties: {},
     };
 
-    await consumerCallback(redeliveredMessage);
+    consumerCallback(redeliveredMessage);
+    await new Promise((resolve) => setImmediate(resolve));
     expect(channel.nack).toHaveBeenCalledWith(redeliveredMessage, false, false);
   });
 
@@ -485,7 +488,8 @@ describe("RabbitMqClient", () => {
       properties: {},
     };
 
-    await consumerCallback(firstDeliveryMessage);
+    consumerCallback(firstDeliveryMessage);
+    await new Promise((resolve) => setImmediate(resolve));
     expect(channel.nack).toHaveBeenCalledWith(
       firstDeliveryMessage,
       false,

@@ -34,6 +34,7 @@ import {
   AUTH_MFA_LIFECYCLE_PERSISTENCE,
   MFA_PROOF_TYPES,
   type MfaLifecyclePersistence,
+  type MfaProofCommitResult,
 } from "../../ports/persistence/mfa-lifecycle.persistence.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { VerifyMfaOtpCommand } from "./verify-mfa-otp.command.ts";
@@ -170,7 +171,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
-    let proofResult;
+    let proofResult: MfaProofCommitResult;
     try {
       proofResult = await this.lifecycle.verifyProof({
         userId: session.userId,
