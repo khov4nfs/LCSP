@@ -84,6 +84,23 @@ export interface BillingConfig {
   sePayQrUrlTemplate: string;
 }
 
+/**
+ * MFA security encryption key configuration.
+ * Rationale: Injected into Auth security utilities via ConfigService to eliminate unvalidated process.env reads.
+ */
+export interface MfaConfig {
+  secretEncryptionKey: string;
+}
+
+/**
+ * Platform file and snapshot storage configuration.
+ * Rationale: Centralizes artifact paths and temporary snapshot directories for GitHub integration and document storage.
+ */
+export interface StorageConfig {
+  artifactStoragePath: string;
+  snapshotArchiveCacheDir: string;
+}
+
 export const NODE_ENVS = {
   development: "development",
   production: "production",
@@ -92,10 +109,17 @@ export const NODE_ENVS = {
 
 export type NodeEnv = (typeof NODE_ENVS)[keyof typeof NODE_ENVS];
 
+export interface CorsConfig {
+  allowedOrigins: string[];
+}
+
 export interface AppConfig {
   nodeEnv: NodeEnv;
+  port: number;
+  agentServerUrl: string;
   database: DatabaseConfig;
   oauth: OAuthConfig;
+  cors: CorsConfig;
   githubCli: GithubCliConfig;
   gitlabCli: GitlabCliConfig;
   bitbucketCli: BitbucketCliConfig;
@@ -108,4 +132,6 @@ export interface AppConfig {
   email: EmailConfig;
   orchestration: OrchestrationConfig;
   billing: BillingConfig;
+  mfa: MfaConfig;
+  storage: StorageConfig;
 }

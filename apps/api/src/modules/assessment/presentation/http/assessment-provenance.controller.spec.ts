@@ -25,7 +25,7 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { Test } from "@nestjs/testing";
 import supertest from "supertest";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { AssessmentProvenanceLoader } from "../../infrastructure/persistence/assessment-provenance.loader.js";

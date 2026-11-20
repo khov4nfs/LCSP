@@ -10,7 +10,7 @@ import {
   OwnershipMismatchError,
   BillingOrderNotFoundError,
 } from "../../../domain/billing.errors.js";
-import type { AuthenticatedRequest } from "../../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 
 export function text(value: unknown): string {
   return typeof value === "string" || typeof value === "number"

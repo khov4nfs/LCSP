@@ -26,7 +26,7 @@ import {
 
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import { AssessmentRuntimeEventService } from "../src/platform/runtime-events/assessment-runtime-event.service.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 import { seedAuthWorkspaceFixture } from "./support/auth-workspace-test-helpers.js";
@@ -353,7 +353,7 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
         data: {
           id: OWNER_B_ID,
           email: OWNER_B_EMAIL,
-          passwordHash: hashSecret(OWNER_B_PASSWORD),
+          passwordHash: hashSecretSync(OWNER_B_PASSWORD),
           emailVerified: true,
           failedLoginCount: 0,
           role: PrismaAuthUserRole.CUSTOMER,

@@ -27,9 +27,9 @@ import {
 } from "@nestjs/common";
 import type { z } from "zod";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { AssessmentRepositoryDiscoveryService } from "../../application/services/assessment-repository-discovery.service.js";
 import {

@@ -147,11 +147,12 @@ try {
     [base, workerKey, prep.preparationRunId, seed, "valid"],
   );
   eq(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
-  const { hashSecret } = await import(
+  const { hashSecret: rawHashSecret, hashSecretSync } = await import(
     pathToFileURL(
       path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
     ).href,
   );
+  const hashSecret = hashSecretSync ?? rawHashSecret;
   const password = "CorrectHorseBatteryStaple!";
   const customer = async (email) => {
     const id = randomUUID();

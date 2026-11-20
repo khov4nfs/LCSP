@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy localization administration endpoints
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import {

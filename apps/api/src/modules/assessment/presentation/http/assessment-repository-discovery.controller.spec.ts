@@ -18,7 +18,7 @@ import {
 import { describe, expect, it, jest } from "@jest/globals";
 import type { ExecutionContext } from "@nestjs/common";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { AssessmentRepositoryDiscoveryService } from "../../application/services/assessment-repository-discovery.service.js";
 import { AssessmentRepositoryDiscoveryController } from "./assessment-repository-discovery.controller.js";
 import { AssessmentLeaseGuard } from "./assessment-lease.guard.js";

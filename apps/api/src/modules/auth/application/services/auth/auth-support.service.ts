@@ -107,11 +107,15 @@ export class AuthSupportService {
       });
     const token = issueOpaqueToken();
     const fingerprint = fingerprintToken(token);
+    // Rationale (Why): Asynchronous scrypt prevents blocking the Node.js event loop during session issuance.
+    // Mechanism (How): Await non-blocking hashSecret.
+    // Invariants (What): Non-blocking execution returns valid session token hash.
+    const tokenHash = await hashSecret(token);
     const session = new SessionEntity({
       userId: user.id,
       accessVersion: user.accessVersion,
       mfaGenerationId: user.mfaGenerationId,
-      tokenHash: hashSecret(token),
+      tokenHash,
       expiresAt: this.now() + SESSION_TTL_MS,
       revokedAt: null,
     });

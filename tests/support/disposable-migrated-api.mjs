@@ -98,9 +98,10 @@ export async function startApi({ main, databaseUrl, port, storagePath }) {
     email,
     password = "CorrectHorseBatteryStaple!",
   ) => {
-    const { hashSecret } = await builtModule(
+    const { hashSecret: rawHashSecret, hashSecretSync } = await builtModule(
       "platform/security/crypto.utils.js",
     );
+    const hashSecret = hashSecretSync ?? rawHashSecret;
     await db.query(
       `UPDATE "User" SET "passwordHash" = $2, "emailVerified" = true, role = 'CUSTOMER' WHERE email = $1`,
       [email, hashSecret(password)],

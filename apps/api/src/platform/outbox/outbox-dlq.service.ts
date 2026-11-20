@@ -10,7 +10,6 @@ import {
 import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ROOT_CAPACITY_REASONS,
-  ROOT_CAPACITY_ID,
 } from "@lcsp/contracts/assessment-domain";
 import {
   OUTBOX_AUDIT_EVENT_TYPES,
@@ -23,10 +22,7 @@ import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { problemException } from "../http/filters/error.factory.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
-import {
-  fromPrismaRepositoryScanJobStatus,
-  toPrismaOutboxStatus,
-} from "../../infrastructure/prisma/prisma-enum-mappers.js";
+import { fromPrismaRepositoryScanJobStatus } from "../../infrastructure/prisma/prisma-enum-mappers.js";
 
 /**
  * Implements operator workflows for inspecting, replaying, and discarding outbox DLQ messages.
@@ -94,32 +90,20 @@ export class OutboxDlqService {
     let messageSnapshot: { eventType: string; aggregateId: string } | undefined;
     try {
       await this.prisma.$transaction(async (tx) => {
+        // Rationale (Why):
+        // Decouple raw SQL queries from domain orchestration service into repository boundaries.
+        // Mechanism (How):
+        // Calls outboxRepository.acquireRootCapacityLock, lockAndGetDlqMessage, resetRootAdmissionIntent, transitionDlqToPending.
+        // Invariants (What):
+        // Atomicity and serializability of the enclosing transaction remain strictly preserved.
         // Step 1: Lock global capacity row to serialize with admission, quiescence and concurrent replays/discards.
-        await tx.$executeRaw`
-          INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
-          VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
-          ON CONFLICT ("id") DO NOTHING
-        `;
-        await tx.$queryRaw`
-          SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE
-        `;
+        await this.outboxRepository.acquireRootCapacityLock(tx);
 
         // Step 2: Read and lock current outbox message
-        const rows = await tx.$queryRaw<
-          Array<{
-            id: string;
-            status: string;
-            eventType: string;
-            aggregateType: string;
-            aggregateId: string;
-            errorMessage: string | null;
-          }>
-        >`
-          SELECT "id", "status"::text AS "status", "eventType", "aggregateType"::text AS "aggregateType",
-                 "aggregateId", "errorMessage"
-          FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
-        `;
-        const message = rows[0];
+        const message = await this.outboxRepository.lockAndGetDlqMessage(
+          id,
+          tx,
+        );
         if (!message || message.status !== OUTBOX_STATUSES.dlq) {
           throw problemException(
             OUTBOX_ERROR_CODES.dlqMessageNotFound,
@@ -147,35 +131,21 @@ export class OutboxDlqService {
           if (!admission || admission.assessmentId !== message.aggregateId) {
             this.unsafeReplay(correlationId);
           }
-          const updatedAdmission = await tx.$executeRaw`
-            UPDATE "AssessmentRootAdmissionRequest" SET
-              "completedAt" = NULL,
-              "admittedRunId" = NULL,
-              "deliveredAt" = NULL,
-              "requestedAt" = clock_timestamp()
-            WHERE "commandId" = ${message.id}
-              AND "assessmentId" = ${message.aggregateId}
-              AND NOT EXISTS (
-                SELECT 1 FROM "AssessmentRootExecutionSlot" s
-                WHERE s."assessmentId" = ${message.aggregateId} AND s."releasedAt" IS NULL
-              )
-          `;
-          if (updatedAdmission === 0) {
+          const updatedAdmission =
+            await this.outboxRepository.resetRootAdmissionIntent(
+              message.id,
+              message.aggregateId,
+              tx,
+            );
+          if (!updatedAdmission) {
             this.unsafeReplay(correlationId);
           }
         }
 
         // Step 5: Conditionally transition outbox message from DLQ to PENDING
-        const updatedMessage = await tx.$executeRaw`
-          UPDATE "OutboxMessage" SET
-            "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.pending)}::"OutboxStatus",
-            "attempts" = 0,
-            "nextAttemptAt" = NULL,
-            "errorMessage" = NULL
-          WHERE "id" = ${message.id}
-            AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
-        `;
-        if (updatedMessage === 0) {
+        const updatedMessage =
+          await this.outboxRepository.transitionDlqToPending(message.id, tx);
+        if (!updatedMessage) {
           throw problemException(
             OUTBOX_ERROR_CODES.dlqMessageNotFound,
             correlationId,
@@ -262,30 +232,20 @@ export class OutboxDlqService {
     let messageSnapshot: { eventType: string; aggregateId: string } | undefined;
     try {
       await this.prisma.$transaction(async (tx) => {
+        // Rationale (Why):
+        // All raw SQL mutations and row locks must reside in OutboxRepository per Clean Architecture standards.
+        // Mechanism (How):
+        // Delegates locking, cancellation, and deletion to outboxRepository methods.
+        // Invariants (What):
+        // Preserves transaction boundary, physical slot validation, and immutable audit guarantees.
         // Step 1: Acquire global capacity lock to serialize with admission, quiescence and replay
-        await tx.$executeRaw`
-          INSERT INTO "AssessmentRootCapacity" ("id", "desired", "effective", "policy", "reason", "updatedAt")
-          VALUES (${ROOT_CAPACITY_ID}, 1, 0, '{}'::jsonb, 'INITIAL', clock_timestamp())
-          ON CONFLICT ("id") DO NOTHING
-        `;
-        await tx.$queryRaw`
-          SELECT "id" FROM "AssessmentRootCapacity" WHERE "id" = ${ROOT_CAPACITY_ID} FOR UPDATE
-        `;
+        await this.outboxRepository.acquireRootCapacityLock(tx);
 
         // Step 2: Read and lock current outbox message
-        const rows = await tx.$queryRaw<
-          Array<{
-            id: string;
-            status: string;
-            eventType: string;
-            aggregateType: string;
-            aggregateId: string;
-          }>
-        >`
-          SELECT "id", "status"::text AS "status", "eventType", "aggregateType"::text AS "aggregateType", "aggregateId"
-          FROM "OutboxMessage" WHERE "id" = ${id} FOR UPDATE
-        `;
-        const message = rows[0];
+        const message = await this.outboxRepository.lockAndGetDlqMessage(
+          id,
+          tx,
+        );
         if (!message || message.status !== OUTBOX_STATUSES.dlq) {
           throw problemException(
             OUTBOX_ERROR_CODES.dlqMessageNotFound,
@@ -344,12 +304,8 @@ export class OutboxDlqService {
 
         // Step 5: Conditionally tombstone or delete
         if (intent) {
-          const updated = await tx.$executeRaw`
-            UPDATE "OutboxMessage" SET
-              "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.cancelled)}::"OutboxStatus"
-            WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
-          `;
-          if (updated === 0) {
+          const updated = await this.outboxRepository.cancelDlqMessage(id, tx);
+          if (!updated) {
             throw problemException(
               OUTBOX_ERROR_CODES.dlqMessageNotFound,
               correlationId,
@@ -357,11 +313,8 @@ export class OutboxDlqService {
             );
           }
         } else {
-          const deleted = await tx.$executeRaw`
-            DELETE FROM "OutboxMessage"
-            WHERE "id" = ${id} AND "status" = ${toPrismaOutboxStatus(OUTBOX_STATUSES.dlq)}::"OutboxStatus"
-          `;
-          if (deleted === 0) {
+          const deleted = await this.outboxRepository.deleteDlqMessage(id, tx);
+          if (!deleted) {
             throw problemException(
               OUTBOX_ERROR_CODES.dlqMessageNotFound,
               correlationId,

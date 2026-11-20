@@ -8,7 +8,7 @@ import {
   type BillingAdminDashboardQuery,
   type BillingAdminExportQuery,
 } from "@lcsp/contracts/billing";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";

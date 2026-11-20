@@ -74,6 +74,12 @@ Ruler concatenates all .md files in this directory (and subdirectories), startin
   3. **Invariants & Constraints**: Highlight any security boundaries, cross-layer contracts, or side-effects being preserved.
 - **Review Bar**: Do not consider a core task, refactor, or fix complete without clear inline explanatory comments.
 
+## Git Commit & PR Authorization Policy
+
+- **Explicit User Command Only**: NEVER execute `git commit`, `git push`, or `gh pr create` proactively on your own.
+- **Stop at Local Verification**: After completing any code modification, refactoring, or bugfix, the agent MUST run targeted verification tests and present the findings, diffs, and test results to the user.
+- **Wait for Instructions**: Only proceed with `git commit`, `git push`, and creating a PR when the user explicitly instructs to do so (e.g. "commit", "push", "tạo PR").
+
 ## Contract value-set typing
 
 - Do not define TypeScript enums for app/domain value sets. Use `as const` objects and derive types from them.

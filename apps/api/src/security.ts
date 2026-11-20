@@ -2,6 +2,8 @@ export {
   createCorrelationId,
   fingerprintToken,
   hashSecret,
+  hashSecretSync,
   issueOpaqueToken,
   verifySecret,
-} from "./modules/auth/infrastructure/security/security.utils.ts";
+  verifySecretSync,
+} from "./modules/auth/infrastructure/security/security.utils.js";

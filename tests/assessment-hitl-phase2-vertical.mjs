@@ -184,9 +184,10 @@ try {
     { timeoutMs: 60000 },
   );
   eq(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
-  const { hashSecret } = await import(
+  const { hashSecret: rawHashSecret, hashSecretSync } = await import(
     path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
   );
+  const hashSecret = hashSecretSync ?? rawHashSecret;
   const password = "CorrectHorseBatteryStaple!";
   const customer = async (email) => {
     const id = randomUUID();

@@ -1,7 +1,7 @@
 import {
   ApplicationError,
   type ApplicationErrorOptions,
-} from "../../../../common/errors/application.error.ts";
+} from "../../../../platform/errors/application.error.ts";
 
 /**
  * Auth use-case failure. Extends ApplicationError to preserve transport-neutral
@@ -34,4 +34,4 @@ export function authFailure(
   return new AuthApplicationError(code, correlationId, options);
 }
 
-export { APPLICATION_ERROR_REASONS as AUTH_FAILURE_REASONS } from "../../../../common/errors/application.error.ts";
+export { APPLICATION_ERROR_REASONS as AUTH_FAILURE_REASONS } from "../../../../platform/errors/application.error.ts";

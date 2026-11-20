@@ -37,6 +37,11 @@
 - **Root Cause**: A valid UUID from one tenant can be passed by an actor in another tenant.
 - **Resolution & Invariant**: Always use `prisma.model.findFirst({ where: { id, workspaceId: user.workspaceId } })` to enforce tenant ownership at the query level.
 
+### [2026-11-19] [PROCESS] Explicit User Authorization Required for Git Commit, Push, and PR Creation
+- **Context / Symptom**: User explicitly directed: "sau này chỉ khi tôi bảo commit và push mới được tự tạo pr" (In the future, only create a commit, push, or open a PR when the user explicitly requests it).
+- **Root Cause**: Proactive automatic committing, pushing, and PR opening can bypass the developer's local inspection and manual testing steps before changes are published to the remote repository.
+- **Resolution & Invariant**: After performing code changes, refactoring, or bugfixes, the agent MUST stop at the local workspace stage and present verification evidence. The agent is STRICTLY FORBIDDEN from running `git commit`, `git push`, or `gh pr create` without explicit confirmation/instruction from the user (e.g. "hãy commit", "push lên", "tạo PR").
+
 ### [2026-11-19] [PROCESS] Mandatory Explanatory Comments on ALL Code & Configuration Changes (Core-First Invariant)
 - **Context / Symptom**: User emphasized that explanatory comments must NOT be restricted to CI workflows alone, but MUST be present on ALL modifications throughout the repository, with the highest priority and strictness on changes affecting the project's core (architecture, domain logic, contracts, security gates, transactions, PBAC, data models).
 - **Root Cause**: Code modifications, especially in core layers, often carry hidden assumptions, complex invariants, or non-obvious trade-offs. Future maintainers and reviewers cannot easily deduce the technical "Why" behind the change from the diff alone without clear inline context.
@@ -44,6 +49,14 @@
   1. The business or architectural reason for the change ("Why").
   2. How the new/modified logic operates and prevents regressions.
   3. Any side-effects, boundaries, or constraints being enforced.
+
+### [2026-11-19] [DEAD-CODE] Pruning Verified Unused Files Discovered by Knip
+- **Context / Symptom**: 10 orphan files (8 in `apps/web` and 2 in `apps/api`) were detected by `knip` dead code audit.
+- **Root Cause**: During earlier refactorings, components (like `form-card`, `assessments-directory`), old DTOs, and utility helpers (`query-params.ts`) were replaced by centralized contracts, `upstream-request.ts`, or updated UI layouts, but the legacy files were left unreferenced in the repository.
+- **Resolution & Invariant**: Whenever deleting dead code reported by Knip, always verify:
+  1. `git grep` yields zero incoming imports or consumer references.
+  2. Workspace `pnpm run typecheck` (`tsc -b`) compiles with exit code 0.
+  3. `pnpm run check:business-logic-docs` passes without baseline violation.
 
 ### [2026-11-19] [CI/CD] Scoped Paths Filtering Markdown Exclusion & Workflow Triggers
 - **Context / Symptom**: CI triggered Python worker tests, Docker e2e, Windows VMs, and API e2e even though only markdown instructions and CI workflow files were modified.
@@ -61,3 +74,43 @@
 - **Context / Symptom**: CI took 15-20 minutes on every commit because all 12 heavy jobs (Windows VM, Docker build, Python, Playwright) ran even for minor CSS/frontend edits.
 - **Root Cause**: The aggregator gatekeeper job (`v2-release-gate`) evaluated `job["result"] != "success"`. Because skipped jobs have status `"skipped"`, path-filtered jobs caused false positive gate failures, forcing all jobs to run unconditionally.
 - **Resolution & Invariant**: In any aggregator/release-gate job asserting downstream results, ALWAYS allow both `"success"` and `"skipped"`: `job["result"] not in ("success", "skipped")`. Only fail on `"failure"` or `"cancelled"`.
+
+### [2026-11-19] [SECURITY/PYTHON] XXE and Entity Expansion Prevention with defusedxml (Bandit B314)
+- **Context / Symptom**: Bandit AST security scan flagged `B314:blacklist` on `xml.etree.ElementTree.fromstring` in DOCX parsing files (`tools/legal/managed_documents/extract.py`, `official_text_extraction.py`, and `crawl_congbao_docx.py`).
+- **Root Cause**: Python's standard library `xml.etree.ElementTree` is vulnerable to quadratic XML entity expansion attacks (Billion Laughs / DoS) and XML External Entity (XXE / CWE-20) injections when parsing untrusted Office Open XML (`word/document.xml`).
+- **Resolution & Invariant**: Always parse XML from user-uploaded or external documents with `defusedxml.ElementTree.fromstring` (from the `defusedxml` package). Catch `DefusedXmlException` alongside `ParseError` and assert entity rejection with a dedicated security regression test.
+
+### [2026-11-19] [BACKEND/NESTJS] Clean HTTP Pipeline Structure & Prohibition of Re-export Facades
+- **Context / Symptom**: User corrected two architectural violations during backend optimization: (1) Leaking middleware and pipes into root `src/` or `common/` instead of unifying under `platform/http/`, and (2) Relying on temporary re-export facades to mask moved files.
+- **Root Cause**: Treating `common/` as a catch-all folder causes fragmentation where some HTTP mechanisms (filters, interceptors) live in `platform/http/` while others (pipes, guards) scatter elsewhere. Using re-export facades leaves dead/lazy redirection files that violate Clean Architecture purity.
+- **Resolution & Invariant**:
+  1. **Unified HTTP Boundary**: All HTTP lifecycle components in NestJS must strictly live under `apps/api/src/platform/http/` in dedicated subdirectories: `filters/`, `interceptors/`, `pipes/`, and `middlewares/`.
+  2. **Zero Re-Export Facades**: Never leave backward-compatibility re-export files (`export * from ...`) when relocating files. Update all consumer import paths directly at the call sites across the entire repository.
+  3. **Preserve User Scope & Directives**: Never jump ahead to audit or refactor other modules without explicit instruction from the user.
+
+### [2026-11-20] [BACKEND/NESTJS] Centralized Config vs Ad-Hoc `process.env` Reads & Defensive Parsing Pitfalls
+- **Context / Symptom**: Multiple platform and infrastructure services were reading raw `process.env` directly (e.g. `MFA_SECRET_ENCRYPTION_KEY`, `LCSP_AGENT_SERVER_URL`, `PORT`, `storage` paths). Concurrently, `Number("")` in config parsers coerced empty string env vars to `0` instead of falling back to default timeouts, and boolean string `"1"` was parsed to `false` in `config()` despite passing Joi boolean validation.
+- **Root Cause**: `AppConfig` lacked domain-typed fields for security and platform credentials, forcing services to bypass `ConfigService`. In JavaScript, `Number("") === 0` is a classic coercion hazard, and string equality `env === "true"` does not cover common truthy variants allowed by schema validators (`"1"`, `"yes"`).
+- **Resolution & Invariant**: All environment variables validated in Joi MUST be exposed in `AppConfig` and mapped in `config()`. Always use defensive parsing helpers (`parsePositiveInteger`, `parseBoolean`) that guard against empty strings and align with Joi coercions. Services must inject `ConfigService<AppConfig>` instead of reading raw `process.env` directly.
+
+### [2026-11-20] [BACKEND/NESTJS] Persistence Enum Mappers & Silent Fallback Elimination
+- **Context / Symptom**: Credential provider enum mappers (`toPrismaCredentialProvider` / `fromPrismaCredentialProvider`) used a `switch-case` with a silent `default: return GITHUB` fallback. Furthermore, `PrismaService` bypassed `ConfigService` and failed silently on empty database URLs instead of throwing an explicit configuration error.
+- **Root Cause**: Developers often write fallback defaults in switch statements as a quick convenience. In credential and security contexts, silently defaulting unmapped providers to GitHub risks credential confusion or persistent misrouting. In `PrismaService`, failing to validate database URL protocol and emptiness passed invalid strings into the database adapter.
+- **Resolution & Invariant**: Never use silent fallback defaults in persistence enum mappers. Always use bidirectional static dictionary lookups (`as const satisfies Record<A, B>`) and throw an explicit, descriptive Error when an unmapped value is received. `PrismaService` must validate protocol and non-emptiness before initializing adapter pools.
+
+### [2026-11-20] [BACKEND/NESTJS] Platform Layer Hardening: DI Config Injection, Safe Chaining & Synchronous I/O Caching
+- **Context / Symptom**: `RabbitMqClient` read `process.env.RABBITMQ_EXCHANGE` directly inside `resolveExchangeName()`; `MailService.readConfig()` crashed with unhandled `TypeError: Cannot read properties of undefined (reading 'trim')` when email configuration was empty (`{}`) or when credentials were omitted; `FilePartitionedLogger` called `fs.mkdirSync` synchronously on every single log write; and relative imports within `src/platform/` used redundant traversals (`../../platform/...`).
+- **Root Cause**: Clients initialized in module providers often only passed partial settings to the constructor (e.g. `url` without `exchangeName`), causing the instance to fall back to `process.env`. Optional chaining on parent objects (`emailConfig?.smtpHost.trim()`) was applied without chaining on the property itself (`?.trim()`). In file logging, directory existence was verified via synchronous filesystem syscalls on every message instead of caching known directories in-memory.
+- **Resolution & Invariant**:
+  1. **DI Config Completeness**: Client providers must accept all required parameters in their constructor and inject them from `ConfigService<AppConfig>` via `useFactory`.
+  2. **Safe Chaining on Config Properties**: Always apply `?.trim()` when accessing string properties from configuration objects that may be undefined.
+  3. **In-Memory Directory Caching**: Cache created directory paths in a static `Set<string>` to avoid repetitive synchronous `fs.mkdirSync` syscalls.
+  4. **Clean Sibling Imports**: Subdirectories within `src/platform/` must use direct relative paths (`./interfaces/` or `../rbac/`), never `../../platform/...`.
+
+### [2026-11-20] [BACKEND/NESTJS] API Entrypoint Bootstrap Hardening & NodeNext ESM Export Specifiers
+- **Context / Symptom**: `main.ts` executed an unexported `void bootstrap();` without error handling, missing `app.enableShutdownHooks()`; root export files (`index.ts` and `security.ts`) exported relative specifiers ending in `.ts` instead of `.js`.
+- **Root Cause**: Scaffolding default `main.ts` often executes unexported functions that spontaneously bind ports when imported into test harnesses, while lacking OS signal hooks (`SIGTERM`/`SIGINT`) for graceful teardown in containerized deployments. In TypeScript with `moduleResolution: NodeNext`, exporting raw `.ts` extensions leaks `.ts` specifiers into emitted `.d.ts` declaration maps, causing consumer resolution failures in strict ESM packages.
+- **Resolution & Invariant**:
+  1. **Exported, Testable Bootstrap**: Always export `bootstrap()` and guard spontaneous invocation with `if (process.env.NODE_ENV !== "test")`.
+  2. **Graceful Shutdown**: Call `app.enableShutdownHooks()` so Nest triggers `onModuleDestroy()` across all providers (RabbitMQ channel/connection cleanup, Prisma connection pool disconnection).
+  3. **NodeNext ESM Consistency**: All export and import specifiers in TypeScript source files MUST use the standard `.js` extension, never raw `.ts`.

@@ -6,7 +6,7 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 import {
   APPLICATION_ERROR_REASONS,
   ApplicationError,
-} from "../../../../common/errors/application.error.ts";
+} from "../../../../platform/errors/application.error.ts";
 import type { SessionRepository } from "../../application/ports/persistence/session.repository.ts";
 import type { Session } from "../../domain/models/auth.models.ts";
 import {

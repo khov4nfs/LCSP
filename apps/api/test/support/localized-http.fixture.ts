@@ -4,7 +4,7 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import type { AuthenticatedRequest } from "../../src/common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../src/platform/rbac/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../src/platform/rbac/rbac.guard.js";
 import { AuthoredLocalizationService } from "../../src/platform/localization/authored-localization.service.js";
 import { AssessmentArtifactController } from "../../src/modules/assessment/presentation/http/assessment-artifact.controller.js";

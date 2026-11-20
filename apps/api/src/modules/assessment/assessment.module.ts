@@ -45,7 +45,7 @@ import { AssessmentRuntimeEventService } from "../../platform/runtime-events/ass
 import { AuditModule } from "../audit/audit.module.js";
 import { BillingModule } from "../billing/billing.module.js";
 import { ComplianceRuleSetModule } from "../compliance-rule-set/compliance-rule-set.module.js";
-import { WorkerApiKeyGuard } from "../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../platform/rbac/guards/worker-api-key.guard.js";
 import { AcceptAssessmentEvidenceHandler } from "./application/commands/accept-assessment-evidence/accept-assessment-evidence.handler.js";
 import { AcceptAssessmentFactHandler } from "./application/commands/accept-assessment-fact/accept-assessment-fact.handler.js";
 import { ClaimAssessmentRootHandler } from "./application/commands/claim-assessment-root/claim-assessment-root.handler.js";

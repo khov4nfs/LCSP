@@ -368,11 +368,16 @@ describe("config()", () => {
 
     expect(result).toEqual({
       nodeEnv: "test",
+      port: 3000,
+      agentServerUrl: VALID_ENV.LCSP_AGENT_SERVER_URL,
       database: { url: VALID_ENV.DATABASE_URL },
       oauth: {
         googleClientId: VALID_ENV.OAUTH_GOOGLE_CLIENT_ID,
         googleClientSecret: VALID_ENV.OAUTH_GOOGLE_CLIENT_SECRET,
         allowedRedirectOrigins: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_ORIGINS],
+      },
+      cors: {
+        allowedOrigins: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_ORIGINS],
       },
       githubCli: {
         executablePath: VALID_ENV.GITHUB_CLI_EXECUTABLE_PATH,
@@ -435,6 +440,13 @@ describe("config()", () => {
         sePayQrUrlTemplate:
           "https://payments.test/qr?amount={amountVnd}&content={paymentCode}",
       },
+      mfa: {
+        secretEncryptionKey: VALID_ENV.MFA_SECRET_ENCRYPTION_KEY,
+      },
+      storage: {
+        artifactStoragePath: "",
+        snapshotArchiveCacheDir: "",
+      },
     });
   });
 
@@ -442,5 +454,100 @@ describe("config()", () => {
     const { error } = validate(withoutKeys(VALID_ENV, ["WORKER_API_KEY"]));
 
     expect(error?.message).toContain("WORKER_API_KEY");
+  });
+
+  describe("TDD Reproducers for Config Bugs & Edge Cases (RED Tests)", () => {
+    it("R01: rejects invalid PORT values (string or out of range)", () => {
+      const stringPort = validate({ ...VALID_ENV, PORT: "invalid-port" });
+      expect(stringPort.error?.message).toContain("PORT");
+
+      const outOfRangePort = validate({ ...VALID_ENV, PORT: "999999" });
+      expect(outOfRangePort.error?.message).toContain("PORT");
+    });
+
+    it("R02: rejects non-postgresql protocol for DATABASE_URL", () => {
+      const mysqlUrl = validate({
+        ...VALID_ENV,
+        DATABASE_URL: "mysql://user:pass@localhost:3306/db",
+      });
+      expect(mysqlUrl.error?.message).toContain("DATABASE_URL");
+    });
+
+    it("R03: rejects non-amqp protocol for RABBITMQ_URL", () => {
+      const httpUrl = validate({
+        ...VALID_ENV,
+        RABBITMQ_URL: "http://localhost:5672",
+      });
+      expect(httpUrl.error?.message).toContain("RABBITMQ_URL");
+    });
+
+    it("R04: rejects malformed BILLING_SEPAY_QR_URL_TEMPLATE even in development when provided", () => {
+      const devMalformed = validate({
+        ...VALID_ENV,
+        NODE_ENV: "development",
+        BILLING_SEPAY_QR_URL_TEMPLATE: "https://qr.test/invalid-template",
+      });
+      expect(devMalformed.error?.message).toContain(
+        "BILLING_SEPAY_QR_URL_TEMPLATE",
+      );
+    });
+
+    it("R05: does not coerce empty string env to 0 for numeric timeouts (falls back to default)", () => {
+      const previous = process.env.GITHUB_CLI_METADATA_TIMEOUT_MS;
+      try {
+        process.env.GITHUB_CLI_METADATA_TIMEOUT_MS = "";
+        const cfg = config();
+        expect(cfg.githubCli.metadataTimeoutMs).toBe(15000);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.GITHUB_CLI_METADATA_TIMEOUT_MS;
+        } else {
+          process.env.GITHUB_CLI_METADATA_TIMEOUT_MS = previous;
+        }
+      }
+    });
+
+    it("R06: parses boolean string '1' as true in config() identical to Joi boolean", () => {
+      const previous = process.env.ORCHESTRATION_DEBUG;
+      try {
+        process.env.ORCHESTRATION_DEBUG = "1";
+        const cfg = config();
+        expect(cfg.orchestration.debug).toBe(true);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.ORCHESTRATION_DEBUG;
+        } else {
+          process.env.ORCHESTRATION_DEBUG = previous;
+        }
+      }
+    });
+
+    it("R07: deduplicates repeated origins in CORS configuration", () => {
+      const previous = process.env.CORS_ALLOWED_ORIGINS;
+      try {
+        process.env.CORS_ALLOWED_ORIGINS =
+          "http://localhost:3000, http://localhost:3000, http://localhost:3001";
+        const cfg = config();
+        expect(cfg.cors.allowedOrigins).toEqual([
+          "http://localhost:3000",
+          "http://localhost:3001",
+        ]);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.CORS_ALLOWED_ORIGINS;
+        } else {
+          process.env.CORS_ALLOWED_ORIGINS = previous;
+        }
+      }
+    });
+
+    it("R08: exposes mfa, agentServerUrl, port, and storage on typed config()", () => {
+      const cfg = config() as unknown as Record<string, unknown>;
+      expect(cfg.port).toBe(3000);
+      expect((cfg.mfa as Record<string, unknown>)?.secretEncryptionKey).toBe(
+        process.env.MFA_SECRET_ENCRYPTION_KEY,
+      );
+      expect(cfg.agentServerUrl).toBe(process.env.LCSP_AGENT_SERVER_URL ?? "");
+    });
   });
 });

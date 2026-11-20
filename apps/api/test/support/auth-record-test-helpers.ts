@@ -2,7 +2,7 @@ import type { AuthRecord, PrismaClient } from "@prisma/client";
 
 import {
   fingerprintToken,
-  hashSecret,
+  hashSecretSync,
 } from "../../src/modules/auth/infrastructure/security/security.utils.js";
 
 export const AUTH_RECORD_TYPE = {
@@ -88,7 +88,7 @@ export async function createAuthSessionRecord(
       userId: input.userId,
       type: AUTH_RECORD_TYPE.session,
       lookupKey: `SESSION:${tokenFingerprint}`,
-      secretHash: hashSecret(input.token),
+      secretHash: hashSecretSync(input.token),
       expiresAt: input.expiresAt,
       revokedAt: input.revokedAt ?? null,
       metadata: {

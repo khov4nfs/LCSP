@@ -4,14 +4,17 @@
  * - An explicit external URL requires its own key; native routing uses the existing worker credential.
  * - Incomplete external configuration never falls back to another credential or destination.
  * Execution flow:
- * 1. Select the explicit provider or derive the native endpoint from deployment configuration.
+ * 1. Select the explicit provider or derive the native endpoint from deployment configuration or options.
  * 2. Return the matching authentication header only when both address and credential exist.
  * Failure cases:
  * - Missing, partial or invalid HTTP configuration returns null so durable work retains a provider-unavailable outcome.
  * Side effects:
- * - Reads environment configuration only; no network or persistence.
+ * - Reads environment configuration or options only; no network or persistence.
  */
-export function authoredTranslationProvider(): {
+export function authoredTranslationProvider(options?: {
+  agentServerUrl?: string;
+  workerApiKey?: string;
+}): {
   url: string;
   headers: Record<string, string>;
 } | null {
@@ -20,8 +23,10 @@ export function authoredTranslationProvider(): {
   const usesExternalProvider = Boolean(externalUrl || externalKey);
   const base = usesExternalProvider
     ? externalUrl
-    : process.env.LCSP_AGENT_SERVER_URL;
-  const key = usesExternalProvider ? externalKey : process.env.WORKER_API_KEY;
+    : options?.agentServerUrl || process.env.LCSP_AGENT_SERVER_URL;
+  const key = usesExternalProvider
+    ? externalKey
+    : options?.workerApiKey || process.env.WORKER_API_KEY;
   if (!base || !key) return null;
 
   try {

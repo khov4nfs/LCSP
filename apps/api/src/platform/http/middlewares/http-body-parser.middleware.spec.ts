@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { httpBodyParser } from "./http-body-parser.js";
+import { httpBodyParser } from "./http-body-parser.middleware.js";
 import { ASSESSMENT_REPORT_V3_LIMITS } from "@lcsp/contracts/assessment-report";
 
 interface TestApiResponse {
