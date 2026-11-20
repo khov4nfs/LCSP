@@ -3,7 +3,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
   generateMfaRecoveryCode,
   normalizeMfaRecoveryCode,
-} from "./mfa-recovery-code.utils.js";
+} from "../../application/security/mfa-recovery-code.utils.js";
 import { totpForTime } from "./security.utils.js";
 
 describe("authentication security primitives", () => {
