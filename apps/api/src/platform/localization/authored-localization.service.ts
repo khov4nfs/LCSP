@@ -65,11 +65,13 @@ export const DEFAULT_TRANSLATION_TIMEOUT_MS = 10_000;
 function resolveContextCorrelationId(): string {
   const req = requestStorage.getStore();
   if (req) {
-    const fromReq = (req as unknown as { correlationId?: unknown }).correlationId;
+    const fromReq = (req as unknown as { correlationId?: unknown })
+      .correlationId;
     if (typeof fromReq === "string" && fromReq.trim()) return fromReq.trim();
     const header = req.headers?.["x-correlation-id"];
     const fromHeader = Array.isArray(header) ? header[0] : header;
-    if (typeof fromHeader === "string" && fromHeader.trim()) return fromHeader.trim();
+    if (typeof fromHeader === "string" && fromHeader.trim())
+      return fromHeader.trim();
   }
   return randomUUID();
 }

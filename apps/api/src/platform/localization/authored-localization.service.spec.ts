@@ -22,7 +22,9 @@ describe("AuthoredLocalizationService high-priority remediations", () => {
 
     await requestStorage.run(mockReq, async () => {
       // Test limit < 1
-      await expect(service.backlog(undefined, undefined, 0)).rejects.toMatchObject({
+      await expect(
+        service.backlog(undefined, undefined, 0),
+      ).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         response: {
           ok: false,
@@ -35,7 +37,9 @@ describe("AuthoredLocalizationService high-priority remediations", () => {
       });
 
       // Test limit > 50
-      await expect(service.backlog(undefined, undefined, 51)).rejects.toMatchObject({
+      await expect(
+        service.backlog(undefined, undefined, 51),
+      ).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         response: {
           problem: {
@@ -129,11 +133,21 @@ describe("AuthoredLocalizationService high-priority remediations", () => {
       .fn<() => Promise<typeof siblingRows>>()
       .mockResolvedValue(siblingRows);
     const findManyRevision = jest
-      .fn<() => Promise<Array<{ requestId: string; content: string; engine: string }>>>()
+      .fn<
+        () => Promise<
+          Array<{ requestId: string; content: string; engine: string }>
+        >
+      >()
       .mockResolvedValue([]);
-    const createReview = jest.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: "rev-id" });
-    const updateRequest = jest.fn<() => Promise<typeof jobRow>>().mockResolvedValue(jobRow);
-    const upsertRevision = jest.fn<() => Promise<unknown>>().mockResolvedValue({});
+    const createReview = jest
+      .fn<() => Promise<{ id: string }>>()
+      .mockResolvedValue({ id: "rev-id" });
+    const updateRequest = jest
+      .fn<() => Promise<typeof jobRow>>()
+      .mockResolvedValue(jobRow);
+    const upsertRevision = jest
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValue({});
 
     const txMock = {
       authoredLocalizationRequest: {

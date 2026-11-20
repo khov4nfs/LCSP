@@ -31,7 +31,11 @@ interface FakeChannel {
       (
         queue: string,
         options?: unknown,
-      ) => Promise<{ queue: string; messageCount: number; consumerCount: number }>
+      ) => Promise<{
+        queue: string;
+        messageCount: number;
+        consumerCount: number;
+      }>
     >
   >;
   bindQueue: ReturnType<
@@ -117,7 +121,11 @@ function makeChannel(): FakeChannel {
       (
         queue: string,
         options?: unknown,
-      ) => Promise<{ queue: string; messageCount: number; consumerCount: number }>
+      ) => Promise<{
+        queue: string;
+        messageCount: number;
+        consumerCount: number;
+      }>
     >(() =>
       Promise.resolve({ queue: "test", messageCount: 0, consumerCount: 0 }),
     ),
@@ -478,6 +486,10 @@ describe("RabbitMqClient", () => {
     };
 
     await consumerCallback(firstDeliveryMessage);
-    expect(channel.nack).toHaveBeenCalledWith(firstDeliveryMessage, false, true);
+    expect(channel.nack).toHaveBeenCalledWith(
+      firstDeliveryMessage,
+      false,
+      true,
+    );
   });
 });

@@ -95,7 +95,9 @@ export class ArtifactStorageService {
       // Invariants (What): Must reside strictly inside resolvedChunksDir.
       const chunkPath = path.resolve(resolvedChunksDir, chunkId);
       if (!chunkPath.startsWith(resolvedChunksDir + path.sep)) {
-        throw new BadRequestException(`Invalid chunk path traversal: ${chunkId}`);
+        throw new BadRequestException(
+          `Invalid chunk path traversal: ${chunkId}`,
+        );
       }
 
       if (!fs.existsSync(chunkPath)) {

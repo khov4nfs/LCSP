@@ -295,9 +295,7 @@ export class AssessmentRuntimeEventService {
    * Side effects:
    * - Mutates in-memory bounded LRU cache map.
    */
-  async resolveAssessmentOwnerId(
-    assessmentId: string,
-  ): Promise<string | null> {
+  async resolveAssessmentOwnerId(assessmentId: string): Promise<string | null> {
     // Rationale (Why):
     // Fix unbounded memory leak where assessmentOwnerIds grew indefinitely over daemon lifetime.
     // Mechanism (How):

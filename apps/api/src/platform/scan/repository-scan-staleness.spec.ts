@@ -105,9 +105,18 @@ describe("repository scan staleness", () => {
   it("resolves N+1 query loop by batching multiple candidates into a single findMany event query", async () => {
     const now = new Date("2026-10-01T02:00:00.000Z");
     const candidates = [
-      { id: "scan-active-alive", updatedAt: new Date(now.getTime() - 15 * 60 * 1000) },
-      { id: "scan-abandoned-1", updatedAt: new Date(now.getTime() - 10 * 60 * 1000) },
-      { id: "scan-abandoned-2", updatedAt: new Date(now.getTime() - 8 * 60 * 1000) },
+      {
+        id: "scan-active-alive",
+        updatedAt: new Date(now.getTime() - 15 * 60 * 1000),
+      },
+      {
+        id: "scan-abandoned-1",
+        updatedAt: new Date(now.getTime() - 10 * 60 * 1000),
+      },
+      {
+        id: "scan-abandoned-2",
+        updatedAt: new Date(now.getTime() - 8 * 60 * 1000),
+      },
     ];
     const scanFindMany = jest
       .fn<() => Promise<Array<{ id: string; updatedAt: Date }>>>()
@@ -118,9 +127,15 @@ describe("repository scan staleness", () => {
       .fn<() => Promise<Array<{ runId: string; createdAt: Date }>>>()
       .mockResolvedValue([
         // Alive scan has a recent event
-        { runId: "scan-active-alive", createdAt: new Date(now.getTime() - 60 * 1000) },
+        {
+          runId: "scan-active-alive",
+          createdAt: new Date(now.getTime() - 60 * 1000),
+        },
         // Abandoned scan 1 has an old event
-        { runId: "scan-abandoned-1", createdAt: new Date(now.getTime() - 7 * 60 * 1000) },
+        {
+          runId: "scan-abandoned-1",
+          createdAt: new Date(now.getTime() - 7 * 60 * 1000),
+        },
         // Abandoned scan 2 has no events
       ]);
 
@@ -139,7 +154,11 @@ describe("repository scan staleness", () => {
     // Exactly 1 batched call to eventFindMany with all 3 candidates
     expect(eventFindMany).toHaveBeenCalledTimes(1);
     expect(eventFindMany).toHaveBeenCalledWith({
-      where: { runId: { in: ["scan-active-alive", "scan-abandoned-1", "scan-abandoned-2"] } },
+      where: {
+        runId: {
+          in: ["scan-active-alive", "scan-abandoned-1", "scan-abandoned-2"],
+        },
+      },
       orderBy: { createdAt: "desc" },
       select: { runId: true, createdAt: true },
     });
@@ -160,7 +179,10 @@ describe("repository scan staleness", () => {
     const scanFindMany = jest
       .fn<() => Promise<Array<{ id: string; updatedAt: Date }>>>()
       .mockResolvedValue([
-        { id: "scan-tenant-1", updatedAt: new Date(now.getTime() - 10 * 60 * 1000) },
+        {
+          id: "scan-tenant-1",
+          updatedAt: new Date(now.getTime() - 10 * 60 * 1000),
+        },
       ]);
     const eventFindMany = jest
       .fn<() => Promise<Array<{ runId: string; createdAt: Date }>>>()

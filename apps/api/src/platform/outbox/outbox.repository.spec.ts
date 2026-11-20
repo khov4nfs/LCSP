@@ -297,8 +297,13 @@ describe("OutboxRepository", () => {
     it("acquireRootCapacityLock executes capacity upsert and row lock", async () => {
       const repository = new OutboxRepository({} as PrismaService);
       const $executeRaw = jest.fn<() => Promise<number>>().mockResolvedValue(1);
-      const $queryRaw = jest.fn<() => Promise<unknown[]>>().mockResolvedValue([{ id: "singleton" }]);
-      const tx = { $executeRaw, $queryRaw } as unknown as Prisma.TransactionClient;
+      const $queryRaw = jest
+        .fn<() => Promise<unknown[]>>()
+        .mockResolvedValue([{ id: "singleton" }]);
+      const tx = {
+        $executeRaw,
+        $queryRaw,
+      } as unknown as Prisma.TransactionClient;
 
       await repository.acquireRootCapacityLock(tx);
 
@@ -337,10 +342,18 @@ describe("OutboxRepository", () => {
         .mockResolvedValueOnce(0);
       const tx = { $executeRaw } as unknown as Prisma.TransactionClient;
 
-      const success = await repository.resetRootAdmissionIntent("cmd-1", "asmt-1", tx);
+      const success = await repository.resetRootAdmissionIntent(
+        "cmd-1",
+        "asmt-1",
+        tx,
+      );
       expect(success).toBe(true);
 
-      const failed = await repository.resetRootAdmissionIntent("cmd-2", "asmt-1", tx);
+      const failed = await repository.resetRootAdmissionIntent(
+        "cmd-2",
+        "asmt-1",
+        tx,
+      );
       expect(failed).toBe(false);
     });
 

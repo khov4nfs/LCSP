@@ -30,7 +30,8 @@ const SAFE_EXPECTED_TYPES: ReadonlySet<string> = new Set([
 function resolveCorrelationId(): string {
   const req = requestStorage.getStore();
   if (req) {
-    const fromReq = (req as unknown as { correlationId?: unknown }).correlationId;
+    const fromReq = (req as unknown as { correlationId?: unknown })
+      .correlationId;
     if (typeof fromReq === "string" && fromReq.trim()) {
       return fromReq.trim();
     }

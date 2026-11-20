@@ -7,7 +7,9 @@ import { WorkerApiKeyGuard } from "./worker-api-key.guard.js";
 
 const VALID_KEY = "test-secret-worker-key-12345";
 
-function makeContext(headers: Record<string, string | string[] | undefined> = {}): ExecutionContext {
+function makeContext(
+  headers: Record<string, string | string[] | undefined> = {},
+): ExecutionContext {
   const req = {
     headers: { ...headers },
   };

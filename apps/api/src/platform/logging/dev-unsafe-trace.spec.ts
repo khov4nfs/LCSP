@@ -155,7 +155,15 @@ describe("dev-unsafe-trace", () => {
       process.env.LCSP_DEV_UNSAFE_TRACE = "true";
       process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
 
-      const disallowed = ["production", "staging", "preview", "uat", "", "ci", "custom"];
+      const disallowed = [
+        "production",
+        "staging",
+        "preview",
+        "uat",
+        "",
+        "ci",
+        "custom",
+      ];
       for (const env of disallowed) {
         process.env.NODE_ENV = env;
         expect(() => unsafeDevTraceEnabled()).toThrow(

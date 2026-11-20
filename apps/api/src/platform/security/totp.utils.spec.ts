@@ -62,8 +62,8 @@ describe("TotpUtils — RFC 6238 Replay Attack Reproducer", () => {
   });
 
   it("handles corrupted base32 secrets safely without throwing", () => {
-    expect(verifyTotpOtp("invalid!base32!secret", "123456", 1700000000000)).toBe(
-      false,
-    );
+    expect(
+      verifyTotpOtp("invalid!base32!secret", "123456", 1700000000000),
+    ).toBe(false);
   });
 });
