@@ -190,13 +190,12 @@ try {
   const ruleSetVersionId = prepared.submission.ruleSetVersionId;
   const password = "CorrectHorseBatteryStaple!";
   const ownerId = randomUUID();
-  const hashSecret = (
-    await import(
-      pathToFileURL(
-        path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
-      ).href
-    )
-  ).hashSecret;
+  const cryptoMod = await import(
+    pathToFileURL(
+      path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
+    ).href
+  );
+  const hashSecret = cryptoMod.hashSecretSync ?? cryptoMod.hashSecret;
   await q(
     `INSERT INTO "User"(id,email,"passwordHash","emailVerified","failedLoginCount",role,"updatedAt") VALUES ($1,$2,$3,true,0,'CUSTOMER',now())`,
     [ownerId, `${scenario}@acme.test`, hashSecret(password)],

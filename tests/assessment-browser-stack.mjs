@@ -21,7 +21,8 @@ const seed = path.join(dir, 'seed.json'); writeFileSync(seed, JSON.stringify({ h
 const preparation = await stack.startPreparationFixture(legalSource);
 assert.equal(preparation.runs.length, 1);
 await runPython(path.join(root, 'deepagents/tests/vertical/scripted_preparation.py'), [base, workerKey, preparation.preparationRunId, seed, 'valid']);
-const { hashSecret } = await import(path.join(root, 'apps/api/dist/src/platform/security/crypto.utils.js'));
+const { hashSecret: rawHashSecret, hashSecretSync } = await import(path.join(root, 'apps/api/dist/src/platform/security/crypto.utils.js'));
+const hashSecret = hashSecretSync ?? rawHashSecret;
 const owner = randomUUID(), admin = randomUUID();
 const password = 'BROWSERBrowserFixturePassword!';
 for (const [id, email, role] of [[owner, 'browser-browser@acme.test', 'CUSTOMER'], [admin, 'browser-admin@acme.test', 'ADMIN']]) await q('INSERT INTO "User"(id,email,"passwordHash","emailVerified","failedLoginCount",role,"updatedAt") VALUES ($1,$2,$3,true,0,$4::"AuthUserRole",now())', [id, email, hashSecret(password), role]);
