@@ -109,6 +109,9 @@ describe("Network Edge Security & Middlewares (Integration via Nest Application)
       expect(res.status).toBe(200);
       expect(res.headers["x-content-type-options"]).toBe("nosniff");
       expect(res.headers["x-frame-options"]).toBe("SAMEORIGIN");
+      expect(res.headers["content-security-policy"]).toContain(
+        "default-src 'none'",
+      );
       // In test mode, HSTS should be omitted
       expect(res.headers["strict-transport-security"]).toBeUndefined();
     });

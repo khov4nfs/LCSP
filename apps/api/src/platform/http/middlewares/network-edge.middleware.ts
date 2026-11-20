@@ -94,7 +94,12 @@ export function applyNetworkEdgeMiddleware(
   // 1. HTTP Security Headers (Helmet)
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Managed at the Web BFF / Frontend tier
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
       crossOriginEmbedderPolicy: false,
       hsts: isProduction
         ? { maxAge: 31536000, includeSubDomains: true }
