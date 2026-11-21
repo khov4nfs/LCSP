@@ -1,0 +1,11 @@
+{
+  "email": "backup@example.test",
+  "enrollment": {
+    "totp_uri": "otpauth://totp/LCSP:owner%40example.test?secret=JBSWY3DPEHPK3PXP&issuer=LCSP",
+    "recovery_codes": ["ABCD-EFGH-IJKL", "MNPR-STUV-WXYZ"]
+  },
+  "replacement": { "recovery_codes": ["2345-6789-ABCD", "EFGH-IJKL-MNPR"] },
+  "malformed": { "recovery_codes": ["2345-6789-ABCD", 123] },
+  "empty": { "recovery_codes": [] },
+  "blank": { "recovery_codes": [""] }
+}
