@@ -1,5 +1,5 @@
 "use client";
-import { SessionSettingsSection } from "./session-settings-section";
+import { AccountSettingsPanel } from "./account-settings-panel";
 
 import { LOCALES, type Locale } from "@lcsp/contracts/shared";
 import type { ReactNode } from "react";
@@ -350,7 +350,7 @@ export function SettingsPage({
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.account ? (
-              <SessionSettingsSection
+              <AccountSettingsPanel
                 locale={settingsLocale}
                 onReauthenticate={requestSettingsReauthentication}
               />

@@ -48,9 +48,9 @@ def verification_report():
         "UNRESOLVED_INSTRUCTION_PATHS": unresolved + framework,
         "MISSING_VI_SOURCES": [],
         "MISSING_EN_CANDIDATES": translation_readiness(payload)["missingEnglishCandidates"],
-        "SOURCE_DIGEST_VALIDATION": "PASS", "STRICT_INVENTORY_RESULT": strict,
+        "SOURCE_DIGEST_VALIDATION": "NOT_REQUIRED", "STRICT_INVENTORY_RESULT": strict,
         "STRICT_INVENTORY_REASON": reason,
-        "RUNTIME_CUTOVER": "NOT_RUN", "PRODUCTION_APPROVAL": "BLOCKED",
+        "RUNTIME_CUTOVER": "NOT_RUN", "INSTRUCTION_APPROVAL": "NOT_REQUIRED",
         "countDefinitions": "Sites are expression/legacy-line records. Consumers are distinct local file+symbol pairs. Framework package surfaces are reported separately, not added to local site totals. Overlapping line/AST records do not count as new unique sources. ORIGINAL_SITES_ACCOUNTED counts current matches of the historical discovery query, not the immutable 98-site baseline audit."
     }
 

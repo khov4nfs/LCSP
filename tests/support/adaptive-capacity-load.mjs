@@ -106,7 +106,10 @@ export async function runAdaptiveCapacityLoad({
       path.join(root, "deepagents/tests/vertical/adaptive_capacity_load.py"),
       [input],
       {
-        timeoutMs: 360000,
+        // The inactivity watchdog remains 150s per stalled wave. This separate
+        // whole-process bound covers all 1/2/4/8 waves, real admission deferrals,
+        // checkpoint pressure and bounded shutdown without changing runtime policy.
+        timeoutMs: 600000,
         env: {
           WORKER_API_KEY:
             "compliance_rule_set-vertical-worker-key-at-least-32-chars",

@@ -93,8 +93,7 @@ export function SessionSettingsSection({
 
   return (
     <section
-      data-component="AccountSettingsPanel"
-      className="h-full space-y-6 overflow-y-auto p-4 sm:p-8"
+      className="space-y-6"
       aria-labelledby="settings-sessions-heading"
       aria-busy={pending}
     >

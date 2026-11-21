@@ -88,7 +88,7 @@
             "maxLength": 8000
           },
           "operativePropositions": {
-            "description": "Required for new Rule Set authoring, including NON_ASSESSABLE duties: at least one explicit actor/modality/action with pinned source bindings. Multiple propositions may be aggregated in one LegalRequirement. Context-only sources belong in typed contextRelations, never a placeholder requirement. Missing structure returns OPERATIVE_PROPOSITION_REQUIRED.",
+            "minItems": 1,
             "maxItems": 64,
             "type": "array",
             "items": {
@@ -154,7 +154,8 @@
                 "action"
               ],
               "additionalProperties": false
-            }
+            },
+            "description": "Required for new Rule Set authoring, including NON_ASSESSABLE duties: at least one explicit actor/modality/action with pinned source bindings. Multiple propositions may be aggregated in one LegalRequirement. Context-only sources belong in typed contextRelations, never a placeholder requirement. Missing structure returns OPERATIVE_PROPOSITION_REQUIRED."
           },
           "applicabilityConditions": {
             "maxItems": 64,
@@ -222,7 +223,7 @@
             "description": "Whether the duty requires organizational, human, physical or external action that repository/software evidence cannot establish. A software record of an action does not establish performance of that action or create a software obligation absent from the source."
           },
           "sourceRefs": {
-            "default": [],
+            "minItems": 1,
             "maxItems": 64,
             "type": "array",
             "items": {
@@ -287,10 +288,12 @@
           "legalRequirementId",
           "title",
           "proposition",
+          "operativePropositions",
           "applicabilityConditions",
           "qualifiers",
           "exceptions",
           "nonRepositoryDuty",
+          "sourceRefs",
           "coverage"
         ],
         "additionalProperties": false
@@ -628,7 +631,7 @@
             }
           },
           "sourceRefs": {
-            "default": [],
+            "minItems": 1,
             "maxItems": 64,
             "type": "array",
             "items": {
@@ -675,7 +678,8 @@
           "patterns",
           "requiredEvidence",
           "supportingEvidence",
-          "negativeEvidence"
+          "negativeEvidence",
+          "sourceRefs"
         ],
         "additionalProperties": false
       }

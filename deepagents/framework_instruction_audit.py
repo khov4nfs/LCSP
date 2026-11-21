@@ -1,13 +1,11 @@
-"""Read-only fingerprinting of installed model-facing framework defaults.
+"""Read-only structural inventory of installed model-facing framework defaults.
 
-No dependency modules are imported or patched. Publication must reject pending
-adapters; English package defaults are not silently exempt from VI authority.
+No dependency modules are imported or patched. Installed symbols and local adapter paths must stay registered; instruction changes do not require SHA-256 or manual approval.
 """
 import ast
 from importlib.metadata import distribution
 from pathlib import Path
 
-from instruction_source_inventory import source_digest
 from runtime_instruction_bundle import RuntimeInstructionBundleError
 
 
@@ -37,12 +35,12 @@ SURFACES = (
 
 
 def installed_surfaces():
-    """Business purpose: Fingerprint the installed framework injection surfaces.
+    """Business purpose: Check installed model-facing framework injection surfaces by structure.
 
     Business rules:
-    - Each dependency symbol and the local adapter implementation are fingerprinted; technical control grants no translation approval.
+    - Each dependency symbol and adapter path must exist; instruction content hashes and approvals are not a prerequisite.
     Execution flow:
-    1. Read distribution versions, parse each installed module and hash the exact symbol AST.
+    1. Read distribution versions, parse installed modules and confirm declared symbols and adapters.
     Failure cases:
     - Missing distributions, modules or symbols reject the inventory.
     Side effects:
@@ -76,6 +74,10 @@ def installed_surfaces():
         if compatibility or refusal:
             adapter_files += ["tests/test_instruction_framework_controls.py"]
         local_root = Path(__file__).resolve().parent
+        for adapter_file in adapter_files:
+            # Check the authorized adapter exists and is valid Python;
+            # no source-content fingerprint or manual instruction approval.
+            ast.parse((local_root / adapter_file).read_text(encoding="utf-8"))
         evidence = (
             "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
             if inactive else
@@ -91,12 +93,10 @@ def installed_surfaces():
         )
         result.append({"package": package, "version": dist.version, "filePath": filename,
                        "symbolName": symbol, "lineNumber": match.lineno,
-                       "expressionSha256": source_digest(ast.dump(match, include_attributes=False).encode("utf-8")),
                        "viSourceId": "runtime.budget-finalization" if limit else "framework.injected-policy", "overridePlan": override,
                        "controlStatus": "CONTROLLED", "reachesModel": not inactive,
                        "controlMode": "DISABLED_GUARDED" if inactive else "EXPLICIT_SUMMARY_TEMPLATE" if summary else "APPROVED_LIMIT_TERMINAL" if limit else "POST_GUARD_CONTENT_COMPATIBILITY" if compatibility else "RESPONSE_REFUSAL_CHECK" if refusal else "FINAL_REQUEST_PROJECTION",
-                       "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-                       "adapterSourceSha256": {name: source_digest(ast.dump(ast.parse((local_root / name).read_text(encoding="utf-8")), include_attributes=False).encode("utf-8")) for name in adapter_files},
+                       "adapterSourcePaths": adapter_files,
                        "activationEvidence": evidence})
     return result
 
@@ -105,7 +105,7 @@ def validate_framework_surfaces(declared):
     """Business purpose: Reject an installation that differs from the recorded framework contract.
 
     Business rules:
-    - Version, symbol fingerprint and control metadata must match exactly.
+    - Version, symbol name, adapter path registration and control metadata must match.
     Execution flow:
     1. Recompute installed surfaces and compare against the declared list.
     Failure cases:

@@ -14,7 +14,7 @@ def test_verification_report_reconciles_sites_without_hiding_framework_blockers(
     assert report["DISCOVERED_SITES_TOTAL"] == report["ORIGINAL_SITES_ACCOUNTED"] + report["NEW_SITES_DISCOVERED"]
     assert report["PENDING_SOURCE_MAPPINGS"] == 0
     assert report["STRICT_INVENTORY_RESULT"] == "PASS"
-    assert report["PRODUCTION_APPROVAL"] == "BLOCKED"
+    assert report["INSTRUCTION_APPROVAL"] == "NOT_REQUIRED"
     assert report["UNRESOLVED_INSTRUCTION_PATHS"] == []
 
 

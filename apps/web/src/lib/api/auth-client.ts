@@ -13,6 +13,7 @@ import {
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
+import type { GenerateMfaRecoveryCodesOutcome } from "./types/mfa-recovery-codes.types";
 
 import type {
   MfaRecoveryCodeVerifyRequest,
@@ -533,6 +534,56 @@ export async function enrollMfa(): Promise<EnrollMfaOutcome> {
   );
 
   return toEnrollMfaOutcome(payload, ok, problemCode);
+}
+
+/**
+ * Business purpose: Replace the account's recovery credentials with a backend-committed batch.
+ * Business rules:
+ * - Accept only a nonempty batch containing exclusively nonempty strings.
+ * - Preserve MFA and password challenges; never retry an ambiguous write automatically.
+ * Execution flow:
+ * 1. Request replacement through the authenticated BFF.
+ * 2. Validate the committed batch or map the authentication failure for Settings.
+ * Failure cases:
+ * - Malformed successful responses throw an uncertain-result error because the old batch may be revoked.
+ * - Network failures propagate without a retry.
+ * Side effects:
+ * - Revokes previous recovery codes and creates a new audited batch through the backend.
+ */
+export async function generateMfaRecoveryCodes(): Promise<GenerateMfaRecoveryCodesOutcome> {
+  const { payload, ok, problemCode, requiredAction } = await apiRequest(
+    "/api/auth/mfa/recovery-codes",
+    { method: "POST" },
+  );
+  const codes = (payload as { recovery_codes?: unknown } | null)
+    ?.recovery_codes;
+  if (
+    ok &&
+    Array.isArray(codes) &&
+    codes.length > 0 &&
+    codes.every(
+      (code): code is string =>
+        typeof code === "string" && code.trim().length > 0,
+    )
+  ) {
+    return { kind: API_OUTCOME_KINDS.loaded, recoveryCodes: codes };
+  }
+  if (ok) throw new Error("recovery-codes-not-confirmed");
+  if (requiredAction === REQUIRED_ACTIONS.reauthenticate)
+    return { kind: API_OUTCOME_KINDS.reauthRequired };
+  const failure = toDisableMfaOutcome(payload, false, problemCode);
+  if (
+    failure.kind === API_OUTCOME_KINDS.mfaRequired ||
+    failure.kind === API_OUTCOME_KINDS.reauthRequired ||
+    failure.kind === API_OUTCOME_KINDS.sessionInvalid
+  )
+    return failure;
+  const keys = getProblemMessageKeys(payload);
+  return {
+    kind: API_OUTCOME_KINDS.error,
+    titleKey: keys?.titleKey ?? "pages.mfaEnroll.errors.requestFailedTitle",
+    detailKey: keys?.detailKey ?? "pages.mfaEnroll.errors.requestFailedDetail",
+  };
 }
 
 export async function recordMfaRecoveryCodeAccess(

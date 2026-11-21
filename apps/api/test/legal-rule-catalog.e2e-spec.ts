@@ -32,6 +32,8 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
+import { HttpExceptionFilter } from "../src/platform/http/filters/http-exception.filter.js";
+import { LoggingContextMiddleware } from "../src/platform/logging/logging-context.middleware.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
@@ -216,6 +218,10 @@ database(
       }).compile();
       app = builder.createNestApplication();
       app.useLogger(false);
+      // Match AppModule so validation pipes can read the incoming correlation header.
+      const loggingContext = new LoggingContextMiddleware();
+      app.use(loggingContext.use.bind(loggingContext));
+      app.useGlobalFilters(new HttpExceptionFilter());
       await app.init();
       catalog = builder.get(LegalRuleCatalogService);
       const source = await db.legalSourceVersion.create({
@@ -525,12 +531,47 @@ database(
         output: output(),
         failureCode: null,
       };
+      const correlationId = randomUUID();
+      const rejected = await worker("/complete", {
+        ...success,
+        output: { ...success.output, analysis: { text: "private fixture" } },
+      })
+        .set("x-correlation-id", correlationId)
+        .expect(400);
+      expect(rejected.body).toMatchObject({
+        ok: false,
+        problem: {
+          code: C.LEGAL_RULE_CATALOG_ERRORS.INVALID,
+          status: 400,
+          correlationId,
+          meta: { issues: "output.analysis" },
+        },
+      });
+      expect(rejected.text).not.toContain("private fixture");
       const foreign = output();
       foreign.legalRequirements[0].operativePropositions![0].sourceRefs[0] = {
         ...sourceRef,
         locator: "foreign-locator",
       };
-      await worker("/complete", { ...success, output: foreign }).expect(422);
+      const invalidSource = await worker("/complete", {
+        ...success,
+        output: foreign,
+      })
+        .set("x-correlation-id", correlationId)
+        .expect(422);
+      expect(invalidSource.body).toMatchObject({
+        ok: false,
+        problem: {
+          code: C.LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+          status: 422,
+          correlationId,
+          meta: {
+            issues:
+              "output.legalRequirements.0.operativePropositions.sourceRefs",
+          },
+        },
+      });
+      expect(invalidSource.text).not.toContain("foreign-locator");
       const weakened = output();
       weakened.assessmentRules[0].applicabilityGuidance =
         "Discard parent conditions";
@@ -544,6 +585,11 @@ database(
         ...success,
         output: output("conflicting replay"),
       }).expect(409);
+      await worker("/complete", {
+        ...success,
+        preparationRunId: batch.items[1].preparationRunId,
+        output: { ...success.output, analysis: false },
+      }).expect(400);
       await worker("/complete", {
         preparationRunId: batch.items[1].preparationRunId,
         executionState: A.FAILED,

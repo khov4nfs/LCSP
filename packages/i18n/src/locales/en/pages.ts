@@ -2738,6 +2738,56 @@ export const enPages = {
         recoveryDescription:
           "Send recovery instructions through the current LCSP password recovery flow when you need to reset access.",
       },
+      accountSecurity: {
+        emailTitle: "Recovery email and email preferences",
+        emailHelp:
+          "Choose the addresses used by account and recovery policies. Clearing the recovery email removes it from your account.",
+        recoveryEmail: "Recovery email",
+        accountEmail: "Account email",
+        allVerified: "All verified addresses",
+        primaryPolicy: "Primary email address policy",
+        backupPolicy: "Backup recovery email policy",
+        emailRequired:
+          "Enter a recovery email before selecting it as the primary address.",
+        save: "Save security preferences",
+        saving: "Saving…",
+        reset: "Reset changes",
+        saved: "Security preferences saved and confirmed.",
+        failed: "The action failed. Your changes have been kept.",
+        unconfirmed:
+          "Could not confirm the result. Reload this page before trying again.",
+        cancelled: "Verification canceled. The action was not continued.",
+        rejected:
+          "The email or policy was rejected. Check the address and policy combination.",
+        challenge: "Verification is still required. Please retry the action.",
+        loading: "Loading account security…",
+        loadFailed: "Could not load account security.",
+        mfaTitle: "Two-factor authentication",
+        mfaEnabled: "Authenticator enabled for this account.",
+        mfaDisabled:
+          "Authenticator is not enabled. Complete setup and verify a code to enable it.",
+        enroll: "Set up authenticator",
+        disable: "Disable two-factor authentication",
+        disabled: "Two-factor authentication disabled and confirmed.",
+        verified: "Authenticator verified and enabled.",
+        busy: "Processing…",
+        regenerate: "Generate new recovery codes",
+        disableDescription:
+          "Disabling removes the authenticator and invalidates all recovery codes. You may need both authenticator verification and your password.",
+        regenerateDescription:
+          "A new batch immediately invalidates all previous recovery codes. Save the new codes before closing them.",
+        confirm: "Confirm",
+        cancel: "Cancel",
+        codesTitle: "Save your recovery codes",
+        codesDescription:
+          "These codes cannot be retrieved after closing. Keep them in a safe place. Newly enrolled codes become usable after authenticator verification.",
+        closeCodes: "I have saved these codes",
+        copied: "Recovery codes copied.",
+        downloaded: "Recovery codes downloaded.",
+        accessFailed: "Could not record access or export codes. Please retry.",
+        downloadName: "lcsp-recovery-codes.txt",
+        restart: "Restart authenticator setup",
+      },
       sessions: {
         revoking: "Revoking sessions…",
         refresh: "Refresh sessions",

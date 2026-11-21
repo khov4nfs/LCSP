@@ -44,7 +44,11 @@ export const LEGAL_RULE_INELIGIBILITY_REASONS = {
   CITATION_INVALID: "CITATION_INVALID",
   CATALOG_EMPTY: "CATALOG_EMPTY",
 } as const;
-export const LEGAL_RULE_LIMITS = { catalogRules: 10000, pageSize: 50 } as const;
+export const LEGAL_RULE_LIMITS = {
+  catalogRules: 10000,
+  pageSize: 50,
+  preparedArtifacts: 256,
+} as const;
 export const LEGAL_RULE_SOURCE_PROVISION_LEVELS = {
   ARTICLE: "ARTICLE",
   CLAUSE: "CLAUSE",
@@ -230,17 +234,25 @@ function normalizeSelectedRuleOutput(
 export const preparationRuleOutputSchema = z
   .strictObject({
     analysis: text.max(100000),
-    legalRequirements: z.array(legalRequirementSchema).max(256),
-    assessmentRules: z.array(assessmentRuleAuthoringSchema).max(256),
-    contextRelations: z.array(legalContextRelationSchema).max(256).default([]),
+    legalRequirements: z
+      .array(legalRequirementSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+    assessmentRules: z
+      .array(assessmentRuleAuthoringSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+    contextRelations: z
+      .array(legalContextRelationSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts)
+      .default([]),
   })
   .transform(normalizeSelectedRuleOutput);
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;
 export const preparationInstructionReceiptSchema = z.strictObject({
   revision: z.string().trim().min(1).max(256),
-  fingerprint,
   content: z.string().min(1).max(200000),
-  bundleFingerprint: fingerprint,
+  // Deprecated receipt fields remain optional to read historical result records.
+  fingerprint: fingerprint.optional(),
+  bundleFingerprint: fingerprint.optional(),
 });
 export const preparationRuleCompleteSchema = z.strictObject({
   preparationRunId: id,
@@ -260,6 +272,13 @@ export const preparationRuleCompleteSchema = z.strictObject({
 });
 export type PreparationRuleComplete = z.infer<
   typeof preparationRuleCompleteSchema
+>;
+// Dry-run request: the worker asks the API to apply the settlement validation before it accepts a result.
+export const preparationRuleValidateSchema = preparationRuleCompleteSchema
+  .pick({ preparationRunId: true })
+  .extend({ output: preparationRuleOutputSchema });
+export type PreparationRuleValidate = z.infer<
+  typeof preparationRuleValidateSchema
 >;
 export const preparationRuleClaimSchema = z.strictObject({
   preparationRunId: id,

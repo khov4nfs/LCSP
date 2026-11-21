@@ -27,6 +27,16 @@ from tools.common.capabilities.platform.callback_schemas import (
 logger = get_logger(__name__)
 
 _AGENT_STREAM_NETWORK_BACKOFF_SECONDS = 2.0
+SELECTED_RULE_COMPLETE_PATH = "/internal/legal-rule-preparation/complete"
+SELECTED_RULE_VALIDATE_PATH = "/internal/legal-rule-preparation/validate"
+SELECTED_RULE_OUTPUT_PATHS = (SELECTED_RULE_COMPLETE_PATH, SELECTED_RULE_VALIDATE_PATH)
+SELECTED_RULE_INVALID_CALLBACK = "LEGAL_RULE_CATALOG_REQUEST_INVALID"
+SELECTED_RULE_INVALID_RESULT = "LEGAL_RULE_RESULT_INVALID"
+SELECTED_RULE_OUTPUT_REJECTIONS = {
+    (400, SELECTED_RULE_INVALID_CALLBACK),
+    (422, SELECTED_RULE_INVALID_RESULT),
+}
+_SELECTED_RULE_OUTPUT_PATH = re.compile(r"output(?:\.[A-Za-z][A-Za-z0-9]*|\.\d+)*", re.ASCII)
 
 _PRIVACY_FLAG_KEYS = {
     "containsSourceCode",
@@ -49,10 +59,13 @@ class WorkerCallbackError(Exception):
         *,
         status_code: int | None = None,
         error_code: str | None = None,
+        issue_paths: tuple[str, ...] = (),
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.error_code = error_code
+        # Bounded structural field paths only; never submitted values.
+        self.issue_paths = issue_paths
         self.callback_client_error = (
             status_code is not None and 400 <= status_code < 500
         )
@@ -121,15 +134,38 @@ class WorkerApiClient:
         Side effects:
         - Persists one result and run outcome through the authoritative API.
         """
-        return self._post_with_retry("/internal/legal-rule-preparation/complete", {"preparationRunId": run_id, "executionState": state, "output": output, "failureCode": failure_code}, redact=False)
+        return self._post_with_retry(SELECTED_RULE_COMPLETE_PATH, {"preparationRunId": run_id, "executionState": state, "output": output, "failureCode": failure_code}, redact=False)
+
+    def validate_selected_rule_output(self, run_id: str, output: dict) -> dict:
+        """Business purpose: Ask the API whether a drafted selected-rule result would be accepted before it is settled.
+
+        Business rules:
+
+        - The API owns the validation; this dry run persists nothing and its transport is retried, never model work.
+        Execution flow:
+        1. Submit the run identity and draft through the existing retrying authenticated adapter.
+        Failure cases:
+        - A structurally invalid draft raises WorkerCallbackError carrying safe field paths so the author can repair it.
+        Side effects:
+        - Read-only on the API side; no run state changes.
+        """
+        return self._post_with_retry(SELECTED_RULE_VALIDATE_PATH, {"preparationRunId": run_id, "output": output}, redact=False)
 
     def _post_with_retry(
         self, path: str, payload: dict, *, redact: bool = True, method: str = "POST"
     ) -> dict:
-        """POST a sanitized payload with exponential retry for network/5xx failures.
+        """Business purpose: Deliver internal worker callbacks under the platform retry and privacy policy.
 
-        Client errors fail immediately; transport and 5xx failures retry up to the
-        configured attempt cap.
+        Business rules:
+        - A worker callback uses the active correlation and worker credentials; sanitize payloads unless the endpoint requires exact authored data.
+        - Retry transport and server failures within the attempt limit. A rejected selected-rule output may log its run identity and bounded validation paths, without field values.
+        Execution flow:
+        1. Verify execution is active as required by the endpoint and send the callback.
+        2. Decode the accepted response or classify the failure and retry eligible requests with backoff.
+        Failure cases:
+        - Permanent client errors and exhausted attempts raise WorkerCallbackError so callers can manage settlement.
+        Side effects:
+        - Makes authenticated internal HTTP calls and emits bounded, sanitized diagnostics.
         """
         url = f"{self._base_url}{path}"
         cid = get_correlationId()
@@ -176,6 +212,12 @@ class WorkerApiClient:
                     message = client_error_message(resp.status_code)
                     if error_code:
                         message = f"{error_code}: {message}"
+                    issue_paths: tuple[str, ...] = ()
+                    if (
+                        path in SELECTED_RULE_OUTPUT_PATHS
+                        and (resp.status_code, error_code) in SELECTED_RULE_OUTPUT_REJECTIONS
+                    ):
+                        issue_paths = self._log_selected_rule_rejection(resp, payload["preparationRunId"], cid, error_code)
                     if resp.status_code == 400 and error_code == "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID" and path in (
                         InternalPath.COMPLIANCE_RULE_SET_VALIDATIONS,
                         InternalPath.COMPLIANCE_RULE_SET_SUBMISSIONS,
@@ -200,6 +242,7 @@ class WorkerApiClient:
                         message,
                         status_code=resp.status_code,
                         error_code=error_code,
+                        issue_paths=issue_paths,
                     )
 
                 if resp.status_code >= 500:
@@ -250,6 +293,35 @@ class WorkerApiClient:
                 ) from exc
 
         raise WorkerCallbackError(unexpected_error_message())
+
+    @staticmethod
+    def _log_selected_rule_rejection(response: httpx.Response, run_id: str, correlation_id: str, error_code: str) -> tuple[str, ...]:
+        """Business purpose: Identify rejected selected rule results across the worker and API.
+
+        Business rules:
+        - Include the known run identity, correlation and problem code; only bounded output field paths may enter diagnostics.
+        Execution flow:
+        1. Read validation issue paths from the problem metadata.
+        2. Log the rejection and retain only paths matching the selected output shape.
+        Failure cases:
+        - Missing, oversized, or unrecognized metadata still yields a rejection event with an empty list of paths.
+        Side effects:
+        - Emits a warning without writing run state or logging submitted values; returns the retained paths.
+        """
+        problem = response.json().get("problem")
+        meta = problem.get("meta") if isinstance(problem, dict) else None
+        issues = meta.get("issues") if isinstance(meta, dict) else None
+        fields = issues.split(",") if isinstance(issues, str) and len(issues) <= 2000 else []
+        paths = [field for field in fields[:20] if _SELECTED_RULE_OUTPUT_PATH.fullmatch(field)]
+        logger.warning(
+            "selected_rule_callback_invalid_output",
+            preparation_run_id=run_id,
+            correlationId=correlation_id,
+            status_code=response.status_code,
+            error_code=error_code,
+            validation_paths=paths,
+        )
+        return tuple(paths)
 
     def _response_error_code(self, response) -> str | None:
         """Extract a typed error code from supported API/problem response shapes."""

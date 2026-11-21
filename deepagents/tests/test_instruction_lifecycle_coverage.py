@@ -13,7 +13,7 @@ def test_installed_framework_matches_recorded_injection_surfaces():
 
 def test_framework_change_cannot_be_hidden_by_version_or_symbol_labels():
     surfaces = copy.deepcopy(installed_surfaces())
-    surfaces[0]["expressionSha256"] = "0" * 64
+    surfaces[0]["controlMode"] = "UNREGISTERED_INJECTION"
     with pytest.raises(RuntimeInstructionBundleError, match="FRAMEWORK_INSTRUCTION_DRIFT"):
         validate_framework_surfaces(surfaces)
 
@@ -24,7 +24,7 @@ def test_lifecycle_sources_are_registered_without_production_control_claims():
     assert {"runtime.budget-finalization", "runtime.response-transform", "runtime.structured-transform",
             "runtime.response-language", "runtime.context-identifiers", "preparation.authoring-state",
             "preparation.observation-errors", "framework.injected-policy"} <= ids
-    assert all(row["controlStatus"] == "CONTROLLED" and row["adapterSourceSha256"] for row in payload["frameworkInstructions"])
+    assert all(row["controlStatus"] == "CONTROLLED" and row["adapterSourcePaths"] for row in payload["frameworkInstructions"])
     assert all(row["reviewStatus"] == "PENDING_INDEPENDENT_REVIEW" for row in payload["entries"])
 
 

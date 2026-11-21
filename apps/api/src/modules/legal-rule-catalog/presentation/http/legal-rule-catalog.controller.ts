@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -28,7 +29,7 @@ const body = (schema: z.ZodType) =>
   new ZodValidationPipe(schema, C.LEGAL_RULE_CATALOG_ERRORS.INVALID);
 const uuid = () => new ParseUUIDPipe();
 const correlation = (req: AuthenticatedRequest) =>
-  req.correlationId || randomUUID();
+  req.correlationId || req.get("x-correlation-id")?.trim() || randomUUID();
 
 @Controller("admin/legal-rule-catalog")
 @UseGuards(RbacGuard)
@@ -349,10 +350,58 @@ export class PreparationRuleWorkerController {
     );
   }
 
+  /**
+   * Business purpose: Tell the worker whether a drafted selected-rule result is structurally acceptable before it is settled.
+   * Business rules:
+   * - Only the authenticated worker may call it; it applies the same schema and provenance checks as completion and persists nothing.
+   * Execution flow:
+   * 1. Validate the body with the shared output schema and delegate to the preparation service.
+   * Failure cases:
+   * - Invalid drafts return HTTP 400 or 422 with bounded field paths, matching the completion callback.
+   * Side effects:
+   * - Read-only; no run state changes.
+   */
+  @Post("validate")
+  @HttpCode(200)
+  async validate(
+    @Body(
+      new ZodValidationPipe(
+        C.preparationRuleValidateSchema,
+        C.LEGAL_RULE_CATALOG_ERRORS.INVALID,
+        HttpStatus.BAD_REQUEST,
+        true,
+      ),
+    )
+    request: C.PreparationRuleValidate,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.validate(request, correlation(req)),
+    );
+  }
+
+  /**
+   * Business purpose: Settle a selected rule with the outcome reported by its worker.
+   * Business rules:
+   * - Only the authenticated worker may submit a result, and the shared completion schema governs its shape.
+   * Execution flow:
+   * 1. Validate the callback body and delegate settlement to the preparation service.
+   * Failure cases:
+   * - Invalid callbacks return HTTP 400 with bounded schema diagnostics for the worker.
+   * Side effects:
+   * - Accepted requests may persist a terminal result through the preparation service.
+   */
   @Post("complete")
   @HttpCode(200)
   async complete(
-    @Body(body(C.preparationRuleCompleteSchema))
+    @Body(
+      new ZodValidationPipe(
+        C.preparationRuleCompleteSchema,
+        C.LEGAL_RULE_CATALOG_ERRORS.INVALID,
+        HttpStatus.BAD_REQUEST,
+        true,
+      ),
+    )
     request: C.PreparationRuleComplete,
     @Req() req: AuthenticatedRequest,
   ) {

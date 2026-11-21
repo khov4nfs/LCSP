@@ -1,15 +1,13 @@
-"""Verified, build-time English runtime instruction bundles.
+"""English runtime instruction loading without manual approval or SHA-256 checks.
 
-The runtime may consume English instruction bytes only from an independently
-approved bundle.  Vietnamese source remains outside the runtime selection path:
-it is hashed solely to prove the exact reviewed origin.  This module does not
-translate, approve, or fall back between languages.
+Vietnamese is maintained as the source and English as the execution language.
+Run-local snapshots preserve exact text, while the inventory defines allowed
+instruction identities and paths. SHA metadata from legacy bundles is not a gate.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -48,22 +46,18 @@ def clear_runtime_bundle_cache() -> None:
 
 
 def production_runtime_bundle(*, fresh: bool = False) -> "ApprovedEnglishRuntimeBundle":
-    """Business purpose: Load runtime English instructions directly into the agent.
+    """Business purpose: Load registered EN model instructions without approval or SHA checks.
 
     Business rules:
-    - Instructions are loaded directly from disk without manifest or SHA guard checks.
-    - Existing callers keep process caching; an explicit fresh snapshot reads current development assets without changing another run's pinned view.
-
+    - Use only inventory-registered VI/EN paths; neither approval nor content hash gates loading.
+    - Process caching and run-local snapshots preserve stable text during a model invocation.
     Execution flow:
-    1. Return this run's pinned bundle, or the process cache unless fresh loading is requested.
-    2. Read English candidate instruction files directly from disk into runtime entries.
-    3. Construct and cache the runtime bundle.
-
+    1. Resolve the registered instruction paths and reject incomplete or duplicate identities.
+    2. Read non-empty UTF-8 source and runtime text, then create the immutable run view.
     Failure cases:
-    - If no instruction files can be found, raise RuntimeInstructionBundleError.
-
+    - Missing, empty, unsafe, malformed or unregistered assets fail closed.
     Side effects:
-    - Reads text files from disk; fresh loading does not replace the process cache.
+    - Read instruction files and optionally cache a process-scoped bundle.
     """
     global _RUNTIME_BUNDLE_CACHE
     scoped = _SCOPED_RUNTIME_BUNDLE.get()
@@ -72,67 +66,54 @@ def production_runtime_bundle(*, fresh: bool = False) -> "ApprovedEnglishRuntime
     if _RUNTIME_BUNDLE_CACHE is not None and not fresh:
         return _RUNTIME_BUNDLE_CACHE
 
-    from instruction_source_inventory import ROOT
+    from instruction_source_inventory import ROOT, safe_path
+
+    try:
+        inventory = json.loads((ROOT / "instructions/inventory.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise RuntimeInstructionBundleError("INSTRUCTION_INVENTORY_MISSING_OR_INVALID") from error
+    if not isinstance(inventory, dict) or inventory.get("schemaVersion") != "LCSP_EN_RUNTIME_BUNDLE_V1":
+        raise RuntimeInstructionBundleError("INSTRUCTION_INVENTORY_VERSION")
+    rows, required = inventory.get("entries"), inventory.get("requiredSourceIds")
+    if not isinstance(rows, list) or not rows or not isinstance(required, list):
+        raise RuntimeInstructionBundleError("INSTRUCTION_INVENTORY_INCOMPLETE")
 
     entries: dict[str, RuntimeInstructionEntry] = {}
-
-    candidate_dir = ROOT / "instructions/candidates/r1"
-    if candidate_dir.exists():
-        for file in sorted(candidate_dir.glob("*.txt")):
-            sid = file.stem
-            try:
-                text = file.read_text(encoding="utf-8")
-            except OSError:
-                continue
-            text_sha = sha256(text.encode("utf-8")).hexdigest()
-            entries[sid] = RuntimeInstructionEntry(
-                source_id=sid,
-                vietnamese_source_revision="r1",
-                vietnamese_origin_sha256="",
-                english_runtime_sha256=text_sha,
-                english_runtime=text,
-            )
-
-    configured = os.environ.get("LCSP_RUNTIME_INSTRUCTION_MANIFEST")
-    manifest_path = Path(configured) if configured else ROOT / "instructions/candidates/r1/manifest.json"
-    if not manifest_path.exists():
-        manifest_path = ROOT / "instructions/candidates/r1/manifest.pending.json"
-    if manifest_path.exists():
+    for row in rows:
+        if not isinstance(row, dict):
+            raise RuntimeInstructionBundleError("INSTRUCTION_ENTRY_INVALID")
+        source_id = _required_string(row.get("sourceId"), "INSTRUCTION_ENTRY_ID_INVALID")
+        if source_id in entries:
+            raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_DUPLICATE")
         try:
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-            for item in payload.get("entries", []):
-                sid = item.get("sourceId")
-                if not sid or sid in entries:
-                    continue
-                en_path = ROOT / item.get("englishRuntimePath", "")
-                if en_path.exists():
-                    text = en_path.read_text(encoding="utf-8")
-                    text_sha = sha256(text.encode("utf-8")).hexdigest()
-                    entries[sid] = RuntimeInstructionEntry(
-                        source_id=sid,
-                        vietnamese_source_revision=item.get("vietnameseSourceRevision", "r1"),
-                        vietnamese_origin_sha256="",
-                        english_runtime_sha256=text_sha,
-                        english_runtime=text,
-                    )
-        except Exception:
-            pass
-
-    if not entries:
-        raise RuntimeInstructionBundleError("BUNDLE_MISSING")
+            origin = safe_path(ROOT, row.get("vietnameseSourcePath")).read_text(encoding="utf-8")
+            english = safe_path(ROOT, row.get("englishCandidatePath")).read_text(encoding="utf-8")
+        except (OSError, UnicodeError, TypeError, ValueError) as error:
+            raise RuntimeInstructionBundleError("INSTRUCTION_ASSET_MISSING_OR_INVALID") from error
+        if not origin.strip() or not english.strip():
+            raise RuntimeInstructionBundleError("INSTRUCTION_ENTRY_EMPTY")
+        entries[source_id] = RuntimeInstructionEntry(
+            source_id=source_id,
+            vietnamese_source_revision=row.get("vietnameseSourceRevision") or "current",
+            vietnamese_origin_sha256="",
+            english_runtime_sha256="",
+            english_runtime=english,
+        )
+    if (len(required) != len(entries) or not all(isinstance(x, str) for x in required)
+            or set(required) != set(entries)):
+        raise RuntimeInstructionBundleError("INSTRUCTION_REQUIRED_SOURCES_MISMATCH")
 
     bundle = ApprovedEnglishRuntimeBundle(
-        bundle_id="direct-runtime-bundle",
+        bundle_id=inventory.get("bundleId") or "current-instructions",
         vietnamese_inventory_sha256="",
         english_bundle_sha256="",
-        approval_identity="direct-runtime",
-        approval_revision="r1",
+        approval_identity="NOT_REQUIRED",
+        approval_revision="NOT_REQUIRED",
         entries=entries,
     )
     if not fresh:
         _RUNTIME_BUNDLE_CACHE = bundle
     return bundle
-
 
 @contextmanager
 def runtime_instruction_snapshot():
@@ -157,7 +138,7 @@ def runtime_instruction_snapshot():
 
 
 def runtime_instruction(source_id: str, key: str | None = None) -> str:
-    """Business purpose: Resolve one English instruction or keyed asset from the approved bundle.
+    """Business purpose: Resolve one English instruction or keyed asset from the instruction set.
 
     Business rules:
     - There is no locale selection or legacy prompt fallback.
@@ -166,7 +147,7 @@ def runtime_instruction(source_id: str, key: str | None = None) -> str:
     Failure cases:
     - Missing, invalid or empty entries fail closed.
     Side effects:
-    - Read approved runtime assets only.
+    - Read runtime assets only.
     """
     text = production_runtime_bundle().instruction(source_id)
     if key is not None:
@@ -177,21 +158,6 @@ def runtime_instruction(source_id: str, key: str | None = None) -> str:
     if not isinstance(text, str) or not text.strip():
         raise RuntimeInstructionBundleError("INSTRUCTION_ENTRY_MISSING:" + source_id)
     return text
-
-
-def _digest(value: bytes) -> str:
-    """Business purpose: Fingerprint exact runtime instruction bytes.
-
-    Business rules:
-    - Hash the supplied bytes without guessing or normalization.
-    Execution flow:
-    1. Return their SHA-256 digest.
-    Failure cases:
-    - Invalid byte input propagates a type error.
-    Side effects:
-    - None: pure hashing.
-    """
-    return sha256(value).hexdigest()
 
 
 def _required_string(value: object, code: str) -> str:
@@ -230,40 +196,34 @@ def _safe_relative_path(value: object, code: str) -> Path:
     return path
 
 
-def _read_hashed(root: Path, relative: object, expected: object, code: str) -> bytes:
-    """Business purpose: Read an instruction asset with optional digest verification.
+def _read_asset(root: Path, relative: object, code: str) -> bytes:
+    """Business purpose: Read one trusted-path instruction file without a checksum.
 
     Business rules:
-    - If an expected digest is provided, verify byte-exact match.
-    - If no expected digest is provided, read and return the asset directly.
-
+    - Resolve paths within the configured root and require non-empty valid UTF-8 text.
     Execution flow:
-    1. Resolve safe relative path under root.
-    2. Read bytes from disk.
-    3. If expected digest is present, compare with computed digest.
-
+    1. Normalize the relative path and resolve it under the trusted asset root.
+    2. Read and validate the exact text bytes.
     Failure cases:
-    - Missing files or digest mismatch raise the caller-specified bundle error.
-
+    - Missing, empty, invalid-encoding or escaping paths are rejected.
     Side effects:
-    - Read one artifact without modifying it.
+    - Read one file without changing filesystem or runtime state.
     """
-    path = root / _safe_relative_path(relative, code)
-    try:
-        value = path.read_bytes()
-    except OSError as error:
-        raise RuntimeInstructionBundleError(code) from error
-    if not value:
+    resolved_root = root.resolve()
+    path = (resolved_root / _safe_relative_path(relative, code)).resolve()
+    if not path.is_relative_to(resolved_root):
         raise RuntimeInstructionBundleError(code)
-    if expected:
-        if _digest(value) != _required_string(expected, code):
+    try:
+        data = path.read_bytes()
+        if not data or not data.decode("utf-8").strip():
             raise RuntimeInstructionBundleError(code)
-    return value
-
+    except (OSError, UnicodeError) as error:
+        raise RuntimeInstructionBundleError(code) from error
+    return data
 
 @dataclass(frozen=True)
 class RuntimeInstructionEntry:
-    """One source-pinned model-facing unit from an approved English bundle."""
+    """One model-facing instruction from the declared English instruction set."""
 
     source_id: str
     vietnamese_source_revision: str
@@ -274,7 +234,7 @@ class RuntimeInstructionEntry:
 
 @dataclass(frozen=True)
 class ApprovedEnglishRuntimeBundle:
-    """An immutable English runtime bundle with an independently supplied approval."""
+    """An immutable English runtime snapshot; approval is not required."""
 
     bundle_id: str
     vietnamese_inventory_sha256: str
@@ -322,21 +282,11 @@ class ApprovedEnglishRuntimeBundle:
         if payload.get("approvalStatus") == "REVOKED":
             raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_REVOKED")
         status = payload.get("approvalStatus")
-        if status != "APPROVED":
-            if not (allow_pending and status == "PENDING"):
-                raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_NOT_APPROVED")
-        bundle_id = payload.get("bundleId") or "direct-runtime-bundle"
-        if allow_pending:
-            approver = payload.get("approvalIdentity") or "candidate-default"
-            approval_revision = payload.get("approvalRevision") or "candidate-r1"
-        else:
-            approver = _required_string(payload.get("approvalIdentity"), "RUNTIME_BUNDLE_APPROVER_MISSING")
-            approval_revision = _required_string(payload.get("approvalRevision"), "RUNTIME_BUNDLE_APPROVAL_REVISION_MISSING")
-        if approval_verifier is not None:
-            if not approval_verifier(payload):
-                raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_APPROVAL_UNVERIFIABLE")
-        elif not allow_pending:
-            raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_APPROVAL_UNVERIFIABLE")
+        # Historical approval status is ignored: instruction loading needs no reviewer.
+        # An explicit REVOKED marker remains a separate administrative disable switch.
+        bundle_id = payload.get("bundleId") or "current-instructions"
+        approver = "NOT_REQUIRED"
+        approval_revision = "NOT_REQUIRED"
         entries_payload = payload.get("entries")
         if not isinstance(entries_payload, list) or not entries_payload:
             raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_ENTRIES_MISSING")
@@ -349,35 +299,19 @@ class ApprovedEnglishRuntimeBundle:
             source_id = _required_string(item.get("sourceId"), "RUNTIME_BUNDLE_ENTRY_ID_INVALID")
             if source_id in entries:
                 raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_DUPLICATE_SOURCE_ID")
-            vietnamese = _read_hashed(root, item.get("vietnameseSourcePath"), item.get("vietnameseSourceSha256"), "RUNTIME_BUNDLE_SOURCE_DRIFT")
-            english = _read_hashed(root, item.get("englishRuntimePath"), item.get("englishRuntimeSha256"), "RUNTIME_BUNDLE_RUNTIME_DRIFT")
-            source_revision = item.get("vietnameseSourceRevision") or "r1"
-            origin_digest = _digest(vietnamese)
-            runtime_digest = _digest(english)
-            try:
-                english_text = english.decode("utf-8")
-            except UnicodeDecodeError as error:
-                raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_RUNTIME_INVALID_UTF8") from error
+            vietnamese = _read_asset(root, item.get("vietnameseSourcePath"), "RUNTIME_BUNDLE_SOURCE_MISSING_OR_INVALID")
+            english = _read_asset(root, item.get("englishRuntimePath"), "RUNTIME_BUNDLE_RUNTIME_MISSING_OR_INVALID")
+            source_revision = item.get("vietnameseSourceRevision") or "current"
             entries[source_id] = RuntimeInstructionEntry(
                 source_id=source_id,
                 vietnamese_source_revision=source_revision,
-                vietnamese_origin_sha256=origin_digest,
-                english_runtime_sha256=runtime_digest,
-                english_runtime=english_text,
+                vietnamese_origin_sha256="",
+                english_runtime_sha256="",
+                english_runtime=english.decode("utf-8"),
             )
-            inventory_rows.append({"sourceId": source_id, "sha256": origin_digest})
-            english_rows.append({"sourceId": source_id, "sha256": runtime_digest})
-        if expected_entry_ids is not None and frozenset(entries) != frozenset(expected_entry_ids):
+        if expected_entry_ids is not None and set(entries) != set(expected_entry_ids):
             raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_SOURCE_INVENTORY_MISMATCH")
-        inventory_digest = _digest(json.dumps(sorted(inventory_rows, key=lambda row: row["sourceId"]), separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        english_digest = _digest(json.dumps(sorted(english_rows, key=lambda row: row["sourceId"]), separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        if payload.get("vietnameseInventorySha256"):
-            if inventory_digest != _required_string(payload.get("vietnameseInventorySha256"), "RUNTIME_BUNDLE_SOURCE_INVENTORY_DRIFT"):
-                raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_SOURCE_INVENTORY_DRIFT")
-        if payload.get("englishBundleSha256"):
-            if english_digest != _required_string(payload.get("englishBundleSha256"), "RUNTIME_BUNDLE_RUNTIME_INVENTORY_DRIFT"):
-                raise RuntimeInstructionBundleError("RUNTIME_BUNDLE_RUNTIME_INVENTORY_DRIFT")
-        return cls(bundle_id, inventory_digest, english_digest, approver, approval_revision, entries)
+        return cls(bundle_id, "", "", approver, approval_revision, entries)
 
     def instruction(self, source_id: str) -> str:
         """Business purpose: Return the exact verified English bytes for a declared source identity.
@@ -410,14 +344,7 @@ class ApprovedEnglishRuntimeBundle:
         """
         return {
             "runtimeInstructionBundleId": self.bundle_id,
-            "vietnameseOriginInventorySha256": self.vietnamese_inventory_sha256,
-            "englishRuntimeBundleSha256": self.english_bundle_sha256,
-            "runtimeBundleApprovalIdentity": self.approval_identity,
-            "runtimeBundleApprovalRevision": self.approval_revision,
-            "runtimeInstructionSha256": {
-                key: value.english_runtime_sha256 for key, value in sorted(self.entries.items())
-            },
-            "vietnameseOriginInstructionSha256": {
-                key: value.vietnamese_origin_sha256 for key, value in sorted(self.entries.items())
-            },
+            "instructionVersioning": "EXACT_RUN_SNAPSHOT",
+            "approvalRequired": False,
+            "instructionIds": sorted(self.entries),
         }

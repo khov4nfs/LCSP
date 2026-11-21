@@ -56,14 +56,15 @@ type SourceProvisionChunk = {
  * Business rules:
  * - Only EFFECTIVE Article, Clause or Point chunks with a classified hierarchy can become source rules.
  * - A parent with descendants is selectable only when its own chunk contains provision text beyond its structural heading and setup lead-in.
- * - Parent headings and lead-ins come from metadata; independently substantive parent chunks remain distinct rules instead of being copied into every child.
- * - Split chunks collapse to one logical leaf identity while every persisted part remains an exact citation reference.
+ * - Parent headings and lead-ins come from metadata; independently substantive parent chunks remain distinct selectable rules.
+ * - Exact EFFECTIVE ancestor chunks are included as context for the selected provision. Siblings, unrelated provisions and non-effective ancestor groups are excluded.
+ * - Split chunks collapse to one logical provision while each persisted part remains an exact citation reference.
  *
  * Execution flow:
  * 1. Group eligible persisted chunk parts by their locator without the transport-only part suffix.
  * 2. Determine descendants and retain only legal leaves or explicitly substantive parent provisions.
  * 3. Compose recorded Article heading/lead-in, Clause heading/lead-in and the selected leaf in reading order with exact line de-duplication.
- * 4. Return stable source identities, bounded descriptions, exact citations and explicit context limitations.
+ * 4. Cite the selected provision and its effective ancestors within the existing bound; return the stable identity and context limitations.
  *
  * Failure cases:
  * - Unclassified and malformed-locator chunks are omitted; non-effective and context-incomplete provisions are returned as typed limitations, never treated as eligible or silently presented as absent.
@@ -492,24 +493,28 @@ export function composeLegalSourceProvisions(input: {
       );
       continue;
     }
-    if (description.length > 12000 || group.chunks.length > 64) {
+    const citationChunks = [...group.chunks];
+    for (const parent of [clauseParent, articleParent]) {
+      if (
+        parent &&
+        parent !== group &&
+        parent.chunks.every(
+          (chunk) => chunk.legalEffectStatus === LegalEffectStatus.EFFECTIVE,
+        )
+      )
+        citationChunks.push(...parent.chunks);
+    }
+    if (description.length > 12000 || citationChunks.length > 64) {
       addLimitation(
         group.identityLocator,
         LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_TOO_LARGE,
       );
       continue;
     }
-    const citationLocatorRefs = group.chunks.map((chunk) => ({
+    const citationLocatorRefs = citationChunks.map((chunk) => ({
       documentId: chunk.documentId,
       locator: chunk.locator,
     }));
-    if (citationLocatorRefs.length > 64) {
-      addLimitation(
-        group.identityLocator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_TOO_LARGE,
-      );
-      continue;
-    }
     const level =
       group.segments.length === 1
         ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.ARTICLE
