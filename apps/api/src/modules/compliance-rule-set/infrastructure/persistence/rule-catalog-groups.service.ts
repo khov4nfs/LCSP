@@ -64,11 +64,15 @@ export async function materializeGroupingProposal(
     where: { id: ruleSetVersionId },
     include: { preparationRun: true },
   });
+  const preparationRun = version.preparationRun;
+  const preparationRunId = version.preparationRunId;
   if (
+    !preparationRun ||
+    !preparationRunId ||
     version.ruleSetDigest !== ruleSetDigest ||
     version.targetActivityScope !==
       PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
-    version.preparationRun.executionState === AgentExecutionState.FAILED ||
+    preparationRun.executionState === AgentExecutionState.FAILED ||
     version.lifecycleState === ArtifactLifecycleState.INVALID
   )
     throw problemException(
@@ -79,8 +83,8 @@ export async function materializeGroupingProposal(
   const review = await tx.ruleSetPreparationScopeReview.findUnique({
     where: {
       preparationRunId_inventoryRevision: {
-        preparationRunId: version.preparationRunId,
-        inventoryRevision: version.preparationRun.claimInventoryRevision,
+        preparationRunId,
+        inventoryRevision: preparationRun.claimInventoryRevision,
       },
     },
   });
@@ -93,8 +97,8 @@ export async function materializeGroupingProposal(
   if (review?.state === PreparationScopeReviewState.APPROVED) {
     const projection = await requireApprovedDevelopmentScope(
       tx,
-      version.preparationRunId,
-      version.preparationRun.claimInventoryRevision,
+      preparationRunId,
+      preparationRun.claimInventoryRevision,
       version.legalSourceVersionId,
       version.targetActivityScope,
       randomUUID(),

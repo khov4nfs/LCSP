@@ -144,7 +144,7 @@ export class ComplianceRuleSetReadModelLoader {
               ...((frozen?.graph as { targetDate?: string } | undefined)
                 ?.targetDate
                 ? {
-                    targetDate: (frozen.graph as { targetDate: string })
+                    targetDate: (frozen?.graph as { targetDate: string })
                       .targetDate,
                   }
                 : {}),
@@ -152,7 +152,7 @@ export class ComplianceRuleSetReadModelLoader {
                 ?.reviewFrontier
                 ? {
                     reviewFrontier: (
-                      frozen.graph as { reviewFrontier: unknown }
+                      frozen?.graph as { reviewFrontier: unknown }
                     ).reviewFrontier,
                   }
                 : {}),

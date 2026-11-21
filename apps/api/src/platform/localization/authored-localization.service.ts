@@ -40,9 +40,118 @@ import {
   authoredLocalizationBacklogResponseSchema,
   AUTHORED_SOURCE_LANGUAGES,
 } from "@lcsp/contracts/assessment-domain";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../http/filters/error.factory.js";
+import { requestStorage } from "../logging/logging-context.js";
 import type { z } from "zod";
+
+export const DEFAULT_TRANSLATION_TIMEOUT_MS = 10_000;
+
+/**
+ * Business purpose: Resolve the distributed correlation identifier for the active localization operation.
+ * Business rules:
+ * - Must retrieve trace correlation identifier from AsyncLocalStorage request storage or incoming headers.
+ * - Falls back to a randomly generated UUID v4 if called outside an active HTTP request context.
+ * Execution flow:
+ * 1. Inspect requestStorage AsyncLocalStorage store for active Express request.
+ * 2. Extract correlationId property or x-correlation-id header value if present and non-empty.
+ * 3. Return resolved correlation identifier, or generate and return a new UUID v4 fallback.
+ * Failure cases:
+ * - Never fails; always returns a non-empty string.
+ * Side effects:
+ * - Pure resolution; no mutations.
+ */
+function resolveContextCorrelationId(): string {
+  const req = requestStorage.getStore();
+  if (req) {
+    const fromReq = (req as unknown as { correlationId?: unknown })
+      .correlationId;
+    if (typeof fromReq === "string" && fromReq.trim()) return fromReq.trim();
+    const header = req.headers?.["x-correlation-id"];
+    const fromHeader = Array.isArray(header) ? header[0] : header;
+    if (typeof fromHeader === "string" && fromHeader.trim())
+      return fromHeader.trim();
+  }
+  return randomUUID();
+}
+
+/**
+ * Business purpose: Dispatch outbound HTTP translation request to external MT provider behind a bounded adapter.
+ * Business rules:
+ * - Request timeout is strictly bounded by the configured timeout window (default 10 seconds).
+ * - Provider responses must match authoredTranslationResponseSchema and target locale/hash invariants.
+ * Execution flow:
+ * 1. Prepare JSON payload with target locale, original language, text content, and origin SHA-256.
+ * 2. Execute HTTP POST to provider URL with AbortSignal.timeout and authorization headers.
+ * 3. Check HTTP status code and throw TRANSLATION_FAILED if non-200.
+ * 4. Parse response JSON against authoredTranslationResponseSchema and verify locale and originSha256 match.
+ * 5. Return extracted translation content, engine name, and engine version.
+ * Failure cases:
+ * - Timeout throws Error with PROVIDER_UNAVAILABLE.
+ * - HTTP error or malformed payload throws Error with TRANSLATION_FAILED or PROVIDER_INVALID.
+ * Side effects:
+ * - Performs outbound network I/O; read-only translation operation.
+ */
+async function callTranslationProviderAdapter(
+  provider: { url: string; headers?: Record<string, string> },
+  payload: {
+    locale: string;
+    originalLanguage: string;
+    content: string;
+    originSha256: string;
+  },
+  timeoutMs = DEFAULT_TRANSLATION_TIMEOUT_MS,
+): Promise<{ content: string; engine: string; engineVersion: string }> {
+  let response: Response;
+  try {
+    response = await fetch(provider.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...provider.headers,
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE, {
+        cause: error,
+      });
+    }
+    throw new Error(AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED, {
+      cause: error,
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED);
+  }
+
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch {
+    throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
+  }
+
+  const parsed = authoredTranslationResponseSchema.parse(json);
+  if (
+    parsed.locale !== payload.locale ||
+    parsed.originSha256 !== payload.originSha256 ||
+    parsed.engine === "CANONICAL_ORIGINAL" ||
+    parsed.engine === "REVIEWED_NORMALIZATION"
+  ) {
+    throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
+  }
+
+  return {
+    content: parsed.content,
+    engine: parsed.engine,
+    engineVersion: parsed.engineVersion,
+  };
+}
 
 /**
  * Business purpose: Fingerprint exact authored content or artifact text.
@@ -387,7 +496,7 @@ export async function enqueueAuthoredDocument(
     )
       throw problemException(
         AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
-        randomUUID(),
+        resolveContextCorrelationId(),
         { status: HttpStatus.CONFLICT },
       );
     if (
@@ -400,7 +509,7 @@ export async function enqueueAuthoredDocument(
     )
       throw problemException(
         AUTHORED_LANGUAGE_REVIEW_CODES.SOURCE_REQUIRED,
-        randomUUID(),
+        resolveContextCorrelationId(),
         { status: HttpStatus.CONFLICT },
       );
     const effectiveSourceLanguage =
@@ -540,6 +649,12 @@ export class AuthoredLocalizationService
     filter: AuthoredLocalizationFilter = AUTHORED_LOCALIZATION_FILTERS.ALL,
     history = false,
   ) {
+    // Rationale (Why):
+    // Invalid review queue query parameters must throw BAD_REQUEST, not PROVIDER_INVALID conflict.
+    // Mechanism (How):
+    // Uses SHARED_ERROR_CODES.badRequest with HttpStatus.BAD_REQUEST and propagates active correlation ID.
+    // Invariants (What):
+    // Preserves RFC 7807 problem envelope contract and distributed trace context.
     if (
       !scopeId ||
       limit < 1 ||
@@ -548,9 +663,9 @@ export class AuthoredLocalizationService
       (after && !/^[0-9a-f-]{36}$/i.test(after))
     )
       throw problemException(
-        AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-        randomUUID(),
-        { status: HttpStatus.CONFLICT },
+        SHARED_ERROR_CODES.badRequest,
+        resolveContextCorrelationId(),
+        { status: HttpStatus.BAD_REQUEST },
       );
     const ids = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       ${operationalJobsSql(scopeId, history)} SELECT "id" FROM jobs
@@ -626,6 +741,12 @@ export class AuthoredLocalizationService
     entityType?: AuthoredLocalizationEntity,
     limit = 25,
   ) {
+    // Rationale (Why):
+    // Fix error code misuse: pagination bounds or entityType validation errors must throw BAD_REQUEST.
+    // Mechanism (How):
+    // Throws SHARED_ERROR_CODES.badRequest with HttpStatus.BAD_REQUEST and propagated correlation ID.
+    // Invariants (What):
+    // Returns HTTP 400 for client query parameter errors.
     if (
       limit < 1 ||
       limit > 50 ||
@@ -633,9 +754,9 @@ export class AuthoredLocalizationService
         !(entityType in AUTHORED_LOCALIZATION_ENTITIES))
     )
       throw problemException(
-        AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-        randomUUID(),
-        { status: HttpStatus.CONFLICT },
+        SHARED_ERROR_CODES.badRequest,
+        resolveContextCorrelationId(),
+        { status: HttpStatus.BAD_REQUEST },
       );
     const scopeRows = await this.prisma.$queryRaw<
       Array<{ scopeId: string }>
@@ -951,33 +1072,67 @@ export class AuthoredLocalizationService
         digest(job.originalContent) !== job.originSha256
       )
         throw problemException(
-          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          SHARED_ERROR_CODES.conflict,
+          resolveContextCorrelationId(),
           { status: HttpStatus.CONFLICT },
         );
-      const siblings = await tx.$queryRaw<Array<{ id: string }>>(
-        Prisma.sql`SELECT "id" FROM "AuthoredLocalizationRequest" WHERE "scopeId"=${scopeId} AND "entityType"=${job.entityType}::"AuthoredLocalizationEntity" AND "entityId"=${job.entityId} AND "canonicalRevision"=${job.canonicalRevision} AND "canonicalDigest"=${job.canonicalDigest} AND "fieldPath"=${job.fieldPath} AND "originSha256"=${job.originSha256} ORDER BY "id" FOR UPDATE`,
+      // Rationale (Why):
+      // Resolve N+1 query loop: previously each sibling called findUniqueOrThrow and findUnique in a loop.
+      // Mechanism (How):
+      // Fetches all sibling rows in a single query with FOR UPDATE lock, and batches native revisions via findMany.
+      // Invariants (What):
+      // Atomically locks siblings while eliminating repeated DB round trips.
+      const rawSiblings = await tx.$queryRaw<
+        Array<{
+          id: string;
+          idempotencyKey: string;
+          scopeId: string;
+          entityType: AuthoredLocalizationEntity;
+          entityId: string;
+          canonicalRevision: string;
+          canonicalDigest: string;
+          fieldPath: string;
+          originSha256: string;
+          originalContent: string;
+          sourceLanguage: AuthoredSourceLanguage | null;
+          sourceReviewedBy: string | null;
+          sourceReviewedAt: Date | null;
+          locale: AuthoredLocalizationLocale;
+          leaseToken: string | null;
+          state: AuthoredLocalizationState;
+          translationRevision: number;
+        }>
+      >(
+        Prisma.sql`SELECT "id", "idempotencyKey", "scopeId", "entityType"::text AS "entityType", "entityId", "canonicalRevision", "canonicalDigest", "fieldPath", "originSha256", "originalContent", "sourceLanguage"::text AS "sourceLanguage", "sourceReviewedBy", "sourceReviewedAt", "locale"::text AS "locale", "leaseToken", "state"::text AS "state", "translationRevision" FROM "AuthoredLocalizationRequest" WHERE "scopeId"=${scopeId} AND "entityType"=${job.entityType}::"AuthoredLocalizationEntity" AND "entityId"=${job.entityId} AND "canonicalRevision"=${job.canonicalRevision} AND "canonicalDigest"=${job.canonicalDigest} AND "fieldPath"=${job.fieldPath} AND "originSha256"=${job.originSha256} ORDER BY "id" FOR UPDATE`,
       );
-      for (const sibling of siblings) {
-        const current = await tx.authoredLocalizationRequest.findUniqueOrThrow({
-          where: { id: sibling.id },
-        });
+
+      const nativeCandidateIds = rawSiblings
+        .filter((s) => s.locale === body.sourceLanguage)
+        .map((s) => s.id);
+
+      const nativeRevisions =
+        nativeCandidateIds.length > 0
+          ? await tx.authoredLocalizedRevision.findMany({
+              where: { requestId: { in: nativeCandidateIds } },
+            })
+          : [];
+      const nativeRevisionByRequestId = new Map(
+        nativeRevisions.map((rev) => [rev.requestId, rev]),
+      );
+
+      for (const current of rawSiblings) {
         if (
           current.leaseToken ||
           (current.sourceReviewedBy &&
             current.sourceLanguage !== body.sourceLanguage)
         )
           throw problemException(
-            AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-            randomUUID(),
+            SHARED_ERROR_CODES.conflict,
+            resolveContextCorrelationId(),
             { status: HttpStatus.CONFLICT },
           );
         const nativeRevision =
-          body.sourceLanguage === current.locale
-            ? await tx.authoredLocalizedRevision.findUnique({
-                where: { requestId: current.id },
-              })
-            : null;
+          nativeRevisionByRequestId.get(current.id) ?? null;
         if (
           current.sourceReviewedBy &&
           (!nativeRevision ||
@@ -1099,7 +1254,7 @@ export class AuthoredLocalizationService
           }
         }
       }
-      return { reviewed: siblings.length };
+      return { reviewed: rawSiblings.length };
     });
   }
 
@@ -1135,8 +1290,8 @@ export class AuthoredLocalizationService
       );
       if (candidateRejected && body.normalizedContent === undefined)
         throw problemException(
-          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          SHARED_ERROR_CODES.conflict,
+          resolveContextCorrelationId(),
           { status: HttpStatus.CONFLICT },
         );
       let output =
@@ -1153,8 +1308,8 @@ export class AuthoredLocalizationService
         output?.content !== job.originalContent
       )
         throw problemException(
-          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          SHARED_ERROR_CODES.conflict,
+          resolveContextCorrelationId(),
           { status: HttpStatus.CONFLICT },
         );
       if (
@@ -1179,8 +1334,8 @@ export class AuthoredLocalizationService
         (job.revision && job.revision.content !== output.content)
       )
         throw problemException(
-          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          SHARED_ERROR_CODES.conflict,
+          resolveContextCorrelationId(),
           { status: HttpStatus.CONFLICT },
         );
       if (job.translationReviewedBy)
@@ -1390,8 +1545,8 @@ export class AuthoredLocalizationService
         job.revision !== null
       )
         throw problemException(
-          AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          SHARED_ERROR_CODES.conflict,
+          resolveContextCorrelationId(),
           { status: HttpStatus.CONFLICT },
         );
       if (body.action === AUTHORED_CANDIDATE_ACTIONS.REJECT) {
@@ -1401,8 +1556,8 @@ export class AuthoredLocalizationService
             job.candidate.contentSha256 !== body.candidateSha256)
         )
           throw problemException(
-            AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-            randomUUID(),
+            SHARED_ERROR_CODES.conflict,
+            resolveContextCorrelationId(),
             { status: HttpStatus.CONFLICT },
           );
         await tx.authoredLocalizationReview.create({
@@ -1689,37 +1844,16 @@ export class AuthoredLocalizationService
         const provider = authoredTranslationProvider();
         if (!provider)
           throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_UNAVAILABLE);
-        const response = await fetch(provider.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...provider.headers,
-          },
-          signal: AbortSignal.timeout(30_000),
-          body: JSON.stringify({
+        result = await callTranslationProviderAdapter(
+          provider,
+          {
             locale,
             originalLanguage: job.sourceLanguage,
             content: job.originalContent,
             originSha256: job.originSha256,
-          }),
-        });
-        if (!response.ok)
-          throw new Error(AUTHORED_LOCALIZATION_CODES.TRANSLATION_FAILED);
-        const parsed = authoredTranslationResponseSchema.parse(
-          await response.json(),
+          },
+          DEFAULT_TRANSLATION_TIMEOUT_MS,
         );
-        if (
-          parsed.locale !== locale ||
-          parsed.originSha256 !== job.originSha256 ||
-          parsed.engine === "CANONICAL_ORIGINAL" ||
-          parsed.engine === "REVIEWED_NORMALIZATION"
-        )
-          throw new Error(AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID);
-        result = {
-          content: parsed.content,
-          engine: parsed.engine,
-          engineVersion: parsed.engineVersion,
-        };
         // Provider self-labels establish mechanics, not linguistic equivalence.
         // Freeze a candidate and require an authenticated independent review.
         await this.prisma.$transaction(async (tx) => {
@@ -1863,7 +1997,7 @@ export class AuthoredLocalizationService
       ) {
         throw problemException(
           AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          resolveContextCorrelationId(),
           {
             status: HttpStatus.CONFLICT,
             meta: { locale, state: AUTHORED_LOCALIZATION_STATES.FAILED },
@@ -1873,7 +2007,7 @@ export class AuthoredLocalizationService
       if (!ready.length) {
         throw problemException(
           AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
-          randomUUID(),
+          resolveContextCorrelationId(),
           {
             status: HttpStatus.CONFLICT,
             meta: {
@@ -1996,7 +2130,7 @@ export class AuthoredLocalizationService
       ) {
         throw problemException(
           AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-          randomUUID(),
+          resolveContextCorrelationId(),
           {
             status: HttpStatus.CONFLICT,
             meta: {
@@ -2010,7 +2144,7 @@ export class AuthoredLocalizationService
       if (!ready.length) {
         throw problemException(
           AUTHORED_LOCALIZATION_CODES.INCOMPLETE,
-          randomUUID(),
+          resolveContextCorrelationId(),
           {
             status: HttpStatus.CONFLICT,
             meta: {
@@ -2032,7 +2166,7 @@ export class AuthoredLocalizationService
     if (canonicalDigests.size > 1) {
       throw problemException(
         AUTHORED_LOCALIZATION_CODES.PROVIDER_INVALID,
-        randomUUID(),
+        resolveContextCorrelationId(),
         {
           status: HttpStatus.CONFLICT,
           meta: { locale, state: AUTHORED_LOCALIZATION_STATES.FAILED },

@@ -2,8 +2,11 @@ import { createHash } from "node:crypto";
 import {
   ConflictException,
   Injectable,
+  Optional,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { AppConfig } from "../../../../config/config.types.js";
 
 const THREAD_NAMESPACE = Buffer.from("b7b2697509de44e5a7d5c996523fd289", "hex");
 const BOUNDARY_NAME = "rule_set_preparation_requested";
@@ -21,8 +24,15 @@ type AgentServerRun = {
  */
 @Injectable()
 export class AgentServerPreparationControl {
+  constructor(
+    @Optional()
+    private readonly configService?: ConfigService<AppConfig>,
+  ) {}
+
   async cancel(preparationCorrelationId: string): Promise<void> {
-    const baseUrl = process.env.LCSP_AGENT_SERVER_URL;
+    const baseUrl =
+      this.configService?.get("agentServerUrl", { infer: true }) ||
+      process.env.LCSP_AGENT_SERVER_URL;
     if (!baseUrl)
       throw new ServiceUnavailableException(
         "Agent runtime cancellation is unavailable",

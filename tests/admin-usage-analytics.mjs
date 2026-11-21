@@ -6,7 +6,8 @@ import { startStack, workerKey, root } from "./support/compliance-rule-set-stack
 import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
 import { MODEL_ATTEMPT_STATUSES as S, adminUsageAnalyticsSchema } from "@lcsp/contracts/billing";
 let stack = await startStack({ database: process.env.LCSP_USAGE_TEST_DB ?? "lcsp_admin_usage_test", apiPort: 3460, dbPort: 55504, resetDatabase: false });
-const { hashSecret } = await import(`${root}/apps/api/dist/src/platform/security/crypto.utils.js`);
+const { hashSecret: rawHashSecret, hashSecretSync } = await import(`${root}/apps/api/dist/src/platform/security/crypto.utils.js`);
+const hashSecret = hashSecretSync ?? rawHashSecret;
 const marker = randomUUID();
 const password = "OfflineUsageFixturePassword!";
 const users = {};

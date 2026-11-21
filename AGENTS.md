@@ -59,6 +59,27 @@ Ruler concatenates all .md files in this directory (and subdirectories), startin
 - New and **changed** business functions must meet this standard. Legacy functions are tracked by an immutable implementation-fingerprint baseline; never regenerate/expand the baseline to hide violations. Review actual semantics even if a machine-checked comment passes.
 - Full examples, review checklist and gradual migration guidance: `docs/developer/business-logic-documentation-standard.md`. Run `pnpm run check:business-logic-docs` and `pnpm run test:business-logic-docs` before submitting changes. CI enforces this gate.
 
+## Mandatory Explanatory Comments Policy (Core-First Invariant)
+
+- **Universal Scope**: In addition to formal JSDoc/docstrings, EVERY code modification, bugfix, refactor, or configuration tweak across the entire repository MUST contain clear, human-readable explanatory comments directly above or alongside the changed code blocks.
+- **Core-System Priority**: This rule is enforced with highest strictness on changes touching the project's **core architecture**:
+  - `packages/contracts` (domain models, API envelopes, error codes, canonical value sets).
+  - `apps/api` core services (PBAC authorization, tenant isolation/BOLA, transactions, domain entities).
+  - `apps/web` core logic (BFF server proxies, auth guards, form state orchestration).
+  - `deepagents` core workflows (decision engines, state machines, prompt injection defenses).
+  - `.github/workflows` (CI/CD pipelines, release gates, quality checks).
+- **Required Comment Content**:
+  1. **Rationale ("Why")**: Explain why the change is necessary and what problem it solves.
+  2. **Mechanism ("How")**: Explain how the modified logic behaves and prevents regressions or unexpected edge cases.
+  3. **Invariants & Constraints**: Highlight any security boundaries, cross-layer contracts, or side-effects being preserved.
+- **Review Bar**: Do not consider a core task, refactor, or fix complete without clear inline explanatory comments.
+
+## Git Commit & PR Authorization Policy
+
+- **Explicit User Command Only**: NEVER execute `git commit`, `git push`, or `gh pr create` proactively on your own.
+- **Stop at Local Verification**: After completing any code modification, refactoring, or bugfix, the agent MUST run targeted verification tests and present the findings, diffs, and test results to the user.
+- **Wait for Instructions**: Only proceed with `git commit`, `git push`, and creating a PR when the user explicitly instructs to do so (e.g. "commit", "push", "tạo PR").
+
 ## Contract value-set typing
 
 - Do not define TypeScript enums for app/domain value sets. Use `as const` objects and derive types from them.
@@ -121,6 +142,33 @@ When debugging, fixing a bug, or tracing an error, the response **must** include
 
 Do not skip either section even for seemingly trivial fixes. If both sections can be stated in one sentence each, that is acceptable, but they must appear.
 
+### Mandatory Red-Test First Policy (TDD Reproducer)
+
+- **Zero Blind Fixes**: Before touching or modifying any production code or business logic to fix a reported bug, the agent **MUST** first author or run a focused, minimal reproduction test that asserts the expected behavior and reproduces the bug.
+- **Verify Failure (RED)**: Run the fast scoped test runner for the reproduction test and confirm that it fails (exit code non-zero). Never skip this step — if the reproducer does not fail before the fix, the test is invalid.
+- **Apply Minimal Fix**: Implement the targeted fix to resolve the identified root cause.
+- **Verify Success (GREEN)**: Re-run the reproduction test and confirm it now passes (exit code 0).
+- **Permanent Regression Lock**: The reproduction test must be preserved in the test suite so the issue can never silently regress.
+
+## Adaptive Learning Protocol (Fail-Learn-Persist)
+
+When you fix a non-trivial bug, resolve a complex architectural edge-case, or receive a behavioral correction from the developer:
+1. **Distill the Invariant**: Identify the root cause and the permanent rule required to prevent it.
+2. **Persist to Memory**: Append the lesson to `.agents/memory/lessons-learned.md` using the standard incident schema.
+3. **Elevate to Verification Checklist**: If the lesson represents a recurring regression risk, add a concrete item to the verification checklist in the target module's `AGENTS.md` (`apps/api`, `apps/web`, or `deepagents`).
+4. **Pre-Task Memory Lookup**: Before starting complex refactoring or critical feature work in a module, review `.agents/memory/lessons-learned.md` for historical pitfalls related to that module.
+
+## Fast Scoped Verification Protocol (Sensory Feedback Loop)
+
+- **Zero Guesswork Invariant**: Never declare a feature, refactor, or bugfix complete based on code inspection alone. Always execute the fast, targeted test command for the modified file(s) and verify a green exit code (0).
+- **Avoid Full-Suite Bottlenecks**: Do not run the entire repository test suite while iterating on a single file. Use the fast scoped runner for the specific workspace:
+  - **NestJS (`apps/api`)**: `pnpm --filter @lcsp/api exec jest --config ./jest.config.ts <path-to-spec>` (runs in ~2s).
+  - **Next.js (`apps/web`)**: `pnpm exec tsx --tsconfig apps/web/tsconfig.test.json --test <path-to-test>` (runs in ~1s).
+  - **Python (`deepagents`)**: `cd deepagents && uv run pytest <path-to-test-file> -v` (runs in ~1s).
+  - **Root scripts**: `node --test <path-to-test>` (runs in ~100ms).
+- **Reproducer First on Bugs**: When fixing a bug, first write or run a targeted test that reproduces the failure (RED), apply the minimal fix, and verify it passes (GREEN).
+
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
@@ -133,3 +181,16 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## Security & Production-Grade Standards (OWASP ASVS & API Top 10)
+
+- **BOLA Prevention (API1:2023)**: Every query retrieving or mutating an entity by ID must be scoped to the authenticated tenant/workspace (`where: { id, workspaceId: user.workspaceId }`).
+- **Mass Assignment Prevention (API3:2023)**: Global validation with strict whitelisting (`whitelist: true, forbidNonWhitelisted: true` in NestJS; Pydantic `extra = "forbid"` in Python; Zod `safeParse()` in Next BFF).
+- **Secret Isolation**: Never prefix API secrets or private keys with `NEXT_PUBLIC_`. Use `import 'server-only'` in Next.js server helpers.
+- **Error Masking (RFC 7807)**: Never leak stack traces, database schema names, or raw SQL errors to production clients.
+- **Traceability & Correlation**: Every request spanning Next.js BFF -> NestJS API -> Python deepagents must forward and log an identical `x-correlation-id`.
+- **Scoped AGENTS.md Hierarchy**: In addition to this root file, every application directory enforces its own layer invariants:
+  - `apps/api/AGENTS.md`: NestJS Clean Architecture, Thin Controllers, and persistence boundaries.
+  - `apps/web/AGENTS.md`: Next.js App Router, Atomic Design boundaries, Zod form schemas, and server proxy isolation.
+  - `deepagents/AGENTS.md`: Python Clean Architecture, RORO pattern, Pydantic contracts, and prompt injection defense.
+  - `packages/contracts/AGENTS.md`: Canonical Single Source of Truth for domain and API contract constants.

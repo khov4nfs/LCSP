@@ -60,7 +60,7 @@ import {
 } from "../src/modules/auth/infrastructure/persistence/prisma-auth.repositories.js";
 import {
   fingerprintToken,
-  hashSecret,
+  hashSecretSync,
 } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
 import { MailService } from "../src/platform/mail/mail.service.js";
@@ -184,7 +184,7 @@ integration(
           id,
           email,
           displayName: name,
-          passwordHash: hashSecret(PASSWORD),
+          passwordHash: hashSecretSync(PASSWORD),
           emailVerified: true,
           failedLoginCount: 0,
           role,
@@ -199,7 +199,7 @@ integration(
             AUTH_RECORD_TYPES.session,
             fingerprintToken(token),
           ),
-          secretHash: hashSecret(token),
+          secretHash: hashSecretSync(token),
           expiresAt: new Date(Date.now() + 3600000),
           metadata: { accessVersion: 0 },
         },
@@ -336,7 +336,7 @@ integration(
         new Session({
           userId: target.id,
           accessVersion: 2,
-          tokenHash: hashSecret(freshToken),
+          tokenHash: hashSecretSync(freshToken),
           expiresAt: Date.now() + 3600000,
         }),
         fingerprintToken(freshToken),
@@ -401,7 +401,7 @@ integration(
           new Session({
             userId: second.id,
             accessVersion: 0,
-            tokenHash: hashSecret("stale-new-session"),
+            tokenHash: hashSecretSync("stale-new-session"),
             expiresAt: Date.now() + 60000,
           }),
           fingerprintToken("stale-new-session"),

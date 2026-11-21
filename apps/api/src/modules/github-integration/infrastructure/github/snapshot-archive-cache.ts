@@ -16,9 +16,12 @@ import { finished } from "node:stream/promises";
 
 import {
   Injectable,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { AppConfig } from "../../../../config/config.types.js";
 
 const DEFAULT_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -62,11 +65,22 @@ type SnapshotArchiveCacheMetadata = SnapshotArchiveCacheLookup & {
  */
 @Injectable()
 export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
-  private readonly rootDirectory =
-    process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR?.trim() ||
-    join(tmpdir(), CACHE_DIRECTORY_NAME);
+  private readonly rootDirectory: string;
   private readonly ttlMs = readCacheTtlMs();
   private readonly evictionTimers = new Map<string, NodeJS.Timeout>();
+
+  constructor(
+    @Optional()
+    private readonly configService?: ConfigService<AppConfig>,
+  ) {
+    const configuredDir = this.configService?.get("storage", {
+      infer: true,
+    })?.snapshotArchiveCacheDir;
+    this.rootDirectory =
+      configuredDir ||
+      process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR?.trim() ||
+      join(tmpdir(), CACHE_DIRECTORY_NAME);
+  }
 
   /** Initializes the private temporary directory and restores expiry cleanup for surviving entries. */
   async onModuleInit(): Promise<void> {

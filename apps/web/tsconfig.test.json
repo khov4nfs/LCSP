@@ -1,6 +1,10 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"],
+      "server-only": ["./src/lib/server/empty.ts"]
+    }
   }
 }

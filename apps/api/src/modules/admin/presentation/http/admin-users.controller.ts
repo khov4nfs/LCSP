@@ -22,8 +22,8 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.ts";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.ts";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { problemException } from "../../../../platform/http/filters/error.factory.ts";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";

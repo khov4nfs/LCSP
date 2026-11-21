@@ -40,6 +40,10 @@ import {
 } from "@/lib/api/legal-rule-catalog-queries";
 import { ApiRequestError, apiValidated } from "@/lib/api/api-request";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
+import {
+  formatLegalProvisions,
+  formatLocator,
+} from "../../utils/legal-rule-formatter";
 
 interface SelectedProvisionItem {
   sourceVersionId: string;
@@ -547,7 +551,7 @@ export function LegalRuleSourcePickerDialog({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-mono text-xs font-semibold text-primary">
-                              {provision.locator}
+                              {formatLocator(provision.locator)}
                             </span>
                             <Badge variant="outline" className="text-xs">
                               {t(levelMessageKey)}
@@ -557,7 +561,7 @@ export function LegalRuleSourcePickerDialog({
                             {t("compositionPreview")}
                           </p>
                           <p className="mt-1 line-clamp-5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                            {provision.description}
+                            {formatLegalProvisions(provision.description)}
                           </p>
                         </div>
                       </div>

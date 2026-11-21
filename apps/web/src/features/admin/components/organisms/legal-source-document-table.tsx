@@ -45,9 +45,6 @@ export function LegalSourceDocumentTable({
               {t("pages.legalSources.chunkCountLabel")}
             </th>
             <th className="px-4 py-3 font-medium">
-              {t("pages.legalSources.sha256Label")}
-            </th>
-            <th className="px-4 py-3 font-medium">
               {t("pages.legalSources.actionsLabel")}
             </th>
           </tr>

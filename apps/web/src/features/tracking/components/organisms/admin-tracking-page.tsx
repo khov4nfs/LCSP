@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { TrackingUntrustedReason } from "@lcsp/contracts/assessment-domain";
 import type { MessageKey } from "@lcsp/i18n";
-import { ChevronDownIcon } from "lucide-react";
+import { CheckCircle2Icon, ChevronDownIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsiblePanel,
@@ -16,8 +18,13 @@ import { TrackingMetric } from "../molecules/tracking-metric";
 import { appLocale } from "@/lib/locale";
 import { useAdminTrackingOperationalQuery } from "@/lib/api/tracking-queries";
 import { resolveAppMessage } from "@/lib/i18n";
-import { formatTrackingDate } from "../../utils/tracking-display";
+import {
+  formatTrackingDate,
+  groupUsageByModel,
+  type ModelUsageSummary,
+} from "../../utils/tracking-display";
 import { TrackingError } from "../molecules/tracking-error";
+import { cn } from "@/lib/utils";
 
 export function AdminTrackingPage() {
   const query = useAdminTrackingOperationalQuery();
@@ -156,132 +163,104 @@ export function AdminTrackingPage() {
               <Empty />
             )}
           </TrackingSection>
-          <div className="grid gap-6 xl:grid-cols-2">
-            <TrackingSection
-              title={resolveAppMessage(
-                "pages.workspace.tracking.executions" as MessageKey,
-              )}
-            >
-              {data.executionAnomalies.length ? (
-                <div className="flex flex-col gap-3">
-                  {data.executionAnomalies.map((item) => (
-                    <article
-                      key={`${item.assessmentId}-${item.executionId ?? item.detectedAt}`}
-                      className="rounded-lg border p-3"
-                    >
-                      <p className="font-medium">{item.assessmentId}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.anomalyType}
-                      </p>
-                      <Collapsible className="mt-2 text-sm">
-                        <CollapsibleTrigger className="w-full justify-between">
+          <TrackingSection
+            title={resolveAppMessage(
+              "pages.workspace.tracking.usage" as MessageKey,
+            )}
+          >
+            {data.unreconciledUsage.length ? (
+              <div className="flex flex-col gap-3">
+                {groupUsageByModel(data.unreconciledUsage).map((summary) => (
+                  <ModelUsageCard key={summary.model} summary={summary} />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed px-4 py-8 text-center">
+                <CheckCircle2Icon className="size-8 text-emerald-500" />
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  {resolveAppMessage(
+                    "pages.workspace.tracking.noOperationalItems" as MessageKey,
+                  )}
+                </p>
+              </div>
+            )}
+          </TrackingSection>
+          <TrackingSection
+            title={resolveAppMessage(
+              "pages.workspace.tracking.executions" as MessageKey,
+            )}
+          >
+            {data.executionAnomalies.length ? (
+              <div className="flex flex-col gap-3">
+                {data.executionAnomalies.map((item) => (
+                  <article
+                    key={`${item.assessmentId}-${item.executionId ?? item.detectedAt}`}
+                    className="rounded-lg border bg-card p-4 transition-colors hover:border-foreground/20"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive">
+                          {item.anomalyType}
+                        </Badge>
+                        <span className="text-xs font-medium text-foreground">
+                          {item.executionState}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTrackingDate(item.detectedAt)}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">
                           {resolveAppMessage(
-                            "pages.workspace.tracking.detail" as MessageKey,
+                            "pages.workspace.tracking.duration" as MessageKey,
                           )}
-                          <ChevronDownIcon
-                            aria-hidden="true"
-                            className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
-                          />
-                        </CollapsibleTrigger>
-                        <CollapsiblePanel>
-                          <dl className="mt-2 space-y-1 text-xs">
-                            <TrackingFact
-                              label={resolveAppMessage(
-                                "pages.workspace.tracking.executionState" as MessageKey,
-                              )}
-                              value={item.executionState}
-                            />
-                            <TrackingFact
-                              label={resolveAppMessage(
-                                "pages.workspace.tracking.duration" as MessageKey,
-                              )}
-                              value={
-                                item.durationSeconds === null
-                                  ? ""
-                                  : `${item.durationSeconds} ${resolveAppMessage("pages.workspace.tracking.secondsUnit" as MessageKey)}`
-                              }
-                            />
-                            <TrackingFact
-                              label={resolveAppMessage(
-                                "pages.workspace.tracking.runtimeVersion" as MessageKey,
-                              )}
-                              value={item.rootAgentVersion ?? ""}
-                            />
-                            <TrackingFact
-                              label={resolveAppMessage(
-                                "pages.workspace.tracking.generatedAt" as MessageKey,
-                              )}
-                              value={formatTrackingDate(item.detectedAt)}
-                            />
-                          </dl>
-                        </CollapsiblePanel>
-                      </Collapsible>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <Empty />
-              )}
-            </TrackingSection>
-            <TrackingSection
-              title={resolveAppMessage(
-                "pages.workspace.tracking.usage" as MessageKey,
-              )}
-            >
-              {data.unreconciledUsage.length ? (
-                <div className="flex flex-col gap-3">
-                  {data.unreconciledUsage.map((item) => (
-                    <article
-                      key={item.eventId}
-                      className="rounded-lg border p-3"
-                    >
-                      <p className="font-medium">
-                        {item.assessmentId ?? item.eventId}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {resolveAppMessage(
-                          "pages.workspace.tracking.model" as MessageKey,
-                        )}
-                        : {item.model}
-                      </p>
-                      <Collapsible className="mt-2 text-sm">
-                        <CollapsibleTrigger className="w-full justify-between">
-                          {resolveAppMessage(
-                            "pages.workspace.tracking.detail" as MessageKey,
-                          )}
-                          <ChevronDownIcon
-                            aria-hidden="true"
-                            className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180"
-                          />
-                        </CollapsibleTrigger>
-                        <CollapsiblePanel>
-                          <dl className="mt-2 space-y-1 text-xs">
-                            <TrackingFact
-                              label={resolveAppMessage(
-                                "pages.workspace.tracking.tokenCount" as MessageKey,
-                              )}
-                              value={
-                                item.totalTokens?.toLocaleString(appLocale) ??
-                                ""
-                              }
-                            />
-                            <TrackingFact
-                              label={resolveAppMessage(
-                                "pages.workspace.tracking.generatedAt" as MessageKey,
-                              )}
-                              value={formatTrackingDate(item.createdAt)}
-                            />
-                          </dl>
-                        </CollapsiblePanel>
-                      </Collapsible>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <Empty />
-              )}
-            </TrackingSection>
-          </div>
+                          :
+                        </span>{" "}
+                        <span className="font-medium text-foreground">
+                          {item.durationSeconds === null
+                            ? resolveAppMessage(
+                                "pages.workspace.tracking.notAvailable" as MessageKey,
+                              )
+                            : `${item.durationSeconds} ${resolveAppMessage(
+                                "pages.workspace.tracking.secondsUnit" as MessageKey,
+                              )}`}
+                        </span>
+                      </div>
+                      {item.rootAgentVersion ? (
+                        <div>
+                          <span className="text-muted-foreground">
+                            {resolveAppMessage(
+                              "pages.workspace.tracking.runtimeVersion" as MessageKey,
+                            )}
+                            :
+                          </span>{" "}
+                          <span className="font-medium text-foreground">
+                            {item.rootAgentVersion}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed px-4 py-8 text-center">
+                <CheckCircle2Icon className="size-8 text-emerald-500" />
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  {resolveAppMessage(
+                    "pages.workspace.tracking.noAnomalies" as MessageKey,
+                  )}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {resolveAppMessage(
+                    "pages.workspace.tracking.noOperationalItems" as MessageKey,
+                  )}
+                </p>
+              </div>
+            )}
+          </TrackingSection>
           <TrackingSection
             title={resolveAppMessage(
               "pages.workspace.tracking.untrusted" as MessageKey,
@@ -313,12 +292,6 @@ export function AdminTrackingPage() {
                       </CollapsibleTrigger>
                       <CollapsiblePanel>
                         <dl className="mt-2 space-y-1 text-xs">
-                          <TrackingFact
-                            label={resolveAppMessage(
-                              "pages.workspace.tracking.assessmentIdLabel" as MessageKey,
-                            )}
-                            value={item.assessmentId}
-                          />
                           <TrackingFact
                             label={resolveAppMessage(
                               "pages.workspace.tracking.detectedAt" as MessageKey,
@@ -362,5 +335,147 @@ function Empty() {
 function untrustedReasonMessage(reason: TrackingUntrustedReason) {
   return resolveAppMessage(
     `pages.workspace.tracking.untrustedReason.${reason}` as MessageKey,
+  );
+}
+
+function ModelUsageCard({ summary }: { summary: ModelUsageSummary }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <article className="rounded-lg border bg-card transition-colors hover:border-foreground/20">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        className="flex w-full cursor-pointer items-center justify-between p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-semibold text-foreground">
+              {summary.model}
+            </span>
+            <Badge
+              variant={summary.unreconciledCount > 0 ? "secondary" : "outline"}
+              className={
+                summary.unreconciledCount === 0
+                  ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                  : undefined
+              }
+            >
+              {summary.unreconciledCount > 0
+                ? `${resolveAppMessage(
+                    "pages.workspace.tracking.unreconciled" as MessageKey,
+                  )} (${summary.unreconciledCount})`
+                : resolveAppMessage(
+                    "pages.workspace.tracking.reconciled" as MessageKey,
+                  )}
+            </Badge>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {summary.runCount}{" "}
+              {resolveAppMessage(
+                "pages.workspace.tracking.runsUnit" as MessageKey,
+              )}
+            </span>
+            <span>·</span>
+            <span>
+              {resolveAppMessage(
+                "pages.workspace.tracking.totalTokens" as MessageKey,
+              )}
+              :{" "}
+              <span className="font-semibold text-foreground">
+                {summary.totalTokens !== null
+                  ? summary.totalTokens.toLocaleString(appLocale)
+                  : "—"}
+              </span>
+            </span>
+            {summary.promptTokens !== null ||
+            summary.completionTokens !== null ? (
+              <>
+                <span>·</span>
+                <span>
+                  ({summary.promptTokens?.toLocaleString(appLocale) ?? "—"} in /{" "}
+                  {summary.completionTokens?.toLocaleString(appLocale) ?? "—"} out)
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>
+            {resolveAppMessage(
+              (isOpen
+                ? "pages.workspace.tracking.hideActivities"
+                : "pages.workspace.tracking.viewActivities") as MessageKey,
+            )}
+          </span>
+          <ChevronDownIcon
+            aria-hidden="true"
+            className={cn(
+              "size-4 text-muted-foreground transition-transform",
+              isOpen && "rotate-180",
+            )}
+          />
+        </div>
+      </button>
+      {isOpen ? (
+        <div className="border-t px-4 py-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            {resolveAppMessage(
+              "pages.workspace.tracking.activities" as MessageKey,
+            )}
+          </p>
+          <div className="space-y-2">
+            {summary.items.map((item) => (
+              <div
+                key={item.eventId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">
+                    {formatTrackingDate(item.createdAt)}
+                  </span>
+                  <Badge
+                    variant={item.reconciled ? "outline" : "secondary"}
+                    className={
+                      item.reconciled
+                        ? "border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                        : undefined
+                    }
+                  >
+                    {resolveAppMessage(
+                      (item.reconciled
+                        ? "pages.workspace.tracking.reconciled"
+                        : "pages.workspace.tracking.unreconciled") as MessageKey,
+                    )}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 text-foreground">
+                  <span>
+                    {resolveAppMessage(
+                      "pages.workspace.tracking.totalTokens" as MessageKey,
+                    )}
+                    :{" "}
+                    <span className="font-medium">
+                      {item.totalTokens !== null
+                        ? item.totalTokens.toLocaleString(appLocale)
+                        : "—"}
+                    </span>
+                  </span>
+                  {item.promptTokens !== null ||
+                  item.completionTokens !== null ? (
+                    <span className="text-muted-foreground">
+                      ({item.promptTokens?.toLocaleString(appLocale) ?? "—"} in /{" "}
+                      {item.completionTokens?.toLocaleString(appLocale) ?? "—"} out)
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </article>
   );
 }

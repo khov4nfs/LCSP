@@ -33,15 +33,17 @@ describe("ArtifactStorageService", () => {
 
     const chunk1 = "Hello, world! ";
     const chunk2 = "This is a test of chunked artifact reconstruction.";
+    const chunk1Id = `${"1".repeat(64)}.chunk`;
+    const chunk2Id = `${"2".repeat(64)}.chunk`;
 
     fs.mkdirSync(path.join(testStoragePath, "chunks"), { recursive: true });
     fs.writeFileSync(
-      path.join(testStoragePath, "chunks", "chunk1.json"),
+      path.join(testStoragePath, "chunks", chunk1Id),
       chunk1,
       "utf8",
     );
     fs.writeFileSync(
-      path.join(testStoragePath, "chunks", "chunk2.json"),
+      path.join(testStoragePath, "chunks", chunk2Id),
       chunk2,
       "utf8",
     );
@@ -50,7 +52,7 @@ describe("ArtifactStorageService", () => {
       artifact_id: "art-123",
       total_size: totalSize,
       hash,
-      chunks: ["chunk1.json", "chunk2.json"],
+      chunks: [chunk1Id, chunk2Id],
     };
 
     const reconstructed = await service.readAndReconstruct(manifest);
@@ -58,11 +60,12 @@ describe("ArtifactStorageService", () => {
   });
 
   it("throws BadRequestException on hash mismatch", async () => {
+    const chunk1Id = `${"1".repeat(64)}.chunk`;
     const manifest = {
       artifact_id: "art-123",
       total_size: 14,
       hash: "invalid-hash",
-      chunks: ["chunk1.json"],
+      chunks: [chunk1Id],
     };
 
     await expect(service.readAndReconstruct(manifest)).rejects.toBeInstanceOf(
@@ -71,11 +74,12 @@ describe("ArtifactStorageService", () => {
   });
 
   it("throws BadRequestException on size mismatch", async () => {
+    const chunk1Id = `${"1".repeat(64)}.chunk`;
     const manifest = {
       artifact_id: "art-123",
       total_size: 99999,
       hash: crypto.createHash("sha256").update("Hello, world! ").digest("hex"),
-      chunks: ["chunk1.json"],
+      chunks: [chunk1Id],
     };
 
     await expect(service.readAndReconstruct(manifest)).rejects.toBeInstanceOf(
@@ -93,6 +97,30 @@ describe("ArtifactStorageService", () => {
 
     await expect(service.readAndReconstruct(manifest)).rejects.toBeInstanceOf(
       BadRequestException,
+    );
+  });
+
+  it("rejects traversal chunk ID '..' escaping chunks directory (RED reproducer)", async () => {
+    const manifest = {
+      artifact_id: crypto.randomUUID(),
+      total_size: 10,
+      hash: "a".repeat(64),
+      chunks: [".."],
+    };
+    await expect(service.readAndReconstruct(manifest)).rejects.toThrow(
+      new BadRequestException("Invalid chunk ID format: .."),
+    );
+  });
+
+  it("rejects non-hex-hash chunk names (e.g. arbitrary file targets) (RED reproducer)", async () => {
+    const manifest = {
+      artifact_id: crypto.randomUUID(),
+      total_size: 10,
+      hash: "a".repeat(64),
+      chunks: ["arbitrary-name.txt"],
+    };
+    await expect(service.readAndReconstruct(manifest)).rejects.toThrow(
+      new BadRequestException("Invalid chunk ID format: arbitrary-name.txt"),
     );
   });
 
@@ -153,7 +181,10 @@ describe("ArtifactStorageService", () => {
     ).rejects.toThrow();
     expect(fs.existsSync(target)).toBe(true);
     fs.unlinkSync(target);
-    fs.symlinkSync(path.join(testStoragePath, "chunks", "chunk1.json"), target);
+    fs.symlinkSync(
+      path.join(testStoragePath, "chunks", `${"1".repeat(64)}.chunk`),
+      target,
+    );
     await expect(
       service.eraseImmutableArtifact(stored.manifest, new Set()),
     ).rejects.toThrow();

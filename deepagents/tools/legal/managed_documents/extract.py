@@ -18,7 +18,8 @@ from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 MEDIA_PDF = "application/pdf"
 MEDIA_HTML = "text/html"
@@ -740,11 +741,12 @@ def _read_part(archive: zipfile.ZipFile, name: str, *, required: bool):  # noqa:
 
     Business rules:
     - Normalize ZIP path separators but reject duplicate aliases; each part must stay within the XML byte limit.
+    - Mitigate XXE / XML Entity Expansion (Bandit B314 / CWE-20) by parsing untrusted XML through defusedxml.
     Execution flow:
     1. Find the requested canonical part and enforce required/unique/size constraints.
-    2. Read and parse the XML element tree.
+    2. Read and parse the XML element tree via defusedxml.ElementTree.
     Failure cases:
-    - Missing required parts, duplicate aliases, oversized XML or XML syntax failures raise EXTRACTION_FAILED; missing optional parts return None.
+    - Missing required parts, duplicate aliases, oversized XML, XXE entities, or syntax failures raise EXTRACTION_FAILED; missing optional parts return None.
     Side effects:
     - Reads ZIP content in memory; does not extract paths onto the host filesystem.
     """
@@ -759,8 +761,10 @@ def _read_part(archive: zipfile.ZipFile, name: str, *, required: bool):  # noqa:
     if info.file_size > MAX_DOCX_XML_BYTES:
         raise ExtractionError("EXTRACTION_FAILED")
     try:
+        # Business rationale: Defuse XML entity expansion (Billion Laughs) and external DTD/XXE resolution
+        # to prevent arbitrary file reading and memory exhaustion denial-of-service (Bandit B314 / CWE-20).
         return ElementTree.fromstring(archive.read(info))
-    except ElementTree.ParseError as error:
+    except (ElementTree.ParseError, DefusedXmlException) as error:
         raise ExtractionError("EXTRACTION_FAILED") from error
 
 

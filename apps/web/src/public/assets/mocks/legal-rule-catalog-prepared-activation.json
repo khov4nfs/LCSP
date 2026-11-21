@@ -1,0 +1,31 @@
+{
+  "catalogVersionId": "36900000-0000-4000-8000-000000000001",
+  "catalogVersion": "LCSP-369 provider-free catalog",
+  "catalogRevision": 1,
+  "legalSourceVersionId": "36900000-0000-4000-8000-000000000002",
+  "total": 1,
+  "eligibleTotal": 1,
+  "page": 1,
+  "limit": 50,
+  "items": [
+    {
+      "id": "36900000-0000-4000-8000-000000000101",
+      "legalRuleId": "LR001",
+      "title": "Notice rule 1",
+      "description": "Explicit synthetic catalog input for provider-free Admin workflow verification.",
+      "citationLocatorRefs": [
+        {
+          "documentId": "SYNTHETIC-NOTICE",
+          "locator": "art-1"
+        }
+      ],
+      "state": "PREPARED",
+      "ineligibleReason": null,
+      "lastResultId": "36900000-0000-4000-8000-000000000501",
+      "lastRunId": "36900000-0000-4000-8000-000000000502",
+      "lastResultRevision": 1,
+      "lastOutcome": "SUCCEEDED",
+      "assessmentRuleCount": 2
+    }
+  ]
+}

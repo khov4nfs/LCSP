@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy SSE event streams from upstream
+import "server-only";
+
 import { isMockModeEnabled } from "./fixtures/response";
 
 /**

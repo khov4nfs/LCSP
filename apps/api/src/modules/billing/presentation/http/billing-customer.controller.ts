@@ -26,8 +26,8 @@ import {
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { EstimateBillingQuery } from "../../application/queries/estimate-billing/estimate-billing.query.js";
 import { CreateBillingOrderCommand } from "../../application/commands/create-billing-order/create-billing-order.command.js";
 import { ExpireBillingOrderCommand } from "../../application/commands/expire-billing-order/expire-billing-order.command.js";

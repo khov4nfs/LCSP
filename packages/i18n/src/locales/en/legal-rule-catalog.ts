@@ -28,6 +28,20 @@ export const enLegalRuleCatalog = {
   search: "Search rules",
   status: "Preparation state",
   allStates: "All states",
+  preparedWithAssessmentRules: "Prepared with Assessment Rules",
+  assessmentRuleCount: "Assessment Rules",
+  selectForActivation: "Select for activation",
+  activateSelectedAssessmentRules: "Activate selected Assessment Rules",
+  activationSelectedCount: "Selected prepared results",
+  activateConfirmTitle: "Activate selected Assessment Rules?",
+  activateConfirmDescription:
+    "These selected persisted results will form the next ACTIVE Rule Set and replace the current one, if present.",
+  activateConfirmImpact:
+    "The new Rule Set contains only Assessment Rules from these selected results. Existing Assessments keep their pinned version; new Assessments use the replacement.",
+  currentActiveRuleCount: "Assessment Rules in the current ACTIVE Rule Set",
+  noActiveRuleSet: "No ACTIVE Rule Set is currently published",
+  activating: "Activating…",
+  activationSuccess: "Selected rules are now in ACTIVE Rule Set",
   empty: "No rules match these filters.",
   emptyCatalogRulesTitle: "This catalog has no rules yet",
   emptyCatalogRules:
@@ -116,7 +130,18 @@ export const enLegalRuleCatalog = {
   analysis: "Analysis",
   requirements: "Generated Legal Requirements",
   assessmentRules: "Generated Assessment Rules",
+  conditions: "Applicability conditions",
+  qualifiers: "Qualifiers",
+  exceptions: "Exceptions",
+  criteria: "Assessment criteria",
+  investigationGoals: "Investigation goals",
+  requiredEvidence: "Required evidence",
+  unresolvedConditions: "Unresolved conditions",
+  nonRepositoryDuty: "Non-repository duty",
   activity: "Run Activity",
+  noActivity: "No activity recorded yet.",
+  model: "Model",
+  tokens: "Tokens",
   stop: "Cancel this rule",
   sourceRead: "Pinned source chunks",
   showInstructions: "Exact instruction content",
@@ -146,6 +171,56 @@ export const enLegalRuleCatalog = {
   deleteCatalogSuccess: "Catalog deleted successfully.",
   deleteCatalogConflict:
     "Cannot delete catalog while preparation runs are active or queued.",
+  guidance: "Guidance",
+  providerLabel: "Provider",
+  errorClassLabel: "Error type",
+  failureDetailsTitle: "Rule preparation failed",
+  failureDetailsHelp: "Detailed failure breakdown for this revision attempt.",
+  failureCredentialTitle: "API Authentication / Credential Error",
+  failureCredentialDesc:
+    "Could not connect or authenticate with the AI model provider. The API key or credentials are missing, invalid, or expired.",
+  failureCredentialGuidance:
+    "Check provider API key environment configuration on the server or contact system administrator.",
+  failureConnectionTitle: "AI Provider Connection Error",
+  failureConnectionDesc:
+    "The server failed to establish a network connection to the AI provider endpoint within the deadline.",
+  failureConnectionGuidance:
+    "Check network connectivity or retry analyzing this rule after a brief moment.",
+  failureRateLimitTitle: "Rate Limit / Quota Exceeded",
+  failureRateLimitDesc:
+    "The AI provider account temporarily hit its request rate limit or token quota was exhausted.",
+  failureRateLimitGuidance:
+    "Please wait a few minutes before retrying, or check provider account quota balance.",
+  failureTimeoutTitle: "AI Model Response Timeout",
+  failureTimeoutDesc:
+    "The AI model did not produce an initial response before the configured deadline.",
+  failureTimeoutGuidance:
+    "Try regenerating this rule, or adjust model timeout limits in configuration.",
+  failureSchemaTitle: "Structured Output Error",
+  failureSchemaDesc:
+    "The model output did not conform to the expected compliance rule schema or was missing structured content.",
+  failureSchemaGuidance:
+    "Try regenerating this rule to prompt the model to generate valid schema output.",
+  failureBudgetTitle: "Execution Budget Exceeded",
+  failureBudgetDesc:
+    "The rule preparation process exceeded its allocated model-call or token budget.",
+  failureBudgetGuidance:
+    "Check agent run budget settings or re-run with fewer iterations.",
+  failureSourceTitle: "Legal Source Ineligible",
+  failureSourceDesc:
+    "The source document is not fully indexed, unavailable, or cited provisions are not effective.",
+  failureSourceGuidance:
+    "Check legal source indexing status in the Legal Sources module.",
+  failureCitationTitle: "Invalid Legal Citation",
+  failureCitationDesc:
+    "Required citations are missing or do not match indexed source provisions.",
+  failureCitationGuidance:
+    "Review citations in the rule authoring panel and ensure valid locator references.",
+  failureGenericTitle: "Rule Preparation Encountered An Error",
+  failureGenericDesc:
+    "An error occurred while running the AI model to analyze and extract compliance rules.",
+  failureGenericGuidance:
+    "Click 'Regenerate this rule' to retry or inspect run activity logs below.",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;

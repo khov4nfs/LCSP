@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy rule grouping and review proposals
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import {

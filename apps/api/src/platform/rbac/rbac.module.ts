@@ -4,6 +4,7 @@ import { ConfigModule } from "@nestjs/config";
 import { PrismaModule } from "../../infrastructure/prisma/prisma.module.js";
 import { AuthModule } from "../../modules/auth/auth.module.js";
 import { AUTHORIZATION_DECISION_REPOSITORY } from "./authorization-decision.repository.js";
+import { WorkerApiKeyGuard } from "./guards/worker-api-key.guard.js";
 import { PrismaAuthorizationDecisionRepository } from "./prisma-authorization-decision.repository.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
 import { RbacPreflightController } from "./rbac-preflight.controller.js";
@@ -26,11 +27,13 @@ import { RbacGuard } from "./rbac.guard.js";
     RbacContextLoader,
     RbacGuard,
     RbacPreflightService,
+    WorkerApiKeyGuard,
   ],
   exports: [
     RbacContextLoader,
     RbacGuard,
     RbacPreflightService,
+    WorkerApiKeyGuard,
     AUTHORIZATION_DECISION_REPOSITORY,
     PrismaAuthorizationDecisionRepository,
   ],

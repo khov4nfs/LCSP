@@ -36,7 +36,7 @@ import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
-import { WorkerApiKeyGuard } from "../src/common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../src/platform/rbac/guards/worker-api-key.guard.js";
 import { LegalRuleCatalogService } from "../src/modules/legal-rule-catalog/application/services/legal-rule-catalog.service.js";
 import { PreparationRuleService } from "../src/modules/legal-rule-catalog/application/services/preparation-rule.service.js";
 import {
@@ -44,6 +44,9 @@ import {
   PreparationRuleWorkerController,
 } from "../src/modules/legal-rule-catalog/presentation/http/legal-rule-catalog.controller.js";
 import { LegalSourceActivatedConsumer } from "../src/modules/compliance-rule-set/infrastructure/messaging/legal-source-activated.consumer.js";
+import { LegalSourceSnapshotLoader } from "../src/modules/compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
+import { ComplianceRuleSetActivation } from "../src/modules/compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
+import { LegalDocumentGraphService } from "../src/modules/legal-source/application/services/legal-document-graph.service.js";
 import { validPacket } from "./support/compliance-rule-set-fixtures.js";
 import type { RabbitMqClient } from "../src/platform/outbox/rabbitmq.client.js";
 
@@ -164,6 +167,9 @@ database(
           { provide: PrismaService, useValue: db },
           LegalRuleCatalogService,
           PreparationRuleService,
+          LegalDocumentGraphService,
+          LegalSourceSnapshotLoader,
+          ComplianceRuleSetActivation,
           AuditWriterService,
           OutboxRepository,
           RbacGuard,

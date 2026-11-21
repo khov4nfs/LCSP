@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy legal source operations to upstream API
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";

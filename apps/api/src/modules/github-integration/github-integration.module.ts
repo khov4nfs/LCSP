@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
-import { WorkerApiKeyGuard } from "../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../platform/rbac/guards/worker-api-key.guard.js";
 import { PinSnapshotHandler } from "./application/commands/pin-snapshot/pin-snapshot.handler.js";
 import { StreamSnapshotArchiveHandler } from "./application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.js";
 import { ListRepositoryConnectionsHandler } from "./application/queries/list-repository-connections/list-repository-connections.handler.js";

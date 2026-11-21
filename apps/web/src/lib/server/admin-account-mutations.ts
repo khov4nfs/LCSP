@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy admin account lifecycle mutations
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { requireSessionToken } from "./session-token";
 import { upstreamJson, upstreamRequest } from "./upstream-request";

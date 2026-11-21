@@ -15,9 +15,9 @@ import {
 import { z } from "zod";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import * as C from "@lcsp/contracts/legal-rule-catalog";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
@@ -119,6 +119,43 @@ export class LegalRuleCatalogController {
   ) {
     return resultEnvelope(
       await this.catalog.list(catalogId, query, correlation(req)),
+    );
+  }
+
+  /**
+   * Business purpose: Publish an explicitly confirmed set of prepared Assessment Rules through the canonical ACTIVE Rule Set boundary.
+   *
+   * Business rules:
+   * - Only Admin callers reach this endpoint; the service revalidates exact current result revisions, pinned source, and packet integrity.
+   * - The request cannot select failed, stale, missing, or zero-rule results, and activation is never automatic after Preparation.
+   *
+   * Execution flow:
+   * 1. Validate the catalog UUID and bounded result manifest.
+   * 2. Delegate freshness, source, and packet checks to the selected-result publisher.
+   * 3. Return the version and activation acknowledgement only after the transaction commits.
+   *
+   * Failure cases:
+   * - Invalid, stale, incompatible, or source-invalid selections return shared typed problems and retain the current ACTIVE version.
+   * - Audit, outbox, or persistence failures roll back publication.
+   *
+   * Side effects:
+   * - May create one ACTIVE ComplianceRuleSetVersion with immutable selected-result provenance and supersede the prior ACTIVE version.
+   */
+  @Post(":catalogId/assessment-rules/activate")
+  @HttpCode(200)
+  async activatePreparedAssessmentRules(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.legalRuleActivationRequestSchema))
+    request: C.LegalRuleActivationRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.activate(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
     );
   }
 

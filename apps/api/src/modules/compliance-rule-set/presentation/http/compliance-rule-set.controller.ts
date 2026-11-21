@@ -36,10 +36,10 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import type { z } from "zod";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { ClaimRuleSetPreparationCommand } from "../../application/commands/claim-rule-set-preparation/claim-rule-set-preparation.command.js";
 import { FailRuleSetPreparationCommand } from "../../application/commands/fail-rule-set-preparation/fail-rule-set-preparation.command.js";
 import { SubmitComplianceRuleSetCommand } from "../../application/commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";

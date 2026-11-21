@@ -11,18 +11,23 @@ import { z } from "zod";
 import {
   LEGAL_RULE_CATALOG_ERRORS as E,
   LEGAL_RULE_CATALOG_EVENTS as EVENTS,
+  LEGAL_RULE_PREPARATION_STATES as S,
   LEGAL_RULE_SELECTION_MODES,
+  legalRuleActivationResultSchema,
   preparationRuleInputSchema,
   preparationRuleOutputSchema,
   preparationInstructionReceiptSchema,
   type PreparationRuleInput,
   type PreparationRuleComplete,
+  type LegalRuleActivationRequest,
+  type PreparationRuleOutput,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
 import {
+  complianceRuleSetPacketSchema,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   declaresApplicabilityScope,
@@ -38,7 +43,16 @@ import {
   canonicalJson,
   sha256Hex,
 } from "../../../assessment/domain/domain-ids.js";
-import { validateAssessmentRuleBindings } from "../../../compliance-rule-set/domain/compliance-rule-set-integrity.validator.js";
+import {
+  sourceClaimKey,
+  validateAssessmentRuleBindings,
+  validateComplianceRuleSetPacket,
+} from "../../../compliance-rule-set/domain/compliance-rule-set-integrity.validator.js";
+import {
+  ComplianceRuleSetActivation,
+  type SelectedActivationContext,
+} from "../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
+import { LegalSourceSnapshotLoader } from "../../../compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
 import { CancelRuleSetPreparationCommand } from "../../../compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import {
   LegalRuleCatalogService,
@@ -72,6 +86,8 @@ export class PreparationRuleService {
     private readonly catalogs: LegalRuleCatalogService,
     private readonly outbox: OutboxRepository,
     private readonly commands: CommandBus,
+    private readonly sourceSnapshot: LegalSourceSnapshotLoader,
+    private readonly activation: ComplianceRuleSetActivation,
   ) {}
 
   /**
@@ -359,6 +375,178 @@ export class PreparationRuleService {
         ),
       },
     };
+  }
+
+  /**
+   * Business purpose: Publish an explicit set of current selected-rule Assessment Rules through the canonical ACTIVE Rule Set lifecycle.
+   *
+   * Business rules:
+   * - Every requested result must be the current, successful, fingerprint-matching revision for an eligible catalog rule and contain at least one Assessment Rule.
+   * - All selected results share the catalog's pinned Legal Source Version; each output and source reference passes selected-result and Rule Set integrity validation.
+   * - Admin confirmation is explicit; activation never includes unselected results or reruns AI.
+   *
+   * Execution flow:
+   * 1. Lock the catalog revision and verify selected result identities against current catalog entries.
+   * 2. Lock selected PreparationRule artifacts, re-read freshness, hydrate exact source chunks, and validate each persisted output.
+   * 3. Combine only the chosen LegalRequirements, AssessmentRules, and context relations; validate citations against the pinned source.
+   * 4. Commit the selected-result manifest and packet through the shared atomic ACTIVE Rule Set publisher.
+   *
+   * Failure cases:
+   * - Empty, duplicate, stale, failed, zero-rule, incompatible, or source-invalid selections return a typed request/result error without changing the current ACTIVE version.
+   * - Transaction, audit, outbox, or persistence errors roll back publication and retain the current ACTIVE version.
+   *
+   * Side effects:
+   * - Creates one ComplianceRuleSetVersion and activation audit/outbox record; selected Preparation results and Legal Sources are immutable and unchanged.
+   */
+  async activate(
+    catalogId: string,
+    request: LegalRuleActivationRequest,
+    actor: string,
+    cid: string,
+  ) {
+    const requested = [...request.results].sort((left, right) =>
+      left.ruleId.localeCompare(right.ruleId),
+    );
+    const requestDigest = sha256Hex(
+      canonicalJson({
+        catalogId,
+        expectedRevision: request.expectedRevision,
+        results: requested,
+      }),
+    );
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        await this.catalogs.lock(tx, catalogId, request.expectedRevision, cid);
+        const first = await this.catalogs.entries(tx, catalogId, cid);
+        for (const selection of requested) {
+          const item = first.items.find(
+            (candidate) => candidate.id === selection.ruleId,
+          );
+          if (
+            !item ||
+            item.state !== S.PREPARED ||
+            item.assessmentRuleCount === 0 ||
+            item.lastResultId !== selection.resultId ||
+            item.lastResultRevision !== selection.revision
+          )
+            catalogFailure(E.RESULT_INVALID, cid, 422);
+        }
+        const results = await tx.preparationRuleResult.findMany({
+          where: { id: { in: requested.map((item) => item.resultId) } },
+          include: { preparationRule: true, preparationRun: true },
+        });
+        if (results.length !== requested.length)
+          catalogFailure(E.RESULT_INVALID, cid, 422);
+        const artifacts = [
+          ...new Set(results.map((result) => result.preparationRuleId)),
+        ];
+        await tx.$queryRaw(
+          Prisma.sql`SELECT "id" FROM "PreparationRule" WHERE "id" IN (${Prisma.join(artifacts)}) ORDER BY "id" FOR UPDATE`,
+        );
+
+        const current = await this.catalogs.entries(tx, catalogId, cid);
+        const currentItems = new Map(
+          current.items.map((item) => [item.id, item]),
+        );
+        const resultById = new Map(
+          results.map((result) => [result.id, result]),
+        );
+        const inputs = [] as PreparationRuleInput[];
+        const outputs: PreparationRuleOutput[] = [];
+        const manifest: SelectedActivationContext["selectedPreparationResults"] =
+          [];
+
+        for (const selection of requested) {
+          const item = currentItems.get(selection.ruleId);
+          const result = resultById.get(selection.resultId);
+          if (
+            !item ||
+            item.state !== S.PREPARED ||
+            !item.input ||
+            item.lastResultId !== selection.resultId ||
+            item.lastResultRevision !== selection.revision ||
+            item.assessmentRuleCount <= 0 ||
+            !result ||
+            result.revision !== selection.revision ||
+            result.preparationRule.legalRuleId !== selection.ruleId ||
+            result.preparationRun.executionState !== A.SUCCEEDED ||
+            result.preparationRun.legalSourceVersionId !==
+              first.catalog.legalSourceVersionId ||
+            result.inputFingerprint !==
+              preparationInputFingerprint(item.input) ||
+            !result.output
+          )
+            catalogFailure(E.RESULT_INVALID, cid, 422);
+          const input = preparationRuleInputSchema.parse(result.inputSnapshot);
+          const output = preparationRuleOutputSchema.parse(result.output);
+          if (
+            input.ruleId !== selection.ruleId ||
+            input.legalSourceVersionId !== first.catalog.legalSourceVersionId ||
+            output.assessmentRules.length === 0
+          )
+            catalogFailure(E.RESULT_INVALID, cid, 422);
+          validateSelectedOutput(input, output, cid);
+          inputs.push(input);
+          outputs.push(output);
+          manifest.push({
+            ruleId: selection.ruleId,
+            resultId: result.id,
+            revision: result.revision,
+            inputFingerprint: result.inputFingerprint,
+            outputDigest: sha256Hex(canonicalJson(output)),
+          });
+        }
+
+        await this.catalogs.hydrate(tx, inputs, cid);
+        const packet = complianceRuleSetPacketSchema.parse({
+          legalRequirements: outputs.flatMap(
+            (output) => output.legalRequirements,
+          ),
+          assessmentRules: outputs.flatMap((output) => output.assessmentRules),
+          contextRelations: outputs.flatMap(
+            (output) => output.contextRelations,
+          ),
+        });
+        const source = await this.sourceSnapshot.loadSelected(
+          tx,
+          first.catalog.legalSourceVersionId,
+          packet,
+        );
+        const validation = validateComplianceRuleSetPacket(
+          packet,
+          source.snapshot,
+          (claim) =>
+            source.foreignHashes.has(
+              `${sourceClaimKey(claim)}|${claim.contentSha256}`,
+            ),
+          { requireSemanticGraph: false },
+        );
+        if (validation.failures.length || !packet.assessmentRules.length)
+          catalogFailure(E.RESULT_INVALID, cid, 422);
+
+        return legalRuleActivationResultSchema.parse(
+          await this.activation.commitSelected(
+            tx,
+            {
+              idempotencyKey: request.idempotencyKey,
+              requestDigest,
+              ruleSetDigest: sha256Hex(canonicalJson(packet)),
+              packet,
+              resolved: validation.resolved,
+              legalSource: {
+                id: first.catalog.legalSourceVersionId,
+                version: first.catalog.legalSourceVersion.version,
+              },
+              selectedPreparationResults: manifest,
+              correlationId: cid,
+            },
+            actor,
+          ),
+        );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    );
   }
 
   /**

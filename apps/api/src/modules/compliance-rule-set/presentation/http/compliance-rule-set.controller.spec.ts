@@ -13,7 +13,7 @@ import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 
 import { validPacket } from "../../../../../test/support/compliance-rule-set-fixtures.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { isProblemResult } from "../../../../platform/http/filters/error.factory.js";
 import { SubmitComplianceRuleSetCommand } from "../../application/commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";
 import { ClaimRuleSetPreparationCommand } from "../../application/commands/claim-rule-set-preparation/claim-rule-set-preparation.command.js";

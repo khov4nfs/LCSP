@@ -75,6 +75,9 @@ export type PreparationActivityDetails = {
   claimFile: string | null;
   committedNodes: number | null;
   rejected: number | null;
+  errorType?: string | null;
+  lastAttemptErrorClass?: string | null;
+  providerErrorCode?: string | null;
 };
 
 export type PreparationTokenUsage = {
@@ -228,7 +231,8 @@ export function projectPreparationActivity(
     }
     if (
       event.eventType === EVENT_TYPES.modelCallStarted ||
-      event.eventType === EVENT_TYPES.modelCallCompleted
+      event.eventType === EVENT_TYPES.modelCallCompleted ||
+      event.eventType === EVENT_TYPES.modelCallFailed
     ) {
       const next = activity(event, ACTIVITY_KEYS.modelTurn, status);
       mergeActivity(drafts, byId, existingId, next);
@@ -591,6 +595,11 @@ function activity(
       claimFile: null,
       committedNodes: null,
       rejected: null,
+      errorType: stringValue(record(event.data)?.error_type),
+      lastAttemptErrorClass: stringValue(
+        record(event.data)?.last_attempt_error_class,
+      ),
+      providerErrorCode: stringValue(record(event.data)?.provider_error_code),
       ...overrides,
     },
   };

@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
 import { BILLING_RECONCILIATION_ERROR_CODES } from "@lcsp/contracts/billing";
-import { httpBodyParser } from "../src/http-body-parser.js";
+import { httpBodyParser } from "../src/platform/http/index.js";
 import { httpRequest, problemCode } from "./support/http.js";
 import {
   pushPrismaSchema,

@@ -14,7 +14,8 @@ import {
   COMPLIANCE_RULE_SET_EVENT_TYPES,
 } from "@lcsp/contracts/compliance-rule-set";
 const require = createRequire(path.join(apiDir, "package.json"));
-const { hashSecret } = await import(pathToFileURL(require.resolve("@lcsp/api/security")).href);
+const { hashSecret: rawHashSecret, hashSecretSync } = await import(pathToFileURL(require.resolve("@lcsp/api/security")).href);
+const hashSecret = hashSecretSync ?? rawHashSecret;
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const stack = await startStack({

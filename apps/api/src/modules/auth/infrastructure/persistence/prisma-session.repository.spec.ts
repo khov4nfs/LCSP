@@ -4,7 +4,7 @@ import { AUTH_ERROR_CODES, USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import {
   APPLICATION_ERROR_REASONS,
   ApplicationError,
-} from "../../../../common/errors/application.error.ts";
+} from "../../../../platform/errors/application.error.ts";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { Session } from "../../domain/models/auth.models.ts";
 import { PrismaSessionRepository } from "./prisma-session.repository.ts";

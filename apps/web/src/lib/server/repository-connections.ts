@@ -1,3 +1,6 @@
+// Enforce server-only execution: sanitize repository connections payload on server
+import "server-only";
+
 import {
   CREDENTIAL_PROVIDERS,
   REPOSITORY_AUTHENTICATION_MODES,

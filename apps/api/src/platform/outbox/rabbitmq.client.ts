@@ -28,11 +28,20 @@ export class RabbitMqClient implements OnModuleDestroy {
   private readonly exchangeType = "topic";
 
   /**
-   * Creates the RabbitMQ client for a configured broker URL.
+   * Creates the RabbitMQ client for a configured broker URL and optional topic exchange name.
+   *
+   * Rationale: Allows ConfigService-driven exchange configuration via Nest DI without
+   * relying on spontaneous process.env reads, enabling multi-tenant isolation and hermetic testing.
+   * Mechanism: Stores the optional exchangeName in the instance for lazy channel assertion.
+   * Invariants: Preserves backwards compatibility for existing call sites with a default fallback.
    *
    * @param url - AMQP connection URL used when opening the broker connection.
+   * @param exchangeName - Optional topic exchange name resolved from AppConfig.
    */
-  constructor(private readonly url: string) {}
+  constructor(
+    private readonly url: string,
+    private readonly exchangeName?: string,
+  ) {}
 
   /**
    * Ensures that a usable RabbitMQ channel has been established.
@@ -152,23 +161,55 @@ export class RabbitMqClient implements OnModuleDestroy {
     );
   }
 
+  /**
+   * Dispatches an incoming AMQP message to the registered handler with poison-pill protection.
+   *
+   * Rationale (Why): Prevents infinite requeue loops (poison pills) that saturate CPU and block
+   * queues when messages are malformed or repeatedly fail processing.
+   * Mechanism (How):
+   * 1. Validates JSON parsing and payload object structure. Malformed messages are nacked with
+   *    `requeue: false` immediately, directing them to Dead Letter Queue (DLQ) or discard.
+   * 2. If handler execution fails, evaluates `message.fields.redelivered`. If already redelivered,
+   *    nacks with `requeue: false` to terminate the poison pill loop; if first attempt, allows one
+   *    transient retry with `requeue: true`.
+   * Invariants (What): Malformed payloads are never requeued; delivery attempts are bounded.
+   */
   private async handleConsumedMessage(
     channel: amqp.Channel,
     message: amqp.ConsumeMessage,
     input: RabbitMqConsumerInput,
   ): Promise<void> {
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(message.content.toString("utf8"));
+      parsed = JSON.parse(message.content.toString("utf8"));
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
         throw new Error("RABBITMQ_CONSUMER_PAYLOAD_INVALID");
       }
+    } catch (parseError) {
+      // Rationale (Why): Malformed JSON or non-object payloads are non-transient defects.
+      // Requeuing them causes an immediate infinite busy-loop spinning at 100% CPU.
+      // Mechanism (How): Nack with requeue: false to route to DLQ or discard.
+      // Invariants (What): Invalid payloads are terminated without requeuing.
+      this.logger.error(
+        `RabbitMQ consumer malformed payload queue=${input.queue}: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+      );
+      channel.nack(message, false, false);
+      return;
+    }
+
+    try {
       await input.handler(parsed as Record<string, unknown>);
       channel.ack(message);
     } catch (error) {
+      // Rationale (Why): Guard against poison pill crashes in downstream handler logic.
+      // Mechanism (How): Check message.fields.redelivered. If true, nack with requeue: false.
+      // If false (first attempt), allow one transient retry with requeue: true.
+      // Invariants (What): Prevents repeated infinite loop on redelivered messages.
+      const isRedelivered = message.fields.redelivered === true;
       this.logger.error(
-        `RabbitMQ consumer failed queue=${input.queue}: ${error instanceof Error ? error.message : String(error)}`,
+        `RabbitMQ consumer failed queue=${input.queue} redelivered=${isRedelivered}: ${error instanceof Error ? error.message : String(error)}`,
       );
-      channel.nack(message, false, true);
+      channel.nack(message, false, !isRedelivered);
     }
   }
 
@@ -288,9 +329,13 @@ export class RabbitMqClient implements OnModuleDestroy {
   /**
    * Resolves the exchange name used when asserting the publisher channel.
    *
-   * @returns Exchange name from the environment, or the default LCSP event exchange.
+   * Rationale: Prioritizes explicit runtime configuration injected via constructor over
+   * spontaneous process.env access, ensuring hermetic test environments and tenant isolation.
+   * Mechanism: Checks instance exchangeName property first, then process.env, finally "lcsp.events".
+   *
+   * @returns Exchange name from runtime configuration, environment, or the default LCSP event exchange.
    */
   private resolveExchangeName(): string {
-    return process.env.RABBITMQ_EXCHANGE ?? "lcsp.events";
+    return this.exchangeName || process.env.RABBITMQ_EXCHANGE || "lcsp.events";
   }
 }

@@ -39,7 +39,7 @@ import type { PrismaService } from "../../../../infrastructure/prisma/prisma.ser
 import { semanticFidelityPair } from "../../../../../test/support/semantic-fidelity-fixtures.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { ClaimRuleSetPreparationCommand } from "../commands/claim-rule-set-preparation/claim-rule-set-preparation.command.js";
 import { ClaimRuleSetPreparationHandler } from "../commands/claim-rule-set-preparation/claim-rule-set-preparation.handler.js";
 import { FailRuleSetPreparationCommand } from "../commands/fail-rule-set-preparation/fail-rule-set-preparation.command.js";

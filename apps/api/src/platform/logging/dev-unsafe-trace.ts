@@ -4,14 +4,24 @@ import { getLoggingContext, getRepoRoot } from "./logging-context.js";
 
 const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
 
+export const ALLOWED_UNSAFE_ENVIRONMENTS: ReadonlySet<string> = new Set([
+  "development",
+  "test",
+]);
+
 /**
  * Returns whether explicitly unsafe, fully unredacted development tracing is enabled.
  *
- * This mode is intentionally restricted to non-production runtimes because trace
- * records can contain Authorization headers, session cookies, worker credentials,
- * source code, prompts, model output, idempotency keys, and other sensitive data.
+ * Rationale (Why):
+ * Blacklisting NODE_ENV=production is insecure because staging, preview, CI, or unset environments
+ * would erroneously permit raw sensitive logs (credentials, cookies, prompts, tokens).
+ * Mechanism (How):
+ * Enforces a strict whitelist check against ALLOWED_UNSAFE_ENVIRONMENTS ("development", "test").
+ * Throws an explicit error if enabled in any other runtime environment.
+ * Invariants (What):
+ * Unsafe trace logs are cryptographically prevented from running outside local dev or automated tests.
  *
- * @throws Error when unsafe tracing is requested while NODE_ENV=production.
+ * @throws Error when unsafe tracing is requested outside of development or test runtimes.
  */
 export function unsafeDevTraceEnabled(): boolean {
   const enabled = TRUE_VALUES.has(
@@ -20,9 +30,10 @@ export function unsafeDevTraceEnabled(): boolean {
   if (!enabled) {
     return false;
   }
-  if ((process.env.NODE_ENV ?? "").trim().toLowerCase() === "production") {
+  const currentEnv = (process.env.NODE_ENV ?? "").trim().toLowerCase();
+  if (!ALLOWED_UNSAFE_ENVIRONMENTS.has(currentEnv)) {
     throw new Error(
-      "LCSP_DEV_UNSAFE_TRACE must never be enabled with NODE_ENV=production",
+      `LCSP_DEV_UNSAFE_TRACE must only be enabled in allowed environments (development, test); current NODE_ENV: '${currentEnv}'`,
     );
   }
   return true;
@@ -31,7 +42,12 @@ export function unsafeDevTraceEnabled(): boolean {
 /**
  * Returns whether unfiltered, fully raw development tracing is enabled.
  *
- * Gated behind LCSP_DEV_UNSAFE_UNFILTERED. Must never be enabled in production.
+ * Rationale (Why):
+ * Unfiltered logging outputs raw authorization headers, cookies, and tokens without redaction.
+ * Mechanism (How):
+ * Enforces strict whitelist validation against ALLOWED_UNSAFE_ENVIRONMENTS.
+ * Invariants (What):
+ * Throws immediately if activated in any environment other than "development" or "test".
  */
 export function unsafeDevUnfilteredEnabled(): boolean {
   const enabled = TRUE_VALUES.has(
@@ -40,9 +56,10 @@ export function unsafeDevUnfilteredEnabled(): boolean {
   if (!enabled) {
     return false;
   }
-  if ((process.env.NODE_ENV ?? "").trim().toLowerCase() === "production") {
+  const currentEnv = (process.env.NODE_ENV ?? "").trim().toLowerCase();
+  if (!ALLOWED_UNSAFE_ENVIRONMENTS.has(currentEnv)) {
     throw new Error(
-      "LCSP_DEV_UNSAFE_UNFILTERED must never be enabled with NODE_ENV=production",
+      `LCSP_DEV_UNSAFE_UNFILTERED must only be enabled in allowed environments (development, test); current NODE_ENV: '${currentEnv}'`,
     );
   }
   return true;

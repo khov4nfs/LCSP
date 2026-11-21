@@ -183,6 +183,13 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             throw problemException(Errors.TARGET_NOT_FOUND, correlationId, {
               status: HttpStatus.NOT_FOUND,
             });
+          if (
+            !target.preparationRun ||
+            !target.preparationRunId ||
+            !target.activation ||
+            target.selectedPreparationResults !== null
+          )
+            throw conflict(Errors.TARGET_NOT_ELIGIBLE);
           const rejectedBefore =
             await tx.complianceRuleSetReactivationRecord.count({
               where: {
@@ -197,7 +204,7 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
               ComplianceRuleSetValidationOutcome.PASSED ||
             target.preparationRun.executionState !==
               AgentExecutionState.SUCCEEDED ||
-            target.activation?.validationOutcome !==
+            target.activation.validationOutcome !==
               ComplianceRuleSetValidationOutcome.PASSED ||
             !target.activatedAt ||
             !target.supersededAt ||

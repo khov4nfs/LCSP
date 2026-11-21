@@ -145,6 +145,8 @@ export type AgentStreamHistoryPage = {
   hasMore: boolean;
 };
 
+export const MAX_ASSESSMENT_OWNER_CACHE_ENTRIES = 1_000;
+
 /**
  * Persists privacy-safe assessment runtime events and builds workspace snapshots for live runtime observability.
  */
@@ -277,18 +279,70 @@ export class AssessmentRuntimeEventService {
     );
   }
 
-  private async resolveAssessmentOwnerId(
-    assessmentId: string,
-  ): Promise<string | null> {
+  /**
+   * Business purpose: Resolve and cache owner identity for an assessment using a bounded LRU cache.
+   * Business rules:
+   * - Cache capacity is strictly capped at MAX_ASSESSMENT_OWNER_CACHE_ENTRIES (1,000).
+   * - Oldest entries are evicted upon capacity limit to prevent memory exhaustion in long-running daemons.
+   * - Returns null if the assessment does not exist in persistence.
+   * Execution flow:
+   * 1. Check in-memory assessmentOwnerIds LRU cache for the given assessmentId.
+   * 2. If cached, refresh LRU entry order and return cached ownerId.
+   * 3. If cache miss, query Prisma assessment table selecting ownerId.
+   * 4. If assessment found, evict oldest entry if cache is at max capacity, then store and return ownerId.
+   * Failure cases:
+   * - Missing assessment returns null without caching.
+   * Side effects:
+   * - Mutates in-memory bounded LRU cache map.
+   */
+  async resolveAssessmentOwnerId(assessmentId: string): Promise<string | null> {
+    // Rationale (Why):
+    // Fix unbounded memory leak where assessmentOwnerIds grew indefinitely over daemon lifetime.
+    // Mechanism (How):
+    // Uses JS Map insertion order to implement LRU: delete + set on access refreshes key to end;
+    // when size >= MAX_ASSESSMENT_OWNER_CACHE_ENTRIES, deletes oldest key from beginning.
+    // Invariants (What):
+    // Maximum cache size never exceeds MAX_ASSESSMENT_OWNER_CACHE_ENTRIES (1,000).
     const cached = this.assessmentOwnerIds.get(assessmentId);
-    if (cached) return cached;
+    if (cached) {
+      this.assessmentOwnerIds.delete(assessmentId);
+      this.assessmentOwnerIds.set(assessmentId, cached);
+      return cached;
+    }
+
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       select: { ownerId: true },
     });
     if (!assessment) return null;
+
+    if (this.assessmentOwnerIds.size >= MAX_ASSESSMENT_OWNER_CACHE_ENTRIES) {
+      const oldestKey = this.assessmentOwnerIds.keys().next().value as
+        string | undefined;
+      if (oldestKey !== undefined) {
+        this.assessmentOwnerIds.delete(oldestKey);
+      }
+    }
+
     this.assessmentOwnerIds.set(assessmentId, assessment.ownerId);
     return assessment.ownerId;
+  }
+
+  /**
+   * Business purpose: Inspect current depth of the in-memory assessment owner identity cache for telemetry and testing.
+   * Business rules:
+   * - Reflects active entry count within the bounded LRU cache.
+   * - Must never exceed the configured maximum cache limit.
+   * Execution flow:
+   * 1. Read size property from assessmentOwnerIds map.
+   * 2. Return total count as integer.
+   * Failure cases:
+   * - Never fails; returns zero if cache is empty.
+   * Side effects:
+   * - Read-only inspection; no cache mutations.
+   */
+  getAssessmentOwnerCacheSize(): number {
+    return this.assessmentOwnerIds.size;
   }
 
   private async persistAgentStreamJournalEvent(

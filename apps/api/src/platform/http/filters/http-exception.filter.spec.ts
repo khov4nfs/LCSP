@@ -16,7 +16,7 @@ import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
   ApplicationError,
   APPLICATION_ERROR_REASONS,
-} from "../../../common/errors/application.error.js";
+} from "../../errors/application.error.js";
 import { authFailure } from "../../../modules/auth/application/errors/auth-application.error.js";
 import { problemResult } from "./error.factory.js";
 import { HttpExceptionFilter } from "./http-exception.filter.js";

@@ -7,7 +7,7 @@ import type { UserRepository } from "../../modules/auth/application/ports/persis
 import { MfaEnrollment } from "../../modules/auth/domain/entities/mfa-enrollment.entity.js";
 import { Session } from "../../modules/auth/domain/entities/session.entity.js";
 import { User } from "../../modules/auth/domain/entities/user.entity.js";
-import { hashSecret } from "../security/crypto.utils.js";
+import { hashSecretSync } from "../security/crypto.utils.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 
@@ -19,7 +19,7 @@ function makeSession(
   return Session.rehydrate({
     id: "session-1",
     userId: "user-1",
-    tokenHash: hashSecret("raw-token"),
+    tokenHash: hashSecretSync("raw-token"),
     expiresAt: NOW + 60_000,
     revokedAt: null,
     mfaVerifiedAt: null,
@@ -132,7 +132,7 @@ describe("RbacContextLoader", () => {
     for (const session of [
       makeSession({ expiresAt: NOW - 1000 }),
       makeSession({ revokedAt: NOW - 1000 }),
-      makeSession({ tokenHash: hashSecret("different-token") }),
+      makeSession({ tokenHash: hashSecretSync("different-token") }),
     ]) {
       const loader = makeLoader({
         sessions: {

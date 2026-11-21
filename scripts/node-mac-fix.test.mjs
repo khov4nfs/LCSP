@@ -9,19 +9,6 @@ const preloadSource = await readFile(
   new URL("./node-mac-fix.cjs", import.meta.url),
   "utf8",
 );
-const apiSource = ts.transpileModule(
-  await readFile(
-    new URL("../apps/api/src/patch-net-tos.ts", import.meta.url),
-    "utf8",
-  ),
-  {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2023,
-      module: ts.ModuleKind.CommonJS,
-      esModuleInterop: true,
-    },
-  },
-).outputText;
 const launcherSource = await readFile(
   new URL("./run.mjs", import.meta.url),
   "utf8",
@@ -41,10 +28,7 @@ function install(source, net, platform = "darwin", optIn = "1") {
   });
 }
 
-for (const [label, source] of [
-  ["preload", preloadSource],
-  ["API", apiSource],
-]) {
+for (const [label, source] of [["preload", preloadSource]]) {
   test(
     label + " leaves every other platform or disabled option unchanged",
     () => {
@@ -162,25 +146,21 @@ for (const [label, source] of [
   });
 }
 
-test("preload and API entrypoint share one compatibility wrapper", () => {
-  for (const sources of [
-    [preloadSource, apiSource],
-    [apiSource, preloadSource],
-  ]) {
-    const net = {
-      Socket: {
-        prototype: {
-          setTypeOfService() {
-            return this;
-          },
+// Preload compatibility wrapper idempotency check
+test("preload installation is idempotent across multiple invocations", () => {
+  const net = {
+    Socket: {
+      prototype: {
+        setTypeOfService() {
+          return this;
         },
       },
-    };
-    install(sources[0], net);
-    const once = net.Socket.prototype.setTypeOfService;
-    install(sources[1], net);
-    assert.equal(net.Socket.prototype.setTypeOfService, once);
-  }
+    },
+  };
+  install(preloadSource, net);
+  const once = net.Socket.prototype.setTypeOfService;
+  install(preloadSource, net);
+  assert.equal(net.Socket.prototype.setTypeOfService, once);
 });
 
 function buildEnvironment(platform, env) {

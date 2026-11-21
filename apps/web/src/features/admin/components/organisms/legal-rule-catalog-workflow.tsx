@@ -2,11 +2,13 @@
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileTextIcon, Trash2Icon } from "lucide-react";
+import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   LEGAL_RULE_PREPARATION_STATES as STATES,
   LEGAL_RULE_SELECTION_MODES as MODES,
   legalRuleSelectionResultSchema,
   preparationRuleBatchSchema,
+  type LegalRuleActivationResult,
   type LegalRuleFilter,
   type LegalRuleListItem,
 } from "@lcsp/contracts/legal-rule-catalog";
@@ -34,22 +36,33 @@ import {
   useLegalRuleCatalogs,
   useLegalRules,
   useLegalRuleCommand,
+  useLegalRuleActivation,
   useDeleteLegalRuleCatalog,
 } from "@/lib/api/legal-rule-catalog-queries";
+import { useComplianceRuleSetHistoryQuery } from "@/lib/api/compliance-rule-set-queries";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
-import { LEGAL_RULE_FILTER_ALL } from "../../config/legal-rule-catalog.config";
+import {
+  LEGAL_RULE_FILTER_ALL,
+  LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES,
+} from "../../config/legal-rule-catalog.config";
+import { selectLegalRulePreparationFilter } from "../../utils/legal-rule-preparation-filter";
 import {
   LegalRuleCatalogCreateForm,
   LegalRuleCatalogRuleForm,
 } from "../molecules/legal-rule-catalog-forms";
 import { LegalRuleResultDialog } from "../molecules/legal-rule-catalog-result";
+import {
+  formatLegalProvisions,
+  getRuleDisplayTitle,
+} from "../../utils/legal-rule-formatter";
 import { LegalRuleCatalogBatch } from "./legal-rule-catalog-batch";
 import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
 
 /**
  * Business purpose: Build a Preparation Rule Set from explicitly selected canonical rules after chunking.
  * Business rules:
- * - No rule starts selected; selection persists across server pages/filters, and all-matching is resolved by the server.
+ * - No rule starts selected; build and activation selections persist across server pages/filters. The normal list exposes Preparation selection, while the prepared-with-rules filter exposes activation selection, so each row has one action-specific checkbox.
+ * - Assessment Rule filtering and activation candidates reflect only current successful persisted outputs.
  * Execution flow:
  * 1. Choose/edit the catalog
  * 2. Select eligible rules
@@ -78,6 +91,15 @@ export function LegalRuleCatalogWorkflow({
   const [filters, setFilters] = useState<LegalRuleFilter>({ search: "" });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedRevision, setSelectedRevision] = useState<number | null>(null);
+  const [activationSelection, setActivationSelection] = useState<
+    Map<string, LegalRuleListItem>
+  >(new Map());
+  const [activationRevision, setActivationRevision] = useState<number | null>(
+    null,
+  );
+  const [activationConfirming, setActivationConfirming] = useState(false);
+  const [activationSuccess, setActivationSuccess] =
+    useState<LegalRuleActivationResult | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<LegalRuleListItem | null | undefined>(
     undefined,
@@ -91,9 +113,17 @@ export function LegalRuleCatalogWorkflow({
     typeof legalRuleSelectionResultSchema.parse
   > | null>(null);
   const submissionKey = useRef("");
+  const activationSubmissionKey = useRef("");
+  const ruleSetHistory = useComplianceRuleSetHistoryQuery();
+  const currentActiveRuleSet = ruleSetHistory.data?.ruleSets.find(
+    (item) => item.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+  );
   const rules = useLegalRules(catalogId, { ...filters, page, limit: 50 });
   const isCatalogEmpty =
-    rules.data?.total === 0 && !filters.search && !filters.state;
+    rules.data?.total === 0 &&
+    !filters.search &&
+    !filters.state &&
+    !filters.withAssessmentRules;
   const selection = useLegalRuleCommand(
     "/selections",
     legalRuleSelectionResultSchema,
@@ -102,12 +132,18 @@ export function LegalRuleCatalogWorkflow({
     "/preparations",
     preparationRuleBatchSchema,
   );
+  const activate = useLegalRuleActivation(catalogId);
   const deleteMutation = useDeleteLegalRuleCatalog();
 
   const currentCatalog = catalogs.data?.find(
     (catalog) => catalog.id === catalogId,
   );
-  const busy = selection.isPending || submit.isPending;
+  const busy = selection.isPending || submit.isPending || activate.isPending;
+  const selectingForActivation = filters.withAssessmentRules === true;
+  const selectedAssessmentRuleCount = [...activationSelection.values()].reduce(
+    (total, item) => total + item.assessmentRuleCount,
+    0,
+  );
 
   /**
    * Business purpose: Keep the acknowledged Preparation Rule Set reopenable after a page refresh.
@@ -129,7 +165,7 @@ export function LegalRuleCatalogWorkflow({
   /**
    * Business purpose: Clear only the current selection without starting or cancelling preparation.
    * Business rules:
-   * - Persisted batches/results remain intact.
+   * - Persisted batches/results remain intact; local build and activation selections are both cleared.
    * Execution flow:
    * 1. Reset selected IDs, revision and pending confirmation snapshot.
    * Failure cases:
@@ -141,6 +177,52 @@ export function LegalRuleCatalogWorkflow({
     setSelectedIds(new Set());
     setSelectedRevision(null);
     setSnapshot(null);
+    setActivationSelection(new Map());
+    setActivationRevision(null);
+    setActivationConfirming(false);
+    setActivationSuccess(null);
+  }
+
+  /**
+   * Business purpose: Retain one exact prepared result revision for explicit activation confirmation.
+   *
+   * Business rules:
+   * - Only current PREPARED rows with a positive persisted Assessment Rule count are selectable; one catalog revision owns the cross-page selection.
+   *
+   * Execution flow:
+   * 1. Ignore a row missing its current result identity or revision.
+   * 2. Toggle the exact result identity in a copied selection map.
+   * 3. Pin or clear the catalog revision and reset any prior confirmation result.
+   *
+   * Failure cases:
+   * - Ineligible or zero-rule rows cannot enter the activation selection.
+   *
+   * Side effects:
+   * - Updates local Admin selection only; no publication occurs until the confirmation action.
+   */
+  function toggleActivationRule(rule: LegalRuleListItem) {
+    if (
+      rule.state !== STATES.PREPARED ||
+      rule.assessmentRuleCount <= 0 ||
+      !rule.lastResultId ||
+      !rule.lastResultRevision ||
+      !rules.data
+    )
+      return;
+    if (
+      activationRevision !== null &&
+      activationRevision !== rules.data.catalogRevision
+    )
+      return;
+    const next = new Map(activationSelection);
+    if (next.has(rule.id)) next.delete(rule.id);
+    else next.set(rule.id, rule);
+    setActivationSelection(next);
+    setActivationRevision(
+      next.size ? (activationRevision ?? rules.data.catalogRevision) : null,
+    );
+    setActivationSuccess(null);
+    activationSubmissionKey.current = "";
   }
 
   /**
@@ -255,6 +337,54 @@ export function LegalRuleCatalogWorkflow({
       showBatch(result.id);
       setConfirming(false);
       clearSelection();
+    }
+  }
+
+  /**
+   * Business purpose: Activate the exact prepared result revisions after the Admin reviews the replacement warning and rule count.
+   *
+   * Business rules:
+   * - The stable request key and selected revision identities are reused after transport failure; only a validated server acknowledgement is success.
+   * - No unselected, failed, stale, or zero-rule catalog entries are submitted.
+   *
+   * Execution flow:
+   * 1. Submit the selected result manifest and pinned catalog revision.
+   * 2. Keep selection and idempotency identity on failure for safe retry.
+   * 3. On acknowledgement, display the published version and clear local activation selection.
+   *
+   * Failure cases:
+   * - Server freshness, eligibility, source, validation, authorization, and network errors remain visible without an optimistic success state.
+   *
+   * Side effects:
+   * - Requests canonical Rule Set publication; the server owns the ACTIVE lifecycle and cache invalidation.
+   */
+  async function confirmActivation() {
+    if (!activationSelection.size || activationRevision === null) return;
+    if (!activationSubmissionKey.current)
+      activationSubmissionKey.current = crypto.randomUUID();
+    const result = await activate
+      .mutateAsync({
+        expectedRevision: activationRevision,
+        idempotencyKey: activationSubmissionKey.current,
+        results: [...activationSelection.values()].flatMap((rule) =>
+          rule.lastResultId && rule.lastResultRevision
+            ? [
+                {
+                  ruleId: rule.id,
+                  resultId: rule.lastResultId,
+                  revision: rule.lastResultRevision,
+                },
+              ]
+            : [],
+        ),
+      })
+      .catch(() => null);
+    if (result) {
+      setActivationSuccess(result);
+      setActivationConfirming(false);
+      setActivationSelection(new Map());
+      setActivationRevision(null);
+      activationSubmissionKey.current = "";
     }
   }
 
@@ -384,23 +514,25 @@ export function LegalRuleCatalogWorkflow({
               <div className="space-y-2">
                 <Label>{t("status")}</Label>
                 <Select
-                  value={filters.state ?? LEGAL_RULE_FILTER_ALL}
+                  value={
+                    filters.withAssessmentRules
+                      ? LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES
+                      : (filters.state ?? LEGAL_RULE_FILTER_ALL)
+                  }
                   onValueChange={(value) => {
-                    setFilters({
-                      ...filters,
-                      state:
-                        value === LEGAL_RULE_FILTER_ALL
-                          ? undefined
-                          : (value as LegalRuleFilter["state"]),
-                    });
+                    setFilters((current) =>
+                      selectLegalRulePreparationFilter(current, value),
+                    );
                     setPage(1);
                   }}
                 >
                   <SelectTrigger aria-label={t("status")}>
                     <SelectValue>
-                      {filters.state
-                        ? t(`state_${filters.state}`)
-                        : t("allStates")}
+                      {filters.withAssessmentRules
+                        ? t("preparedWithAssessmentRules")
+                        : filters.state
+                          ? t(`state_${filters.state}`)
+                          : t("allStates")}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -412,21 +544,30 @@ export function LegalRuleCatalogWorkflow({
                         {t(`state_${state}`)}
                       </SelectItem>
                     ))}
+                    <SelectItem
+                      value={LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES}
+                    >
+                      {t("preparedWithAssessmentRules")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                disabled={busy || !rules.data?.eligibleTotal}
-                onClick={() => void selectAll()}
-              >
-                {t("selectAll")}
-              </Button>
+              {!selectingForActivation ? (
+                <Button
+                  variant="outline"
+                  disabled={busy || !rules.data?.eligibleTotal}
+                  onClick={() => void selectAll()}
+                >
+                  {t("selectAll")}
+                </Button>
+              ) : null}
               <Button
                 variant="ghost"
-                disabled={!selectedIds.size || busy}
+                disabled={
+                  (!selectedIds.size && !activationSelection.size) || busy
+                }
                 onClick={clearSelection}
               >
                 {t("clear")}
@@ -437,15 +578,46 @@ export function LegalRuleCatalogWorkflow({
                   {selectedIds.size}
                 </strong>
               </span>
-              <Button
-                disabled={!selectedIds.size || busy}
-                onClick={() => void previewSelection()}
-              >
-                {busy ? t("loading") : t("prepare")}
-              </Button>
+              {!selectingForActivation ? (
+                <Button
+                  disabled={!selectedIds.size || busy}
+                  onClick={() => void previewSelection()}
+                >
+                  {busy ? t("loading") : t("prepare")}
+                </Button>
+              ) : null}
+              {selectingForActivation ? (
+                <Button
+                  variant="destructive"
+                  disabled={
+                    !activationSelection.size ||
+                    !ruleSetHistory.isSuccess ||
+                    busy
+                  }
+                  onClick={() => setActivationConfirming(true)}
+                >
+                  {t("activateSelectedAssessmentRules")}
+                </Button>
+              ) : null}
             </div>
+            {activationSelection.size ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                {t("activationSelectedCount")}: {activationSelection.size} ·{" "}
+                {t("assessmentRuleCount")}: {selectedAssessmentRuleCount}
+              </p>
+            ) : null}
+            {activationSuccess ? (
+              <Alert>
+                <AlertDescription>
+                  {t("activationSuccess")}: {activationSuccess.version}
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <p className="text-xs text-muted-foreground">{t("acrossPages")}</p>
-            {selection.isError || rules.isError ? (
+            {selection.isError ||
+            rules.isError ||
+            activate.isError ||
+            ruleSetHistory.isError ? (
               <Alert variant="destructive">
                 <AlertDescription>{t("error")}</AlertDescription>
               </Alert>
@@ -454,31 +626,41 @@ export function LegalRuleCatalogWorkflow({
             <ul className="divide-y">
               {rules.data?.items.map((rule) => (
                 <li key={rule.id} className="flex items-start gap-3 py-4">
-                  <Checkbox
-                    id={`select-${rule.id}`}
-                    aria-label={`${t("selectRule")} ${rule.legalRuleId}`}
-                    checked={selectedIds.has(rule.id)}
-                    disabled={!!rule.ineligibleReason || busy}
-                    onCheckedChange={() => toggleRule(rule.id)}
-                  />
+                  <div className="flex flex-col gap-3 pt-1">
+                    {selectingForActivation ? (
+                      rule.state === STATES.PREPARED &&
+                      rule.assessmentRuleCount > 0 ? (
+                        <Checkbox
+                          id={`activate-${rule.id}`}
+                          aria-label={`${t("selectForActivation")} ${getRuleDisplayTitle(rule)}`}
+                          checked={activationSelection.has(rule.id)}
+                          disabled={busy}
+                          onCheckedChange={() => toggleActivationRule(rule)}
+                        />
+                      ) : null
+                    ) : (
+                      <Checkbox
+                        id={`select-${rule.id}`}
+                        aria-label={`${t("selectRule")} ${getRuleDisplayTitle(rule)}`}
+                        checked={selectedIds.has(rule.id)}
+                        disabled={!!rule.ineligibleReason || busy}
+                        onCheckedChange={() => toggleRule(rule.id)}
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <Label
                       htmlFor={`select-${rule.id}`}
                       className="font-semibold"
                     >
-                      {rule.legalRuleId} · {rule.title}
+                      {getRuleDisplayTitle(rule)}
                     </Label>
-                    <p className="mt-1 text-sm">{rule.description}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {currentCatalog?.version} · {t(`state_${rule.state}`)}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("assessmentRuleCount")}: {rule.assessmentRuleCount}
                     </p>
-                    <ul className="mt-1 text-xs text-muted-foreground">
-                      {rule.citationLocatorRefs.map((ref) => (
-                        <li key={`${ref.documentId}:${ref.locator}`}>
-                          {ref.documentId} · {ref.locator}
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">
+                      {formatLegalProvisions(rule.description)}
+                    </p>
                     {rule.ineligibleReason ? (
                       <p className="mt-1 text-sm text-destructive">
                         {t(`reason_${rule.ineligibleReason}`)}
@@ -682,6 +864,66 @@ export function LegalRuleCatalogWorkflow({
               onClick={() => void confirmSelection()}
             >
               {submit.isPending ? t("loading") : t("confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={activationConfirming}
+        onOpenChange={setActivationConfirming}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader className="flex flex-col gap-1.5 border-b pb-4">
+            <DialogTitle>{t("activateConfirmTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("activateConfirmDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 p-6">
+            <p>
+              {t("activationSelectedCount")}:{" "}
+              <strong>{activationSelection.size}</strong>
+            </p>
+            <p>
+              {t("assessmentRuleCount")}:{" "}
+              <strong>{selectedAssessmentRuleCount}</strong>
+            </p>
+            <p>
+              {t("currentActiveRuleCount")}:{" "}
+              <strong>{currentActiveRuleSet?.assessmentRuleCount ?? 0}</strong>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("activateConfirmImpact")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {currentActiveRuleSet?.version ?? t("noActiveRuleSet")}
+            </p>
+            {activate.isError || ruleSetHistory.isError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{t("error")}</AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+          <DialogFooter className="px-6 pb-6">
+            <Button
+              variant="outline"
+              disabled={activate.isPending}
+              onClick={() => setActivationConfirming(false)}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={
+                !activationSelection.size ||
+                !ruleSetHistory.isSuccess ||
+                activate.isPending
+              }
+              onClick={() => void confirmActivation()}
+            >
+              {activate.isPending
+                ? t("activating")
+                : t("activateSelectedAssessmentRules")}
             </Button>
           </DialogFooter>
         </DialogContent>

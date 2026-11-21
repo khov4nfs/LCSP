@@ -2,7 +2,9 @@ import * as crypto from "node:crypto";
 
 export {
   hashSecret,
+  hashSecretSync,
   verifySecret,
+  verifySecretSync,
   issueOpaqueToken,
   issueOAuthStateToken,
   fingerprintToken,
@@ -13,12 +15,13 @@ export {
   generateTotpSecret,
   totpForTime,
   verifyTotpOtp,
+  unconsumeTotpOtp,
 } from "../../../../platform/security/totp.utils.js";
 
 // ─── MFA Secret Encryption (AES-256-GCM) ──────────────────────────
 
-function deriveMfaEncKey(): Buffer {
-  const raw = process.env.MFA_SECRET_ENCRYPTION_KEY;
+function deriveMfaEncKey(keyOverride?: string): Buffer {
+  const raw = keyOverride || process.env.MFA_SECRET_ENCRYPTION_KEY;
   // Same rule as the Joi schema in config.ts: exactly 64 hex characters.
   if (!raw || !/^[0-9a-fA-F]{64}$/.test(raw)) {
     throw new Error(
@@ -28,8 +31,11 @@ function deriveMfaEncKey(): Buffer {
   return crypto.createHash("sha256").update(raw).digest();
 }
 
-export function encryptMfaSecret(plaintext: string): string {
-  const key = deriveMfaEncKey();
+export function encryptMfaSecret(
+  plaintext: string,
+  secretKey?: string,
+): string {
+  const key = deriveMfaEncKey(secretKey);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const ciphertext = Buffer.concat([
@@ -40,11 +46,14 @@ export function encryptMfaSecret(plaintext: string): string {
   return `${iv.toString("hex")}.${ciphertext.toString("hex")}.${tag.toString("hex")}`;
 }
 
-export function decryptMfaSecret(encrypted: string): string {
+export function decryptMfaSecret(
+  encrypted: string,
+  secretKey?: string,
+): string {
   const parts = encrypted.split(".");
   if (parts.length !== 3) throw new Error("Invalid MFA secret ciphertext");
   const [ivHex, ciphertextHex, tagHex] = parts;
-  const key = deriveMfaEncKey();
+  const key = deriveMfaEncKey(secretKey);
   const iv = Buffer.from(ivHex, "hex");
   const ciphertext = Buffer.from(ciphertextHex, "hex");
   const tag = Buffer.from(tagHex, "hex");

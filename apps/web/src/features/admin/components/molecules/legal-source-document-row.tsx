@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  CopyIcon,
   DownloadIcon,
   EyeIcon,
   RotateCwIcon,
@@ -27,6 +26,7 @@ import {
 } from "@/lib/api/legal-source-queries";
 import { appLocale } from "@/lib/locale";
 import {
+  LEGAL_SOURCE_EFFECT_STATUS_MESSAGE_KEYS,
   LEGAL_SOURCE_FAILURE_MESSAGE_KEYS,
   LEGAL_SOURCE_ORIGIN_MESSAGE_KEYS,
   LEGAL_SOURCE_STRUCTURE_PROFILE_MESSAGE_KEYS,
@@ -51,7 +51,6 @@ export function LegalSourceDocumentRow({
 }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [editEffect, setEditEffect] = useState(false);
-  const [copied, setCopied] = useState(false);
   const retry = useRetryLegalSourceDocumentMutation(versionId);
   const remove = useRemoveLegalSourceDocumentMutation(versionId);
 
@@ -72,21 +71,20 @@ export function LegalSourceDocumentRow({
     }
   }
 
-  async function copyHash() {
-    try {
-      await navigator.clipboard.writeText(document.sourceSha256);
-      setCopied(true);
-    } catch {
-      onError("pages.legalSources.actionFailed");
-    }
-  }
-
   const adminDocumentPath = `/api/admin/legal-source-versions/${encodeURIComponent(versionId)}/documents/${encodeURIComponent(document.id)}`;
   const usedProfile = getStructureProfile(
     document.extraction,
     document.structureProfile,
   );
   const failureKey = getFailureKey(document.failureCode);
+  const effectStatusKey =
+    LEGAL_SOURCE_EFFECT_STATUS_MESSAGE_KEYS[
+      document.sourceEffectStatus as keyof typeof LEGAL_SOURCE_EFFECT_STATUS_MESSAGE_KEYS
+    ];
+  const effectStatusLabel = effectStatusKey
+    ? t(effectStatusKey)
+    : document.sourceEffectStatus;
+  const formattedEffectiveDate = formatEffectDate(document.effectiveDate);
 
   return (
     <tr>
@@ -99,8 +97,8 @@ export function LegalSourceDocumentRow({
           ) : null}
           <span className="text-xs text-muted-foreground">
             {t("pages.legalSources.sourceEffectStatusLabel")}:{" "}
-            {document.sourceEffectStatus}
-            {document.effectiveDate ? ` · ${document.effectiveDate}` : ""}
+            <span className="font-medium text-foreground">{effectStatusLabel}</span>
+            {formattedEffectiveDate ? ` · ${formattedEffectiveDate}` : ""}
           </span>
         </div>
       </td>
@@ -123,27 +121,6 @@ export function LegalSourceDocumentRow({
         {formatBytes(document.byteLength)}
       </td>
       <td className="px-4 py-4 align-top">{document.chunkCount}</td>
-      <td className="min-w-72 px-4 py-4 align-top">
-        <div className="flex items-center gap-2">
-          <code className="break-all font-mono text-xs">
-            {document.sourceSha256}
-          </code>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t("pages.legalSources.copySha256")}
-            onClick={() => void copyHash()}
-          >
-            <CopyIcon aria-hidden="true" />
-          </Button>
-        </div>
-        {copied ? (
-          <span className="text-xs text-muted-foreground">
-            {t("pages.legalSources.copySuccess")}
-          </span>
-        ) : null}
-      </td>
       <td className="min-w-52 px-4 py-4 align-top">
         <div className="flex flex-wrap gap-2">
           {canEditEffect &&
@@ -343,4 +320,13 @@ function formatBytes(bytes: number | null) {
     unitDisplay: "short",
     maximumFractionDigits: 2,
   }).format(megabytes);
+}
+
+function formatEffectDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(appLocale, {
+    dateStyle: "medium",
+  }).format(parsed);
 }

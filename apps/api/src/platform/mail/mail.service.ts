@@ -79,14 +79,31 @@ export class MailService {
   }
 
   /**
-   * Reads and normalizes SMTP settings from application configuration.
+   * Business purpose: Read and normalize SMTP transport settings from runtime application configuration.
+   *
+   * Business rules:
+   * - Both SMTP host and default sender from address are mandatory for a valid transport configuration.
+   * - Missing or empty optional credentials (user and password) must normalize to null to allow unauthenticated relays.
+   * - Port must default to 587 if not explicitly provided or invalid.
+   *
+   * Execution flow:
+   * 1. Retrieve the email configuration segment from ConfigService.
+   * 2. Safely trim host and sender addresses, returning null immediately if either is missing or blank.
+   * 3. Normalize port number, TLS secure flag, and optional authentication credentials.
+   * 4. Return the consolidated SmtpConfig object.
+   *
+   * Failure cases:
+   * - Returns null when email configuration is undefined, empty, or missing required host/from fields.
+   *
+   * Side effects:
+   * - Read-only configuration extraction with no external persistence or network mutations.
    *
    * @returns Normalized SMTP configuration, or null when required settings are absent.
    */
   private readConfig(): SmtpConfig | null {
     const emailConfig = this.configService.get<AppConfig["email"]>("email");
-    const host = emailConfig?.smtpHost.trim();
-    const from = emailConfig?.smtpFrom.trim();
+    const host = emailConfig?.smtpHost?.trim();
+    const from = emailConfig?.smtpFrom?.trim();
     if (!host || !from) {
       return null;
     }
@@ -98,8 +115,8 @@ export class MailService {
       host,
       port: Number.isFinite(port) ? port : 587,
       secure,
-      user: emailConfig?.smtpUser.trim() || null,
-      password: emailConfig?.smtpPass.trim() || null,
+      user: emailConfig?.smtpUser?.trim() || null,
+      password: emailConfig?.smtpPass?.trim() || null,
       from,
     };
   }

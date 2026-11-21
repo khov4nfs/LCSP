@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy legal rule catalog requests to backend
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import * as C from "@lcsp/contracts/legal-rule-catalog";
@@ -40,6 +43,12 @@ const routes = [
     pattern: /^[^/]+\/source-provisions\/import$/,
     request: C.legalRuleSourceProvisionImportSchema,
     response: C.legalRuleSavedSchema,
+  },
+  {
+    method: "POST",
+    pattern: /^[^/]+\/assessment-rules\/activate$/,
+    request: C.legalRuleActivationRequestSchema,
+    response: C.legalRuleActivationResultSchema,
   },
   {
     method: "POST",

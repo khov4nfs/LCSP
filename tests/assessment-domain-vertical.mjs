@@ -250,11 +250,12 @@ const {
   checkpointDatabase: process.env.LCSP_TEST_CHECKPOINT_DATABASE,
   operationTimeoutMs: 2 * 60 * 1000,
 });
-const { hashSecret } = await import(
+const { hashSecret: rawHashSecret, hashSecretSync } = await import(
   pathToFileURL(
     path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
   ).href
 );
+const hashSecret = hashSecretSync ?? rawHashSecret;
 const { canonicalJson } = await import(
   pathToFileURL(
     path.join(

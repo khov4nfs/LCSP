@@ -76,7 +76,12 @@ export const legalRuleSourceProvisionQuerySchema = z.strictObject({
   sourceVersionId: id,
   documentId: z.string().trim().min(1).max(256),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(LEGAL_RULE_LIMITS.pageSize).default(LEGAL_RULE_LIMITS.pageSize),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LEGAL_RULE_LIMITS.pageSize)
+    .default(LEGAL_RULE_LIMITS.pageSize),
 });
 export type LegalRuleSourceProvisionQuery = z.infer<
   typeof legalRuleSourceProvisionQuerySchema
@@ -129,6 +134,12 @@ export const legalRuleCatalogWriteSchema = z.strictObject({
 export const legalRuleFilterSchema = z.strictObject({
   search: z.string().trim().max(128).default(""),
   state: z.enum(LEGAL_RULE_PREPARATION_STATES).optional(),
+  withAssessmentRules: z
+    .preprocess(
+      (value) => (value === "true" ? true : value === "false" ? false : value),
+      z.boolean(),
+    )
+    .optional(),
 });
 export const legalRuleListSchema = legalRuleFilterSchema.extend({
   page: z.coerce.number().int().min(1).default(1),
@@ -299,7 +310,9 @@ export const legalRuleListItemSchema = z.object({
   ineligibleReason: z.enum(LEGAL_RULE_INELIGIBILITY_REASONS).nullable(),
   lastResultId: id.nullable(),
   lastRunId: id.nullable(),
+  lastResultRevision: z.number().int().positive().nullable(),
   lastOutcome: z.enum(AGENT_EXECUTION_STATES).nullable(),
+  assessmentRuleCount: z.number().int().nonnegative(),
 });
 export type LegalRuleListItem = z.infer<typeof legalRuleListItemSchema>;
 export const legalRuleSavedSchema = z.object({
@@ -325,6 +338,49 @@ export const legalRuleSelectionResultSchema = z.object({
   scope: legalRuleSelectionSchema,
   fingerprint,
 });
+export const legalRuleActivationRequestSchema = z
+  .strictObject({
+    expectedRevision: z.number().int().positive(),
+    idempotencyKey: id,
+    results: z
+      .array(
+        z.strictObject({
+          ruleId: id,
+          resultId: id,
+          revision: z.number().int().positive(),
+        }),
+      )
+      .min(1)
+      .max(LEGAL_RULE_LIMITS.catalogRules),
+  })
+  .superRefine((request, context) => {
+    const ruleIds = new Set(request.results.map((item) => item.ruleId));
+    const resultIds = new Set(request.results.map((item) => item.resultId));
+    if (
+      ruleIds.size !== request.results.length ||
+      resultIds.size !== request.results.length
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["results"],
+        message: "Selected result identities must be unique",
+      });
+  });
+export type LegalRuleActivationRequest = z.infer<
+  typeof legalRuleActivationRequestSchema
+>;
+export const legalRuleActivationResultSchema = z.strictObject({
+  activationRecordId: id,
+  ruleSetVersionId: id,
+  version: z.string().min(1),
+  assessmentRuleCount: z.number().int().positive(),
+  selectedResultCount: z.number().int().positive(),
+  previousActiveRuleSetVersionId: id.nullable(),
+  replayed: z.boolean(),
+});
+export type LegalRuleActivationResult = z.infer<
+  typeof legalRuleActivationResultSchema
+>;
 const preparationRuleBatchItemSchema = z.object({
   ruleId: id,
   resultId: id,

@@ -1,3 +1,6 @@
+// Enforce server-only execution boundary: guarantees compile-time build failure if accidentally imported by a Client Component ('use client')
+import "server-only";
+
 import type { AppResult } from "@lcsp/contracts/auth";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 

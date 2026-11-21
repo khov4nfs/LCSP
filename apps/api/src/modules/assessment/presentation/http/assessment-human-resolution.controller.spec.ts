@@ -16,7 +16,7 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 import { z } from "zod";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AnswerHumanRequestCommand } from "../../application/commands/answer-human-request/answer-human-request.command.js";
 import { GetHumanRequestsQuery } from "../../application/queries/get-human-requests/get-human-requests.query.js";

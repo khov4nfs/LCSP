@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resolveMessage } from "@lcsp/i18n";
-import { LockIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -86,6 +86,7 @@ function ConfirmAccessDialogContent({
   const [method, setMethod] = useState<ConfirmAccessMethod>(
     initialMethod,
   );
+  const [showPassword, setShowPassword] = useState(false);
   const passwordForm = useForm<ConfirmAccessPasswordValues>({
     resolver: zodResolver(confirmAccessPasswordSchema),
     defaultValues: { password: "" },
@@ -110,6 +111,7 @@ function ConfirmAccessDialogContent({
 
     if (mfa.isEnabled && mfa.isConfigured) {
       otpForm.reset();
+      setShowPassword(false);
       setMethod(CONFIRM_ACCESS_METHODS.otp);
       return;
     }
@@ -122,6 +124,7 @@ function ConfirmAccessDialogContent({
 
   function handleSelectPassword() {
     passwordForm.reset();
+    setShowPassword(false);
     setMethod(CONFIRM_ACCESS_METHODS.password);
   }
 
@@ -198,17 +201,39 @@ function ConfirmAccessDialogContent({
                   >
                     {resolveMessage(appLocale, passwordLabelKey)}
                   </FieldLabel>
-                  <Input
-                    id="confirm-access-password"
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder={
-                      passwordPlaceholderKey
-                        ? resolveMessage(appLocale, passwordPlaceholderKey)
-                        : undefined
-                    }
-                    {...passwordForm.register("password")}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="confirm-access-password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      className="pr-10"
+                      placeholder={
+                        passwordPlaceholderKey
+                          ? resolveMessage(appLocale, passwordPlaceholderKey)
+                          : undefined
+                      }
+                      {...passwordForm.register("password")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={resolveMessage(
+                        appLocale,
+                        (showPassword
+                          ? "pages.signIn.hidePassword"
+                          : "pages.signIn.showPassword") as Parameters<
+                          typeof resolveMessage
+                        >[1],
+                      )}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {showPassword ? (
+                        <EyeOffIcon className="size-4" aria-hidden="true" />
+                      ) : (
+                        <EyeIcon className="size-4" aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
                   {forgotPasswordHref && forgotPasswordLabelKey ? (
                     <div className="flex justify-end">
                       <Link

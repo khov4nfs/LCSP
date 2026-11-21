@@ -21,7 +21,7 @@ import {
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
@@ -65,7 +65,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
         id: adminId,
         email: adminEmail,
         displayName: "Admin User",
-        passwordHash: hashSecret("Password123!"),
+        passwordHash: hashSecretSync("Password123!"),
         emailVerified: true,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.admin,
@@ -89,7 +89,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
         id: customerId,
         email: customerEmail,
         displayName: "Customer User",
-        passwordHash: hashSecret("Password123!"),
+        passwordHash: hashSecretSync("Password123!"),
         emailVerified: true,
         failedLoginCount: 0,
         role: AUTH_USER_ROLES.customer,

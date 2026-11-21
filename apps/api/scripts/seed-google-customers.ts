@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { toPrismaAuthUserRole } from "../src/infrastructure/prisma/prisma-enum-mappers.ts";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.ts";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.ts";
 
 const DEFAULT_CUSTOMER_EMAILS = ["customer@lcsp.local"] as const;
 
@@ -57,14 +57,14 @@ async function main() {
         create: {
           id: randomUUID(),
           email,
-          passwordHash: hashSecret(customerPassword),
+          passwordHash: hashSecretSync(customerPassword),
           emailVerified: true,
           failedLoginCount: 0,
           role: customerRole,
         },
         update: {
           emailVerified: true,
-          passwordHash: hashSecret(customerPassword),
+          passwordHash: hashSecretSync(customerPassword),
           failedLoginCount: 0,
           role: customerRole,
         },
