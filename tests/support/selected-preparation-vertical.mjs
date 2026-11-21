@@ -219,8 +219,9 @@ export async function selectedPreparationVertical({ q, base, sourceId }) {
     "Default regeneration preserves exact pins",
   );
   assert.notEqual(
-    after.results[0].instructionReceipt.fingerprint,
-    before.results[0].instructionReceipt.fingerprint,
+    after.results[0].instructionReceipt.content,
+    before.results[0].instructionReceipt.content,
+    "Regeneration must capture changed instruction text without a fingerprint",
   );
   assert.equal(
     after.results[0].instructionReceipt.content,

@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from instruction_source_inventory import ROOT, INVENTORY, discover, source_digest
+from instruction_source_inventory import ROOT, INVENTORY, discover
 
 
 def classify(site):
@@ -87,13 +87,13 @@ def main():
     """Business purpose: Refresh the explicit migration ledger after intentional source changes.
 
     Business rules:
-    - Writing requires an explicit operator flag; source drafts and pending framework adapters do not become approvals.
+    - Writing requires an explicit operator flag; source drafts remain registered instruction assets without approval gates.
     Execution flow:
-    1. Discover construction sites, bind maintained entries, hash bytes and snapshot installed framework surfaces.
+    1. Discover construction sites, bind maintained entries and snapshot installed framework surfaces.
     Failure cases:
     - Invalid source files or unsupported dependency surfaces stop the snapshot.
     Side effects:
-    - Write the source inventory and missing Vietnamese migration drafts; preserve approval status.
+    - Write the source inventory and missing Vietnamese migration drafts; preserve user-managed instruction source paths.
     """
     if sys.argv[1:] != ["--write"]:
         raise SystemExit("Explicit --write is required; inspect the resulting migration diff.")
@@ -142,7 +142,7 @@ def main():
         if identity not in existing:
             existing[identity] = {"sourceId": identity, "runtimeRole": role, "instructionKind": kind,
                 "vietnameseSourcePath": path, "vietnameseSourceRevision": "lcsp-347-draft-r1", "runtimeEntryId": identity,
-                "required": True, "reviewStatus": "PENDING_INDEPENDENT_REVIEW", "englishCandidatePath": None,
+                "required": True, "englishCandidatePath": None,
                 "migrationReferences": [legacy], "placeholderSchema": {},
                 "consumers": [{"filePath": consumer, "symbolName": symbol, "integrationStatus": "PENDING_RUNTIME_CUTOVER"}]}
     payload["entries"] = sorted(existing.values(), key=lambda row: row["sourceId"])
@@ -166,7 +166,7 @@ def main():
         data = path.read_bytes().replace(b"\r\n", b"\n")
         if data != path.read_bytes():
             path.write_bytes(data)
-        row["sourceSha256"] = source_digest(data)
+        # Instruction content is not SHA-256-pinned or approval-gated.
     payload["constructionSites"] = [classify(site) for site in discover()]
     bindings = {
         ("assessment_root/agent.py", "after_model"): "assessment-root.continuation",

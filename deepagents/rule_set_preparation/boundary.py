@@ -9,6 +9,7 @@ from tools.common.capabilities.agent_runtime.boundary import (
     NonRetryableAgentBoundaryError,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
+from tools.common.capabilities.platform.correlation import activate_correlation_id
 
 from rule_set_preparation.runner import run_rule_set_preparation
 
@@ -36,7 +37,8 @@ class RuleSetPreparationBoundary(AgentBoundaryBase):
         Business rules:
         - Selected-result messages invoke only selected-item execution; API claims validate their canonical ownership.
         Execution flow:
-        1. Validate run identity; 2. Route selected-item or historical full-source work to its existing runner.
+        1. Validate run identity.
+        2. Route selected-item work with its dispatch correlation; route historical full-source work to its existing runner.
         Failure cases:
         - Missing run identity rejects permanently; claim and runtime failures remain governed by the runner.
         Side effects:
@@ -48,5 +50,6 @@ class RuleSetPreparationBoundary(AgentBoundaryBase):
             raise NonRetryableAgentBoundaryError("rule set preparation command has no preparationRunId")
         if message.get("preparationRuleResultId"):
             from rule_set_preparation.selected_rule import run_selected_rule_preparation
-            return run_selected_rule_preparation(self._api_client, run_id.strip())
+            with activate_correlation_id(correlationId):
+                return run_selected_rule_preparation(self._api_client, run_id.strip())
         return self._runner(self._api_client, run_id.strip())

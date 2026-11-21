@@ -29,3 +29,11 @@ A review-only decision with sourceNodeId, canonicalLocator, actor, modality, act
 In the review-facing DEVELOPMENT_ONLY projection, entirely omit independent source units, candidate rules and narrative context addressing solely deployment, operational production, downstream use or administrative actors. For mixed clauses, split by exact actor/action and suppress only the non-development operative branch; do not reject the developer branch.
 
 Shared Article numbers or topical proximity are insufficient to keep context. Any exception needs a verified material link and a minimal source-faithful predicate. This affects view selection only; operative source accounting and full-source validation remain intact.
+
+## Passive-voice addressee and supervision check
+
+When the law says a system “is inspected/supervised” or oversight “is carried out by reports, sampling or independent assessment,” establish whether it is a **supervision procedure** rather than a direct duty addressed to the regulated entity. Consult only pinned material ancestors and legally linked provisions; the supervised system is not automatically the actor required to author reports. Do not assign Developer, Provider or Deployer or invent technical-record duties from passive syntax. Keep material legal context where relevant but never derive a development AssessmentRule without a source-supported developer design/build action. Unresolved actor attribution means LEGAL_REVIEW_REQUIRED, not an invented operative claim. A public-authority responsibility is not a customer obligation.
+
+## Actor attribution across INPUT — OUTPUT — PROCESS
+
+A provision's data category, system object or output does not by itself determine its legal addressee. For every legal act, use pinned lead-ins to identify the actor, input condition, genuinely required/prohibited output (if any) and regulated lifecycle step. Never choose Developer merely because software could assist an organizational act; never assume Deployer solely because post-deployment is mentioned. Public oversight methods are not duties automatically shifted to a supervised company. Atomize mixed responsibilities by actor and stage; emit a developer AssessmentRule only for a legally supported design/build obligation with repository-verifiable criteria.

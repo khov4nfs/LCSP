@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import {
   AssessmentLifecycleState,
   AgentExecutionState,
+  CredentialProvider,
   OutboxStatus,
+  RepositoryAuthenticationMode,
 } from "@prisma/client";
 import {
   OUTBOX_AGGREGATE_TYPES,
@@ -175,6 +177,8 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
     const commandId = overrides.commandId ?? `cmd-${assessmentId}`;
     const threadId = randomUUID();
     const checkpointId = `cp-${randomUUID()}`;
+    // A persisted lease requires both an execution ID and an expiry on the migrated schema.
+    const leaseToken = overrides.leaseToken ?? null;
 
     trackedAssessmentIds.add(assessmentId);
     trackedCommandIds.add(commandId);
@@ -195,7 +199,9 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
             checkpointId,
             executionState:
               overrides.executionState ?? AgentExecutionState.FAILED,
-            leaseToken: overrides.leaseToken ?? null,
+            leaseToken,
+            currentExecutionId: leaseToken ? randomUUID() : null,
+            leaseExpiresAt: leaseToken ? new Date(Date.now() + 60_000) : null,
           },
         },
       },
@@ -608,6 +614,10 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
       data: {
         id: connId,
         userId: defaultOwnerId,
+        // GitHub App connections require an installation ID on the migrated schema.
+        provider: CredentialProvider.GITHUB,
+        authenticationMode: RepositoryAuthenticationMode.GITHUB_APP,
+        installationId: "1",
         repositoryId: `repo-${randomUUID()}`,
         repositoryName: "test-repo",
         repositoryFullName: "org/test-repo",

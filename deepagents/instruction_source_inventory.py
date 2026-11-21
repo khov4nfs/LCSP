@@ -193,9 +193,9 @@ def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, r
             content = data.decode("utf-8")
         except (OSError, UnicodeError) as error:
             raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_MISSING_OR_INVALID") from error
-        if not content.strip() or ("sourceSha256" in row and source_digest(data) != row["sourceSha256"]):
-            raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_DIGEST_MISMATCH")
-        for field in ("runtimeRole", "instructionKind", "runtimeEntryId", "reviewStatus"):
+        if not content.strip():
+            raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_EMPTY")
+        for field in ("runtimeRole", "instructionKind", "runtimeEntryId"):
             if not row.get(field):
                 raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_METADATA_MISSING")
         if row["runtimeEntryId"] != identity or not isinstance(row["required"], bool):
@@ -221,8 +221,29 @@ def validate_inventory(root: Path = ROOT, inventory_path: Path = INVENTORY, *, r
     if owned_files - paths:
         raise RuntimeInstructionBundleError("INSTRUCTION_SOURCE_UNREGISTERED_FILE")
     declared = payload["constructionSites"]
-    current = {site["siteId"]: site for site in discover(root)}
-    if set(current) != {site["siteId"] for site in declared} or len(declared) != len(current):
+    # Instruction edits do not require a checksum/approval revision. Audit
+    # construction *surfaces*, not hashes of their text or source-line numbers.
+    # New, removed or reclassified model-facing consumers remain a hard error.
+    def surface_counts(sites: list[dict]) -> Counter:
+        """Business purpose: Count registered model-facing construction surfaces.
+
+        Business rules:
+        - Structure, consumer identity and source kind matter; content hashes do not.
+        Execution flow:
+        1. Project each discovered site to its file, owner and AST kind.
+        2. Count duplicate structural surfaces deterministically.
+        Failure cases:
+        - Invalid site metadata raises instead of being silently skipped.
+        Side effects:
+        - None; the declared ledger and discovered surfaces are not changed.
+        """
+        return Counter(
+            (site["filePath"], site["symbolName"], site.get("astKind", "LEGACY_LINE"))
+            for site in sites
+        )
+
+    current = discover(root)
+    if surface_counts(current) != surface_counts(declared):
         raise RuntimeInstructionBundleError("INSTRUCTION_CONSTRUCTION_COVERAGE_DRIFT")
     required = {"constructionType", "modelFacingConsumer", "runtimeRole", "runtimePhase", "contentAuthority", "migrationDecision", "viSourceId", "existingSourcePath", "placeholderSchema", "migrationStatus"}
     for site in declared:

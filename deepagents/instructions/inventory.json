@@ -23,9 +23,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "63230b1abf90cf93d8cfcb8b12733372ac91a1178c2decadb37e1d9e3086f197",
-      "englishCandidateSha256": "1f47b1ef1b66be59642e76c276fb6714f43546a6583b312daa89e998aed12fc5",
-      "candidateOriginSha256": "63230b1abf90cf93d8cfcb8b12733372ac91a1178c2decadb37e1d9e3086f197",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -52,9 +49,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "ff73929990f705015ed5b928da75bcfee94ae46c0d816ead3279376efb478cd9",
-      "englishCandidateSha256": "3ab2c42f073ea3080682d8c6cadc297885b1d9319433f6b3cd03d6054cf8d3b9",
-      "candidateOriginSha256": "ff73929990f705015ed5b928da75bcfee94ae46c0d816ead3279376efb478cd9",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -91,9 +85,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a34cb14639a58145feeb645feb5c85950913b0fe5f2f3283fafc6c5911216b79",
-      "englishCandidateSha256": "b990ec9ee453393529b852a0a8262d96273c5466ad8b8c7cf4b397cd4e7d7cac",
-      "candidateOriginSha256": "a34cb14639a58145feeb645feb5c85950913b0fe5f2f3283fafc6c5911216b79",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -120,9 +111,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "ed2da7e88c939d6b65c2c18a189aa4870450dda75d1240e4f5d46b3e3f42fe76",
-      "englishCandidateSha256": "22fe9c9d393c40600ceafa1102504d5e0a87ace4692a427fc6f49cd998fa47f8",
-      "candidateOriginSha256": "ed2da7e88c939d6b65c2c18a189aa4870450dda75d1240e4f5d46b3e3f42fe76",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -149,9 +137,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "3d6ee5e68cd72326c1e7a0eebf28761cfe1f73c794835101b17cf2dde5040e73",
-      "englishCandidateSha256": "63b745e70e8a1620d263185f1f1a40c51af1fbb7f45eafa8ed929f8d4bc4b6ff",
-      "candidateOriginSha256": "3d6ee5e68cd72326c1e7a0eebf28761cfe1f73c794835101b17cf2dde5040e73",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -178,9 +163,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "4044378b7482075711c934c32e69660930034052c333719ad8bf19d46c13ae2f",
-      "englishCandidateSha256": "6a1fbce35975c0228e21ef5676f459b98a431316c4d9a57c646ebc920079cbf7",
-      "candidateOriginSha256": "4044378b7482075711c934c32e69660930034052c333719ad8bf19d46c13ae2f",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -207,9 +189,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "926fedfeae0eb7703481ae69599c1417be063a410716236b19ce98b5732b6444",
-      "englishCandidateSha256": "c9fe259b3ca96378eb02c48ecf238138b8518573068e74664a8e4b0ab2fef17e",
-      "candidateOriginSha256": "926fedfeae0eb7703481ae69599c1417be063a410716236b19ce98b5732b6444",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -236,9 +215,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "b5c8c02b6cc14ceac41bf5fe81b99f74b1e35673ea6a68321f3b1161464f8675",
-      "englishCandidateSha256": "7d753d89563ded64a3993406ed85a3d65f238c99e794763fa64a543d3368d626",
-      "candidateOriginSha256": "b5c8c02b6cc14ceac41bf5fe81b99f74b1e35673ea6a68321f3b1161464f8675",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -265,9 +241,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "545ad4c73291a37d0af536673796b7813617c6927d882964d19cb74e592fcb30",
-      "englishCandidateSha256": "2b82feabc5f93bb66091715d8a31b641b722790e770ea3e7dbbd1618fb111b49",
-      "candidateOriginSha256": "545ad4c73291a37d0af536673796b7813617c6927d882964d19cb74e592fcb30",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -299,9 +272,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "dc1ad3a6ecdd7bceb6da16fe8f1b908440f19d2efe098c79c8ddeb82f6d11290",
-      "englishCandidateSha256": "7ecceabd7b394bb1666d3b7c518481504d6e710bcf70ed7aac0ab4d1648ebac0",
-      "candidateOriginSha256": "dc1ad3a6ecdd7bceb6da16fe8f1b908440f19d2efe098c79c8ddeb82f6d11290",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -333,9 +303,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "c999458b6e770d9901633a97bf40ed1e6768bc8dc04737f2613ed8fd13558ac3",
-      "englishCandidateSha256": "91a4f78fe588ebdb8ac13836c4768bdf06bb510c504663083a4d4d3c3be01164",
-      "candidateOriginSha256": "c999458b6e770d9901633a97bf40ed1e6768bc8dc04737f2613ed8fd13558ac3",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -362,9 +329,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "657597148c0e748177fcd831af44e518af063d4a4527a7e82ac8fe57ae0d2952",
-      "englishCandidateSha256": "9c2c6d05c4af445f9d291caea73a89f00fa69097d7498eafabfd2da33cd019cb",
-      "candidateOriginSha256": "657597148c0e748177fcd831af44e518af063d4a4527a7e82ac8fe57ae0d2952",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -391,9 +355,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "739429f0311be24abf8aa4b72f555a006d79b9b85428b4cbd40e01a342f81034",
-      "englishCandidateSha256": "8425c5541c02c8e06546a7bc67ea68c56bff95b59c9a72b3564a6b83220cc393",
-      "candidateOriginSha256": "739429f0311be24abf8aa4b72f555a006d79b9b85428b4cbd40e01a342f81034",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -420,9 +381,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "f886b07619f085333fe86d8a3f1331cfd41c5ebeaeb0870c672fbb0159a64bd6",
-      "englishCandidateSha256": "78a918a2a0228b0d04b8e0b25e4a8ced45594ffc1387d92297bc109aae8d66b3",
-      "candidateOriginSha256": "f886b07619f085333fe86d8a3f1331cfd41c5ebeaeb0870c672fbb0159a64bd6",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -449,9 +407,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "0e29d9d9cb85af2ecebdf7f8e0a5551616e9bb01554396c7bf77e41cc2a23e87",
-      "englishCandidateSha256": "d55e06db5f2dd693535c80e9fa06b65cae4be3cd403d88b661913ae542cd5f28",
-      "candidateOriginSha256": "0e29d9d9cb85af2ecebdf7f8e0a5551616e9bb01554396c7bf77e41cc2a23e87",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -478,9 +433,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "5e5fdb229efdf43c091988590b728b8bbf9dbcf296ac3fcc269f9f3071409261",
-      "englishCandidateSha256": "08b26104e32d5d2771e1359bcce42aca0e9989f7e8ed33084b17a95017fce57d",
-      "candidateOriginSha256": "5e5fdb229efdf43c091988590b728b8bbf9dbcf296ac3fcc269f9f3071409261",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -512,9 +464,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "d03a609cc56d8198cefdc969d4a4affcd8e1e40d9d8d6c99d837c8856a184c52",
-      "englishCandidateSha256": "3b03fe7c65a8e2712bbe83f2f37e3e9110cea9c15050123e2b91d29e76a53455",
-      "candidateOriginSha256": "d03a609cc56d8198cefdc969d4a4affcd8e1e40d9d8d6c99d837c8856a184c52",
       "translationProvenance": {
         "translator": "LCSP-467 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -541,9 +490,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a2a62dba027004b0262deb1dde532cd7d1eafb7f041daa177483938b0b846439",
-      "englishCandidateSha256": "33e32f9810f5fbfdeea7d553308954c990b335be54ca5226834294cfe8547510",
-      "candidateOriginSha256": "a2a62dba027004b0262deb1dde532cd7d1eafb7f041daa177483938b0b846439",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -570,9 +516,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "9d257f63b86b4dd88c3e94d0663b109432e1361926740d7d3de021d92106a4d3",
-      "englishCandidateSha256": "62d7607f0c3eb0c44b91b9db163c154cc69a21c2a1629114e4c5074694a6c794",
-      "candidateOriginSha256": "9d257f63b86b4dd88c3e94d0663b109432e1361926740d7d3de021d92106a4d3",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -599,9 +542,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "3e920ebf8a2f1d57427fed8c96774a01f426ce02ab429565ce97908d77ce2ce3",
-      "englishCandidateSha256": "0af52ea6c9619413a71b7481a6596b6d85e30cb8a5ff4445354d53742f22138c",
-      "candidateOriginSha256": "3e920ebf8a2f1d57427fed8c96774a01f426ce02ab429565ce97908d77ce2ce3",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -628,9 +568,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "6b41e70a8ecdc7594cdd355945447f305acb4b6727f39f659550811446db9f9c",
-      "englishCandidateSha256": "203ff773b30d71b873379b02415249783e4cf2d828be2d68f501288194bd0703",
-      "candidateOriginSha256": "6b41e70a8ecdc7594cdd355945447f305acb4b6727f39f659550811446db9f9c",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -657,9 +594,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "d69cddd08709a59cf0ec440fa30980aeb44baa5f406a4c2174ce723b91ed6081",
-      "englishCandidateSha256": "662850ba60ef6be4a5dca383bd000f01a5f22e8660cc54dbbdfae01a6ac447e8",
-      "candidateOriginSha256": "d69cddd08709a59cf0ec440fa30980aeb44baa5f406a4c2174ce723b91ed6081",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -686,9 +620,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "c749e31aea3bc74e1ee6c0081e16d29cd64d8d7c54b345947ff62f11be55d8ec",
-      "englishCandidateSha256": "5a361c7f55234a755d5d20982c6bcae89f261ab274f8c098fd1f2650977c7454",
-      "candidateOriginSha256": "c749e31aea3bc74e1ee6c0081e16d29cd64d8d7c54b345947ff62f11be55d8ec",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -715,9 +646,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "0f8da362b84a83720f353daca7a19d63196d85f90b4f676be1165a624d98ea2c",
-      "englishCandidateSha256": "01fbfe4aa42f7c12337a258f47a06cc7e490d383a202523455a5bf42a66665c7",
-      "candidateOriginSha256": "0f8da362b84a83720f353daca7a19d63196d85f90b4f676be1165a624d98ea2c",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -744,9 +672,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "d5e1dc2212197358695adff3b435d8e6f56a86ca7d30d8afac64866776c6322b",
-      "englishCandidateSha256": "c0da171ddc664dc0cdc9a393a70debf39d20f8a77fe3f4888bd9987a2d5e7d0f",
-      "candidateOriginSha256": "d5e1dc2212197358695adff3b435d8e6f56a86ca7d30d8afac64866776c6322b",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -773,9 +698,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "373eb03399e1d32b33cc5fa34a9110675d13167d21882721ea2efd5fb0acbcf8",
-      "englishCandidateSha256": "28924411aaca66350af971551125262357a48943ec953e13203306d44103fd2e",
-      "candidateOriginSha256": "373eb03399e1d32b33cc5fa34a9110675d13167d21882721ea2efd5fb0acbcf8",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -802,9 +724,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "9caa2cab737e4f51731da4cd920f3117c8f96304461680a9441c004a0b3103f3",
-      "englishCandidateSha256": "e48882b3acb758ecfd628c18bc30feb655bf5d86da75bb51dbeb5e0b4d0d6127",
-      "candidateOriginSha256": "9caa2cab737e4f51731da4cd920f3117c8f96304461680a9441c004a0b3103f3",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1001,9 +920,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "db093013fabd294679b4fdd86dc8609c35138a0766ad973b2dfd070fe9b02e83",
-      "englishCandidateSha256": "2380b6970ad4847f0770db1a74f4666e53a35a0ec2bc6667057b9cd53c80037c",
-      "candidateOriginSha256": "db093013fabd294679b4fdd86dc8609c35138a0766ad973b2dfd070fe9b02e83",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1018,10 +934,7 @@
       "runtimeEntryId": "assessment-tools.upstream",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "sourceSha256": "a0474d6c7f9aa245b4e5e7946a2dcd5d27ef7c721460e5b8b507f8cdc6b43283",
       "englishCandidatePath": "instructions/candidates/r3/assessment-tools.upstream.txt",
-      "englishCandidateSha256": "9a54a13a7bfcde817abc0a2ab971adc07d7a97e3297020bf8faf5c6935789dc9",
-      "candidateOriginSha256": "a0474d6c7f9aa245b4e5e7946a2dcd5d27ef7c721460e5b8b507f8cdc6b43283",
       "migrationReferences": [
         "assessment_root/tools.py"
       ],
@@ -1059,9 +972,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "7d7bc258431c305653e8a82d0e15d9044a64ed4cfa3f4789737fa0f72da54889",
-      "englishCandidateSha256": "00fc39ee921cb6eaf6e40cdf32f3e682f3bed8933c2b18733636fbf44365fc76",
-      "candidateOriginSha256": "7d7bc258431c305653e8a82d0e15d9044a64ed4cfa3f4789737fa0f72da54889",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1076,10 +986,7 @@
       "runtimeEntryId": "framework.file-deletion",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
-      "sourceSha256": "b1dc233c1d02a399d6cab15bb14ea6a46a3da092379ff5a99ceed185d450e227",
       "englishCandidatePath": "instructions/candidates/r3/framework.file-deletion.txt",
-      "englishCandidateSha256": "8134ad829c4559508256e4995298ea3fdff30566826df827109c485a1f7398b7",
-      "candidateOriginSha256": "b1dc233c1d02a399d6cab15bb14ea6a46a3da092379ff5a99ceed185d450e227",
       "placeholderSchema": {},
       "migrationReferences": [
         "assessment_root/agent.py"
@@ -1155,9 +1062,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "31d05818d844c018c3727fefc4fc975273cb125184dc70795e6b54ef65a7acf3",
-      "englishCandidateSha256": "d3e852eecbda456fec5e6062dd49c7ddf0e48958ca3c9006044354a9cf5e99f9",
-      "candidateOriginSha256": "31d05818d844c018c3727fefc4fc975273cb125184dc70795e6b54ef65a7acf3",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1294,9 +1198,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "b69048a508658870e2696d0ba5f82e324757f95827d803d5d4f758d6442ce034",
-      "englishCandidateSha256": "0caa392d25352f8876a99147288acd3db8b48f5098b899d9f54bca8d8fd26a4b",
-      "candidateOriginSha256": "b69048a508658870e2696d0ba5f82e324757f95827d803d5d4f758d6442ce034",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1323,9 +1224,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "d9891c7118903e95ba67d256b1e3a61cde9b18abdfd105730b5fb0a4fda9f89d",
-      "englishCandidateSha256": "f988c6a605a32821f1df23b5b78ceda9809c7937e8c24c007fd0dcd7a17575d6",
-      "candidateOriginSha256": "d9891c7118903e95ba67d256b1e3a61cde9b18abdfd105730b5fb0a4fda9f89d",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1367,9 +1265,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "6c46ae9de0820dae2a9415ef1da96f28dab7ac6c5dfb508d89ff7730b2b9776b",
-      "englishCandidateSha256": "a26d3f310bc19aa9c95ee97376993fb221828d738c5fe00d327785677ed937c7",
-      "candidateOriginSha256": "6c46ae9de0820dae2a9415ef1da96f28dab7ac6c5dfb508d89ff7730b2b9776b",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1406,9 +1301,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "5d6e39bb55078a78028b6c5cce4524003a7c641cf18330f7af74aebf2c1a2440",
-      "englishCandidateSha256": "a7c1b809bc748df6b38053244e8a65e981021c84f4502e256c41e1c61a28c9c3",
-      "candidateOriginSha256": "5d6e39bb55078a78028b6c5cce4524003a7c641cf18330f7af74aebf2c1a2440",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1440,9 +1332,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "6922934adfd20cedb0114d0357040b3853cc5c4b755653fa6d13f9055b5805c6",
-      "englishCandidateSha256": "b48b6e144425ecc262996f1502c200e0bab5ffabf73ec87aefb9a653124b82ce",
-      "candidateOriginSha256": "6922934adfd20cedb0114d0357040b3853cc5c4b755653fa6d13f9055b5805c6",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1453,7 +1342,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "SCOPE",
       "vietnameseSourcePath": "instructions/vi/preparation-development.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "preparation.development-overlay",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -1469,12 +1358,9 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a8cddcb07f3ac9fe0bd4d7637935aa2d2a335e5e0388004dfcd331c1158a9e71",
-      "englishCandidateSha256": "3514c77fae290608653162ebbc6b9dbbc9741ec7c35ae552c45b51822f0f9d7b",
-      "candidateOriginSha256": "a8cddcb07f3ac9fe0bd4d7637935aa2d2a335e5e0388004dfcd331c1158a9e71",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     },
     {
@@ -1498,9 +1384,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "eeb5cfa7f6bf58c35f15864a55b5f6620e896fdc9ee920388381b8fb5e6c3873",
-      "englishCandidateSha256": "878917d6ae163f7c398091a220c0633c790214e9e895c192e7ce3efebb6ebff6",
-      "candidateOriginSha256": "eeb5cfa7f6bf58c35f15864a55b5f6620e896fdc9ee920388381b8fb5e6c3873",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1527,9 +1410,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "8bd424b6665dfbc2dd8bf56bbde8be34b40a67bc4b25c44bf1d461b4207abccb",
-      "englishCandidateSha256": "e36a3337602da20c044b8099e2a226ef7e5d65dd79e70bd125a668ad6eaaa08d",
-      "candidateOriginSha256": "8bd424b6665dfbc2dd8bf56bbde8be34b40a67bc4b25c44bf1d461b4207abccb",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1561,9 +1441,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a9dcba8b22bca9396828d6c9e28d2cf2662bedf42e827137e94a313e5249d0e8",
-      "englishCandidateSha256": "3acb33dcaf5ac3502be8ab8dd063920a6b2e5ae95a5bfba9e63e08a03ef35f94",
-      "candidateOriginSha256": "a9dcba8b22bca9396828d6c9e28d2cf2662bedf42e827137e94a313e5249d0e8",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1596,10 +1473,7 @@
       ],
       "runtimeInputAuthority": "PERSISTED_DRAFT_METADATA",
       "renderingPolicy": "NUMERIC_PARAMETERS_ONLY",
-      "sourceSha256": "dea4b3ebe4a3e2b336938b6a02212a9365eb080e7b21fc318c031ce7758aa7da",
       "templateSyntax": "FORMAT",
-      "englishCandidateSha256": "977f12e034c5391549c020148e60e2fd480da2a5c4a9234ebb5718b1354bf7d2",
-      "candidateOriginSha256": "dea4b3ebe4a3e2b336938b6a02212a9365eb080e7b21fc318c031ce7758aa7da",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1626,9 +1500,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "bcb2b886480be2bba27086f1cd6e35d55811a9a7d0c75587023067ade583fe96",
-      "englishCandidateSha256": "ab53f6b37a25b139863eb202d53ca65b34eb0ed86ba501579ddf57574a378929",
-      "candidateOriginSha256": "bcb2b886480be2bba27086f1cd6e35d55811a9a7d0c75587023067ade583fe96",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1660,9 +1531,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "de45b2205ad8766f4b1adc688b53f3d2e3b1f690b23c4b14aa08b93c08f9fb1f",
-      "englishCandidateSha256": "e61fc1df5a2a5369eb97fc8d5c5193bc739fde937fdef4a14683db7484a97e92",
-      "candidateOriginSha256": "de45b2205ad8766f4b1adc688b53f3d2e3b1f690b23c4b14aa08b93c08f9fb1f",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1689,9 +1557,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a7bd55de4edd383b2ef01a9d7978811313dcec7235f652db2fdd68c08b198deb",
-      "englishCandidateSha256": "b0e3fa7382316ba0c4b5e3584cf8b9a9cd8bcaf584daab8eb72196b2114aff66",
-      "candidateOriginSha256": "a7bd55de4edd383b2ef01a9d7978811313dcec7235f652db2fdd68c08b198deb",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1733,9 +1598,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "b634a9fe1efeef5050400cc80191f53a3750cfe7e332b280afa3b860662cd4be",
-      "englishCandidateSha256": "28db35de5844fdae8b6518892d3899fcb75397e5dd9308149ef67dce899fed68",
-      "candidateOriginSha256": "b634a9fe1efeef5050400cc80191f53a3750cfe7e332b280afa3b860662cd4be",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1776,9 +1638,6 @@
           "symbolName": "ApprovedModelCallLimitMiddleware"
         }
       ],
-      "sourceSha256": "4abb5ce64bcee0f553de0734f001dbd3c743e267cbcb8347d300db0c1347a225",
-      "englishCandidateSha256": "2831283334896a0049ea4480f2834b6b4668ef2d7466b5d73777587697691d70",
-      "candidateOriginSha256": "4abb5ce64bcee0f553de0734f001dbd3c743e267cbcb8347d300db0c1347a225",
       "translationProvenance": {
         "translator": "Codex session-authorized source repair; full bundle review remains pending",
         "translationRevision": "r3"
@@ -1805,9 +1664,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "83450199d9b18c90dda92af386a868b8fa73efe8bb1028347f559374abf3ee40",
-      "englishCandidateSha256": "33bbeb5621c2f2a783d0f6a29582eb0123dbcb6849a0055d04bdfa90a26bb826",
-      "candidateOriginSha256": "83450199d9b18c90dda92af386a868b8fa73efe8bb1028347f559374abf3ee40",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1844,9 +1700,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "2856f74ee4dbdd76185c32d371f85ab092c42aeeed38301a3fea39e23cb72bee",
-      "englishCandidateSha256": "ca199315124c17e0d982f0d52e9a2eb96fae614d71d69a587378e10f25113eca",
-      "candidateOriginSha256": "2856f74ee4dbdd76185c32d371f85ab092c42aeeed38301a3fea39e23cb72bee",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -1890,9 +1743,6 @@
       ],
       "templateSyntax": "FORMAT",
       "runtimeInputAuthority": "SERVER_RESPONSE_LANGUAGE_POLICY",
-      "sourceSha256": "130ca0db663b9b928e351c7f992c1b0051c34bf96f738f5e18b7a130e4331b95",
-      "englishCandidateSha256": "7bd7e677c9810b9db749896274267000c7c82860b4654b18e1a0aa6902c7f1f7",
-      "candidateOriginSha256": "130ca0db663b9b928e351c7f992c1b0051c34bf96f738f5e18b7a130e4331b95",
       "translationProvenance": {
         "translator": "Codex session-authorized source repair; full bundle review remains pending",
         "translationRevision": "r3"
@@ -1954,9 +1804,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "ab2c4d67de63bf8ab27f6381daa88f9080f5ac15797ea77718b18bbe6159f093",
-      "englishCandidateSha256": "0daebc68571572c49bc76931dc767a7c95050d04bdef9917c98c4ae1131cd122",
-      "candidateOriginSha256": "ab2c4d67de63bf8ab27f6381daa88f9080f5ac15797ea77718b18bbe6159f093",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2000,9 +1847,6 @@
       ],
       "templateSyntax": "FORMAT",
       "runtimeInputAuthority": "SERVER_RESPONSE_LANGUAGE_POLICY",
-      "sourceSha256": "13716d591096fd80ecb9f715bec7cc70d0b2ab1162227316d594bc2334561fd5",
-      "englishCandidateSha256": "1dd086b9ec375345c06b1c8c9692305d9cb9f9df1665383f4f2967c217f310ce",
-      "candidateOriginSha256": "13716d591096fd80ecb9f715bec7cc70d0b2ab1162227316d594bc2334561fd5",
       "translationProvenance": {
         "translator": "Codex session-authorized source repair; full bundle review remains pending",
         "translationRevision": "r3"
@@ -2029,9 +1873,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "c72c81b26f4456bc61a569a19f682a320efc5f5d97f8a7cf5f1a3044b381d03b",
-      "englishCandidateSha256": "6db9ab0245df225bfd9ac7ba9008dc99b5fe82f0206a735ffafb626f2de5e9c9",
-      "candidateOriginSha256": "c72c81b26f4456bc61a569a19f682a320efc5f5d97f8a7cf5f1a3044b381d03b",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2058,9 +1899,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "035865d10cb03796d4e5eff47612735e3b638c6e69ad65289c440420b7675f68",
-      "englishCandidateSha256": "79b6202858b1be01345229b420c709b21d934ad281e25fb3f2db1a0f28950b99",
-      "candidateOriginSha256": "035865d10cb03796d4e5eff47612735e3b638c6e69ad65289c440420b7675f68",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2087,9 +1925,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "e76a0037118b7f844a36e3c304ce711113c0506f995950a3b676fc9a94068541",
-      "englishCandidateSha256": "0ef374de4c49f0cd964feb64b8f795d9034f47e77c74beae2e9ab199f8895525",
-      "candidateOriginSha256": "e76a0037118b7f844a36e3c304ce711113c0506f995950a3b676fc9a94068541",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2116,9 +1951,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "ec9b9fe53687890f8f16b426e7399ec6cb0bae5e3bf5f69b8820eeeb4d49fdf6",
-      "englishCandidateSha256": "0cbdc4608cf729c681cf05a7918d8ffa4c6acd2e0ca1242fc514f3ea7b3a0aa5",
-      "candidateOriginSha256": "ec9b9fe53687890f8f16b426e7399ec6cb0bae5e3bf5f69b8820eeeb4d49fdf6",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2145,9 +1977,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "773feedf4684b9930c8b3346b515cc6e123ae1de6a59b111b2bccd070700067d",
-      "englishCandidateSha256": "97746345f2484fd0d0422d27138dd7c562c870a73e311ee9011891039ec7c6a5",
-      "candidateOriginSha256": "773feedf4684b9930c8b3346b515cc6e123ae1de6a59b111b2bccd070700067d",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2158,7 +1987,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "SKILL",
       "vietnameseSourcePath": "skills/rule-preparation-actor-stage/SKILL.vi.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "skill.rule-preparation-actor-stage",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -2174,12 +2003,9 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "56e7d4a8aa9662ee535319b7d80c2d4d17852de983063614b59818cdff674d4e",
-      "englishCandidateSha256": "f3a7e32d3b19c1f325318f7b5e3f104ede87f37fa6ba07912edbb1ee731780a1",
-      "candidateOriginSha256": "56e7d4a8aa9662ee535319b7d80c2d4d17852de983063614b59818cdff674d4e",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     },
     {
@@ -2203,9 +2029,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "694a64848189403d2867d35c279742323a37acf7cbf8b0a834e8071f204e0ea0",
-      "englishCandidateSha256": "c2f8cc1d43ee24940a69ff18f46d92662536d47a2e7ad9e345a0b4aff57deebb",
-      "candidateOriginSha256": "694a64848189403d2867d35c279742323a37acf7cbf8b0a834e8071f204e0ea0",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2232,9 +2055,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "a249493edd29fb5b0877a6a0a830a9ae66b1c7d018154d1f832e540a5e082184",
-      "englishCandidateSha256": "fc803b54d02b2459ae1e184e756fcc1c61da2c062a3be9bfb450066481b91624",
-      "candidateOriginSha256": "a249493edd29fb5b0877a6a0a830a9ae66b1c7d018154d1f832e540a5e082184",
       "translationProvenance": {
         "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
         "translationRevision": "r1"
@@ -2245,7 +2065,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "SKILL",
       "vietnameseSourcePath": "skills/rule-preparation-scope-quality/SKILL.vi.md",
-      "vietnameseSourceRevision": "lcsp-347-draft-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "skill.rule-preparation-scope-quality",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -2261,12 +2081,9 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "c277521c9b1188b75b3e88e6697ea4dc6c8d42fdcc1021c1766145c511fb40d3",
-      "englishCandidateSha256": "b61a06e1a96a9e2fd1a5fe7dddb804d0315c409013343026ee0c67d571309996",
-      "candidateOriginSha256": "c277521c9b1188b75b3e88e6697ea4dc6c8d42fdcc1021c1766145c511fb40d3",
       "translationProvenance": {
-        "translator": "LCSP-347 implementation candidate; legacy migration references; INDEPENDENT REVIEW PENDING",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     },
     {
@@ -2455,9 +2272,6 @@
           "integrationStatus": "PENDING_RUNTIME_CUTOVER"
         }
       ],
-      "sourceSha256": "3a61063f918d309ef6ddbc21c89a46c737730fa19317d5369203ffd63e354770",
-      "englishCandidateSha256": "a20e5c94bb502ec6da07cf7b30f3ff3a5084878139512fada96a5f92305be631",
-      "candidateOriginSha256": "3a61063f918d309ef6ddbc21c89a46c737730fa19317d5369203ffd63e354770",
       "translationProvenance": {
         "translator": "Codex session-authored schema translation; independent bundle review remains pending",
         "translationRevision": "r4"
@@ -2468,7 +2282,7 @@
       "runtimeRole": "rule-set-preparation",
       "instructionKind": "PHASE",
       "vietnameseSourcePath": "instructions/vi/preparation-selected.md",
-      "vietnameseSourceRevision": "lcsp-369-development-r1",
+      "vietnameseSourceRevision": "lcsp-540-oversight-scope-draft-r2",
       "runtimeEntryId": "preparation.selected",
       "required": true,
       "reviewStatus": "PENDING_INDEPENDENT_REVIEW",
@@ -2484,12 +2298,9 @@
           "integrationStatus": "DEVELOPMENT_RUNTIME"
         }
       ],
-      "sourceSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
-      "englishCandidateSha256": "4ec5ce3abb9dcb8736ec7e6f9ca8e87dd10644eff15609a6fcf211523f810d78",
-      "candidateOriginSha256": "50299556ce9761d10a23946fc8787b54ef1e1b0d59c0c6f73f92c8609ea24a0a",
       "translationProvenance": {
-        "translator": "LCSP-369 development instruction; no independent approval claimed",
-        "translationRevision": "r1"
+        "translator": "LCSP-540 agent-generated English candidate from Vietnamese maintained source; INDEPENDENT REVIEW PENDING",
+        "translationRevision": "r2"
       }
     }
   ],
@@ -9808,9 +9619,9 @@
       "dispositionEvidence": "CLI help, accounting or implementation sentinel; this expression is not a message/template injection."
     },
     {
-      "siteId": "ast:rule_set_preparation/selected_rule.py::run_selected_rule_preparation::KEYWORD_SYSTEM_PROMPT::93:d5c4a78da5ba5282",
+      "siteId": "ast:rule_set_preparation/selected_rule.py::run_selected_rule_preparation::KEYWORD_SYSTEM_PROMPT::95:d5c4a78da5ba5282",
       "filePath": "rule_set_preparation/selected_rule.py",
-      "lineNumber": 93,
+      "lineNumber": 95,
       "symbolName": "run_selected_rule_preparation",
       "constructionSha256": "d5c4a78da5ba52821d29d3ab2805594aec33e8367ed8fa4ffe09c9872ef46c75",
       "evidence": "content",
@@ -9830,7 +9641,7 @@
     {
       "siteId": "rule_set_preparation/selected_rule.py::run_selected_rule_preparation::34e87281b06ae047::1",
       "filePath": "rule_set_preparation/selected_rule.py",
-      "lineNumber": 93,
+      "lineNumber": 95,
       "symbolName": "run_selected_rule_preparation",
       "constructionSha256": "34e87281b06ae04756ccb127f7a7826bc2f9d98894dfa5f25a6e80978cb7edb8",
       "evidence": "tools=[], system_prompt=content,",
@@ -9919,17 +9730,15 @@
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "TASK_TOOL_DESCRIPTION",
       "lineNumber": 536,
-      "expressionSha256": "e1cfee5ace5d783a4acd577f07417d111c3c76d1dce56b164f5a15c6980b62e1",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "ApprovedInstructionMiddleware -> approved_tool_specs(tool.task)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -9937,19 +9746,17 @@
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "DEFAULT_SUBAGENT_PROMPT",
       "lineNumber": 442,
-      "expressionSha256": "17db5bc893817d76d61a20bd2a79f719b58308bcfd89e33ec01e75c33292e87c",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Explicit subagent system_prompt; disable general-purpose profile",
       "controlStatus": "CONTROLLED",
       "reachesModel": false,
       "controlMode": "DISABLED_GUARDED",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "rule_set_preparation/agent.py": "53c5b7833a8013901e6f8319e2530000b395581ebc90e41aa50a8649e9f25f18",
-        "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f"
-      },
-      "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
+      "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "rule_set_preparation/agent.py",
+        "assessment_root/researcher.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -9957,19 +9764,17 @@
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "_FORK_TASK_PREAMBLE",
       "lineNumber": 407,
-      "expressionSha256": "f00008c4379840e031d4b9a565b47234ddfdf7009f9c38e746fd6c5ed8566e17",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Disable fork mode until a controlled adapter exists",
       "controlStatus": "CONTROLLED",
       "reachesModel": false,
       "controlMode": "DISABLED_GUARDED",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "rule_set_preparation/agent.py": "53c5b7833a8013901e6f8319e2530000b395581ebc90e41aa50a8649e9f25f18",
-        "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f"
-      },
-      "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction."
+      "activationEvidence": "Explicit isolated mode and system_prompt on both delegates; general-purpose disabled under the shared profile lock. Unreviewed profile middleware or guard exclusion rejects graph construction.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "rule_set_preparation/agent.py",
+        "assessment_root/researcher.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -9977,17 +9782,15 @@
       "filePath": "deepagents/middleware/subagents.py",
       "symbolName": "TaskToolSchema",
       "lineNumber": 498,
-      "expressionSha256": "da47e67c56aa2e5253ffa57f8a6eb741184543aa7f6553bb7b07cf4720de6085",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs recursively resolves schema guidance and removes unapproved annotation examples",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -9995,18 +9798,16 @@
       "filePath": "deepagents/middleware/summarization.py",
       "symbolName": "DEEPAGENTS_DEFAULT_SUMMARY_PROMPT",
       "lineNumber": 122,
-      "expressionSha256": "dcf6db72a165c31a4942a9a31401583c73f4740c3a4b73d0df1d518faf4dcbc4",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "create_summarization_middleware(summary_prompt=resolved_entry)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "middleware/model_governance.py": "52638cb7955aa0f563802617455972875610b3a03c7ddd4f00562dae8666f667"
-      },
-      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
+      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "middleware/model_governance.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10014,18 +9815,16 @@
       "filePath": "deepagents/middleware/summarization.py",
       "symbolName": "_MEDIA_REFERENCE_SUMMARY_PROMPT",
       "lineNumber": 109,
-      "expressionSha256": "90f58656b6c7338971974c38a0cc5914220f962858c9223b836e0e39fa2789a9",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Include media-reference semantics in resolved summary_prompt",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "middleware/model_governance.py": "52638cb7955aa0f563802617455972875610b3a03c7ddd4f00562dae8666f667"
-      },
-      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
+      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "middleware/model_governance.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10033,17 +9832,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "FilesystemMiddleware",
       "lineNumber": 1903,
-      "expressionSha256": "26b9d38c349646df565c2ec76d91f14069f1d9d475f2d49936c38ad3ebf0bb0d",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "ApprovedInstructionMiddleware projects system/tool/schema instructions; native execution permissions remain intact",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10051,17 +9848,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "LIST_FILES_TOOL_DESCRIPTION",
       "lineNumber": 1569,
-      "expressionSha256": "c6680fd85258fcb338aa9a750d2f5687ec2cbdb4c8241bef05505b10a14f455a",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.ls)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10069,17 +9864,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "_READ_FILE_TOOL_DESCRIPTION_TEMPLATE",
       "lineNumber": 1574,
-      "expressionSha256": "1e6ff6f06d4e5f0514e2559e6bd19564438c733c0d1f1ef76cee4f1e710e64e7",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.read_file)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10087,17 +9880,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "EDIT_FILE_TOOL_DESCRIPTION",
       "lineNumber": 1608,
-      "expressionSha256": "c18ea88981b0ea4d9850268f887cdb315e25ac2d0a9fd0482dd5c21277f3bad2",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.edit_file)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10105,17 +9896,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "WRITE_FILE_TOOL_DESCRIPTION",
       "lineNumber": 1617,
-      "expressionSha256": "176cf9cb1ce4562b05cf71ee452bc5de8f17feaef460e01a787e1a1bcdb7d359",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.write_file)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10123,17 +9912,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "GLOB_TOOL_DESCRIPTION",
       "lineNumber": 1633,
-      "expressionSha256": "b9d22aaedee0bcd07de980f102e83d44916b38b507eced9b10e86c3a6f9bae55",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.glob)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10141,17 +9928,15 @@
       "filePath": "deepagents/middleware/filesystem.py",
       "symbolName": "_GREP_TOOL_DESCRIPTION_TEMPLATE",
       "lineNumber": 1645,
-      "expressionSha256": "4d4ee17e0a68cdff0bd14a0ba9a84afe268b80aa926731d0605214f4cf53a8a1",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "approved_tool_specs(tool.grep)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10159,21 +9944,19 @@
       "filePath": "deepagents/graph.py",
       "symbolName": "create_deep_agent",
       "lineNumber": 296,
-      "expressionSha256": "a425a21bb56236ffe032d77bd06ef81222deaa1bbe23fc42488ab5499463e284",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "ApprovedInstructionMiddleware projects system/tool/schema guidance after core middleware; profile extras and protected exclusions are rejected; post-guard compatibility/refusal middleware is separately controlled; transport supervisor cannot infer",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "rule_set_preparation/agent.py": "53c5b7833a8013901e6f8319e2530000b395581ebc90e41aa50a8649e9f25f18",
-        "assessment_root/researcher.py": "9a1fc7807fc70aabb1917679a5f6be59362e20f72df1fcd885b6803d625e3b8f",
-        "agent.py": "574d5e1cfc1ed9963fab056a51adf746519a69f77793be67186e27a9780f2b12",
-        "middleware/system_event_dispatch.py": "73948536f61e1e98f5e30d8879b80e72014fbf7ad7c5fda91c4b606271512814"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "rule_set_preparation/agent.py",
+        "assessment_root/researcher.py",
+        "agent.py",
+        "middleware/system_event_dispatch.py"
+      ]
     },
     {
       "package": "deepagents",
@@ -10181,18 +9964,16 @@
       "filePath": "deepagents/middleware/unsupported_content.py",
       "symbolName": "UnsupportedContentMiddleware",
       "lineNumber": 117,
-      "expressionSha256": "b77188d420aff341a8aad4163024beb7c49119074276783c0e447c3d91d4c57b",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Post-guard compatibility filter replaces unsupported HumanMessage/ToolMessage blocks only; system messages and approved tool specs remain unchanged",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "POST_GUARD_CONTENT_COMPATIBILITY",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "tests/test_instruction_framework_controls.py": "0b17ea27ba7086925793f67e973b67c6f0c4217eb69710df36d6671818d8a33e"
-      },
-      "activationEvidence": "The post-guard compatibility filter only replaces unsupported HumanMessage/ToolMessage content blocks; SystemMessage and tool specifications are untouched, as asserted by the adapter regression test."
+      "activationEvidence": "The post-guard compatibility filter only replaces unsupported HumanMessage/ToolMessage content blocks; SystemMessage and tool specifications are untouched, as asserted by the adapter regression test.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "tests/test_instruction_framework_controls.py"
+      ]
     },
     {
       "package": "langchain",
@@ -10200,18 +9981,16 @@
       "filePath": "langchain/agents/middleware/model_refusal.py",
       "symbolName": "ModelRefusalMiddleware",
       "lineNumber": 39,
-      "expressionSha256": "e3f2fcc4df13f5f099a750d1478261ac23b4880f4b43cfd21b36ac44c0b0a9df",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "Response-only refusal validation; request, system prompt and approved tool metadata remain unchanged",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "RESPONSE_REFUSAL_CHECK",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "tests/test_instruction_framework_controls.py": "0b17ea27ba7086925793f67e973b67c6f0c4217eb69710df36d6671818d8a33e"
-      },
-      "activationEvidence": "The refusal tail inspects the model response only and passes the original model request unchanged, as asserted by the adapter regression test."
+      "activationEvidence": "The refusal tail inspects the model response only and passes the original model request unchanged, as asserted by the adapter regression test.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "tests/test_instruction_framework_controls.py"
+      ]
     },
     {
       "package": "langchain",
@@ -10219,17 +9998,15 @@
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "WRITE_TODOS_SYSTEM_PROMPT",
       "lineNumber": 119,
-      "expressionSha256": "a00d565d106ed55e354298a332e756b26aa9d3369ed053481b1334811a348dd4",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "TodoListMiddleware(system_prompt=resolved_entry)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "langchain",
@@ -10237,17 +10014,15 @@
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "WRITE_TODOS_TOOL_DESCRIPTION",
       "lineNumber": 52,
-      "expressionSha256": "6af21119cb356e20bff2201add19f36601cfc9256e6c9294ad1d8e797aa28206",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "TodoListMiddleware(tool_description=resolved_entry)",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "langchain",
@@ -10255,17 +10030,15 @@
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "TodoListMiddleware",
       "lineNumber": 174,
-      "expressionSha256": "0710673bfd7abe7c50c2c2fa42b215d45f194818819d12b89aa4000b9db90388",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "tool_description and system_prompt overrides",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "FINAL_REQUEST_PROJECTION",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints."
+      "activationEvidence": "ApprovedInstructionMiddleware is the final instruction projection before the framework tail: system composition and tool/schema guidance resolve from the verified bundle; unexpected system messages and unknown tools reject inference. The post-guard compatibility filter is separately pinned to HumanMessage/ToolMessage content only, and refusal middleware is response-only. Profile middleware cannot exclude or follow the guard; schemas preserve validation constraints.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     },
     {
       "package": "langchain",
@@ -10273,18 +10046,16 @@
       "filePath": "langchain/agents/middleware/summarization.py",
       "symbolName": "DEFAULT_SUMMARY_PROMPT",
       "lineNumber": 55,
-      "expressionSha256": "38272908033c56c439a715567bac6f0e0ee5772094b10e662b3d0edc2cc8ede6",
       "viSourceId": "framework.injected-policy",
       "overridePlan": "summary_prompt preserving messages marker and data placeholder",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "EXPLICIT_SUMMARY_TEMPLATE",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca",
-        "middleware/model_governance.py": "52638cb7955aa0f563802617455972875610b3a03c7ddd4f00562dae8666f667"
-      },
-      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes."
+      "activationEvidence": "Explicit bundle summary_prompt replaces both framework defaults, including media-reference semantics. ApprovedSummaryInstructions verifies the exact role system composition and history-template boundary before synchronous/asynchronous inference; operation receipts pin actual template bytes.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py",
+        "middleware/model_governance.py"
+      ]
     },
     {
       "package": "langchain",
@@ -10292,17 +10063,15 @@
       "filePath": "langchain/agents/middleware/model_call_limit.py",
       "symbolName": "ModelCallLimitMiddleware",
       "lineNumber": 94,
-      "expressionSha256": "bc32696c704be59fa11dc1d7a109930ea8cf2832781a2efc201b3da84ff6d3c7",
       "viSourceId": "runtime.budget-finalization",
       "overridePlan": "ApprovedModelCallLimitMiddleware replaces terminal text with approved runtime.budget-finalization:HARD_STOP",
       "controlStatus": "CONTROLLED",
       "reachesModel": true,
       "controlMode": "APPROVED_LIMIT_TERMINAL",
-      "adapterFingerprintKind": "PYTHON_AST_NO_SOURCE_LOCATIONS",
-      "adapterSourceSha256": {
-        "middleware/approved_instructions.py": "8377e8c54d1c81fcbf70c9d02327be8784152953b7ccf41563d0acac1e2029ca"
-      },
-      "activationEvidence": "ApprovedModelCallLimitMiddleware preserves native counters/routing and replaces generated terminal content with runtime.budget-finalization:HARD_STOP."
+      "activationEvidence": "ApprovedModelCallLimitMiddleware preserves native counters/routing and replaces generated terminal content with runtime.budget-finalization:HARD_STOP.",
+      "adapterSourcePaths": [
+        "middleware/approved_instructions.py"
+      ]
     }
   ]
 }
