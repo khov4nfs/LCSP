@@ -78,6 +78,9 @@ function service(
       {} as never,
       { enqueue: write } as never,
       { execute: write } as never,
+      // Read-only validation uses the pinned input and never loads or activates a rule set.
+      {} as never, // LegalSourceSnapshotLoader
+      {} as never, // ComplianceRuleSetActivation
     ),
   };
 }
