@@ -33,6 +33,7 @@ import {
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
 import { HttpExceptionFilter } from "../src/platform/http/filters/http-exception.filter.js";
+import { LoggingContextMiddleware } from "../src/platform/logging/logging-context.middleware.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
@@ -217,6 +218,9 @@ database(
       }).compile();
       app = builder.createNestApplication();
       app.useLogger(false);
+      // Match AppModule so validation pipes can read the incoming correlation header.
+      const loggingContext = new LoggingContextMiddleware();
+      app.use(loggingContext.use.bind(loggingContext));
       app.useGlobalFilters(new HttpExceptionFilter());
       await app.init();
       catalog = builder.get(LegalRuleCatalogService);

@@ -214,6 +214,7 @@
   "POST /internal/legal-rule-preparation/claim",
   "POST /internal/legal-rule-preparation/complete",
   "POST /internal/legal-rule-preparation/instructions",
+  "POST /internal/legal-rule-preparation/validate",
   "POST /internal/legal-sources/:versionId/activate-validated",
   "POST /internal/legal-sources/:versionId/retrieval-indexes/validated",
   "POST /internal/legal-sources/documents/:documentRowId/ingestion-result",
