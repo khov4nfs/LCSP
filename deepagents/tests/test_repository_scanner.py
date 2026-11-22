@@ -486,6 +486,7 @@ def test_discovery_finds_direct_sdk_raw_http_and_nearby_controls(tmp_path: Path)
     assert discovery["graphIndexVersion"] == "sha256:" + "1" * 64
     assert discovery["contentDigest"] == compute_discovery_digest(discovery)
     assert discovery["discoveryId"] == discovery["contentDigest"]
+    assert discovery["generatedAt"].endswith("Z")
     assert discovery["resourceLedger"]["expansionHistory"] == []
     assert all(item["ruleRelevance"] == [] for item in discovery["sourceRanges"])
     assert all(item["reachability"] == "NOT_ESTABLISHED" for item in discovery["sourceRanges"])

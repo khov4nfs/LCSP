@@ -2134,12 +2134,13 @@ def scan_repository_discovery(
       unresolved calls and incomplete coverage instead of treating missing observations as evidence of absence.
     - Retain only digests and bounded metadata, never raw source excerpts.
     - Ranked ranges are investigation priorities with audited expansion permitted, not an absolute allowlist.
+    - Serialized discovery timestamps use the UTC `Z` form required by the strict API contract.
 
     Execution flow:
     1. Walk the pinned source scope under file, size and depth bounds.
     2. Detect provider imports, direct SDK/raw HTTP invocations and nearby data/control signals.
     3. Group invocation ranges into candidate AI use cases and record unresolved graph/reachability questions.
-    4. Bind scanner signature, cache identity and deterministic content digest into the result.
+    4. Bind scanner signature, cache identity, contract-compatible UTC timestamp and deterministic content digest into the result.
 
     Failure cases:
     - Missing or non-directory workspaces produce an explicit incomplete-coverage gap.
@@ -2713,7 +2714,7 @@ def scan_repository_discovery(
         **discovery_without_digest,
         "discoveryId": content_digest,
         "contentDigest": content_digest,
-        "generatedAt": datetime.now(timezone.utc).isoformat(),
+        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
 
