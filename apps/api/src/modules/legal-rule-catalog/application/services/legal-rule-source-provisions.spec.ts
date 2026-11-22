@@ -98,22 +98,27 @@ describe("source provisions for selected preparation", () => {
         chunks: [],
       },
     ]);
+    // Resolve the fixtures as promises to match the Prisma query contract.
     const prisma = {
       legalSourceVersion: {
-        findUnique: async () => ({
-          id: sourceVersionId,
-          status: LegalSourceLifecycleStatus.ACTIVE,
-          retrievalIndexes: [{}],
-        }),
+        findUnique: () =>
+          Promise.resolve({
+            id: sourceVersionId,
+            status: LegalSourceLifecycleStatus.ACTIVE,
+            retrievalIndexes: [{}],
+          }),
       },
-      legalSourceDocument: { findUnique: async () => ({ documentId, title }) },
-      legalDocumentChunk: { findMany: async () => [sourcePoint] },
+      legalSourceDocument: {
+        findUnique: () => Promise.resolve({ documentId, title }),
+      },
+      legalDocumentChunk: { findMany: () => Promise.resolve([sourcePoint]) },
     };
     const service = Reflect.construct(LegalRuleCatalogService, [
       prisma,
       {},
       {
-        referenceEvidence: async (
+        // Check the requested identifiers before resolving the graph fixture.
+        referenceEvidence: (
           version: string,
           document: string,
           chunkIds: string[],
@@ -123,7 +128,7 @@ describe("source provisions for selected preparation", () => {
             documentId,
             [sourcePoint.id],
           ]);
-          return graph;
+          return Promise.resolve(graph);
         },
       },
     ]) as LegalRuleCatalogService;
