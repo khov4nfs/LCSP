@@ -74,9 +74,10 @@ describeDatabase(
     const db = prisma as unknown as PrismaService;
     const audit = new AuditWriterService(db);
     const outbox = new OutboxRepository(db);
-    const catalogs = new LegalRuleCatalogService(db, audit);
-    const activation = new ComplianceRuleSetActivation(outbox, audit);
     const graph = new LegalDocumentGraphService(db);
+    // Catalog browsing and preparation share the same derived source authority.
+    const catalogs = new LegalRuleCatalogService(db, audit, graph);
+    const activation = new ComplianceRuleSetActivation(outbox, audit);
     const sourceSnapshot = new LegalSourceSnapshotLoader(db, graph);
     const preparation = new PreparationRuleService(
       db,

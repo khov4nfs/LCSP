@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.ts";
+import { LEGAL_REFERENCE_RESOLUTION_STATES } from "../legal-source/document-graph.ts";
 import {
   legalRequirementSchema,
   assessmentRuleSchema,
@@ -98,6 +99,30 @@ export const legalRuleSourceProvisionImportSchema = z.strictObject({
 export type LegalRuleSourceProvisionImport = z.infer<
   typeof legalRuleSourceProvisionImportSchema
 >;
+// Bound preview payloads separately from exact source citations and rule descriptions.
+export const LEGAL_RULE_REFERENCE_PREVIEW_LIMITS = {
+  references: 8,
+  excerptCharacters: 1200,
+} as const;
+export const legalRuleSourceReferenceContextSchema = z.strictObject({
+  referenceId: fingerprint,
+  text: z.string().min(1),
+  resolutionState: z.enum(LEGAL_REFERENCE_RESOLUTION_STATES),
+  target: z
+    .strictObject({
+      documentId: z.string().min(1),
+      documentTitle: z.string(),
+      locator: z.string().min(1),
+      excerpt: z
+        .string()
+        .max(LEGAL_RULE_REFERENCE_PREVIEW_LIMITS.excerptCharacters),
+      truncated: z.boolean(),
+    })
+    .nullable(),
+});
+export type LegalRuleSourceReferenceContext = z.infer<
+  typeof legalRuleSourceReferenceContextSchema
+>;
 export const legalRuleSourceProvisionSchema = z.strictObject({
   sourceVersionId: id,
   documentId: z.string().trim().min(1).max(256),
@@ -108,6 +133,11 @@ export const legalRuleSourceProvisionSchema = z.strictObject({
   description: text,
   citationLocatorRefs: z.array(legalRuleCitationSchema).min(1).max(64),
   level: z.enum(LEGAL_RULE_SOURCE_PROVISION_LEVELS),
+  // Older responses and fixtures can omit this display-only evidence.
+  referenceContext: z
+    .array(legalRuleSourceReferenceContextSchema)
+    .max(LEGAL_RULE_REFERENCE_PREVIEW_LIMITS.references)
+    .optional(),
 });
 export const legalRuleSourceProvisionLimitationSchema = z.strictObject({
   locator: z.string().trim().min(1).max(512),

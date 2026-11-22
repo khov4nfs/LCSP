@@ -64,6 +64,14 @@ export const enLegalRuleCatalog = {
     "Chunks with UNKNOWN, REPEALED, or FUTURE status remain in Legal Source but cannot be imported. If an authoritative source confirms a status, update its legal-effect metadata and source reference in a DRAFT version.",
   eligibleLeafProvisions: "eligible provisions",
   compositionPreview: "Composed legal context",
+  // Reference previews distinguish confirmed excerpts from uncertain targets.
+  referenceContext: "Referenced provisions",
+  referenceAmbiguous: "Several provisions match this reference.",
+  referenceUnresolved: "The referenced provision could not be identified.",
+  // Identify the original source as the document containing the reference.
+  referenceOrigin: "Document containing the reference",
+  referenceOpenSource: "Open source document",
+  referenceTruncated: "Excerpt shortened.",
   articleLevel: "Article",
   clauseLevel: "Clause",
   pointLevel: "Point",

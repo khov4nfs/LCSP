@@ -8,11 +8,14 @@ import {
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { LegalRuleCatalogService } from "./legal-rule-catalog.service.js";
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 
 describe("LegalRuleCatalogService.filter", () => {
   const service = new LegalRuleCatalogService(
     {} as PrismaService,
     {} as AuditWriterService,
+    // Filtering is isolated from source graph reads.
+    {} as LegalDocumentGraphService,
   );
   const item = (
     id: string,

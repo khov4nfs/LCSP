@@ -220,6 +220,73 @@ export class LegalDocumentGraphService {
   }
 
   /**
+   * Business purpose: Supply same-version reference evidence for one page of legal-source provisions.
+   * Business rules:
+   * - Resolve against the current graph revision and the selected document, including the resolved target documents in that version.
+   * - Only the requested chunk mappings are needed; retrieval windows and unrelated documents carry no preview evidence.
+   * Execution flow:
+   * 1. Reuse or materialize the selected source version's current graph.
+   * 2. Load references originating from the selected document and identify their resolved target documents.
+   * 3. Read the structural nodes and exact requested chunk mappings for that snapshot.
+   * Failure cases:
+   * - Version, revision and database failures propagate through the existing graph boundary.
+   * Side effects:
+   * - May persist a missing derived graph, then reads the pinned snapshot.
+   */
+  async referenceEvidence(
+    legalSourceVersionId: string,
+    documentId: string,
+    chunkIds: string[],
+  ) {
+    const current = await this.current(legalSourceVersionId);
+    const scope = {
+      legalSourceVersionId,
+      materializationId:
+        current?.id ??
+        (await this.materialize(legalSourceVersionId)).materializationId,
+    };
+    // The graph owns target identity. A request supplies only the origin document and page chunks.
+    const references = await this.prisma.legalDocumentReference.findMany({
+      where: { ...scope, fromNode: { documentId } },
+      select: {
+        referenceId: true,
+        text: true,
+        charStart: true,
+        fromNodeId: true,
+        toNodeId: true,
+        resolutionState: true,
+        toNode: { select: { documentId: true } },
+      },
+    });
+    const targetDocuments = new Set([
+      documentId,
+      ...references.flatMap(({ toNode }) =>
+        toNode ? [toNode.documentId] : [],
+      ),
+    ]);
+    const [nodes, chunkMappings] = await Promise.all([
+      this.prisma.legalDocumentNode.findMany({
+        where: { ...scope, documentId: { in: [...targetDocuments] } },
+        select: {
+          nodeId: true,
+          documentId: true,
+          nodeType: true,
+          parentNodeId: true,
+          ordinal: true,
+          structuralPath: true,
+          title: true,
+          content: true,
+        },
+      }),
+      this.prisma.legalDocumentChunkNode.findMany({
+        where: { ...scope, chunkId: { in: chunkIds }, node: { documentId } },
+        select: { chunkId: true, legalDocumentNodeId: true },
+      }),
+    ]);
+    return { nodes, references, chunkMappings };
+  }
+
+  /**
    * Business purpose: Export a version's derived legal-document graph while preserving any explicit historical materialization pin.
    *
    * Business rules:
