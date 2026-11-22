@@ -521,17 +521,36 @@ export class AssessmentRuntimeControlService {
     correlationId: string,
     actor: RbacRequestContext,
   ) {
-    // Enforce tenant boundary during row-lock acquisition to prevent cross-tenant Row-Lock DoS.
-    // Non-admin actors can only acquire row locks on assessments they own.
-    const ownerClause =
-      actor.role === AUTH_USER_ROLES.admin
-        ? Prisma.empty
-        : Prisma.sql`AND "ownerId" = ${actor.userId}`;
+    // 1. Inspect assessment existence and ownership without row lock first.
+    // This allows returning 404 Not Found for cross-tenant calls while completely preventing
+    // cross-tenant Row-Lock Denial of Service (attacker cannot lock victim's row).
+    const unreservedRows = await tx.$queryRaw<
+      Array<{ id: string; ownerId: string }>
+    >(
+      Prisma.sql`SELECT "id", "ownerId" FROM "Assessment" WHERE "id" = ${assessmentId}`,
+    );
+    if (!unreservedRows[0]) {
+      // Stale or deleted target returns 409 Conflict per canonical runtime control contract.
+      throw problemException(Problems.staleTarget, correlationId, {
+        status: HttpStatus.CONFLICT,
+      });
+    }
+    if (
+      actor.role !== AUTH_USER_ROLES.admin &&
+      unreservedRows[0].ownerId !== actor.userId
+    ) {
+      // Cross-tenant access fails closed with 404 Not Found without holding any row locks.
+      throw problemException(ASSESSMENT_ERROR_CODES.notFound, correlationId, {
+        status: HttpStatus.NOT_FOUND,
+      });
+    }
+
+    // 2. Once tenant ownership is verified, acquire pessimistic row locks on Assessment and AssessmentRuntime.
     const assessmentRows = await tx.$queryRaw<
       Array<{ id: string; ownerId: string }>
     >(
       Prisma.sql`SELECT "id", "ownerId" FROM "Assessment"
-        WHERE "id" = ${assessmentId} ${ownerClause} FOR UPDATE`,
+        WHERE "id" = ${assessmentId} FOR UPDATE`,
     );
     if (!assessmentRows[0]) {
       throw problemException(Problems.staleTarget, correlationId, {
