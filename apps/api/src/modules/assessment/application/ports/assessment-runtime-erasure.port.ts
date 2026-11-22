@@ -6,6 +6,5 @@ export interface AssessmentRuntimeErasurePort {
     assessmentId: string;
     ownerId: string;
     threadId: string;
-    correlationId?: string;
   }): Promise<void>;
 }

@@ -175,7 +175,6 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
         assessmentId: assessment.id,
         ownerId: assessment.ownerId,
         threadId,
-        correlationId: command.correlationId,
       });
 
     const artifacts = await this.prisma.assessmentArtifact.findMany({
