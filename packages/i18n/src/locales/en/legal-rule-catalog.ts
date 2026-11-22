@@ -68,6 +68,9 @@ export const enLegalRuleCatalog = {
   referenceContext: "Referenced provisions",
   referenceAmbiguous: "Several provisions match this reference.",
   referenceUnresolved: "The referenced provision could not be identified.",
+  // Identify the original source as the document containing the reference.
+  referenceOrigin: "Document containing the reference",
+  referenceOpenSource: "Open source document",
   referenceTruncated: "Excerpt shortened.",
   articleLevel: "Article",
   clauseLevel: "Clause",

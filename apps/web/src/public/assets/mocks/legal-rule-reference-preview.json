@@ -16,6 +16,12 @@
         "excerpt": "a) Retain the synthetic audit record.",
         "truncated": false
       }
+    },
+    {
+      "referenceId": "0000000000000000000000000000000000000000000000000000000000000002",
+      "text": "Article 99",
+      "resolutionState": "UNRESOLVED",
+      "target": null
     }
   ]
 }

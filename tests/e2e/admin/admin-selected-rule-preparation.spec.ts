@@ -71,7 +71,7 @@ async function chooseCatalog(page: Page, locale = "en") {
   ).toBeVisible();
 }
 
-test("source picker expands the reference independently and imports the exact selected provision", async ({
+test("source picker shows original evidence for a missing reference and imports the exact selected provision", async ({
   page,
 }) => {
   // Stub only fixture API boundaries so real browser events exercise the dialog and import client.
@@ -98,7 +98,11 @@ test("source picker expands the reference independently and imports the exact se
       route.fulfill({
         json: {
           ok: true,
-          data: { ...source.versionActive, id: sourceVersionId },
+          data: {
+            ...source.versionActive,
+            id: sourceVersionId,
+            documents: [{ ...doc, hasOriginal: true }],
+          },
         },
       }),
   );
@@ -141,7 +145,6 @@ test("source picker expands the reference independently and imports the exact se
       },
     }),
   );
-
   await openWorkflow(page);
   await chooseCatalog(page);
   await page
@@ -158,6 +161,20 @@ test("source picker expands the reference independently and imports the exact se
       exact: false,
     }),
   ).toBeVisible();
+  const references = dialog
+    .locator("details")
+    .filter({ hasText: en.referenceContext });
+  await expect(references.getByText(en.referenceUnresolved)).toBeVisible();
+  await expect(references.getByText(doc.title, { exact: true })).toBeVisible();
+  await expect(
+    references.getByText(reference.description, { exact: true }),
+  ).toBeVisible();
+  // The source stays readable even when a stored original is available.
+  await expect(
+    references.getByRole("link", {
+      name: enPages.legalSources.downloadOriginal,
+    }),
+  ).toHaveCount(0);
   await expect(checkbox).not.toBeChecked();
   await checkbox.check();
   const request = page.waitForRequest(

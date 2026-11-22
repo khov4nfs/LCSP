@@ -564,9 +564,15 @@ export function LegalRuleSourcePickerDialog({
                           <p className="mt-1 line-clamp-5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
                             {formatLegalProvisions(provision.description)}
                           </p>
-                          {/* Reference excerpts are independent of the import selection. */}
+                          {/* Match the current version and document before using its recorded web source. */}
                           <LegalRuleReferencePreview
-                            referenceContext={provision.referenceContext}
+                            provision={provision}
+                            sourceDocument={
+                              versionQuery.data?.id === provision.sourceVersionId &&
+                              activeDoc?.documentId === provision.documentId
+                                ? activeDoc
+                                : null
+                            }
                           />
                         </div>
                       </div>
