@@ -40,6 +40,8 @@ likec4
 **/AGENTS.md
 AGENTS.md
 CLAUDE.md
+# Keep nested agent instructions out of every release image that copies the repository.
+**/CLAUDE.md
 CHANGELOG.md
 DESIGN.md
 RTK.md
