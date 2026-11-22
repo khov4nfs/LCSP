@@ -114,3 +114,8 @@
   1. **Exported, Testable Bootstrap**: Always export `bootstrap()` and guard spontaneous invocation with `if (process.env.NODE_ENV !== "test")`.
   2. **Graceful Shutdown**: Call `app.enableShutdownHooks()` so Nest triggers `onModuleDestroy()` across all providers (RabbitMQ channel/connection cleanup, Prisma connection pool disconnection).
   3. **NodeNext ESM Consistency**: All export and import specifiers in TypeScript source files MUST use the standard `.js` extension, never raw `.ts`.
+
+### [2026-11-23] [STACK: apps/api] Assessment Root Admission Under a Large Backlog
+- **Context / Symptom**: The fair-head reservation timed out under the global capacity lock after a burst of 10,001 pending commands. The same case could pass when run alone.
+- **Root Cause**: With pre-backlog statistics, PostgreSQL estimated one pending row and picked a nested loop that rescanned the pending-admission index for each latest command.
+- **Resolution & Invariant**: Select the latest Root command per Assessment before filtering transport status. Use a bounded lookup by the unique command ID before testing pending status, so a burst cannot multiply admission scans under the lock. Verify tail deferral and later admission in the full PostgreSQL integration spec, including broker redelivery.

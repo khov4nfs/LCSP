@@ -33,6 +33,8 @@ import { AUDIT_RESOURCE_TYPES, AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
+import { attachLegalRuleReferenceContext } from "./legal-rule-reference-context.js";
 import {
   canonicalJson,
   sha256Hex,
@@ -608,6 +610,8 @@ export class LegalRuleCatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditWriterService,
+    // The versioned graph owns reference resolution for the picker.
+    private readonly documentGraph: LegalDocumentGraphService,
   ) {}
 
   /**
@@ -695,12 +699,18 @@ export class LegalRuleCatalogService {
         legalEffectStatus: true,
       },
     });
-    return composeLegalSourceProvisions({
-      sourceVersionId: source.id,
-      documentId: document.documentId,
-      documentTitle: document.title,
-      chunks,
-    });
+    // Keep exact persisted locator-to-chunk identity available for graph evidence.
+    return {
+      ...composeLegalSourceProvisions({
+        sourceVersionId: source.id,
+        documentId: document.documentId,
+        documentTitle: document.title,
+        chunks,
+      }),
+      chunkIdsByLocator: new Map(
+        chunks.map(({ locator, id }) => [locator, id]),
+      ),
+    };
   }
 
   /**
@@ -710,11 +720,12 @@ export class LegalRuleCatalogService {
    * - Unclassified, structurally incomplete and non-EFFECTIVE text is never returned as an importable provision.
    * Execution flow:
    * 1. Load and compose the requested pinned source document.
-   * 2. Return a bounded page of eligible provisions and all explicit classification limitations.
+   * 2. Select a bounded page and attach direct reference previews using the pinned source graph.
+   * 3. Return the enriched page and all explicit classification limitations.
    * Failure cases:
    * - Missing or ineligible source material is rejected by the shared projection authority.
    * Side effects:
-   * - Read-only source lookup; no persisted chunk or LegalRule is changed.
+   * - May materialize a missing derived graph; no persisted chunk or LegalRule is changed.
    */
   async sourceProvisions(query: LegalRuleSourceProvisionQuery, cid: string) {
     const projection = await this.sourceProvisionProjection(
@@ -723,13 +734,36 @@ export class LegalRuleCatalogService {
       cid,
     );
     const start = (query.page - 1) * query.pageSize;
+    const items = projection.items.slice(start, start + query.pageSize);
+    // Only map chunk IDs from the requested page to the reused source graph.
+    const chunkIds = new Set(
+      items.flatMap((item) =>
+        item.citationLocatorRefs.flatMap(({ locator }) => {
+          const id = projection.chunkIdsByLocator.get(locator);
+          return id ? [id] : [];
+        }),
+      ),
+    );
+    const graph = items.length
+      ? await this.documentGraph.referenceEvidence(
+          query.sourceVersionId,
+          query.documentId,
+          [...chunkIds],
+        )
+      : null;
     return {
       sourceVersionId: query.sourceVersionId,
       documentId: query.documentId,
       total: projection.items.length,
       page: query.page,
       pageSize: query.pageSize,
-      items: projection.items.slice(start, start + query.pageSize),
+      items: graph
+        ? attachLegalRuleReferenceContext(
+            items,
+            projection.chunkIdsByLocator,
+            graph,
+          )
+        : items,
       limitations: projection.limitations,
     };
   }
