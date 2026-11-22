@@ -40,6 +40,7 @@ import {
 } from "@/lib/api/legal-rule-catalog-queries";
 import { ApiRequestError, apiValidated } from "@/lib/api/api-request";
 import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
+import { LegalRuleReferencePreview } from "../molecules/legal-rule-reference-preview";
 import {
   formatLegalProvisions,
   formatLocator,
@@ -563,6 +564,10 @@ export function LegalRuleSourcePickerDialog({
                           <p className="mt-1 line-clamp-5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
                             {formatLegalProvisions(provision.description)}
                           </p>
+                          {/* Reference excerpts are independent of the import selection. */}
+                          <LegalRuleReferencePreview
+                            referenceContext={provision.referenceContext}
+                          />
                         </div>
                       </div>
                     );

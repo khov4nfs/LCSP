@@ -166,6 +166,11 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
     "Không thể xóa catalog khi đang có tiến trình chuẩn bị quy tắc đang chạy hoặc trong hàng đợi.",
   eligibleLeafProvisions: "quy định đủ điều kiện",
   compositionPreview: "Ngữ cảnh pháp lý được ghép",
+  // Reference previews distinguish confirmed excerpts from uncertain targets.
+  referenceContext: "Điều khoản được dẫn chiếu",
+  referenceAmbiguous: "Có nhiều quy định khớp với dẫn chiếu này.",
+  referenceUnresolved: "Chưa xác định được quy định được dẫn chiếu.",
+  referenceTruncated: "Đoạn trích đã được rút gọn.",
   articleLevel: "Điều",
   clauseLevel: "Khoản",
   pointLevel: "Điểm",

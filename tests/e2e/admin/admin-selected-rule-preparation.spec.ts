@@ -71,6 +71,111 @@ async function chooseCatalog(page: Page, locale = "en") {
   ).toBeVisible();
 }
 
+test("source picker expands the reference independently and imports the exact selected provision", async ({
+  page,
+}) => {
+  // Stub only fixture API boundaries so real browser events exercise the dialog and import client.
+  const asset = (name: string) =>
+    readFile(
+      new URL(
+        `../../../apps/web/src/public/assets/mocks/${name}.json`,
+        import.meta.url,
+      ),
+      "utf8",
+    ).then(JSON.parse);
+  const [source, reference] = await Promise.all([
+    asset("legal-source-management"),
+    asset("legal-rule-reference-preview"),
+  ]);
+  const sourceVersionId = fixture.catalog.legalSourceVersionId;
+  const doc = source.versionActive.documents[0];
+  await page.route("**/api/admin/legal-sources", (route) =>
+    route.fulfill({ json: { ok: true, data: source.list } }),
+  );
+  await page.route(
+    `**/api/admin/legal-source-versions/${sourceVersionId}`,
+    (route) =>
+      route.fulfill({
+        json: {
+          ok: true,
+          data: { ...source.versionActive, id: sourceVersionId },
+        },
+      }),
+  );
+  await page.route(
+    "**/api/admin/legal-rule-catalog/source-provisions?*",
+    (route) =>
+      route.fulfill({
+        json: {
+          ok: true,
+          data: {
+            sourceVersionId,
+            documentId: doc.documentId,
+            total: 1,
+            page: 1,
+            pageSize: 50,
+            items: [
+              {
+                ...reference,
+                sourceVersionId,
+                documentId: doc.documentId,
+                documentTitle: doc.title,
+                citationLocatorRefs: [
+                  { documentId: doc.documentId, locator: reference.locator },
+                ],
+              },
+            ],
+            limitations: [],
+          },
+        },
+      }),
+  );
+  await page.route("**/source-provisions/import", (route) =>
+    route.fulfill({
+      json: {
+        ok: true,
+        data: {
+          rule: { id: fixture.rules[0].id },
+          catalogRevision: fixture.catalog.revision + 1,
+        },
+      },
+    }),
+  );
+
+  await openWorkflow(page);
+  await chooseCatalog(page);
+  await page
+    .getByRole("button", { name: en.browseSourceDocuments, exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  const checkbox = dialog.getByRole("checkbox");
+  await dialog.getByText(en.referenceContext, { exact: true }).click();
+  await expect(
+    dialog.getByText(reference.referenceContext[0].target.excerpt),
+  ).toBeVisible();
+  await expect(
+    dialog.getByText(reference.referenceContext[0].target.locator, {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(checkbox).not.toBeChecked();
+  await checkbox.check();
+  const request = page.waitForRequest(
+    (req) =>
+      req.url().endsWith("/source-provisions/import") &&
+      req.method() === "POST",
+  );
+  await dialog
+    .getByRole("button", { name: `${en.addSelectedRulesToCatalog} (1)` })
+    .click();
+  expect((await request).postDataJSON()).toEqual({
+    documentId: doc.documentId,
+    locator: reference.locator,
+    expectedRevision: fixture.catalog.revision,
+  });
+  await expect(dialog).not.toBeVisible();
+});
+
 test("prepared results expose one activation checkbox in activation mode", async ({
   page,
 }) => {

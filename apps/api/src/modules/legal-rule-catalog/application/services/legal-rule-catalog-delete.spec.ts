@@ -10,6 +10,7 @@ import {
 } from "./legal-rule-catalog.service.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import type { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 
 describe("LegalRuleCatalogService.deleteCatalog", () => {
   const catalogId = "11111111-1111-4111-8111-111111111111";
@@ -96,7 +97,12 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
       writeInTx,
     } as unknown as AuditWriterService;
 
-    const service = new LegalRuleCatalogService(mockPrisma, mockAudit);
+    // Catalog deletion does not read the graph.
+    const service = new LegalRuleCatalogService(
+      mockPrisma,
+      mockAudit,
+      {} as LegalDocumentGraphService,
+    );
     return {
       service,
       mockTx,
