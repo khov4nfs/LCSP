@@ -44,7 +44,22 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
   ) {}
 
   /**
-   * Executes password reset confirmation.
+   * Business purpose: Finalize user password reset by validating recovery token and persisting the new password.
+   * Business rules:
+   * - Recovery token must exist and must not be expired or previously used.
+   * - New password hash is computed asynchronously using scrypt to protect against event loop blocking.
+   * - Completion of password recovery revokes active sessions and updates account credentials.
+   * Execution flow:
+   * 1. Look up active recovery request by SHA-256 fingerprint of the supplied token.
+   * 2. Assert that the recovery request exists and is valid at the current timestamp.
+   * 3. Compute new password hash asynchronously via non-blocking hashSecret.
+   * 4. Persist updated password hash and mark recovery request completed within persistence transaction.
+   * 5. Record audit events for successful or failed recovery confirmation.
+   * 6. Return success confirmation with correlation ID.
+   * Failure cases:
+   * - Throws RECOVERY_INVALID if recovery token does not exist, is expired, or already completed.
+   * Side effects:
+   * - Updates user password hash, revokes sessions, and records security audit events.
    *
    * @param command - Contains recovery token, new password, and request metadata.
    * @returns Success confirmation and correlation ID.
@@ -75,7 +90,10 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
     const completed = await security.completePasswordRecovery({
       requestId: recoveryRequest.id,
       userId: recoveryRequest.userId,
-      passwordHash: hashSecret(payload.new_password),
+      // Rationale (Why): Asynchronous scrypt hashing prevents event loop blocking during password recovery.
+      // Mechanism (How): Await non-blocking hashSecret.
+      // Invariants (What): Non-blocking execution returns format-valid passwordHash.
+      passwordHash: await hashSecret(payload.new_password),
       now,
       correlationId,
     });

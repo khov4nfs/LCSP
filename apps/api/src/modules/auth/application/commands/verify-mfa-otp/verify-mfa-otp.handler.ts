@@ -9,7 +9,10 @@ import { Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { authFailure } from "../../errors/auth-application.error.ts";
-import { verifyTotpOtp } from "../../../../../platform/security/totp.utils.js";
+import {
+  unconsumeTotpOtp,
+  verifyTotpOtp,
+} from "../../../../../platform/security/totp.utils.js";
 import {
   AUTH_MFA_SECRET_CIPHER,
   type MfaSecretCipher,
@@ -31,6 +34,7 @@ import {
   AUTH_MFA_LIFECYCLE_PERSISTENCE,
   MFA_PROOF_TYPES,
   type MfaLifecyclePersistence,
+  type MfaProofCommitResult,
 } from "../../ports/persistence/mfa-lifecycle.persistence.ts";
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { VerifyMfaOtpCommand } from "./verify-mfa-otp.command.ts";
@@ -167,15 +171,23 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       throw authFailure(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
-    const proofResult = await this.lifecycle.verifyProof({
-      userId: session.userId,
-      sessionId: session.id,
-      expectedEncryptedSecret: targetEncryptedSecret,
-      now,
-      correlationId,
-      proof: { kind: MFA_PROOF_TYPES.otp, otp },
-      candidate,
-    });
+    let proofResult: MfaProofCommitResult;
+    try {
+      proofResult = await this.lifecycle.verifyProof({
+        userId: session.userId,
+        sessionId: session.id,
+        expectedEncryptedSecret: targetEncryptedSecret,
+        now,
+        correlationId,
+        proof: { kind: MFA_PROOF_TYPES.otp, otp },
+        candidate,
+      });
+    } catch (error) {
+      // Invariant: If database transaction fails and rolls back (e.g. audit failure),
+      // unmark the consumed in-memory time-step so legitimate client retry can succeed.
+      unconsumeTotpOtp(plaintextSecret, now);
+      throw error;
+    }
     if (!proofResult.ok) {
       if (proofResult.code === AUTH_ERROR_CODES.mfaInvalid) {
         await this.recordFailedAttempt(

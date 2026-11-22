@@ -2,6 +2,7 @@ import { Global, Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 
+import type { AppConfig } from "../../config/config.types.js";
 import { OutboxDlqController } from "./outbox-dlq.controller.js";
 import { OutboxDlqService } from "./outbox-dlq.service.js";
 import { OutboxPublisherService } from "./outbox-publisher.service.js";
@@ -22,13 +23,23 @@ import { RabbitMqClient } from "./rabbitmq.client.js";
       provide: RabbitMqClient,
       inject: [ConfigService],
       /**
-       * Creates the RabbitMQ client from the configured broker URL.
+       * Creates the RabbitMQ client from the central ConfigService.
        *
-       * @param configService - Runtime configuration source for the RabbitMQ URL.
+       * Rationale: Injects both the broker URL and target topic exchange from validated AppConfig,
+       * removing unmanaged process.env reads inside RabbitMqClient.
+       * Mechanism: Resolves rabbitmq.url and rabbitmq.exchange with fallback to canonical defaults.
+       * Invariants: Guarantees publisher assertions use the configured environment exchange.
+       *
+       * @param configService - Runtime configuration source for RabbitMQ broker parameters.
        * @returns Configured RabbitMQ client instance.
        */
-      useFactory: (configService: ConfigService) =>
-        new RabbitMqClient(configService.get<string>("rabbitmq.url", "")),
+      useFactory: (configService: ConfigService<AppConfig>) => {
+        const rabbitmq = configService.get<AppConfig["rabbitmq"]>("rabbitmq");
+        return new RabbitMqClient(
+          rabbitmq?.url ?? "",
+          rabbitmq?.exchange ?? "lcsp.events",
+        );
+      },
     },
     OutboxPublisherService,
   ],

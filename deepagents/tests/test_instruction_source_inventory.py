@@ -41,16 +41,17 @@ def test_actual_inventory_has_all_core_phases_and_existing_skills():
             "preparation.common", "preparation.discovery", "preparation.authoring",
             "preparation.direct", "preparation.development-overlay"} <= ids
     assert {"skill." + path.parent.name for path in (ROOT / "skills").glob("*/SKILL.vi.md")} <= ids
-    assert all(row["reviewStatus"] == "PENDING_INDEPENDENT_REVIEW" for row in payload["entries"])
+    assert all(row.get("englishCandidatePath") for row in payload["entries"])
+    assert all("sourceSha256" not in row for row in payload["entries"])
 
 
-@pytest.mark.parametrize("mutation,error", [("duplicate", "DUPLICATE"), ("digest", "DIGEST_MISMATCH"), ("missing", "MISSING_OR_INVALID"), ("consumer", "CONSUMER_MISSING")])
+@pytest.mark.parametrize("mutation,error", [("duplicate", "DUPLICATE"), ("empty", "MISSING_OR_INVALID"), ("missing", "MISSING_OR_INVALID"), ("consumer", "CONSUMER_MISSING")])
 def test_actual_source_contract_rejects_corruption(tmp_path, mutation, error):
     payload = json.loads(INVENTORY.read_text(encoding="utf-8"))
     if mutation == "duplicate":
         payload["entries"].append(payload["entries"][0])
-    elif mutation == "digest":
-        payload["entries"][0]["sourceSha256"] = "0" * 64
+    elif mutation == "empty":
+        payload["entries"][0]["vietnameseSourcePath"] = "instructions/vi/does-not-exist.md"
     elif mutation == "missing":
         payload["entries"][0]["vietnameseSourcePath"] = "instructions/vi/does-not-exist.md"
     else:
@@ -66,7 +67,8 @@ def test_actual_inventory_compiler_reports_every_missing_translation_without_out
     payload = validate_inventory()
     assert translation_readiness(payload)["missingEnglishCandidates"] == []
     compiled = compile_candidate(ROOT, INVENTORY, output)
-    assert compiled["approvalStatus"] == "PENDING"
+    assert compiled["approvalRequired"] is False
+    assert not any("Sha256" in key for key in compiled)
     assert {entry["sourceId"] for entry in compiled["entries"]} == set(payload["requiredSourceIds"])
     payload["entries"][0]["englishCandidatePath"] = None
     incomplete = tmp_path / "incomplete.json"

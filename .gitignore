@@ -32,9 +32,10 @@ _bmad/
 .claude/
 **/.cache/
 .prisma/
-.agents/
+.agents/*
 !.agents/rules/
 !.agents/rules/antigravity-project-rules.md
+!.agents/memory/
 **/.env
 .ua/
 **/.codebase-memory/

@@ -123,7 +123,10 @@ test("LegalRuleResultRevision does not show any ID, catalog pins, or instruction
 
   // 3. Must NOT show instruction / fingerprint
   assert.equal(text.includes("Revision / fingerprint instruction"), false, "Must not show instruction label");
-  assert.equal(text.includes(sampleResult.instructionReceipt!.fingerprint), false, "Must not show fingerprint");
+  const historicalFingerprint = sampleResult.instructionReceipt?.fingerprint;
+  if (historicalFingerprint) {
+    assert.equal(text.includes(historicalFingerprint), false, "Must not show fingerprint");
+  }
   assert.equal(text.includes("SECRET_INSTRUCTION_CONTENT_DO_NOT_LEAK"), false, "Must not show instruction content");
   assert.equal(text.includes("Nội dung instruction chính xác"), false, "Must not show instruction section");
 

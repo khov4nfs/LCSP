@@ -175,9 +175,10 @@ try {
       [base, workerKey, prep.preparationRunId, seed, "valid"],
     );
     assert.equal(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
-    const { hashSecret } = await import(
+    const { hashSecret: rawHashSecret, hashSecretSync } = await import(
       path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
     );
+    const hashSecret = hashSecretSync ?? rawHashSecret;
     const owner = randomUUID(),
       password = "CorrectHorseBatteryStaple!",
       email = "assessment-eval@acme.test";

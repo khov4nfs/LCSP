@@ -1,3 +1,6 @@
+// Enforce server-only execution: problem response constructor for BFF routes
+import "server-only";
+
 import { NextResponse } from "next/server";
 import {
   AUTH_ERROR_CODES,

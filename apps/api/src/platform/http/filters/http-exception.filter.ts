@@ -6,7 +6,7 @@ import {
   ApplicationError,
   APPLICATION_ERROR_REASONS,
   type ApplicationErrorReason,
-} from "../../../common/errors/application.error.js";
+} from "../../errors/application.error.js";
 
 import { cleanString, isNumber, isRecord } from "@lcsp/contracts/shared";
 import { setProblemResponseMetadata } from "./error-response-metadata.js";

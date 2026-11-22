@@ -2745,6 +2745,56 @@ export const viPages = {
         recoveryDescription:
           "Gửi hướng dẫn khôi phục theo đúng luồng khôi phục mật khẩu hiện tại của LCSP khi cần đặt lại truy cập.",
       },
+      accountSecurity: {
+        emailTitle: "Email khôi phục và tùy chọn email",
+        emailHelp:
+          "Chọn địa chỉ dùng cho chính sách tài khoản và khôi phục. Xóa nội dung email khôi phục sẽ gỡ địa chỉ khỏi tài khoản.",
+        recoveryEmail: "Email khôi phục",
+        accountEmail: "Email tài khoản",
+        allVerified: "Tất cả địa chỉ đã xác minh",
+        primaryPolicy: "Chính sách địa chỉ email chính",
+        backupPolicy: "Chính sách email khôi phục dự phòng",
+        emailRequired: "Nhập email khôi phục trước khi chọn làm địa chỉ chính.",
+        save: "Lưu tùy chọn bảo mật",
+        saving: "Đang lưu…",
+        reset: "Hủy thay đổi",
+        saved: "Đã lưu và xác nhận tùy chọn bảo mật.",
+        failed: "Thao tác thất bại. Các thay đổi của bạn được giữ lại.",
+        unconfirmed:
+          "Không thể xác nhận kết quả. Hãy tải lại trang trước khi thử tiếp.",
+        cancelled: "Đã hủy xác thực. Thao tác không được tiếp tục.",
+        rejected:
+          "Email hoặc chính sách bị từ chối. Hãy kiểm tra địa chỉ và lựa chọn chính sách.",
+        challenge: "Vẫn cần xác thực. Vui lòng thử lại thao tác.",
+        loading: "Đang tải bảo mật tài khoản…",
+        loadFailed: "Không thể tải bảo mật tài khoản.",
+        mfaTitle: "Xác thực hai yếu tố",
+        mfaEnabled: "Đã bật ứng dụng xác thực cho tài khoản này.",
+        mfaDisabled:
+          "Chưa bật ứng dụng xác thực. Hoàn tất thiết lập và xác minh mã để bật.",
+        enroll: "Thiết lập ứng dụng xác thực",
+        disable: "Tắt xác thực hai yếu tố",
+        disabled: "Đã tắt và xác nhận xác thực hai yếu tố.",
+        verified: "Đã xác minh và bật ứng dụng xác thực.",
+        busy: "Đang xử lý…",
+        regenerate: "Tạo bộ mã khôi phục mới",
+        disableDescription:
+          "Thao tác này gỡ ứng dụng xác thực và vô hiệu toàn bộ mã khôi phục. Bạn có thể cần xác minh bằng cả ứng dụng và mật khẩu.",
+        regenerateDescription:
+          "Bộ mã mới vô hiệu ngay mọi mã khôi phục trước đó. Hãy lưu bộ mã mới trước khi đóng.",
+        confirm: "Xác nhận",
+        cancel: "Hủy",
+        codesTitle: "Lưu mã khôi phục của bạn",
+        codesDescription:
+          "Không thể xem lại các mã này sau khi đóng. Hãy lưu ở nơi an toàn. Mã từ lần thiết lập mới chỉ sử dụng được sau khi xác minh ứng dụng.",
+        closeCodes: "Tôi đã lưu các mã này",
+        copied: "Đã sao chép mã khôi phục.",
+        downloaded: "Đã tải mã khôi phục.",
+        accessFailed:
+          "Không thể ghi nhận truy cập hoặc xuất mã. Vui lòng thử lại.",
+        downloadName: "lcsp-ma-khoi-phuc.txt",
+        restart: "Thiết lập lại ứng dụng xác thực",
+      },
       sessions: {
         revoking: "Đang thu hồi phiên đăng nhập…",
         refresh: "Tải lại phiên đăng nhập",

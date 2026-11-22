@@ -8,7 +8,7 @@ import {
 import { describe, expect, it, jest } from "@jest/globals";
 import { AuthApplicationError } from "../../errors/auth-application.error.ts";
 import { HttpException } from "@nestjs/common";
-import { ZodValidationPipe } from "../../../../../common/pipes/zod-validation.pipe.ts";
+import { ZodValidationPipe } from "../../../../../platform/http/pipes/zod-validation.pipe.ts";
 
 import {
   OAuthIdentity,

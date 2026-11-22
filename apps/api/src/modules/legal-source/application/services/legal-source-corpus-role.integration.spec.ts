@@ -36,7 +36,7 @@ import {
   LegalSourceDocumentCorpusRole,
   LegalSourceLifecycleStatus,
 } from "@prisma/client";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 
 const url = new URL(process.env.DATABASE_URL ?? "postgresql://unused/unused");
 const database =

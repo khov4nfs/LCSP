@@ -51,10 +51,10 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import type { z } from "zod";
 
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { AcceptAssessmentEvidenceCommand } from "../../application/commands/accept-assessment-evidence/accept-assessment-evidence.command.js";
 import { AcceptAssessmentFactCommand } from "../../application/commands/accept-assessment-fact/accept-assessment-fact.command.js";
 import { ClaimAssessmentRootCommand } from "../../application/commands/claim-assessment-root/claim-assessment-root.command.js";

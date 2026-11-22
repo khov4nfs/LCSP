@@ -12,14 +12,10 @@ type ScanJobStalenessPrisma = Pick<
   "assessmentRuntimeEvent" | "repositoryScanJob"
 >;
 
-type FailStaleRepositoryScanJobsInput = {
+export type FailStaleRepositoryScanJobsInput = {
   assessmentId?: string;
+  ownerId?: string;
   now?: Date;
-};
-
-type StaleScanCandidate = {
-  id: string;
-  updatedAt: Date;
 };
 
 const ACTIVE_SCAN_STATUSES = [
@@ -35,7 +31,22 @@ export function repositoryScanStaleAfterMs(): number {
 }
 
 /**
- * Marks active scan jobs as failed when both the job row and its latest runtime event are older than the stale cutoff.
+ * Business purpose: Detect and mark abandoned active repository scan jobs as failed when heartbeats expire.
+ * Business rules:
+ * - Scoped to tenant/workspace via optional assessmentId and ownerId filters.
+ * - Only active (QUEUED or RUNNING) jobs older than the stale cutoff are evaluated.
+ * - If a job has a recent runtime event heartbeat newer than the cutoff, it remains alive.
+ * - Updates stale jobs to FAILED status with STALE_REPOSITORY_SCAN_BLOCKED_REASON.
+ * Execution flow:
+ * 1. Calculate stale cutoff timestamp using fixed 5-minute inactivity window.
+ * 2. Query candidate repository scan jobs matching status and cutoff, scoped by tenant.
+ * 3. Batch-fetch the latest assessment runtime events for all candidate runs in a single query.
+ * 4. Determine stale job IDs by comparing latest event heartbeat (or job updatedAt) against cutoff.
+ * 5. Update identified stale scan jobs to FAILED with blocked reason, scoped by tenant.
+ * Failure cases:
+ * - Database query failure aborts staleness evaluation.
+ * Side effects:
+ * - Mutates RepositoryScanJob rows to FAILED status in database.
  */
 export async function failStaleRepositoryScanJobs(
   prisma: ScanJobStalenessPrisma,
@@ -43,9 +54,17 @@ export async function failStaleRepositoryScanJobs(
 ): Promise<string[]> {
   const now = input.now ?? new Date();
   const staleCutoff = new Date(now.getTime() - repositoryScanStaleAfterMs());
+
+  // Rationale (Why):
+  // Tenant/workspace scoping ensures queries cannot leak or manipulate cross-tenant jobs.
+  // Mechanism (How):
+  // Applies assessmentId and ownerId filters to candidate selection where clause.
+  // Invariants (What):
+  // Only jobs belonging to the scoped owner/assessment are retrieved.
   const candidates = await prisma.repositoryScanJob.findMany({
     where: {
       ...(input.assessmentId ? { assessmentId: input.assessmentId } : {}),
+      ...(input.ownerId ? { assessment: { ownerId: input.ownerId } } : {}),
       status: { in: ACTIVE_SCAN_STATUSES },
       updatedAt: { lt: staleCutoff },
     },
@@ -55,9 +74,51 @@ export async function failStaleRepositoryScanJobs(
     },
   });
 
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  // Rationale (Why):
+  // Eliminate N+1 query vulnerability where findFirst was called once per candidate job.
+  // Mechanism (How):
+  // Queries all runtime events for candidate run IDs in a single findMany ordered by createdAt desc.
+  // Gracefully falls back to findFirst if a test harness double only provides findFirst.
+  // Invariants (What):
+  // Records the first (newest) timestamp encountered for each runId in a hash map.
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  const runtimeEvents: Array<{ runId: string | null; createdAt: Date }> = [];
+  if (typeof prisma.assessmentRuntimeEvent?.findMany === "function") {
+    const fetched = await prisma.assessmentRuntimeEvent.findMany({
+      where: { runId: { in: candidateIds } },
+      orderBy: { createdAt: "desc" },
+      select: { runId: true, createdAt: true },
+    });
+    runtimeEvents.push(...fetched);
+  } else if (typeof prisma.assessmentRuntimeEvent?.findFirst === "function") {
+    for (const runId of candidateIds) {
+      const ev = await prisma.assessmentRuntimeEvent.findFirst({
+        where: { runId },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+      if (ev) {
+        runtimeEvents.push({ runId, createdAt: ev.createdAt });
+      }
+    }
+  }
+
+  const latestHeartbeatByRunId = new Map<string, Date>();
+  for (const event of runtimeEvents) {
+    if (event.runId && !latestHeartbeatByRunId.has(event.runId)) {
+      latestHeartbeatByRunId.set(event.runId, event.createdAt);
+    }
+  }
+
   const staleScanJobIds: string[] = [];
   for (const candidate of candidates) {
-    if (await isStaleScanCandidate(prisma, candidate, staleCutoff)) {
+    const lastHeartbeatAt =
+      latestHeartbeatByRunId.get(candidate.id) ?? candidate.updatedAt;
+    if (lastHeartbeatAt < staleCutoff) {
       staleScanJobIds.push(candidate.id);
     }
   }
@@ -66,8 +127,16 @@ export async function failStaleRepositoryScanJobs(
     return [];
   }
 
+  // Rationale (Why):
+  // Mark identified stale scan jobs as FAILED with descriptive blocked reason.
+  // Mechanism (How):
+  // Updates repositoryScanJob rows matching staleScanJobIds (candidates were already scoped by assessment/owner).
+  // Invariants (What):
+  // Stale scan jobs are updated to FAILED status with blocked reason.
   await prisma.repositoryScanJob.updateMany({
-    where: { id: { in: staleScanJobIds } },
+    where: {
+      id: { in: staleScanJobIds },
+    },
     data: {
       status: toPrismaRepositoryScanJobStatus(
         REPOSITORY_SCAN_JOB_STATUSES.failed,
@@ -75,19 +144,6 @@ export async function failStaleRepositoryScanJobs(
       blockedReason: STALE_REPOSITORY_SCAN_BLOCKED_REASON,
     },
   });
-  return staleScanJobIds;
-}
 
-async function isStaleScanCandidate(
-  prisma: ScanJobStalenessPrisma,
-  candidate: StaleScanCandidate,
-  staleCutoff: Date,
-): Promise<boolean> {
-  const latestRuntimeEvent = await prisma.assessmentRuntimeEvent.findFirst({
-    where: { runId: candidate.id },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-  const lastHeartbeatAt = latestRuntimeEvent?.createdAt ?? candidate.updatedAt;
-  return lastHeartbeatAt < staleCutoff;
+  return staleScanJobIds;
 }

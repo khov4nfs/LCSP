@@ -265,9 +265,11 @@ test("loading is distinct from empty and Vietnamese timestamps use the selected 
   });
   await page.goto("/workspace/settings?section=account");
   const panel = page.locator('[data-component="AccountSettingsPanel"]');
-  await expect(panel.getByRole("status")).toHaveText(
-    "Đang tải phiên đăng nhập…",
-  );
+  await expect(
+    panel
+      .locator('[aria-labelledby="settings-sessions-heading"]')
+      .getByRole("status"),
+  ).toHaveText("Đang tải phiên đăng nhập…");
   await expect(panel.locator("li")).toHaveCount(0);
   release();
   await expect(panel.locator("li")).toHaveCount(2);

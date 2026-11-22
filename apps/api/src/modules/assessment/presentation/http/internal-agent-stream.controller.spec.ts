@@ -14,7 +14,7 @@ import { httpRequest, problemBody } from "../../../../../test/support/http.js";
 import { ASSESSMENT_AGENT_STREAM_EVENT_TYPES } from "@lcsp/contracts/evidence";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { HttpExceptionFilter } from "../../../../platform/http/index.js";
 import { PublishAgentStreamEventCommand } from "../../application/commands/publish-agent-stream-event/publish-agent-stream-event.command.js";
 import { InternalAgentStreamController } from "./internal-agent-stream.controller.js";

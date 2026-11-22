@@ -1,19 +1,30 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { z } from "zod";
 
+import type { AppConfig } from "../../../../config/config.types.js";
 import type { AssessmentRuntimeErasurePort } from "../../application/ports/assessment-runtime-erasure.port.js";
 
 const erasureResultSchema = z.strictObject({ erased: z.literal(true) });
 
 @Injectable()
 export class AgentServerAssessmentErasure implements AssessmentRuntimeErasurePort {
+  constructor(
+    @Optional()
+    private readonly configService?: ConfigService<AppConfig>,
+  ) {}
+
   async erase(input: {
     assessmentId: string;
     ownerId: string;
     threadId: string;
   }): Promise<void> {
-    const baseUrl = process.env.LCSP_AGENT_SERVER_URL;
-    const key = process.env.WORKER_API_KEY;
+    const baseUrl =
+      this.configService?.get("agentServerUrl", { infer: true }) ||
+      process.env.LCSP_AGENT_SERVER_URL;
+    const key =
+      this.configService?.get("worker", { infer: true })?.apiKey ||
+      process.env.WORKER_API_KEY;
     if (!baseUrl || !key)
       throw new Error("Assessment runtime erasure is not configured");
     const response = await fetch(

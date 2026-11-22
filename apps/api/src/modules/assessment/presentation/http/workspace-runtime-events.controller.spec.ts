@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { QueryBus } from "@nestjs/cqrs";
 import { firstValueFrom } from "rxjs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { WorkspaceRuntimeEventsController } from "./workspace-runtime-events.controller.js";
 import { GetWorkspaceRuntimeQuery } from "../../application/queries/get-workspace-runtime/get-workspace-runtime.query.js";
 const req = (

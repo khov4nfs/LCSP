@@ -54,7 +54,22 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
   ) {}
 
   /**
-   * Executes password recovery initiation.
+   * Business purpose: Initiate account password recovery by generating an opaque single-use token and dispatching notification.
+   * Business rules:
+   * - Target user account must exist and have an active access status.
+   * - Missing or suspended accounts trigger constant-time decoy hashing to prevent account enumeration.
+   * - Recovery tokens are time-bounded by RECOVERY_TOKEN_TTL_MS and hashed before persistence.
+   * Execution flow:
+   * 1. Normalize recipient email and lookup user by primary email.
+   * 2. If user is absent or suspended, perform constant-time decoy hash and return generic success.
+   * 3. Generate secure random opaque token and compute its hash asynchronously.
+   * 4. Persist recovery request with token fingerprint and expiration timestamp.
+   * 5. Dispatch recovery notification containing raw token to verified destination.
+   * 6. Record audit event and return correlation metadata.
+   * Failure cases:
+   * - None exposed to client (generic success returned on missing accounts to prevent enumeration).
+   * Side effects:
+   * - Saves new recovery request to database, emits email notification, and records audit log.
    *
    * @param command - Contains target email and request correlation metadata.
    * @returns Success response with correlation ID.
@@ -71,9 +86,10 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
     const user = await users.findByPrimaryEmail(email);
 
     if (!user || user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      // Do the same shape of work as the found-user path so response
-      // latency doesn't reveal whether the email is registered or suspended.
-      hashSecret("decoy-recovery-lookup-for-constant-time-compare");
+      // Rationale (Why): Asynchronous scrypt prevents blocking event loop while masking account existence.
+      // Mechanism (How): Await non-blocking hashSecret.
+      // Invariants (What): Response latency remains consistent with found-user paths.
+      await hashSecret("decoy-recovery-lookup-for-constant-time-compare");
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryRequested,
         actor_id: user?.id ?? null,
@@ -87,7 +103,7 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
     const token = issueOpaqueToken();
     const recoveryRequest = new RecoveryRequest({
       userId: user.id,
-      tokenHash: hashSecret(token),
+      tokenHash: await hashSecret(token),
       expiresAt: now + RECOVERY_TOKEN_TTL_MS,
     });
     await recoveryRequests.save(recoveryRequest, fingerprintToken(token));

@@ -15,15 +15,14 @@ from runtime_instruction_bundle import RuntimeInstructionBundleError, production
 from runtime_instruction_bundle_build import compile_candidate
 
 
-def test_all_declared_surfaces_have_fingerprinted_active_or_guarded_inactive_controls():
+def test_all_declared_surfaces_have_structurally_registered_controls():
     rows = installed_surfaces()
     assert len(rows) == len(validate_inventory()["frameworkInstructions"])
-    assert all(row["controlStatus"] == "CONTROLLED" and row["adapterSourceSha256"] for row in rows)
+    assert all(row["controlStatus"] == "CONTROLLED" and row["adapterSourcePaths"] for row in rows)
     for row in rows:
-        assert row["adapterFingerprintKind"] == "PYTHON_AST_NO_SOURCE_LOCATIONS"
-        for name, expected in row["adapterSourceSha256"].items():
+        assert "adapterSourceSha256" not in row and "expressionSha256" not in row
+        for name in row["adapterSourcePaths"]:
             text = (ROOT / name).read_text(encoding="utf-8")
-            assert sha256(ast.dump(ast.parse(text), include_attributes=False).encode("utf-8")).hexdigest() == expected
             assert ast.dump(ast.parse(text.replace("\n", "\r\n")), include_attributes=False) == ast.dump(ast.parse(text), include_attributes=False)
     assert {row["symbolName"] for row in rows if row["controlMode"] == "DISABLED_GUARDED"} == {"DEFAULT_SUBAGENT_PROMPT", "_FORK_TASK_PREAMBLE"}
     validate_inventory(require_complete=True)
@@ -107,7 +106,7 @@ def test_candidate_compilation_is_exact_utf8_lf_on_windows_and_linux(tmp_path):
     expected = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     assert path.read_bytes() == expected
     assert b"\r\n" not in path.read_bytes()
-    assert payload["approvalStatus"] == "PENDING"
+    assert payload["approvalRequired"] is False
 
 
 

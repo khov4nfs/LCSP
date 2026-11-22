@@ -27,7 +27,7 @@ import {
 } from "../../../../platform/rbac/decorators/rbac-metadata.js";
 import { HttpExceptionFilter } from "../../../../platform/http/filters/http-exception.filter.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { AssessmentRuntimeControlController } from "./assessment-runtime-control.controller.js";
 import { AdminAssessmentBudgetController } from "./admin-assessment-budget.controller.js";
 

@@ -10,7 +10,7 @@ import { jest } from "@jest/globals";
 import { AuthApplicationError } from "../../errors/auth-application.error.ts";
 import { HttpException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
-import { ZodValidationPipe } from "../../../../../common/pipes/zod-validation.pipe.ts";
+import { ZodValidationPipe } from "../../../../../platform/http/pipes/zod-validation.pipe.ts";
 import type { OAuthProvider } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { OAuthStateRepository } from "../../ports/persistence/index.ts";

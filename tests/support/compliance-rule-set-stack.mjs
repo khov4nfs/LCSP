@@ -34,7 +34,7 @@ const { Client } = requireApi("pg");
 const directRootFixtures = new Map();
 // Load built security only when a vertical needs it; process-control tests need no API build.
 export function hashSecret(...args) {
-  return requireApi(
+  const mod = requireApi(
     path
       .join(
         apiDir,
@@ -42,7 +42,8 @@ export function hashSecret(...args) {
         path.relative(apiDir, requireApi.resolve("@lcsp/api/security")),
       )
       .replace(/\.ts$/, ".js"),
-  ).hashSecret(...args);
+  );
+  return (mod.hashSecretSync ?? mod.hashSecret)(...args);
 }
 
 export async function startStack({

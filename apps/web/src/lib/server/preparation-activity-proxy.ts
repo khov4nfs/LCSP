@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy preparation activity streams and journals
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import {

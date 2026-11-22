@@ -1,3 +1,6 @@
+// Enforce server-only execution: proxy assessment domain requests to API
+import "server-only";
+
 import type { NextRequest } from "next/server";
 import type { z } from "zod";
 import {

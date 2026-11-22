@@ -14,7 +14,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
 import { RabbitMqClient } from "../src/platform/outbox/rabbitmq.client.js";
-import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import { RABBITMQ_STUB } from "./support/rabbitmq-stub.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
 import {
@@ -308,7 +308,7 @@ describe("customer billing HTTP API (e2e)", () => {
       data: {
         id,
         email: `billing-${id}@test.invalid`,
-        passwordHash: hashSecret("BillingTestPassword123!"),
+        passwordHash: hashSecretSync("BillingTestPassword123!"),
         emailVerified: true,
         failedLoginCount: 0,
         role,

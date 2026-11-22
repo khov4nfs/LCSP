@@ -108,7 +108,7 @@ test("Settings language select matches Figma trigger and option selected state",
 });
 
 test("Account settings composes a responsive, actionable session section", async () => {
-  const [settings, sessions, row] = await Promise.all([
+  const [settings, sessions, row, account] = await Promise.all([
     read("../src/features/settings/components/organisms/settings-page.tsx"),
     read(
       "../src/features/settings/components/organisms/session-settings-section.tsx",
@@ -116,9 +116,15 @@ test("Account settings composes a responsive, actionable session section", async
     read(
       "../src/features/settings/components/molecules/session-settings-row.tsx",
     ),
+    read(
+      "../src/features/settings/components/organisms/account-settings-panel.tsx",
+    ),
   ]);
-  assert.match(settings, /SessionSettingsSection/);
-  assert.match(sessions, /data-component="AccountSettingsPanel"/);
+  assert.match(settings, /AccountSettingsPanel/);
+  assert.match(account, /SessionSettingsSection/);
+  assert.match(account, /AccountEmailSection/);
+  assert.match(account, /AccountMfaSection/);
+  assert.match(account, /data-component="AccountSettingsPanel"/);
   assert.match(sessions, /logoutAllDescription/);
   assert.match(sessions, /query.isPending/);
   assert.match(sessions, /query.isError/);

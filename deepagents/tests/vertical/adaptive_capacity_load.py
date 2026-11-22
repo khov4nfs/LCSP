@@ -38,6 +38,7 @@ from approved_bundle_fixture import offline_instruction_bundle
 from tools.common.capabilities.agent_runtime import local_server, rabbitmq_consumer as bridge
 from tools.common.capabilities.agent_runtime.root_capacity import RootCapacityClient
 from vertical.scripted_root import DynamicScriptedModel, full_script, _call
+from vertical.adaptive_capacity_progress import LoadProgressWatchdog
 from types import SimpleNamespace
 
 timeline, results = [], {}
@@ -161,14 +162,23 @@ def main():
                     channel.basic_publish(exchange=exchange, routing_key=binding.source_event,
                         body=json.dumps(case["jobs"][0]["message"]).encode(), mandatory=True)
                     points = []
+                    ids = [job["assessmentId"] for job in case["jobs"]]
+                    progress = LoadProgressWatchdog(count)
                     while True:
+                        # This BlockingConnection belongs to the polling thread;
+                        # service publisher heartbeats while admitted Roots execute.
+                        publisher.process_data_events(time_limit=0)
                         points.append(snapshot(db, count, started))
                         with result_lock:
                             completed = sum(job["assessmentId"] in results for job in case["jobs"])
+                        started_roots = db.execute(
+                            'SELECT count(*) FROM "AssessmentRootExecutionSlot" '
+                            'WHERE "assessmentId"=ANY(%s) AND "startedAt" IS NOT NULL', [ids]
+                        ).fetchone()[0]
+                        points[-1].update(startedRoots=started_roots, completed=completed)
                         if completed == count and points[-1]["admitted"] == 0: break
-                        assert time.monotonic() - started < 150, f"load scenario {count} did not progress"
+                        progress.observe(started_roots=started_roots, completed_roots=completed)
                         time.sleep(0.5)
-                    ids = [job["assessmentId"] for job in case["jobs"]]
                     assert all(results[assessment_id]["state"] == "SUCCEEDED" for assessment_id in ids), "native fixture Root failed"
                     waits = db.execute('SELECT percentile_cont(0.5) WITHIN GROUP(ORDER BY extract(epoch FROM ("startedAt"-%s::timestamp))*1000), '
                         'percentile_cont(0.95) WITHIN GROUP(ORDER BY extract(epoch FROM ("startedAt"-%s::timestamp))*1000) '
@@ -193,6 +203,7 @@ def main():
                     # Observe ordinary demand scale-down automatically between waves.
                     down_deadline = time.monotonic() + 20
                     while snapshot(db, count, started)["effective"] > 1:
+                        publisher.process_data_events(time_limit=0)
                         assert time.monotonic() < down_deadline, "idle capacity did not drain to the configured minimum"
                         time.sleep(0.5)
                 runtime = local_server.app.state.runtime

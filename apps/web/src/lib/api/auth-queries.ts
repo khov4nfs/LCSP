@@ -3,12 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  type AuthSessionSummary,
-  type AuthSettingsProfile,
   type UpdateProfileRequest,
   confirmPasswordRecovery,
   disableMfa,
   enrollMfa,
+  generateMfaRecoveryCodes,
   getAuthSessions,
   getAuthSettingsProfile,
   recordMfaRecoveryCodeAccess,
@@ -80,63 +79,96 @@ export function usePasswordReauthMutation() {
   return useMutation({ mutationFn: reauthenticateWithPassword });
 }
 
+/**
+ * Business purpose: Start authenticator enrollment without retaining setup credentials after use.
+ * Business rules:
+ * - Enrollment writes must not retry automatically because they rotate setup credentials.
+ * Execution flow:
+ * 1. Expose enrollment with immediate garbage collection once the consumer resets or unmounts.
+ * Failure cases:
+ * - Network failures remain uncertain writes for the owning setup interaction to resolve.
+ * Side effects:
+ * - Requests a new TOTP setup and recovery-code batch through the backend.
+ */
 export function useMfaEnrollMutation() {
-  return useMutation({ mutationFn: enrollMfa });
+  return useMutation({ mutationFn: enrollMfa, retry: false, gcTime: 0 });
 }
 
 export function useMfaRecoveryCodeAccessMutation() {
   return useMutation({ mutationFn: recordMfaRecoveryCodeAccess });
 }
 
-function useDisableMfaMutation() {
+/**
+ * Business purpose: Publish disabled MFA only after reading the persisted account state.
+ * Business rules:
+ * - Rejected or challenged requests do not change security caches.
+ * - A successful delete must be confirmed by the profile API before reporting completion.
+ * Execution flow:
+ * 1. Disable the current account's factor and read its persisted profile.
+ * 2. Reject inconsistent confirmation and refresh session proof metadata.
+ * Failure cases:
+ * - Transport failures or an enabled factor after deletion reject the mutation.
+ * Side effects:
+ * - Deletes MFA through the API and refreshes profile and sessions caches.
+ */
+export function useDisableMfaMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: disableMfa,
+    retry: false,
+    /**
+     * Business purpose: Confirm MFA removal before exposing disabled security state.
+     * Business rules:
+     * - Only an acknowledged deletion triggers confirmation; fabricated cache values are prohibited.
+     * Execution flow:
+     * 1. Cancel older profile reads and read persisted enrollment and current-session proof after deletion.
+     * 2. Reject active factor metadata and refresh session summaries on confirmation.
+     * Failure cases:
+     * - Read failure or retained MFA metadata rejects completion without claiming success.
+     * Side effects:
+     * - Reads profile and refreshes authenticated session caches.
+     */
     onSuccess: async (outcome) => {
       if (outcome.kind !== API_OUTCOME_KINDS.disabled) {
         return;
       }
 
-      const currentProfile = queryClient.getQueryData<AuthSettingsProfile>(
-        apiQueryKeys.auth.settingsProfile(),
-      );
-      if (currentProfile) {
-        queryClient.setQueryData<AuthSettingsProfile>(
-          apiQueryKeys.auth.settingsProfile(),
-          {
-            ...currentProfile,
-            mfa_enrolled: false,
-            mfa_enrolled_at: null,
-            mfa_verified: false,
-            mfa_verified_at: null,
-          },
-        );
+      await queryClient.cancelQueries({
+        queryKey: apiQueryKeys.auth.settingsProfile(),
+      });
+      const profile = await queryClient.fetchQuery({
+        queryKey: apiQueryKeys.auth.settingsProfile(),
+        queryFn: getAuthSettingsProfile,
+        staleTime: 0,
+        retry: false,
+      });
+      if (profile.mfa_enrolled || profile.mfa_verified) {
+        throw new Error("mfa-disable-not-confirmed");
       }
-
-      const currentSessions = queryClient.getQueryData<AuthSessionSummary[]>(
-        apiQueryKeys.auth.sessions(),
-      );
-      if (currentSessions) {
-        queryClient.setQueryData<AuthSessionSummary[]>(
-          apiQueryKeys.auth.sessions(),
-          currentSessions.map((session) =>
-            session.is_current
-              ? { ...session, mfa_verified_at: null }
-              : session,
-          ),
-        );
-      }
-
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: apiQueryKeys.auth.settingsProfile(),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: apiQueryKeys.auth.sessions(),
-        }),
-      ]);
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.auth.sessions(),
+      });
     },
+  });
+}
+
+/**
+ * Business purpose: Expose replacement recovery codes only for the active security interaction.
+ * Business rules:
+ * - Do not retry ambiguous batch replacement or retain cleartext results after reset/unmount.
+ * Execution flow:
+ * 1. Delegate one replacement attempt to the authenticated domain client.
+ * Failure cases:
+ * - Backend challenges and transport errors remain available to the owning section.
+ * Side effects:
+ * - Requests recovery-code replacement; mutation cache entries are immediately collectible.
+ */
+export function useGenerateMfaRecoveryCodesMutation() {
+  return useMutation({
+    mutationFn: generateMfaRecoveryCodes,
+    retry: false,
+    gcTime: 0,
   });
 }
 
@@ -155,10 +187,10 @@ export function useConfirmRecoveryMutation() {
  * - Update workspace identity only when it belongs to the confirmed account.
  * Execution flow:
  * 1. Submit the profile patch and stop on a rejected outcome.
- * 2. Read the persisted profile and verify a requested display name was retained.
+ * 2. Read the persisted profile and verify every requested identity or security field was retained.
  * 3. Replace matching cached workspace identity with the confirmed name.
  * Failure cases:
- * - Failed confirmation or a mismatched saved name rejects the mutation so the editor retains its draft.
+ * - Failed confirmation or a mismatched saved field rejects the mutation so the editor retains its draft.
  * Side effects:
  * - Saves through the backend and refreshes profile/workspace query caches.
  */
@@ -172,10 +204,10 @@ export function useUpdateProfileMutation() {
      * Business rules:
      * - Rejected writes do not change identity; workspace cache updates require matching account IDs.
      * Execution flow:
-     * 1. Read the saved profile and verify the requested display name.
+     * 1. Cancel older reads, then read the saved profile and verify requested names, normalized recovery email and both policies.
      * 2. Refresh matching workspace identity with the confirmed profile name.
      * Failure cases:
-     * - Failed reads and mismatched names reject confirmation and leave the editor draft available.
+     * - Failed reads and mismatched fields reject confirmation and leave the editor draft available.
      * Side effects:
      * - Reads the profile API and updates profile and workspace query caches.
      */
@@ -184,6 +216,9 @@ export function useUpdateProfileMutation() {
         return;
       }
 
+      await queryClient.cancelQueries({
+        queryKey: apiQueryKeys.auth.settingsProfile(),
+      });
       const profile = await queryClient.fetchQuery({
         queryKey: apiQueryKeys.auth.settingsProfile(),
         queryFn: getAuthSettingsProfile,
@@ -191,8 +226,17 @@ export function useUpdateProfileMutation() {
         retry: false,
       });
       if (
-        request.display_name !== undefined &&
-        profile.display_name !== (request.display_name.trim() || null)
+        (request.display_name !== undefined &&
+          profile.display_name !== (request.display_name.trim() || null)) ||
+        (request.recovery_email !== undefined &&
+          profile.recovery_email !==
+            (request.recovery_email.trim().toLowerCase() || null)) ||
+        (request.primary_email_address_policy !== undefined &&
+          profile.primary_email_address_policy !==
+            request.primary_email_address_policy) ||
+        (request.backup_recovery_email_policy !== undefined &&
+          profile.backup_recovery_email_policy !==
+            request.backup_recovery_email_policy)
       ) {
         throw new Error("profile-update-not-confirmed");
       }

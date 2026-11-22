@@ -2,9 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { z } from "zod";
 
-import { complianceRuleSetPacketSchema } from "../src/compliance-rule-set/schemas.ts";
+import {
+  assessmentRuleAuthoringSchema,
+  complianceRuleSetPacketSchema,
+  legalRequirementSchema,
+} from "../src/compliance-rule-set/schemas.ts";
 import { directDraftSubmissionSchema } from "../src/compliance-rule-set/direct-draft.ts";
-import { preparationRuleOutputSchema } from "../src/legal-rule-catalog/index.ts";
+import {
+  LEGAL_RULE_LIMITS,
+  preparationRuleOutputSchema,
+} from "../src/legal-rule-catalog/index.ts";
 
 // Shape guidance only; the API still owns integrity checks and relation refinements.
 const schema = {
@@ -49,7 +56,29 @@ if (process.argv.includes("--check")) {
 } else {
   writeFileSync(directOutput, JSON.stringify(directSchema, null, 2) + "\n");
 }
-const selectedSchema = z.toJSONSchema(preparationRuleOutputSchema, {
+// Match the selected-result service requirements for newly authored output.
+const { operativePropositions, sourceRefs } = legalRequirementSchema.shape;
+const selectedAuthoringSchema = preparationRuleOutputSchema.in.safeExtend({
+  legalRequirements: z
+    .array(
+      legalRequirementSchema.safeExtend({
+        operativePropositions: operativePropositions
+          .unwrap()
+          .min(1)
+          .describe(operativePropositions.description!),
+        sourceRefs: sourceRefs.unwrap().min(1),
+      }),
+    )
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+  assessmentRules: z
+    .array(
+      assessmentRuleAuthoringSchema.safeExtend({
+        sourceRefs: sourceRefs.unwrap().min(1),
+      }),
+    )
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+});
+const selectedSchema = z.toJSONSchema(selectedAuthoringSchema, {
   target: "draft-7",
   io: "input",
 });

@@ -95,9 +95,10 @@ const code = {
   files: runtimeHashes(),
 };
 try {
-  const { hashSecret } = await import(
+  const { hashSecret: rawHashSecret, hashSecretSync } = await import(
     `${root}/apps/api/dist/src/platform/security/crypto.utils.js`
   );
+  const hashSecret = hashSecretSync ?? rawHashSecret;
   const email = `${database}@preparation.test`,
     password = "OfflinePreparationFixturePassword!";
   await stack.q(

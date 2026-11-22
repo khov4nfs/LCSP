@@ -33,7 +33,7 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentTrackingLoader } from "../../infrastructure/persistence/assessment-tracking.loader.js";
 import { AssessmentTrackingController } from "./assessment-tracking.controller.js";
 import { AdminTrackingController } from "./admin-tracking.controller.js";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 
 describe("AssessmentTrackingControllers", () => {
   let app: INestApplication<Server>;

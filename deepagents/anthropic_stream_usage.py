@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import contextmanager
+from contextlib import AsyncExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
+from anthropic import AsyncAnthropic, DefaultAsyncHttpxClient
 from langchain.chat_models import init_chat_model as native_init_chat_model
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages.ai import UsageMetadata, subtract_usage
@@ -21,6 +22,31 @@ class _StreamUsage:
 
 _stream_usage: ContextVar[_StreamUsage | None] = ContextVar("anthropic_stream_usage", default=None)
 _first_output_timeout: ContextVar[float | None] = ContextVar("anthropic_first_output_timeout", default=None)
+_async_clients: ContextVar[tuple[AsyncExitStack, dict[int, tuple[Any, AsyncAnthropic]]] | None] = ContextVar(
+    "anthropic_scoped_async_clients", default=None
+)
+
+
+@asynccontextmanager
+async def anthropic_async_client_scope():
+    """Business purpose: Keep provider connections inside one selected rule's event loop.
+
+    Business rules:
+    - Models used by one rule may reuse their own client within that run; other runs keep separate connections.
+    Execution flow:
+    1. Bind an empty client registry to the current invocation.
+    2. Close all registered clients before returning control to the event loop owner.
+    Failure cases:
+    - Failure or cancellation still closes the scoped connections and restores the enclosing context.
+    Side effects:
+    - Owns the async clients created by the selected graph, including fallback models.
+    """
+    async with AsyncExitStack() as stack:
+        token = _async_clients.set((stack, {}))
+        try:
+            yield
+        finally:
+            _async_clients.reset(token)
 
 
 @contextmanager
@@ -45,6 +71,40 @@ def anthropic_first_output_timeout(seconds: float):
 
 
 class UsagePreservingChatAnthropic(ChatAnthropic):
+    @property
+    def _async_client(self) -> AsyncAnthropic:
+        """Business purpose: Route selected-rule requests through a client owned by their invocation.
+
+        Business rules:
+        - Preserve the model's endpoint, credential, timeout and proxy; reuse the native client outside selected preparation.
+        Execution flow:
+        1. Look up the model's client in the invocation scope.
+        2. On first access, create its transport and register it for closure before building the SDK client.
+        Failure cases:
+        - Invalid transport settings propagate; the scope closes any registered transport even if SDK construction fails.
+        Side effects:
+        - Allocates pool resources on demand without making an inference request.
+        """
+        scope = _async_clients.get()
+        if scope is None:
+            return super()._async_client
+        stack, clients = scope
+        key = id(self)
+        if key not in clients:
+            params = self._client_params
+            transport_options = {}
+            if params.get("base_url"):
+                transport_options["base_url"] = params["base_url"]
+            if "timeout" in params:
+                transport_options["timeout"] = params["timeout"]
+            if self.anthropic_proxy:
+                transport_options["proxy"] = self.anthropic_proxy
+            # Keep a strong reference to the model so a later fallback cannot reuse its id.
+            transport = DefaultAsyncHttpxClient(**transport_options)
+            stack.push_async_callback(transport.aclose)
+            clients[key] = (self, AsyncAnthropic(**params, http_client=transport))
+        return clients[key][1]
+
     # The context belongs to one stream, including concurrent calls on a shared model.
     def _stream(self, *args, **kwargs):
         """Business purpose: Preserve complete provider usage while streaming one synchronous Anthropic response.
