@@ -189,6 +189,54 @@ it("replays the same selection key without duplicate rows or Root work", async (
   expect(f.enqueued).toHaveBeenCalledTimes(1);
 });
 
+it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 race", async () => {
+  const exportId = randomUUID();
+  const createdAt = new Date("2026-11-22T00:00:00.000Z");
+  const contentSha256 = "a".repeat(64);
+  const winner = { exportId, requestId: REQUEST, contentSha256, createdAt };
+  const uniqueRace = Object.assign(new Error("unique constraint"), {
+    code: "P2002",
+    meta: { target: ["requestId", "idempotencyKey"] },
+  });
+  const findUnique = jest
+    .fn<() => Promise<typeof winner | null>>()
+    .mockResolvedValue(winner);
+  const service = new AssessmentRuleAuditService(
+    {
+      $transaction: () => Promise.reject(uniqueRace),
+      assessmentRuleAuditExport: { findUnique },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+  );
+
+  // A concurrent request may win after the initial lookup. The loser must
+  // reload the exact composite key and return the durable winner as a replay.
+  await expect(
+    service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).resolves.toEqual({
+    exportId,
+    requestId: REQUEST,
+    contentSha256,
+    createdAt: createdAt.toISOString(),
+  });
+  expect(findUnique).toHaveBeenCalledWith({
+    where: {
+      requestId_idempotencyKey: {
+        requestId: REQUEST,
+        idempotencyKey: "same-export-key",
+      },
+    },
+  });
+});
+
 it("versions a later Rule 9 request and reuses an unchanged accepted Rule 3 decision", async () => {
   const f = submitFixture();
   f.tx.assessment.findUnique.mockResolvedValue({

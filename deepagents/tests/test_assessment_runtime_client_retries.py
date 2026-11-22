@@ -91,6 +91,26 @@ def test_nonretryable_read_problem_preserves_server_rejection(runtime_client, mo
     assert not delays
 
 
+def test_red_asm_trace_01_reuses_one_correlation_id_for_a_root_workflow(runtime_client, monkeypatch):
+    """[RED][ASM-TRACE-01] One leased Root workflow has one end-to-end trace identity."""
+    correlation_ids = []
+
+    def request(method, url, **kwargs):
+        del method, url
+        correlation_ids.append(kwargs["headers"]["x-correlation-id"])
+        return httpx.Response(200, json={"ok": True, "data": {"caseRevision": 7}})
+
+    monkeypatch.setattr("assessment_root.client.httpx.request", request)
+
+    # Separate tool calls in one leased execution must remain joinable across
+    # NestJS, the Python worker and downstream logs.
+    runtime_client.context()
+    runtime_client.context()
+
+    assert len(correlation_ids) == 2
+    assert len(set(correlation_ids)) == 1
+
+
 @pytest.mark.parametrize("operation", ["claim", "finish", "post_evidence"])
 @pytest.mark.parametrize("failure", ["503", "429", "timeout"])
 def test_ambiguous_mutation_response_never_replays_a_committed_write(

@@ -114,3 +114,30 @@
   1. **Exported, Testable Bootstrap**: Always export `bootstrap()` and guard spontaneous invocation with `if (process.env.NODE_ENV !== "test")`.
   2. **Graceful Shutdown**: Call `app.enableShutdownHooks()` so Nest triggers `onModuleDestroy()` across all providers (RabbitMQ channel/connection cleanup, Prisma connection pool disconnection).
   3. **NodeNext ESM Consistency**: All export and import specifiers in TypeScript source files MUST use the standard `.js` extension, never raw `.ts`.
+
+### [2026-11-22] [BACKEND/CONCURRENCY] Assessment Module Hardening: Row-Lock DoS, Zombie Run Prevention & FK Restrict
+- **Context / Symptom**: In `assessment` module:
+  1. Raw SQL row locks `SELECT 1 FROM "Assessment" WHERE "id" = ... FOR UPDATE` locked rows before tenant ownership was checked, enabling cross-tenant Row-Lock DoS (BOLA).
+  2. Expired worker leases rejected `finishExecution` calls with HTTP 403 `EXECUTION_LEASE_INVALID`, stranding runs in `RUNNING` state indefinitely ("Zombie Run").
+  3. Deleting an assessment crashed with Prisma P2003/P2014 due to `onDelete: Restrict` on `AssessmentExecutionIsolation`.
+  4. Raw database errors (e.g. CTE query timeouts) leaked in `ServiceUnavailableException` messages (CWE-209).
+  5. `open-human-request.handler.ts` duplicated ~450 lines of complex validation and event logic already present in `open-human-requests-batch.handler.ts`.
+- **Root Cause**:
+  1. Row locking in PostgreSQL acquires exclusive locks immediately upon row match. Scoping the query only by `id` allowed an attacker to hold exclusive locks on any victim's record.
+  2. Lease validation enforced expiration checks uniformly across both intermediate operations (heartbeats/evidence writes) and terminal settlement (`finishExecution`).
+  3. Cascading delete relied on Prisma default cascades without explicitly cleaning up restrictive foreign-key relations.
+  4. Exception handling passed `err.message` directly into user-facing HTTP exception messages.
+  5. Historical single vs batch handlers evolved independently without a unified delegation pattern.
+- **Resolution & Invariant**:
+  1. **Tenant-Scoped Row Locking**: Always scope `FOR UPDATE` queries with `AND "ownerId" = ${actorId}` to prevent cross-tenant row locking.
+  2. **Terminal Settlement on Expired Leases**: Permit terminal state transitions (SUCCEEDED, FAILED, PAUSED, CANCELLED) even after lease expiration as long as the worker's `leaseToken` matches and `executionState` is `RUNNING`, eliminating Zombie Runs.
+  3. **Explicit Restrict FK Cleanup**: Pre-delete records with `onDelete: Restrict` (e.g. `assessmentExecutionIsolation.deleteMany({ where: { assessmentId } })`) inside the deletion transaction before deleting the root entity.
+  4. **Error Masking (CWE-209)**: Log internal driver/query details via `Logger.error()` but return generic safe messages (`"Service is temporarily unavailable."`) to clients.
+  5. **Batch Delegation Pattern**: Single item handlers must delegate to their corresponding batch handler wrapped in a 1-item batch, eliminating duplicate logic while preserving contract and DI compatibility.
+
+### [2026-11-22] [PROCESS] Mandatory PR Metadata (Assignee & Labels) on PR Creation
+- **Context / Symptom**: User requested: "gắn kèm cáci metadata như asign và lables chứ. lần sau tôi nói là tự nhớ đấy". PR was created without assignee and labels.
+- **Root Cause**: The agent executed `gh pr create` specifying only `--title` and `--body`, omitting assignee and labels.
+- **Resolution & Invariant**: Whenever creating a Pull Request via `gh pr create`, the agent MUST ALWAYS include:
+  1. Assignee: `--assignee "@me"` (or current actor login).
+  2. Labels: `--label "<module>,refactor,priority:P2"` (matching the module being refactored, e.g. `assessment`, `auth-workspace`, etc.).

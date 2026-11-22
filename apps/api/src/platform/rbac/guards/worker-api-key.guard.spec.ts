@@ -20,9 +20,16 @@ function makeContext(
   } as unknown as ExecutionContext;
 }
 
-function makeGuard(configuredKey: string = VALID_KEY): WorkerApiKeyGuard {
+function makeGuard(
+  configuredKey: string = VALID_KEY,
+  previousKey?: string,
+): WorkerApiKeyGuard {
   const configService = {
-    get: (_key: string, fallback?: unknown) => configuredKey ?? fallback,
+    get: (key: string, fallback?: unknown) => {
+      if (key === "worker.apiKey") return configuredKey ?? fallback;
+      if (key === "worker.previousApiKey") return previousKey ?? fallback;
+      return fallback;
+    },
   } as unknown as ConfigService;
   return new WorkerApiKeyGuard(configService);
 }
@@ -63,6 +70,16 @@ describe("WorkerApiKeyGuard", () => {
     const guard = makeGuard();
     const ctx = makeContext({ "x-worker-api-key": VALID_KEY });
 
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it("[RED][ASM-WORKER-01] accepts the previous key during a bounded rotation window", () => {
+    const previousKey = "previous-secret-worker-key-67890";
+    const guard = makeGuard(VALID_KEY, previousKey);
+    const ctx = makeContext({ "x-worker-api-key": previousKey });
+
+    // Rotation must support an overlap key so rolling workers do not lose
+    // authenticated access while the common secret is replaced.
     expect(guard.canActivate(ctx)).toBe(true);
   });
 

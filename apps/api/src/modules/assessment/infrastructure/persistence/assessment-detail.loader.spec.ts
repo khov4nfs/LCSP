@@ -38,8 +38,11 @@ function fixture() {
       totalTokens: 201,
     },
   });
+  const findUnique = jest.fn(() => Promise.resolve(row));
+  const findMany = jest.fn(() => Promise.resolve([row]));
+  const count = jest.fn(() => Promise.resolve(1));
   const tx = {
-    assessment: { findUnique: () => Promise.resolve(row) },
+    assessment: { findUnique, findMany, count },
     llmUsageEvent: { aggregate },
   };
   const localization = authoredLocalizationFixture();
@@ -50,7 +53,15 @@ function fixture() {
     } as unknown as PrismaService,
     localization.projection,
   );
-  return { loader, row, aggregate, localization };
+  return {
+    loader,
+    row,
+    aggregate,
+    localization,
+    findUnique,
+    findMany,
+    count,
+  };
 }
 it("returns all invocation totals without depending on bounded event history", async () => {
   const { loader, aggregate } = fixture();
@@ -84,6 +95,54 @@ it("does not read usage for a foreign assessment", async () => {
   row.ownerId = "foreign-owner";
   await expect(loader.load(input)).rejects.toThrow();
   expect(aggregate).not.toHaveBeenCalled();
+});
+
+it("[RED][ASM-OWNER-02] scopes the first detail query by assessment and owner", async () => {
+  const { loader, findUnique } = fixture();
+
+  await loader.load(input);
+
+  // BOLA prevention belongs in the database predicate itself; a later owner
+  // comparison cannot replace an owner-scoped initial read.
+  expect(findUnique).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id: assessmentId, ownerId: input.sessionUserId },
+    }),
+  );
+});
+
+it("[RED][ASM-ADMIN-01] lists metadata for ADMIN without owner impersonation", async () => {
+  const { loader, findMany } = fixture();
+
+  const result = await loader.list({
+    sessionUserId: "support-admin",
+    subjectRole: AUTH_USER_ROLES.admin,
+    page: 1,
+    pageSize: 20,
+    correlationId: "admin-metadata-list",
+  });
+
+  // ADMIN is metadata-only, but it must receive the administrative metadata
+  // projection rather than a fabricated empty customer-owned collection.
+  expect(result.assessments).toHaveLength(1);
+  expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+});
+
+it("[RED][ASM-ADMIN-02] returns only safe assessment metadata to ADMIN", async () => {
+  const { loader } = fixture();
+
+  await expect(
+    loader.load({
+      assessmentId,
+      sessionUserId: "support-admin",
+      subjectRole: AUTH_USER_ROLES.admin,
+      correlationId: "admin-metadata-detail",
+    }),
+  ).resolves.toMatchObject({
+    assessment_id: assessmentId,
+    name: "Synthetic assessment",
+    case: null,
+  });
 });
 
 it("projects decision customer-visible rationales to VI while preserving technical invariants", async () => {

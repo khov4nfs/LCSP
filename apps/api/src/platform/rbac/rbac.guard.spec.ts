@@ -339,6 +339,20 @@ describe("RbacGuard", () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
+  it("[RED][ASM-RBAC-01] fails closed when an ALLOW decision cannot be audited", async () => {
+    const { guard } = makeGuard({
+      appendImpl: () => Promise.reject(new Error("audit store unavailable")),
+    });
+    const { context } = makeContext({
+      handler: DummyController.prototype.customerOnly,
+      authorization: "Bearer token",
+    });
+
+    // Security invariant: an authorization ALLOW is incomplete until its
+    // mandatory audit record is durable, so the protected request must stop.
+    await expect(guard.canActivate(context)).rejects.toBeDefined();
+  });
+
   it("records a domain resource id from route params when present", async () => {
     const { guard, append } = makeGuard();
     const { context } = makeContext({

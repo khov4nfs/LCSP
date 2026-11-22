@@ -9,7 +9,7 @@ import type { OutboxRepository } from "../../../../platform/outbox/outbox.reposi
 import { ROOT_AUDIT_ACTOR } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { AssessmentEventAppender } from "./assessment-event-appender.service.js";
 
-it("commits identical trusted usage in the canonical event and outbox and deduplicates replay", async () => {
+it("[RED][ASM-AUDIT-01] commits material event, canonical audit and outbox atomically while deduplicating replay", async () => {
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
     .mockResolvedValue("outbox");
@@ -19,9 +19,11 @@ it("commits identical trusted usage in the canonical event and outbox and dedupl
     return Promise.resolve(data);
   });
   const update = jest.fn(() => Promise.resolve({}));
+  const auditCreate = jest.fn(() => Promise.resolve({}));
   const tx = {
     assessmentEvent: { findUnique: () => Promise.resolve(stored), create },
     assessmentRuntime: { update },
+    auditEvent: { create: auditCreate },
     $queryRaw: () =>
       Promise.resolve([
         { threadId: "33333333-3333-4333-8333-333333333333", eventSequence: 10 },
@@ -57,4 +59,13 @@ it("commits identical trusted usage in the canonical event and outbox and dedupl
   expect(enqueue.mock.calls[0]?.[0].payload).toMatchObject({
     assessmentEvent: { tokenUsage, sequence: 11 },
   });
+
+  // [RED][ASM-AUDIT-01] Material domain events and their canonical audit
+  // evidence must share the same transaction so neither can commit alone.
+  expect(auditCreate).toHaveBeenCalledTimes(1);
+  expect(auditCreate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({ assessmentId: input.assessmentId }),
+    }),
+  );
 });

@@ -171,16 +171,26 @@ When you fix a non-trivial bug, resolve a complex architectural edge-case, or re
 
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+When `graphify-out/graph.json` exists, this project has a local code knowledge graph with god nodes, community structure, and cross-file relationships. The graph is a regenerable navigation index, never a source of truth.
 
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
 
 Rules:
+- **Why and trust boundary:** use Graphify to reduce repeated repository discovery and to surface candidate relationships across files. Never treat a graph edge as proof of runtime behavior, authorization, tenant isolation, transaction semantics, or business correctness; confirm material conclusions in current source, contracts, migrations, and tests.
+- **Local-only bootstrap:** if `graphify-out/graph.json` is absent and the task justifies building a persistent graph, use the code-only pipeline below. This keeps source analysis deterministic and local, avoids semantic model calls over LCSP documentation, skips oversized HTML generation, and creates community labels without an LLM:
+  `graphify extract . --code-only --no-cluster && graphify cluster-only . --no-viz --no-label`
+- **Use Graphify first** for broad architecture questions, unfamiliar modules, cross-runtime flows, dependency or caller tracing, impact analysis before a core refactor, and questions likely to span three or more files or layers.
+- **Skip Graphify** for a known-file/localized edit, an exact-text lookup, a small bug with an established reproducer, runtime/browser debugging, test execution, or any task where the graph is absent/stale and building it would cost more than direct `rg` plus focused reads. Also skip it when the user explicitly says not to use it or when investigating Graphify output itself.
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Prefer `graphify affected "<symbol>"` before changing shared contracts, public API envelopes, persistence mappings, authorization primitives, or cross-runtime event schemas. Treat the result as a candidate blast radius and verify every material consumer in source.
+- Query with a bounded output first (`--budget 1500 --depth 2` by default), then refine with an explicit `--seed`, `explain`, or `path`; do not issue repeated broad queries when the first result is noisy.
+- Every answer or change based on Graphify must distinguish `EXTRACTED`, `INFERRED`, and `AMBIGUOUS` edges. Verify `INFERRED` and `AMBIGUOUS` relationships before relying on them, and cite the underlying `file:line` evidence in analysis or handoff notes.
 - Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- After modifying code, run `graphify update .` to keep an existing graph current (AST-only, no API cost). If code was intentionally deleted and the shrink guard refuses the update, inspect the scope before using `--force`; never force merely to silence the guard.
+- Do not enable semantic extraction, hosted Graphify, HTTP MCP, URL ingestion, or external model backends for LCSP unless the user explicitly authorizes that data boundary. Never place model/API keys in repository files.
+- Do not generate or open the HTML visualization for graphs above 5,000 nodes. Use scoped CLI queries and `--no-viz`; `graphify-out/` remains ignored and must not be committed unless the user explicitly changes the repository policy.
 
 ## Security & Production-Grade Standards (OWASP ASVS & API Top 10)
 

@@ -8,6 +8,7 @@ import {
   assessmentFinalReportArtifactSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { randomUUID } from "node:crypto";
+import { HttpStatus } from "@nestjs/common";
 import { AssessmentReportLoader } from "./assessment-report.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { ArtifactStorageService } from "../../../../platform/storage/artifact-storage.service.js";
@@ -205,6 +206,31 @@ describe("AssessmentReportLoader locale read projection", () => {
         locale: "vi",
       }),
     ).rejects.toThrow();
+  });
+
+  it("[RED][ASM-REPORT-02] reports storage dependency outages as 503", async () => {
+    const unavailable = new AssessmentReportLoader(
+      mockPrisma,
+      {
+        readAndReconstruct: () =>
+          Promise.reject(new Error("artifact storage unavailable")),
+      } as unknown as ArtifactStorageService,
+      localization.projection,
+    );
+
+    const error = (await unavailable
+      .load({
+        assessmentId,
+        artifactId,
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "storage-outage",
+      })
+      .catch((failure: unknown) => failure)) as { getStatus(): number };
+
+    // An unavailable dependency is operationally retryable and must not be
+    // misreported as a permanently invalid customer artifact.
+    expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
   });
 });
 

@@ -58,6 +58,15 @@ describe("Pinned legal source keyword search", () => {
     );
   });
 
+  it("[RED][ASM-LEGAL-01] deduplicates legal search terms case-insensitively", () => {
+    // PostgreSQL matching is case-insensitive on this path, so duplicate terms
+    // that differ only by case must not create redundant AND predicates.
+    expect(searchTermsOf("Register register REGISTER keeper")).toEqual([
+      "register",
+      "keeper",
+    ]);
+  });
+
   it("builds a snippet around the first matching term", () => {
     const content = `${"x".repeat(400)} the keeper of a register ${"y".repeat(400)}`;
     const snippet = snippetAround(content, ["register"]);

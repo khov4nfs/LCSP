@@ -281,9 +281,11 @@ function buildHandler(
   const readAndReconstruct = jest.fn(() =>
     Promise.resolve(options.storedContent ?? ""),
   );
+  const eraseImmutableArtifact = jest.fn(() => Promise.resolve());
   const storage = {
     writeImmutableArtifact,
     readAndReconstruct,
+    eraseImmutableArtifact,
   } as unknown as ArtifactStorageService;
   return {
     handler: new SubmitAssessmentFinalReportHandler(
@@ -296,6 +298,7 @@ function buildHandler(
     ),
     findExistingArtifact,
     writeImmutableArtifact,
+    eraseImmutableArtifact,
     readAndReconstruct,
     tx,
   };
@@ -401,6 +404,30 @@ describe("SubmitAssessmentFinalReportHandler", () => {
     ).rejects.toThrow("storage unavailable");
     expect(tx.assessmentArtifact.create).not.toHaveBeenCalled();
     expect(tx.assessmentArtifact.update).not.toHaveBeenCalled();
+  });
+
+  it("[RED][ASM-REPORT-01] removes immutable bytes when the database commit fails", async () => {
+    const { handler, tx, writeImmutableArtifact, eraseImmutableArtifact } =
+      buildHandler();
+    tx.assessmentArtifact.create.mockRejectedValueOnce(
+      new Error("database commit failed"),
+    );
+
+    await expect(
+      handler.execute(
+        new SubmitAssessmentFinalReportCommand(
+          assessmentId,
+          randomUUID(),
+          requestFor({}),
+          randomUUID(),
+        ),
+      ),
+    ).rejects.toThrow("database commit failed");
+
+    // Immutable storage is outside the database transaction. A failed row
+    // commit therefore needs compensation so no unreachable artifact remains.
+    expect(writeImmutableArtifact).toHaveBeenCalledTimes(1);
+    expect(eraseImmutableArtifact).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unresolved text while replaying an immutable artifact", async () => {

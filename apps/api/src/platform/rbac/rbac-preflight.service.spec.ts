@@ -162,4 +162,18 @@ describe("RbacPreflightService", () => {
       correlationId: "corr-1",
     });
   });
+
+  it("[RED][ASM-RBAC-02] never returns ALLOW when its audit write fails", async () => {
+    const { service } = makeService({
+      appendImpl: () => Promise.reject(new Error("audit store unavailable")),
+    });
+
+    // Preflight is itself an authorization decision boundary. A caller must
+    // not observe ALLOW when the required decision evidence was not persisted.
+    await expect(service.evaluate(makeInput())).resolves.toEqual({
+      decision: "DENY",
+      reasonCode: RBAC_REASON_CODES.loadError,
+      correlationId: "corr-1",
+    });
+  });
 });

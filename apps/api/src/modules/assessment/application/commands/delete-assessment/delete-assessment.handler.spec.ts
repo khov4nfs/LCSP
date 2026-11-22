@@ -21,6 +21,7 @@ describe("zero-retention assessment deletion command", () => {
     new DeleteAssessmentCommand(assessmentId, ownerId, randomUUID());
   const phases: string[] = [];
   let exists = true;
+  let lockedOwnerId = ownerId;
   const findById = jest.fn(() =>
     Promise.resolve(exists ? { id: assessmentId, ownerId } : null),
   );
@@ -91,6 +92,7 @@ describe("zero-retention assessment deletion command", () => {
       findUniqueOrThrow: () =>
         Promise.resolve({
           id: assessmentId,
+          ownerId: lockedOwnerId,
           lifecycleState: Lifecycle.ACTIVE,
           lifecycleRevision: 4,
           runtime: { threadId, executionState: Execution.RUNNING },
@@ -132,6 +134,7 @@ describe("zero-retention assessment deletion command", () => {
   beforeEach(() => {
     phases.length = 0;
     exists = true;
+    lockedOwnerId = ownerId;
     jest.clearAllMocks();
     erase.mockImplementation(() => {
       phases.push("erase");
@@ -187,6 +190,19 @@ describe("zero-retention assessment deletion command", () => {
     ).rejects.toThrow();
     expect(phases).toEqual([]);
     expect(erase).not.toHaveBeenCalled();
+  });
+
+  it("[RED][ASM-OWNER-01] revalidates ownership on the locked row before deletion side effects", async () => {
+    // Simulate ownership changing after the preliminary repository read but
+    // before the transaction acquires its authoritative row lock.
+    lockedOwnerId = randomUUID();
+
+    await expect(handler.execute(command())).rejects.toThrow();
+
+    expect(lifecycle).not.toHaveBeenCalled();
+    expect(erase).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    expect(exists).toBe(true);
   });
 
   it("keeps the committed revocation and does not delete when external cleanup fails", async () => {
