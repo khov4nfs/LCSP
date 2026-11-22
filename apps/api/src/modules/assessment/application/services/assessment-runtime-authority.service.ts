@@ -761,6 +761,7 @@ export class AssessmentRuntimeAuthority {
       leaseToken: string | undefined;
       correlationId: string;
       requireActive?: boolean;
+      allowExpiredLease?: boolean;
     },
   ): Promise<AuthorizedRootRun> {
     const row = await lockAssessmentAndRuntime(tx, input.assessmentId);
@@ -771,11 +772,11 @@ export class AssessmentRuntimeAuthority {
         { status: HttpStatus.NOT_FOUND },
       );
     }
+    const isExpired = !row.leaseExpiresAt || row.leaseExpiresAt <= new Date();
     if (
       !input.leaseToken ||
       row.leaseToken !== input.leaseToken ||
-      !row.leaseExpiresAt ||
-      row.leaseExpiresAt <= new Date() ||
+      (isExpired && !input.allowExpiredLease) ||
       row.executionState !== AGENT_EXECUTION_STATES.RUNNING ||
       !row.currentExecutionId
     ) {
@@ -904,9 +905,13 @@ export class AssessmentRuntimeAuthority {
     reason?: string;
   }): Promise<{ executionState: AgentExecutionState }> {
     return this.prisma.$transaction(async (tx) => {
+      // Explanatory comment:
+      // Allow terminal settlement on expired lease (preventing Zombie Run lockout).
+      // As long as leaseToken matches and executionState is RUNNING, the assigned worker can settle the run.
       const run = await this.authorizeInTx(tx, {
         ...input,
         requireActive: false,
+        allowExpiredLease: true,
       });
       if (
         ![

@@ -6,6 +6,7 @@ import {
   ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS,
 } from "@lcsp/contracts/assessment-domain";
 import {
+  ASSESSMENT_ERROR_CODES,
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_ACTIVITY_KINDS,
@@ -36,11 +37,47 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
     private readonly authority: AssessmentRuntimeAuthority,
     private readonly events: AssessmentEventAppender,
   ) {}
+  /**
+   * Ingests and broadcasts agent runtime stream events within an execution boundary.
+   *
+   * Business purpose:
+   * Streams live agent execution progress, LLM token usages, and tool outputs to subscribers while preventing spoofing across execution boundaries.
+   *
+   * Business rules:
+   * - Caller must hold a valid execution lease token matching the active assessment runtime run, OR refer to a valid preparation run.
+   * - Rule set preparation stream events must not specify an assessment_id (prevents cross-boundary timeline spoofing).
+   * - The run_id in the event payload must match the verified execution ID.
+   *
+   * Execution flow:
+   * 1. Validate boundary: if preparation_run_id is provided, reject if assessment_id is also supplied; otherwise authorize via runtime authority lease.
+   * 2. Verify payload run_id matches verified execution run ID.
+   * 3. Normalize namespace, text, and payload metadata.
+   * 4. Persist and broadcast agent stream event via runtime events service.
+   * 5. If model completion event, correlate LLM token usage with persisted authority and update assessment counters.
+   * 6. Return persisted event summary.
+   *
+   * Failure cases:
+   * - Invalid lease token or mismatched execution run ID: throws FORBIDDEN with EXECUTION_LEASE_INVALID.
+   * - Preparation run with foreign assessment_id: throws BAD_REQUEST with INVALID_REQUEST.
+   *
+   * Side effects:
+   * - Writes stream events to event log and broadcasts via server-sent events.
+   * - Updates token usage counters in database transaction.
+   */
   async execute(command: PublishAgentStreamEventCommand) {
     const payload = command.payload;
     const correlationId = command.correlationId?.trim() ?? randomUUID();
     return this.prisma.$transaction(async (tx) => {
       const preparationRunId = payload.preparation_run_id?.trim() ?? null;
+      // Explanatory comment:
+      // Prevent cross-tenant event spoofing: a rule set preparation stream event must not be associated with a foreign assessmentId without verification.
+      if (preparationRunId && payload.assessment_id) {
+        throw problemException(
+          ASSESSMENT_ERROR_CODES.invalidRequest,
+          correlationId,
+          { status: HttpStatus.BAD_REQUEST },
+        );
+      }
       const assessmentRun = preparationRunId
         ? null
         : await this.authority.authorizeInTx(tx, {

@@ -425,6 +425,31 @@ export class AssessmentRuntimeControlService {
     return outcome.control;
   }
 
+  /**
+   * Business purpose: Load and validate the canonical runtime target for assessment
+   * control operations while enforcing tenant boundaries and preventing execution stale states.
+   *
+   * Business rules:
+   * - Actor must own the assessment or hold an admin role. Non-admin cross-tenant attempts
+   *   fail closed with a 404 NOT_FOUND response.
+   * - Assessment runtime must have an active current execution registered.
+   * - Runtime turn namespace and thread identifiers must strictly match the canonical assessment.
+   *
+   * Execution flow:
+   * 1. Acquire pessimistic row locks on assessment and assessment runtime records.
+   * 2. Verify actor ownership if actor does not possess administrative privileges.
+   * 3. Confirm active currentExecutionId exists on the canonical runtime record.
+   * 4. Query and validate that runtime turn belongs to this assessment thread and namespace.
+   * 5. Return validated runtime and turn row records to caller.
+   *
+   * Failure cases:
+   * - Missing assessment or runtime throws 409 CONFLICT (staleTarget).
+   * - Ownership violation throws 404 NOT_FOUND (ASSESSMENT_ERROR_CODES.notFound).
+   * - Missing or mismatched runtime turn throws 409 CONFLICT (staleTarget).
+   *
+   * Side effects:
+   * - Read-only query execution within caller's transactional lock boundary; no state mutations.
+   */
   private async loadCanonicalTarget(
     tx: Prisma.TransactionClient,
     assessmentId: string,
@@ -436,6 +461,7 @@ export class AssessmentRuntimeControlService {
         tx,
         assessmentId,
         correlationId,
+        actor,
       );
     if (
       actor.role !== AUTH_USER_ROLES.admin &&
@@ -466,16 +492,46 @@ export class AssessmentRuntimeControlService {
     return { runtime, row };
   }
 
+  /**
+   * Business purpose: Acquire pessimistic row-level locks on the assessment and runtime records
+   * while enforcing tenant-scoped row locks to prevent cross-tenant Row-Lock DoS vulnerabilities.
+   *
+   * Business rules:
+   * - Non-admin actors must only lock assessment rows matching their own userId.
+   * - Admin actors are permitted to lock assessment rows across any tenant boundary.
+   * - The target assessment and runtime rows must both exist; missing records reject the transaction.
+   *
+   * Execution flow:
+   * 1. Construct tenant-filtering SQL clause based on caller role.
+   * 2. Execute raw SELECT ... FOR UPDATE query on Assessment table.
+   * 3. If no row matches, reject immediately before taking locks on downstream records.
+   * 4. Execute raw SELECT ... FOR UPDATE query on AssessmentRuntime table.
+   * 5. Fetch canonical AssessmentRuntime record and return both records.
+   *
+   * Failure cases:
+   * - Non-existent assessment or cross-tenant target throws 409 CONFLICT (staleTarget).
+   * - Non-existent runtime row throws 409 CONFLICT (staleTarget).
+   *
+   * Side effects:
+   * - Acquires exclusive pessimistic row locks (FOR UPDATE) within the current transaction.
+   */
   private async lockCanonicalAssessmentAndRuntime(
     tx: Prisma.TransactionClient,
     assessmentId: string,
     correlationId: string,
+    actor: RbacRequestContext,
   ) {
+    // Enforce tenant boundary during row-lock acquisition to prevent cross-tenant Row-Lock DoS.
+    // Non-admin actors can only acquire row locks on assessments they own.
+    const ownerClause =
+      actor.role === AUTH_USER_ROLES.admin
+        ? Prisma.empty
+        : Prisma.sql`AND "ownerId" = ${actor.userId}`;
     const assessmentRows = await tx.$queryRaw<
       Array<{ id: string; ownerId: string }>
     >(
       Prisma.sql`SELECT "id", "ownerId" FROM "Assessment"
-        WHERE "id" = ${assessmentId} FOR UPDATE`,
+        WHERE "id" = ${assessmentId} ${ownerClause} FOR UPDATE`,
     );
     if (!assessmentRows[0]) {
       throw problemException(Problems.staleTarget, correlationId, {

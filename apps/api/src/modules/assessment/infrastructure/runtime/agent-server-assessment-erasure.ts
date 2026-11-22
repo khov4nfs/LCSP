@@ -18,6 +18,7 @@ export class AgentServerAssessmentErasure implements AssessmentRuntimeErasurePor
     assessmentId: string;
     ownerId: string;
     threadId: string;
+    correlationId?: string;
   }): Promise<void> {
     const baseUrl =
       this.configService?.get("agentServerUrl", { infer: true }) ||
@@ -27,6 +28,8 @@ export class AgentServerAssessmentErasure implements AssessmentRuntimeErasurePor
       process.env.WORKER_API_KEY;
     if (!baseUrl || !key)
       throw new Error("Assessment runtime erasure is not configured");
+    // Explanatory comment:
+    // Forward X-Correlation-Id for distributed traceability and enforce 10s timeout to prevent hanging DB transactions.
     const response = await fetch(
       new URL("/internal/assessment-erasure", baseUrl),
       {
@@ -34,9 +37,12 @@ export class AgentServerAssessmentErasure implements AssessmentRuntimeErasurePor
         headers: {
           "Content-Type": "application/json",
           "X-Worker-Api-Key": key,
+          ...(input.correlationId
+            ? { "X-Correlation-Id": input.correlationId }
+            : {}),
         },
         body: JSON.stringify(input),
-        signal: AbortSignal.timeout(40_000),
+        signal: AbortSignal.timeout(10_000),
       },
     );
     if (!response.ok)

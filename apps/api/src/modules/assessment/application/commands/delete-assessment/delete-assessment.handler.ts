@@ -59,6 +59,38 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
     private readonly storage: ArtifactStorageService,
   ) {}
 
+  /**
+   * Deletes an assessment and cascades cleanup across runtime, storage, billing, and audit artifacts.
+   *
+   * Business purpose:
+   * Permanently erases an assessment while safely preserving anonymized financial and audit receipts.
+   *
+   * Business rules:
+   * - Only the owner of the assessment can delete it.
+   * - If an audit deletion receipt already exists for this actor, returns idempotent success.
+   * - Active runtime threads and storage artifacts must be erased before record removal.
+   * - Execution isolation records must be detached before assessment deletion to avoid FK restrict errors.
+   *
+   * Execution flow:
+   * 1. Check if assessment exists; if not, check for prior deletion audit receipt for idempotency.
+   * 2. Verify actor owns the assessment.
+   * 3. Terminate runtime leases and mark active executions as CANCELLED.
+   * 4. Erase external runtime thread state.
+   * 5. Erase immutable storage artifacts not shared by other assessments.
+   * 6. Release active billing reservations.
+   * 7. In final transaction: lock assessment, clean up audit payloads, write deletion audit event, clean up isolation records, detach billing, delete assessment record, and clear outbox messages.
+   * 8. Return deletion confirmation.
+   *
+   * Failure cases:
+   * - Assessment not found and no deletion receipt: throws NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   * - Unauthorized actor: throws NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   *
+   * Side effects:
+   * - Calls runtime erasure port to wipe agent thread.
+   * - Wipes storage blobs and log files.
+   * - Releases reserved billing credits.
+   * - Deletes database records across multiple tables in transaction.
+   */
   async execute(
     command: DeleteAssessmentCommand,
   ): Promise<DeleteAssessmentDto> {
@@ -143,6 +175,7 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
         assessmentId: assessment.id,
         ownerId: assessment.ownerId,
         threadId,
+        correlationId: command.correlationId,
       });
 
     const artifacts = await this.prisma.assessmentArtifact.findMany({
@@ -211,6 +244,12 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
         },
         tx,
       );
+      // Explanatory comment:
+      // Clean up AssessmentExecutionIsolation records before deleting the Assessment.
+      // AssessmentExecutionIsolation has onDelete: Restrict, preventing foreign key constraint violation (P2003/P2014).
+      await tx.assessmentExecutionIsolation?.deleteMany({
+        where: { assessmentId: assessment.id },
+      });
       // Billing records outlive the assessment as financial history, so the
       // database refuses to cascade them. Detaching keeps the record and lets
       // the assessment go.

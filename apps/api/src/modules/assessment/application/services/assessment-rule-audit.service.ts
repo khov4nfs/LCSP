@@ -49,7 +49,7 @@ import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain
 import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
-import { decisionDependencyGraphIsComplete } from "../../domain/decision-dependencies.js";
+import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 
 const ORCHESTRATOR = {
@@ -379,8 +379,9 @@ export class AssessmentRuleAuditService {
   ) {
     const digest = sha256Hex(canonicalJson(body));
     const requestId = await this.prisma.$transaction(async (tx) => {
+      // Scoped row lock with ownerId prevents Cross-Tenant Row-Lock DoS (BOLA) during rule audit submission.
       await tx.$queryRaw(
-        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${assessmentId} FOR UPDATE`,
+        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${assessmentId} AND "ownerId" = ${ownerId} FOR UPDATE`,
       );
       const { assessment, domainCase, ruleSet } = await this.readyCase(
         tx,
@@ -629,8 +630,9 @@ export class AssessmentRuleAuditService {
     idempotencyKey: string,
   ) {
     await this.prisma.$transaction(async (tx) => {
+      // Scoped row lock with ownerId prevents Cross-Tenant Row-Lock DoS (BOLA) during rule audit retry.
       await tx.$queryRaw(
-        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${assessmentId} FOR UPDATE`,
+        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${assessmentId} AND "ownerId" = ${ownerId} FOR UPDATE`,
       );
       const { assessment, domainCase, ruleSet } = await this.readyCase(
         tx,

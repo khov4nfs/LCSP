@@ -1,10 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import {
-  HttpStatus,
-  Logger,
-  ServiceUnavailableException,
-} from "@nestjs/common";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import {
   TRACKING_ANOMALY_TYPES,
@@ -14,8 +8,14 @@ import {
   TRACKING_TRUST_STATUSES,
   TRACKING_UNTRUSTED_REASONS,
 } from "@lcsp/contracts/assessment-domain";
-import { AssessmentTrackingLoader } from "./assessment-tracking.loader.js";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  HttpStatus,
+  Logger,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { AssessmentTrackingLoader } from "./assessment-tracking.loader.js";
 
 interface MockDecision {
   decisionId?: string;
@@ -2531,15 +2531,23 @@ describe("AssessmentTrackingLoader", () => {
         .spyOn(Logger.prototype, "error")
         .mockImplementation(() => {});
 
-      await expect(
-        loader.loadCustomerOverview({
+      let thrownError: unknown;
+      try {
+        await loader.loadCustomerOverview({
           sessionUserId: "customer-1",
           subjectRole: AUTH_USER_ROLES.customer,
           correlationId: "corr-query-fail",
           changesLimit: 10,
           changesOffset: 0,
-        }),
-      ).rejects.toThrow(ServiceUnavailableException);
+        });
+      } catch (e) {
+        thrownError = e;
+      }
+      expect(thrownError).toBeInstanceOf(ServiceUnavailableException);
+      // CWE-209 sanitization: raw internal driver error message MUST NOT be leaked to client
+      expect((thrownError as Error).message).not.toContain(
+        "Database query timeout in CTE",
+      );
 
       // Observable error log is emitted with correlation ID
       expect(errorSpy).toHaveBeenCalledWith(

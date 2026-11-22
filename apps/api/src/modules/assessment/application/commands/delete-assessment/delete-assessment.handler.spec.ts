@@ -99,6 +99,9 @@ describe("zero-retention assessment deletion command", () => {
     },
     assessmentRuntime: { update: revoke },
     assessmentHumanRequest: { updateMany: cancelRequests },
+    assessmentExecutionIsolation: {
+      deleteMany: jest.fn(() => Promise.resolve()),
+    },
     auditEvent: { updateMany: sanitize },
     outboxMessage: { deleteMany: outbox },
     repositoryConnection: {
@@ -168,7 +171,9 @@ describe("zero-retention assessment deletion command", () => {
       where: { assessmentId, status: HumanRequest.OPEN },
       data: { status: HumanRequest.CANCELLED },
     });
-    expect(erase).toHaveBeenCalledWith({ assessmentId, ownerId, threadId });
+    expect(erase).toHaveBeenCalledWith(
+      expect.objectContaining({ assessmentId, ownerId, threadId }),
+    );
     expect(sanitize).toHaveBeenCalledWith(
       expect.objectContaining({ data: { payload: {} } }),
     );
@@ -212,5 +217,20 @@ describe("zero-retention assessment deletion command", () => {
     );
     expect(phases).toEqual([]);
     await expect(handler.execute(command())).rejects.toThrow();
+  });
+
+  it("reproducer: detaches and deletes assessmentExecutionIsolation before deleting assessment to avoid onDelete: Restrict constraint violation", async () => {
+    const deleteIsolation = jest.fn<(...args: unknown[]) => Promise<unknown>>(
+      () => Promise.resolve(),
+    );
+    (tx as Record<string, unknown>).assessmentExecutionIsolation = {
+      deleteMany: deleteIsolation,
+    };
+
+    await handler.execute(command());
+
+    expect(deleteIsolation).toHaveBeenCalledWith({
+      where: { assessmentId },
+    });
   });
 });

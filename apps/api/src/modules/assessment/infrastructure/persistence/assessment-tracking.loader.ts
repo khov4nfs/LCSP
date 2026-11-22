@@ -1121,8 +1121,10 @@ SELECT
           `Owner compliance summary database query failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
         );
+        // Explanatory comment:
+        // Do not leak raw driver errors (e.g. SQL syntax, table schema, CTE timeout details) to clients (CWE-209).
         throw new ServiceUnavailableException(
-          `Owner compliance summary is temporarily unavailable: ${err instanceof Error ? err.message : String(err)}`,
+          "Owner compliance summary is temporarily unavailable.",
         );
       }
     }
@@ -1397,8 +1399,10 @@ SELECT
           `Customer change feed database query failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
         );
+        // Explanatory comment:
+        // Do not leak raw driver errors to clients (CWE-209).
         throw new ServiceUnavailableException(
-          `Customer change feed query is temporarily unavailable: ${err instanceof Error ? err.message : String(err)}`,
+          "Customer change feed query is temporarily unavailable.",
         );
       }
     }

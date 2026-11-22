@@ -24,6 +24,29 @@ export class AssessmentHumanRequestSupport {
     private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
+  /**
+   * Asserts owner access and optionally locks the assessment and runtime records.
+   *
+   * Business purpose:
+   * Guarantees tenant isolation and prevents race conditions for customer-directed human clarification requests.
+   *
+   * Business rules:
+   * - Actor must have customer role and match the assessment ownerId.
+   * - Pessimistic row locking is scoped to both assessmentId and actor userId to prevent cross-tenant lock DoS.
+   *
+   * Execution flow:
+   * 1. If lock is true, acquire pessimistic lock on Assessment row scoped to actor userId.
+   * 2. Fetch assessment including runtime.
+   * 3. Verify actor role is customer and userId matches assessment ownerId.
+   * 4. If lock is true, acquire pessimistic lock on AssessmentRuntime row.
+   * 5. Return loaded assessment entity.
+   *
+   * Failure cases:
+   * - Assessment not found, role not customer, or userId mismatch: throws NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   *
+   * Side effects:
+   * - Acquires exclusive row locks on Assessment and AssessmentRuntime tables when lock flag is true.
+   */
   async requireOwner(
     tx: Prisma.TransactionClient,
     input: {
@@ -34,8 +57,9 @@ export class AssessmentHumanRequestSupport {
     lock = false,
   ) {
     if (lock)
+      // Scoped row lock with ownerId prevents Cross-Tenant Row-Lock DoS (BOLA).
       await tx.$queryRaw(
-        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${input.assessmentId} FOR UPDATE`,
+        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${input.assessmentId} AND "ownerId" = ${input.actor.userId} FOR UPDATE`,
       );
     const assessment = await tx.assessment.findUnique({
       where: { id: input.assessmentId },

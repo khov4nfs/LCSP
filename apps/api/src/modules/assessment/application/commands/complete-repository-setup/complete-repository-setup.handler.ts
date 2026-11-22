@@ -34,12 +34,45 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
     private readonly runtimePreparation: AssessmentRuntimePreparation,
   ) {}
 
+  /**
+   * Finalizes repository setup and transitions the assessment to ACTIVE state.
+   *
+   * Business purpose:
+   * Confirms that repository connection and snapshot requirements are satisfied so that the assessment runtime can safely commence analysis.
+   *
+   * Business rules:
+   * - Only the assessment owner is authorized to finalize repository setup.
+   * - Cross-tenant row locking is prevented by scoping the lock query to both assessmentId and ownerId (actorId).
+   * - Assessment must be in PREPARING or ACTIVE state.
+   * - An active repository connection and ready snapshot with a valid 40-character commit SHA must exist.
+   *
+   * Execution flow:
+   * 1. Acquire pessimistic row lock on Assessment scoped to ownerId within a transaction.
+   * 2. Verify assessment exists and belongs to actor.
+   * 3. Validate lifecycle state is PREPARING or ACTIVE.
+   * 4. Verify valid active repository connection and ready snapshot.
+   * 5. Record repository setup completion audit event if transitioning from PREPARING.
+   * 6. Prepare runtime environment via runtime preparation service.
+   * 7. Return parsed completion status result.
+   *
+   * Failure cases:
+   * - Assessment not found or ownerId mismatch: throws NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   * - Invalid lifecycle state: throws CONFLICT with REPOSITORY_SETUP_STATE_INVALID.
+   * - Missing or incomplete repository snapshot: throws CONFLICT with REPOSITORY_SETUP_INCOMPLETE.
+   *
+   * Side effects:
+   * - Acquires exclusive row lock in database transaction.
+   * - Writes repository setup completion audit record.
+   * - Prepares runtime snapshot and persists state in database.
+   */
   async execute(
     command: CompleteRepositorySetupCommand,
   ): Promise<CompleteRepositorySetupDto> {
     return this.prisma.$transaction(async (tx) => {
+      // Scoped row lock with ownerId check ensures tenant isolation at DB row lock level,
+      // preventing Cross-Tenant Row-Lock DoS (BOLA) where an unauthorized actor holds exclusive locks.
       await tx.$queryRaw(
-        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${command.assessmentId} FOR UPDATE`,
+        Prisma.sql`SELECT 1 FROM "Assessment" WHERE "id" = ${command.assessmentId} AND "ownerId" = ${command.actorId} FOR UPDATE`,
       );
       const assessment = await tx.assessment.findUnique({
         where: { id: command.assessmentId },
