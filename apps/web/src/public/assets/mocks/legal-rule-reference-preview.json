@@ -1,0 +1,27 @@
+{
+  "locator": "art-14::cl-1::pt-d",
+  "legalRuleId": "reference-preview-rule",
+  "title": "Synthetic reference preview",
+  "description": "d) Apply clause 1 of Article 18.",
+  "level": "POINT",
+  "referenceContext": [
+    {
+      "referenceId": "0000000000000000000000000000000000000000000000000000000000000001",
+      "text": "clause 1 of Article 18",
+      "resolutionState": "RESOLVED",
+      "target": {
+        "documentId": "fixture-target",
+        "documentTitle": "Synthetic target document",
+        "locator": "document/article:18/clause:1",
+        "excerpt": "a) Retain the synthetic audit record.",
+        "truncated": false
+      }
+    },
+    {
+      "referenceId": "0000000000000000000000000000000000000000000000000000000000000002",
+      "text": "Article 99",
+      "resolutionState": "UNRESOLVED",
+      "target": null
+    }
+  ]
+}

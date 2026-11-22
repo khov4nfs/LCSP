@@ -210,7 +210,7 @@ export class AssessmentRootCapacityService {
    * - Owners rotate by last admission, then each owner's oldest request, including supported Continue.
    * - Window omission never proves obsolescence; point lookup applies the same eligibility guards.
    * - Assessment aggregate identity scopes command lookup to the existing outbox index.
-   * - Owner history and latest Root commands are materialized once; a large backlog cannot multiply history or command scans under the global lock.
+   * - Each pending admission must match the latest Root command for its own Assessment, even when the latest command is undeliverable.
    * - A matching completed terminal Root settles its older command even when a legacy writer omitted admission bookkeeping.
    * - Held physical slots still defer redelivery; newer or timestamp-ambiguous continuation commands remain eligible.
    * - An interrupted UNKNOWN-answer review needs its exact durable review command, completed current checkpoint turn and current audit binding.
@@ -219,8 +219,8 @@ export class AssessmentRootCapacityService {
    * - A blocked failed review must still reference an open dependency of the same current scope; partial, changed or foreign receipts cannot enter the fair queue.
    * - Initial review eligibility comes from persisted answers, never from a grant created only after admission; claim revalidates the complete answer schema.
    * Execution flow:
-   * 1. Select current eligible Root commands, optionally restricted to one Assessment.
-   * 2. Materialize latest Root commands and owner admission history once, then order eligible demand by history/request age within the result ceiling.
+   * 1. Match each Assessment's latest Root command to its pending, deliverable admission record, optionally scoped to one Assessment.
+   * 2. Apply the lifecycle and slot eligibility checks, then rank eligible demand by owner history and request age before applying the result ceiling.
    * Failure cases:
    * - No eligible demand returns an empty list; SQL failures propagate without granting admission.
    * Side effects:
@@ -236,27 +236,40 @@ export class AssessmentRootCapacityService {
         SELECT previous."ownerId", max(s."admittedAt") AS last_admitted
         FROM "AssessmentRootExecutionSlot" s JOIN "Assessment" previous ON previous."id" = s."assessmentId"
         GROUP BY previous."ownerId"
-      ), latest_commands AS MATERIALIZED (
-        SELECT DISTINCT ON ("aggregateId") "id"
-        FROM "OutboxMessage"
-        WHERE "aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
-          AND "eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
-          ${assessmentId ? Prisma.sql`AND "aggregateId" = ${assessmentId}` : Prisma.empty}
-        ORDER BY "aggregateId", "createdAt" DESC, "id" DESC
+      ), pending_commands AS MATERIALIZED (
+        -- Carry the latest outbox row into the demand match so it needs no second lookup.
+        -- Materialize the match to keep lifecycle joins from changing its plan when backlog estimates are stale.
+        SELECT demand."assessmentId", demand."requestedAt", latest."payload"
+        FROM (
+          SELECT DISTINCT ON ("aggregateId") "id", "aggregateId", "payload", "status"
+          FROM "OutboxMessage"
+          WHERE "aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
+            AND "eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
+            ${assessmentId ? Prisma.sql`AND "aggregateId" = ${assessmentId}` : Prisma.empty}
+          ORDER BY "aggregateId", "createdAt" DESC, "id" DESC
+        ) latest
+        -- Look up the unique command ID before filtering pending status. The limit
+        -- keeps stale row estimates from turning this into a pending-index rescan per command.
+        JOIN LATERAL (
+          SELECT "assessmentId", "requestedAt", "admittedRunId", "completedAt", "deliveredAt"
+          FROM "AssessmentRootAdmissionRequest"
+          WHERE "commandId" = latest."id"
+          LIMIT 1
+        ) demand ON demand."assessmentId" = latest."aggregateId"
+        -- Filter transport state after choosing the latest command so an older one cannot re-enter.
+        WHERE demand."admittedRunId" IS NULL AND demand."completedAt" IS NULL
+          AND (latest."status" = ${OUTBOX_STATUSES.published}::"OutboxStatus" OR demand."deliveredAt" IS NOT NULL)
+          AND latest."status" NOT IN (${OUTBOX_STATUSES.dlq}::"OutboxStatus", ${OUTBOX_STATUSES.cancelled}::"OutboxStatus")
       )
-      SELECT a."id" AS "assessmentId", demand."requestedAt",
+      SELECT a."id" AS "assessmentId", command."requestedAt",
         command."payload"->>'idempotencyKey' AS "commandKey"
-      FROM "AssessmentRootAdmissionRequest" demand
-      JOIN "Assessment" a ON a."id" = demand."assessmentId"
-      JOIN "OutboxMessage" command ON command."id" = demand."commandId"
-      JOIN latest_commands current_command ON current_command."id" = command."id"
+      FROM pending_commands command
+      JOIN "Assessment" a ON a."id" = command."assessmentId"
       JOIN "AssessmentRuntime" r ON r."assessmentId" = a."id"
       LEFT JOIN "AssessmentCase" c ON c."assessmentId" = a."id"
       LEFT JOIN "AssessmentRuntimeTurn" t ON t."id" = r."currentExecutionId"::text
       LEFT JOIN owner_history ON owner_history."ownerId" = a."ownerId"
-      WHERE command."aggregateType" = ${OUTBOX_AGGREGATE_TYPES.assessment}::"OutboxAggregateType"
-        AND command."aggregateId" = a."id"
-        AND (a."lifecycleState"::text = ${Lifecycles.ACTIVE}
+      WHERE (a."lifecycleState"::text = ${Lifecycles.ACTIVE}
         OR (a."lifecycleState"::text = ${Lifecycles.PAUSED} AND t."state"::text = ${Controls.resumeRequested})
         OR (
           (
@@ -266,8 +279,7 @@ export class AssessmentRootCapacityService {
                 'human-review:' || a."id" || ':' || r."checkpointId"::text)
             OR (r."executionState"::text = ${Executions.FAILED}
               AND r."leaseToken" IS NULL
-              AND demand."requestedAt" >= t."updatedAt"
-              AND command."eventType" = ${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}
+              AND command."requestedAt" >= t."updatedAt"
               AND command."payload"->>'assessmentId' = a."id"
               AND (a."lifecycleState"::text = ${Lifecycles.WAITING_FOR_HUMAN}
                 OR (a."lifecycleState"::text = ${Lifecycles.BLOCKED}
@@ -345,19 +357,16 @@ export class AssessmentRootCapacityService {
                 WHERE human."assessmentId" = a."id" AND human."threadId" = r."threadId"
                   AND human."requestId"::text = a."blockerReference"->>'humanResolutionRequestId'
                   AND human."status"::text = ${HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN})))))
-        AND demand."admittedRunId" IS NULL AND demand."completedAt" IS NULL
         AND NOT COALESCE(
           r."executionState"::text IN (${Executions.FAILED}, ${Executions.SUCCEEDED})
           AND t."assessmentId" = a."id" AND t."threadId" = r."threadId"::text
           AND t."boundary" = ${ASSESSMENT_ROOT_BOUNDARY}
           AND t."state"::text = ${Controls.completed}
           -- Equal millisecond timestamps do not prove that a turn consumed this command.
-          AND t."createdAt" > demand."requestedAt", FALSE)
-        AND (command."status"::text = ${OUTBOX_STATUSES.published} OR demand."deliveredAt" IS NOT NULL)
-        AND command."status"::text NOT IN (${OUTBOX_STATUSES.dlq}, ${OUTBOX_STATUSES.cancelled})
+          AND t."createdAt" > command."requestedAt", FALSE)
         AND NOT EXISTS (SELECT 1 FROM "AssessmentRootExecutionSlot" s WHERE s."assessmentId" = a."id" AND s."releasedAt" IS NULL)
         ${assessmentId ? Prisma.sql`AND a."id" = ${assessmentId}` : Prisma.empty}
-      ORDER BY owner_history.last_admitted ASC NULLS FIRST, demand."requestedAt", a."id"
+      ORDER BY owner_history.last_admitted ASC NULLS FIRST, command."requestedAt", a."id"
       LIMIT ${Math.min(take, 10_000)}`);
   }
 
