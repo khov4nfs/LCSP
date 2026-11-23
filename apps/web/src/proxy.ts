@@ -1,12 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
   REQUIRED_ACTIONS,
   type RequiredAction,
 } from "@lcsp/contracts/auth";
 
 import { SESSION_COOKIE_NAME } from "./lib/session/session-store";
-import { upstreamRequest } from "./lib/server/upstream-request.ts";
+import {
+  upstreamJson,
+  upstreamRequest,
+} from "./lib/server/upstream-request.ts";
 import { getProblemRequiredAction } from "./lib/api/problem-envelope.ts";
 import { getWorkspaceRouteRedirectPath } from "./workspace-route-middleware.ts";
 import { getAdminRouteRedirectPath } from "./admin-route-middleware.ts";
@@ -43,6 +47,25 @@ export async function proxy(request: NextRequest) {
   return continueProxy(request, requestHeaders);
 }
 
+/**
+ * Business purpose:
+ * Apply authenticated server-side route gates before rendering protected customer or ADMIN pages.
+ *
+ * Business rules:
+ * - Expired sessions are cleared, ADMIN pages require ADMIN, and customer workspace pages reject ADMIN.
+ * - Backend authorization remains authoritative; this early redirect only prevents loading the wrong UI contract.
+ *
+ * Execution flow:
+ * 1. Apply unauthenticated path gates and verify any presented session upstream.
+ * 2. Clear invalid sessions and redirect to sign-in when required.
+ * 3. Apply ADMIN-portal and customer-workspace role routing from the verified profile.
+ *
+ * Failure cases:
+ * - Missing or invalid sessions redirect safely; profile failures stop rendering and unknown roles invalidate the session.
+ *
+ * Side effects:
+ * - May call the auth profile API, issue a redirect and delete an invalid session cookie.
+ */
 async function continueProxy(request: NextRequest, requestHeaders: Headers) {
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const pathname = request.nextUrl.pathname;
@@ -92,10 +115,25 @@ async function continueProxy(request: NextRequest, requestHeaders: Headers) {
     return response;
   }
 
+  // A protected page must never render from an unverified profile. Preserve the upstream
+  // problem/status so transient auth-service failures do not masquerade as an authorized role.
+  if (!verification.ok) {
+    return upstreamJson(verification);
+  }
+
   // 3. Admin Portal RBAC gate & landing evaluation
-  const userRole = verification.result?.ok
-    ? (verification.result.data as { role?: string })?.role
-    : undefined;
+  const rawUserRole = (verification.data as { role?: string })?.role;
+  if (
+    rawUserRole !== AUTH_USER_ROLES.admin &&
+    rawUserRole !== AUTH_USER_ROLES.customer
+  ) {
+    // Unknown roles are contract violations, not implicit CUSTOMER access. Clear the session
+    // to avoid a redirect loop that repeatedly reloads an unusable protected UI contract.
+    const response = NextResponse.redirect(new URL("/sign-in", request.url));
+    response.cookies.delete(SESSION_COOKIE_NAME);
+    return response;
+  }
+  const userRole = rawUserRole;
 
   const adminAuthRedirect = getAdminRouteRedirectPath({
     pathname,
@@ -105,6 +143,18 @@ async function continueProxy(request: NextRequest, requestHeaders: Headers) {
   });
   if (adminAuthRedirect) {
     return NextResponse.redirect(new URL(adminAuthRedirect, request.url));
+  }
+
+  // After profile verification, keep ADMIN out of customer-only clients whose
+  // contracts intentionally require the full owned assessment projection.
+  const workspaceAuthRedirect = getWorkspaceRouteRedirectPath({
+    pathname,
+    search,
+    hasSession: true,
+    userRole,
+  });
+  if (workspaceAuthRedirect) {
+    return NextResponse.redirect(new URL(workspaceAuthRedirect, request.url));
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } });

@@ -771,6 +771,36 @@ export const assessmentDetailSchema = z.strictObject({
 });
 export type AssessmentDetail = z.infer<typeof assessmentDetailSchema>;
 
+/**
+ * Administrative assessment metadata deliberately excludes every customer-content field.
+ *
+ * Rationale: ADMIN needs operational visibility without receiving case facts, evidence,
+ * reports, provenance, usage, or runtime payloads. Consumers must parse this strict
+ * allowlist rather than reuse the customer detail contract and accidentally widen access.
+ * Backward compatibility: the existing customer detail schema remains unchanged; callers
+ * that support both RBAC views use the read union exported below.
+ */
+export const assessmentAdminMetadataSchema = z.strictObject({
+  assessment_id: uuidSchema,
+  owner_id: z.string().min(1),
+  name: z.string().trim().min(1).max(ASSESSMENT_NAME_MAX_LENGTH),
+  lifecycle_state: assessmentLifecycleStateSchema.nullable(),
+  execution_state: agentExecutionStateSchema.nullable(),
+  created_at: z.iso.datetime(),
+  updated_at: z.iso.datetime(),
+  correlationId: z.string(),
+});
+export type AssessmentAdminMetadata = z.infer<
+  typeof assessmentAdminMetadataSchema
+>;
+
+/** RBAC-selected read union; strict member schemas prevent field-set widening. */
+export const assessmentReadDetailSchema = z.union([
+  assessmentDetailSchema,
+  assessmentAdminMetadataSchema,
+]);
+export type AssessmentReadDetail = z.infer<typeof assessmentReadDetailSchema>;
+
 export const createAssessmentSchema = z.strictObject({
   name: assessmentDetailSchema.shape.name.trim(),
   description: z
@@ -804,6 +834,31 @@ export const assessmentListSchema = z.strictObject({
   correlationId: z.string(),
 });
 export type AssessmentList = z.infer<typeof assessmentListSchema>;
+
+/**
+ * Paginated ADMIN metadata projection; list items omit per-response correlation metadata.
+ * The item shape is derived from the same strict detail allowlist so list and detail views
+ * cannot drift into exposing customer-owned assessment content.
+ */
+export const assessmentAdminMetadataListSchema = z.strictObject({
+  assessments: z.array(
+    assessmentAdminMetadataSchema.omit({ correlationId: true }),
+  ),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  page_size: z.number().int().positive(),
+  correlationId: z.string(),
+});
+export type AssessmentAdminMetadataList = z.infer<
+  typeof assessmentAdminMetadataListSchema
+>;
+
+/** RBAC-selected list union; customer and ADMIN projections remain separate. */
+export const assessmentReadListSchema = z.union([
+  assessmentListSchema,
+  assessmentAdminMetadataListSchema,
+]);
+export type AssessmentReadList = z.infer<typeof assessmentReadListSchema>;
 
 /** Repository hydration has resource-local status; it never determines ALS/AES. */
 export const assessmentRepositorySetupSchema = z.strictObject({

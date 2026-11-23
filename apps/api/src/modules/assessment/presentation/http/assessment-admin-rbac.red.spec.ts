@@ -4,6 +4,7 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { RBAC_METADATA_KEY } from "../../../../platform/rbac/decorators/rbac-metadata.js";
 import type { RbacMetadata } from "../../../../platform/rbac/decorators/rbac-metadata.js";
 import { AssessmentProvenanceController } from "./assessment-provenance.controller.js";
+import { PreparationActivityController } from "./preparation-activity.controller.js";
 import { WorkspaceRuntimeEventsController } from "./workspace-runtime-events.controller.js";
 
 function rolesOf(target: object): readonly string[] {
@@ -28,6 +29,14 @@ describe("[RED] assessment ADMIN metadata-only RBAC boundary", () => {
     // ADMIN access to the customer runtime-event transport.
     expect(rolesOf(WorkspaceRuntimeEventsController)).toEqual([
       AUTH_USER_ROLES.customer,
+    ]);
+  });
+
+  it("keeps the sanitized Preparation activity stream ADMIN-only", () => {
+    // The replacement transport is operational telemetry, not an alternative
+    // customer assessment stream, so CUSTOMER must never inherit access.
+    expect(rolesOf(PreparationActivityController)).toEqual([
+      AUTH_USER_ROLES.admin,
     ]);
   });
 });

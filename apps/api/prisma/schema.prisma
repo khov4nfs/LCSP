@@ -399,6 +399,10 @@ model Assessment {
   @@index([ownerId])
   @@index([ownerId, updatedAt(sort: Desc), id])
   @@index([ownerId, lifecycleState, id])
+  // ADMIN metadata reads have no owner predicate; these indexes preserve stable list ordering
+  // for both the unfiltered path and the optional lifecycle-state filter.
+  @@index([updatedAt(sort: Desc), id])
+  @@index([lifecycleState, updatedAt(sort: Desc), id])
 }
 
 /// Durable owner-bound authorization fence for synchronous assessment cleanup.

@@ -60,7 +60,8 @@ function resolveLoaderFailureReason(error: unknown): {
 
 @Controller("assessments/:assessmentId/provenance")
 @UseGuards(RbacGuard)
-@RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+// Provenance contains customer case evidence and decisions; ADMIN metadata access must not cross this boundary.
+@RequireRoles(AUTH_USER_ROLES.customer)
 export class AssessmentProvenanceController {
   constructor(
     private readonly provenanceLoader: AssessmentProvenanceLoader,

@@ -1,12 +1,13 @@
 import { Query } from "@nestjs/cqrs";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 
-import type { AssessmentList } from "@lcsp/contracts/assessment-domain";
+import type { AssessmentReadList } from "@lcsp/contracts/assessment-domain";
 
 /**
  * Requests a paginated assessment list constrained by caller role/scope and optional status.
  */
-export class ListAssessmentsQuery extends Query<AssessmentList> {
+// The query result is an RBAC-selected union: CUSTOMER content projection or ADMIN metadata projection.
+export class ListAssessmentsQuery extends Query<AssessmentReadList> {
   /**
    * Creates the assessment-list query.
    *

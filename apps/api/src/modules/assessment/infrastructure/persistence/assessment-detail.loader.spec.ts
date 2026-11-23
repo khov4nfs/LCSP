@@ -118,7 +118,7 @@ it("[RED][ASM-OWNER-02] scopes the first detail query by assessment and owner", 
 });
 
 it("[RED][ASM-ADMIN-01] lists metadata for ADMIN without owner impersonation", async () => {
-  const { loader, findMany } = fixture();
+  const { loader, row, findMany } = fixture();
 
   const result = await loader.list({
     sessionUserId: "support-admin",
@@ -130,25 +130,76 @@ it("[RED][ASM-ADMIN-01] lists metadata for ADMIN without owner impersonation", a
 
   // ADMIN is metadata-only, but it must receive the administrative metadata
   // projection rather than a fabricated empty customer-owned collection.
-  expect(result.assessments).toHaveLength(1);
-  expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+  expect(result).toEqual({
+    assessments: [
+      {
+        assessment_id: assessmentId,
+        owner_id: input.sessionUserId,
+        name: "Synthetic assessment",
+        lifecycle_state: null,
+        execution_state: null,
+        created_at: row.createdAt.toISOString(),
+        updated_at: row.updatedAt.toISOString(),
+      },
+    ],
+    total: 1,
+    page: 1,
+    page_size: 20,
+    correlationId: "admin-metadata-list",
+  });
+  expect(findMany).toHaveBeenCalledWith({
+    where: {},
+    select: {
+      id: true,
+      ownerId: true,
+      name: true,
+      lifecycleState: true,
+      runtime: { select: { executionState: true } },
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    skip: 0,
+    take: 20,
+  });
 });
 
 it("[RED][ASM-ADMIN-02] returns only safe assessment metadata to ADMIN", async () => {
-  const { loader } = fixture();
+  const { loader, row, findUnique, aggregate } = fixture();
 
-  await expect(
-    loader.load({
-      assessmentId,
-      sessionUserId: "support-admin",
-      subjectRole: AUTH_USER_ROLES.admin,
-      correlationId: "admin-metadata-detail",
-    }),
-  ).resolves.toMatchObject({
-    assessment_id: assessmentId,
-    name: "Synthetic assessment",
-    case: null,
+  const result = await loader.load({
+    assessmentId,
+    sessionUserId: "support-admin",
+    subjectRole: AUTH_USER_ROLES.admin,
+    correlationId: "admin-metadata-detail",
   });
+
+  expect(result).toEqual({
+    assessment_id: assessmentId,
+    owner_id: input.sessionUserId,
+    name: "Synthetic assessment",
+    lifecycle_state: null,
+    execution_state: null,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+    correlationId: "admin-metadata-detail",
+  });
+  expect(findUnique).toHaveBeenCalledWith({
+    where: { id: assessmentId },
+    select: {
+      id: true,
+      ownerId: true,
+      name: true,
+      lifecycleState: true,
+      runtime: { select: { executionState: true } },
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  expect(aggregate).not.toHaveBeenCalled();
+  expect(result).not.toHaveProperty("case");
+  expect(result).not.toHaveProperty("runtime");
+  expect(result).not.toHaveProperty("usage");
 });
 
 it("projects decision customer-visible rationales to VI while preserving technical invariants", async () => {

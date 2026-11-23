@@ -4,7 +4,10 @@ import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_AUDIT_MODES,
+  assessmentDetailSchema,
+} from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AssessmentDetailLoader } from "../../../infrastructure/persistence/assessment-detail.loader.js";
@@ -83,7 +86,8 @@ const query = (
 describe("canonical customer assessment read", () => {
   it("projects persisted ALS/AES and Case without legacy readiness or classification queries/writes", async () => {
     const { handler: read, findUnique } = handler(fixture());
-    const result = await read.execute(query());
+    // Parsing the customer branch narrows the handler's intentional RBAC result union.
+    const result = assessmentDetailSchema.parse(await read.execute(query()));
     expect(result.lifecycle).toEqual({
       state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
       assessmentRevision: 2,
@@ -104,20 +108,38 @@ describe("canonical customer assessment read", () => {
       );
     },
   );
-  it("does not expose customer cases to an admin", async () => {
-    await expect(
-      handler(fixture()).handler.execute(query("owner", AUTH_USER_ROLES.admin)),
-    ).rejects.toMatchObject({ status: 404 });
+  it("returns only operational metadata to an admin", async () => {
+    const result = await handler(fixture()).handler.execute(
+      query("admin-user", AUTH_USER_ROLES.admin),
+    );
+
+    // ADMIN receives the strict metadata projection; customer case, runtime payload,
+    // usage, and provenance remain absent even when the persistence row contains them.
+    expect(result).toEqual({
+      assessment_id: assessmentId,
+      owner_id: "owner",
+      name: "Assessment",
+      lifecycle_state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+      execution_state: AGENT_EXECUTION_STATES.QUEUED,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+      correlationId: "corr",
+    });
+    expect(result).not.toHaveProperty("case");
+    expect(result).not.toHaveProperty("runtime");
+    expect(result).not.toHaveProperty("usage");
   });
   it("keeps historical all-null lifecycle explicitly unavailable", async () => {
-    const result = await handler(
-      fixture({
-        lifecycleState: null,
-        lifecycleRevision: null,
-        runtime: null,
-        domainCase: null,
-      }),
-    ).handler.execute(query());
+    const result = assessmentDetailSchema.parse(
+      await handler(
+        fixture({
+          lifecycleState: null,
+          lifecycleRevision: null,
+          runtime: null,
+          domainCase: null,
+        }),
+      ).handler.execute(query()),
+    );
     expect(result.lifecycle).toBeNull();
     expect(result.runtime).toBeNull();
     expect(result.case).toBeNull();

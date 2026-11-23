@@ -115,3 +115,5 @@ export async function requestUpstreamApi(path: string, options: RequestInit) {
 - [ ] Verify form schemas reside strictly in `schemas/` directories.
 - [ ] Verify explanatory comments are added on all changed code, especially BFF proxies, server actions, and core form state logic.
 - [ ] Verify all display text uses `@lcsp/i18n` translation keys.
+- [ ] For ADMIN live telemetry, verify the browser uses a dedicated `/api/admin/**` SSE route, forwards one `x-correlation-id` across the BFF, and never subscribes to customer `/api/workspace/runtime-events`.
+- [ ] For role-separated customer/ADMIN routes, stop rendering on profile verification failure and reject unknown role strings instead of treating them as an authenticated customer.
