@@ -177,3 +177,8 @@
 - **Root Cause**: The create path performed find-then-create inside one transaction without post-rollback convergence, and Prisma 7 with `@prisma/adapter-pg` reports the production unique fields under `meta.driverAdapterError.cause.constraint.fields` rather than only legacy `meta.target`.
 - **Resolution & Invariant**: Replay a uniqueness loser only when `P2002` metadata exactly identifies the intended composite constraint, supporting the installed adapter's source-derived quoted-field shape and deliberately retained compatibility shapes. Keep a faithful quoted-field regression fixture, then reload owner-scoped allowlisted winner metadata once through the root Prisma client after the losing transaction rejects. Wrong/malformed constraints and a missing winner rethrow the original error; never retry the whole transaction or return loser-generated metadata. A database-backed concurrency test remains the strongest optional evidence when a disposable PostgreSQL harness is available.
 
+### [2026-11-24] [BACKEND/SEARCH] Canonicalize Before Deduplication and Bounding
+- **Context / Symptom**: Case and Unicode compatibility variants of one legal-search term consumed separate `MAX_TERMS` slots and produced redundant case-insensitive SQL `AND` predicates.
+- **Root Cause**: The application deduplicated raw tokens before establishing a canonical comparison representation, so database-equivalent inputs remained distinct in memory.
+- **Resolution & Invariant**: At one application boundary, apply Unicode NFKC and locale-independent `toLowerCase()` before length filtering, stable first-occurrence deduplication and result bounding. Apply limits to canonical unique terms, while leaving pinned corpus identity and retrieval semantics unchanged.
+
