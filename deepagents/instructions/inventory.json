@@ -9977,7 +9977,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.5.0",
+      "version": "1.5.2",
       "filePath": "langchain/agents/middleware/model_refusal.py",
       "symbolName": "ModelRefusalMiddleware",
       "lineNumber": 39,
@@ -9994,7 +9994,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.5.0",
+      "version": "1.5.2",
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "WRITE_TODOS_SYSTEM_PROMPT",
       "lineNumber": 119,
@@ -10010,7 +10010,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.5.0",
+      "version": "1.5.2",
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "WRITE_TODOS_TOOL_DESCRIPTION",
       "lineNumber": 52,
@@ -10026,7 +10026,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.5.0",
+      "version": "1.5.2",
       "filePath": "langchain/agents/middleware/todo.py",
       "symbolName": "TodoListMiddleware",
       "lineNumber": 174,
@@ -10042,7 +10042,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.5.0",
+      "version": "1.5.2",
       "filePath": "langchain/agents/middleware/summarization.py",
       "symbolName": "DEFAULT_SUMMARY_PROMPT",
       "lineNumber": 55,
@@ -10059,7 +10059,7 @@
     },
     {
       "package": "langchain",
-      "version": "1.5.0",
+      "version": "1.5.2",
       "filePath": "langchain/agents/middleware/model_call_limit.py",
       "symbolName": "ModelCallLimitMiddleware",
       "lineNumber": 94,
