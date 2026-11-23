@@ -69,7 +69,7 @@ async function chooseCatalog(page: Page, locale = "en") {
     .click();
   await expect(
     page.getByRole("checkbox", {
-      name: ruleCheckboxName(fixture.rules[0]),
+      name: ruleCheckboxName(fixture.rules[0], locale),
       exact: true,
     }),
   ).toBeVisible();

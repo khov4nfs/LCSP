@@ -85,9 +85,9 @@ Object.defineProperty(
   {
     configurable: true,
     get() {
-      // jsdom does not lay out Tailwind padding, so model the textarea's vertical
-      // chrome explicitly to keep row-growth assertions aligned with browsers.
-      return Math.max(1, this.value.split("\n").length) * 20 + 32;
+      // jsdom does not compute Tailwind padding; its measured height must
+      // therefore model text rows only, matching the component's computed styles.
+      return Math.max(1, this.value.split("\n").length) * 20;
     },
   },
 );
