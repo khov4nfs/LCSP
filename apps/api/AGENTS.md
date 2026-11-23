@@ -111,3 +111,6 @@ const doc = await prisma.document.findFirst({
 - [ ] Verify explanatory comments are added on all changed code, especially core domain, PBAC, transactions, and security boundaries.
 - [ ] Verify no controller imports `prisma` or `*repository*` directly.
 - [ ] Verify HTTP lifecycle primitives (filters, interceptors, pipes, middlewares) strictly reside in `apps/api/src/platform/http/` without re-export facades.
+- [ ] For optimistic CAS writes, verify the next revision is strictly newer and a stateful frozen-clock concurrency test permits exactly one writer.
+- [ ] For destructive external cleanup, verify an owner-bound durable fence grants one renewable lease token until every side effect completes or the operation is safely rejected; concurrent requests must not share a cleanup claim, and interactive database transactions must not span external I/O.
+- [ ] For transaction-scoped aggregate saves, verify in-memory persistence state advances only after the outer transaction commits.

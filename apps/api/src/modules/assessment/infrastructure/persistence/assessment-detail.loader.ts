@@ -85,6 +85,31 @@ export class AssessmentDetailLoader {
     );
   }
 
+  /**
+   * Loads the full assessment detail for customer or admin view.
+   *
+   * Business purpose:
+   * Retrieves canonical assessment state, lifecycle, domain case, and usage metrics scoped to the authenticated caller.
+   *
+   * Business rules:
+   * - CUSTOMER callers may only access assessments they own; ownerId must be scoped directly at the persistence boundary.
+   * - If no row matches or the owner does not match, a masked 404 (ASSESSMENT_NOT_FOUND) must be thrown.
+   * - Preserves admin authorization checks without leaking customer operational details.
+   *
+   * Execution flow:
+   * 1. Determine query filter based on caller role: scope by both assessmentId and sessionUserId for CUSTOMER.
+   * 2. Query assessment record and related domain entities inside a transaction.
+   * 3. Validate existence and owner identity; throw 404 if missing or mismatch.
+   * 4. Project canonical assessment state and pinned rule set.
+   * 5. Aggregate LLM token usage.
+   * 6. Return composite AssessmentDetailDto.
+   *
+   * Failure cases:
+   * - Assessment missing or owned by another user: throws NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   *
+   * Side effects:
+   * - Read-only database query; pure data projection.
+   */
   async load(input: {
     assessmentId: string;
     sessionUserId: string;
@@ -94,8 +119,22 @@ export class AssessmentDetailLoader {
   }) {
     return this.prisma.$transaction(
       async (tx) => {
+        // Explanatory comment (ASM-06 / ASM-OWNER-02):
+        // Rationale (Why): BOLA prevention (OWASP API1:2023). Enforces tenant/owner isolation directly
+        // at the persistence boundary instead of retrieving foreign data and checking ownership in memory.
+        // Mechanism (How): For CUSTOMER role, the initial findUnique query includes ownerId in the where clause:
+        // { id: input.assessmentId, ownerId: input.sessionUserId }.
+        // Invariants: Strictly RBAC-scoped; foreign records are never loaded from database into application memory.
+        const whereClause: Prisma.AssessmentWhereUniqueInput =
+          input.subjectRole === AUTH_USER_ROLES.customer
+            ? {
+                id: input.assessmentId,
+                ownerId: input.sessionUserId,
+              }
+            : { id: input.assessmentId };
+
         const row = await tx.assessment.findUnique({
-          where: { id: input.assessmentId },
+          where: whereClause,
           include: {
             runtime: true,
             domainCase: {

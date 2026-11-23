@@ -156,6 +156,10 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
       await this.auditWriter.writeInTx(auditEvent, tx);
       await this.outboxRepository.enqueue(outboxEvent, tx);
     });
+    // The repository deliberately leaves transaction-scoped aggregates
+    // uncommitted in memory; only this outer boundary knows the full creation,
+    // lifecycle, audit and outbox transaction has committed successfully.
+    assessment.markPersisted();
 
     return this.detail.load({
       assessmentId: assessment.id,

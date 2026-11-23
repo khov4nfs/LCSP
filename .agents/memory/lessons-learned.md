@@ -141,3 +141,9 @@
 - **Resolution & Invariant**: Whenever creating a Pull Request via `gh pr create`, the agent MUST ALWAYS include:
   1. Assignee: `--assignee "@me"` (or current actor login).
   2. Labels: `--label "<module>,refactor,priority:P2"` (matching the module being refactored, e.g. `assessment`, `auth-workspace`, etc.).
+
+### [2026-11-23] [BACKEND/CONCURRENCY] CAS Revisions and Durable Authorization Across External Cleanup
+- **Context / Symptom**: Assessment renames could produce the same `updatedAt` revision within one clock millisecond, transaction-scoped saves marked aggregates committed before audit completion, and deletion released its owner lock before destructive runtime/storage/billing cleanup finished.
+- **Root Cause**: Timestamp equality made compare-and-set revisions reusable; a repository participating in an outer transaction cannot know whether that transaction will commit; and a PostgreSQL row lock cannot safely span slow external services without timeout/connection-pool risk.
+- **Resolution & Invariant**: Every CAS mutation must create a strictly newer revision and be tested with a frozen clock plus stateful concurrent writers. `saveInTx` writes only; its application transaction owner calls `markPersisted()` only after the outer commit. Destructive external cleanup must run outside long database transactions under a durable owner-bound database fence with one renewable cleanup lease token; concurrent requests must never share the token. Every initial resource lookup and `FOR UPDATE` lock must include the authenticated owner scope.
+

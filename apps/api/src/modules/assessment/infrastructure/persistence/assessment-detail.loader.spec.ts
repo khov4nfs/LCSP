@@ -38,9 +38,15 @@ function fixture() {
       totalTokens: 201,
     },
   });
-  const findUnique = jest.fn(() => Promise.resolve(row));
-  const findMany = jest.fn(() => Promise.resolve([row]));
-  const count = jest.fn(() => Promise.resolve(1));
+  const findUnique = jest
+    .fn<(...args: unknown[]) => Promise<typeof row>>()
+    .mockResolvedValue(row);
+  const findMany = jest
+    .fn<(...args: unknown[]) => Promise<(typeof row)[]>>()
+    .mockResolvedValue([row]);
+  const count = jest
+    .fn<(...args: unknown[]) => Promise<number>>()
+    .mockResolvedValue(1);
   const tx = {
     assessment: { findUnique, findMany, count },
     llmUsageEvent: { aggregate },

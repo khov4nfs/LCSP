@@ -393,10 +393,28 @@ model Assessment {
   rootExecutionSlots     AssessmentRootExecutionSlot[]
   rootAdmissionRequests  AssessmentRootAdmissionRequest[]
   executionIsolation     AssessmentExecutionIsolation?
+  deletionFence          AssessmentDeletionFence?
 
+  @@unique([id, ownerId])
   @@index([ownerId])
   @@index([ownerId, updatedAt(sort: Desc), id])
   @@index([ownerId, lifecycleState, id])
+}
+
+/// Durable owner-bound authorization fence for synchronous assessment cleanup.
+/// The composite FK prevents owner changes while destructive external work is in flight.
+model AssessmentDeletionFence {
+  assessmentId  String   @id
+  ownerId       String
+  token         String   @unique
+  startedAt     DateTime @default(now()) @db.Timestamptz(3)
+  leaseExpiresAt DateTime @db.Timestamptz(3)
+  assessment    Assessment @relation(fields: [assessmentId, ownerId], references: [id, ownerId], onDelete: Cascade, onUpdate: Restrict)
+
+  // Prisma requires the complete composite relation fields to be unique for
+  // this one-to-one fence, even though assessmentId is also the primary key.
+  @@unique([assessmentId, ownerId])
+  @@index([ownerId, startedAt])
 }
 
 /// Optional deployment fence for a new Assessment in a shared, mixed-version database.

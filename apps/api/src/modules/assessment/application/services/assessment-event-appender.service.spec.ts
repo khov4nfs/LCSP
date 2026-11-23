@@ -18,8 +18,12 @@ it("[RED][ASM-AUDIT-01] commits material event, canonical audit and outbox atomi
     stored = data;
     return Promise.resolve(data);
   });
-  const update = jest.fn(() => Promise.resolve({}));
-  const auditCreate = jest.fn(() => Promise.resolve({}));
+  const update = jest
+    .fn<(...args: unknown[]) => Promise<object>>()
+    .mockResolvedValue({});
+  const auditCreate = jest
+    .fn<(...args: unknown[]) => Promise<object>>()
+    .mockResolvedValue({});
   const tx = {
     assessmentEvent: { findUnique: () => Promise.resolve(stored), create },
     assessmentRuntime: { update },

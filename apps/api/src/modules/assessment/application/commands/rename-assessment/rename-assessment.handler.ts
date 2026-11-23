@@ -16,6 +16,8 @@ import { AuditWriterService } from "../../../../../platform/audit/audit-writer.s
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   ASSESSMENT_REPOSITORY,
+  AssessmentRevisionConflictError,
+  AssessmentUpdateTargetNotFoundError,
   type AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
 import {
@@ -55,6 +57,8 @@ export class RenameAssessmentHandler implements ICommandHandler<RenameAssessment
    * Failure cases:
    * - Missing or oversized name: throws UNPROCESSABLE_ENTITY with INVALID_REQUEST.
    * - Assessment not found or unauthorized actor: throws NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   * - Missing update target after the initial read: throws masked NOT_FOUND.
+   * - Stale persisted revision: throws CONFLICT with the request correlation ID.
    *
    * Side effects:
    * - Persists updated assessment entity to database.
@@ -72,7 +76,12 @@ export class RenameAssessmentHandler implements ICommandHandler<RenameAssessment
       );
     }
 
-    const assessment = await this.assessments.findById(command.assessmentId);
+    // The first persistence read is owner-scoped so a foreign aggregate never
+    // crosses the repository boundary before the later CAS revalidation.
+    const assessment = await this.assessments.findByIdForOwner(
+      command.assessmentId,
+      command.actorId,
+    );
     if (!assessment || assessment.ownerId !== command.actorId) {
       throw problemException(
         ASSESSMENT_ERROR_CODES.notFound,
@@ -88,31 +97,61 @@ export class RenameAssessmentHandler implements ICommandHandler<RenameAssessment
     // Capture previous name before entity mutation for forensic audit trail
     const previousName = assessment.name;
     assessment.rename(name);
-    await this.prisma.$transaction(async (tx) => {
-      await this.assessments.saveInTx(assessment, tx);
-      // Explanatory comment:
-      // Audit payload must preserve both previous and new names (fromName, toName) for compliance traceability and forensic auditability.
-      await this.auditWriter.writeInTx(
-        {
-          eventType: ASSESSMENT_EVENT_TYPES.renamed,
-          actorId: command.actorId,
-          assessmentId: assessment.id,
-          resourceType: AUDIT_RESOURCE_TYPES.assessment,
-          resourceId: assessment.id,
-          correlationId: command.correlationId,
-          causationId: command.correlationId,
-          decision: AUDIT_DECISIONS.allow,
-          result: ASSESSMENT_EVENT_TYPES.renamed,
-          redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          payload: {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Explanatory comment (ASM-RENAME-04 / Atomicity):
+        // Rationale (Why): Assessment rename persistence and canonical audit logging must be atomic.
+        // If either the CAS update or audit write fails, neither should take effect.
+        // Mechanism (How): Both saveInTx (which executes owner-scoped CAS update) and auditWriter.writeInTx
+        // run inside the same Prisma transaction (tx).
+        // Invariants: Prevents partial renames without audit records or phantom audit events without persisted changes.
+        await this.assessments.saveInTx(assessment, tx);
+        // Explanatory comment:
+        // Audit payload must preserve both previous and new names (fromName, toName) for compliance traceability and forensic auditability.
+        await this.auditWriter.writeInTx(
+          {
+            eventType: ASSESSMENT_EVENT_TYPES.renamed,
+            actorId: command.actorId,
             assessmentId: assessment.id,
-            fromName: previousName,
-            toName: name,
+            resourceType: AUDIT_RESOURCE_TYPES.assessment,
+            resourceId: assessment.id,
+            correlationId: command.correlationId,
+            causationId: command.correlationId,
+            decision: AUDIT_DECISIONS.allow,
+            result: ASSESSMENT_EVENT_TYPES.renamed,
+            redactionStatus: AUDIT_REDACTION_STATUSES.none,
+            payload: {
+              assessmentId: assessment.id,
+              fromName: previousName,
+              toName: name,
+            },
           },
-        },
-        tx,
-      );
-    });
+          tx,
+        );
+      });
+      // saveInTx cannot know whether its caller eventually commits. Advance the
+      // aggregate baseline only after Prisma confirms the whole audit transaction.
+      assessment.markPersisted();
+    } catch (error) {
+      // Persistence errors intentionally carry no HTTP or request context. The
+      // command boundary owns masked status mapping and preserves the caller's
+      // correlation ID in every problem response.
+      if (error instanceof AssessmentUpdateTargetNotFoundError) {
+        throw problemException(
+          ASSESSMENT_ERROR_CODES.notFound,
+          command.correlationId,
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+      if (error instanceof AssessmentRevisionConflictError) {
+        throw problemException(
+          ASSESSMENT_ERROR_CODES.conflict,
+          command.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      throw error;
+    }
 
     return { assessment_id: assessment.id, name: assessment.name };
   }

@@ -1,4 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { HttpStatus } from "@nestjs/common";
+import {
+  AssessmentRevisionConflictError,
+  AssessmentUpdateTargetNotFoundError,
+} from "../../ports/persistence/assessment.repository.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
 import { RenameAssessmentCommand } from "./rename-assessment.command.js";
 import { RenameAssessmentHandler } from "./rename-assessment.handler.js";
@@ -14,6 +19,9 @@ describe("RenameAssessmentHandler", () => {
   const createHandler = (assessment: Assessment | null) => {
     const assessments = {
       findById: jest
+        .fn<(...args: unknown[]) => Promise<Assessment | null>>()
+        .mockResolvedValue(assessment),
+      findByIdForOwner: jest
         .fn<(...args: unknown[]) => Promise<Assessment | null>>()
         .mockResolvedValue(assessment),
       saveInTx: jest
@@ -50,7 +58,7 @@ describe("RenameAssessmentHandler", () => {
       updatedAt: new Date(),
     });
 
-    const { handler, auditWriter } = createHandler(assessment);
+    const { handler, assessments, auditWriter } = createHandler(assessment);
     const command = new RenameAssessmentCommand(
       assessmentId,
       actorId,
@@ -74,5 +82,76 @@ describe("RenameAssessmentHandler", () => {
       }),
       expect.anything(),
     );
+    expect(assessments.findByIdForOwner).toHaveBeenCalledWith(
+      assessmentId,
+      actorId,
+    );
+    expect(assessments.findById).not.toHaveBeenCalled();
+    expect(assessment.isNew).toBe(false);
+    expect(assessment.expectedUpdatedAt).toEqual(assessment.updatedAt);
+  });
+
+  it("maps a stale revision to the request correlation id and rolls back audit", async () => {
+    const assessment = Assessment.rehydrate({
+      id: assessmentId,
+      ownerId: actorId,
+      name: "Old Assessment Name",
+      description: null,
+      createdAt: new Date("2026-11-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-11-20T00:00:00.000Z"),
+    });
+    const { handler, assessments, auditWriter } = createHandler(assessment);
+    assessments.saveInTx.mockRejectedValueOnce(
+      new AssessmentRevisionConflictError(),
+    );
+
+    await expect(
+      handler.execute(
+        new RenameAssessmentCommand(
+          assessmentId,
+          actorId,
+          "Concurrent name",
+          correlationId,
+        ),
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.CONFLICT,
+      response: {
+        problem: expect.objectContaining({ correlationId }),
+      },
+    });
+    expect(auditWriter.writeInTx).not.toHaveBeenCalled();
+  });
+
+  it("maps a disappeared owner-scoped update target to masked not-found", async () => {
+    const assessment = Assessment.rehydrate({
+      id: assessmentId,
+      ownerId: actorId,
+      name: "Old Assessment Name",
+      description: null,
+      createdAt: new Date("2026-11-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-11-20T00:00:00.000Z"),
+    });
+    const { handler, assessments, auditWriter } = createHandler(assessment);
+    assessments.saveInTx.mockRejectedValueOnce(
+      new AssessmentUpdateTargetNotFoundError(),
+    );
+
+    await expect(
+      handler.execute(
+        new RenameAssessmentCommand(
+          assessmentId,
+          actorId,
+          "Updated name",
+          correlationId,
+        ),
+      ),
+    ).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+      response: {
+        problem: expect.objectContaining({ correlationId }),
+      },
+    });
+    expect(auditWriter.writeInTx).not.toHaveBeenCalled();
   });
 });
