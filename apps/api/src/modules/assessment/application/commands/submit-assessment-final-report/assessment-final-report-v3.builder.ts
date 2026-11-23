@@ -36,6 +36,9 @@ import { decisionFingerprint } from "../../../domain/decision-fingerprint.js";
 
 type Narrative = SubmitAssessmentFinalReportRequest["findings"][number];
 
+/** Marks authoritative report inputs that cannot form a valid final report. */
+export class FinalReportAssemblyError extends Error {}
+
 /**
  * Business purpose: Safely inspect persisted JSON-shaped rule metadata while projecting a report.
  *
@@ -336,7 +339,7 @@ export async function buildAssessmentFinalReportV3(
   });
 
   if (!ruleSet?.legalSourceVersion) {
-    throw new Error("Pinned rule-set source is unavailable");
+    throw new FinalReportAssemblyError("Pinned rule-set source is unavailable");
   }
   const source = ruleSet.legalSourceVersion;
   const documentTitleById = new Map(
@@ -540,7 +543,9 @@ export async function buildAssessmentFinalReportV3(
     facts.length !== referencedFactIds.size ||
     allEvidence.some((item) => item.state !== ASSESSMENT_RECORD_STATES.ACCEPTED)
   ) {
-    throw new Error("Accepted report references could not be reloaded");
+    throw new FinalReportAssemblyError(
+      "Accepted report references could not be reloaded",
+    );
   }
 
   const evidenceIndex = [...allEvidence]
@@ -551,7 +556,7 @@ export async function buildAssessmentFinalReportV3(
         item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE &&
         !locator
       ) {
-        throw new Error(
+        throw new FinalReportAssemblyError(
           "Repository evidence is missing a safe canonical locator",
         );
       }
@@ -575,12 +580,16 @@ export async function buildAssessmentFinalReportV3(
       rule.assessmentRuleId,
     );
     if (!decision || !narrative) {
-      throw new Error("Canonical rule coverage and narrative diverged");
+      throw new FinalReportAssemblyError(
+        "Canonical rule coverage and narrative diverged",
+      );
     }
     const sourceRefs = sourceChunkIds(rule.contract).map((chunkId) => {
       const chunk = chunkById.get(chunkId);
       if (!chunk || chunk.legalSourceVersionId !== source.id) {
-        throw new Error("Rule source chunk could not be verified");
+        throw new FinalReportAssemblyError(
+          "Rule source chunk could not be verified",
+        );
       }
       return sourceRef(source, {
         ...chunk,
@@ -588,7 +597,9 @@ export async function buildAssessmentFinalReportV3(
       });
     });
     if (sourceRefs.length === 0) {
-      throw new Error("Rule has no verified source references");
+      throw new FinalReportAssemblyError(
+        "Rule has no verified source references",
+      );
     }
 
     const ruleCriteria = criteria(rule.contract);
