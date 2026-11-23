@@ -62,6 +62,9 @@ const ORCHESTRATOR = {
   type: AUDIT_ACTOR_TYPES.service,
 } as const;
 
+const RULE_AUDIT_EXPORT_IDEMPOTENCY_CONSTRAINT =
+  "AssessmentRuleAuditExport_requestId_idempotencyKey_key";
+
 type Tx = Prisma.TransactionClient;
 
 /**
@@ -109,6 +112,81 @@ function progressOf(input: {
   if (input.resolutionState === DECISION_RESOLUTION_STATES.INVESTIGATING)
     return RULE_AUDIT_PROGRESS_STATES.INVESTIGATING;
   return RULE_AUDIT_PROGRESS_STATES.QUEUED;
+}
+
+/**
+ * Business purpose: Prove that database uniqueness metadata names only the partial-export idempotency columns.
+ * Business rules:
+ * - The field set must contain exactly requestId and idempotencyKey, independent of adapter ordering.
+ * - Missing, duplicate, non-string or additional fields are not the export replay boundary.
+ * Execution flow:
+ * 1. Validate a two-element array.
+ * 2. Compare its unique field set with the canonical composite columns.
+ * Failure cases:
+ * - Malformed or broader targets return false so their original persistence error propagates.
+ * Side effects:
+ * - None; this helper performs pure structural classification.
+ */
+function isExactExportIdempotencyFields(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length !== 2) return false;
+  // adapter-pg may preserve PostgreSQL identifier quotes in `constraint.fields`.
+  // Strip only a complete, balanced identifier wrapper so malformed metadata
+  // cannot cross the exact composite-constraint replay boundary.
+  const fields = new Set<string>();
+  for (const field of value as unknown[]) {
+    if (typeof field !== "string") return false;
+    fields.add(/^"[A-Za-z0-9_]+"$/.test(field) ? field.slice(1, -1) : field);
+  }
+  return (
+    fields.size === 2 && fields.has("requestId") && fields.has("idempotencyKey")
+  );
+}
+
+/**
+ * Business purpose: Recognize the sole unique conflict that may safely converge to a committed export winner.
+ * Business rules:
+ * - The error must be Prisma P2002 for the exact requestId/idempotencyKey composite boundary.
+ * - Compatibility target metadata and Prisma 7 adapter-pg nested metadata are accepted only on exact match.
+ * Execution flow:
+ * 1. Verify the stable Prisma error code.
+ * 2. Check an exact column-array or generated constraint-name target.
+ * 3. Check adapter-pg's UniqueConstraintViolation field set.
+ * Failure cases:
+ * - Other codes, malformed metadata and unrelated constraints return false and remain unmasked.
+ * Side effects:
+ * - None; classification does not query, retry or mutate persistence.
+ */
+function isRuleAuditExportIdempotencyRace(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const record = error as Record<string, unknown>;
+  if (record.code !== "P2002") return false;
+  const meta = record.meta;
+  if (typeof meta !== "object" || meta === null) return false;
+  const metaRecord = meta as Record<string, unknown>;
+  const target = metaRecord.target;
+  if (isExactExportIdempotencyFields(target)) return true;
+  if (typeof target === "string") {
+    // Accept only a balanced PostgreSQL identifier with an optional schema.
+    // Removing quotes globally would turn malformed metadata into a false match.
+    const constraintTargetPattern = new RegExp(
+      `^(?:(?:"public"|public)\\.)?(?:"${RULE_AUDIT_EXPORT_IDEMPOTENCY_CONSTRAINT}"|${RULE_AUDIT_EXPORT_IDEMPOTENCY_CONSTRAINT})$`,
+    );
+    if (constraintTargetPattern.test(target)) {
+      return true;
+    }
+  }
+  const driverAdapterError = metaRecord.driverAdapterError;
+  if (typeof driverAdapterError !== "object" || driverAdapterError === null)
+    return false;
+  const cause = (driverAdapterError as Record<string, unknown>).cause;
+  if (typeof cause !== "object" || cause === null) return false;
+  const causeRecord = cause as Record<string, unknown>;
+  if (causeRecord.kind !== "UniqueConstraintViolation") return false;
+  const constraint = causeRecord.constraint;
+  if (typeof constraint !== "object" || constraint === null) return false;
+  return isExactExportIdempotencyFields(
+    (constraint as Record<string, unknown>).fields,
+  );
 }
 
 @Injectable()
@@ -837,14 +915,17 @@ export class AssessmentRuleAuditService {
    * Business purpose: Freeze only currently accepted selected-rule results in a labelled partial export.
    * Business rules:
    * - Export is owner-scoped, idempotent and includes no pending, invalidated, dependency-incomplete historical, or unrequested verdict.
+   * - Only the exact requestId/idempotencyKey P2002 may converge to a committed winner after rollback.
    * Execution flow:
    * 1. Verify request ownership and return an existing export for the same key.
    * 2. Revalidate each available decision against current pins, facts and evidence.
    * 3. Persist one immutable JSON snapshot with exact decision revisions and legal basis.
+   * 4. If the exact unique race loses, reload owner-scoped winner metadata outside the failed transaction.
    * Failure cases:
    * - No valid result or invalid pins rejects without creating an empty report.
+   * - Wrong/malformed unique metadata or a missing committed winner rethrows the original persistence error.
    * Side effects:
-   * - Creates one immutable database export; never creates FINAL_REPORT or changes lifecycle.
+   * - Creates one immutable database export; replay performs one metadata-only read and no duplicate write.
    */
   async createExport(
     assessmentId: string,
@@ -853,7 +934,7 @@ export class AssessmentRuleAuditService {
     requestId: string,
     idempotencyKey: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const transaction = this.prisma.$transaction(async (tx) => {
       const { domainCase, ruleSet } = await this.readyCase(
         tx,
         assessmentId,
@@ -1059,6 +1140,39 @@ export class AssessmentRuleAuditService {
         createdAt: now.toISOString(),
       });
     });
+    try {
+      return await transaction;
+    } catch (error) {
+      if (!isRuleAuditExportIdempotencyRace(error)) throw error;
+      // PostgreSQL resolves the unique conflict only after the winning transaction
+      // commits. Reload through the root client because the losing transaction is rolled back.
+      const winner = await this.prisma.assessmentRuleAuditExport.findFirst({
+        // The rollback ends the earlier authorization boundary. Rebind the
+        // aggregate and owner here, and never hydrate the sensitive JSON body.
+        where: {
+          assessmentId,
+          requestId,
+          idempotencyKey,
+          request: {
+            assessmentId,
+            assessmentCase: { assessment: { ownerId } },
+          },
+        },
+        select: {
+          exportId: true,
+          requestId: true,
+          contentSha256: true,
+          createdAt: true,
+        },
+      });
+      if (!winner) throw error;
+      return ruleAuditExportMetadataSchema.parse({
+        exportId: winner.exportId,
+        requestId: winner.requestId,
+        contentSha256: winner.contentSha256,
+        createdAt: winner.createdAt.toISOString(),
+      });
+    }
   }
 
   /**

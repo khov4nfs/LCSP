@@ -204,6 +204,42 @@ it("replays the same selection key without duplicate rows or Root work", async (
   expect(f.enqueued).toHaveBeenCalledTimes(1);
 });
 
+type ExportWinner = {
+  exportId: string;
+  requestId: string;
+  contentSha256: string;
+  createdAt: Date;
+};
+
+function exportRaceFixture(error: Error, winner: ExportWinner | null) {
+  const findFirst = jest
+    .fn<(input: unknown) => Promise<ExportWinner | null>>()
+    .mockResolvedValue(winner);
+  const transaction = jest.fn<() => Promise<never>>().mockRejectedValue(error);
+  const service = new AssessmentRuleAuditService(
+    {
+      $transaction: transaction,
+      assessmentRuleAuditExport: { findFirst },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    noOpAuditWriter(),
+  );
+  return { service, findFirst, transaction };
+}
+
+function exportP2002(targetOrCause: unknown, nested = false): Error {
+  // Cover both compatibility `meta.target` and Prisma 7 driver-adapter shapes
+  // without constructing a real database error in the fast service test.
+  return Object.assign(new Error("unique constraint"), {
+    code: "P2002",
+    meta: nested
+      ? { driverAdapterError: { cause: targetOrCause } }
+      : { target: targetOrCause },
+  });
+}
+
 it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 race", async () => {
   const exportId = randomUUID();
   const createdAt = new Date("2026-11-22T00:00:00.000Z");
@@ -213,13 +249,13 @@ it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 rac
     code: "P2002",
     meta: { target: ["requestId", "idempotencyKey"] },
   });
-  const findUnique = jest
+  const findFirst = jest
     .fn<() => Promise<typeof winner | null>>()
     .mockResolvedValue(winner);
   const service = new AssessmentRuleAuditService(
     {
       $transaction: () => Promise.reject(uniqueRace),
-      assessmentRuleAuditExport: { findUnique },
+      assessmentRuleAuditExport: { findFirst },
     } as unknown as PrismaService,
     {} as OutboxRepository,
     {} as AssessmentCaseSupport,
@@ -243,12 +279,244 @@ it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 rac
     contentSha256,
     createdAt: createdAt.toISOString(),
   });
-  expect(findUnique).toHaveBeenCalledWith({
+  expect(findFirst).toHaveBeenCalledWith({
     where: {
-      requestId_idempotencyKey: {
-        requestId: REQUEST,
-        idempotencyKey: "same-export-key",
+      assessmentId: ASSESSMENT,
+      requestId: REQUEST,
+      idempotencyKey: "same-export-key",
+      request: {
+        assessmentId: ASSESSMENT,
+        assessmentCase: { assessment: { ownerId: OWNER } },
       },
+    },
+    select: {
+      exportId: true,
+      requestId: true,
+      contentSha256: true,
+      createdAt: true,
+    },
+  });
+});
+
+it.each([
+  {
+    label: "generated constraint name",
+    error: exportP2002(
+      "AssessmentRuleAuditExport_requestId_idempotencyKey_key",
+    ),
+  },
+  {
+    label: "schema-qualified generated constraint name",
+    error: exportP2002(
+      '"public"."AssessmentRuleAuditExport_requestId_idempotencyKey_key"',
+    ),
+  },
+  {
+    label: "Prisma 7 driver adapter fields",
+    error: exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ["requestId", "idempotencyKey"] },
+      },
+      true,
+    ),
+  },
+  {
+    label: "quoted Prisma 7 driver adapter fields",
+    error: exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ['"requestId"', '"idempotencyKey"'] },
+      },
+      true,
+    ),
+  },
+])("[RED][ASM-EXPORT-01] reloads the winner for $label", async ({ error }) => {
+  const winner = {
+    exportId: randomUUID(),
+    requestId: REQUEST,
+    contentSha256: "b".repeat(64),
+    createdAt: new Date("2026-11-22T01:00:00.000Z"),
+  };
+  const f = exportRaceFixture(error, winner);
+
+  await expect(
+    f.service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).resolves.toEqual({
+    ...winner,
+    createdAt: winner.createdAt.toISOString(),
+  });
+  expect(f.transaction).toHaveBeenCalledTimes(1);
+  expect(f.findFirst).toHaveBeenCalledWith({
+    where: {
+      assessmentId: ASSESSMENT,
+      requestId: REQUEST,
+      idempotencyKey: "same-export-key",
+      request: {
+        assessmentId: ASSESSMENT,
+        assessmentCase: { assessment: { ownerId: OWNER } },
+      },
+    },
+    select: {
+      exportId: true,
+      requestId: true,
+      contentSha256: true,
+      createdAt: true,
+    },
+  });
+});
+
+it.each([
+  ["different array target", exportP2002(["exportId"])],
+  [
+    "array target with extra field",
+    exportP2002(["requestId", "idempotencyKey", "exportId"]),
+  ],
+  [
+    "array target with duplicate field",
+    exportP2002(["requestId", "requestId"]),
+  ],
+  [
+    "different string constraint",
+    exportP2002("AssessmentRuleAuditExport_pkey"),
+  ],
+  [
+    "unbalanced quoted constraint",
+    exportP2002(
+      '"public.AssessmentRuleAuditExport_requestId_idempotencyKey_key',
+    ),
+  ],
+  [
+    "foreign-schema lookalike constraint",
+    exportP2002(
+      '"other"."AssessmentRuleAuditExport_requestId_idempotencyKey_key"',
+    ),
+  ],
+  [
+    "different driver-adapter fields",
+    exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ["exportId"] },
+      },
+      true,
+    ),
+  ],
+  [
+    "non-string driver-adapter field",
+    exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ["requestId", 42] },
+      },
+      true,
+    ),
+  ],
+  [
+    "different driver-adapter violation kind",
+    exportP2002(
+      {
+        kind: "ForeignKeyConstraintViolation",
+        constraint: { fields: ["requestId", "idempotencyKey"] },
+      },
+      true,
+    ),
+  ],
+  [
+    "malformed driver-adapter constraint",
+    exportP2002(
+      { kind: "UniqueConstraintViolation", constraint: "unknown" },
+      true,
+    ),
+  ],
+  ["missing target", exportP2002(undefined)],
+  ["non-P2002", Object.assign(new Error("write conflict"), { code: "P2034" })],
+])("preserves %s without replay", async (_label, error) => {
+  const f = exportRaceFixture(error, null);
+
+  await expect(
+    f.service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).rejects.toBe(error);
+  expect(f.transaction).toHaveBeenCalledTimes(1);
+  expect(f.findFirst).not.toHaveBeenCalled();
+});
+
+it("rethrows the exact P2002 when its committed winner cannot be reloaded", async () => {
+  const error = exportP2002(["requestId", "idempotencyKey"]);
+  const f = exportRaceFixture(error, null);
+
+  await expect(
+    f.service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).rejects.toBe(error);
+  expect(f.transaction).toHaveBeenCalledTimes(1);
+  expect(f.findFirst).toHaveBeenCalledTimes(1);
+});
+
+it("reloads a race winner through an owner-scoped metadata allowlist", async () => {
+  const winner = {
+    exportId: randomUUID(),
+    requestId: REQUEST,
+    contentSha256: "c".repeat(64),
+    createdAt: new Date("2026-11-22T02:00:00.000Z"),
+  };
+  const error = exportP2002(["requestId", "idempotencyKey"]);
+  const findFirst = jest
+    .fn<() => Promise<typeof winner>>()
+    .mockResolvedValue(winner);
+  const service = new AssessmentRuleAuditService(
+    {
+      $transaction: jest.fn<() => Promise<never>>().mockRejectedValue(error),
+      assessmentRuleAuditExport: { findFirst },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    noOpAuditWriter(),
+  );
+
+  await service.createExport(
+    ASSESSMENT,
+    OWNER,
+    randomUUID(),
+    REQUEST,
+    "same-export-key",
+  );
+
+  // Recovery is a fresh database boundary: bind every caller-owned identity and
+  // select metadata only so the immutable evidence JSON never enters memory.
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      assessmentId: ASSESSMENT,
+      requestId: REQUEST,
+      idempotencyKey: "same-export-key",
+      request: {
+        assessmentId: ASSESSMENT,
+        assessmentCase: { assessment: { ownerId: OWNER } },
+      },
+    },
+    select: {
+      exportId: true,
+      requestId: true,
+      contentSha256: true,
+      createdAt: true,
     },
   });
 });
