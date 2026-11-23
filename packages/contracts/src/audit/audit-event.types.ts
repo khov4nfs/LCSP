@@ -73,6 +73,8 @@ export interface AuditActorRef {
 }
 
 export interface AuditEventInput {
+  /** Stable opaque key used when one logical audit may be retried after an ambiguous persistence response. */
+  idempotencyKey?: string;
   eventType: string;
   actorId: string | null;
   assessmentId?: string | null;

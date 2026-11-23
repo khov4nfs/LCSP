@@ -10,6 +10,7 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_RECORD_STATES,
+  ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES,
   ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   RULE_AUDIT_EXPORT_KINDS,
@@ -30,13 +31,16 @@ import {
 import {
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
+  AUDIT_EVENT_RESULTS,
   AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import {
   AssessmentAuditMode,
   AssessmentRuleAuditStatus,
@@ -51,6 +55,7 @@ import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessme
 import { validateRuleDecision } from "../../domain/decision-validator.js";
 import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
+import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 
 const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
@@ -108,11 +113,14 @@ function progressOf(input: {
 
 @Injectable()
 export class AssessmentRuleAuditService {
+  private readonly logger = new Logger(AssessmentRuleAuditService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxRepository,
     private readonly support: AssessmentCaseSupport,
     private readonly localization: AuthoredLocalizationService,
+    private readonly auditWriter: AuditWriterService,
   ) {}
 
   /**
@@ -1059,11 +1067,12 @@ export class AssessmentRuleAuditService {
    * - Export identity, request ownership, schema and content checksum must match.
    * Execution flow:
    * 1. Load the owner-bound export and validate its stored payload.
-   * 2. Recalculate checksum and return its canonical JSON bytes.
+   * 2. Recalculate checksum and persist the owner-bound business audit receipt.
+   * 3. Return canonical JSON bytes only after the receipt is durable.
    * Failure cases:
-   * - Foreign, missing or tampered exports fail closed.
+   * - Foreign, missing or tampered exports fail closed; audit unavailability returns safe 503 without bytes.
    * Side effects:
-   * - None; read-only download.
+   * - Writes one sanitized canonical AuditEvent before returning immutable export bytes.
    */
   async downloadExport(
     assessmentId: string,
@@ -1072,20 +1081,24 @@ export class AssessmentRuleAuditService {
     requestId: string,
     exportId: string,
   ) {
-    const row = await this.prisma.assessmentRuleAuditExport.findUnique({
-      where: { exportId },
+    const row = await this.prisma.assessmentRuleAuditExport.findFirst({
+      // Scope every identity and owner at the database boundary so a foreign
+      // export is never hydrated before BOLA rejection.
+      where: {
+        exportId,
+        assessmentId,
+        requestId,
+        request: {
+          assessmentCase: { assessment: { ownerId } },
+        },
+      },
       include: {
         request: {
           include: { assessmentCase: { include: { assessment: true } } },
         },
       },
     });
-    if (
-      !row ||
-      row.assessmentId !== assessmentId ||
-      row.requestId !== requestId ||
-      row.request.assessmentCase.assessment.ownerId !== ownerId
-    )
+    if (!row)
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.RUNTIME_NOT_FOUND,
         correlationId,
@@ -1102,6 +1115,36 @@ export class AssessmentRuleAuditService {
         correlationId,
         { status: HttpStatus.CONFLICT },
       );
+    try {
+      await this.auditWriter.write({
+        eventType:
+          ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES.RULE_AUDIT_EXPORT_DOWNLOADED,
+        actorId: ownerId,
+        assessmentId,
+        resourceType: AUDIT_RESOURCE_TYPES.assessment,
+        resourceId: exportId,
+        reasonCode: null,
+        correlationId,
+        causationId: requestId,
+        result: AUDIT_EVENT_RESULTS.success,
+        redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+        actor: { id: ownerId, type: AUDIT_ACTOR_TYPES.user },
+        sessionId: null,
+        decision: null,
+        payload: { requestId, exportId, contentSha256: row.contentSha256 },
+      });
+    } catch (error) {
+      // Sensitive bytes remain in-process when mandatory business audit is
+      // unavailable. Log only bounded exception identity and correlation.
+      this.logger.error(
+        `Rule-audit export download audit unavailable correlationId=${correlationId} failure=${error instanceof Error ? error.name : typeof error}`,
+      );
+      throw problemException(
+        SHARED_ERROR_CODES.upstreamUnavailable,
+        correlationId,
+        { status: HttpStatus.SERVICE_UNAVAILABLE },
+      );
+    }
     return {
       content: Buffer.from(canonicalJson(parsed.data)),
       contentSha256: row.contentSha256,

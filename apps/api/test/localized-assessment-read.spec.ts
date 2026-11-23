@@ -770,6 +770,7 @@ for (const locale of ["en", "vi"] as const)
         {} as never,
         {} as never,
         new AuthoredLocalizationService(db as never),
+        { write: () => Promise.resolve() } as never,
       );
     const api = await localizedHttpFixture({
       ownerId: owner,

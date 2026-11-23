@@ -151,10 +151,8 @@ describe("RbacPreflightService", () => {
     });
   });
 
-  it("does not throw when the decision-log write fails", async () => {
-    const { service } = makeService({
-      appendImpl: () => Promise.reject(new Error("db down")),
-    });
+  it("allows when the repository reports a durable fallback as a successful append", async () => {
+    const { service } = makeService();
 
     await expect(service.evaluate(makeInput())).resolves.toEqual({
       decision: "ALLOW",
@@ -163,7 +161,7 @@ describe("RbacPreflightService", () => {
     });
   });
 
-  it("[RED][ASM-RBAC-02] never returns ALLOW when its audit write fails", async () => {
+  it("[RED][ASM-RBAC-02] converts an unauditable ALLOW to DENY", async () => {
     const { service } = makeService({
       appendImpl: () => Promise.reject(new Error("audit store unavailable")),
     });
@@ -173,6 +171,20 @@ describe("RbacPreflightService", () => {
     await expect(service.evaluate(makeInput())).resolves.toEqual({
       decision: "DENY",
       reasonCode: RBAC_REASON_CODES.loadError,
+      correlationId: "corr-1",
+    });
+  });
+
+  it("[ASM-RBAC-02] preserves DENY when decision auditing also fails", async () => {
+    const { service } = makeService({
+      appendImpl: () => Promise.reject(new Error("audit sinks unavailable")),
+    });
+
+    await expect(
+      service.evaluate(makeInput({ requiredRoles: [AUTH_USER_ROLES.admin] })),
+    ).resolves.toEqual({
+      decision: "DENY",
+      reasonCode: RBAC_REASON_CODES.denied,
       correlationId: "corr-1",
     });
   });

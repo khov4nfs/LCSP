@@ -8,6 +8,7 @@ import {
   type RbacDecision,
   type RbacReasonCode,
 } from "@lcsp/contracts/rbac";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
   HttpStatus,
   Inject,
@@ -24,7 +25,6 @@ import {
   AUTHORIZATION_DECISION_REPOSITORY,
   type AuthorizationDecisionRepository,
 } from "./authorization-decision.repository.js";
-import { createCorrelationId } from "../security/crypto.utils.js";
 import { problemException } from "../http/filters/error.factory.js";
 import { RE_AUTH_FOR_SENSITIVE_ROUTE_METADATA_KEY } from "../security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { isSensitiveActionVerificationFresh } from "../security/sensitive-route-policy.js";
@@ -34,6 +34,7 @@ import {
   type RbacMetadata,
 } from "./decorators/rbac-metadata.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
+import { normalizeCorrelationId } from "./correlation-id.js";
 
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.httpRoute;
 
@@ -75,9 +76,9 @@ export class RbacGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const correlationId =
-      headerString(request.headers?.["x-correlation-id"]) ??
-      createCorrelationId();
+    const correlationId = normalizeCorrelationId(
+      request.headers?.["x-correlation-id"],
+    );
     request.correlationId = correlationId;
 
     const requestKey = requestMethodAndPath(request);
@@ -309,17 +310,21 @@ export class RbacGuard implements CanActivate {
         correlationId: input.correlationId,
       });
     } catch (error) {
+      // Repository rejection means both canonical AuditEvent and durable
+      // fallback failed. DENY remains fail-closed; an unauditable ALLOW stops
+      // with a masked dependency response instead of silently losing evidence.
       this.logger.error(
-        `Failed to write authorization AuditEvent (decision=${input.decision}): ${(error as Error).message}`,
+        `Authorization audit unavailable decision=${input.decision} correlationId=${input.correlationId} failure=${error instanceof Error ? error.name : typeof error}`,
       );
+      if (input.decision === LOCAL_RBAC_DECISIONS.allow) {
+        throw problemException(
+          SHARED_ERROR_CODES.upstreamUnavailable,
+          input.correlationId,
+          { status: HttpStatus.SERVICE_UNAVAILABLE },
+        );
+      }
     }
   }
-}
-
-function headerString(value: string | string[] | undefined): string | null {
-  if (typeof value === "string" && value.trim().length > 0) return value;
-  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-  return null;
 }
 
 function readStringAttribute(value: unknown): string | undefined {

@@ -42,12 +42,15 @@ class DummyController {
 function makeContext(options: {
   handler: () => void;
   authorization?: string;
+  correlationId?: string;
   params?: Record<string, string>;
 }): { context: ExecutionContext; request: Record<string, unknown> } {
+  const headers: Record<string, string> = {};
+  if (options.authorization) headers.authorization = options.authorization;
+  if (options.correlationId)
+    headers["x-correlation-id"] = options.correlationId;
   const request: Record<string, unknown> = {
-    headers: options.authorization
-      ? { authorization: options.authorization }
-      : {},
+    headers,
     method: "POST",
     params: options.params ?? {},
     route: { path: "/assessments/:assessmentId/conflicts/:conflictId/resolve" },
@@ -139,6 +142,22 @@ describe("RbacGuard", () => {
       sessionId: "session-1",
       role: AUTH_USER_ROLES.customer,
     });
+  });
+
+  it("replaces an unsafe client correlation ID before audit persistence", async () => {
+    const { guard, append } = makeGuard();
+    const { context } = makeContext({
+      handler: DummyController.prototype.customerOnly,
+      authorization: "Bearer token",
+      correlationId: "malicious\nlog-entry",
+    });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+
+    expect(append.mock.calls[0]?.[0].correlationId).not.toContain("\n");
+    expect(append.mock.calls[0]?.[0].correlationId).not.toBe(
+      "malicious\nlog-entry",
+    );
   });
 
   it("returns 401 SESSION_INVALID when the Authorization header is missing", async () => {
@@ -327,10 +346,8 @@ describe("RbacGuard", () => {
     );
   });
 
-  it("does not throw when decision logging fails after an allow", async () => {
-    const { guard } = makeGuard({
-      appendImpl: () => Promise.reject(new Error("db down")),
-    });
+  it("[ASM-RBAC-01] continues an ordinary read after the repository durably falls back", async () => {
+    const { guard } = makeGuard();
     const { context } = makeContext({
       handler: DummyController.prototype.customerOnly,
       authorization: "Bearer token",
@@ -339,18 +356,21 @@ describe("RbacGuard", () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it("[RED][ASM-RBAC-01] fails closed when an ALLOW decision cannot be audited", async () => {
+  it("[RED][ASM-RBAC-01] returns safe 503 when neither audit sink can durably record ALLOW", async () => {
     const { guard } = makeGuard({
-      appendImpl: () => Promise.reject(new Error("audit store unavailable")),
+      appendImpl: () => Promise.reject(new Error("private audit outage")),
     });
     const { context } = makeContext({
       handler: DummyController.prototype.customerOnly,
       authorization: "Bearer token",
     });
 
-    // Security invariant: an authorization ALLOW is incomplete until its
-    // mandatory audit record is durable, so the protected request must stop.
-    await expect(guard.canActivate(context)).rejects.toBeDefined();
+    const error = await captureError(guard.canActivate(context));
+
+    expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(JSON.stringify(error.getResponse())).not.toContain(
+      "private audit outage",
+    );
   });
 
   it("records a domain resource id from route params when present", async () => {

@@ -5,18 +5,26 @@ import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
   DECISION_RESOLUTION_STATES,
+  RULE_DECISION_APPLICABILITIES,
+  RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
 import {
+  ASSESSMENT_DECISION_SCOPE,
   ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DECISION_RECORD_STATES,
+  RULE_AUDIT_EXPORT_KINDS,
+  RULE_AUDIT_EXPORT_SCHEMA_VERSION,
   RULE_AUDIT_PROGRESS_STATES,
   RULE_AUDIT_SCOPE_MODES,
   RULE_AUDIT_STATUSES,
+  ruleAuditExportSchema,
   type SubmitRuleAudit,
 } from "@lcsp/contracts/assessment-domain";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
+import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentRuleAuditService } from "./assessment-rule-audit.service.js";
 
 const ASSESSMENT = randomUUID();
@@ -30,6 +38,12 @@ const rules = Array.from({ length: 20 }, (_, index) => ({
   assessmentRuleId: `Rule-${index + 1}`,
   assessmentRuleVersion: "v1",
 }));
+
+function noOpAuditWriter(): AuditWriterService {
+  return {
+    write: jest.fn<AuditWriterService["write"]>().mockResolvedValue(undefined),
+  } as unknown as AuditWriterService;
+}
 
 function submission(ruleIds: string[]): SubmitRuleAudit {
   return {
@@ -117,6 +131,7 @@ function submitFixture() {
     { enqueue: enqueued } as unknown as OutboxRepository,
     {} as AssessmentCaseSupport,
     authoredLocalizationFixture().service,
+    noOpAuditWriter(),
   );
   jest
     .spyOn(service, "request")
@@ -209,6 +224,7 @@ it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 rac
     {} as OutboxRepository,
     {} as AssessmentCaseSupport,
     authoredLocalizationFixture().service,
+    noOpAuditWriter(),
   );
 
   // A concurrent request may win after the initial lookup. The loser must
@@ -235,6 +251,116 @@ it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 rac
       },
     },
   });
+});
+
+it("[RED][ASM-RBAC-01] returns no sensitive export bytes when business audit persistence fails", async () => {
+  const exportId = randomUUID();
+  const evidenceId = randomUUID();
+  const content = ruleAuditExportSchema.parse({
+    schemaVersion: RULE_AUDIT_EXPORT_SCHEMA_VERSION,
+    kind: RULE_AUDIT_EXPORT_KINDS.PARTIAL_SELECTED_RULE_AUDIT,
+    exportId,
+    requestId: REQUEST,
+    assessmentId: ASSESSMENT,
+    ruleSetVersionId: RULE_SET,
+    ruleSetDigest: "digest",
+    repositorySnapshotId: SNAPSHOT,
+    repositoryCommit: COMMIT,
+    requestRevision: 1,
+    requestedRuleIds: ["Rule-1"],
+    includedRuleIds: ["Rule-1"],
+    notRequestedRuleCount: 19,
+    exportedAt: "2026-11-23T00:00:00.000Z",
+    results: [
+      {
+        assessmentRuleId: "Rule-1",
+        assessmentRuleVersion: "v1",
+        decisionId: DECISION,
+        decisionRevision: 1,
+        decision: {
+          assessmentRuleId: "Rule-1",
+          assessmentRuleVersion: "v1",
+          scopeId: ASSESSMENT_DECISION_SCOPE,
+          ruleSetVersionId: RULE_SET,
+          repositorySnapshotId: SNAPSHOT,
+          repositoryCommit: COMMIT,
+          caseRevision: 1,
+          legalContextRefs: [{ legalContextId: "LR-1" }],
+          applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
+          rationale: "The requirement does not apply to this scope.",
+          references: [
+            {
+              type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+              evidenceId,
+            },
+          ],
+          criteria: [],
+          compliance: null,
+        },
+        evidence: [],
+        legalBasis: {
+          concept: "Retention",
+          legalIntent: "Records must be retained.",
+          legalRequirements: [],
+        },
+      },
+    ],
+  });
+  const write = jest
+    .fn<AuditWriterService["write"]>()
+    .mockRejectedValue(new Error("private audit database error"));
+  const findFirst = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+    exportId,
+    assessmentId: ASSESSMENT,
+    requestId: REQUEST,
+    content,
+    contentSha256: sha256Hex(canonicalJson(content)),
+    request: {
+      assessmentCase: { assessment: { ownerId: OWNER } },
+    },
+  });
+  const ServiceWithAudit = AssessmentRuleAuditService as unknown as new (
+    prisma: PrismaService,
+    outbox: OutboxRepository,
+    support: AssessmentCaseSupport,
+    localization: ConstructorParameters<typeof AssessmentRuleAuditService>[3],
+    auditWriter: AuditWriterService,
+  ) => AssessmentRuleAuditService;
+  const service = new ServiceWithAudit(
+    {
+      assessmentRuleAuditExport: {
+        findFirst,
+      },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    { write } as unknown as AuditWriterService,
+  );
+
+  const failure = (await service
+    .downloadExport(ASSESSMENT, OWNER, "corr-download", REQUEST, exportId)
+    .catch((error: unknown) => error)) as {
+    getResponse(): unknown;
+    getStatus(): number;
+  };
+
+  expect(failure.getStatus()).toBe(503);
+  expect(JSON.stringify(failure.getResponse())).not.toContain(
+    "private audit database error",
+  );
+  expect(findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        exportId,
+        assessmentId: ASSESSMENT,
+        requestId: REQUEST,
+        request: {
+          assessmentCase: { assessment: { ownerId: OWNER } },
+        },
+      },
+    }),
+  );
 });
 
 it("versions a later Rule 9 request and reuses an unchanged accepted Rule 3 decision", async () => {
@@ -421,6 +547,7 @@ it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", a
     {} as OutboxRepository,
     {} as AssessmentCaseSupport,
     authoredLocalizationFixture().service,
+    noOpAuditWriter(),
   );
 
   const first = await service.request(ASSESSMENT, OWNER, randomUUID(), REQUEST);

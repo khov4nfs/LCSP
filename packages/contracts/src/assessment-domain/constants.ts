@@ -238,6 +238,9 @@ export const ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES = {
   HUMAN_ANSWER_RECORDED: "ASSESSMENT_HUMAN_ANSWER_RECORDED",
   HUMAN_FACT_UNRESOLVABLE_REPORTED:
     "ASSESSMENT_HUMAN_FACT_UNRESOLVABLE_REPORTED",
+  // Sensitive export bytes are released only after this canonical business
+  // audit event persists with the owner, artifact and correlation boundary.
+  RULE_AUDIT_EXPORT_DOWNLOADED: "ASSESSMENT_RULE_AUDIT_EXPORT_DOWNLOADED",
 } as const;
 export type AssessmentDomainAuditEventType =
   (typeof ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES)[keyof typeof ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES];

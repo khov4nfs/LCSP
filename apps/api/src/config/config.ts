@@ -180,6 +180,14 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
     OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
     OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
+    OUTBOX_BROKER_CONNECT_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(5000),
+    OUTBOX_BROKER_PUBLISH_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(5000),
     SEPAY_WEBHOOK_SECRET: Joi.alternatives().conditional("NODE_ENV", {
       is: NODE_ENVS.production,
       then: Joi.string().min(16).required(),
@@ -549,6 +557,14 @@ export function config(): AppConfig {
       pollIntervalMs: parsePositiveInteger(env.OUTBOX_POLL_INTERVAL_MS, 1000),
       batchSize: parsePositiveInteger(env.OUTBOX_BATCH_SIZE, 50),
       maxAttempts: parsePositiveInteger(env.OUTBOX_MAX_ATTEMPTS, 5),
+      brokerConnectTimeoutMs: parsePositiveInteger(
+        env.OUTBOX_BROKER_CONNECT_TIMEOUT_MS,
+        5000,
+      ),
+      brokerPublishTimeoutMs: parsePositiveInteger(
+        env.OUTBOX_BROKER_PUBLISH_TIMEOUT_MS,
+        5000,
+      ),
     },
     sepay: {
       webhookSecret: env.SEPAY_WEBHOOK_SECRET ?? "",

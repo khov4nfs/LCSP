@@ -19,6 +19,8 @@ const VALID_ENV = {
   OUTBOX_POLL_INTERVAL_MS: "1000",
   OUTBOX_BATCH_SIZE: "50",
   OUTBOX_MAX_ATTEMPTS: "5",
+  OUTBOX_BROKER_CONNECT_TIMEOUT_MS: "5000",
+  OUTBOX_BROKER_PUBLISH_TIMEOUT_MS: "5000",
   MFA_SECRET_ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
   GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
   GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
@@ -418,6 +420,8 @@ describe("config()", () => {
         pollIntervalMs: 1000,
         batchSize: 50,
         maxAttempts: 5,
+        brokerConnectTimeoutMs: 5000,
+        brokerPublishTimeoutMs: 5000,
       },
       githubCredentialPersistence: {
         activeKekVersion: VALID_ENV.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,

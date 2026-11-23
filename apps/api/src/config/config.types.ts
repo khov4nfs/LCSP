@@ -53,6 +53,8 @@ export interface OutboxConfig {
   pollIntervalMs: number;
   batchSize: number;
   maxAttempts: number;
+  brokerConnectTimeoutMs: number;
+  brokerPublishTimeoutMs: number;
 }
 
 export interface SePayConfig {
