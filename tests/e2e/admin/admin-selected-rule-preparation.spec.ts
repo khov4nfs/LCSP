@@ -50,6 +50,10 @@ async function openWorkflow(page: Page, locale = "en") {
   ).toBeVisible();
 }
 
+function ruleCheckboxName(rule: { legalRuleId: string; title: string }, locale = "en") {
+  return `${locale === "vi" ? vi.selectRule : en.selectRule} ${rule.legalRuleId} · ${rule.title}`;
+}
+
 async function chooseCatalog(page: Page, locale = "en") {
   await page
     .getByRole("combobox", {
@@ -65,7 +69,7 @@ async function chooseCatalog(page: Page, locale = "en") {
     .click();
   await expect(
     page.getByRole("checkbox", {
-      name: `${fixture.rules[0].legalRuleId} · ${fixture.rules[0].title}`,
+      name: ruleCheckboxName(fixture.rules[0]),
       exact: true,
     }),
   ).toBeVisible();
@@ -255,7 +259,7 @@ test("cross-page explicit selection, changed filters and server Select all retai
   ).toBeDisabled();
   await page
     .getByRole("checkbox", {
-      name: `${fixture.rules[0].legalRuleId} · ${fixture.rules[0].title}`,
+      name: ruleCheckboxName(fixture.rules[0]),
       exact: true,
     })
     .check();
@@ -265,13 +269,13 @@ test("cross-page explicit selection, changed filters and server Select all retai
     .click();
   await page
     .getByRole("checkbox", {
-      name: `${fixture.rules[50].legalRuleId} · ${fixture.rules[50].title}`,
+      name: ruleCheckboxName(fixture.rules[50]),
       exact: true,
     })
     .check();
   await expect(
     page.getByRole("checkbox", {
-      name: `${fixture.rules[51].legalRuleId} · ${fixture.rules[51].title}`,
+      name: ruleCheckboxName(fixture.rules[51]),
       exact: true,
     }),
   ).toBeDisabled();
@@ -279,7 +283,7 @@ test("cross-page explicit selection, changed filters and server Select all retai
   await page.getByLabel(en.search, { exact: true }).fill("LR001");
   await expect(
     page.getByRole("checkbox", {
-      name: `${fixture.rules[0].legalRuleId} · ${fixture.rules[0].title}`,
+      name: ruleCheckboxName(fixture.rules[0]),
       exact: true,
     }),
   ).toBeChecked();
@@ -400,7 +404,7 @@ test("stale confirmation fails visibly, retains selection and dispatches nothing
   await chooseCatalog(page);
   await page
     .getByRole("checkbox", {
-      name: `${fixture.rules[0].legalRuleId} · ${fixture.rules[0].title}`,
+      name: ruleCheckboxName(fixture.rules[0]),
       exact: true,
     })
     .check();
@@ -462,7 +466,7 @@ test("catalog authoring feeds the same build workflow without a separate test-on
     .getByRole("button", { name: en.save, exact: true })
     .click();
   const checkbox = page.getByRole("checkbox", {
-    name: `${fixture.authoring.legalRuleId} · ${fixture.authoring.title}`,
+    name: ruleCheckboxName(fixture.authoring),
     exact: true,
   });
   await checkbox.focus();
@@ -486,7 +490,7 @@ test("Vietnamese controls remain keyboard-accessible at mobile width", async ({
   await openWorkflow(page, "vi");
   await chooseCatalog(page, "vi");
   const checkbox = page.getByRole("checkbox", {
-    name: `${fixture.rules[0].legalRuleId} · ${fixture.rules[0].title}`,
+    name: ruleCheckboxName(fixture.rules[0], "vi"),
     exact: true,
   });
   await checkbox.focus();

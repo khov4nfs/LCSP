@@ -88,7 +88,7 @@ export function AssessmentComposer({
       const heightLimit = expanded ? expandedHeightLimit : collapsedHeight;
       textarea.style.height = `${Math.min(contentHeight, heightLimit)}px`;
       textarea.style.overflowY =
-        contentHeight > heightLimit ? "auto" : "hidden";
+        contentHeight > heightLimit + 1 ? "auto" : "hidden";
       setCanResize(contentHeight > collapsedHeight + 1);
     };
     resize();
