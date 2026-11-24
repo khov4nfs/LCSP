@@ -1,6 +1,10 @@
 import type { z } from "zod";
-import type { LegalRuleSourceProvision } from "@lcsp/contracts/legal-rule-catalog";
+import type {
+  AssessmentRuleImportResult,
+  LegalRuleSourceProvision,
+} from "@lcsp/contracts/legal-rule-catalog";
 import type { LegalSourceDocumentView } from "@lcsp/contracts/legal-source";
+import type { assessmentRuleImportFormSchema } from "../schemas/assessment-rule-import-form.schema";
 import type {
   legalRuleCatalogFormSchema,
   legalRuleFormSchema,
@@ -19,3 +23,11 @@ export interface LegalRuleReferencePreviewProps {
     "hasOriginal" | "sourceUrl"
   > | null;
 }
+
+export type AssessmentRuleImportFormValues = z.infer<
+  typeof assessmentRuleImportFormSchema
+>;
+// What one document's server call produced; the message of a failure is already resolved copy.
+export type AssessmentRuleImportOutcome =
+  | { kind: "RESULT"; result: AssessmentRuleImportResult }
+  | { kind: "ERROR"; message: string };

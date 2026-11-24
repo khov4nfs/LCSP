@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileTextIcon, Trash2Icon } from "lucide-react";
+import { FileTextIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   LEGAL_RULE_PREPARATION_STATES as STATES,
@@ -57,6 +57,7 @@ import {
 } from "../../utils/legal-rule-formatter";
 import { LegalRuleCatalogBatch } from "./legal-rule-catalog-batch";
 import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
+import { AssessmentRuleImportDialog } from "./assessment-rule-import-dialog";
 
 /**
  * Business purpose: Build a Preparation Rule Set from explicitly selected canonical rules after chunking.
@@ -106,6 +107,7 @@ export function LegalRuleCatalogWorkflow({
   );
   const [inspectedRule, setInspectedRule] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const batchId = useSearchParams().get("preparationBatchId");
   const [confirming, setConfirming] = useState(false);
@@ -450,6 +452,14 @@ export function LegalRuleCatalogWorkflow({
               onClick={() => setEditing(null)}
             >
               {t("addRule")}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!rules.data}
+              onClick={() => setImportOpen(true)}
+            >
+              <UploadIcon className="mr-2 size-4" />
+              {t("importAssessmentRules")}
             </Button>
             <Button
               variant="outline"
@@ -934,6 +944,14 @@ export function LegalRuleCatalogWorkflow({
           ruleId={inspectedRule}
           onClose={() => setInspectedRule(null)}
           onBatch={showBatch}
+        />
+      ) : null}
+      {importOpen && catalogId && rules.data ? (
+        <AssessmentRuleImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          catalogId={catalogId}
+          catalogRevision={rules.data.catalogRevision}
         />
       ) : null}
       {pickerOpen && catalogId ? (

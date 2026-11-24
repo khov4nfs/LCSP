@@ -480,3 +480,63 @@ export function useDeleteLegalRuleCatalog() {
       client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
   });
 }
+
+/**
+ * Business purpose: Let an Admin check or import externally authored Assessment Rules into one catalog without running the Preparation agent.
+ *
+ * Business rules:
+ * - A dry run only validates and previews; the API alone decides validity, revision and conflicts, and nothing is recorded until a non-dry-run request is acknowledged.
+ * - Only a real import changes what the catalog shows, so only it refreshes cached catalog reads.
+ *
+ * Execution flow:
+ * 1. POST one v1 document to the catalog-scoped import route through the schema-validating client.
+ * 2. Validate the acknowledgement.
+ * 3. After a real import, invalidate the catalog query prefix.
+ *
+ * Failure cases:
+ * - Stale revision, active run, invalid output, authorization and response-contract failures remain mutation errors.
+ *
+ * Side effects:
+ * - One explicit API request; a real import records prepared result revisions server-side and never activates them.
+ */
+export function useAssessmentRuleImport(catalogId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Send one authored import document for checking or recording.
+     * Business rules:
+     * - The document is sent exactly as authored apart from the caller's dryRun choice.
+     * Execution flow:
+     * 1. Serialize and POST the document to the import route.
+     * Failure cases:
+     * - Any API or contract failure rejects the mutation.
+     * Side effects:
+     * - One upstream request.
+     */
+    mutationFn: (request: C.AssessmentRuleImportRequest) =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/assessment-rules/import`,
+        C.assessmentRuleImportResultSchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    /**
+     * Business purpose: Refresh catalog reads once rules were really imported.
+     * Business rules:
+     * - A dry run changes nothing and therefore never invalidates caches.
+     * Execution flow:
+     * 1. Skip dry-run acknowledgements; otherwise invalidate the catalog prefix.
+     * Failure cases:
+     * - Invalidation failures propagate through the mutation lifecycle.
+     * Side effects:
+     * - Marks catalog queries stale after a real import.
+     */
+    onSuccess: (data) =>
+      data.dryRun
+        ? undefined
+        : client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}
