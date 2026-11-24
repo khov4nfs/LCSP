@@ -959,11 +959,14 @@ describe("Auth workspace (e2e)", () => {
     const failure = expectFailure(result.body);
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
 
-    const auditEvents = await prisma.auditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany({
+      orderBy: { createdAt: "desc" },
+    });
     const mfaFailed = auditEvents.find(
       (e) =>
         (e.payload as Record<string, unknown>)["event_type"] ===
-        AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed,
+          AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed &&
+        (e.payload as Record<string, unknown>).otp_failure_reason !== undefined,
     );
     assert.ok(mfaFailed, "auth.mfa.failed audit event should be recorded");
     assert.equal(
