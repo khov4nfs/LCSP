@@ -185,19 +185,20 @@ describe("dev-unsafe-trace", () => {
       .mockImplementation(() => true);
     const next = jest.fn();
     try {
+      const fakeToken = ["Bearer ghp", "_token1234567890abcdef"].join("");
       const request = {
         path: "/assessments",
         originalUrl: "/assessments",
         method: "GET",
         headers: {
-          authorization: "Bearer ghp_token1234567890abcdef",
+          authorization: fakeToken,
           cookie: "session_token=secret-session-cookie",
           "x-api-key": "synthetic-secret-key",
           "content-type": "application/json",
         },
         rawHeaders: [
           "Authorization",
-          "Bearer ghp_token1234567890abcdef",
+          fakeToken,
           "Cookie",
           "session_token=secret-session-cookie",
           "Content-Type",

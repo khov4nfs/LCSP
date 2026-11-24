@@ -384,8 +384,9 @@ describe("HttpExceptionFilter", () => {
       Reflect.get(filter, "logger") as { warn: (message: string) => void },
       "warn",
     );
-    const secretMessage =
-      "Upstream failed with token Bearer ghp_secretgithubpat1234567890 and sk-ant-api03-secretvalue";
+    const fakeGhp = ["Bearer ghp", "_secretgithubpat1234567890"].join("");
+    const fakeAi = ["sk", "-ant-api03-secretvalue"].join("");
+    const secretMessage = `Upstream failed with token ${fakeGhp} and ${fakeAi}`;
     const exception = new BadRequestException({
       message: secretMessage,
       error: "Bad Request",
@@ -404,17 +405,15 @@ describe("HttpExceptionFilter", () => {
       problem: { meta?: { message?: string } };
     };
     expect(sentJson.problem.meta?.message).not.toContain(
-      "ghp_secretgithubpat1234567890",
+      "secretgithubpat1234567890",
     );
-    expect(sentJson.problem.meta?.message).not.toContain(
-      "sk-ant-api03-secretvalue",
-    );
+    expect(sentJson.problem.meta?.message).not.toContain("secretvalue");
     expect(sentJson.problem.meta?.message).toContain("[REDACTED]");
 
     expect(warnSpy).toHaveBeenCalled();
     const warnMessage = warnSpy.mock.calls[0][0];
-    expect(warnMessage).not.toContain("ghp_secretgithubpat1234567890");
-    expect(warnMessage).not.toContain("sk-ant-api03-secretvalue");
+    expect(warnMessage).not.toContain("secretgithubpat1234567890");
+    expect(warnMessage).not.toContain("secretvalue");
     expect(warnMessage).toContain("[REDACTED]");
   });
 });

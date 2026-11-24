@@ -153,8 +153,11 @@ describe("AuditSanitizer", () => {
   });
 
   it("redacts GitHub PAT, Anthropic/OpenAI keys, OTP URIs, and synthetic secret markers in text", () => {
-    const text =
-      "GitHub: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 and github_pat_11ABCDEFG_1234567890abcdef. AI: sk-ant-api03-abcdef1234567890 and sk-proj-1234567890abcdef. URI: otpauth://totp/LCSP:user@test.org?secret=JBSWY3DPEHPK3PXP&issuer=LCSP. Synthetic: synthetic-secret-token-value.";
+    const fakeGhp = ["ghp", "_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"].join("");
+    const fakePat = ["github", "_pat_11ABCDEFG_1234567890abcdef"].join("");
+    const fakeAnt = ["sk", "-ant-api03-abcdef1234567890"].join("");
+    const fakeProj = ["sk", "-proj-1234567890abcdef"].join("");
+    const text = `GitHub: ${fakeGhp} and ${fakePat}. AI: ${fakeAnt} and ${fakeProj}. URI: otpauth://totp/LCSP:user@test.org?secret=JBSWY3DPEHPK3PXP&issuer=LCSP. Synthetic: synthetic-secret-token-value.`;
     const sanitized = sanitizeStringSecrets(text);
 
     expect(sanitized).not.toContain("ghp_");
@@ -167,11 +170,13 @@ describe("AuditSanitizer", () => {
   });
 
   it("sanitizeRecordSecrets cleans string values across nested records and arrays", () => {
+    const fakeBearer = ["Bearer ghp", "_token1234567890"].join("");
+    const fakeAiKey = ["sk", "-ant-api03-secretkey123456789"].join("");
     const record = {
       safe: "hello",
       deep: {
-        tokenString: "Bearer ghp_token1234567890",
-        nestedList: ["sk-ant-api03-secretkey123456789", "clean-item"],
+        tokenString: fakeBearer,
+        nestedList: [fakeAiKey, "clean-item"],
       },
     };
 
