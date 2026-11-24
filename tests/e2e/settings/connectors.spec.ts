@@ -267,11 +267,18 @@ test("canceling PAT update verification keeps the previous credential and clears
 }) => {
   const state = await setup(page);
   // Hold a successful proof response until after the browser dismisses its challenge.
-  const proofStarted = Promise.withResolvers<void>();
-  const releaseProof = Promise.withResolvers<void>();
+  // Promise executors run synchronously and keep both signals compatible with ES2022.
+  let markProofStarted!: () => void;
+  const proofStarted = new Promise<void>((resolve) => {
+    markProofStarted = resolve;
+  });
+  let releaseProof!: () => void;
+  const proofReleased = new Promise<void>((resolve) => {
+    releaseProof = resolve;
+  });
   await page.route("**/api/auth/re-auth/password", async (route) => {
-    proofStarted.resolve();
-    await releaseProof.promise;
+    markProofStarted();
+    await proofReleased;
     state.reauthenticated = true;
     await route.fulfill({ json: { ok: true, data: {} } });
   });
@@ -291,10 +298,10 @@ test("canceling PAT update verification keeps the previous credential and clears
     verification.getByRole("heading", { name: "Confirm access" }),
   ).toBeVisible();
   await verifyPassword(page);
-  await proofStarted.promise;
+  await proofStarted;
   await page.keyboard.press("Escape");
   const proofResponse = page.waitForResponse("**/api/auth/re-auth/password");
-  releaseProof.resolve();
+  releaseProof();
   await proofResponse;
   await expect(credentialDialog.getByRole("alert")).toContainText(
     "Verification canceled",
