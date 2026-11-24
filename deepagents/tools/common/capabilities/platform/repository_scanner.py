@@ -752,7 +752,10 @@ class RepositoryScanner:
                 },
             ]
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        # Rationale: Standardize UTC timestamp serialization to canonical 'Z' suffix to align with strict ISO contracts.
+        # Mechanism: Replaces Python's default '+00:00' timezone representation with 'Z'.
+        # Invariant: Ensures consistent UTC timestamps across scanner output and API validation layers.
+        now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         profile_without_digest = {
             "repositoryId": self.repository_id,
             "commitSha": self.commit_sha,

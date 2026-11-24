@@ -73,14 +73,37 @@ export function customerAssessmentState(
 }
 
 /**
- * Whether the Root is executing right now. This is the only source of "animated" UI: a stale
- * event or a stopped/finished/failed run can never leave a spinner behind.
+ * Business purpose: Determine whether the Root agent or rule audit is actively executing right now.
+ * Business rules:
+ * - Only active and finalizing lifecycles can be executing.
+ * - Customer-selected cases prior to rule submission or between completed batches are not running.
+ * - Paused, failed, interrupted or stopped executions never leave a running spinner behind.
+ * Execution flow:
+ * 1. Return false when lifecycle or runtime is absent.
+ * 2. Return false for customer-selected mode without an active audit request in flight.
+ * 3. Return true only when execution state is queued or running under active/finalizing lifecycle.
+ * Failure cases:
+ * - Missing or terminal states return false.
+ * Side effects:
+ * - Pure predicate; no mutations or side effects.
  */
 export function isRuntimeRunning(
   lifecycle: AssessmentLifecycle | null,
   runtime: AssessmentRuntime | null,
+  assessmentCase?: AssessmentDetail["case"],
 ): boolean {
   if (!lifecycle || !runtime) return false;
+  // Rationale: In CUSTOMER_SELECTED mode, prevent UI from indicating active execution while customer is still selecting rules or after batch success.
+  // Mechanism: Check auditMode and suppress running state when auditRequestRevision is 0 with QUEUED state, or when SUCCEEDED.
+  // Invariant: Preserves accurate execution state projection without false-positive animated spinners.
+  if (
+    assessmentCase?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED &&
+    ((assessmentCase.auditRequestRevision === 0 &&
+      runtime.executionState === AGENT_EXECUTION_STATES.QUEUED) ||
+      runtime.executionState === AGENT_EXECUTION_STATES.SUCCEEDED)
+  ) {
+    return false;
+  }
   const executing =
     runtime.executionState === AGENT_EXECUTION_STATES.RUNNING ||
     runtime.executionState === AGENT_EXECUTION_STATES.QUEUED;
