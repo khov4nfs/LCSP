@@ -5,6 +5,7 @@ import {
   legalRequirementSchema,
   assessmentRuleSchema,
   assessmentRuleAuthoringSchema,
+  assessmentRuleCriterionSchema,
   legalContextRelationSchema,
   complianceRuleSetPacketSchema,
 } from "../compliance-rule-set/schemas.ts";
@@ -37,6 +38,7 @@ export const LEGAL_RULE_CATALOG_EVENTS = {
   SELECTED: "event.legal-rule-catalog.selected.v1",
   PREPARATION_REQUESTED: "event.legal-rule-catalog.preparation-requested.v1",
   RESULT_RECORDED: "event.legal-rule-catalog.result-recorded.v1",
+  RESULT_IMPORTED: "event.legal-rule-catalog.result-imported.v1",
   DELETED: "event.legal-rule-catalog.deleted.v1",
 } as const;
 export const LEGAL_RULE_INELIGIBILITY_REASONS = {
@@ -277,6 +279,131 @@ export const preparationRuleOutputSchema = z
   })
   .transform(normalizeSelectedRuleOutput);
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;
+/** Version of the externally authored Assessment Rule Import document. */
+export const ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION = 1 as const;
+/** Why a reviewed Legal Rule (or part of one) was deliberately not imported. */
+export const ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS = {
+  CONTEXT_ONLY: "CONTEXT_ONLY",
+  OUT_OF_SCOPE: "OUT_OF_SCOPE",
+  NON_ASSESSABLE: "NON_ASSESSABLE",
+  NEEDS_REVIEW: "NEEDS_REVIEW",
+} as const;
+/** Fixed analysis text stored when an import item supplies none. */
+export const ASSESSMENT_RULE_IMPORT_DEFAULT_ANALYSIS =
+  "Imported via Assessment Rule Import v1.";
+const importId = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u);
+// The import omits server-derived prose (legalIntent, applicabilityGuidance, criteria[].statement,
+// unresolvedConditions, contextRelationIds) so a stray value is rejected instead of silently trusted.
+const assessmentRuleImportRuleSchema = assessmentRuleAuthoringSchema
+  .omit({
+    legalIntent: true,
+    applicabilityGuidance: true,
+    unresolvedConditions: true,
+    contextRelationIds: true,
+    semanticAuthority: true,
+    criteria: true,
+  })
+  .extend({
+    criteria: z
+      .array(
+        assessmentRuleCriterionSchema.omit({ statement: true }).extend({
+          legalRequirementIds: z.array(importId).min(1).max(64),
+        }),
+      )
+      .min(1)
+      .max(64),
+  })
+  // Agent-oriented investigation hints are optional in v1; the importer stores them empty.
+  .partial({
+    investigationGoals: true,
+    startingNodeTypes: true,
+    targetNodeTypes: true,
+    edgeStrategies: true,
+    graphQueries: true,
+    keywords: true,
+    commonApis: true,
+    commonLibraries: true,
+    patterns: true,
+    supportingEvidence: true,
+    negativeEvidence: true,
+  });
+export type AssessmentRuleImportRule = z.infer<
+  typeof assessmentRuleImportRuleSchema
+>;
+export const assessmentRuleImportItemSchema = z.strictObject({
+  ruleId: id,
+  analysis: text.max(100000).optional(),
+  legalRequirements: z
+    .array(legalRequirementSchema)
+    .min(1)
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+  contextRelations: z
+    .array(legalContextRelationSchema)
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts)
+    .default([]),
+  assessmentRules: z
+    .array(assessmentRuleImportRuleSchema)
+    .min(1)
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+});
+export type AssessmentRuleImportItem = z.infer<
+  typeof assessmentRuleImportItemSchema
+>;
+export const assessmentRuleImportExcludedItemSchema = z.strictObject({
+  ruleId: id,
+  reasonCode: z.enum(ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS),
+  reason: text,
+});
+export const assessmentRuleImportRequestSchema = z
+  .strictObject({
+    schemaVersion: z.literal(ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION),
+    catalogVersionId: id,
+    expectedCatalogRevision: z.number().int().positive(),
+    legalSourceVersionId: id,
+    // When true the document is fully validated and previewed but nothing is written.
+    dryRun: z.boolean().default(false),
+    items: z
+      .array(assessmentRuleImportItemSchema)
+      .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+    excludedItems: z
+      .array(assessmentRuleImportExcludedItemSchema)
+      .max(LEGAL_RULE_LIMITS.catalogRules)
+      .default([]),
+  })
+  .refine(
+    (request) =>
+      new Set(request.items.map((item) => item.ruleId)).size ===
+      request.items.length,
+    { message: "each ruleId may appear once in items", path: ["items"] },
+  );
+export type AssessmentRuleImportRequest = z.infer<
+  typeof assessmentRuleImportRequestSchema
+>;
+export const assessmentRuleImportResultSchema = z.strictObject({
+  catalogVersionId: id,
+  catalogRevision: z.number().int().positive(),
+  legalSourceVersionId: id,
+  dryRun: z.boolean(),
+  imported: z.array(
+    z.strictObject({
+      ruleId: id,
+      // Null in a dry run, where no result is recorded; `revision` is then the revision an import would record.
+      resultId: id.nullable(),
+      revision: z.number().int().positive(),
+      assessmentRuleCount: z.number().int().min(0),
+      // True when an identical prepared result already existed and nothing was written.
+      replayed: z.boolean(),
+    }),
+  ),
+  excludedItems: z.array(assessmentRuleImportExcludedItemSchema),
+});
+export type AssessmentRuleImportResult = z.infer<
+  typeof assessmentRuleImportResultSchema
+>;
 export const preparationInstructionReceiptSchema = z.strictObject({
   revision: z.string().trim().min(1).max(256),
   content: z.string().min(1).max(200000),
