@@ -8,12 +8,13 @@ import { GetOAuthIdentitiesQuery } from "./get-oauth-identities.query.ts";
 
 describe("GetOAuthIdentitiesHandler", () => {
   it("returns an empty list when user has no linked identities", async () => {
+    const findByUserId = jest
+      .fn<OAuthIdentityRepository["findByUserId"]>()
+      .mockResolvedValue([]);
     const mockRepo: OAuthIdentityRepository = {
       findByProviderAccount:
         jest.fn<OAuthIdentityRepository["findByProviderAccount"]>(),
-      findByUserId: jest
-        .fn<OAuthIdentityRepository["findByUserId"]>()
-        .mockResolvedValue([]),
+      findByUserId,
       linkToUser: jest.fn<OAuthIdentityRepository["linkToUser"]>(),
     };
 
@@ -24,13 +25,14 @@ describe("GetOAuthIdentitiesHandler", () => {
           userId: "user-123",
           sessionId: "session-123",
           role: AUTH_USER_ROLES.customer,
+          scope: null,
         },
         "corr-1",
       ),
     );
 
     expect(result).toEqual({ identities: [] });
-    expect(mockRepo.findByUserId).toHaveBeenCalledWith("user-123");
+    expect(findByUserId).toHaveBeenCalledWith("user-123");
   });
 
   it("returns mapped identity summaries with ISO linked_at timestamp", async () => {
@@ -43,12 +45,13 @@ describe("GetOAuthIdentitiesHandler", () => {
       createdAt: fixedTime,
     });
 
+    const findByUserId = jest
+      .fn<OAuthIdentityRepository["findByUserId"]>()
+      .mockResolvedValue([identity]);
     const mockRepo: OAuthIdentityRepository = {
       findByProviderAccount:
         jest.fn<OAuthIdentityRepository["findByProviderAccount"]>(),
-      findByUserId: jest
-        .fn<OAuthIdentityRepository["findByUserId"]>()
-        .mockResolvedValue([identity]),
+      findByUserId,
       linkToUser: jest.fn<OAuthIdentityRepository["linkToUser"]>(),
     };
 
@@ -59,6 +62,7 @@ describe("GetOAuthIdentitiesHandler", () => {
           userId: "user-456",
           sessionId: "session-456",
           role: AUTH_USER_ROLES.customer,
+          scope: null,
         },
         "corr-2",
       ),
@@ -73,5 +77,6 @@ describe("GetOAuthIdentitiesHandler", () => {
         },
       ],
     });
+    expect(findByUserId).toHaveBeenCalledWith("user-456");
   });
 });

@@ -163,9 +163,7 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
     // Mechanism: Check pre-existing identity ownership, persist via upsert, and strictly verify post-persistence ownership of the returned record.
     // Invariant: An OAuth identity must never belong to more than one user, and existing links to the current user must remain idempotent without re-attributing ownership.
     let linked = false;
-    if (existingIdentity) {
-      linked = false;
-    } else {
+    if (!existingIdentity) {
       const persistedIdentity = await oauthIdentities.linkToUser(
         oauthState.provider,
         claims.providerAccountId,

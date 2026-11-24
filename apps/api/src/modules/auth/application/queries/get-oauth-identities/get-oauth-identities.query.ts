@@ -1,8 +1,8 @@
-import type { RbacContext } from "../../../../../platform/rbac/interfaces/rbac-context.interface.ts";
+import type { RbacRequestContext } from "../../../../../platform/rbac/interfaces/rbac-request.interface.ts";
 
 export class GetOAuthIdentitiesQuery {
   constructor(
-    public readonly context: RbacContext,
+    public readonly context: RbacRequestContext,
     public readonly correlationId?: string,
   ) {}
 }

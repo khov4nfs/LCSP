@@ -189,6 +189,12 @@ function buildRepositories(input: {
     },
     oauthIdentities: {
       findByProviderAccount: () => Promise.resolve(input.identity),
+      findByUserId: (userId: string) =>
+        Promise.resolve(
+          input.identity && input.identity.userId === userId
+            ? [input.identity]
+            : [],
+        ),
       linkToUser: (
         provider: string,
         providerAccountId: string,
