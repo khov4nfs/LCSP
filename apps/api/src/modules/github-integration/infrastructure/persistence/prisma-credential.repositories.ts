@@ -68,6 +68,14 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
     return row ? toRecord(row) : null;
   }
 
+  /**
+   * Business purpose: Commit the next version of an owner's provider credential.
+   * Business rules: An active credential must match the owner, provider and previous version.
+   * Execution flow:
+   * 1. Update the version and its lifecycle metadata together.
+   * Failure cases: A stale version, different owner or completed disconnection changes no rows.
+   * Side effects: Updates credential metadata inside the caller's transaction.
+   */
   async updateForRotation(
     id: string,
     ownerUserId: string,
@@ -77,13 +85,22 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
     },
   ): Promise<boolean> {
     const result = await this.client.providerCredential.updateMany({
-      where: { id, ownerUserId, currentVersion: expectedVersion },
+      // A concurrent disconnect leaves the old version number intact while deactivating it.
+      where: {
+        id,
+        ownerUserId,
+        provider: toPrismaCredentialProvider(record.provider),
+        currentVersion: expectedVersion,
+        isActive: true,
+      },
       data: {
         providerAccountId: record.providerAccountId,
         providerLogin: record.providerLogin,
         status: toCredentialStatus(record.status),
         currentVersion: record.currentVersion,
         isActive: true,
+        // Persist expiry with the new version so the resolver evaluates the currently stored PAT.
+        declaredExpiresAt: record.declaredExpiresAt,
         validatedAt: record.validatedAt,
         invalidatedAt: null,
         lastFailureCode: null,

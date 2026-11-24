@@ -119,3 +119,8 @@
 - **Context / Symptom**: The fair-head reservation timed out under the global capacity lock after a burst of 10,001 pending commands. The same case could pass when run alone.
 - **Root Cause**: With pre-backlog statistics, PostgreSQL estimated one pending row and picked a nested loop that rescanned the pending-admission index for each latest command.
 - **Resolution & Invariant**: Select the latest Root command per Assessment before filtering transport status. Use a bounded lookup by the unique command ID before testing pending status, so a burst cannot multiply admission scans under the lock. Verify tail deferral and later admission in the full PostgreSQL integration spec, including broker redelivery.
+
+### [2026-11-24] [SETTINGS] PAT Rotation and Canceled Verification
+- **Context / Symptom**: A replacement PAT could inherit an earlier token's expiry or reactivate a concurrently disconnected row. Dismissing step-up left the pending form without a cancellation outcome.
+- **Root Cause**: Rotation omitted expiry from the persisted update and matched the old version even after its row was deactivated. The web form did not observe challenge dismissal as a terminal result.
+- **Resolution & Invariant**: Persist metadata and encrypted secret together against the active owner/provider/version. Keep declared expiry when the same secret is submitted again. Treat canceled or superseded proof as terminal, and retry status reads independently of acknowledged writes.

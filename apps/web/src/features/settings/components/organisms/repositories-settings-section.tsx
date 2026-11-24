@@ -5,10 +5,12 @@ import {
   type CredentialProvider,
 } from "@lcsp/contracts/github-integration";
 import { resolveMessage } from "@lcsp/i18n";
+import { ShieldCheckIcon } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -79,6 +81,7 @@ export function RepositoriesSettingsSection({
   onRetry,
   onReauthenticate,
 }: RepositoriesSettingsSectionProps) {
+  const patAccessHeadingId = useId();
   const [credentialDialog, setCredentialDialog] = useState<{
     mode: ProviderCredentialDialogMode;
     provider: CredentialProvider;
@@ -108,177 +111,229 @@ export function RepositoriesSettingsSection({
 
   return (
     <section
-      className="relative h-full min-h-0 overflow-hidden px-8.5 py-10 text-foreground"
+      // Keep provider states and the access card in normal flow so wrapping and empty messages cannot overlap.
+      className="h-full min-h-0 space-y-6 overflow-y-auto px-4 py-6 text-foreground md:px-8 md:py-8"
       data-component="ConnectorsSettingsPanel"
     >
-      <p className="absolute top-19.5 left-8.5 text-[13px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {resolveMessage(
           appLocale,
           "pages.workspace.settingsHub.repositories.manageProvidersDescription",
         )}
       </p>
-      <h2 className="absolute top-31.5 left-8.5 text-base font-semibold">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.gitProvidersTitle",
-        )}
-      </h2>
-      <div
-        className="absolute top-41 left-8.5 flex w-218 flex-col gap-2"
-        data-component="ConnectorProviderList"
-      >
-        {isLoading ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.repositories.statusLoading",
-            )}
-          </p>
-        ) : null}
-        {loadFailed ? (
-          <Alert variant="destructive" data-component="ConnectorLoadError">
-            <AlertTitle>
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold">
+          {resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.repositories.gitProvidersTitle",
+          )}
+        </h2>
+        <div
+          className="flex flex-col gap-2"
+          data-component="ConnectorProviderList"
+        >
+          {isLoading ? (
+            <p role="status" className="text-sm text-muted-foreground">
               {resolveMessage(
                 appLocale,
-                "pages.workspace.settingsHub.repositories.loadFailedTitle",
+                "pages.workspace.settingsHub.repositories.statusLoading",
               )}
-            </AlertTitle>
-            <AlertDescription>
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.repositories.loadFailedDescription",
-              )}
-            </AlertDescription>
-            {onRetry ? (
-              <Button
-                className="mt-2 w-fit"
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onRetry}
-              >
+            </p>
+          ) : null}
+          {loadFailed ? (
+            <Alert variant="destructive" data-component="ConnectorLoadError">
+              <AlertTitle>
                 {resolveMessage(
                   appLocale,
-                  "pages.workspace.settingsHub.repositories.retry",
+                  "pages.workspace.settingsHub.repositories.loadFailedTitle",
                 )}
-              </Button>
-            ) : null}
-          </Alert>
-        ) : null}
-        {noneConnected ? (
-          <p className="text-[13px] text-muted-foreground">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.repositories.noneConnectedDescription",
-            )}
-          </p>
-        ) : null}
-        {statusesKnown
-          ? CONNECTOR_PROVIDER_OPTIONS.map((option) => {
-              const providerStatus = statusByProvider.get(
-                option.id as CredentialProvider,
-              );
-              const connectionState =
-                getProviderConnectionState(providerStatus);
-              const configured =
-                option.supported && hasProviderCredential(providerStatus);
-              const actionLabel = configured
-                ? "pages.workspace.settingsHub.repositories.managePat"
-                : "pages.workspace.settingsHub.repositories.connect";
-              const credentialProvider =
-                option.id as SupportedCredentialProvider;
-              return (
-                <div
-                  className="flex h-13 items-center rounded-[10px] border border-border bg-muted/40 px-3.5"
-                  data-component="ConnectorProviderRow"
-                  data-provider={option.id}
-                  key={option.id}
+              </AlertTitle>
+              <AlertDescription>
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.repositories.loadFailedDescription",
+                )}
+              </AlertDescription>
+              {onRetry ? (
+                <Button
+                  className="mt-2 w-fit"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetry}
                 >
-                  <Image
-                    alt=""
-                    aria-hidden="true"
-                    className="size-6 shrink-0"
-                    height={24}
-                    src={option.logo}
-                    width={24}
-                  />
-                  <p className="ml-3.5 min-w-0 flex-1 truncate text-sm font-semibold">
-                    {resolveMessage(appLocale, option.labelKey)}
-                  </p>
-                  <span
-                    className={cn(
-                      "mr-12 w-28 text-[13px]",
-                      PROVIDER_CONNECTION_TONE_CLASSES[connectionState],
-                    )}
-                    data-connection-state={connectionState}
+                  {resolveMessage(
+                    appLocale,
+                    "pages.workspace.settingsHub.repositories.retry",
+                  )}
+                </Button>
+              ) : null}
+            </Alert>
+          ) : null}
+          {noneConnected ? (
+            <p className="text-sm text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.repositories.noneConnectedDescription",
+              )}
+            </p>
+          ) : null}
+          {statusesKnown
+            ? CONNECTOR_PROVIDER_OPTIONS.map((option) => {
+                const providerStatus = statusByProvider.get(
+                  option.id as CredentialProvider,
+                );
+                const connectionState =
+                  getProviderConnectionState(providerStatus);
+                const configured =
+                  option.supported && hasProviderCredential(providerStatus);
+                const actionLabel = configured
+                  ? "pages.workspace.settingsHub.repositories.managePat"
+                  : "pages.workspace.settingsHub.repositories.connect";
+                const credentialProvider =
+                  option.id as SupportedCredentialProvider;
+                return (
+                  <div
+                    // Stack status under the provider name when a full desktop status column would crowd the action.
+                    className="flex min-h-13 items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 sm:gap-4"
+                    data-component="ConnectorProviderRow"
+                    data-provider={option.id}
+                    key={option.id}
                   >
-                    {resolveMessage(
-                      appLocale,
-                      PROVIDER_CONNECTION_LABEL_KEYS[connectionState],
-                    )}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-9 min-w-24 px-3.5 text-sm"
-                    disabled={!option.supported}
-                    onClick={() => {
-                      if (
-                        SUPPORTED_CREDENTIAL_PROVIDERS.includes(
-                          credentialProvider,
-                        )
-                      ) {
-                        openCredentialDialog(
-                          credentialProvider,
-                          configured
-                            ? PROVIDER_CREDENTIAL_DIALOG_MODES.manage
-                            : PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
-                        );
-                      }
-                    }}
-                  >
-                    {resolveMessage(appLocale, actionLabel)}
-                  </Button>
-                </div>
-              );
-            })
-          : null}
+                    <Image
+                      alt=""
+                      aria-hidden="true"
+                      className="size-6 shrink-0"
+                      height={24}
+                      src={option.logo}
+                      width={24}
+                    />
+                    <div className="grid min-w-0 flex-1 gap-0.5 sm:flex sm:items-center sm:gap-4">
+                      <p className="min-w-0 flex-1 text-sm font-medium">
+                        {resolveMessage(appLocale, option.labelKey)}
+                      </p>
+                      <span
+                        className={cn(
+                          "text-xs sm:w-32 sm:shrink-0 sm:text-sm",
+                          PROVIDER_CONNECTION_TONE_CLASSES[connectionState],
+                        )}
+                        data-connection-state={connectionState}
+                      >
+                        {resolveMessage(
+                          appLocale,
+                          PROVIDER_CONNECTION_LABEL_KEYS[connectionState],
+                        )}
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 shrink-0 sm:w-28"
+                      disabled={!option.supported}
+                      onClick={() => {
+                        if (
+                          SUPPORTED_CREDENTIAL_PROVIDERS.includes(
+                            credentialProvider,
+                          )
+                        ) {
+                          openCredentialDialog(
+                            credentialProvider,
+                            configured
+                              ? PROVIDER_CREDENTIAL_DIALOG_MODES.manage
+                              : PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
+                          );
+                        }
+                      }}
+                    >
+                      {resolveMessage(appLocale, actionLabel)}
+                    </Button>
+                  </div>
+                );
+              })
+            : null}
+        </div>
       </div>
 
-      <h2 className="absolute top-104.5 left-8.5 text-base font-semibold">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.githubPatAccessTitle",
-        )}
-      </h2>
-      <PatAccessRow
-        className="top-114.5"
-        labelKey="pages.workspace.settingsHub.repositories.repositoryReadAccess"
-        connected={githubConfigured}
-        unknown={!statusesKnown}
-      />
-      <PatAccessRow
-        className="top-125"
-        labelKey="pages.workspace.settingsHub.repositories.codeRemediationWriteAccess"
-        helperKey="pages.workspace.settingsHub.repositories.codeRemediationWriteHelper"
-      />
-      <Button
-        className="absolute top-134.5 left-191 h-9 w-27.5 text-sm"
-        type="button"
-        variant="outline"
-        disabled={!statusesKnown || !hasProviderCredential(githubStatus)}
-        onClick={() =>
-          openCredentialDialog(
-            CREDENTIAL_PROVIDERS.github,
-            PROVIDER_CREDENTIAL_DIALOG_MODES.update,
-          )
-        }
-      >
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.updatePat",
-        )}
-      </Button>
+      {/* Show GitHub-specific access only when its own PAT can be managed, including expired credentials. */}
+      {statusesKnown && hasProviderCredential(githubStatus) ? (
+        <section
+          aria-labelledby={patAccessHeadingId}
+          className="rounded-xl border border-border bg-card"
+        >
+          {/* Keep the PAT action in the card header and let longer translations wrap within the card. */}
+          <header className="flex flex-wrap items-center justify-between gap-3 rounded-t-xl border-b border-border bg-muted/30 px-4 py-3">
+            <h2
+              id={patAccessHeadingId}
+              className="flex min-w-0 items-center gap-2 text-sm font-semibold sm:text-base"
+            >
+              <ShieldCheckIcon
+                className="size-5 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.repositories.githubPatAccessTitle",
+              )}
+            </h2>
+            <Button
+              className="ml-auto shrink-0"
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                openCredentialDialog(
+                  CREDENTIAL_PROVIDERS.github,
+                  PROVIDER_CREDENTIAL_DIALOG_MODES.update,
+                )
+              }
+            >
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.repositories.updatePat",
+              )}
+            </Button>
+          </header>
+          <dl className="divide-y divide-border">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+              <dt className="text-sm font-medium">
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.repositories.repositoryReadAccess",
+                )}
+              </dt>
+              <dd>
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    githubConfigured && "bg-primary/10 text-primary",
+                  )}
+                >
+                  {resolveMessage(
+                    appLocale,
+                    githubConfigured
+                      ? "pages.workspace.settingsHub.repositories.connected"
+                      : "pages.workspace.settingsHub.repositories.notConnected",
+                  )}
+                </Badge>
+              </dd>
+            </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3">
+              <dt className="text-sm font-medium">
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.repositories.codeRemediationWriteAccess",
+                )}
+              </dt>
+              <dd className="text-sm text-muted-foreground">
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.repositories.codeRemediationWriteHelper",
+                )}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
       {credentialDialog ? (
         <ProviderCredentialDialog
           open={credentialDialog !== null}
@@ -299,49 +354,5 @@ export function RepositoriesSettingsSection({
         />
       ) : null}
     </section>
-  );
-}
-
-function PatAccessRow({
-  className,
-  connected,
-  helperKey,
-  labelKey,
-  unknown = false,
-}: {
-  className: string;
-  connected?: boolean;
-  /** Hide the connected/not-connected claim while the connection state is unknown. */
-  unknown?: boolean;
-  helperKey?: Parameters<typeof resolveMessage>[1];
-  labelKey: Parameters<typeof resolveMessage>[1];
-}) {
-  return (
-    <div
-      className={`absolute left-8.5 flex h-9 w-218 items-center ${className}`}
-    >
-      <p className="min-w-0 flex-1 truncate text-[13px]">
-        {resolveMessage(appLocale, labelKey)}
-      </p>
-      {helperKey ? (
-        <p className="mr-30 w-70 truncate text-xs text-muted-foreground">
-          {resolveMessage(appLocale, helperKey)}
-        </p>
-      ) : unknown ? null : (
-        <span
-          className={cn(
-            "mr-30 w-24 text-xs",
-            connected ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          {resolveMessage(
-            appLocale,
-            connected
-              ? "pages.workspace.settingsHub.repositories.connected"
-              : "pages.workspace.settingsHub.repositories.notConnected",
-          )}
-        </span>
-      )}
-    </div>
   );
 }

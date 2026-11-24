@@ -278,9 +278,11 @@ function Remove-HostsOverride([string]$Domain) {
 function Ensure-Hosts([string]$Domain) {
     $escaped = [regex]::Escape($Domain)
 
-    # Allow stale entries that are ours; reject anything else.
+    # Windows ignores text after the first #. Match only active aliases to avoid
+    # rejecting comments, but keep the full line to check the ownership marker.
     $matching = Get-Content $HostsPath | Where-Object {
-        $_ -match ("(^|\s)" + $escaped + "(\s|$)")
+        $activeMapping = ($_ -split '#', 2)[0]
+        $activeMapping -match ("(^|\s)" + $escaped + "(\s|$)")
     }
 
     $foreign = $matching | Where-Object {

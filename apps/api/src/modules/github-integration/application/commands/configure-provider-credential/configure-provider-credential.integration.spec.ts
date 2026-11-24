@@ -7,7 +7,10 @@ import {
 } from "@prisma/client";
 import { describe, expect, it, beforeAll, afterAll, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
+import {
+  CREDENTIAL_PROVIDERS,
+  PROVIDER_CREDENTIAL_STATUSES,
+} from "@lcsp/contracts/github-integration";
 
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { ConfigureProviderCredentialCommand } from "./configure-provider-credential.command.js";
@@ -108,6 +111,19 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
       }),
     ).resolves.toMatchObject({ id: first.id });
 
+    // Model expiry declared through an earlier connection. Only the replacement may change that expiry.
+    const expired = new Date("2020-01-01T00:00:00Z");
+    await prisma.providerCredential.update({
+      where: { id: first.id },
+      data: { declaredExpiresAt: expired },
+    });
+    const owner = {
+      userId: "integration-user",
+      provider: CREDENTIAL_PROVIDERS.gitlab,
+    };
+    await expect(resolver.findLifecycle(owner)).resolves.toMatchObject({
+      status: PROVIDER_CREDENTIAL_STATUSES.expired,
+    });
     await handler.execute(command("synthetic-gitlab-credential-b"));
     const rows = await prisma.providerCredential.findMany({
       where: { ownerUserId: "integration-user" },
@@ -117,6 +133,7 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
     const replacement = rows[0];
     expect(replacement.id).toBe(first.id);
     expect(replacement.currentVersion).toBe(2);
+    expect(replacement.declaredExpiresAt).toBeNull();
     expect(replacement.isActive).toBe(true);
     expect(await activeCount()).toBe(1);
     await expect(
@@ -125,6 +142,10 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
         provider: CredentialProvider.GITLAB,
       }),
     ).resolves.toMatchObject({ id: first.id, currentVersion: 2 });
+    await expect(resolver.findLifecycle(owner)).resolves.toMatchObject({
+      currentVersion: 2,
+      status: PROVIDER_CREDENTIAL_STATUSES.active,
+    });
   });
 
   it("keeps the existing active credential when identity validation fails", async () => {
@@ -220,6 +241,12 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
     const first = await prisma.providerCredential.findFirstOrThrow({
       where: { ownerUserId: "same-secret-user" },
     });
+    // Re-entering the existing secret may rotate its version, but cannot extend its declared lifetime.
+    const futureExpiry = new Date("2099-01-01T00:00:00Z");
+    await prisma.providerCredential.update({
+      where: { id: first.id },
+      data: { declaredExpiresAt: futureExpiry },
+    });
     await handler.execute(
       new ConfigureProviderCredentialCommand(
         "same-secret-user",
@@ -238,6 +265,105 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
     expect(rows[0].id).toBe(first.id);
     expect(rows[0].currentVersion).toBe(first.currentVersion + 1);
     expect(rows[0].isActive).toBe(true);
+    expect(rows[0].declaredExpiresAt).toEqual(futureExpiry);
+
+    await prisma.providerCredential.update({
+      where: { id: first.id },
+      data: { declaredExpiresAt: new Date("2020-01-01T00:00:00Z") },
+    });
+    await expect(
+      handler.execute(
+        new ConfigureProviderCredentialCommand(
+          "same-secret-user",
+          AUTH_USER_ROLES.customer,
+          "integration-session",
+          CREDENTIAL_PROVIDERS.gitlab,
+          "synthetic-same-secret-credential",
+          "integration-correlation",
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 401 });
+    await expect(
+      resolver.findLifecycle({
+        userId: "same-secret-user",
+        provider: CREDENTIAL_PROVIDERS.gitlab,
+      }),
+    ).resolves.toMatchObject({
+      currentVersion: first.currentVersion + 1,
+      status: PROVIDER_CREDENTIAL_STATUSES.expired,
+    });
+  });
+
+  it("retains the declared expiry when only the Azure organization hint changes", async () => {
+    const userId = "azure-expiry-user";
+    const rotation = (credential: string) =>
+      new ConfigureProviderCredentialCommand(
+        userId,
+        AUTH_USER_ROLES.customer,
+        "integration-session",
+        CREDENTIAL_PROVIDERS.azureDevOps,
+        credential,
+        "integration-correlation",
+      );
+    await prisma.providerCredential.deleteMany({
+      where: { ownerUserId: userId },
+    });
+    await handler.execute(
+      rotation("workspace-a:synthetic-unchanged-azure-pat"),
+    );
+    const expiry = new Date("2099-01-01T00:00:00Z");
+    // Azure's organization prefix selects context, while expiry follows the actual PAT.
+    await prisma.providerCredential.updateMany({
+      where: { ownerUserId: userId },
+      data: { declaredExpiresAt: expiry },
+    });
+    await handler.execute(
+      rotation("workspace-b:synthetic-unchanged-azure-pat"),
+    );
+    await expect(
+      prisma.providerCredential.findFirstOrThrow({
+        where: { ownerUserId: userId },
+        select: { declaredExpiresAt: true },
+      }),
+    ).resolves.toEqual({ declaredExpiresAt: expiry });
+  });
+
+  it("does not restore a PAT after a concurrent disconnect", async () => {
+    const userId = "rotation-race-user";
+    const rotation = (credential: string) =>
+      new ConfigureProviderCredentialCommand(
+        userId,
+        AUTH_USER_ROLES.customer,
+        "integration-session",
+        CREDENTIAL_PROVIDERS.gitlab,
+        credential,
+        "integration-correlation",
+      );
+    await prisma.providerCredential.deleteMany({
+      where: { ownerUserId: userId },
+    });
+    await handler.execute(rotation("synthetic-race-original-credential"));
+    const original = await prisma.providerCredential.findFirstOrThrow({
+      where: { ownerUserId: userId },
+    });
+    // Let disconnect commit while provider validation is in progress.
+    provider.validateIdentity.mockImplementationOnce(async () => {
+      await prisma.providerCredential.update({
+        where: { id: original.id },
+        data: { isActive: false, status: ProviderCredentialStatus.REVOKED },
+      });
+      return {
+        id: "4242",
+        login: "synthetic-user",
+        htmlUrl: "https://example.test/users/synthetic-user",
+      };
+    });
+    await expect(
+      handler.execute(rotation("synthetic-race-replacement-credential")),
+    ).rejects.toThrow("provider_credential_version_conflict");
+    await expect(
+      resolver.findLifecycle({ userId, provider: CREDENTIAL_PROVIDERS.gitlab }),
+    ).resolves.toBeNull();
   });
 
   it("rolls back deactivation when secret persistence fails", async () => {

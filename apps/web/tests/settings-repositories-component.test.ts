@@ -50,7 +50,8 @@ test("provider credential input is isolated in the credential dialog", async () 
   assert.match(dialog, /provider-credential/);
   assert.match(dialog, /type="password"/);
   assert.match(dialog, /autoComplete="new-password"/);
-  assert.match(dialog, /value={credential}/);
+  // The protected input is owned by form state instead of persisted or cached state.
+  assert.match(dialog, /register\("credential"\)/);
   assert.doesNotMatch(dialog, /defaultValue=/);
 });
 
@@ -77,20 +78,17 @@ test("initial configure, rotation and disconnect refresh the shared provider cre
 
 test("successful credential submission clears the plaintext PAT without exposing it", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
-  assert.match(
-    dialog,
-    /function handleMutationSuccess\(\)\s*{\s*setCredential\(""\)/,
-  );
+  assert.match(dialog, /!acknowledged\.account\) return;\s*form\.reset\(\)/);
   assert.match(dialog, /type="password"/);
-  assert.doesNotMatch(dialog, /setCredential\([^"e]/);
+  assert.doesNotMatch(dialog, /useConfigureProviderCredentialMutation/);
 });
 
 test("reauthentication retries the pending credential update", async () => {
   const component = await readFile(credentialDialogPath, "utf8");
-  assert.match(component, /onReauthenticate\?\.\(\(\)\s*=>\s*{/);
+  // Verification success and cancellation each settle the same pending request.
   assert.match(
     component,
-    /queueMicrotask\(\(\)\s*=>\s*{[\s\S]*?submitCredential\(submittedCredential\)/,
+    /onReauthenticate\?\.\(\s*\(\) => resolve\(true\),\s*\(\) => resolve\(false\)/,
   );
 });
 
@@ -118,7 +116,7 @@ test("provider rows select mode from configured status and disconnected GitHub h
   );
   assert.match(
     connectors,
-    /disabled={!statusesKnown \|\| !hasProviderCredential\(githubStatus\)}/,
+    /statusesKnown && hasProviderCredential\(githubStatus\) \? \(\s*<section/,
   );
   assert.match(
     connectors,
@@ -171,12 +169,12 @@ test("manage and update modes do not fabricate PAT, username, or repository scop
   assert.doesNotMatch(dialog, /connected-user|abcd|Read \+ Write/);
 });
 
-test("credential mutation submits only provider and credential", async () => {
+test("credential request submits only provider and credential", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
 
   assert.match(
     dialog,
-    /mutation\.mutate\(\s*\{\s*provider,\s*credential:\s*submittedCredential\s*\}/,
+    /configureProviderCredential\(\s*\{\s*provider,\s*credential:\s*submittedCredential\s*\}/,
   );
   assert.doesNotMatch(dialog, /username:\s*/);
 });
@@ -184,7 +182,8 @@ test("credential mutation submits only provider and credential", async () => {
 test("credential dialog uses Figma desktop shell and right-aligned footer buttons", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
 
-  assert.match(dialog, /h-\[430px\]/);
+  // The canonical spacing utility preserves the 430px desktop design height.
+  assert.match(dialog, /h-107\.5/);
   assert.match(dialog, /max-w-140/);
   assert.match(dialog, /p-6/);
   assert.match(dialog, /size-7/);

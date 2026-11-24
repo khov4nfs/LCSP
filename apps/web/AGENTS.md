@@ -115,3 +115,4 @@ export async function requestUpstreamApi(path: string, options: RequestInit) {
 - [ ] Verify form schemas reside strictly in `schemas/` directories.
 - [ ] Verify explanatory comments are added on all changed code, especially BFF proxies, server actions, and core form state logic.
 - [ ] Verify all display text uses `@lcsp/i18n` translation keys.
+- [ ] For PAT dialog changes, verify dismissal during step-up prevents a later write and a failed post-save read retries only the status read.

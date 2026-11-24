@@ -1,4 +1,6 @@
 import { jest } from "@jest/globals";
+import type { Request, Response } from "express";
+import { DevUnsafeHttpTraceMiddleware } from "./dev-unsafe-http-trace.middleware.js";
 import {
   emitDevUnsafeTrace,
   unsafeDevTraceEnabled,
@@ -104,6 +106,37 @@ describe("dev-unsafe-trace", () => {
     expect(record.body).toBe("hello");
 
     writeSpy.mockRestore();
+  });
+
+  // Settings credentials and the proof authorizing their writes must bypass raw tracing.
+  it.each([
+    "/provider-credentials",
+    "/auth/re-auth/password",
+    "/auth/mfa/verify-otp",
+  ])("excludes %s even when unfiltered HTTP tracing is enabled", (path) => {
+    process.env.LCSP_DEV_UNSAFE_TRACE = "true";
+    process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
+    const write = jest
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const next = jest.fn();
+    try {
+      const request = {
+        path,
+        method: "POST",
+        body: { credential: "synthetic-sensitive-input" },
+      } as Request;
+      const response = { json: jest.fn(), send: jest.fn(), on: jest.fn() };
+      new DevUnsafeHttpTraceMiddleware().use(
+        request,
+        response as unknown as Response,
+        next,
+      );
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+    }
   });
 
   it("logs actual body size from content-length header and dynamic limit for technical profile callback", () => {

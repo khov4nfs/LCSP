@@ -2831,6 +2831,16 @@ export const enPages = {
         connectDescription:
           "Choose a provider, enter a repository URL, and validate read access for trusted source evidence.",
         connectSuccessTitle: "Repository connected",
+        // Credential feedback distinguishes a canceled verification from a failed confirmation read.
+        credentialOrganizationRequired: "Enter the Azure DevOps organization.",
+        credentialVerificationCanceled:
+          "Verification canceled. No credential was changed. Enter the token again to retry.",
+        credentialConfirmationFailed:
+          "The save was acknowledged, but the connection status could not be confirmed.",
+        credentialConfirmationRetry: "Check connection status",
+        credentialSaving: "Saving credential…",
+        credentialConnected: "Provider connected",
+        credentialUpdated: "Provider credential updated",
         connectSuccessDescription:
           "LCSP stored the repository metadata without storing raw GitHub tokens.",
         connectFailedTitle: "Repository connection failed",

@@ -156,7 +156,8 @@ test("Git credential dialog matches Figma mode shell instead of generic compact 
   assert.match(dialog, /PROVIDER_CREDENTIAL_DIALOG_MODES/);
   assert.match(dialog, /data-component="ProviderCredentialDialog"/);
   assert.match(dialog, /data-mode={mode}/);
-  assert.match(dialog, /h-\[430px\]/);
+  // Tailwind's spacing scale represents 430px as 107.5 units.
+  assert.match(dialog, /h-107\.5/);
   assert.match(dialog, /max-w-140/);
   assert.match(dialog, /rounded-2xl p-6/);
   assert.match(dialog, /flex-row justify-end gap-2\.5/);

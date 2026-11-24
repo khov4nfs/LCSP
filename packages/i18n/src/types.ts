@@ -2543,6 +2543,14 @@ export type PagesMessages = {
         connectTitle: string;
         connectDescription: string;
         connectSuccessTitle: string;
+        // Credential feedback distinguishes a canceled verification from a failed confirmation read.
+        credentialOrganizationRequired: string;
+        credentialVerificationCanceled: string;
+        credentialConfirmationFailed: string;
+        credentialConfirmationRetry: string;
+        credentialSaving: string;
+        credentialConnected: string;
+        credentialUpdated: string;
         connectSuccessDescription: string;
         connectFailedTitle: string;
         connectFailedDescription: string;
