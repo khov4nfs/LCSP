@@ -2,6 +2,7 @@ export * from "./common.contract.ts";
 export * from "./mfa.contract.ts";
 export * from "./oauth.contract.ts";
 export * from "./password-reauth.contract.ts";
+export * from "./privacy.contract.ts";
 export * from "./profile.contract.ts";
 export * from "./recovery.contract.ts";
 export * from "./revoke-session.contract.ts";

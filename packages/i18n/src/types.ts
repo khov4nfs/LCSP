@@ -2260,10 +2260,19 @@ export type PagesMessages = {
         title: string;
         description: string;
         repositoryMetadata: string;
+        repositoryMetadataDescription: string;
         improveModels: string;
+        improveModelsDescription: string;
         exportData: string;
+        exportDataDescription: string;
         sharedAssessments: string;
+        sharedAssessmentsDescription: string;
         memoryPreferences: string;
+        memoryPreferencesDescription: string;
+        enforcedByPolicy: string;
+        saveSuccess: string;
+        saveError: string;
+        loading: string;
       };
       billing: {
         title: string;

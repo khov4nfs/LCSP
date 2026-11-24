@@ -14,6 +14,7 @@ import { RevokeOwnedSessionHandler } from "./revoke-owned-session/revoke-owned-s
 import { RevokeSessionHandler } from "./revoke-session/revoke-session.handler.ts";
 import { SignInHandler } from "./sign-in/sign-in.handler.ts";
 import { SignUpHandler } from "./sign-up/sign-up.handler.ts";
+import { UpdatePrivacySettingsHandler } from "./update-privacy-settings/update-privacy-settings.handler.ts";
 import { UpdateProfileHandler } from "./update-profile/update-profile.handler.ts";
 import { VerifyMfaOtpHandler } from "./verify-mfa-otp/verify-mfa-otp.handler.ts";
 import { VerifyMfaRecoveryCodeHandler } from "./verify-mfa-recovery-code/verify-mfa-recovery-code.handler.ts";
@@ -72,6 +73,7 @@ export const AUTH_COMMAND_HANDLERS = [
   RevokeSessionHandler,
   SignInHandler,
   SignUpHandler,
+  UpdatePrivacySettingsHandler,
   UpdateProfileHandler,
   VerifyMfaOtpHandler,
   VerifyMfaRecoveryCodeHandler,
@@ -79,3 +81,5 @@ export const AUTH_COMMAND_HANDLERS = [
 
 export * from "./revoke-all-sessions/revoke-all-sessions.command.ts";
 export * from "./revoke-all-sessions/revoke-all-sessions.handler.ts";
+export * from "./update-privacy-settings/update-privacy-settings.command.ts";
+export * from "./update-privacy-settings/update-privacy-settings.handler.ts";

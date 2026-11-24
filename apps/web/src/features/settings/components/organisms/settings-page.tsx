@@ -49,6 +49,7 @@ import type { MfaVerifyFormValues } from "@/features/auth/schemas/mfa-verify.sch
 
 import { RepositoriesSettingsSection } from "./repositories-settings-section";
 import { ProfileSettingsSection } from "./profile-settings-section";
+import { PrivacySettingsPanel } from "./privacy-settings-panel";
 import { SettingsSidebar } from "./settings-sidebar";
 import { SETTINGS_SECTION_IDS } from "../../types/settings.types";
 import type { SettingsSectionId } from "../../types/settings.types";
@@ -381,17 +382,7 @@ export function SettingsPage({
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.privacy ? (
-              <UnsupportedSettingsPanel
-                titleKey="pages.workspace.settingsHub.privacy.title"
-                descriptionKey="pages.workspace.settingsHub.privacy.description"
-                rows={[
-                  "pages.workspace.settingsHub.privacy.repositoryMetadata",
-                  "pages.workspace.settingsHub.privacy.improveModels",
-                  "pages.workspace.settingsHub.privacy.exportData",
-                  "pages.workspace.settingsHub.privacy.sharedAssessments",
-                  "pages.workspace.settingsHub.privacy.memoryPreferences",
-                ]}
-              />
+              <PrivacySettingsPanel locale={settingsLocale} />
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.billing ? (
@@ -711,43 +702,6 @@ function ReadonlySwitchRow({
         aria-label={resolveMessage(appLocale, titleKey)}
       />
     </div>
-  );
-}
-
-function UnsupportedSettingsPanel({
-  descriptionKey,
-  rows,
-  titleKey,
-}: {
-  descriptionKey: Parameters<typeof resolveMessage>[1];
-  rows: Parameters<typeof resolveMessage>[1][];
-  titleKey: Parameters<typeof resolveMessage>[1];
-}) {
-  return (
-    <SettingsPanelCanvas dataComponent="UnsupportedSettingsPanel">
-      <p className="absolute top-19.5 left-8.5 text-[13px] text-muted-foreground">
-        {resolveMessage(appLocale, descriptionKey)}
-      </p>
-      <SettingsSectionHeading top="top-31.5">
-        {resolveMessage(appLocale, titleKey)}
-      </SettingsSectionHeading>
-      <div className="absolute top-36.5 left-8.5 flex w-218 flex-col">
-        {rows.map((row) => (
-          <div
-            key={row}
-            className="flex h-17.5 items-center justify-between border-b border-border/70"
-          >
-            <span className="text-sm">{resolveMessage(appLocale, row)}</span>
-            <Button type="button" variant="outline" size="sm" disabled>
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.states.notSupported",
-              )}
-            </Button>
-          </div>
-        ))}
-      </div>
-    </SettingsPanelCanvas>
   );
 }
 

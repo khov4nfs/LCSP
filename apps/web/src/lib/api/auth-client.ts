@@ -14,6 +14,9 @@ import {
   linkedIdentitiesResponseSchema,
   type LinkedIdentitiesResponse,
   type OAuthIdentitySummary,
+  privacySettingsSchema,
+  type PrivacySettingsResponse,
+  type UpdatePrivacySettingsInput,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 import type { GenerateMfaRecoveryCodesOutcome } from "./types/mfa-recovery-codes.types";
@@ -976,6 +979,79 @@ function isLinkedIdentitiesPayload(
   payload: unknown,
 ): payload is LinkedIdentitiesResponse {
   return linkedIdentitiesResponseSchema.safeParse(payload).success;
+}
+
+/**
+ * Business purpose: Fetch current privacy settings and policy enforcement configuration for the authenticated user.
+ *
+ * Business rules:
+ * - Dispatches request to the web BFF privacy endpoint (/api/auth/privacy).
+ * - Validates response envelope data against privacySettingsSchema.
+ * - Rejects responses that fail contract validation.
+ *
+ * Execution flow:
+ * 1. Dispatch GET request to /api/auth/privacy using apiRequest helper.
+ * 2. Validate payload conformity using privacySettingsSchema.safeParse.
+ * 3. Return validated PrivacySettingsResponse.
+ *
+ * Failure cases:
+ * - Network failures or non-200 responses throw an Error.
+ * - Schema validation mismatches throw Error("privacy-settings-load-failed").
+ *
+ * Side effects:
+ * - Dispatches an HTTP GET request to the BFF endpoint.
+ */
+export async function getPrivacySettings(): Promise<PrivacySettingsResponse> {
+  // Rationale (Why): apiRequest centralizes session cookie/credential handling and envelope parsing.
+  // Mechanism (How): Dispatches GET to BFF route /api/auth/privacy.
+  // Invariants (What): Ensures payload matches privacySettingsSchema before exposing to UI components.
+  const { payload, ok } = await apiRequest("/api/auth/privacy");
+  const parsed = privacySettingsSchema.safeParse(payload);
+  if (!ok || !parsed.success) {
+    throw new Error("privacy-settings-load-failed");
+  }
+
+  return parsed.data as PrivacySettingsResponse;
+}
+
+/**
+ * Business purpose: Update privacy settings and telemetry options for the authenticated account.
+ *
+ * Business rules:
+ * - Transmits partial privacy settings updates to the web BFF endpoint (/api/auth/privacy).
+ * - Enforces update payload conforms to contract rules.
+ * - Validates updated response data against privacySettingsSchema.
+ *
+ * Execution flow:
+ * 1. Dispatch PATCH request to /api/auth/privacy with update input body.
+ * 2. Validate response payload against privacySettingsSchema.safeParse.
+ * 3. Return confirmed PrivacySettingsResponse.
+ *
+ * Failure cases:
+ * - Network errors or rejection by backend throw an Error.
+ * - Invalid response shapes throw Error("privacy-settings-update-failed").
+ *
+ * Side effects:
+ * - Mutates privacy preferences in database and writes an audit event.
+ */
+export async function updatePrivacySettings(
+  input: UpdatePrivacySettingsInput,
+): Promise<PrivacySettingsResponse> {
+  // Rationale (Why): Dispatches verified mutations to BFF proxy with session credentials.
+  // Mechanism (How): HTTP PATCH with JSON-serialized input.
+  // Invariants (What): Rejects and surfaces unexpected errors to UI caller.
+  const { payload, ok } = await apiRequest("/api/auth/privacy", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  const parsed = privacySettingsSchema.safeParse(payload);
+  if (!ok || !parsed.success) {
+    throw new Error("privacy-settings-update-failed");
+  }
+
+  return parsed.data as PrivacySettingsResponse;
 }
 
 export type SessionActionOutcome = {

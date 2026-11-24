@@ -959,7 +959,10 @@ describe("Auth workspace (e2e)", () => {
     const failure = expectFailure(result.body);
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
 
-    const auditEvents = await prisma.auditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany({
+      where: { actorId: fixture.approvedUser.id },
+      orderBy: { createdAt: "desc" },
+    });
     const mfaFailed = auditEvents.find(
       (e) =>
         (e.payload as Record<string, unknown>)["event_type"] ===
@@ -992,18 +995,20 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
 
     const auditEvents = await prisma.auditEvent.findMany({
-      orderBy: { createdAt: "asc" },
+      where: { actorId: fixture.approvedUser.id },
+      orderBy: { createdAt: "desc" },
     });
-    const replayFailed = [...auditEvents]
-      .reverse()
-      .find(
-        (event) =>
-          (event.payload as Record<string, unknown>)["event_type"] ===
-          AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed,
-      );
+    const replayFailed = auditEvents.find(
+      (event) =>
+        (event.payload as Record<string, unknown>)["event_type"] ===
+        AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed,
+    );
+    assert.ok(
+      replayFailed,
+      "auth.mfa.failed audit event should be recorded for replay",
+    );
     assert.equal(
-      (replayFailed?.payload as Record<string, unknown> | undefined)
-        ?.otp_failure_reason,
+      (replayFailed.payload as Record<string, unknown>).otp_failure_reason,
       "replayed",
     );
   });
