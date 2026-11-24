@@ -11,6 +11,9 @@ import {
   PROBLEM_KEYS,
   REQUIRED_ACTIONS,
   SIGN_UP_ERROR_CODES,
+  linkedIdentitiesResponseSchema,
+  type LinkedIdentitiesResponse,
+  type OAuthIdentitySummary,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 import type { GenerateMfaRecoveryCodesOutcome } from "./types/mfa-recovery-codes.types";
@@ -923,6 +926,56 @@ export async function getAuthSessions(): Promise<AuthSessionSummary[]> {
   }
 
   return payload.sessions;
+}
+
+/**
+ * Business purpose: Retrieve linked OAuth identities for the authenticated account from the BFF API.
+ *
+ * Business rules:
+ * - Requests linked identities from /api/auth/oauth/identities.
+ * - Validates response payload against linked identities schema.
+ * - Throws descriptive error on network failure or schema mismatch.
+ *
+ * Execution flow:
+ * 1. Issue GET request via apiRequest helper.
+ * 2. Validate response envelope and identity list schema.
+ * 3. Return array of linked identity summaries.
+ *
+ * Failure cases:
+ * - Network failure, non-200 status, or schema mismatch throws an Error.
+ *
+ * Side effects:
+ * - Dispatches an HTTP GET request to the BFF endpoint.
+ */
+export async function getLinkedOAuthIdentities(): Promise<OAuthIdentitySummary[]> {
+  const { payload, ok } = await apiRequest("/api/auth/oauth/identities");
+  if (!ok || !isLinkedIdentitiesPayload(payload)) {
+    throw new Error("linked-identities-load-failed");
+  }
+
+  return payload.identities;
+}
+
+/**
+ * Business purpose: Type guard verifying that the response payload conforms to the linked identities contract.
+ *
+ * Business rules:
+ * - Uses linkedIdentitiesResponseSchema to validate object shape and identity array.
+ *
+ * Execution flow:
+ * 1. Validate payload using linkedIdentitiesResponseSchema.safeParse.
+ * 2. Return true if parse succeeds, false otherwise.
+ *
+ * Failure cases:
+ * - Returns false for invalid shapes.
+ *
+ * Side effects:
+ * - None: pure type guard.
+ */
+function isLinkedIdentitiesPayload(
+  payload: unknown,
+): payload is LinkedIdentitiesResponse {
+  return linkedIdentitiesResponseSchema.safeParse(payload).success;
 }
 
 export type SessionActionOutcome = {

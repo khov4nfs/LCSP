@@ -189,6 +189,12 @@ function buildRepositories(input: {
     },
     oauthIdentities: {
       findByProviderAccount: () => Promise.resolve(input.identity),
+      findByUserId: (userId: string) =>
+        Promise.resolve(
+          input.identity && input.identity.userId === userId
+            ? [input.identity]
+            : [],
+        ),
       linkToUser: (
         provider: string,
         providerAccountId: string,
@@ -552,6 +558,66 @@ describe("OAuthLinkCallbackHandler", () => {
     expect(thrown).toBeInstanceOf(AuthApplicationError);
     expect(thrown).toMatchObject({
       code: AUTH_ERROR_CODES.oauthCallbackInvalid,
+    });
+  });
+
+  it("returns linked: false when account is already linked to the same user (idempotent)", async () => {
+    const { handler, repositories } = buildLinkHarness({
+      identity: makeIdentity({ userId: "user-1" }),
+    });
+    const linkToUser = jest.spyOn(repositories.oauthIdentities, "linkToUser");
+
+    const result = await handler.execute(
+      new OAuthLinkCallbackCommand(
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        "user-1",
+        "session-1",
+        { correlationId: "corr-link-idempotent" },
+      ),
+    );
+
+    expect("ok" in result && result.ok).toBe(true);
+    expect(result.linked).toBe(false);
+    expect(linkToUser).not.toHaveBeenCalled();
+    expect(repositories.auditRecords[0]).toMatchObject({
+      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkSucceeded,
+      actor_id: "user-1",
+      decision: AUDIT_DECISIONS.allow,
+      correlationId: "corr-link-idempotent",
+      linked: false,
+    });
+  });
+
+  it("rejects when concurrent linking returns an identity owned by a different user", async () => {
+    const { handler, repositories } = buildLinkHarness({
+      identity: null,
+    });
+    // Simulate race condition: upsert returns identity owned by someone else
+    jest
+      .spyOn(repositories.oauthIdentities, "linkToUser")
+      .mockResolvedValue(makeIdentity({ userId: "concurrent-other-user" }));
+
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new OAuthLinkCallbackCommand(
+          { code: "good-code", state: "state-value", provider: "stub-oidc" },
+          "user-1",
+          "session-1",
+          { correlationId: "corr-link-race" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(AuthApplicationError);
+    expect(thrown).toMatchObject({
+      code: AUTH_ERROR_CODES.oauthCallbackInvalid,
+    });
+    expect(repositories.auditRecords[0]).toMatchObject({
+      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkFailed,
+      decision: AUDIT_DECISIONS.deny,
+      correlationId: "corr-link-race",
     });
   });
 });

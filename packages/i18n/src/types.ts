@@ -2188,6 +2188,26 @@ export type PagesMessages = {
         oauthLinkFailedTitle: string;
         oauthLinkFailedDescription: string;
       };
+      connectedAccounts: {
+        title: string;
+        description: string;
+        disclaimer: string;
+        connect: string;
+        connected: string;
+        notConnected: string;
+        connecting: string;
+        linkedOn: string;
+        successBanner: string;
+        successToast: string;
+        alreadyLinkedToast: string;
+        failedToast: string;
+        cancelledToast: string;
+        sessionExpiredToast: string;
+        loadFailedTitle: string;
+        loadFailedDetail: string;
+        retry: string;
+        google: string;
+      };
       appearance: {
         title: string;
         description: string;

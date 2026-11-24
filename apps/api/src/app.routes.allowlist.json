@@ -72,6 +72,7 @@
   "GET /audit-events/export/:exportRequestId",
   "GET /audit-events/export/:exportRequestId/download",
   "GET /auth/oauth/callback",
+  "GET /auth/oauth/identities",
   "GET /auth/oauth/link/callback",
   "GET /auth/oauth/link/start",
   "GET /auth/oauth/start",

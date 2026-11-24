@@ -2406,6 +2406,27 @@ export const enPages = {
         oauthLinkFailedDescription:
           "The OAuth provider could not be linked to this account.",
       },
+      connectedAccounts: {
+        title: "Connected accounts",
+        description: "Manage the accounts you can use to sign in to LCSP.",
+        disclaimer:
+          "Linking a Google account does not grant LCSP access to your Google Drive or repositories.",
+        connect: "Connect",
+        connected: "Connected",
+        notConnected: "Not connected",
+        connecting: "Linking account…",
+        linkedOn: "Linked on {date}",
+        successBanner: "Your Google account has been successfully linked.",
+        successToast: "Account linked successfully",
+        alreadyLinkedToast: "This account is already linked",
+        failedToast: "Unable to link account",
+        cancelledToast: "Account linking cancelled",
+        sessionExpiredToast: "Session expired. Please sign in again.",
+        loadFailedTitle: "Unable to load connected accounts",
+        loadFailedDetail: "Failed to load linked accounts. Please try again.",
+        retry: "Retry",
+        google: "Google",
+      },
       appearance: {
         title: "Appearance",
         description:

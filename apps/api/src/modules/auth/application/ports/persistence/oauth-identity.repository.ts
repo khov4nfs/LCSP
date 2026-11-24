@@ -9,6 +9,7 @@ export interface OAuthIdentityRepository {
     provider: string,
     providerAccountId: string,
   ): Promise<OAuthIdentity | null>;
+  findByUserId(userId: string): Promise<OAuthIdentity[]>;
   linkToUser(
     provider: string,
     providerAccountId: string,

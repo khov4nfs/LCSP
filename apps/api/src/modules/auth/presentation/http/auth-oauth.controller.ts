@@ -6,7 +6,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { CommandBus } from "@nestjs/cqrs";
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
 
 import {
   oauthCallbackSchema,
@@ -30,18 +30,23 @@ import {
   OAuthStartCommand,
 } from "../../application/commands/index.ts";
 import type {
+  LinkedIdentitiesSuccess,
   OAuthCallbackSuccess,
   OAuthLinkCallbackSuccess,
   OAuthLinkStartSuccess,
   OAuthStartSuccess,
 } from "../../application/contracts/auth/index.ts";
+import { GetOAuthIdentitiesQuery } from "../../application/queries/index.ts";
 
 /**
  * Controller exposing OAuth identity authentication and social account linking endpoints.
  */
 @Controller("auth/oauth")
 export class AuthOAuthController {
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
 
   /**
    * Public OAuth start flow endpoint.
@@ -116,5 +121,20 @@ export class AuthOAuthController {
         { correlationId: request.correlationId },
       ),
     );
+  }
+
+  /**
+   * Guarded endpoint to retrieve linked OAuth identities for the authenticated user.
+   */
+  @Get("identities")
+  @UseGuards(RbacGuard)
+  @RequireSession()
+  async getLinkedIdentities(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<LinkedIdentitiesSuccess> {
+    return this.queryBus.execute<
+      GetOAuthIdentitiesQuery,
+      LinkedIdentitiesSuccess
+    >(new GetOAuthIdentitiesQuery(request.rbacContext, request.correlationId));
   }
 }
