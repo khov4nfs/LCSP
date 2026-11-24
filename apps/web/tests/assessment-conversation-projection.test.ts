@@ -303,6 +303,29 @@ test("a spinner exists only while the canonical runtime is RUNNING", () => {
   }
 });
 
+test("customer-selected mode does not render running work before rule audit submission", () => {
+  const selecting = projectConversation({
+    assessmentId: ASSESSMENT_ID,
+    events: [events.lifecycle(1, 0, LIFE.PREPARING, LIFE.ACTIVE)],
+    detail: {
+      ...detail({ lifecycle: LIFE.ACTIVE, execution: EXEC.QUEUED }),
+      case: {
+        ...detail().case!,
+        auditMode: "CUSTOMER_SELECTED",
+        auditRequestRevision: 0,
+      },
+      runtime: {
+        ...detail().runtime!,
+        executionState: EXEC.QUEUED,
+      },
+    },
+    requests: [],
+    repository: REPOSITORY,
+  });
+  assert.equal(selecting.running, false);
+  assert.equal(work(selecting.turns).length, 0);
+});
+
 test("Stop: RUNNING -> PAUSED ends the animation, adds a quiet notice, and Continue resumes the SAME thread", () => {
   const stopped = [
     ...RUN.slice(0, 8),

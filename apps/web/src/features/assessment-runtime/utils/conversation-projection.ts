@@ -164,7 +164,8 @@ export function projectConversation(
   const events = normalizeEvents(input.events);
   const lifecycle = detail?.lifecycle ?? null;
   const runtime = detail?.runtime ?? null;
-  const running = isRuntimeRunning(lifecycle, runtime);
+  // Pass detail?.case so customer-selected audit mode can properly gate pre-submission queued state.
+  const running = isRuntimeRunning(lifecycle, runtime, detail?.case);
   const decisions = new Map(
     (detail?.case?.decisions ?? []).map((record) => [
       record.decisionId,

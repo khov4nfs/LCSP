@@ -207,7 +207,10 @@ export const repositoryProfileSchema = z.strictObject({
   candidateFacts: z.array(repositoryCandidateFactSchema).max(500),
   knownGaps: z.array(repositoryPreScanGapSchema).max(1000),
   scannedFileCount: z.number().int().nonnegative(),
-  scannedAt: z.iso.datetime(),
+  // Rationale: Accept timezone-offset ISO strings (+00:00, etc.) in addition to UTC Z to prevent serialization mismatches with Python/agent scanners.
+  // Mechanism: Enables `{ offset: true }` on Zod datetime schema to parse RFC 3339 / ISO 8601 offset strings safely.
+  // Invariant: Preserves ISO datetime validity and non-null timestamp contract across domain boundaries.
+  scannedAt: z.iso.datetime({ offset: true }),
 });
 export type RepositoryProfile = z.infer<typeof repositoryProfileSchema>;
 
