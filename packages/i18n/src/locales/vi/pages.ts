@@ -2839,6 +2839,16 @@ export const viPages = {
         connectDescription:
           "Chọn provider, nhập URL repository và xác minh quyền đọc cho bằng chứng scan tin cậy.",
         connectSuccessTitle: "Đã kết nối repository",
+        // Credential feedback distinguishes a canceled verification from a failed confirmation read.
+        credentialOrganizationRequired: "Nhập tổ chức Azure DevOps.",
+        credentialVerificationCanceled:
+          "Đã hủy xác minh. Thông tin xác thực chưa thay đổi. Hãy nhập lại mã để thử lại.",
+        credentialConfirmationFailed:
+          "Hệ thống đã ghi nhận thao tác lưu, nhưng chưa xác nhận được trạng thái kết nối.",
+        credentialConfirmationRetry: "Kiểm tra trạng thái kết nối",
+        credentialSaving: "Đang lưu thông tin xác thực…",
+        credentialConnected: "Đã kết nối nhà cung cấp",
+        credentialUpdated: "Đã cập nhật thông tin xác thực",
         connectSuccessDescription:
           "LCSP đã lưu metadata repository mà không lưu raw GitHub token.",
         connectFailedTitle: "Kết nối repository thất bại",

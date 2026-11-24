@@ -23,10 +23,13 @@ export class DevUnsafeHttpTraceMiddleware implements NestMiddleware {
    * @param next - Callback that continues the middleware chain.
    */
   use(request: Request, response: Response, next: NextFunction): void {
-    // Payment webhooks are a strict non-logging boundary, including in the
-    // deliberately unsafe local diagnostic mode. Their raw bytes and signature
-    // are security material used only by the ingress verifier.
-    if (request.path === "/billing/sepay/webhook") {
+    // Keep payment signatures, PATs and their password/OTP proof outside raw
+    // diagnostics even in unfiltered development mode. Match Express route variants.
+    if (
+      /^\/(?:billing\/sepay\/webhook|provider-credentials(?:\/[^/]+)?|auth\/(?:re-auth\/password|mfa\/verify-otp))\/?$/iu.test(
+        request.path,
+      )
+    ) {
       next();
       return;
     }

@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  configureProviderCredential,
   disconnectProviderCredential,
   getProviderCredentialStatuses,
   getRepositoryConnections,
@@ -19,17 +18,31 @@ export function useRepositoryConnectionsQuery() {
   });
 }
 
-export function useConfigureProviderCredentialMutation() {
+/**
+ * Business purpose: Confirm the saved provider status using a fresh Settings read.
+ * Business rules:
+ * - A pre-save request cannot be used as confirmation of a PAT write.
+ * Execution flow:
+ * 1. Cancel older reads for the status key and fetch its current value.
+ * Failure cases:
+ * - A read error propagates so the dialog can offer a read-only retry.
+ * Side effects:
+ * - Updates the shared provider-status query without storing any submitted PAT.
+ */
+export function useRefreshProviderCredentialStatuses() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: configureProviderCredential,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.githubIntegration.providerCredentials(),
-      });
-    },
-  });
+  return async () => {
+    const queryKey = apiQueryKeys.githubIntegration.providerCredentials();
+    // Cancel a pre-save read before requesting authoritative status for the acknowledgement.
+    await queryClient.cancelQueries({ queryKey, exact: true });
+    return queryClient.fetchQuery({
+      queryKey,
+      queryFn: getProviderCredentialStatuses,
+      staleTime: 0,
+      retry: false,
+    });
+  };
 }
 
 /**

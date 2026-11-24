@@ -1,10 +1,11 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { HttpStatus, Inject, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   CREDENTIAL_PROVIDERS,
+  GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
   PROVIDER_CREDENTIAL_STATUSES,
   type CredentialProvider,
@@ -45,6 +46,20 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
     private readonly registry: RepositoryProviderRegistry,
   ) {}
 
+  /**
+   * Business purpose: Connect a customer's provider account or replace its PAT.
+   * Business rules:
+   * - Settings may change only the authenticated owner's provider.
+   * - A repeated PAT retains its declared expiry; a different PAT has unknown expiry.
+   * Execution flow:
+   * 1. Validate the submitted PAT with its provider.
+   * 2. Resolve expiry and store metadata and the encrypted PAT in one versioned transaction.
+   * 3. Acknowledge the connected provider with public account metadata.
+   * Failure cases:
+   * - Invalid, already-expired or concurrently replaced credentials do not commit.
+   * Side effects:
+   * - Creates or rotates an encrypted credential without returning the PAT.
+   */
   async execute(command: ConfigureProviderCredentialCommand) {
     if (command.subjectRole !== AUTH_USER_ROLES.customer) {
       throw problemException(
@@ -105,9 +120,24 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
       };
       const validatedAt = new Date();
       const providerAccountId = toProviderAccountIdBigInt(identity.id);
+      let expired = false;
       try {
-        await this.unitOfWork.execute(async (transaction) => {
+        expired = await this.unitOfWork.execute(async (transaction) => {
           if (existing) {
+            // Expiry belongs to the secret. Compare only an owned credential with a known
+            // expiry, then require the original version when committing the replacement.
+            let declaredExpiresAt = existing.declaredExpiresAt;
+            if (declaredExpiresAt !== null) {
+              const previousCredential = await transaction.credentialStore.read(
+                existing.id as CredentialLocator,
+              );
+              const sameCredential = timingSafeEqual(
+                credentialExpiryDigest(context.provider, previousCredential),
+                credentialExpiryDigest(context.provider, command.credential),
+              );
+              if (!sameCredential) declaredExpiresAt = null;
+              else if (declaredExpiresAt <= validatedAt) return true;
+            }
             const updated =
               await transaction.providerCredentials.updateForRotation(
                 existing.id,
@@ -120,6 +150,7 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
                   providerLogin: identity.login,
                   status: PROVIDER_CREDENTIAL_STATUSES.active,
                   currentVersion: credentialVersion,
+                  declaredExpiresAt,
                   validatedAt,
                 },
               );
@@ -147,6 +178,7 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
               context,
             );
           }
+          return false;
         });
       } catch (error: unknown) {
         this.logger.error(
@@ -167,6 +199,13 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
         );
         throw error;
       }
+      if (expired) {
+        throw problemException(
+          GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+          command.correlationId,
+          { status: HttpStatus.UNAUTHORIZED },
+        );
+      }
       return {
         provider: command.provider,
         configured: true,
@@ -176,6 +215,30 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
       lease.dispose();
     }
   }
+}
+
+/**
+ * Business purpose: Compare the effective PAT when deciding whether its existing expiry still applies.
+ * Business rules:
+ * - Azure's optional organization hint does not change the underlying PAT.
+ * Execution flow:
+ * 1. Extract the effective secret and hash it for a fixed-length comparison.
+ * Failure cases:
+ * - An empty Azure suffix uses the original input, matching provider validation.
+ * Side effects:
+ * - Returns a transient digest without logging or persisting credential material.
+ */
+function credentialExpiryDigest(
+  provider: CredentialProvider,
+  credential: string,
+): Buffer {
+  // Azure accepts organization:PAT; only the suffix is used for authentication.
+  const delimiter = credential.indexOf(":");
+  const secret =
+    provider === CREDENTIAL_PROVIDERS.azureDevOps
+      ? credential.slice(delimiter + 1).trim() || credential
+      : credential;
+  return createHash("sha256").update(secret).digest();
 }
 
 function toProviderAccountIdBigInt(id: string): bigint {

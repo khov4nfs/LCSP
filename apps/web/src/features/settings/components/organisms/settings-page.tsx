@@ -3,7 +3,7 @@ import { AccountSettingsPanel } from "./account-settings-panel";
 
 import { LOCALES, type Locale } from "@lcsp/contracts/shared";
 import type { ReactNode } from "react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { resolveMessage } from "@lcsp/i18n";
 import { ChevronDownIcon, InfoIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -33,9 +33,11 @@ import { cn } from "@/lib/utils";
 import {
   useAuthSessionsQuery,
   useAuthSettingsProfileQuery,
-  useMfaVerifyMutation,
-  usePasswordReauthMutation,
 } from "@/lib/api/auth-queries";
+import {
+  reauthenticateWithPassword,
+  verifyMfaOtp,
+} from "@/lib/api/auth-client";
 import { useProviderCredentialStatusesQuery } from "@/lib/api/github-repository-queries";
 import {
   API_OUTCOME_KINDS,
@@ -90,13 +92,13 @@ export function SettingsPage({
 
   const profileQuery = useAuthSettingsProfileQuery();
   const sessionsQuery = useAuthSessionsQuery();
-  const verifyMutation = useMfaVerifyMutation();
-  const passwordReauthMutation = usePasswordReauthMutation();
   const providerCredentialStatusesQuery = useProviderCredentialStatusesQuery();
 
   const [confirmAccessOpen, setConfirmAccessOpen] = useState(false);
   const [pendingSensitiveAction, setPendingSensitiveAction] =
     useState<SettingsSensitiveAction | null>(null);
+  // Observe dismissal synchronously when an already-submitted proof resolves later.
+  const activeSensitiveAction = useRef<SettingsSensitiveAction | null>(null);
   const [confirmAccessMfaError, setConfirmAccessMfaError] =
     useState<SettingsAlertMessage | null>(null);
   const [confirmAccessPasswordError, setConfirmAccessPasswordError] =
@@ -105,6 +107,8 @@ export function SettingsPage({
   const profile = profileQuery.data;
 
   function openSensitiveAction(action: SettingsSensitiveAction) {
+    activeSensitiveAction.current?.resolveResult?.(false);
+    activeSensitiveAction.current = action;
     setConfirmAccessMfaError(null);
     setConfirmAccessPasswordError(null);
     setPendingSensitiveAction(action);
@@ -112,8 +116,10 @@ export function SettingsPage({
   }
 
   function closeConfirmAccessDialog(cancelled = true) {
+    const action = activeSensitiveAction.current;
+    activeSensitiveAction.current = null;
     if (cancelled) {
-      pendingSensitiveAction?.resolveResult?.(false);
+      action?.resolveResult?.(false);
     }
     setConfirmAccessOpen(false);
     setPendingSensitiveAction(null);
@@ -133,9 +139,7 @@ export function SettingsPage({
    * Side effects:
    * - May retry credential work or release a Settings reauthentication challenge.
    */
-  async function executeSensitiveAction(
-    action: SettingsSensitiveAction,
-  ): Promise<boolean> {
+  function executeSensitiveAction(action: SettingsSensitiveAction): boolean {
     switch (action.kind) {
       case SETTINGS_SENSITIVE_ACTIONS.reauthenticateSettings:
         return true;
@@ -147,22 +151,32 @@ export function SettingsPage({
     }
   }
 
+  /**
+   * Business purpose: Verify the password for the active Settings action.
+   * Business rules: A dismissed or replaced challenge cannot authorize a write.
+   * Execution flow:
+   * 1. Verify the password, check that the challenge is still current, and resume the action.
+   * Failure cases: Invalid proof or expired access stays in the current challenge.
+   * Side effects: May resume a protected Settings operation.
+   */
   async function handleConfirmAccessPasswordSubmit(values: {
     password: string;
   }) {
-    if (!pendingSensitiveAction) {
+    const action = activeSensitiveAction.current;
+    if (!action) {
       return;
     }
 
     setConfirmAccessPasswordError(null);
-    const outcome = await passwordReauthMutation
-      .mutateAsync(values)
-      .catch(() => ({
-        kind: API_OUTCOME_KINDS.error,
-        titleKey: "pages.signIn.errors.requestFailedTitle" as const,
-        detailKey: "pages.signIn.errors.requestFailedDetail" as const,
-      }));
+    // Submit proof directly so neither passwords nor OTPs become query-cache variables.
+    const outcome = await reauthenticateWithPassword(values).catch(() => ({
+      kind: API_OUTCOME_KINDS.error,
+      titleKey: "pages.signIn.errors.requestFailedTitle" as const,
+      detailKey: "pages.signIn.errors.requestFailedDetail" as const,
+    }));
 
+    // A verification response belongs only to the challenge that submitted it.
+    if (activeSensitiveAction.current !== action) return;
     if (outcome.kind === API_OUTCOME_KINDS.invalid) {
       setConfirmAccessPasswordError({
         titleKey: "auth.errors.invalidCredentials.title",
@@ -187,28 +201,36 @@ export function SettingsPage({
       return;
     }
 
-    const success = await executeSensitiveAction(pendingSensitiveAction);
-    pendingSensitiveAction.resolveResult?.(success);
+    const success = executeSensitiveAction(action);
+    action.resolveResult?.(success);
     closeConfirmAccessDialog(false);
   }
 
+  /**
+   * Business purpose: Verify an authenticator code for the active Settings action.
+   * Business rules: The same challenge must still be active after verification and refresh.
+   * Execution flow:
+   * 1. Verify the code and refresh account access before unlocking the action.
+   * Failure cases: Dismissed or unsuccessful challenges cannot resume a write.
+   * Side effects: Refreshes account queries and may resume a protected Settings operation.
+   */
   async function handleConfirmAccessOtpSubmit(values: MfaVerifyFormValues) {
+    const action = activeSensitiveAction.current;
+    if (!action) return;
     setConfirmAccessMfaError(null);
-    const outcome = await verifyMutation.mutateAsync(values).catch(() => ({
+    const outcome = await verifyMfaOtp(values).catch(() => ({
       kind: API_OUTCOME_KINDS.error,
       titleKey: "pages.mfaVerify.errors.requestFailedTitle" as const,
       detailKey: "pages.mfaVerify.errors.requestFailedDetail" as const,
     }));
 
+    if (activeSensitiveAction.current !== action) return;
     if (outcome.kind === API_OUTCOME_KINDS.verified) {
       await Promise.all([profileQuery.refetch(), sessionsQuery.refetch()]);
-      if (!pendingSensitiveAction) {
-        closeConfirmAccessDialog(false);
-        return;
-      }
+      if (activeSensitiveAction.current !== action) return;
 
-      const success = await executeSensitiveAction(pendingSensitiveAction);
-      pendingSensitiveAction.resolveResult?.(success);
+      const success = executeSensitiveAction(action);
+      action.resolveResult?.(success);
       closeConfirmAccessDialog(false);
       return;
     }

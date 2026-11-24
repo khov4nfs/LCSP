@@ -1,12 +1,19 @@
 "use client";
 
 import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
-import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
+import {
+  CREDENTIAL_PROVIDERS,
+  GITHUB_CREDENTIAL_ERROR_CODES,
+  GITHUB_INTEGRATION_ERROR_CODES,
+  PROVIDER_CREDENTIAL_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import type { CredentialProvider } from "@lcsp/contracts/github-integration";
-import { resolveMessage } from "@lcsp/i18n";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
+import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import type { FormEvent } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,12 +26,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  configureProviderCredential,
+  GitHubRepositoryRequestError,
   githubRepositoryProblemMessageKey,
   type ProviderCredentialStatus,
 } from "@/lib/api/github-repository-client";
 import {
-  useConfigureProviderCredentialMutation,
   useDisconnectProviderCredentialMutation,
+  useRefreshProviderCredentialStatuses,
 } from "@/lib/api/github-repository-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -33,6 +42,11 @@ import {
   PROVIDER_CONNECTION_LABEL_KEYS,
   PROVIDER_CONNECTION_TONE_CLASSES,
 } from "../../config/provider-connection.config";
+import {
+  azureProviderCredentialSchema,
+  providerCredentialSchema,
+  type ProviderCredentialValues,
+} from "../../schemas/provider-credential.schema";
 import type { ProviderReauthenticateHandler } from "../../types/provider-credential.types";
 import { getProviderConnectionState } from "../../utils/provider-connection.utils";
 import { ProviderCredentialDisconnectConfirm } from "./provider-credential-disconnect-confirm";
@@ -129,26 +143,44 @@ export function ProviderCredentialDialog({
   provider,
   status,
 }: ProviderCredentialDialogProps) {
-  const [credential, setCredential] = useState("");
-  const [organization, setOrganization] = useState("");
+  // Keep PAT drafts in the mounted form, outside TanStack mutation variables and caches.
+  const form = useForm<ProviderCredentialValues>({
+    resolver: zodResolver(
+      provider === CREDENTIAL_PROVIDERS.azureDevOps
+        ? azureProviderCredentialSchema
+        : providerCredentialSchema,
+    ),
+    defaultValues: { credential: "", organization: "" },
+  });
   const [reauthRequired, setReauthRequired] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<string | null>(
+    null,
+  );
+  const [confirmationBusy, setConfirmationBusy] = useState(false);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [disconnectReauthPending, setDisconnectReauthPending] = useState(false);
   // The verification dialog is a sibling layer; its dismissal must not also close this dialog.
   const disconnectReauthRef = useRef(false);
-  const mutation = useConfigureProviderCredentialMutation();
+  const saveOperation = useRef<AbortController | null>(null);
+  const refreshStatuses = useRefreshProviderCredentialStatuses();
   const disconnectMutation = useDisconnectProviderCredentialMutation();
   const accountUsername = status?.account?.username?.trim() ?? "";
 
+  // Leaving Settings invalidates a pending proof and aborts the browser's request.
+  useEffect(() => () => saveOperation.current?.abort(), []);
+
   function closeCredentialDialog(nextOpen: boolean) {
-    if (!nextOpen && disconnectReauthRef.current) return;
+    if (
+      !nextOpen &&
+      (disconnectReauthRef.current || saveOperation.current || confirmationBusy)
+    )
+      return;
     if (!nextOpen) {
-      setCredential("");
-      setOrganization("");
+      form.reset();
       setReauthRequired(false);
-      setErrorMessage(null);
+      setErrorKey(null);
       resetDisconnect();
     }
     onOpenChange(nextOpen);
@@ -220,85 +252,192 @@ export function ProviderCredentialDialog({
   }
 
   function changeMode(nextMode: ProviderCredentialDialogMode) {
-    setCredential("");
-    setOrganization("");
+    // Changing modes discards the masked draft and any previous confirmation state.
+    form.reset();
     setReauthRequired(false);
-    setErrorMessage(null);
+    setErrorKey(null);
+    setPendingConfirmation(null);
     resetDisconnect();
     onModeChange(nextMode);
   }
 
-  function handleMutationSuccess() {
-    setCredential("");
-    setOrganization("");
-    setReauthRequired(false);
-    setErrorMessage(null);
-    toast.success(
-      resolveMessage(
-        appLocale,
-        "pages.workspace.settingsHub.repositories.connectSuccessTitle",
-      ),
-    );
-    if (mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update) {
-      onModeChange(PROVIDER_CREDENTIAL_DIALOG_MODES.manage);
-      return;
+  /**
+   * Business purpose: Confirm the provider status after an acknowledged PAT save.
+   * Business rules: Only fresh active status for the expected provider account confirms success.
+   * Execution flow:
+   * 1. Read the current provider statuses and compare with the acknowledged account.
+   * 2. Announce the confirmed save and return to the updated provider list or details.
+   * Failure cases: Unavailable or mismatched reads offer a read-only retry.
+   * Side effects: Refreshes shared state and announces confirmed results.
+   */
+  async function confirmCredential(
+    expectedUsername: string,
+    signal: AbortSignal,
+  ) {
+    setConfirmationBusy(true);
+    setErrorKey(null);
+    try {
+      const statuses = await refreshStatuses();
+      if (signal.aborted) return;
+      const confirmed = statuses.some(
+        (entry) =>
+          entry.provider === provider &&
+          entry.configured &&
+          entry.status === PROVIDER_CREDENTIAL_STATUSES.active &&
+          entry.account?.username === expectedUsername,
+      );
+      if (!confirmed) {
+        setErrorKey(
+          "pages.workspace.settingsHub.repositories.credentialConfirmationFailed",
+        );
+        return;
+      }
+      setPendingConfirmation(null);
+      toast.success(
+        resolveMessage(
+          appLocale,
+          mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update
+            ? "pages.workspace.settingsHub.repositories.credentialUpdated"
+            : "pages.workspace.settingsHub.repositories.credentialConnected",
+        ),
+      );
+      if (mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update) {
+        onModeChange(PROVIDER_CREDENTIAL_DIALOG_MODES.manage);
+      } else {
+        onOpenChange(false);
+      }
+    } catch {
+      if (!signal.aborted)
+        setErrorKey(
+          "pages.workspace.settingsHub.repositories.credentialConfirmationFailed",
+        );
+    } finally {
+      if (!signal.aborted) setConfirmationBusy(false);
     }
-    onOpenChange(false);
   }
 
-  function submitCredential(submittedCredential: string) {
-    setErrorMessage(null);
-    mutation.mutate(
-      { provider, credential: submittedCredential },
-      {
-        onSuccess: handleMutationSuccess,
-        onError: (error) => {
-          if (
-            error instanceof Error &&
-            "requiredAction" in error &&
-            error.requiredAction === REQUIRED_ACTIONS.reauthenticate
-          ) {
-            setCredential("");
-            setReauthRequired(true);
-            onReauthenticate?.(() => {
-              queueMicrotask(() => {
-                submitCredential(submittedCredential);
-              });
-            });
-            return;
-          }
-          const message = resolveMessage(
-            appLocale,
-            githubRepositoryProblemMessageKey(error),
-          );
-          setErrorMessage(message);
-          toast.error(message);
-        },
-      },
-    );
-  }
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const submittedCredential = credential.trim();
-    if (!submittedCredential || mutation.isPending) return;
-    const finalCredential =
+  /**
+   * Business purpose: Save a new or replacement PAT under the current account's policy.
+   * Business rules: Only completed verification can authorize one automatic retry.
+   * Execution flow:
+   * 1. Submit the validated PAT and request proof only on a backend challenge.
+   * 2. Retry once after proof, then clear the acknowledged draft and confirm by reading status.
+   * Failure cases: Cancellation clears the PAT; other failures keep the masked draft and report the error.
+   * Side effects: May update the provider credential and its shared status.
+   */
+  async function submitCredential({
+    credential,
+    organization,
+  }: ProviderCredentialValues) {
+    if (saveOperation.current || pendingConfirmation !== null) return;
+    const operation = new AbortController();
+    saveOperation.current = operation;
+    const { signal } = operation;
+    setErrorKey(null);
+    // Preserve Azure's existing combined format while keeping validation errors on the correct fields.
+    const submittedCredential =
       provider === CREDENTIAL_PROVIDERS.azureDevOps &&
-      organization.trim() &&
-      !submittedCredential.includes(":")
-        ? `${organization.trim()}:${submittedCredential}`
-        : submittedCredential;
-    submitCredential(finalCredential);
+      organization &&
+      !credential.includes(":")
+        ? `${organization}:${credential}`
+        : credential;
+    const write = () =>
+      configureProviderCredential(
+        { provider, credential: submittedCredential },
+        signal,
+      );
+    try {
+      let acknowledged;
+      try {
+        acknowledged = await write();
+      } catch (error) {
+        if (
+          signal.aborted ||
+          !(error instanceof GitHubRepositoryRequestError) ||
+          error.requiredAction !== REQUIRED_ACTIONS.reauthenticate ||
+          !onReauthenticate
+        )
+          throw error;
+        setReauthRequired(true);
+        // A settled or abandoned verification cannot retry, even if its response arrives later.
+        const confirmed = await new Promise<boolean>((resolve) => {
+          signal.addEventListener("abort", () => resolve(false), {
+            once: true,
+          });
+          onReauthenticate?.(
+            () => resolve(true),
+            () => resolve(false),
+          );
+        });
+        if (signal.aborted) return;
+        setReauthRequired(false);
+        if (!confirmed) {
+          form.resetField("credential");
+          setErrorKey(
+            "pages.workspace.settingsHub.repositories.credentialVerificationCanceled",
+          );
+          return;
+        }
+        acknowledged = await write();
+      }
+      if (signal.aborted || !acknowledged.account) return;
+      form.reset();
+      const username = acknowledged.account.username;
+      setPendingConfirmation(username);
+      await confirmCredential(username, signal);
+    } catch (error) {
+      if (signal.aborted) return;
+      const message = githubRepositoryProblemMessageKey(error);
+      if (
+        error instanceof GitHubRepositoryRequestError &&
+        (error.problemCode ===
+          GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid ||
+          error.problemCode ===
+            GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired ||
+          error.problemCode ===
+            GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid)
+      ) {
+        form.setError("credential", {
+          message:
+            "pages.workspace.settingsHub.repositories.credentialInvalidDescription",
+        });
+      } else {
+        setErrorKey(message);
+      }
+    } finally {
+      saveOperation.current = null;
+    }
+  }
+
+  /**
+   * Business purpose: Recover an unconfirmed credential status after a recorded save.
+   * Business rules:
+   * - A saved acknowledgement can only be checked by reading provider status.
+   * Execution flow:
+   * 1. Claim the active dialog operation and refresh the previously acknowledged provider.
+   * Failure cases:
+   * - An unconfirmed read stays available for retry without repeating the write.
+   * Side effects:
+   * - Refreshes provider metadata and may announce a confirmed save.
+   */
+  async function retryCredentialConfirmation() {
+    if (pendingConfirmation === null || saveOperation.current) return;
+    // Share the operation guard so leaving Settings also cancels confirmation feedback.
+    const operation = new AbortController();
+    saveOperation.current = operation;
+    try {
+      await confirmCredential(pendingConfirmation, operation.signal);
+    } finally {
+      saveOperation.current = null;
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={closeCredentialDialog}>
       <DialogContent
         className={cn(
-          "max-h-[calc(100svh-2rem)] max-w-140 gap-0 rounded-2xl p-6",
-          provider === CREDENTIAL_PROVIDERS.azureDevOps
-            ? "min-h-[490px]"
-            : "h-[430px]",
+          "max-h-[calc(100svh-2rem)] max-w-140 gap-0 overflow-y-auto rounded-2xl p-6",
+          provider === CREDENTIAL_PROVIDERS.azureDevOps ? "h-122.5" : "h-107.5",
         )}
         closeLabel={resolveMessage(
           appLocale,
@@ -325,26 +464,26 @@ export function ProviderCredentialDialog({
             status={status}
           />
         ) : (
-          <CredentialForm
-            accountUsername={accountUsername}
-            credential={credential}
-            errorMessage={errorMessage}
-            isPending={mutation.isPending}
-            mode={mode}
-            onCancel={() => {
-              if (mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update) {
-                changeMode(PROVIDER_CREDENTIAL_DIALOG_MODES.manage);
-                return;
-              }
-              closeCredentialDialog(false);
-            }}
-            onCredentialChange={setCredential}
-            onOrganizationChange={setOrganization}
-            organization={organization}
-            onSubmit={submit}
-            provider={provider}
-            reauthRequired={reauthRequired}
-          />
+          <FormProvider {...form}>
+            <CredentialForm
+              accountUsername={accountUsername}
+              errorKey={errorKey}
+              isPending={form.formState.isSubmitting || confirmationBusy}
+              confirmationPending={pendingConfirmation !== null}
+              onConfirmStatus={retryCredentialConfirmation}
+              mode={mode}
+              onCancel={() => {
+                if (mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update) {
+                  changeMode(PROVIDER_CREDENTIAL_DIALOG_MODES.manage);
+                  return;
+                }
+                closeCredentialDialog(false);
+              }}
+              onSubmit={form.handleSubmit(submitCredential)}
+              provider={provider}
+              reauthRequired={reauthRequired}
+            />
+          </FormProvider>
         )}
       </DialogContent>
     </Dialog>
@@ -382,32 +521,35 @@ function CredentialDialogHeader({
 
 function CredentialForm({
   accountUsername,
-  credential,
-  errorMessage,
+  errorKey,
+  confirmationPending,
+  onConfirmStatus,
   isPending,
   mode,
   onCancel,
-  onCredentialChange,
-  onOrganizationChange,
-  organization,
   onSubmit,
   provider,
   reauthRequired,
 }: {
   accountUsername: string;
-  credential: string;
-  errorMessage: string | null;
+  errorKey: MessageKey | null;
+  confirmationPending: boolean;
+  onConfirmStatus: () => Promise<void>;
   isPending: boolean;
   mode: ProviderCredentialDialogMode;
   onCancel: () => void;
-  onCredentialChange: (credential: string) => void;
-  onOrganizationChange: (organization: string) => void;
-  organization: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   provider: CredentialProvider;
   reauthRequired: boolean;
 }) {
   const isUpdateMode = mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update;
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<ProviderCredentialValues>();
+  const organizationError = errors.organization?.message as
+    MessageKey | undefined;
+  const credentialError = errors.credential?.message as MessageKey | undefined;
 
   return (
     <form className="mt-4 flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
@@ -435,7 +577,7 @@ function CredentialForm({
         </div>
       </div>
       {provider === CREDENTIAL_PROVIDERS.azureDevOps ? (
-        <div className="mt-4 flex h-18 flex-col gap-2">
+        <div className="mt-4 flex min-h-18 flex-col gap-2">
           <label
             className="text-[13px] font-medium"
             htmlFor="provider-organization"
@@ -453,12 +595,25 @@ function CredentialForm({
               appLocale,
               "pages.workspace.settingsHub.repositories.azureDevOpsOrganizationPlaceholder",
             )}
-            value={organization}
-            onChange={(event) => onOrganizationChange(event.target.value)}
+            {...register("organization")}
+            readOnly={isPending || confirmationPending}
+            aria-invalid={organizationError ? true : undefined}
+            aria-describedby={
+              organizationError ? "provider-organization-error" : undefined
+            }
           />
+          {organizationError ? (
+            <p
+              id="provider-organization-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {resolveMessage(appLocale, organizationError)}
+            </p>
+          ) : null}
         </div>
       ) : null}
-      <div className="mt-4 flex h-18 flex-col gap-2">
+      <div className="mt-4 flex min-h-18 flex-col gap-2">
         <label
           className="text-[13px] font-medium"
           htmlFor="provider-credential"
@@ -479,9 +634,22 @@ function CredentialForm({
               ? "pages.workspace.settingsHub.repositories.enterNewPat"
               : "pages.workspace.settingsHub.repositories.pastePersonalAccessToken",
           )}
-          value={credential}
-          onChange={(event) => onCredentialChange(event.target.value)}
+          {...register("credential")}
+          readOnly={isPending || confirmationPending}
+          aria-invalid={credentialError ? true : undefined}
+          aria-describedby={
+            credentialError ? "provider-credential-error" : undefined
+          }
         />
+        {credentialError ? (
+          <p
+            id="provider-credential-error"
+            role="alert"
+            className="text-xs text-destructive"
+          >
+            {resolveMessage(appLocale, credentialError)}
+          </p>
+        ) : null}
       </div>
       <div
         className="mt-4 flex h-16.5 items-center rounded-lg border border-border bg-muted/35 px-3 text-xs leading-5 text-muted-foreground"
@@ -489,9 +657,9 @@ function CredentialForm({
       >
         {resolveMessage(appLocale, PROVIDER_GUIDANCE_KEYS[provider])}
       </div>
-      {errorMessage && !reauthRequired ? (
+      {errorKey && !reauthRequired ? (
         <p role="alert" className="mt-2 text-xs font-medium text-destructive">
-          {errorMessage}
+          {resolveMessage(appLocale, errorKey)}
         </p>
       ) : null}
       {reauthRequired ? (
@@ -502,11 +670,13 @@ function CredentialForm({
           )}
         </p>
       ) : null}
-      <DialogFooter className="mt-auto flex-row justify-end gap-2.5 px-0 pb-0">
+      {/* Keep confirmation retry separate from submit so a failed read cannot repeat a PAT write. */}
+      <DialogFooter className="mt-auto flex-row flex-wrap justify-end gap-2.5 px-0 pt-4 pb-0">
         <Button
           className="h-9 w-23"
           type="button"
           variant="outline"
+          disabled={isPending}
           onClick={onCancel}
         >
           {resolveMessage(
@@ -514,24 +684,33 @@ function CredentialForm({
             "pages.workspace.settingsHub.repositories.cancel",
           )}
         </Button>
-        <Button
-          className={cn("h-9", isUpdateMode ? "w-21" : "w-25")}
-          type="submit"
-          disabled={
-            isPending ||
-            credential.trim().length === 0 ||
-            (provider === CREDENTIAL_PROVIDERS.azureDevOps &&
-              organization.trim().length === 0 &&
-              !credential.includes(":"))
-          }
-        >
-          {resolveMessage(
-            appLocale,
-            isUpdateMode
-              ? "pages.workspace.settingsHub.repositories.save"
-              : "pages.workspace.settingsHub.repositories.connect",
-          )}
-        </Button>
+        {confirmationPending ? (
+          <Button
+            type="button"
+            disabled={isPending}
+            onClick={() => void onConfirmStatus()}
+          >
+            {resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.repositories.credentialConfirmationRetry",
+            )}
+          </Button>
+        ) : (
+          <Button
+            className={cn("h-9", isUpdateMode ? "min-w-21" : "min-w-25")}
+            type="submit"
+            disabled={isPending}
+          >
+            {resolveMessage(
+              appLocale,
+              isPending && !reauthRequired
+                ? "pages.workspace.settingsHub.repositories.credentialSaving"
+                : isUpdateMode
+                  ? "pages.workspace.settingsHub.repositories.save"
+                  : "pages.workspace.settingsHub.repositories.connect",
+            )}
+          </Button>
+        )}
       </DialogFooter>
     </form>
   );

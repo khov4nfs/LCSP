@@ -127,22 +127,46 @@ export async function connectGitHubRepository(input: {
   return response.payload;
 }
 
-export async function configureProviderCredential(input: {
-  provider: CredentialProvider;
-  credential: string;
-}): Promise<ProviderCredentialStatus> {
+/**
+ * Business purpose: Submit a PAT and obtain a public acknowledgement for the requested provider.
+ * Business rules:
+ * - An acknowledgement must identify the requested provider and a configured account.
+ * Execution flow:
+ * 1. Send the PAT with the current session, then validate and project the acknowledgement.
+ * Failure cases:
+ * - Preserve authentication challenges; malformed acknowledgements cannot report success.
+ * Side effects:
+ * - Updates the backend credential without caching or returning the PAT.
+ */
+export async function configureProviderCredential(
+  input: { provider: CredentialProvider; credential: string },
+  signal?: AbortSignal,
+): Promise<ProviderCredentialStatus> {
   const response = await apiRequest("/api/provider-credentials", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
+    // A dialog that has been left must not continue submitting its draft.
+    signal,
   });
-  if (!response.ok || !isCredentialStatus(response.payload)) {
+  // A valid response for a different provider or a disconnected account cannot confirm this write.
+  const status = response.payload;
+  if (
+    !response.ok ||
+    !isCredentialStatus(status) ||
+    status.provider !== input.provider ||
+    !status.configured
+  ) {
     throw new GitHubRepositoryRequestError(
       response.problemCode,
       response.requiredAction,
     );
   }
-  return response.payload;
+  return {
+    provider: status.provider,
+    configured: true,
+    account: status.account,
+  };
 }
 
 /**

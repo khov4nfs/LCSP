@@ -12,7 +12,8 @@ test("provider credential reauthentication is routed to the existing Settings fl
   );
   assert.match(source, /requiredAction === REQUIRED_ACTIONS\.reauthenticate/);
   assert.match(source, /onReauthenticate\?\./);
-  assert.match(source, /setCredential\(""\)/);
+  // The action must discard the masked form value on cancellation.
+  assert.match(source, /form\.resetField\("credential"\)/);
 });
 
 test("provider credential request preserves requiredAction from the API problem", async () => {
