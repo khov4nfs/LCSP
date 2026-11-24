@@ -1,6 +1,9 @@
 import { jest } from "@jest/globals";
 import type { Request, Response } from "express";
-import { DevUnsafeHttpTraceMiddleware } from "./dev-unsafe-http-trace.middleware.js";
+import {
+  DevUnsafeHttpTraceMiddleware,
+  isSensitiveHttpTraceRoute,
+} from "./dev-unsafe-http-trace.middleware.js";
 import {
   emitDevUnsafeTrace,
   unsafeDevTraceEnabled,
@@ -108,11 +111,30 @@ describe("dev-unsafe-trace", () => {
     writeSpy.mockRestore();
   });
 
-  // Settings credentials and the proof authorizing their writes must bypass raw tracing.
+  // Sensitive authentication, credential, and billing routes must bypass raw tracing.
   it.each([
     "/provider-credentials",
+    "/provider-credentials/cred-123",
+    "/auth/sign-in",
+    "/auth/sign-up",
     "/auth/re-auth/password",
+    "/auth/mfa/enroll",
     "/auth/mfa/verify-otp",
+    "/auth/mfa/recovery-codes",
+    "/auth/mfa/recovery-codes/access",
+    "/auth/mfa/recovery-code/verify",
+    "/auth/recovery/request",
+    "/auth/recovery/confirm",
+    "/auth/oauth/start",
+    "/auth/oauth/callback",
+    "/auth/oauth/link/start",
+    "/auth/oauth/link/callback",
+    "/auth/sessions",
+    "/auth/sessions/sess-123",
+    "/auth/revoke-session",
+    "/auth/sensitive-route/check",
+    "/billing/sepay/webhook",
+    "/billing/sepay/transaction",
   ])("excludes %s even when unfiltered HTTP tracing is enabled", (path) => {
     process.env.LCSP_DEV_UNSAFE_TRACE = "true";
     process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
@@ -123,6 +145,7 @@ describe("dev-unsafe-trace", () => {
     try {
       const request = {
         path,
+        originalUrl: path,
         method: "POST",
         body: { credential: "synthetic-sensitive-input" },
       } as Request;
@@ -134,6 +157,82 @@ describe("dev-unsafe-trace", () => {
       );
       expect(next).toHaveBeenCalledTimes(1);
       expect(write).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it("identifies sensitive vs non-sensitive route paths via isSensitiveHttpTraceRoute", () => {
+    expect(isSensitiveHttpTraceRoute("/auth/sign-in")).toBe(true);
+    expect(
+      isSensitiveHttpTraceRoute("/auth/oauth/link/callback?code=xyz"),
+    ).toBe(true);
+    expect(isSensitiveHttpTraceRoute("/provider-credentials/github")).toBe(
+      true,
+    );
+    expect(isSensitiveHttpTraceRoute("/billing/sepay/webhook")).toBe(true);
+
+    expect(isSensitiveHttpTraceRoute("/assessments")).toBe(false);
+    expect(isSensitiveHttpTraceRoute("/projects/123/overview")).toBe(false);
+    expect(isSensitiveHttpTraceRoute("/users/profile")).toBe(false);
+  });
+
+  it("redacts sensitive headers, cookies, and tokens when non-sensitive route is traced", () => {
+    process.env.LCSP_DEV_UNSAFE_TRACE = "true";
+    process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
+    const write = jest
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    const next = jest.fn();
+    try {
+      const fakeToken = ["Bearer ghp", "_token1234567890abcdef"].join("");
+      const request = {
+        path: "/assessments",
+        originalUrl: "/assessments",
+        method: "GET",
+        headers: {
+          authorization: fakeToken,
+          cookie: "session_token=secret-session-cookie",
+          "x-api-key": "synthetic-secret-key",
+          "content-type": "application/json",
+        },
+        rawHeaders: [
+          "Authorization",
+          fakeToken,
+          "Cookie",
+          "session_token=secret-session-cookie",
+          "Content-Type",
+          "application/json",
+        ],
+        cookies: {
+          session_token: "secret-cookie-val",
+        },
+        signedCookies: {
+          signed_token: "secret-signed-val",
+        },
+      } as unknown as Request;
+      const response = {
+        json: jest.fn(),
+        send: jest.fn(),
+        on: jest.fn(),
+        statusCode: 200,
+        getHeaders: () => ({
+          "set-cookie": ["session_token=secret-new-cookie; Path=/"],
+          "content-type": "application/json",
+        }),
+      };
+      new DevUnsafeHttpTraceMiddleware().use(
+        request,
+        response as unknown as Response,
+        next,
+      );
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(write).toHaveBeenCalled();
+      const output = write.mock.calls[0][0] as string;
+      expect(output).not.toContain("ghp_token1234567890abcdef");
+      expect(output).not.toContain("secret-session-cookie");
+      expect(output).not.toContain("synthetic-secret-key");
+      expect(output).toContain("[REDACTED]");
     } finally {
       write.mockRestore();
     }

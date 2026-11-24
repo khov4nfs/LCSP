@@ -375,6 +375,47 @@ describe("HttpExceptionFilter", () => {
       }),
     );
   });
+
+  it("redacts sensitive secrets in error metadata and exception logging", () => {
+    const filter = new HttpExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const warnSpy = jest.spyOn(
+      Reflect.get(filter, "logger") as { warn: (message: string) => void },
+      "warn",
+    );
+    const fakeGhp = ["Bearer ghp", "_secretgithubpat1234567890"].join("");
+    const fakeAi = ["sk", "-ant-api03-secretvalue"].join("");
+    const secretMessage = `Upstream failed with token ${fakeGhp} and ${fakeAi}`;
+    const exception = new BadRequestException({
+      message: secretMessage,
+      error: "Bad Request",
+    });
+
+    filter.catch(
+      exception,
+      createArgumentsHost(
+        { method: "POST", url: "/test-secret-redaction", headers: {} },
+        { locals: {}, status },
+      ),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    const sentJson = json.mock.calls[0][0] as {
+      problem: { meta?: { message?: string } };
+    };
+    expect(sentJson.problem.meta?.message).not.toContain(
+      "secretgithubpat1234567890",
+    );
+    expect(sentJson.problem.meta?.message).not.toContain("secretvalue");
+    expect(sentJson.problem.meta?.message).toContain("[REDACTED]");
+
+    expect(warnSpy).toHaveBeenCalled();
+    const warnMessage = warnSpy.mock.calls[0][0];
+    expect(warnMessage).not.toContain("secretgithubpat1234567890");
+    expect(warnMessage).not.toContain("secretvalue");
+    expect(warnMessage).toContain("[REDACTED]");
+  });
 });
 
 function createArgumentsHost(

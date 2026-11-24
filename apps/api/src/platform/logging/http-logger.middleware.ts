@@ -45,6 +45,57 @@ export class HttpLoggerMiddleware implements NestMiddleware {
   }
 }
 
+const SENSITIVE_QUERY_PARAM_PATTERN =
+  /^(?:code|state|token|secret|signature|password|key|nonce|credential|otp|totp)$/i;
+
+/**
+ * Business purpose:
+ * Redacts sensitive credentials, authorization codes, nonces, and secrets from HTTP request URLs before logging.
+ *
+ * Business rules:
+ * - Inspects query string parameters of incoming request URLs.
+ * - Detects sensitive parameter keys (such as OAuth authorization code, CSRF/OAuth state, tokens, signatures).
+ * - Replaces their values with [REDACTED] to ensure zero secret leakage in application log files.
+ *
+ * Execution flow:
+ * 1. Checks if the URL string exists and contains a query delimiter ("?").
+ * 2. Splits URL into the base path and query component.
+ * 3. Inspects each key-value pair; if the parameter key matches sensitive parameter patterns, replaces the value with [REDACTED].
+ * 4. Re-assembles and returns the sanitized URL string.
+ *
+ * Failure cases:
+ * - Returns original input unchanged if input is empty or non-string or lacks query parameters.
+ *
+ * Side effects:
+ * - Pure string transformation; no external mutations or side effects.
+ */
+export function sanitizeUrlForLogging(rawUrl: string): string {
+  // Rationale: OAuth redirects and external webhooks often supply credentials or ephemeral codes in query parameters.
+  // Mechanism: Parses query parameters by delimiter, checks parameter names against SENSITIVE_QUERY_PARAM_PATTERN, and replaces values.
+  // Invariants: Path segments, safe query keys, and non-sensitive parameters are preserved without modification.
+  if (!rawUrl || typeof rawUrl !== "string") {
+    return rawUrl;
+  }
+  const qIndex = rawUrl.indexOf("?");
+  if (qIndex === -1) {
+    return rawUrl;
+  }
+  const basePath = rawUrl.slice(0, qIndex);
+  const queryString = rawUrl.slice(qIndex + 1);
+  const sanitizedParams = queryString.split("&").map((pair) => {
+    const eqIndex = pair.indexOf("=");
+    if (eqIndex === -1) {
+      return pair;
+    }
+    const key = pair.slice(0, eqIndex);
+    if (SENSITIVE_QUERY_PARAM_PATTERN.test(decodeURIComponent(key))) {
+      return `${key}=[REDACTED]`;
+    }
+    return pair;
+  });
+  return `${basePath}?${sanitizedParams.join("&")}`;
+}
+
 /**
  * Builds the structured HTTP log message for a completed response.
  *
@@ -62,7 +113,8 @@ function formatHttpLogMessage(
   duration: number,
   response: Response,
 ): string {
-  const baseMessage = `${method} ${originalUrl} ${statusCode} +${duration}ms`;
+  const sanitizedUrl = sanitizeUrlForLogging(originalUrl);
+  const baseMessage = `${method} ${sanitizedUrl} ${statusCode} +${duration}ms`;
   const problem = readProblemResponseMetadata(response);
   if (!problem) {
     return baseMessage;

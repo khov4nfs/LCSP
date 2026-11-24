@@ -9,6 +9,8 @@ import {
 } from "../../errors/application.error.js";
 
 import { cleanString, isNumber, isRecord } from "@lcsp/contracts/shared";
+import { sanitizeStringSecrets } from "../../audit/audit-sanitizer.js";
+import { sanitizeUrlForLogging } from "../../logging/http-logger.middleware.js";
 import { setProblemResponseMetadata } from "./error-response-metadata.js";
 import {
   defaultErrorCodeForStatus,
@@ -65,16 +67,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const body = applicationProblem ?? getExceptionBody(exception);
     const correlationId = getCorrelationId(body, request);
 
+    const sanitizedUrl = sanitizeUrlForLogging(request.url ?? "");
     if (status >= 500) {
       this.logger.error(
-        `[${correlationId}] ${request.method ?? "HTTP"} ${request.url ?? ""} ${status} - Internal Server Error`,
+        `[${correlationId}] ${request.method ?? "HTTP"} ${sanitizedUrl} ${status} - Internal Server Error`,
         exception instanceof Error
-          ? exception.stack
+          ? sanitizeStringSecrets(exception.stack ?? "")
           : formatExceptionBody(exception),
       );
     } else if (status >= 400) {
       this.logger.warn(
-        `[${correlationId}] ${request.method ?? "HTTP"} ${request.url ?? ""} ${status} - ${formatExceptionBody(body || exception)}`,
+        `[${correlationId}] ${request.method ?? "HTTP"} ${sanitizedUrl} ${status} - ${formatExceptionBody(body || exception)}`,
       );
     }
 
@@ -106,17 +109,20 @@ function toApplicationProblemResult(
 }
 
 /**
- * Converts an arbitrary exception body into a safe log string.
+ * Converts an arbitrary exception body into a safe log string with secrets redacted.
  *
  * @param body - Exception body or thrown value to format.
  * @returns String representation suitable for logging.
  */
 function formatExceptionBody(body: unknown): string {
+  // Rationale: Error messages from downstream services or validation libraries may echo tokens or secrets.
+  // Mechanism: Converts the thrown value to a string representation and runs sanitizeStringSecrets on the result.
+  // Invariants: Ensures no raw Bearer tokens, GitHub PATs, API keys, or connection strings leak to application logs.
   if (body === null || body === undefined) {
     return "null";
   }
   if (typeof body === "string") {
-    return body;
+    return sanitizeStringSecrets(body);
   }
   if (
     typeof body === "number" ||
@@ -128,7 +134,7 @@ function formatExceptionBody(body: unknown): string {
   }
   if (typeof body === "object") {
     try {
-      return JSON.stringify(body);
+      return sanitizeStringSecrets(JSON.stringify(body));
     } catch (error) {
       return error instanceof Error ? error.message : "unserializable_body";
     }
@@ -137,33 +143,36 @@ function formatExceptionBody(body: unknown): string {
 }
 
 /**
- * Extracts descriptive metadata from an exception response body when available.
+ * Extracts descriptive metadata from an exception response body when available, redacting any secrets.
  *
  * @param body - Raw exception response body.
  * @returns Sanitized problem metadata or undefined.
  */
 function extractProblemMeta(body: unknown): ProblemMeta | undefined {
+  // Rationale: Client problem envelopes must never echo raw credentials or sensitive upstream errors.
+  // Mechanism: Cleans strings, sanitizes any matched secret patterns, and constructs the safe ProblemMeta object.
+  // Invariants: Any message or error property is scrubbed with sanitizeStringSecrets.
   const cleaned = cleanString(body);
   if (cleaned) {
-    return { message: cleaned };
+    return { message: sanitizeStringSecrets(cleaned) };
   }
   if (isRecord(body)) {
     const meta: ProblemMeta = {};
     const messageCleaned = cleanString(body.message);
     if (messageCleaned) {
-      meta.message = messageCleaned;
+      meta.message = sanitizeStringSecrets(messageCleaned);
     } else if (Array.isArray(body.message)) {
       const messages = body.message
         .map(cleanString)
         .filter((item): item is string => item !== null)
         .join("; ");
       if (messages.length > 0) {
-        meta.message = messages;
+        meta.message = sanitizeStringSecrets(messages);
       }
     }
     const errorCleaned = cleanString(body.error);
     if (errorCleaned && !meta.message) {
-      meta.error = errorCleaned;
+      meta.error = sanitizeStringSecrets(errorCleaned);
     }
     return Object.keys(meta).length > 0 ? meta : undefined;
   }

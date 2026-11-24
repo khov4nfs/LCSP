@@ -1,5 +1,6 @@
 import { isRecord } from "@lcsp/contracts/shared";
 
+// Safe code identifiers and correlation markers that must not be stripped even if they contain substrings like "code" or "key".
 const SAFE_CODE_KEYS = new Set([
   "reason_code",
   "reasonCode",
@@ -9,11 +10,22 @@ const SAFE_CODE_KEYS = new Set([
   "claimKey",
   "idempotency_key",
   "idempotencyKey",
+  "error_code",
+  "errorCode",
+  "status_code",
+  "statusCode",
+  "correlation_id",
+  "correlationId",
 ]);
-const SENSITIVE_KEY_PATTERN = /password|token|secret|key|nonce|code|hash/i;
+
+// Expanded regex matching keys that contain sensitive credentials, secrets, tokens, OTPs, or auth headers.
+const SENSITIVE_KEY_PATTERN =
+  /password|token|secret|key|nonce|code|hash|otp|totp|setup_?uri|otpauth|qr_?code|signature|credential|cookie|authorization/i;
 const MAX_AUDIT_STRING_LENGTH = 4096;
 const REDACTED_VALUE = "[REDACTED]";
 const TRUNCATED_VALUE = "...[TRUNCATED]";
+
+// Regular expressions to detect and redact sensitive patterns embedded within free-text strings.
 const SENSITIVE_VALUE_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi,
   /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
@@ -21,11 +33,106 @@ const SENSITIVE_VALUE_PATTERNS = [
   /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
   /((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:\s/@]+:)[^@\s/]+@/gi,
   /((?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*)[^\s,;]+/gi,
+  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b/g,
+  /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g,
+  /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{20,}\b/g,
+  /\botpauth:\/\/[^\s"'<>]+/gi,
+  /\bsynthetic[-_]secret[-_A-Za-z0-9]+\b/gi,
 ] as const;
 
 export interface SanitizeResult {
   payload: Record<string, unknown> | undefined;
   removedKeys: string[];
+}
+
+/**
+ * Business purpose:
+ * Sanitizes arbitrary text strings by scrubbing detected credentials, secrets, tokens, and URIs.
+ *
+ * Business rules:
+ * - Scans strings against high-confidence sensitive credential patterns (bearer tokens, GitHub PATs, AI keys, OTP setup URIs, private keys).
+ * - Replaces any matched secret substring with the canonical [REDACTED] placeholder.
+ *
+ * Execution flow:
+ * 1. Validates that the input is a valid non-empty string; returns unmodified if empty.
+ * 2. Iterates over SENSITIVE_VALUE_PATTERNS with pattern index reset.
+ * 3. Replaces matched substrings with [REDACTED], preserving connection URI prefixes if captured.
+ * 4. Returns the sanitized string.
+ *
+ * Failure cases:
+ * - Returns empty string for empty input; does not throw.
+ *
+ * Side effects:
+ * - Pure computation; no mutations or external side-effects.
+ */
+export function sanitizeStringSecrets(value: string): string {
+  // Rationale: Prevent accidental secret exposure in free-text logs, error metadata, or audit fields.
+  // Mechanism: Iterates through defined regex patterns with state reset to eliminate regex state pollution.
+  // Invariants: Preserves surrounding formatting while ensuring matching secret tokens are completely masked.
+  if (!value) {
+    return value;
+  }
+  let sanitized = value;
+  for (const pattern of SENSITIVE_VALUE_PATTERNS) {
+    // Reset RegExp lastIndex to ensure accurate matching across consecutive invocations
+    pattern.lastIndex = 0;
+    sanitized = sanitized.replace(pattern, (match, prefix?: string) =>
+      typeof prefix === "string" && prefix.length > 0
+        ? `${prefix}${REDACTED_VALUE}${match.endsWith("@") ? "@" : ""}`
+        : REDACTED_VALUE,
+    );
+  }
+  return sanitized;
+}
+
+/**
+ * Business purpose:
+ * Recursively cleans sensitive string tokens inside arbitrary object records and nested collections without altering structure.
+ *
+ * Business rules:
+ * - Traverses objects and arrays deeply.
+ * - Masks any embedded secret string patterns with sanitizeStringSecrets.
+ * - Preserves keys and non-string values intact.
+ *
+ * Execution flow:
+ * 1. Checks if input is an object record; if not, returns value directly.
+ * 2. For array items, maps each item through recursive sanitization.
+ * 3. For record fields, recursively sanitizes each value and builds a sanitized clone.
+ *
+ * Failure cases:
+ * - Returns unchanged for non-record primitive inputs.
+ *
+ * Side effects:
+ * - Pure computation; produces a new object without mutating input arguments.
+ */
+export function sanitizeRecordSecrets<T extends Record<string, unknown>>(
+  record: T,
+): T {
+  // Rationale: Used by logging middleware and exception filters to sanitize payloads while keeping original key structure intact.
+  // Mechanism: Recursive traversal checking isRecord and Array.isArray, delegating string sanitization to sanitizeStringSecrets.
+  // Invariants: Does not mutate the original record or drop existing keys.
+  if (!record || typeof record !== "object") {
+    return record;
+  }
+
+  function cleanVal(v: unknown): unknown {
+    if (typeof v === "string") {
+      return sanitizeStringSecrets(v);
+    }
+    if (Array.isArray(v)) {
+      return v.map((item) => cleanVal(item));
+    }
+    if (isRecord(v)) {
+      return Object.fromEntries(
+        Object.entries(v).map(([key, child]) => [key, cleanVal(child)]),
+      );
+    }
+    return v;
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).map(([k, v]) => [k, cleanVal(v)]),
+  ) as T;
 }
 
 /**
@@ -93,15 +200,7 @@ function sanitizeValue(
   removedKeys: string[],
 ): unknown {
   if (typeof value === "string") {
-    let sanitized = value;
-    for (const pattern of SENSITIVE_VALUE_PATTERNS) {
-      pattern.lastIndex = 0;
-      sanitized = sanitized.replace(pattern, (match, prefix?: string) =>
-        typeof prefix === "string" && prefix.length > 0
-          ? `${prefix}${REDACTED_VALUE}${match.endsWith("@") ? "@" : ""}`
-          : REDACTED_VALUE,
-      );
-    }
+    let sanitized = sanitizeStringSecrets(value);
     if (sanitized.length > MAX_AUDIT_STRING_LENGTH) {
       sanitized = `${sanitized.slice(0, MAX_AUDIT_STRING_LENGTH)}${TRUNCATED_VALUE}`;
     }
