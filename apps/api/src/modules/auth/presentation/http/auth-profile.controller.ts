@@ -11,28 +11,33 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 
 import {
+  updatePrivacySettingsSchema,
   updateProfileSchema,
+  type PrivacySettingsResponse,
+  type UpdatePrivacySettingsInput,
   type UpdateProfileInput,
 } from "@lcsp/contracts/auth";
 
-import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.ts";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { RequireSession } from "../../../../platform/rbac/decorators/require-session.decorator.ts";
+import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";
 import {
-  RevokeOwnedSessionCommand,
   RevokeAllSessionsCommand,
+  RevokeOwnedSessionCommand,
+  UpdatePrivacySettingsCommand,
   UpdateProfileCommand,
 } from "../../application/commands/index.ts";
 import type {
   AuthProfileSuccess,
   AuthSessionsSuccess,
-  RevokeOwnedSessionSuccess,
   RevokeAllSessionsSuccess,
+  RevokeOwnedSessionSuccess,
   UpdateProfileSuccess,
 } from "../../application/contracts/auth/index.ts";
 import {
   GetAuthProfileQuery,
+  GetPrivacySettingsQuery,
   ListAuthSessionsQuery,
 } from "../../application/queries/index.ts";
 
@@ -45,6 +50,70 @@ export class AuthProfileController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  /**
+   * Business purpose: Retrieve current privacy settings and system policy enforcement for the authenticated user.
+   * Business rules:
+   * - The session guard verifies user authentication.
+   * - Scoped strictly to caller's authenticated user ID.
+   * Execution flow:
+   * 1. Dispatch GetPrivacySettingsQuery with authenticated context.
+   * 2. Return PrivacySettingsResponse envelope.
+   * Failure cases:
+   * - Unauthenticated requests are rejected with 401.
+   * Side effects:
+   * - Read-only query.
+   */
+  @Get("privacy")
+  @UseGuards(RbacGuard)
+  @RequireSession()
+  async getPrivacySettings(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<PrivacySettingsResponse> {
+    return this.queryBus.execute<
+      GetPrivacySettingsQuery,
+      PrivacySettingsResponse
+    >(new GetPrivacySettingsQuery(request.rbacContext, request.correlationId));
+  }
+
+  /**
+   * Business purpose: Update privacy preferences for the authenticated user and record audit trail.
+   * Business rules:
+   * - The session guard verifies user authentication.
+   * - Request body is validated against updatePrivacySettingsSchema.
+   * - System policy on model training cannot be overridden.
+   * Execution flow:
+   * 1. Validate request payload using ZodValidationPipe.
+   * 2. Dispatch UpdatePrivacySettingsCommand with verified userId and payload.
+   * 3. Return updated PrivacySettingsResponse envelope.
+   * Failure cases:
+   * - Validation failures return 400 Bad Request.
+   * - Unauthenticated requests return 401 Unauthorized.
+   * Side effects:
+   * - Persists privacy preferences and records an audit event.
+   */
+  @Patch("privacy")
+  @UseGuards(RbacGuard)
+  @RequireSession()
+  async updatePrivacySettings(
+    @Body(new ZodValidationPipe(updatePrivacySettingsSchema))
+    body: UpdatePrivacySettingsInput,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<PrivacySettingsResponse> {
+    return this.commandBus.execute<
+      UpdatePrivacySettingsCommand,
+      PrivacySettingsResponse
+    >(
+      new UpdatePrivacySettingsCommand(
+        body,
+        request.rbacContext.userId,
+        request.rbacContext.sessionId,
+        {
+          correlationId: request.correlationId,
+        },
+      ),
+    );
+  }
 
   /**
    * Guarded profile update endpoint.

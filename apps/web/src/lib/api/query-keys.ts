@@ -20,6 +20,22 @@ export const apiQueryKeys = {
      * - None: pure key generator.
      */
     oauthIdentities: () => ["auth", "oauth-identities"] as const,
+    /**
+     * Business purpose: Generate query key for caching the user's privacy settings.
+     *
+     * Business rules:
+     * - Returns isolated cache key under the auth namespace.
+     *
+     * Execution flow:
+     * 1. Return readonly tuple ["auth", "privacy-settings"].
+     *
+     * Failure cases:
+     * - None: pure key generator.
+     *
+     * Side effects:
+     * - None: pure key generator.
+     */
+    privacySettings: () => ["auth", "privacy-settings"] as const,
   },
   githubIntegration: {
     providerCredentials: () => ["provider-credentials"] as const,

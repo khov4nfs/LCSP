@@ -11,6 +11,7 @@ import {
   getAuthSessions,
   getAuthSettingsProfile,
   getLinkedOAuthIdentities,
+  getPrivacySettings,
   recordMfaRecoveryCodeAccess,
   reauthenticateWithPassword,
   revokeAuthSession,
@@ -18,6 +19,7 @@ import {
   requestPasswordRecovery,
   signUp,
   signOut,
+  updatePrivacySettings,
   updateProfile,
   verifyMfaRecoveryCode,
   verifyMfaOtp,
@@ -90,6 +92,72 @@ export function useLinkedOAuthIdentitiesQuery(options?: { enabled?: boolean }) {
     queryKey: apiQueryKeys.auth.oauthIdentities(),
     queryFn: getLinkedOAuthIdentities,
     ...(options?.enabled !== undefined ? { enabled: options.enabled } : {}),
+  });
+}
+
+/**
+ * Business purpose: Fetch and cache privacy configuration for the authenticated user.
+ *
+ * Business rules:
+ * - Requires active session.
+ * - Surfaces load state and cached privacy settings via TanStack Query.
+ *
+ * Execution flow:
+ * 1. Build cache key from apiQueryKeys.auth.privacySettings.
+ * 2. Delegate query execution to getPrivacySettings client helper.
+ *
+ * Failure cases:
+ * - Network failures or unauthorized errors are captured in query.isError.
+ *
+ * Side effects:
+ * - Populates and maintains TanStack Query cache under the auth.privacySettings key.
+ */
+export function usePrivacySettingsQuery(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: apiQueryKeys.auth.privacySettings(),
+    queryFn: getPrivacySettings,
+    ...(options?.enabled !== undefined ? { enabled: options.enabled } : {}),
+  });
+}
+
+/**
+ * Business purpose: Update privacy settings and invalidate the cached query on success.
+ *
+ * Business rules:
+ * - Sends partial updates to the backend via the web BFF.
+ * - Only invalidates the privacy settings query cache on successful confirmation.
+ *
+ * Execution flow:
+ * 1. Delegate mutation execution to updatePrivacySettings client helper.
+ * 2. On confirmed success, invalidate the auth.privacySettings query key.
+ *
+ * Failure cases:
+ * - Mutation failures are caught and surfaced via mutation error states without cache corruption.
+ *
+ * Side effects:
+ * - Refetches privacy settings from the server upon mutation success.
+ */
+export function useUpdatePrivacySettingsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updatePrivacySettings,
+    /**
+     * Business purpose: Synchronize privacy cache after confirmed server update.
+     * Business rules:
+     * - Refetches settings only after the backend confirms persistence.
+     * Execution flow:
+     * 1. Invalidate apiQueryKeys.auth.privacySettings query cache.
+     * Failure cases:
+     * - Cache invalidation failures are silent and caught by query error boundaries.
+     * Side effects:
+     * - Triggers refetch of privacy settings.
+     */
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.auth.privacySettings(),
+      });
+    },
   });
 }
 

@@ -2486,12 +2486,26 @@ export const enPages = {
       privacy: {
         title: "Privacy",
         description:
-          "Privacy controls are shown here only when backed by persisted product settings.",
+          "Manage your workspace and account privacy preferences and data governance policies.",
         repositoryMetadata: "Repository metadata",
+        repositoryMetadataDescription:
+          "Retain repository file tree telemetry and indexing caches for faster subsequent scans.",
         improveModels: "Improve models with workspace data",
+        improveModelsDescription:
+          "External and foundation AI models are strictly prohibited from training on customer repository code.",
         exportData: "Export assessment data",
-        sharedAssessments: "Shared assessments",
-        memoryPreferences: "Memory preferences",
+        exportDataDescription:
+          "Allow authorized members to generate and export assessment reports and audit trails.",
+        sharedAssessments: "Restricted assessment sharing",
+        sharedAssessmentsDescription:
+          "When enabled, assessment findings are only visible to the creator and workspace administrators.",
+        memoryPreferences: "Purge agent memory on completion",
+        memoryPreferencesDescription:
+          "Automatically purge agent reasoning context and temporary scratchpads upon assessment completion.",
+        enforcedByPolicy: "Enforced by Policy",
+        saveSuccess: "Privacy settings updated successfully.",
+        saveError: "Failed to update privacy settings.",
+        loading: "Loading privacy settings...",
       },
       billing: {
         title: "Billing",

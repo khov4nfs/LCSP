@@ -1,0 +1,11 @@
+{
+  "retain_repository_telemetry": false,
+  "enable_audit_export_api": true,
+  "restricted_assessment_sharing": false,
+  "purge_agent_memory_on_completion": true,
+  "improve_models": {
+    "enabled": false,
+    "enforced": true
+  },
+  "updated_at": "2026-11-24T12:00:00.000Z"
+}

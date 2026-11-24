@@ -29,6 +29,7 @@ export const AUTH_AUDIT_EVENT_TYPES = {
   authOauthLoginSuccess: "AUTH_OAUTH_LOGIN_SUCCESS",
   authOauthLoginFailed: "AUTH_OAUTH_LOGIN_FAILED",
   authMfaRotationExpired: "AUTH_MFA_ROTATION_EXPIRED",
+  authPrivacySettingsUpdated: "AUTH_PRIVACY_SETTINGS_UPDATED",
 } as const;
 
 export type AuthAuditEventType =

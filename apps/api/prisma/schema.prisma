@@ -283,6 +283,7 @@ model User {
   llmUsageEvents            LlmUsageEvent[]
   paymentTransactions       PaymentTransaction[]
   assessmentFactNeeds       AssessmentFactNeed[]          @relation("AssessmentFactNeedTenantOwner")
+  privacySetting            PrivacySetting?
 
   @@index([accessStatus, role, createdAt, id])
 }
@@ -304,6 +305,20 @@ model AuthRecord {
   @@index([userId, type])
   @@index([type, expiresAt])
   @@index([userId, type, revokedAt, usedAt])
+}
+
+model PrivacySetting {
+  id                           String   @id @default(uuid())
+  userId                       String   @unique
+  retainRepositoryTelemetry    Boolean  @default(false)
+  enableAuditExportApi         Boolean  @default(true)
+  restrictedAssessmentSharing Boolean  @default(false)
+  purgeAgentMemoryOnCompletion Boolean  @default(true)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum AuthRecordType {

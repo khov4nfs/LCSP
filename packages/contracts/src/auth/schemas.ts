@@ -428,3 +428,49 @@ export const adminOverviewQuerySchema = z.object({
     }),
 });
 export type AdminOverviewQueryInput = z.infer<typeof adminOverviewQuerySchema>;
+
+/**
+ * Validation schema for complete privacy settings objects.
+ */
+export const privacySettingsSchema = z.object({
+  retain_repository_telemetry: z.boolean(),
+  enable_audit_export_api: z.boolean(),
+  restricted_assessment_sharing: z.boolean(),
+  purge_agent_memory_on_completion: z.boolean(),
+  improve_models: z
+    .object({
+      enabled: z.literal(false),
+      enforced: z.literal(true),
+    })
+    .default({
+      enabled: false,
+      enforced: true,
+    }),
+  updated_at: z.string().nullable().optional(),
+});
+export type PrivacySettingsInput = z.infer<typeof privacySettingsSchema>;
+
+/**
+ * Validation schema for updating privacy settings.
+ */
+export const updatePrivacySettingsSchema = z.object({
+  retain_repository_telemetry: z.boolean().optional(),
+  enable_audit_export_api: z.boolean().optional(),
+  restricted_assessment_sharing: z.boolean().optional(),
+  purge_agent_memory_on_completion: z.boolean().optional(),
+});
+export type UpdatePrivacySettingsInput = z.infer<
+  typeof updatePrivacySettingsSchema
+>;
+
+export type PrivacySettingsResponse = {
+  retain_repository_telemetry: boolean;
+  enable_audit_export_api: boolean;
+  restricted_assessment_sharing: boolean;
+  purge_agent_memory_on_completion: boolean;
+  improve_models: {
+    enabled: false;
+    enforced: true;
+  };
+  updated_at: string | null;
+};

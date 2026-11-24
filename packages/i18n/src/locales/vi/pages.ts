@@ -2495,12 +2495,26 @@ export const viPages = {
       privacy: {
         title: "Quyền riêng tư",
         description:
-          "Các kiểm soát quyền riêng tư chỉ hiển thị như cài đặt lưu được khi đã có contract backend.",
+          "Quản lý tùy chọn quyền riêng tư và chính sách quản trị dữ liệu cho workspace và tài khoản của bạn.",
         repositoryMetadata: "Metadata repository",
+        repositoryMetadataDescription:
+          "Lưu giữ telemetry cấu trúc file repository và cache chỉ mục để tăng tốc độ quét tiếp theo.",
         improveModels: "Cải thiện model bằng dữ liệu workspace",
+        improveModelsDescription:
+          "Nghiêm cấm tuyệt đối việc sử dụng code của khách hàng để huấn luyện các model AI bên ngoài hoặc model nền tảng.",
         exportData: "Xuất dữ liệu assessment",
-        sharedAssessments: "Assessment đã chia sẻ",
-        memoryPreferences: "Tùy chọn bộ nhớ",
+        exportDataDescription:
+          "Cho phép thành viên được ủy quyền tạo và xuất báo cáo assessment cũng như audit trail.",
+        sharedAssessments: "Giới hạn chia sẻ assessment",
+        sharedAssessmentsDescription:
+          "Khi bật, kết quả assessment chỉ hiển thị cho người tạo và quản trị viên workspace.",
+        memoryPreferences: "Xóa bộ nhớ agent khi hoàn tất",
+        memoryPreferencesDescription:
+          "Tự động xóa ngữ cảnh suy luận và vùng nhớ tạm của agent ngay khi assessment hoàn tất.",
+        enforcedByPolicy: "Chính sách bắt buộc",
+        saveSuccess: "Cập nhật cài đặt quyền riêng tư thành công.",
+        saveError: "Không thể cập nhật cài đặt quyền riêng tư.",
+        loading: "Đang tải cài đặt quyền riêng tư...",
       },
       billing: {
         title: "Thanh toán",
