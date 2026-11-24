@@ -587,9 +587,9 @@ describe("OAuthLinkCallbackHandler", () => {
       identity: null,
     });
     // Simulate race condition: upsert returns identity owned by someone else
-    jest.spyOn(repositories.oauthIdentities, "linkToUser").mockResolvedValue(
-      makeIdentity({ userId: "concurrent-other-user" }),
-    );
+    jest
+      .spyOn(repositories.oauthIdentities, "linkToUser")
+      .mockResolvedValue(makeIdentity({ userId: "concurrent-other-user" }));
 
     let thrown: unknown;
     try {

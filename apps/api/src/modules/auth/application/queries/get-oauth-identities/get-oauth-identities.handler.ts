@@ -17,9 +17,7 @@ import { GetOAuthIdentitiesQuery } from "./get-oauth-identities.query.ts";
  * 3. Formats response to return safe identity summaries (id, provider, linked_at).
  */
 @QueryHandler(GetOAuthIdentitiesQuery)
-export class GetOAuthIdentitiesHandler
-  implements IQueryHandler<GetOAuthIdentitiesQuery>
-{
+export class GetOAuthIdentitiesHandler implements IQueryHandler<GetOAuthIdentitiesQuery> {
   constructor(
     @Inject(AUTH_OAUTH_IDENTITY_REPOSITORY)
     private readonly oauthIdentities: OAuthIdentityRepository,

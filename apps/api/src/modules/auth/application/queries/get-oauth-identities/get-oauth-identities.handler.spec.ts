@@ -9,15 +9,22 @@ import { GetOAuthIdentitiesQuery } from "./get-oauth-identities.query.ts";
 describe("GetOAuthIdentitiesHandler", () => {
   it("returns an empty list when user has no linked identities", async () => {
     const mockRepo: OAuthIdentityRepository = {
-      findByProviderAccount: jest.fn<OAuthIdentityRepository["findByProviderAccount"]>(),
-      findByUserId: jest.fn<OAuthIdentityRepository["findByUserId"]>().mockResolvedValue([]),
+      findByProviderAccount:
+        jest.fn<OAuthIdentityRepository["findByProviderAccount"]>(),
+      findByUserId: jest
+        .fn<OAuthIdentityRepository["findByUserId"]>()
+        .mockResolvedValue([]),
       linkToUser: jest.fn<OAuthIdentityRepository["linkToUser"]>(),
     };
 
     const handler = new GetOAuthIdentitiesHandler(mockRepo);
     const result = await handler.execute(
       new GetOAuthIdentitiesQuery(
-        { userId: "user-123", sessionId: "session-123", role: AUTH_USER_ROLES.customer },
+        {
+          userId: "user-123",
+          sessionId: "session-123",
+          role: AUTH_USER_ROLES.customer,
+        },
         "corr-1",
       ),
     );
@@ -37,15 +44,22 @@ describe("GetOAuthIdentitiesHandler", () => {
     });
 
     const mockRepo: OAuthIdentityRepository = {
-      findByProviderAccount: jest.fn<OAuthIdentityRepository["findByProviderAccount"]>(),
-      findByUserId: jest.fn<OAuthIdentityRepository["findByUserId"]>().mockResolvedValue([identity]),
+      findByProviderAccount:
+        jest.fn<OAuthIdentityRepository["findByProviderAccount"]>(),
+      findByUserId: jest
+        .fn<OAuthIdentityRepository["findByUserId"]>()
+        .mockResolvedValue([identity]),
       linkToUser: jest.fn<OAuthIdentityRepository["linkToUser"]>(),
     };
 
     const handler = new GetOAuthIdentitiesHandler(mockRepo);
     const result = await handler.execute(
       new GetOAuthIdentitiesQuery(
-        { userId: "user-456", sessionId: "session-456", role: AUTH_USER_ROLES.customer },
+        {
+          userId: "user-456",
+          sessionId: "session-456",
+          role: AUTH_USER_ROLES.customer,
+        },
         "corr-2",
       ),
     );
