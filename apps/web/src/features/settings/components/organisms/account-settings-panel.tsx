@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthSettingsProfileQuery } from "@/lib/api/auth-queries";
 import { AccountEmailSection } from "./account-email-section";
 import { AccountMfaSection } from "./account-mfa-section";
+import { AccountOAuthSection } from "./account-oauth-section";
 import { SessionSettingsSection } from "./session-settings-section";
 import type { AccountSecurityProps } from "../../types/account-security.types";
 
@@ -49,6 +50,15 @@ export function AccountSettingsPanel(props: AccountSecurityProps) {
             readFailed={query.isError}
             readVersion={query.dataUpdatedAt}
             {...props}
+          />
+          <Separator />
+          <AccountOAuthSection
+            key={`oauth-${profile.user_id}`}
+            profile={profile}
+            locale={props.locale}
+            onReauthenticate={props.onReauthenticate}
+            oauthLinkResult={props.oauthLinkResult}
+            onDismissResult={props.onDismissResult}
           />
           <Separator />
         </>

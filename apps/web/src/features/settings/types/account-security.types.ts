@@ -14,6 +14,8 @@ export type AccountSecurityAction =
 export type AccountSecurityProps = {
   locale: Locale;
   onReauthenticate: (mfaRequired: boolean) => Promise<boolean>;
+  oauthLinkResult?: string | null;
+  onDismissResult?: () => void;
 };
 
 export type SecurityEditorProps = AccountSecurityProps & {

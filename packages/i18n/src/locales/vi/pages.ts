@@ -2413,6 +2413,30 @@ export const viPages = {
         oauthLinkFailedDescription:
           "Không thể liên kết provider OAuth với tài khoản này.",
       },
+      connectedAccounts: {
+        title: "Tài khoản liên kết",
+        description:
+          "Quản lý các tài khoản bạn có thể dùng để đăng nhập vào LCSP.",
+        disclaimer:
+          "Việc liên kết tài khoản Google không cấp quyền truy cập vào Google Drive hoặc kho lưu trữ của bạn.",
+        connect: "Liên kết",
+        connected: "Đã liên kết",
+        notConnected: "Chưa liên kết",
+        connecting: "Đang liên kết tài khoản…",
+        linkedOn: "Đã liên kết vào {date}",
+        successBanner: "Tài khoản Google của bạn đã được liên kết thành công.",
+        successToast: "Liên kết tài khoản thành công",
+        alreadyLinkedToast: "Tài khoản này đã được liên kết",
+        failedToast: "Không thể liên kết tài khoản",
+        cancelledToast: "Đã hủy liên kết tài khoản",
+        sessionExpiredToast:
+          "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        loadFailedTitle: "Không thể tải tài khoản liên kết",
+        loadFailedDetail:
+          "Không thể tải các tài khoản liên kết. Vui lòng thử lại.",
+        retry: "Thử lại",
+        google: "Google",
+      },
       appearance: {
         title: "Giao diện",
         description:

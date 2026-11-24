@@ -46,10 +46,31 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
   ) {}
 
   /**
-   * Executes OAuth link callback processing.
+   * Business purpose: Complete the OAuth account linking flow and attach a verified third-party identity to the user's account.
    *
-   * @param command - Contains callback payload, userId, sessionId, and request metadata.
-   * @returns Linked status, provider, and correlation ID.
+   * Business rules:
+   * - Requires atomic single-use consumption of an unexpired OAuth state bound to the caller's userId and sessionId.
+   * - Validates OAuth claims from the provider registry.
+   * - Rejects linking if the third-party account is already owned by a different user.
+   * - Prevents race conditions by verifying ownership of the returned identity post-persistence.
+   * - Idempotent for repeated linking of the same provider account to the same user (returns linked: false).
+   *
+   * Execution flow:
+   * 1. Atomically consume and validate the OAuth state matching state, provider, userId, and sessionId.
+   * 2. Exchange authorization code for validated claims via the provider adapter.
+   * 3. Verify pre-existing identity ownership in persistence.
+   * 4. Persist identity link and verify returned identity ownership.
+   * 5. Record audit event and return linking outcome.
+   *
+   * Failure cases:
+   * - Invalid, expired, or mismatched OAuth state throws oauthStateInvalid.
+   * - Unsupported provider throws unsupportedProvider.
+   * - Invalid claims or external identity owned by another user throws oauthCallbackInvalid.
+   *
+   * Side effects:
+   * - Consumes OAuth state record.
+   * - Creates OAuth identity record if not previously linked.
+   * - Writes audit log entry.
    */
   async execute(
     command: OAuthLinkCallbackCommand,
@@ -138,15 +159,30 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
       throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
     }
 
-    const linked = existingIdentity
-      ? false
-      : Boolean(
-          await oauthIdentities.linkToUser(
-            oauthState.provider,
-            claims.providerAccountId,
-            command.userId,
-          ),
+    // Rationale: Prevent concurrent linking race conditions from associating a third-party account with multiple users.
+    // Mechanism: Check pre-existing identity ownership, persist via upsert, and strictly verify post-persistence ownership of the returned record.
+    // Invariant: An OAuth identity must never belong to more than one user, and existing links to the current user must remain idempotent without re-attributing ownership.
+    let linked = false;
+    if (existingIdentity) {
+      linked = false;
+    } else {
+      const persistedIdentity = await oauthIdentities.linkToUser(
+        oauthState.provider,
+        claims.providerAccountId,
+        command.userId,
+      );
+
+      if (persistedIdentity.userId !== command.userId) {
+        await this.recordFailure(
+          command,
+          correlationId,
+          AUTH_ERROR_CODES.oauthCallbackInvalid,
         );
+        throw authFailure(AUTH_ERROR_CODES.oauthCallbackInvalid, correlationId);
+      }
+
+      linked = true;
+    }
 
     await this.support.recordAudit({
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkSucceeded,

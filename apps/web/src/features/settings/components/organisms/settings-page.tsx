@@ -93,6 +93,7 @@ export function SettingsPage({
   const profileQuery = useAuthSettingsProfileQuery();
   const sessionsQuery = useAuthSessionsQuery();
   const providerCredentialStatusesQuery = useProviderCredentialStatusesQuery();
+  const oauthLinkParam = searchParams.get("oauth_link");
 
   const [confirmAccessOpen, setConfirmAccessOpen] = useState(false);
   const [pendingSensitiveAction, setPendingSensitiveAction] =
@@ -375,6 +376,7 @@ export function SettingsPage({
               <AccountSettingsPanel
                 locale={settingsLocale}
                 onReauthenticate={requestSettingsReauthentication}
+                oauthLinkResult={oauthLinkParam}
               />
             ) : null}
 

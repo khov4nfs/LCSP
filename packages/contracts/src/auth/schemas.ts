@@ -215,6 +215,27 @@ export const oauthLinkCallbackSchema = z.object({
 export type OAuthLinkCallbackInput = z.infer<typeof oauthLinkCallbackSchema>;
 
 /**
+ * Validation schema and type for an individual linked OAuth identity.
+ */
+export const oauthIdentitySummarySchema = z.object({
+  id: z.string().min(1),
+  provider: z.string().min(1),
+  linked_at: z.string().datetime(),
+});
+export type OAuthIdentitySummary = z.infer<typeof oauthIdentitySummarySchema>;
+
+/**
+ * Validation schema and type for the linked OAuth identities response.
+ */
+export const linkedIdentitiesResponseSchema = z.object({
+  identities: z.array(oauthIdentitySummarySchema),
+});
+export type LinkedIdentitiesResponse = z.infer<
+  typeof linkedIdentitiesResponseSchema
+>;
+
+
+/**
  * Validation schema and input type for Admin user account actions (suspend / restore).
  */
 export const adminUserActionSchema = z

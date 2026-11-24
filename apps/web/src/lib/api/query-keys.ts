@@ -4,6 +4,22 @@ export const apiQueryKeys = {
   auth: {
     settingsProfile: () => ["auth", "settings-profile"] as const,
     sessions: () => ["auth", "sessions"] as const,
+    /**
+     * Business purpose: Generate query key for caching the user's linked OAuth identities.
+     *
+     * Business rules:
+     * - Returns isolated cache key under the auth namespace.
+     *
+     * Execution flow:
+     * 1. Return readonly tuple ["auth", "oauth-identities"].
+     *
+     * Failure cases:
+     * - None: pure key generator.
+     *
+     * Side effects:
+     * - None: pure key generator.
+     */
+    oauthIdentities: () => ["auth", "oauth-identities"] as const,
   },
   githubIntegration: {
     providerCredentials: () => ["provider-credentials"] as const,

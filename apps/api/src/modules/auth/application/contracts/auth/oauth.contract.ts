@@ -21,3 +21,11 @@ export type OAuthLinkCallbackSuccess = {
   provider: string;
   linked: boolean;
 };
+
+export type LinkedIdentitiesSuccess = {
+  identities: Array<{
+    id: string;
+    provider: string;
+    linked_at: string;
+  }>;
+};

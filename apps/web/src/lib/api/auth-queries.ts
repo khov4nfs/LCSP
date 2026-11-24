@@ -10,6 +10,7 @@ import {
   generateMfaRecoveryCodes,
   getAuthSessions,
   getAuthSettingsProfile,
+  getLinkedOAuthIdentities,
   recordMfaRecoveryCodeAccess,
   reauthenticateWithPassword,
   revokeAuthSession,
@@ -64,6 +65,31 @@ export function useAuthSessionsQuery() {
   return useQuery({
     queryKey: apiQueryKeys.auth.sessions(),
     queryFn: getAuthSessions,
+  });
+}
+
+/**
+ * Business purpose: Fetch and cache linked OAuth identities for the authenticated account.
+ *
+ * Business rules:
+ * - Requires active session.
+ * - Surfaces load failures through TanStack Query error state.
+ *
+ * Execution flow:
+ * 1. Build cache key from apiQueryKeys.auth.oauthIdentities.
+ * 2. Delegate query execution to getLinkedOAuthIdentities.
+ *
+ * Failure cases:
+ * - Unauthenticated or service failures surface in query.isError.
+ *
+ * Side effects:
+ * - Populates TanStack Query cache.
+ */
+export function useLinkedOAuthIdentitiesQuery(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: apiQueryKeys.auth.oauthIdentities(),
+    queryFn: getLinkedOAuthIdentities,
+    ...(options?.enabled !== undefined ? { enabled: options.enabled } : {}),
   });
 }
 

@@ -88,6 +88,19 @@ export class PrismaOAuthIdentityRepository implements OAuthIdentityRepository {
       : null;
   }
 
+  async findByUserId(userId: string): Promise<OAuthIdentity[]> {
+    const records = await this.prisma.authRecord.findMany({
+      where: {
+        userId,
+        type: AUTH_RECORD_TYPES.oauthIdentity,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+    return records.map(mapOAuthIdentityRecord);
+  }
+
   async linkToUser(
     provider: string,
     providerAccountId: string,
