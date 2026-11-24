@@ -375,6 +375,48 @@ describe("HttpExceptionFilter", () => {
       }),
     );
   });
+
+  it("redacts sensitive secrets in error metadata and exception logging", () => {
+    const filter = new HttpExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const warnSpy = jest.spyOn(
+      Reflect.get(filter, "logger") as { warn: (message: string) => void },
+      "warn",
+    );
+    const secretMessage =
+      "Upstream failed with token Bearer ghp_secretgithubpat1234567890 and sk-ant-api03-secretvalue";
+    const exception = new BadRequestException({
+      message: secretMessage,
+      error: "Bad Request",
+    });
+
+    filter.catch(
+      exception,
+      createArgumentsHost(
+        { method: "POST", url: "/test-secret-redaction", headers: {} },
+        { locals: {}, status },
+      ),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    const sentJson = json.mock.calls[0][0] as {
+      problem: { meta?: { message?: string } };
+    };
+    expect(sentJson.problem.meta?.message).not.toContain(
+      "ghp_secretgithubpat1234567890",
+    );
+    expect(sentJson.problem.meta?.message).not.toContain(
+      "sk-ant-api03-secretvalue",
+    );
+    expect(sentJson.problem.meta?.message).toContain("[REDACTED]");
+
+    expect(warnSpy).toHaveBeenCalled();
+    const warnMessage = warnSpy.mock.calls[0][0];
+    expect(warnMessage).not.toContain("ghp_secretgithubpat1234567890");
+    expect(warnMessage).not.toContain("sk-ant-api03-secretvalue");
+    expect(warnMessage).toContain("[REDACTED]");
+  });
 });
 
 function createArgumentsHost(

@@ -1,5 +1,9 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { AuditSanitizer } from "./audit-sanitizer.js";
+import {
+  AuditSanitizer,
+  sanitizeRecordSecrets,
+  sanitizeStringSecrets,
+} from "./audit-sanitizer.js";
 
 describe("AuditSanitizer", () => {
   it("returns undefined payload and no removed keys when payload is absent", () => {
@@ -26,6 +30,16 @@ describe("AuditSanitizer", () => {
     "mfaNonce",
     "verificationCode",
     "contentHash",
+    "otp",
+    "totp",
+    "setupUri",
+    "setup_uri",
+    "qrCode",
+    "qr_code",
+    "signature",
+    "credential",
+    "cookie",
+    "authorization",
   ])("strips sensitive-keyed field %s and reports it as removed", (key) => {
     const result = AuditSanitizer.sanitize({
       [key]: "sensitive-value",
@@ -114,5 +128,63 @@ describe("AuditSanitizer", () => {
     expect((sanitized as string).length).toBeLessThan(value.length);
     expect(sanitized).toContain("...[TRUNCATED]");
     expect(result.removedKeys).toEqual(["interpretation"]);
+  });
+
+  it("retains extended safe code and id keys without stripping them", () => {
+    const result = AuditSanitizer.sanitize({
+      error_code: "INTERNAL_ERROR",
+      errorCode: "NOT_FOUND",
+      status_code: 500,
+      statusCode: 404,
+      correlation_id: "corr-123",
+      correlationId: "corr-456",
+      actualSecretCode: "secret-123",
+    });
+
+    expect(result.payload).toEqual({
+      error_code: "INTERNAL_ERROR",
+      errorCode: "NOT_FOUND",
+      status_code: 500,
+      statusCode: 404,
+      correlation_id: "corr-123",
+      correlationId: "corr-456",
+    });
+    expect(result.removedKeys).toEqual(["actualSecretCode"]);
+  });
+
+  it("redacts GitHub PAT, Anthropic/OpenAI keys, OTP URIs, and synthetic secret markers in text", () => {
+    const text =
+      "GitHub: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 and github_pat_11ABCDEFG_1234567890abcdef. AI: sk-ant-api03-abcdef1234567890 and sk-proj-1234567890abcdef. URI: otpauth://totp/LCSP:user@test.org?secret=JBSWY3DPEHPK3PXP&issuer=LCSP. Synthetic: synthetic-secret-token-value.";
+    const sanitized = sanitizeStringSecrets(text);
+
+    expect(sanitized).not.toContain("ghp_");
+    expect(sanitized).not.toContain("github_pat_");
+    expect(sanitized).not.toContain("sk-ant-api03-");
+    expect(sanitized).not.toContain("sk-proj-");
+    expect(sanitized).not.toContain("otpauth://");
+    expect(sanitized).not.toContain("synthetic-secret-token-value");
+    expect(sanitized).toContain("[REDACTED]");
+  });
+
+  it("sanitizeRecordSecrets cleans string values across nested records and arrays", () => {
+    const record = {
+      safe: "hello",
+      deep: {
+        tokenString: "Bearer ghp_token1234567890",
+        nestedList: ["sk-ant-api03-secretkey123456789", "clean-item"],
+      },
+    };
+
+    const sanitized = sanitizeRecordSecrets(record);
+    expect(sanitized.safe).toBe("hello");
+    expect((sanitized.deep as { tokenString: string }).tokenString).toBe(
+      "[REDACTED]",
+    );
+    expect((sanitized.deep as { nestedList: string[] }).nestedList[0]).toBe(
+      "[REDACTED]",
+    );
+    expect((sanitized.deep as { nestedList: string[] }).nestedList[1]).toBe(
+      "clean-item",
+    );
   });
 });
