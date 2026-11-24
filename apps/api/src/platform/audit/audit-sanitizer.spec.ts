@@ -138,7 +138,12 @@ describe("AuditSanitizer", () => {
       statusCode: 404,
       correlation_id: "corr-123",
       correlationId: "corr-456",
+      otp_failure_reason: "invalid",
+      otpFailureReason: "replayed",
+      recovery_code_failure_reason: "exhausted",
+      recoveryCodeFailureReason: "invalid",
       actualSecretCode: "secret-123",
+      actualOtpSecret: "654321",
     });
 
     expect(result.payload).toEqual({
@@ -148,8 +153,14 @@ describe("AuditSanitizer", () => {
       statusCode: 404,
       correlation_id: "corr-123",
       correlationId: "corr-456",
+      otp_failure_reason: "invalid",
+      otpFailureReason: "replayed",
+      recovery_code_failure_reason: "exhausted",
+      recoveryCodeFailureReason: "invalid",
     });
-    expect(result.removedKeys).toEqual(["actualSecretCode"]);
+    expect(result.removedKeys.sort()).toEqual(
+      ["actualOtpSecret", "actualSecretCode"].sort(),
+    );
   });
 
   it("redacts GitHub PAT, Anthropic/OpenAI keys, OTP URIs, and synthetic secret markers in text", () => {

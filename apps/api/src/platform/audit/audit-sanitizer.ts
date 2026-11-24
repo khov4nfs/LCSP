@@ -1,6 +1,9 @@
 import { isRecord } from "@lcsp/contracts/shared";
 
-// Safe code identifiers and correlation markers that must not be stripped even if they contain substrings like "code" or "key".
+// Safe code identifiers, failure reason indicators, and correlation markers that must not be stripped even if they contain substrings like "code", "key", or "otp".
+// Rationale: Audit event payloads preserve non-sensitive error and failure diagnostics (e.g. otp_failure_reason="invalid", recovery_code_failure_reason="replayed") while stripping actual secrets.
+// Mechanism: Explicit allowlist checked before regex-based sensitive key pattern matching.
+// Invariants: Actual OTP codes, TOTP secrets, passwords, tokens, and credentials remain stripped by SENSITIVE_KEY_PATTERN.
 const SAFE_CODE_KEYS = new Set([
   "reason_code",
   "reasonCode",
@@ -16,6 +19,10 @@ const SAFE_CODE_KEYS = new Set([
   "statusCode",
   "correlation_id",
   "correlationId",
+  "otp_failure_reason",
+  "otpFailureReason",
+  "recovery_code_failure_reason",
+  "recoveryCodeFailureReason",
 ]);
 
 // Expanded regex matching keys that contain sensitive credentials, secrets, tokens, OTPs, or auth headers.
