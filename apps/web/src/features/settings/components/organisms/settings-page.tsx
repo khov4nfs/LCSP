@@ -7,11 +7,23 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { resolveMessage } from "@lcsp/i18n";
 import { ChevronDownIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
 import { CONFIRM_ACCESS_METHODS } from "@/components/types/confirm-access-dialog.types";
 import { ThemePreferenceControl } from "@/components/molecules/theme-preference-control";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  CHAT_FONTS,
+  type ChatFont,
+  getAssessmentCompletionNotificationSnapshot,
+  getChatFontSnapshot,
+  setAssessmentCompletionNotificationPreference,
+  setChatFont,
+  subscribeToAssessmentCompletionNotification,
+  subscribeToChatFont,
+} from "@/lib/general-preferences";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -480,20 +492,32 @@ function GeneralSettingsPanel({
         </div>
         <Separator />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="text-sm" htmlFor="settings-chat-font">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.general.chatFont",
-            )}
-          </label>
-          <ReadonlySelectValue
-            id="settings-chat-font"
-            className="w-43.5"
-            value={resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.general.chatFontInter",
-            )}
-          />
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                className="text-sm font-medium"
+                htmlFor="settings-chat-font"
+              >
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.general.chatFont",
+                )}
+              </label>
+              <Badge variant="outline" className="text-xs">
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.general.configurableBadge",
+                )}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.general.chatFontDescription",
+              )}
+            </p>
+          </div>
+          <SettingsChatFontSelect />
         </div>
       </section>
       <Separator />
@@ -512,12 +536,20 @@ function GeneralSettingsPanel({
         </h2>
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-sm">
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.general.assessmentCompletions",
-              )}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.general.assessmentCompletions",
+                )}
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.general.configurableBadge",
+                )}
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground">
               {resolveMessage(
                 appLocale,
@@ -525,64 +557,110 @@ function GeneralSettingsPanel({
               )}
             </p>
           </div>
-          <Switch
-            checked
-            disabled
-            aria-label={resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.general.assessmentCompletions",
-            )}
-          />
-        </div>
-        <Separator />
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-sm">
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.general.remediationApprovals",
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.general.remediationApprovalsDescription",
-              )}
-            </p>
-          </div>
-          <Switch
-            checked
-            disabled
-            aria-label={resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.general.remediationApprovals",
-            )}
-          />
+          <SettingsNotificationToggle />
         </div>
       </section>
     </section>
   );
 }
 
-function ReadonlySelectValue({
-  className,
-  id,
-  value,
-}: {
-  className?: string;
-  id: string;
-  value: string;
-}) {
+function SettingsChatFontSelect() {
+  const font = useSyncExternalStore(
+    subscribeToChatFont,
+    getChatFontSnapshot,
+    getChatFontSnapshot,
+  );
+
+  function handleFontChange(value: string) {
+    if (value === CHAT_FONTS.inter || value === CHAT_FONTS.mono) {
+      setChatFont(value);
+      toast.success(
+        resolveMessage(
+          appLocale,
+          "pages.workspace.settingsHub.general.chatFontSaved",
+        ),
+      );
+    }
+  }
+
+  const fontLabels: Record<ChatFont, Parameters<typeof resolveMessage>[1]> = {
+    [CHAT_FONTS.inter]: "pages.workspace.settingsHub.general.chatFontInter",
+    [CHAT_FONTS.mono]: "pages.workspace.settingsHub.general.chatFontMono",
+  };
+  const selectedLabel = resolveMessage(appLocale, fontLabels[font]);
+
   return (
-    <button
-      id={id}
-      type="button"
-      disabled
-      className={`flex h-9 cursor-not-allowed items-center justify-between rounded-lg border border-input bg-muted/20 px-3 text-[13px] text-muted-foreground opacity-80 ${className ?? "w-44"}`}
-    >
-      <span className="truncate">{value}</span>
-      <ChevronDownIcon aria-hidden="true" className="size-3.5" />
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            id="settings-chat-font"
+            type="button"
+            aria-label={resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.general.chatFont",
+            )}
+            className="flex h-9 w-44 items-center justify-between rounded-lg border border-input bg-muted/35 px-3 text-left text-[13px] font-normal text-foreground outline-none transition-colors hover:bg-muted/45 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            data-component="SettingsChatFontSelectTrigger"
+          >
+            <span className="min-w-0 truncate">{selectedLabel}</span>
+            <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0" />
+          </button>
+        }
+      />
+      <DropdownMenuContent
+        align="end"
+        className="w-56 rounded-xl border-border bg-popover p-1.75 shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+      >
+        <DropdownMenuRadioGroup value={font} onValueChange={handleFontChange}>
+          {Object.values(CHAT_FONTS).map((option) => {
+            const selected = option === font;
+            return (
+              <DropdownMenuRadioItem
+                key={option}
+                value={option}
+                className={cn(
+                  "h-9.5 rounded-lg px-3 pr-9 text-sm text-foreground focus:bg-accent focus:text-accent-foreground",
+                  selected && "bg-accent font-medium text-accent-foreground",
+                )}
+                data-chat-font-option={option}
+              >
+                {resolveMessage(appLocale, fontLabels[option])}
+              </DropdownMenuRadioItem>
+            );
+          })}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function SettingsNotificationToggle() {
+  const enabled = useSyncExternalStore(
+    subscribeToAssessmentCompletionNotification,
+    getAssessmentCompletionNotificationSnapshot,
+    getAssessmentCompletionNotificationSnapshot,
+  );
+
+  function handleToggle(checked: boolean) {
+    setAssessmentCompletionNotificationPreference(checked);
+    toast.success(
+      resolveMessage(
+        appLocale,
+        "pages.workspace.settingsHub.general.notificationsSaved",
+      ),
+    );
+  }
+
+  return (
+    <Switch
+      checked={enabled}
+      onCheckedChange={handleToggle}
+      aria-label={resolveMessage(
+        appLocale,
+        "pages.workspace.settingsHub.general.assessmentCompletions",
+      )}
+    />
   );
 }
 

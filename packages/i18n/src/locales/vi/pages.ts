@@ -2336,6 +2336,8 @@ export const viPages = {
       navigationLabel: "Điều hướng cài đặt",
       searchLabel: "Tìm trong cài đặt",
       searchPlaceholder: "Tìm kiếm",
+      clearSearch: "Xóa tìm kiếm",
+      searchNoResults: "Không tìm thấy mục cài đặt phù hợp",
       labels: {
         account: "Tài khoản",
         displayName: "Tên hiển thị",
@@ -2483,14 +2485,18 @@ export const viPages = {
         languageEnglish: "Tiếng Anh",
         languageVietnamese: "Tiếng Việt",
         chatFont: "Font chat",
-        chatFontInter: "Inter",
+        chatFontInter: "Inter (Tiêu chuẩn)",
+        chatFontMono: "Geist Mono (Monospace)",
+        chatFontDescription:
+          "Điều chỉnh font hiển thị trong giao diện chat và transcript assessment.",
+        chatFontSaved: "Đã cập nhật tùy chọn font chat.",
+        systemDefaultBadge: "Mặc định hệ thống",
+        configurableBadge: "Tùy chỉnh được",
         notificationsTitle: "Thông báo",
+        notificationsSaved: "Đã cập nhật tùy chọn thông báo.",
         assessmentCompletions: "Hoàn tất assessment",
         assessmentCompletionsDescription:
-          "Thông báo khi assessment chạy lâu đã hoàn tất.",
-        remediationApprovals: "Phê duyệt remediation",
-        remediationApprovalsDescription:
-          "Thông báo khi code remediation cần được phê duyệt.",
+          "Thông báo trong ứng dụng khi assessment chạy lâu hoàn tất.",
       },
       privacy: {
         title: "Quyền riêng tư",

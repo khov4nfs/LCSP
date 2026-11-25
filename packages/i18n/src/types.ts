@@ -2115,6 +2115,8 @@ export type PagesMessages = {
       navigationLabel: string;
       searchLabel: string;
       searchPlaceholder: string;
+      clearSearch: string;
+      searchNoResults: string;
       labels: {
         account: string;
         displayName: string;
@@ -2250,11 +2252,15 @@ export type PagesMessages = {
         languageVietnamese: string;
         chatFont: string;
         chatFontInter: string;
+        chatFontMono: string;
+        chatFontDescription: string;
+        chatFontSaved: string;
+        systemDefaultBadge: string;
+        configurableBadge: string;
         notificationsTitle: string;
+        notificationsSaved: string;
         assessmentCompletions: string;
         assessmentCompletionsDescription: string;
-        remediationApprovals: string;
-        remediationApprovalsDescription: string;
       };
       privacy: {
         title: string;

@@ -2329,6 +2329,8 @@ export const enPages = {
       navigationLabel: "Settings navigation",
       searchLabel: "Search settings",
       searchPlaceholder: "Search",
+      clearSearch: "Clear search",
+      searchNoResults: "No matching settings",
       labels: {
         account: "Account",
         displayName: "Display name",
@@ -2474,14 +2476,18 @@ export const enPages = {
         languageEnglish: "English",
         languageVietnamese: "Vietnamese",
         chatFont: "Chat font",
-        chatFontInter: "Inter",
+        chatFontInter: "Inter (Standard)",
+        chatFontMono: "Geist Mono (Monospace)",
+        chatFontDescription:
+          "Controls the font family used in assessment chat and transcript views.",
+        chatFontSaved: "Chat font preference updated.",
+        systemDefaultBadge: "System default",
+        configurableBadge: "Configurable",
         notificationsTitle: "Notifications",
+        notificationsSaved: "Notification preferences updated.",
         assessmentCompletions: "Assessment completions",
         assessmentCompletionsDescription:
-          "Notify when long-running assessments finish.",
-        remediationApprovals: "Remediation approvals",
-        remediationApprovalsDescription:
-          "Notify when code remediation needs approval.",
+          "Notify in-app when long-running assessments finish.",
       },
       privacy: {
         title: "Privacy",
