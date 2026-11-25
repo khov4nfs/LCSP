@@ -13,6 +13,24 @@ export const NOTIFY_COMPLETION_COOKIE = "lcsp_notify_assessment_completion";
 let currentChatFont: ChatFont = CHAT_FONTS.inter;
 let currentNotifyCompletion = true;
 
+/**
+ * Business purpose: Read a named cookie value from the document cookie string.
+ *
+ * Business rules:
+ * - Scoped strictly to the matching cookie name prefix.
+ * - Returns null when running in non-browser/SSR environments or cookie is absent.
+ *
+ * Execution flow:
+ * 1. Check if document is available.
+ * 2. Parse cookie string by semicolon delimiters.
+ * 3. Find matching name prefix and extract encoded value.
+ *
+ * Failure cases:
+ * - Returns null if document is undefined or cookie name is not present.
+ *
+ * Side effects:
+ * - Read-only DOM access.
+ */
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie
@@ -21,6 +39,24 @@ function readCookie(name: string): string | null {
   return match ? match.split("=")[1] ?? null : null;
 }
 
+/**
+ * Business purpose: Hydrate in-memory preference states from browser cookies on initial module evaluation.
+ *
+ * Business rules:
+ * - Validates cookie values against known constant boundaries.
+ * - Safely skips hydration when running in server-side context.
+ *
+ * Execution flow:
+ * 1. Check if document is available.
+ * 2. Read chat font cookie and update in-memory snapshot if valid.
+ * 3. Read notification preference cookie and update in-memory snapshot.
+ *
+ * Failure cases:
+ * - Skips hydration if running in non-browser context or cookies are unreadable.
+ *
+ * Side effects:
+ * - Updates in-memory module-scoped preference variables.
+ */
 function initializePreferences() {
   if (typeof document === "undefined") return;
   const font = readCookie(CHAT_FONT_COOKIE);
@@ -173,7 +209,7 @@ export function subscribeToAssessmentCompletionNotification(
  * 3. Dispatch notification event to reactive subscribers.
  *
  * Failure cases:
- * - None.
+ * - Non-boolean values are rejected by TypeScript typing; SSR executions safely skip cookie write.
  *
  * Side effects:
  * - Mutates document.cookie and emits a custom DOM event on window.

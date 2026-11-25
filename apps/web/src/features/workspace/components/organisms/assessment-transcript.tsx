@@ -5,6 +5,11 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, typ
 
 import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
+import {
+  CHAT_FONTS,
+  getChatFontSnapshot,
+  subscribeToChatFont,
+} from "@/lib/general-preferences";
 
 import type { AssessmentTranscriptAutoScrollKey } from "../../types/assessment-chat.types";
 
@@ -36,6 +41,11 @@ export function AssessmentTranscript({
     subscribeToAppLocale,
     getAppLocaleSnapshot,
     getAppLocaleSnapshot,
+  );
+  const chatFont = useSyncExternalStore(
+    subscribeToChatFont,
+    getChatFontSnapshot,
+    getChatFontSnapshot,
   );
   const resolvedAriaLabel =
     ariaLabel ??
@@ -104,7 +114,10 @@ export function AssessmentTranscript({
       >
         <ChatRail
           elementRef={railRef}
-          className="shrink-0 gap-4 pt-6 pb-4"
+          className={cn(
+            "shrink-0 gap-4 pt-6 pb-4",
+            chatFont === CHAT_FONTS.mono ? "font-mono" : "font-sans",
+          )}
         >
           {children}
         </ChatRail>
