@@ -155,10 +155,11 @@ test("bootstrap-redeploy: extracts target redeploy.sh without modifying working 
 test("redeploy.sh: self-reexecutes target redeploy.sh when invoked directly on an intermediate checkout", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "redeploy-self-reexec-"));
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "redeploy-test-bin-"));
-  fs.writeFileSync(path.join(binDir, "dotenv"), "#!/bin/sh\nexit 0\n");
-  fs.writeFileSync(path.join(binDir, "pm2"), "#!/bin/sh\nexit 0\n");
-  fs.chmodSync(path.join(binDir, "dotenv"), 0o755);
-  fs.chmodSync(path.join(binDir, "pm2"), 0o755);
+  // The fixture stops at script handoff. Satisfy command discovery without
+  // depending on deployment tooling being installed on the test runner.
+  for (const command of ["dotenv", "pm2", "docker", "pnpm"]) {
+    fs.writeFileSync(path.join(binDir, command), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  }
 
   try {
     execSync("git init && git config user.name 'Test' && git config user.email 'test@example.com'", {
@@ -196,10 +197,56 @@ test("redeploy.sh: self-reexecutes target redeploy.sh when invoked directly on a
       encoding: "utf8",
     });
 
-    assert.equal(res.status, 0);
+    assert.equal(res.status, 0, res.stderr);
     assert.match(res.stdout, new RegExp(`TARGET_SELF_REEXEC_PASSED: ${targetSha}`));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     fs.rmSync(binDir, { recursive: true, force: true });
+  }
+});
+
+test("bootstrap-redeploy pins main independently and refuses a stale dispatch", () => {
+  const origin = fs.mkdtempSync(path.join(os.tmpdir(), "lcsp-deploy-origin-"));
+  const app = fs.mkdtempSync(path.join(os.tmpdir(), "lcsp-deploy-app-"));
+  try {
+    // Model a server currently on develop with a different main release.
+    const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
+    const commands = [
+      ["init", "-b", "main"],
+      ["config", "user.name", "Test"],
+      ["config", "user.email", "test@example.com"],
+    ];
+    for (const args of commands) {
+      const result = git(origin, ...args);
+      assert.equal(result.status, 0, result.stderr);
+    }
+    fs.writeFileSync(path.join(origin, "redeploy.sh"), "#!/bin/bash\necho MAIN_TARGET_LOADED\n");
+    assert.equal(git(origin, "add", "redeploy.sh").status, 0);
+    assert.equal(git(origin, "commit", "-m", "main release").status, 0);
+    const mainSha = git(origin, "rev-parse", "HEAD").stdout.trim();
+    assert.equal(git(origin, "switch", "-c", "develop").status, 0);
+    assert.equal(git(origin, "commit", "--allow-empty", "-m", "develop release").status, 0);
+    const developSha = git(origin, "rev-parse", "HEAD").stdout.trim();
+    assert.equal(git(app, "clone", origin, ".").status, 0);
+
+    const env = { ...process.env, APP: app, LCSP_DEPLOY_BRANCH: "main" };
+    const fresh = spawnSync("bash", [bootstrapScript], {
+      env: { ...env, LCSP_DEPLOY_EXPECTED_SHA: mainSha },
+      encoding: "utf8",
+    });
+    assert.equal(fresh.status, 0, fresh.stderr);
+    assert.match(fresh.stdout, /MAIN_TARGET_LOADED/);
+    assert.equal(git(app, "rev-parse", "HEAD").stdout.trim(), developSha);
+
+    const stale = spawnSync("bash", [bootstrapScript], {
+      env: { ...env, LCSP_DEPLOY_EXPECTED_SHA: developSha },
+      encoding: "utf8",
+    });
+    assert.equal(stale.status, 1);
+    assert.match(stale.stderr, /origin\/main .* does not match expected SHA/);
+    assert.doesNotMatch(stale.stdout, /MAIN_TARGET_LOADED/);
+  } finally {
+    fs.rmSync(app, { recursive: true, force: true });
+    fs.rmSync(origin, { recursive: true, force: true });
   }
 });
