@@ -2652,16 +2652,16 @@ export const enPages = {
       capabilities: {
         title: "Capabilities",
         description:
-          "Capability controls stay read-only until the backend exposes persisted settings for this workspace.",
+          "Manage configurable runtime capabilities and review enforced platform execution policies.",
         addDomain: "Add",
         additionalAllowedDomains: "Additional allowed domains",
         connectorSearch: "Connector search",
         connectorSearchDescription:
           "Surface relevant connectors while orchestration runs.",
         domainAllowlistDescription:
-          "Choose which domains the execution sandbox can access.",
+          "Execution sandbox domain access is governed by platform policy.",
         domainAllowlistNotice:
-          "Common package-manager domains are allowed. Add only the extra domains required by verification.",
+          "Common package-manager domains are allowed. Additional custom domains are not supported in the current contract.",
         domainInputPlaceholder: "example.com or *.example.com",
         executionTitle: "Execution",
         toolAccessMode: "Tool access mode",
@@ -2671,17 +2671,27 @@ export const enPages = {
         loadToolsWhenNeeded: "Load tools when needed",
         artifacts: "Artifacts",
         artifactsDescription:
-          "Artifact generation follows the current assessment workflow.",
+          "Allow generating and downloading compliance assessment artifacts.",
         cloudCodeExecution: "Cloud code execution",
         cloudCodeExecutionDescription:
-          "Cloud execution is controlled by platform configuration.",
+          "Cloud execution is controlled by platform configuration and remains disabled.",
         networkEgress: "Allow network egress",
         networkEgressDescription:
-          "Network access is governed by runtime policy, not a local UI toggle.",
+          "Network access is governed by runtime policy and cannot be enabled per account.",
         domainAllowlist: "Domain allowlist",
         domainAllowlistUnsupported:
           "Additional allowed domains are not configurable in the current settings contract.",
         packageManagersOnly: "Package managers only",
+        loading: "Loading capability settings...",
+        loadError: "Unable to load capability settings.",
+        retry: "Retry",
+        saveSuccess: "Capability settings saved.",
+        saveError: "Unable to save capability settings.",
+        configurableBadge: "Configurable",
+        systemPolicyBadge: "System policy",
+        unsupportedBadge: "Unsupported",
+        appliesToNewAssessments:
+          "Tool access changes apply to new assessments; artifact download enforcement applies immediately.",
       },
       notifications: {
         title: "Notifications",

@@ -1,3 +1,4 @@
+export * from "./capability.contract.ts";
 export * from "./common.contract.ts";
 export * from "./mfa.contract.ts";
 export * from "./oauth.contract.ts";

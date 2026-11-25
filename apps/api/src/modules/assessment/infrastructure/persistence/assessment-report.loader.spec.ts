@@ -285,4 +285,40 @@ describe("AssessmentReportLoader historical compatibility", () => {
     expect(result.content.toString("utf8")).toBe(raw);
     expect(result.contentSha256).toBe(hash);
   });
+
+  it("blocks artifact downloads with 403 when user capability artifactsEnabled is false", async () => {
+    const blockedAssessmentId = randomUUID();
+    const blockedArtifactId = randomUUID();
+    const blockedLoader = new AssessmentReportLoader(
+      {
+        assessmentArtifact: {
+          findUnique: () =>
+            Promise.resolve({
+              artifactId: blockedArtifactId,
+              assessmentId: blockedAssessmentId,
+              kind: "FINAL_REPORT",
+              lifecycleState: "ACTIVE",
+              assessmentCase: {
+                assessment: { lifecycleState: "COMPLETE", ownerId: "owner-1" },
+              },
+            }),
+        },
+        capabilitySetting: {
+          findUnique: () => Promise.resolve({ artifactsEnabled: false }),
+        },
+      } as never,
+      { readAndReconstruct: () => Promise.resolve("{}") } as never,
+      authoredLocalizationFixture().projection,
+    );
+
+    await expect(
+      blockedLoader.load({
+        assessmentId: blockedAssessmentId,
+        artifactId: blockedArtifactId,
+        sessionUserId: "owner-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-blocked",
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
 });

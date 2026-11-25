@@ -14,6 +14,7 @@ import { RevokeOwnedSessionHandler } from "./revoke-owned-session/revoke-owned-s
 import { RevokeSessionHandler } from "./revoke-session/revoke-session.handler.ts";
 import { SignInHandler } from "./sign-in/sign-in.handler.ts";
 import { SignUpHandler } from "./sign-up/sign-up.handler.ts";
+import { UpdateCapabilitySettingsHandler } from "./update-capability-settings/update-capability-settings.handler.ts";
 import { UpdatePrivacySettingsHandler } from "./update-privacy-settings/update-privacy-settings.handler.ts";
 import { UpdateProfileHandler } from "./update-profile/update-profile.handler.ts";
 import { VerifyMfaOtpHandler } from "./verify-mfa-otp/verify-mfa-otp.handler.ts";
@@ -49,6 +50,8 @@ export * from "./sign-in/sign-in.command.ts";
 export * from "./sign-in/sign-in.handler.ts";
 export * from "./sign-up/sign-up.command.ts";
 export * from "./sign-up/sign-up.handler.ts";
+export * from "./update-capability-settings/update-capability-settings.command.ts";
+export * from "./update-capability-settings/update-capability-settings.handler.ts";
 export * from "./update-profile/update-profile.command.ts";
 export * from "./update-profile/update-profile.handler.ts";
 export * from "./verify-mfa-otp/verify-mfa-otp.command.ts";
@@ -73,6 +76,7 @@ export const AUTH_COMMAND_HANDLERS = [
   RevokeSessionHandler,
   SignInHandler,
   SignUpHandler,
+  UpdateCapabilitySettingsHandler,
   UpdatePrivacySettingsHandler,
   UpdateProfileHandler,
   VerifyMfaOtpHandler,

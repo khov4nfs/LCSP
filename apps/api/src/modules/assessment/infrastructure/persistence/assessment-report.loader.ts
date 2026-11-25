@@ -1,5 +1,9 @@
 import { Injectable, HttpStatus, HttpException } from "@nestjs/common";
-import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
+  type AuthUserRole,
+} from "@lcsp/contracts/auth";
 import {
   ARTIFACT_LIFECYCLE_STATES,
   ASSESSMENT_ERROR_CODES,
@@ -54,6 +58,24 @@ export class AssessmentReportLoader {
         { status: HttpStatus.NOT_FOUND },
       );
     }
+
+    // Rationale (Why): Enforce runtime capability policy at the artifact download boundary so disabling artifacts cannot be bypassed via direct API calls.
+    // Mechanism (How): Queries the owner's CapabilitySetting row and rejects with 403 Forbidden (fail closed) if artifactsEnabled is explicitly false.
+    // Invariants (What): Unconfigured accounts default to artifactsEnabled=true; existing ownership checks remain intact.
+    if (this.prisma.capabilitySetting) {
+      const capabilitySetting = await this.prisma.capabilitySetting.findUnique({
+        where: { userId: input.sessionUserId },
+        select: { artifactsEnabled: true },
+      });
+      if (capabilitySetting && capabilitySetting.artifactsEnabled === false) {
+        throw problemException(
+          AUTH_ERROR_CODES.rbacDenied,
+          input.correlationId,
+          { status: HttpStatus.FORBIDDEN },
+        );
+      }
+    }
+
     const domainCase = artifact.assessmentCase;
     if (
       domainCase.assessment.lifecycleState !==

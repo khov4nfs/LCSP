@@ -1,17 +1,17 @@
 "use client";
 import { AccountSettingsPanel } from "./account-settings-panel";
+import { CapabilitiesSettingsPanel } from "./capabilities-settings-panel";
 
 import { LOCALES, type Locale } from "@lcsp/contracts/shared";
-import type { ReactNode } from "react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { resolveMessage } from "@lcsp/i18n";
-import { ChevronDownIcon, InfoIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
 import { CONFIRM_ACCESS_METHODS } from "@/components/types/confirm-access-dialog.types";
 import { ThemePreferenceControl } from "@/components/molecules/theme-preference-control";
-import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +19,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import {
   appLocale,
   getAppLocaleSnapshot,
@@ -399,7 +397,7 @@ export function SettingsPage({
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.capabilities ? (
-              <CapabilitiesSettingsPanel />
+              <CapabilitiesSettingsPanel locale={settingsLocale} />
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.connectors ? (
@@ -658,220 +656,3 @@ function SettingsLanguageSelect() {
   );
 }
 
-function SettingsPanelCanvas({
-  children,
-  dataComponent,
-}: {
-  children: ReactNode;
-  dataComponent: string;
-}) {
-  return (
-    <section
-      className="relative h-full min-h-0 overflow-hidden px-8.5 py-10 text-foreground"
-      data-component={dataComponent}
-    >
-      {children}
-    </section>
-  );
-}
-
-function ReadonlySwitchRow({
-  checked = true,
-  className,
-  descriptionKey,
-  titleKey,
-}: {
-  checked?: boolean;
-  className?: string;
-  descriptionKey: Parameters<typeof resolveMessage>[1];
-  titleKey: Parameters<typeof resolveMessage>[1];
-}) {
-  return (
-    <div
-      className={`absolute left-8.5 flex h-12 w-218 items-start justify-between gap-4 ${className ?? ""}`}
-    >
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-sm">{resolveMessage(appLocale, titleKey)}</span>
-        <span className="text-xs text-muted-foreground">
-          {resolveMessage(appLocale, descriptionKey)}
-        </span>
-      </div>
-      <Switch
-        checked={checked}
-        disabled
-        aria-label={resolveMessage(appLocale, titleKey)}
-      />
-    </div>
-  );
-}
-
-function CapabilitiesSettingsPanel() {
-  return (
-    <SettingsPanelCanvas dataComponent="CapabilitiesSettingsPanel">
-      <SettingsSectionHeading top="top-10">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.sections.general",
-        )}
-      </SettingsSectionHeading>
-      <SettingsControlRow className="top-18">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm" htmlFor="settings-tool-access-mode">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.capabilities.toolAccessMode",
-            )}
-          </label>
-          <span className="text-[13px] text-muted-foreground">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.capabilities.toolAccessModeDescription",
-            )}
-          </span>
-        </div>
-        <ReadonlySelectValue
-          id="settings-tool-access-mode"
-          className="w-56.5"
-          value={resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.capabilities.loadToolsWhenNeeded",
-          )}
-        />
-      </SettingsControlRow>
-      <SettingsDivider className="top-34.5" />
-      <ReadonlySwitchRow
-        className="top-38.5"
-        titleKey="pages.workspace.settingsHub.capabilities.connectorSearch"
-        descriptionKey="pages.workspace.settingsHub.capabilities.connectorSearchDescription"
-      />
-      <SettingsDivider className="top-53" />
-      <SettingsSectionHeading top="top-60.5">
-        {resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.capabilities.executionTitle",
-        )}
-      </SettingsSectionHeading>
-      <ReadonlySwitchRow
-        className="top-70.5"
-        titleKey="pages.workspace.settingsHub.capabilities.artifacts"
-        descriptionKey="pages.workspace.settingsHub.capabilities.artifactsDescription"
-      />
-      <SettingsDivider className="top-85" />
-      <ReadonlySwitchRow
-        checked={false}
-        className="top-89"
-        titleKey="pages.workspace.settingsHub.capabilities.cloudCodeExecution"
-        descriptionKey="pages.workspace.settingsHub.capabilities.cloudCodeExecutionDescription"
-      />
-      <SettingsDivider className="top-103.5" />
-      <ReadonlySwitchRow
-        checked={false}
-        className="top-107.5"
-        titleKey="pages.workspace.settingsHub.capabilities.networkEgress"
-        descriptionKey="pages.workspace.settingsHub.capabilities.networkEgressDescription"
-      />
-      <SettingsDivider className="top-122" />
-      <div className="absolute top-127 left-8.5 flex h-52 w-218 flex-col gap-3 rounded-[14px] border border-border bg-muted/45 p-5">
-        <div className="flex h-9.5 items-center justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium">
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.capabilities.domainAllowlist",
-              )}
-            </p>
-            <p className="text-[13px] text-muted-foreground">
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.capabilities.domainAllowlistDescription",
-              )}
-            </p>
-          </div>
-          <ReadonlySelectValue
-            id="settings-domain-allowlist"
-            className="w-62"
-            value={resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.capabilities.packageManagersOnly",
-            )}
-          />
-        </div>
-        <div className="flex items-center gap-3 rounded-lg bg-background/70 px-4 py-3.5 text-xs text-muted-foreground">
-          <InfoIcon aria-hidden="true" className="size-4 shrink-0" />
-          <span>
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.capabilities.domainAllowlistNotice",
-            )}
-          </span>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label
-            className="text-[13px] font-medium"
-            htmlFor="settings-domain-input"
-          >
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.capabilities.additionalAllowedDomains",
-            )}
-          </label>
-          <div className="flex h-9 gap-3">
-            <Input
-              id="settings-domain-input"
-              className="h-9 flex-1 text-[13px]"
-              disabled
-              placeholder={resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.capabilities.domainInputPlaceholder",
-              )}
-            />
-            <Button className="h-9 w-20 text-[13px]" disabled>
-              {resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.capabilities.addDomain",
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </SettingsPanelCanvas>
-  );
-}
-
-function SettingsSectionHeading({
-  children,
-  top,
-}: {
-  children: ReactNode;
-  top: string;
-}) {
-  return (
-    <h2 className={`absolute left-8.5 text-lg font-semibold ${top}`}>
-      {children}
-    </h2>
-  );
-}
-
-function SettingsControlRow({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`absolute left-8.5 flex h-9.5 w-218 items-center justify-between gap-4 ${className ?? ""}`}
-    >
-      {children}
-    </div>
-  );
-}
-
-function SettingsDivider({ className }: { className?: string }) {
-  return (
-    <Separator
-      className={`absolute left-8.5 w-218 bg-border/70 ${className ?? ""}`}
-    />
-  );
-}
