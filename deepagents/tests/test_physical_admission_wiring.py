@@ -99,7 +99,6 @@ def _make_test_api() -> FakeApi:
                 "AGENT_BUDGET_REACHED",
                 "CALL_LIMIT_EXCEEDED",
                 "TOKEN_LIMIT_EXCEEDED",
-                "NO_PROGRESS_LIMIT_EXCEEDED",
                 "BUDGET_EXHAUSTED",
             }
             return {

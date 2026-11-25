@@ -1,6 +1,6 @@
 # LCSP Domain Model
 
-> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+> **Active domain overlay.** Historical organization/Developer records may remain for migration interpretation but grant no current authority. Active ownership is user/owner/resource-scoped RBAC. Prompt 8 financial entities are governed by ADR-028.
 
 ## Purpose
 
@@ -9,8 +9,7 @@ This document is the domain-level source of truth for LCSP entities, ownership, 
 ## Domain Object Flow
 
 ```text
-Organization
--> User / OrganizationMembership
+User
 -> Policy / PolicyVersion / AuthorizationDecision
 -> Assessment
 -> RepositoryConnection
@@ -27,6 +26,15 @@ Organization
 -> GapAnalysis
 -> GeneratedDocument
 -> AuditEvent
+```
+
+Shared-wallet model usage is a parallel financial flow:
+
+```text
+User -> BillingWallet -> MicrocreditLedgerEntry
+CustomerModelTariffDraft -> CustomerModelTariffSnapshot -> CustomerModelTariffAssignment
+BillableInvocationAdmission -> ProviderUsageReceipt -> ModelUsageDebit
+BillableInvocationAdmission -> BillingReconciliationCase -> BillingCompensation
 ```
 
 `WizardProfile` is an optional parallel branch off `Assessment` that feeds into `AIUsageFlow` and `ReconciliationConflict` when linked. It is no longer on the mandatory mainline: `TechnicalProfile` + `TechnicalEvidenceReport` alone are sufficient for direct EngineeringRule assessment to proceed, at lower confidence for business-declaration-dependent fields. See `docs/specs/ai-usage-flow-domain-spec.md`.
@@ -61,6 +69,9 @@ See `docs/specs/legal-rule-catalog-spec.md`.
 - Manager owns assessment business truth and final conflict resolution.
 - Developer invitation/task workspace is retired from the active MVP. Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - RBAC is the authorization source of truth. Roles are subject attributes/templates only.
+- Active authorization is owner/resource-scoped; organization records are historical only and cannot grant access.
+- NestJS Billing owns all customer financial authority; Deepagents owns provider execution/evidence only.
+- One customer wallet is shared across assessments; no assessment allocation/reservation is created by Prompt 8.
 - Python Worker Platform owns all asynchronous domain workloads.
 - Managed Repository Analysis Agent owns repository evidence derivation; existing Repository Scan and evidence entities remain domain compatibility contracts.
 - Internal Legal Operator owns corpus review/approval actions through internal API/CLI for MVP.
@@ -72,16 +83,6 @@ See `docs/specs/legal-rule-catalog-spec.md`.
 
 ## Identity and Administration
 
-### Organization
-
-| Field                 | Type     | Required | Meaning              |
-| --------------------- | -------- | -------: | -------------------- |
-| organizationId        | UUIDv7   |      Yes | Tenant identity      |
-| name                  | string   |      Yes | Display name         |
-| createdAt / updatedAt | datetime |      Yes | Lifecycle timestamps |
-
-Relationships: has memberships, users, assessments, repository connections, and audit events.
-
 ### User
 
 | Field       | Type   | Required | Meaning                   |
@@ -91,15 +92,9 @@ Relationships: has memberships, users, assessments, repository connections, and 
 | displayName | string |       No | Human-readable name       |
 | status      | enum   |      Yes | active/disabled lifecycle |
 
-### OrganizationMembership
+### Historical Organization Records
 
-| Field                   | Type   | Required | Meaning                                          |
-| ----------------------- | ------ | -------: | ------------------------------------------------ |
-| membershipId            | UUIDv7 |      Yes | Membership identity                              |
-| organizationId / userId | UUIDv7 |      Yes | Tenant/user link                                 |
-| role                    | enum   |      Yes | Manager subject label for active MVP             |
-| policyScope             | JSON   |       No | RBAC policy scope references for delegated tasks |
-| status                  | enum   |      Yes | invited/active/revoked                           |
+Organization and membership rows, where present in legacy persistence/audit, are immutable migration context only. They cannot assign current roles, own new assessments/wallets, scope RBAC decisions or appear as active product flows.
 
 ### Policy / PolicyVersion
 
@@ -107,7 +102,7 @@ Relationships: has memberships, users, assessments, repository connections, and 
 | ---------------- | -------------- | -------: | -------------------------------------------- |
 | policyId         | UUIDv7/string  |      Yes | Policy identity                              |
 | version          | integer/string |      Yes | Immutable policy version                     |
-| organizationId   | UUIDv7         |      Yes | Tenant boundary                              |
+| ownerScope       | JSON           |      Yes | Owner/resource selectors                     |
 | subjectSelector  | JSON           |      Yes | Subject attributes/service identity selector |
 | resourceSelector | JSON           |      Yes | Resource scope                               |
 | actions          | JSON           |      Yes | Allowed/denied action set                    |
@@ -121,7 +116,7 @@ Concrete RBAC engine, storage, cache, invalidation, evaluation topology and fail
 | ------------------------ | ------------- | -------: | --------------------------------- |
 | authorizationDecisionId  | UUIDv7        |      Yes | Decision identity                 |
 | actorOrServiceIdentity   | string/UUID   |      Yes | Subject/service evaluated         |
-| organizationId           | UUIDv7        |      Yes | Tenant boundary                   |
+| ownerScope               | JSON          |      Yes | Evaluated owner/resource scope    |
 | resourceRef              | JSON          |      Yes | Safe resource reference           |
 | action                   | string        |      Yes | Requested action                  |
 | policyId / policyVersion | string        |      Yes | Policy basis                      |
@@ -137,8 +132,7 @@ Concrete RBAC engine, storage, cache, invalidation, evaluation topology and fail
 | Field                 | Type            | Required | Meaning                   |
 | --------------------- | --------------- | -------: | ------------------------- |
 | assessmentId          | UUIDv7          |      Yes | Assessment identity       |
-| organizationId        | UUIDv7          |      Yes | Tenant boundary           |
-| ownerManagerId        | UUIDv7          |      Yes | Final accountable actor   |
+| ownerId               | UUIDv7          |      Yes | Final accountable Manager |
 | title                 | string          |      Yes | Assessment label          |
 | state                 | AssessmentState |      Yes | Canonical lifecycle state |
 | createdAt / updatedAt | datetime        |      Yes | Timestamps                |
@@ -196,7 +190,7 @@ Snapshot is immutable and historical reruns create new ScanJob/evidence versions
 | Field                                 | Type        | Required | Meaning                                                                                                    |
 | ------------------------------------- | ----------- | -------: | ---------------------------------------------------------------------------------------------------------- |
 | trustedScanTriggerId                  | UUIDv7      |      Yes | Trigger identity                                                                                           |
-| organizationId                        | UUIDv7      |      Yes | Tenant boundary                                                                                            |
+| ownerId                               | UUIDv7      |       No | Customer owner when trigger is customer-scoped; system trigger may be ownerless                            |
 | sourceType                            | enum        |      Yes | GITHUB_WEBHOOK/SCHEDULED_TRIGGER/BACKEND_TRIGGER/MANAGER_ACTION                                            |
 | sourceIdentity                        | string      |      Yes | Verified source/service/actor identity                                                                     |
 | sourceDeliveryId                      | string      |       No | External delivery id where available                                                                       |
@@ -215,7 +209,7 @@ Snapshot is immutable and historical reruns create new ScanJob/evidence versions
 | trustedScanTriggerId | UUIDv7  |      Yes | Source trigger                                            |
 | status               | enum    |      Yes | READY/PENDING_MAPPING/BLOCKED_MAPPING/WAITING_FOR_CONTEXT |
 | reasonCode           | string  |      Yes | Safe reason                                               |
-| resolvedRefs         | JSON    |       No | Safe org/repo/assessment refs                             |
+| resolvedRefs         | JSON    |       No | Safe owner/repository/assessment refs                     |
 | managerVisible       | boolean |      Yes | Whether UI recovery is required                           |
 
 Missing or ambiguous mapping must not create RepositorySnapshot or RepositoryScanJob.
@@ -314,7 +308,7 @@ AIUsageFlow groups claim-level records for business process, AI purpose, inputs,
 
 ### VerifiedProfile
 
-Historical reconciled profile combining TechnicalProfile, AIUsageFlow, and (when linked) WizardProfile and Manager resolutions. It is no longer required before active direct EngineeringRule classification.
+Immutable verification output required before classification. The reconciled path combines TechnicalProfile, AIUsageFlow, linked WizardProfile and Manager resolutions. When WizardProfile is absent, the `TECHNICAL_ONLY` path creates VerifiedProfile from TechnicalProfile/AIUsageFlow with explicit unknown business-declaration fields and lower confidence where applicable.
 
 ## Legal Corpus and Retrieval
 
@@ -456,11 +450,50 @@ Derived from completed/eligible classification and legal basis. Core fields: ide
 
 Core fields: identity/scope, optional classification/gap basis for readiness-only vs final output, document type, status, template version, storage ref, document hash, blocking reasons, model run metadata ref.
 
+## Shared Wallet and Governed Model Usage
+
+### BillingWallet
+
+One owner-scoped wallet per customer. Required authority fields: `walletId`, `userId`, signed `balanceMicrocredits`, `accountingUnitVersion`, optimistic `version`, timestamps. Customer projections derive spendable/outstanding values; they are not independent balances.
+
+### MicrocreditLedgerEntry
+
+Append-only accounting authority. Required fields: `ledgerEntryId`, `walletId`, `userId`, signed `deltaMicrocredits`, canonical source, immutable reference ID, idempotency key/fingerprint, accounting-unit version and timestamp. Original entries are never edited or deleted.
+
+### CustomerModelTariffDraft / Snapshot / Assignment
+
+- Draft is mutable operational input with cost-source refs and suggested tariff preview; it is never billable.
+- Snapshot is an immutable, published set of nonnegative integer microcredit-per-token bucket rates.
+- Assignment binds a normalized exact/provider/global scope key to one snapshot over database-UTC `[effectiveFrom,effectiveTo)` without overlap.
+- The legacy `ModelPricingSnapshot` provider/reference-cost entity is not customer tariff authority.
+
+### BillableInvocationAdmission
+
+Immutable server authority for one physical invocation. It stores funding principal (`CUSTOMER_WALLET` or `PLATFORM_SPONSORED`), customer wallet or sponsorship policy reference, assessment/run/lease/logical-operation/invocation identity, canonical provider/resolved model, tariff or sponsorship policy, rollout/policy version, maximum exposure, capability digest, database admission time, state/version and correlation/idempotency refs.
+
+The raw capability exists only in the worker's encrypted recovery envelope until terminal acknowledgement. `WORKER_API_KEY` alone cannot consume or settle admission.
+
+### ProviderUsageReceipt / ModelOutputEvaluation
+
+ProviderUsageReceipt stores versioned non-overlapping normalized token buckets, provider response identity, safe raw-field presence, mapping version and terminal usage outcome. Aggregate/inclusive provider totals are evidence only. ModelOutputEvaluation separately records `ACCEPTED`, `SCHEMA_INVALID`, `DOMAIN_REJECTED` or `NOT_EVALUATED`.
+
+### BillingReconciliationCase
+
+Versioned operations aggregate for `DISPATCH_UNKNOWN`, `OUTCOME_UNKNOWN`, over-exposure, ambiguous usage mapping and late conflicting evidence. It owns evidence refs, reason/result, expected version, resolver and immutable decision history. It never replays the original provider invocation.
+
+### BillingCompensation
+
+Append-only correction linked to one original `MODEL_USAGE_DEBIT`. Amount is server-calculated, idempotent and cannot exceed the debit's uncompensated amount under the global financial lock order. Goodwill credit is a separate action.
+
+### PlatformSponsorshipPolicySnapshot
+
+Immutable authority for approved system-owned provider work such as ownerless Rule Set Preparation. It pins provider-cost/exposure policy and records usage/cost/audit/outbox without customer tariff resolution, ledger debit, outstanding balance or payment-required state.
+
 ## Governance and Messaging
 
 ### AuditEvent
 
-Append-oriented record with organization/assessment/actor, event type, correlation/causation, before/after state where safe, redacted metadata, and timestamp.
+Append-oriented record with owner/resource/assessment/actor, event type, correlation/causation, policy/version, before/after state where safe, redacted metadata, and timestamp. Historical organization refs may be retained only to interpret immutable legacy records and are not authority.
 
 ### OutboxEvent
 
@@ -468,7 +501,7 @@ Transactional message record with event/command type, schema version, aggregate 
 
 ## UX Boundary
 
-Manager UX may expose assessment, evidence, conflict, profile, classification, gap, document, and audit entities. LegalSource, LegalDocument, LegalCorpusItem, LegalDocumentChunk, CorpusApprovalRecord, LegalRule, LegalRuleCatalogVersion, RuleApprovalRecord, and corpus/rule-catalog administration are internal operations/API/CLI entities for MVP. Manager UX may display only the pinned corpus version, pinned rule catalog version, and citation provenance relevant to an assessment.
+Manager UX may expose assessment, evidence, conflict, profile, classification, gap, document, and audit entities. Customer UX may expose wallet spendable/outstanding projections, checkout, payment-required/manual Continue and safe charge history. Permissioned Billing/Pricing Admin UX may expose tariff drafts/publication history, reconciliation and bounded compensation. Internal margin and raw prompt/output remain hidden. LegalSource, LegalDocument, LegalCorpusItem, LegalDocumentChunk, CorpusApprovalRecord, LegalRule, LegalRuleCatalogVersion, RuleApprovalRecord, and corpus/rule-catalog administration are internal operations/API/CLI entities for MVP. Manager UX may display only the pinned corpus version, pinned rule catalog version, and citation provenance relevant to an assessment.
 
 ## Canonical Status
 

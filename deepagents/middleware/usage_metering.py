@@ -12,12 +12,13 @@ import json
 import math
 import re
 import time
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import Event, Thread
-from typing import Any, Iterator
+from typing import Any
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
@@ -53,8 +54,15 @@ from tools.common.capabilities.platform.config import resolve_usage_recovery_sto
 from tools.common.capabilities.platform.logging import get_logger
 
 _MODEL_CALL_HEARTBEAT_SECONDS = 10.0
-# Output cap when the model route declares no ``max_output_tokens`` option.
-DEFAULT_MAX_OUTPUT_TOKENS = 4096
+# Why: Separate provider execution termination states from downstream output evaluation outcomes (ASM-USAGE-02..04).
+# How: Freeze canonical SCREAMING_SNAKE_CASE state sets for cross-layer metering and telemetry contracts.
+# Invariant: Provider completion status never implies schema or domain acceptance of the generated output.
+PROVIDER_COMPLETION_STATES: frozenset[str] = frozenset(
+    {"COMPLETED", "MAX_TOKENS", "TRUNCATED", "FAILED", "OUTCOME_UNKNOWN"}
+)
+OUTPUT_EVALUATION_STATES: frozenset[str] = frozenset(
+    {"ACCEPTED", "SCHEMA_INVALID", "DOMAIN_REJECTED", "NOT_EVALUATED"}
+)
 logger = get_logger(__name__)
 
 
@@ -300,14 +308,45 @@ def check_request_context(request: Any, model: Any) -> "RequestMetrics":
 
 
 def output_token_limit(model: Any) -> int:
-    """The route's ``max_output_tokens`` profile value or the code default."""
+    """Business purpose: Resolve the authoritative per-call output token ceiling for a model route.
+
+    Business rules:
+    - Every governed model route must declare an explicit positive integer max_output_tokens; silent numeric defaults are prohibited.
+    - Inspect model.profile first, then attached route.options, then model.options when resolving the declared ceiling.
+    - Booleans, non-integers, missing values, and non-positive integers fail closed before provider dispatch.
+
+    Execution flow:
+    1. Read max_output_tokens from model.profile as a Mapping key or object attribute.
+    2. If still None, read max_output_tokens from model_route_config(model).options when available.
+    3. If still None, read max_output_tokens from model.options when it is a Mapping.
+    4. Reject bool, non-int, or non-positive values with ValueError; otherwise return the integer limit.
+
+    Failure cases:
+    - Raises ValueError mentioning max_output_tokens when the output cap is absent or invalid.
+
+    Side effects:
+    - Pure read-only metadata inspection; no model invocation or persistence occurs.
+    """
+    # Why: Fail closed when a model route omits max_output_tokens instead of silently falling back to a hard-coded default.
+    # How: Check profile, then route.options, then model.options while declared is None, then enforce strict positive int.
+    # Invariant: Python bool subclasses int, so isinstance(declared, bool) must be rejected explicitly before dispatch.
     profile = getattr(model, "profile", None)
     declared = (
         profile.get("max_output_tokens")
-        if isinstance(profile, dict)
+        if isinstance(profile, Mapping)
         else getattr(profile, "max_output_tokens", None)
     )
-    return declared if isinstance(declared, int) and declared > 0 else DEFAULT_MAX_OUTPUT_TOKENS
+    if declared is None:
+        route = model_route_config(model)
+        if route is not None and isinstance(route.options, Mapping):
+            declared = route.options.get("max_output_tokens")
+    if declared is None:
+        options = getattr(model, "options", None)
+        if isinstance(options, Mapping):
+            declared = options.get("max_output_tokens")
+    if isinstance(declared, bool) or not isinstance(declared, int) or declared <= 0:
+        raise ValueError("Model route must declare a positive integer max_output_tokens")
+    return declared
 
 
 def response_shape(response: Any) -> list[dict[str, Any]]:
@@ -338,16 +377,32 @@ def response_shape(response: Any) -> list[dict[str, Any]]:
 
 
 def output_cap_settings(model: Any) -> dict[str, int]:
-    """The per-call output ceiling as native model settings.
+    """Business purpose: Build the native per-call output token ceiling settings for downstream provider dispatch.
 
-    LangChain forwards ``request.model_settings`` through ``bind_tools``/``bind``. A bare
-    ``model.bind(max_tokens=...)`` is dropped by ``bind_tools``, so a cap bound that way never
-    reached the provider and the SDK's own default (4096 for an unknown Anthropic model id) won.
+    Business rules:
+    - Validate and resolve max_output_tokens before provider/protocol projection so misconfigured routes fail closed.
+    - LangChain forwards request.model_settings through bind_tools/bind, whereas bare model.bind can be dropped by bind_tools.
+    - Google GenAI protocol routes receive max_output_tokens; other supported protocols receive max_tokens.
+
+    Execution flow:
+    1. Call output_token_limit(model) eagerly to enforce explicit positive integer cap declaration.
+    2. Resolve provider identity and protocol for the target model.
+    3. Return the protocol-specific settings mapping containing the validated output limit.
+
+    Failure cases:
+    - Propagates ValueError from output_token_limit(model) when max_output_tokens is missing or invalid.
+
+    Side effects:
+    - Pure read-only settings construction; no provider call or telemetry write occurs.
     """
+    # Why: Resolve and validate output_token_limit eagerly before touching provider/protocol routing.
+    # How: Enforce limit = output_token_limit(model) first, then map to the native protocol parameter name.
+    # Invariant: Never fall back to any implicit SDK or code-level numeric default when max_output_tokens is missing.
+    limit = output_token_limit(model)
     provider, _ = provider_identity(model, None)
     protocol = model_protocol(model) or provider.lower()
     parameter = "max_output_tokens" if protocol == "google_genai" else "max_tokens"
-    return {parameter: output_token_limit(model)}
+    return {parameter: limit}
 
 
 @dataclass(frozen=True)
@@ -1615,11 +1670,15 @@ __all__ = [
     "AgentRunState",
     "ModelContextWindowExceeded",
     "ModelIdentityMismatch",
+    "OUTPUT_EVALUATION_STATES",
+    "PROVIDER_COMPLETION_STATES",
     "UsageMeteringMiddleware",
     "activate_agent_role",
     "activate_agent_run_state",
     "active_agent_role",
     "active_agent_run_state",
     "extract_provider_usage",
+    "output_cap_settings",
+    "output_token_limit",
     "provider_usage_telemetry",
 ]

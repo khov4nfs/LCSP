@@ -28,9 +28,7 @@ describe("ControlAssessmentRuntimeHandler", () => {
 
     const actor = {
       userId: "user-1",
-      email: "user@example.com",
       role: AUTH_USER_ROLES.customer,
-      scopes: [],
       sessionId: "session-1",
       scope: null,
     };
@@ -46,5 +44,61 @@ describe("ControlAssessmentRuntimeHandler", () => {
 
     expect(result).toEqual(controlResult);
     expect(controls.request).toHaveBeenCalledWith(command);
+  });
+
+  it("propagates budgetExtension, idempotencyKey, and expectedVersion to AssessmentRuntimeControlService", async () => {
+    const targetRunId = randomUUID();
+    const controlResult = {
+      state: ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested,
+      targetRunId,
+      requestId: randomUUID(),
+    };
+    const controls = {
+      request: jest
+        .fn<(...args: unknown[]) => Promise<unknown>>()
+        .mockResolvedValue(controlResult),
+    };
+    const handler = new ControlAssessmentRuntimeHandler(
+      controls as unknown as AssessmentRuntimeControlService,
+    );
+
+    const adminActor = {
+      userId: "admin-1",
+      role: AUTH_USER_ROLES.admin,
+      sessionId: "session-admin-1",
+      scope: null,
+    };
+    const budgetExtension = {
+      version: 2,
+      auditReason: "Approve additional model calls after provider timeout",
+      additionalModelCalls: 30,
+    };
+
+    // Simulate command populated with idempotencyKey and expectedVersion
+    const command = Object.assign(
+      new ControlAssessmentRuntimeCommand(
+        randomUUID(),
+        adminActor,
+        ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
+        targetRunId,
+        "corr-ctrl-admin-1",
+        "en",
+        budgetExtension,
+      ),
+      {
+        idempotencyKey: "idem-handler-1",
+        expectedVersion: 1,
+      },
+    );
+    const result = await handler.execute(command);
+
+    expect(result).toEqual(controlResult);
+    expect(controls.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: "idem-handler-1",
+        expectedVersion: 1,
+        budgetExtension,
+      }),
+    );
   });
 });

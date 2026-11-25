@@ -20,6 +20,7 @@ pytestmark = pytest.mark.production_instruction_bundle
 
 class SelectedFixtureModel(BaseChatModel):
     calls: list = Field(default_factory=list)
+    profile: dict[str, int] = {"max_output_tokens": 65536}
 
     @property
     def _llm_type(self):

@@ -1,20 +1,28 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+  AdmissionFundingPrincipal as PrismaAdmissionFundingPrincipal,
+  AdmissionState as PrismaAdmissionState,
   AuthBackupEmailPolicy as PrismaAuthBackupEmailPolicy,
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
+  CreditLedgerSource as PrismaCreditLedgerSource,
   CredentialProvider as PrismaCredentialProvider,
   LegalSourceDocumentCorpusRole as PrismaCorpusRole,
   LegalSourceDocumentIngestionState as PrismaLegalSourceDocumentIngestionState,
   LegalSourceDocumentOrigin as PrismaLegalSourceDocumentOrigin,
   LegalSourceLifecycleStatus as PrismaLegalSourceLifecycleStatus,
+  ModelPricingScope as PrismaModelPricingScope,
+  ModelUsageDebitMode as PrismaModelUsageDebitMode,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
+  OutputEvaluationState as PrismaOutputEvaluationState,
+  ProviderCompletionState as PrismaProviderCompletionState,
   RepositoryConnectionStatus as PrismaRepositoryConnectionStatus,
   RepositoryScanJobStatus as PrismaRepositoryScanJobStatus,
   RepositoryScanTriggerSource as PrismaRepositoryScanTriggerSource,
   RepositorySnapshotStatus as PrismaRepositorySnapshotStatus,
+  TokenBucketPolicy as PrismaTokenBucketPolicy,
 } from "@prisma/client";
 
 import {
@@ -27,6 +35,18 @@ import {
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
+import {
+  ADMISSION_FUNDING_PRINCIPALS,
+  ADMISSION_STATES,
+  CREDIT_LEDGER_SOURCES,
+  MODEL_PRICING_SCOPES,
+  MODEL_USAGE_DEBIT_MODES,
+  OUTPUT_EVALUATION_STATES,
+  PROVIDER_COMPLETION_STATES,
+  TOKEN_BUCKET_POLICIES,
+  type AdmissionState,
+  type ModelPricingScope,
+} from "@lcsp/contracts/billing";
 import {
   CREDENTIAL_PROVIDERS,
   REPOSITORY_CONNECTION_STATUSES,
@@ -47,37 +67,53 @@ import {
 } from "@lcsp/contracts/outbox";
 
 import {
+  fromPrismaAdmissionFundingPrincipal,
+  fromPrismaAdmissionState,
   fromPrismaAuthBackupEmailPolicy,
   fromPrismaAuthDecision,
   fromPrismaAuthPrimaryEmailAddressPolicy,
   fromPrismaAuthUserRole,
+  fromPrismaCreditLedgerSource,
   fromPrismaCredentialProvider,
   fromPrismaLegalSourceDocumentCorpusRole,
   fromPrismaLegalSourceDocumentIngestionState,
   fromPrismaLegalSourceDocumentOrigin,
   fromPrismaLegalSourceLifecycleStatus,
+  fromPrismaModelPricingScope,
+  fromPrismaModelUsageDebitMode,
   fromPrismaOutboxAggregateType,
   fromPrismaOutboxStatus,
+  fromPrismaOutputEvaluationState,
+  fromPrismaProviderCompletionState,
   fromPrismaRepositoryConnectionStatus,
   fromPrismaRepositoryScanJobStatus,
   fromPrismaRepositoryScanTriggerSource,
+  fromPrismaTokenBucketPolicy,
+  toPrismaAdmissionFundingPrincipal,
+  toPrismaAdmissionState,
   toPrismaAuditExportStatus,
   toPrismaAuditResourceType,
   toPrismaAuthBackupEmailPolicy,
   toPrismaAuthDecision,
   toPrismaAuthPrimaryEmailAddressPolicy,
   toPrismaAuthUserRole,
+  toPrismaCreditLedgerSource,
   toPrismaCredentialProvider,
   toPrismaLegalSourceDocumentCorpusRole,
   toPrismaLegalSourceDocumentIngestionState,
   toPrismaLegalSourceDocumentOrigin,
   toPrismaLegalSourceLifecycleStatus,
+  toPrismaModelPricingScope,
+  toPrismaModelUsageDebitMode,
   toPrismaOutboxAggregateType,
   toPrismaOutboxStatus,
+  toPrismaOutputEvaluationState,
+  toPrismaProviderCompletionState,
   toPrismaRepositoryConnectionStatus,
   toPrismaRepositoryScanJobStatus,
   toPrismaRepositoryScanTriggerSource,
   toPrismaRepositorySnapshotStatus,
+  toPrismaTokenBucketPolicy,
 } from "./prisma-enum-mappers.js";
 
 describe("prisma-enum-mappers", () => {
@@ -347,5 +383,186 @@ describe("prisma-enum-mappers", () => {
         ).toBe(prismaRole);
       }
     });
+
+    // Why: Verify 1:1 round-trip parity and fail-closed behavior for all WP8 direct-credit
+    // pricing, admission, receipt, and output-evaluation mappers between @lcsp/contracts/billing
+    // and generated @prisma/client enums.
+    // How: Iterate both Object.values(CONTRACT_CONST) and Object.values(PrismaEnum) for each pair,
+    // plus assert unknown runtime strings throw explicit Errors rather than falling back silently.
+    // Invariants: Every WP8 enum member uses SCREAMING_SNAKE_CASE and maps bijectively.
+    it("round-trips ModelPricingScope and fails closed on unknown values", () => {
+      for (const scope of Object.values(MODEL_PRICING_SCOPES)) {
+        expect(
+          fromPrismaModelPricingScope(toPrismaModelPricingScope(scope)),
+        ).toBe(scope);
+      }
+      for (const prismaScope of Object.values(PrismaModelPricingScope)) {
+        expect(
+          toPrismaModelPricingScope(fromPrismaModelPricingScope(prismaScope)),
+        ).toBe(prismaScope);
+      }
+      expect(() =>
+        toPrismaModelPricingScope(
+          "UNKNOWN_SCOPE" as unknown as ModelPricingScope,
+        ),
+      ).toThrow("Unsupported model pricing scope");
+      expect(() =>
+        fromPrismaModelPricingScope(
+          "UNKNOWN_PRISMA_SCOPE" as unknown as PrismaModelPricingScope,
+        ),
+      ).toThrow("Unsupported Prisma model pricing scope");
+    });
+
+    it("round-trips TokenBucketPolicy", () => {
+      for (const policy of Object.values(TOKEN_BUCKET_POLICIES)) {
+        expect(
+          fromPrismaTokenBucketPolicy(toPrismaTokenBucketPolicy(policy)),
+        ).toBe(policy);
+      }
+      for (const prismaPolicy of Object.values(PrismaTokenBucketPolicy)) {
+        expect(
+          toPrismaTokenBucketPolicy(fromPrismaTokenBucketPolicy(prismaPolicy)),
+        ).toBe(prismaPolicy);
+      }
+    });
+
+    it("round-trips ModelUsageDebitMode", () => {
+      for (const mode of Object.values(MODEL_USAGE_DEBIT_MODES)) {
+        expect(
+          fromPrismaModelUsageDebitMode(toPrismaModelUsageDebitMode(mode)),
+        ).toBe(mode);
+      }
+      for (const prismaMode of Object.values(PrismaModelUsageDebitMode)) {
+        expect(
+          toPrismaModelUsageDebitMode(
+            fromPrismaModelUsageDebitMode(prismaMode),
+          ),
+        ).toBe(prismaMode);
+      }
+    });
+
+    it("round-trips AdmissionFundingPrincipal", () => {
+      for (const principal of Object.values(ADMISSION_FUNDING_PRINCIPALS)) {
+        expect(
+          fromPrismaAdmissionFundingPrincipal(
+            toPrismaAdmissionFundingPrincipal(principal),
+          ),
+        ).toBe(principal);
+      }
+      for (const prismaPrincipal of Object.values(
+        PrismaAdmissionFundingPrincipal,
+      )) {
+        expect(
+          toPrismaAdmissionFundingPrincipal(
+            fromPrismaAdmissionFundingPrincipal(prismaPrincipal),
+          ),
+        ).toBe(prismaPrincipal);
+      }
+    });
+
+    it("round-trips AdmissionState and fails closed on unknown values", () => {
+      for (const state of Object.values(ADMISSION_STATES)) {
+        expect(fromPrismaAdmissionState(toPrismaAdmissionState(state))).toBe(
+          state,
+        );
+      }
+      for (const prismaState of Object.values(PrismaAdmissionState)) {
+        expect(
+          toPrismaAdmissionState(fromPrismaAdmissionState(prismaState)),
+        ).toBe(prismaState);
+      }
+      expect(() =>
+        toPrismaAdmissionState("UNKNOWN_STATE" as unknown as AdmissionState),
+      ).toThrow("Unsupported admission state");
+      expect(() =>
+        fromPrismaAdmissionState(
+          "UNKNOWN_PRISMA_STATE" as unknown as PrismaAdmissionState,
+        ),
+      ).toThrow("Unsupported Prisma admission state");
+    });
+
+    it("round-trips ProviderCompletionState", () => {
+      for (const state of Object.values(PROVIDER_COMPLETION_STATES)) {
+        expect(
+          fromPrismaProviderCompletionState(
+            toPrismaProviderCompletionState(state),
+          ),
+        ).toBe(state);
+      }
+      for (const prismaState of Object.values(PrismaProviderCompletionState)) {
+        expect(
+          toPrismaProviderCompletionState(
+            fromPrismaProviderCompletionState(prismaState),
+          ),
+        ).toBe(prismaState);
+      }
+    });
+
+    it("round-trips OutputEvaluationState", () => {
+      for (const state of Object.values(OUTPUT_EVALUATION_STATES)) {
+        expect(
+          fromPrismaOutputEvaluationState(toPrismaOutputEvaluationState(state)),
+        ).toBe(state);
+      }
+      for (const prismaState of Object.values(PrismaOutputEvaluationState)) {
+        expect(
+          toPrismaOutputEvaluationState(
+            fromPrismaOutputEvaluationState(prismaState),
+          ),
+        ).toBe(prismaState);
+      }
+    });
+
+    it("round-trips CreditLedgerSource", () => {
+      for (const source of Object.values(CREDIT_LEDGER_SOURCES)) {
+        expect(
+          fromPrismaCreditLedgerSource(toPrismaCreditLedgerSource(source)),
+        ).toBe(source);
+      }
+      for (const prismaSource of Object.values(PrismaCreditLedgerSource)) {
+        expect(
+          toPrismaCreditLedgerSource(
+            fromPrismaCreditLedgerSource(prismaSource),
+          ),
+        ).toBe(prismaSource);
+      }
+    });
+  });
+
+  describe("WP8 Mappers Prototype-Key Hardening (Object.hasOwn RED Test)", () => {
+    const PROTOTYPE_KEYS = [
+      "toString",
+      "constructor",
+      "valueOf",
+      "__proto__",
+    ] as const;
+
+    it.each(PROTOTYPE_KEYS)(
+      "rejects Object.prototype key %s across all 16 WP8 mappers",
+      (protoKey) => {
+        const mappers: Array<(value: never) => unknown> = [
+          toPrismaModelPricingScope,
+          fromPrismaModelPricingScope,
+          toPrismaTokenBucketPolicy,
+          fromPrismaTokenBucketPolicy,
+          toPrismaModelUsageDebitMode,
+          fromPrismaModelUsageDebitMode,
+          toPrismaAdmissionFundingPrincipal,
+          fromPrismaAdmissionFundingPrincipal,
+          toPrismaAdmissionState,
+          fromPrismaAdmissionState,
+          toPrismaProviderCompletionState,
+          fromPrismaProviderCompletionState,
+          toPrismaOutputEvaluationState,
+          fromPrismaOutputEvaluationState,
+          toPrismaCreditLedgerSource,
+          fromPrismaCreditLedgerSource,
+        ];
+
+        for (const mapper of mappers) {
+          expect(() => mapper(protoKey as never)).toThrow();
+        }
+      },
+    );
   });
 });

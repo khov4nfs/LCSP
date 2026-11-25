@@ -1,11 +1,18 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  ADMISSION_FUNDING_PRINCIPALS,
+  ADMISSION_STATES,
   LLM_USAGE_AVAILABILITY_REASONS,
   LLM_USAGE_STATUSES,
   MODEL_ATTEMPT_STATUSES,
+  MODEL_PRICING_SCOPES,
+  MODEL_USAGE_DEBIT_MODES,
   REFERENCE_COST_STATUSES,
+  TOKEN_BUCKET_POLICIES,
 } from "@lcsp/contracts/billing";
+import type { ConfigService } from "@nestjs/config";
 
+import type { AppConfig } from "../../../../config/config.types.js";
 import {
   BillingDomainError,
   BillingIdempotencyConflictError,
@@ -370,5 +377,264 @@ describe("Mercury 3 captured reference costs", () => {
       expect(row.customerChargeVnd).toBeUndefined();
       expect(row.providerCostCredits).toBeUndefined();
     }
+  });
+});
+
+describe("BillingUsageKernel direct-credit admission & settlement (MODEL_USAGE_DEBIT = OFF)", () => {
+  const createKernel = (debitMode?: string) => {
+    const config = debitMode
+      ? ({
+          get: (key: string) =>
+            key === "modelUsageDebit" ? { mode: debitMode } : undefined,
+        } as unknown as ConfigService<AppConfig, true>)
+      : undefined;
+    const tx = {
+      runForUser: jest.fn(),
+    } as unknown as BillingTransactionPort;
+    return new BillingUsageKernel(tx, undefined, config);
+  };
+
+  const baseAdmissionInput = {
+    invocationId: "inv-admit-1",
+    walletId: "wallet-1",
+    spendableMicrocredits: 5_000_000n,
+    inFlightCount: 0,
+    resolvedModel: "gemini-2.5-pro",
+    provider: "google",
+    allowlistedModels: ["gemini-2.5-pro"],
+    availableScopes: [
+      MODEL_PRICING_SCOPES.globalDefault,
+      MODEL_PRICING_SCOPES.exactModel,
+    ],
+    pricingSnapshotId: "tariff-snap-1",
+    maxInputTokens: 100_000n,
+    maxOutputTokens: 10_000n,
+    ratesMicrocreditsPerMillion: {
+      input: 1_250_000n,
+      output: 10_000_000n,
+      reasoningPolicy: TOKEN_BUCKET_POLICIES.includedInOutput,
+    },
+  };
+
+  describe("issueModelUsageAdmission", () => {
+    it("admits CUSTOMER_WALLET invocations and passes through full MicrocreditTariffRates", () => {
+      const kernel = createKernel();
+      const admission = kernel.issueModelUsageAdmission({
+        ...baseAdmissionInput,
+        fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET,
+        maxCachedInputTokens: 50_000n,
+        maxCacheWriteTokens: 20_000n,
+        ratesMicrocreditsPerMillion: {
+          input: 1_000_000n,
+          output: 2_000_000n,
+          reasoningPolicy: TOKEN_BUCKET_POLICIES.includedInOutput,
+          cachedInputPolicy: TOKEN_BUCKET_POLICIES.separateRate,
+          cachedInput: 500_000n,
+          cacheWritePolicy: TOKEN_BUCKET_POLICIES.separateRate,
+          cacheWrite: 1_500_000n,
+        },
+      });
+
+      // 100k*1M + 10k*2M + 50k*0.5M + 20k*1.5M = 100k + 20k + 25k + 30k = 175_000 microcredits
+      expect(admission).toEqual({
+        invocationId: "inv-admit-1",
+        walletId: "wallet-1",
+        fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET,
+        state: ADMISSION_STATES.ADMITTED,
+        resolvedModel: "gemini-2.5-pro",
+        provider: "google",
+        pricingSnapshotId: "tariff-snap-1",
+        pricingResolution: MODEL_PRICING_SCOPES.exactModel,
+        maximumExposureMicrocredits: 175_000n,
+      });
+    });
+
+    it("rejects CUSTOMER_WALLET when balance <= 0, slot occupied, walletId blank, maxOutputTokens <= 0, maxInputTokens < 0, or unlisted/untrimmed model", () => {
+      const kernel = createKernel();
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          spendableMicrocredits: 0n,
+        }),
+      ).toThrow(BillingDomainError);
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          inFlightCount: 1,
+        }),
+      ).toThrow(BillingDomainError);
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          walletId: "   ",
+        }),
+      ).toThrow(BillingDomainError);
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          walletId: null,
+        }),
+      ).toThrow(BillingDomainError);
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          maxOutputTokens: 0n,
+        }),
+      ).toThrow(BillingDomainError);
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          maxInputTokens: -1n,
+        }),
+      ).toThrow(BillingDomainError);
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          resolvedModel: "unlisted-model",
+        }),
+      ).toThrow();
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          provider: " google ",
+        }),
+      ).toThrow();
+    });
+
+    it("enforces walletId === null for PLATFORM_SPONSORED and allows 0n customer wallet balance", () => {
+      const kernel = createKernel();
+
+      expect(() =>
+        kernel.issueModelUsageAdmission({
+          ...baseAdmissionInput,
+          fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+          walletId: "wallet-1",
+        }),
+      ).toThrow("PLATFORM_SPONSORED admission must not bind a customer walletId");
+
+      const sponsored = kernel.issueModelUsageAdmission({
+        ...baseAdmissionInput,
+        fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+        walletId: null,
+        spendableMicrocredits: 0n,
+      });
+
+      expect(sponsored.fundingPrincipal).toBe(
+        ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+      );
+      expect(sponsored.walletId).toBeNull();
+      expect(sponsored.state).toBe(ADMISSION_STATES.ADMITTED);
+    });
+  });
+
+  describe("settleAdmittedUsage", () => {
+    const admission = {
+      invocationId: "inv-settle-1",
+      walletId: "wallet-1",
+      maximumExposureMicrocredits: 200_000n,
+      ratesMicrocreditsPerMillion: {
+        input: 1_000_000n,
+        output: 2_000_000n,
+        reasoningPolicy: TOKEN_BUCKET_POLICIES.includedInOutput,
+      },
+    };
+
+    it("defaults to MODEL_USAGE_DEBIT = OFF from ConfigService and leaves ledger balance unchanged", () => {
+      const kernel = createKernel(MODEL_USAGE_DEBIT_MODES.OFF);
+      const settled = kernel.settleAdmittedUsage({
+        admission,
+        reportedUsage: {
+          invocationId: "inv-settle-1",
+          inputTokens: 100_000n,
+          outputTokens: 50_000n,
+        },
+        currentLedgerBalanceMicrocredits: 1_000_000n,
+      });
+
+      expect(settled.debitMode).toBe(MODEL_USAGE_DEBIT_MODES.OFF);
+      expect(settled.actualChargeMicrocredits).toBe(200_000n);
+      expect(settled.exceededAdmittedExposure).toBe(false);
+      expect(settled.state).toBe(ADMISSION_STATES.SETTLED);
+      expect(settled.projectedWallet).toEqual({
+        ledgerBalanceMicrocredits: "1000000",
+        spendableMicrocredits: "1000000",
+        outstandingMicrocredits: "0",
+      });
+    });
+
+    it("fails closed when ConfigService or debitMode resolves MODEL_USAGE_DEBIT = ON", () => {
+      const kernelWithOnConfig = createKernel(MODEL_USAGE_DEBIT_MODES.ON);
+      expect(() =>
+        kernelWithOnConfig.settleAdmittedUsage({
+          admission,
+          reportedUsage: {
+            invocationId: "inv-settle-1",
+            inputTokens: 10n,
+            outputTokens: 10n,
+          },
+          currentLedgerBalanceMicrocredits: 1_000_000n,
+        }),
+      ).toThrow(BillingDomainError);
+
+      const kernelDefault = createKernel();
+      expect(() =>
+        kernelDefault.settleAdmittedUsage({
+          debitMode: MODEL_USAGE_DEBIT_MODES.ON,
+          admission,
+          reportedUsage: {
+            invocationId: "inv-settle-1",
+            inputTokens: 10n,
+            outputTokens: 10n,
+          },
+          currentLedgerBalanceMicrocredits: 1_000_000n,
+        }),
+      ).toThrow(BillingDomainError);
+    });
+
+    it("rejects invocationId mismatch between admission and reportedUsage", () => {
+      const kernel = createKernel(MODEL_USAGE_DEBIT_MODES.OFF);
+      expect(() =>
+        kernel.settleAdmittedUsage({
+          admission,
+          reportedUsage: {
+            invocationId: "inv-other",
+            inputTokens: 10n,
+            outputTokens: 10n,
+          },
+          currentLedgerBalanceMicrocredits: 1_000_000n,
+        }),
+      ).toThrow(BillingDomainError);
+    });
+
+    it("computes signed SHADOW projection (including negative balance) and flags BILLING_INTEGRITY_REVIEW when exceeding maximumExposureMicrocredits", () => {
+      const kernel = createKernel(MODEL_USAGE_DEBIT_MODES.SHADOW);
+      const settled = kernel.settleAdmittedUsage({
+        admission,
+        reportedUsage: {
+          invocationId: "inv-settle-1",
+          inputTokens: 100_000n,
+          outputTokens: 100_000n, // 100k + 200k = 300_000 > 200_000 exposure
+        },
+        currentLedgerBalanceMicrocredits: 100_000n,
+      });
+
+      expect(settled.debitMode).toBe(MODEL_USAGE_DEBIT_MODES.SHADOW);
+      expect(settled.actualChargeMicrocredits).toBe(300_000n);
+      expect(settled.exceededAdmittedExposure).toBe(true);
+      expect(settled.state).toBe(ADMISSION_STATES.BILLING_INTEGRITY_REVIEW);
+      expect(settled.projectedWallet).toEqual({
+        ledgerBalanceMicrocredits: "-200000",
+        spendableMicrocredits: "0",
+        outstandingMicrocredits: "200000",
+      });
+    });
   });
 });

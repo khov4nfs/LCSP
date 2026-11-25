@@ -1,26 +1,36 @@
-import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
-import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
+  ADMISSION_FUNDING_PRINCIPALS,
+  ADMISSION_STATES,
   LLM_USAGE_AVAILABILITY_REASONS,
   LLM_USAGE_STATUSES,
   MODEL_ATTEMPT_STATUSES,
+  MODEL_USAGE_DEBIT_MODES,
   USAGE_TOKEN_FIELDS,
+  calculateMicrocreditCharge,
   estimateOfficialReferenceCost,
+  projectSignedWalletBalance,
+  resolveEffectivePricingScope,
+  type MicrocreditTariffRates,
+  type ModelPricingScope,
+  type ModelUsageDebitMode,
+  type TokenBucketPolicy,
 } from "@lcsp/contracts/billing";
+import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
+import { Inject, Injectable, Optional } from "@nestjs/common";
+import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import {
   BillingDomainError,
   BillingIdempotencyConflictError,
   OwnershipMismatchError,
 } from "../../domain/billing.errors.js";
 import {
-  BILLING_TRANSACTION_PORT,
-  type BillingTransactionPort,
-} from "../../domain/repositories/billing-transaction.port.js";
-import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import {
   assertEffectiveRuntimeModelAt,
   assertMatchesEffectiveRuntimeModel,
 } from "../../domain/effective-runtime-model.js";
+import {
+  BILLING_TRANSACTION_PORT,
+  type BillingTransactionPort,
+} from "../../domain/repositories/billing-transaction.port.js";
 import type { LlmUsageRecordInput } from "../commands/billing-usage.types.js";
 
 export const BILLING_USAGE_KERNEL = Symbol("BILLING_USAGE_KERNEL");
@@ -293,5 +303,168 @@ export class BillingUsageKernel {
         occurredAt: i.occurredAt,
       });
     });
+  }
+
+  /**
+   * Business purpose: Evaluate server-issued admission invariants for a physical provider invocation
+   *   at the contract/pure-logic boundary without activating live provider dispatch or wallet holds.
+   *
+   * Business rules:
+   * - Spendable balance must be strictly positive (`> 0n`) when funded by `CUSTOMER_WALLET`.
+   * - Resolved model must be in the runtime allowlist and resolve deterministically to an active
+   *   pricing scope (`EXACT_MODEL -> PROVIDER_DEFAULT -> GLOBAL_DEFAULT`).
+   * - Computes `maximumExposureMicrocredits` using the canonical microcredit calculator from the
+   *   pinned tariff and applied input/output token hard bounds.
+   *
+   * Execution flow:
+   * 1. Verify wallet spendable balance (`> 0n`) and in-flight slot availability (`inFlightCount < 1`).
+   * 2. Resolve pricing scope for `(resolvedModel, provider)` against the allowlist.
+   * 3. Compute `maximumExposureMicrocredits` using `calculateMicrocreditCharge`.
+   * 4. Return the pure `ADMITTED` admission contract decision without DB writes.
+   *
+   * Failure cases:
+   * - Throws `BillingDomainError` when spendable balance `<= 0n`, slot is occupied, model is unlisted,
+   *   or pricing/token-bucket rates are missing.
+   *
+   * Side effects:
+   * - Pure/read-only contract evaluation; performs zero wallet holds, reservations, or DB writes.
+   */
+  issueModelUsageAdmission(input: {
+    invocationId: string;
+    walletId: string | null;
+    fundingPrincipal?: string;
+    spendableMicrocredits: bigint;
+    inFlightCount: number;
+    resolvedModel: string;
+    provider: string;
+    allowlistedModels: readonly string[];
+    availableScopes: readonly ModelPricingScope[];
+    pricingSnapshotId: string;
+    maxInputTokens: bigint;
+    maxOutputTokens: bigint;
+    maxCachedInputTokens?: bigint;
+    maxCacheWriteTokens?: bigint;
+    ratesMicrocreditsPerMillion: MicrocreditTariffRates;
+  }) {
+    if (input.spendableMicrocredits <= 0n) {
+      throw new BillingDomainError(
+        "Insufficient spendable microcredits for paid model invocation admission",
+      );
+    }
+    if (input.inFlightCount >= 1) {
+      throw new BillingDomainError(
+        "Wallet in-flight billable invocation concurrency slot is occupied",
+      );
+    }
+    const resolvedScope = resolveEffectivePricingScope({
+      resolvedModel: input.resolvedModel,
+      provider: input.provider,
+      allowlistedModels: input.allowlistedModels,
+      availableScopes: input.availableScopes,
+    });
+    const maximumExposureMicrocredits = calculateMicrocreditCharge({
+      usage: {
+        inputTokens: input.maxInputTokens,
+        outputTokens: input.maxOutputTokens,
+        cachedInputTokens: input.maxCachedInputTokens,
+        cacheWriteTokens: input.maxCacheWriteTokens,
+      },
+      ratesMicrocreditsPerMillion: input.ratesMicrocreditsPerMillion,
+    });
+    return {
+      invocationId: input.invocationId,
+      walletId: input.walletId,
+      fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET,
+      state: ADMISSION_STATES.ADMITTED,
+      resolvedModel: input.resolvedModel,
+      provider: input.provider,
+      pricingSnapshotId: input.pricingSnapshotId,
+      pricingResolution: resolvedScope.scope,
+      maximumExposureMicrocredits,
+    };
+  }
+
+  /**
+   * Business purpose: Compute pure-logic settlement and signed wallet projection for an admitted
+   *   physical invocation while enforcing the WP8 Phase A/A2 `MODEL_USAGE_DEBIT = OFF` gate.
+   *
+   * Business rules:
+   * - `MODEL_USAGE_DEBIT_MODES.ON` is blocked in WP8 Phase A/A2 until all 7 enablement gates pass.
+   * - Charge is computed solely from server-pinned admission tariff and provider-reported tokens
+   *   via `calculateMicrocreditCharge`; callback payloads cannot override charge or authority.
+   * - Resulting ledger balance and `spendableMicrocredits` / `outstandingMicrocredits` projection
+   *   are derived via `projectSignedWalletBalance`.
+   *
+   * Execution flow:
+   * 1. Reject live `MODEL_USAGE_DEBIT_MODES.ON` while Phase A/A2 gate is active.
+   * 2. Compute `actualChargeMicrocredits` using canonical integer microcredit arithmetic.
+   * 3. Flag `exceededAdmittedExposure` if actual charge exceeds `maximumExposureMicrocredits`.
+   * 4. Compute signed wallet projection without persisting financial ledger/wallet mutations.
+   *
+   * Failure cases:
+   * - Throws `BillingDomainError` if `debitMode === MODEL_USAGE_DEBIT_MODES.ON` (gate closed)
+   *   or if invocation/admission identity mismatches.
+   *
+   * Side effects:
+   * - Pure/read-only calculation; writes zero ledger debits or wallet projection updates.
+   */
+  settleAdmittedUsage(input: {
+    debitMode?: ModelUsageDebitMode;
+    admission: {
+      invocationId: string;
+      walletId: string;
+      maximumExposureMicrocredits: bigint;
+      ratesMicrocreditsPerMillion: {
+        input: bigint;
+        output: bigint;
+        reasoningPolicy: TokenBucketPolicy;
+        reasoning?: bigint;
+      };
+    };
+    reportedUsage: {
+      invocationId: string;
+      inputTokens: bigint;
+      outputTokens: bigint;
+      reasoningTokens?: bigint;
+    };
+    currentLedgerBalanceMicrocredits: bigint;
+  }) {
+    const mode = input.debitMode ?? MODEL_USAGE_DEBIT_MODES.OFF;
+    if (mode === MODEL_USAGE_DEBIT_MODES.ON) {
+      throw new BillingDomainError(
+        "MODEL_USAGE_DEBIT is disabled (OFF) until all WP8 enablement gates are closed",
+      );
+    }
+    if (input.reportedUsage.invocationId !== input.admission.invocationId) {
+      throw new BillingDomainError(
+        "Usage settlement invocationId does not match server-issued admission",
+      );
+    }
+    const actualChargeMicrocredits = calculateMicrocreditCharge({
+      usage: {
+        inputTokens: input.reportedUsage.inputTokens,
+        outputTokens: input.reportedUsage.outputTokens,
+        reasoningTokens: input.reportedUsage.reasoningTokens,
+      },
+      ratesMicrocreditsPerMillion: input.admission.ratesMicrocreditsPerMillion,
+    });
+    const exceededAdmittedExposure =
+      actualChargeMicrocredits > input.admission.maximumExposureMicrocredits;
+    const nextLedgerBalance =
+      mode === MODEL_USAGE_DEBIT_MODES.OFF
+        ? input.currentLedgerBalanceMicrocredits
+        : input.currentLedgerBalanceMicrocredits - actualChargeMicrocredits;
+
+    return {
+      debitMode: mode,
+      invocationId: input.admission.invocationId,
+      walletId: input.admission.walletId,
+      actualChargeMicrocredits,
+      exceededAdmittedExposure,
+      state: exceededAdmittedExposure
+        ? ADMISSION_STATES.BILLING_INTEGRITY_REVIEW
+        : ADMISSION_STATES.SETTLED,
+      projectedWallet: projectSignedWalletBalance(nextLedgerBalance),
+    };
   }
 }

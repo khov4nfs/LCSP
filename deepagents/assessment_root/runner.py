@@ -424,6 +424,9 @@ def run_assessment_root(
                     raise RuntimeError("native Root checkpoint audit scope does not match the assessment")
                 pending = [item for task in saved.tasks for item in task.interrupts]
                 control_wait = [item for item in pending if "controlRequestId" in item.value]
+                # Why: R2 retires NO_PROGRESS_LIMIT_EXCEEDED as a budget pause reason; only call/token/unavailable limits classify as budget_wait.
+                # How: Exclude NO_PROGRESS_LIMIT_EXCEEDED from the checkpoint reason allowlist.
+                # Invariant: Saved interrupts for call/token/unavailable limits still settle EXECUTION_PAUSED.
                 budget_wait = [
                     item for item in pending
                     if item.value.get("budgetDenial")
@@ -432,7 +435,6 @@ def run_assessment_root(
                         "BUDGET_EXHAUSTED",
                         "CALL_LIMIT_EXCEEDED",
                         "TOKEN_LIMIT_EXCEEDED",
-                        "NO_PROGRESS_LIMIT_EXCEEDED",
                         "BUDGET_UNAVAILABLE",
                     }
                 ]
@@ -530,6 +532,9 @@ def run_assessment_root(
                     saved = agent.get_state(graph_config)
                     checkpoint_id = saved.config["configurable"]["checkpoint_id"]
                     controls = [item for item in interrupts if "controlRequestId" in item.value]
+                    # Why: R2 retires NO_PROGRESS_LIMIT_EXCEEDED as an execution pause reason; only call/token/unavailable limits trigger EXECUTION_PAUSED.
+                    # How: Exclude NO_PROGRESS_LIMIT_EXCEEDED from the post-invoke budget_pauses reason set.
+                    # Invariant: Genuine budget denials and stop requests still settle EXECUTION_PAUSED.
                     budget_pauses = [
                         item for item in interrupts
                         if item.value.get("budgetDenial")
@@ -538,7 +543,6 @@ def run_assessment_root(
                             "BUDGET_EXHAUSTED",
                             "CALL_LIMIT_EXCEEDED",
                             "TOKEN_LIMIT_EXCEEDED",
-                            "NO_PROGRESS_LIMIT_EXCEEDED",
                             "BUDGET_UNAVAILABLE",
                         }
                     ]

@@ -2,6 +2,10 @@ import Joi from "joi";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  MODEL_USAGE_DEBIT_MODES,
+  type ModelUsageDebitMode,
+} from "@lcsp/contracts/billing";
 
 import { NODE_ENVS, type AppConfig, type NodeEnv } from "./config.types.js";
 
@@ -270,6 +274,19 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     }),
     LCSP_ARTIFACT_STORAGE_PATH: Joi.string().trim().allow("").default(""),
     LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR: Joi.string().trim().allow("").default(""),
+    // Why: WP8 Phase A/A2 keeps live model-usage debiting gated OFF by default while allowing
+    // SHADOW calculations and failing closed if ON is configured prematurely.
+    // How: Trim and empty-default MODEL_USAGE_DEBIT to OFF; allow only OFF or SHADOW.
+    // Invariants: Production cannot boot with MODEL_USAGE_DEBIT=ON in Phase A/A2.
+    MODEL_USAGE_DEBIT: Joi.string()
+      .trim()
+      .empty("")
+      .valid(MODEL_USAGE_DEBIT_MODES.OFF, MODEL_USAGE_DEBIT_MODES.SHADOW)
+      .default(MODEL_USAGE_DEBIT_MODES.OFF)
+      .messages({
+        "any.only":
+          '"MODEL_USAGE_DEBIT" must be OFF or SHADOW (ON is blocked until WP8 enablement gates are closed)',
+      }),
   })
     .unknown(true)
     .custom((env: Record<string, unknown>, helpers) => {
@@ -428,6 +445,35 @@ function parseBoolean(
     return false;
   }
   return defaultValue;
+}
+
+/**
+ * Parses WP8 MODEL_USAGE_DEBIT rollout mode and fails closed on ON or invalid strings.
+ *
+ * Why: Direct config() callers (including unit tests and non-Joi harnesses) must enforce
+ * the same Phase A/A2 MODEL_USAGE_DEBIT = OFF gate as Joi schema validation.
+ * How: Trims input, defaults unset/blank values to OFF, accepts OFF or SHADOW, and throws on ON/unknown values.
+ * Invariants: Never returns MODEL_USAGE_DEBIT_MODES.ON in Phase A/A2.
+ */
+function parseModelUsageDebitMode(
+  value: string | undefined,
+): ModelUsageDebitMode {
+  if (value === undefined) {
+    return MODEL_USAGE_DEBIT_MODES.OFF;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return MODEL_USAGE_DEBIT_MODES.OFF;
+  }
+  if (
+    trimmed === MODEL_USAGE_DEBIT_MODES.OFF ||
+    trimmed === MODEL_USAGE_DEBIT_MODES.SHADOW
+  ) {
+    return trimmed;
+  }
+  throw new Error(
+    '"MODEL_USAGE_DEBIT" must be OFF or SHADOW (ON is blocked until WP8 enablement gates are closed)',
+  );
 }
 
 /**
@@ -593,6 +639,9 @@ export function config(): AppConfig {
         env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER?.trim() ?? "",
       sePayAccountHolder: env.BILLING_SEPAY_ACCOUNT_HOLDER?.trim() ?? "",
       sePayQrUrlTemplate: env.BILLING_SEPAY_QR_URL_TEMPLATE?.trim() ?? "",
+    },
+    modelUsageDebit: {
+      mode: parseModelUsageDebitMode(env.MODEL_USAGE_DEBIT),
     },
     mfa: {
       secretEncryptionKey: env.MFA_SECRET_ENCRYPTION_KEY?.trim() ?? "",

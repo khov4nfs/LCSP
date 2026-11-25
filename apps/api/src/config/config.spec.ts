@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { MODEL_USAGE_DEBIT_MODES } from "@lcsp/contracts/billing";
 import { config, createConfigValidationSchema } from "./config.js";
 
 const VALIDATION_WORKSPACE_ROOT = resolve("test-workspace");
@@ -451,6 +452,68 @@ describe("config()", () => {
         artifactStoragePath: "",
         snapshotArchiveCacheDir: "",
       },
+      modelUsageDebit: {
+        mode: MODEL_USAGE_DEBIT_MODES.OFF,
+      },
+    });
+  });
+
+  describe("WP8 MODEL_USAGE_DEBIT = OFF Config Gate (RED Tests)", () => {
+    it("defaults MODEL_USAGE_DEBIT to OFF when unset or blank in schema and config()", () => {
+      const unset = validate(VALID_ENV);
+      expect(unset.error).toBeUndefined();
+      expect((unset.value as Record<string, unknown>).MODEL_USAGE_DEBIT).toBe(
+        MODEL_USAGE_DEBIT_MODES.OFF,
+      );
+
+      const blank = validate({ ...VALID_ENV, MODEL_USAGE_DEBIT: "   " });
+      expect(blank.error).toBeUndefined();
+      expect((blank.value as Record<string, unknown>).MODEL_USAGE_DEBIT).toBe(
+        MODEL_USAGE_DEBIT_MODES.OFF,
+      );
+
+      delete process.env.MODEL_USAGE_DEBIT;
+      expect(config().modelUsageDebit).toEqual({
+        mode: MODEL_USAGE_DEBIT_MODES.OFF,
+      });
+
+      process.env.MODEL_USAGE_DEBIT = "";
+      expect(config().modelUsageDebit).toEqual({
+        mode: MODEL_USAGE_DEBIT_MODES.OFF,
+      });
+    });
+
+    it("accepts OFF and SHADOW in validation schema and config()", () => {
+      const shadowValidation = validate({
+        ...VALID_ENV,
+        MODEL_USAGE_DEBIT: MODEL_USAGE_DEBIT_MODES.SHADOW,
+      });
+      expect(shadowValidation.error).toBeUndefined();
+
+      process.env.MODEL_USAGE_DEBIT = " SHADOW ";
+      expect(config().modelUsageDebit).toEqual({
+        mode: MODEL_USAGE_DEBIT_MODES.SHADOW,
+      });
+    });
+
+    it("rejects ON and invalid MODEL_USAGE_DEBIT values in schema and config()", () => {
+      const onValidation = validate({
+        ...VALID_ENV,
+        MODEL_USAGE_DEBIT: MODEL_USAGE_DEBIT_MODES.ON,
+      });
+      expect(onValidation.error?.message).toContain("MODEL_USAGE_DEBIT");
+
+      const invalidValidation = validate({
+        ...VALID_ENV,
+        MODEL_USAGE_DEBIT: "ENABLED",
+      });
+      expect(invalidValidation.error?.message).toContain("MODEL_USAGE_DEBIT");
+
+      process.env.MODEL_USAGE_DEBIT = MODEL_USAGE_DEBIT_MODES.ON;
+      expect(() => config()).toThrow("MODEL_USAGE_DEBIT");
+
+      process.env.MODEL_USAGE_DEBIT = "ENABLED";
+      expect(() => config()).toThrow("MODEL_USAGE_DEBIT");
     });
   });
 

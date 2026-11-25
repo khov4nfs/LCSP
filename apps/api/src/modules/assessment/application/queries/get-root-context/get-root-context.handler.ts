@@ -217,15 +217,15 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           : null;
       const extension = parsedExt?.success ? parsedExt.data : null;
 
-      const overrideNoProgress =
-        blockerRef.overrideNoProgress === true ||
-        extension?.overrideNoProgress === true;
       const budgetExtended = blockerRef.budgetExtended === true;
 
+      // Why: R2 retired `NO_PROGRESS_LIMIT_EXCEEDED` as an assessment blocker and removed
+      // `overrideNoProgress`. Diagnostic `noProgressLimit` telemetry is resolved without overrides.
+      // How: Calls `resolveConfiguredBudgetLimits` with environment + workload scope only.
+      // Invariants: `budgetState.status` is strictly `ADMITTED` or `EXHAUSTED`.
       const baseLimits = resolveConfiguredBudgetLimits(
         process.env,
         WORKLOAD_SCOPES.ASSESSMENT_ROOT,
-        { overrideNoProgress },
       );
 
       const cumulativeUsage = {

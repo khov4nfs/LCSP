@@ -39,10 +39,11 @@ TEST_MODEL_ROUTES = {
             "provider": "apx",
             "protocol": "anthropic",
             "model": "claude-sonnet-5-5",
+            "options": {"max_output_tokens": 65536},
         },
-        "fallback": {"provider": "inception", "model": "model-delta"},
-        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
-        "fallback-02": {"provider": "miraiapi", "model": "model-gamma"},
+        "fallback": {"provider": "inception", "model": "model-delta", "options": {"max_output_tokens": 65536}},
+        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite", "options": {"max_output_tokens": 65536}},
+        "fallback-02": {"provider": "miraiapi", "model": "model-gamma", "options": {"max_output_tokens": 65536}},
     },
     "roles": {
         "default": "primary",
@@ -534,8 +535,8 @@ def test_retry_rotation_fallback_and_terminal_exhaustion_are_all_admitted(tmp_pa
         monkeypatch,
         {
             "routes": {
-                "primary": {"provider": "miraiapi", "model": "model-gamma"},
-                "fallback": {"provider": "inception", "model": "model-delta"},
+                "primary": {"provider": "miraiapi", "model": "model-gamma", "options": {"max_output_tokens": 65536}},
+                "fallback": {"provider": "inception", "model": "model-delta", "options": {"max_output_tokens": 65536}},
             },
             "roles": {"default": "primary"},
             "fallbacks": {"primary": ["fallback"]},
@@ -689,7 +690,7 @@ async def test_async_exhaustion_does_not_rotate_or_fallback(tmp_path, monkeypatc
     use_model_routes(
         monkeypatch,
         {
-            "routes": {"primary": {"provider": "miraiapi", "model": "model-gamma"}},
+            "routes": {"primary": {"provider": "miraiapi", "model": "model-gamma", "options": {"max_output_tokens": 65536}}},
             "roles": {"default": "primary"},
         },
     )

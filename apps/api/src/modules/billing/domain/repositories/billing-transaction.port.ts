@@ -1,5 +1,6 @@
 import type {
   BILLING_ORDER_STATUSES,
+  CreditLedgerSource,
   LlmUsageStatus,
   ModelAttemptStatus,
   ReferenceCostSnapshot,
@@ -10,6 +11,8 @@ export type WalletRecord = {
   userId: string;
   availableCredits: bigint;
   reservedCredits: bigint;
+  balanceMicrocredits?: bigint;
+  accountingUnitVersion?: number;
   version: number;
 };
 export type LedgerRecord = {
@@ -17,8 +20,11 @@ export type LedgerRecord = {
   walletId: string;
   userId: string;
   deltaCredits: bigint;
+  deltaMicrocredits?: bigint | null;
+  accountingUnitVersion?: number;
   idempotencyKey: string;
   source: string;
+  ledgerSource?: CreditLedgerSource | null;
   referenceId: string | null;
   billingOrderId: string | null;
 };
@@ -104,6 +110,8 @@ export interface BillingWalletPort {
     expectedVersion: number;
     availableCredits: bigint;
     reservedCredits: bigint;
+    balanceMicrocredits?: bigint;
+    accountingUnitVersion?: number;
   }): Promise<boolean>;
 }
 export interface CreditLedgerPort {
@@ -112,8 +120,11 @@ export interface CreditLedgerPort {
     userId: string;
     walletId: string;
     deltaCredits: bigint;
+    deltaMicrocredits?: bigint;
+    accountingUnitVersion?: number;
     idempotencyKey: string;
     source: string;
+    ledgerSource?: CreditLedgerSource;
     referenceId?: string;
     billingOrderId?: string;
   }): Promise<LedgerRecord>;

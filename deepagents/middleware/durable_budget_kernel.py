@@ -1,7 +1,7 @@
 """Shared durable budget kernel for LCSP agent workloads.
 
-Enforces cumulative model call, token bucket, and no-progress boundaries
-across Assessment Root and Rule Set Preparation.
+Enforces cumulative model call and token bucket boundaries across Assessment Root
+and Rule Set Preparation, while tracking non-blocking no-progress telemetry.
 """
 from __future__ import annotations
 
@@ -14,16 +14,17 @@ RULE_SET_PREPARATION_SCOPE = "RULE_SET_PREPARATION"
 
 REASON_CALL_LIMIT = "CALL_LIMIT_EXCEEDED"
 REASON_TOKEN_LIMIT = "TOKEN_LIMIT_EXCEEDED"
-REASON_NO_PROGRESS = "NO_PROGRESS_LIMIT_EXCEEDED"
 REASON_BUDGET_REACHED = "AGENT_BUDGET_REACHED"
 REASON_BUDGET_UNAVAILABLE = "BUDGET_UNAVAILABLE"
 
 CALL_LIMIT_EXCEEDED = REASON_CALL_LIMIT
 TOKEN_LIMIT_EXCEEDED = REASON_TOKEN_LIMIT
-NO_PROGRESS_LIMIT_EXCEEDED = REASON_NO_PROGRESS
 AGENT_BUDGET_REACHED = REASON_BUDGET_REACHED
 BUDGET_UNAVAILABLE = REASON_BUDGET_UNAVAILABLE
 
+# Why: No-progress telemetry is diagnostic only (R2), so legacy extension defaults must not carry an overrideNoProgress unlock.
+# How: Keep only cumulative call and token allowances in the legacy migration map.
+# Invariant: Admin/system budget extensions never alter or unlock no-progress limits.
 LEGACY_BUDGET_EXTENSION_ALLOWANCE: dict[str, Any] = {
     "version": 1,
     "authorizedBy": "system:legacy_budget_extended_migration",
@@ -32,7 +33,6 @@ LEGACY_BUDGET_EXTENSION_ALLOWANCE: dict[str, Any] = {
     "additionalInputTokens": 1_000_000,
     "additionalOutputTokens": 50_000,
     "additionalTotalTokens": 1_050_000,
-    "overrideNoProgress": False,
 }
 
 
@@ -134,27 +134,29 @@ def evaluate_workload_admission(
     limits: WorkloadBudgetLimits,
     usage: WorkloadCumulativeUsage,
 ) -> tuple[bool, str | None]:
-    """Business purpose: Evaluate whether a physical model dispatch is admitted under cumulative limits.
+    """Business purpose: Evaluate whether a physical model dispatch is admitted under cumulative call and token limits.
 
     Business rules:
     - When cumulative model calls meet or exceed max_model_calls, deny dispatch.
     - When effective tokens (measured tokens plus outstanding in-flight and outcome-unknown exposure) meet or exceed bounds, deny dispatch.
-    - When consecutive turns without progress meet or exceed no_progress_limit, deny dispatch.
     - Missing limits are treated as unconstrained for that dimension; unmeasured attempts are counted in exposure without fabricating static totals.
+    - No-progress limits and consecutive turns without progress are non-blocking diagnostic telemetry only and never deny model admission.
 
     Execution flow:
     1. Check call count against max_model_calls.
     2. Compute effective token exposure including outstanding in-flight and outcome-unknown bounds.
     3. Check effective input, output, and total tokens against respective configured limits.
-    4. Check consecutive turns without progress against no_progress_limit.
-    5. Return admission boolean and specific denial reason.
+    4. Return admission boolean and specific denial reason when any hard call or token limit is exceeded.
 
     Failure cases:
-    - Returns (False, reason) when any configured limit is reached or exceeded.
+    - Returns (False, reason) when any configured call or token limit is reached or exceeded.
 
     Side effects:
     - Pure function; does not mutate input records or perform network calls.
     """
+    # Why: R2 retires NO_PROGRESS_LIMIT_EXCEEDED as an admission blocker; only hard call and token caps gate dispatch.
+    # How: Evaluate cumulative model calls and effective token exposures while leaving no_progress_limit as diagnostic telemetry.
+    # Invariant: Consecutive turns without progress never block physical model dispatch or require Admin unlock.
     effective_input = usage.input_tokens + getattr(usage, "in_flight_exposure", 0)
     effective_output = usage.output_tokens + getattr(usage, "outcome_unknown_exposure", 0)
     effective_total = (
@@ -171,11 +173,6 @@ def evaluate_workload_admission(
         return False, REASON_TOKEN_LIMIT
     if limits.max_total_tokens is not None and effective_total >= limits.max_total_tokens:
         return False, REASON_TOKEN_LIMIT
-    if (
-        limits.no_progress_limit is not None
-        and usage.consecutive_turns_without_progress >= limits.no_progress_limit
-    ):
-        return False, REASON_NO_PROGRESS
     return True, None
 
 
@@ -215,12 +212,12 @@ def apply_budget_extension(
     Business rules:
     - If no extension is present, returns base limits unmodified.
     - Additional model calls and tokens are added to configured base limits; unconfigured (None) base limits remain None.
-    - When override_no_progress is true in the extension, no_progress_limit is cleared to None.
+    - Diagnostic no_progress_limit is always preserved unmodified because no-progress is never an Admin unlock target.
 
     Execution flow:
     1. Check if extension exists; if not, return base limits.
     2. Calculate effective call and token limits by summing base and additional amounts where configured.
-    3. Clear no_progress_limit if override_no_progress is true; otherwise keep base limit.
+    3. Preserve base_limits.no_progress_limit unchanged regardless of any legacy override flags.
     4. Return new WorkloadBudgetLimits object.
 
     Failure cases:
@@ -232,17 +229,19 @@ def apply_budget_extension(
     if not extension:
         return base_limits
 
+    # Why: R2 forbids unlocking or clearing no-progress through Admin Budget Override.
+    # How: Ignore any legacy overrideNoProgress/override_no_progress fields and preserve base_limits.no_progress_limit.
+    # Invariant: Only call and token allowances are extensible through budget extensions.
     add_calls = extension.get("additionalModelCalls") or extension.get("additional_model_calls") or 0
     add_in = extension.get("additionalInputTokens") or extension.get("additional_input_tokens") or 0
     add_out = extension.get("additionalOutputTokens") or extension.get("additional_output_tokens") or 0
     add_tot = extension.get("additionalTotalTokens") or extension.get("additional_total_tokens") or 0
-    override_prog = extension.get("overrideNoProgress") or extension.get("override_no_progress")
 
     return WorkloadBudgetLimits(
         max_model_calls=base_limits.max_model_calls + add_calls if base_limits.max_model_calls is not None else None,
         max_input_tokens=base_limits.max_input_tokens + add_in if base_limits.max_input_tokens is not None else None,
         max_output_tokens=base_limits.max_output_tokens + add_out if base_limits.max_output_tokens is not None else None,
         max_total_tokens=base_limits.max_total_tokens + add_tot if base_limits.max_total_tokens is not None else None,
-        no_progress_limit=None if override_prog else base_limits.no_progress_limit,
+        no_progress_limit=base_limits.no_progress_limit,
     )
 

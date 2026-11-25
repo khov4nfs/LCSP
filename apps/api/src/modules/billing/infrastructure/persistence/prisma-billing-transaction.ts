@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import {
+  CreditLedgerSource as PrismaCreditLedgerSource,
   PaymentReconciliationReason,
   PaymentReconciliationStatus,
 } from "@prisma/client";
@@ -12,13 +13,16 @@ import {
   buildAuditEventInput,
 } from "@lcsp/contracts/audit";
 import {
+  fromPrismaCreditLedgerSource,
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
+  toPrismaCreditLedgerSource,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type {
   BillingTransactionPort,
   BillingTransactionRepositories,
+  LedgerRecord,
 } from "../../domain/repositories/billing-transaction.port.js";
 
 @Injectable()
@@ -59,17 +63,55 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
                 data: {
                   availableCredits: i.availableCredits,
                   reservedCredits: i.reservedCredits,
+                  // Why: WP8 shadow dual-write updates balanceMicrocredits alongside legacy credit columns
+                  // only when explicitly supplied so legacy callers remain untouched.
+                  ...(i.balanceMicrocredits !== undefined
+                    ? { balanceMicrocredits: i.balanceMicrocredits }
+                    : {}),
+                  ...(i.accountingUnitVersion !== undefined
+                    ? { accountingUnitVersion: i.accountingUnitVersion }
+                    : {}),
                   version: { increment: 1 },
                 },
               })
             ).count === 1,
         },
         ledger: {
-          findByIdempotencyKey: (key) =>
-            tx.creditLedgerEntry.findUnique({ where: { idempotencyKey: key } }),
+          findByIdempotencyKey: async (key) => {
+            const row = await tx.creditLedgerEntry.findUnique({
+              where: { idempotencyKey: key },
+            });
+            return row ? this.mapLedgerRow(row) : null;
+          },
           append: async (i) => {
             try {
-              return await tx.creditLedgerEntry.create({ data: i });
+              // Why: Translate canonical contract CreditLedgerSource to Prisma enum at the persistence
+              // boundary while keeping ledgerSource optional for legacy TEST callers.
+              const created = await tx.creditLedgerEntry.create({
+                data: {
+                  userId: i.userId,
+                  walletId: i.walletId,
+                  deltaCredits: i.deltaCredits,
+                  ...(i.deltaMicrocredits !== undefined
+                    ? { deltaMicrocredits: i.deltaMicrocredits }
+                    : {}),
+                  ...(i.accountingUnitVersion !== undefined
+                    ? { accountingUnitVersion: i.accountingUnitVersion }
+                    : {}),
+                  idempotencyKey: i.idempotencyKey,
+                  source: i.source,
+                  ...(i.ledgerSource !== undefined
+                    ? {
+                        ledgerSource: toPrismaCreditLedgerSource(
+                          i.ledgerSource,
+                        ),
+                      }
+                    : {}),
+                  referenceId: i.referenceId,
+                  billingOrderId: i.billingOrderId,
+                },
+              });
+              return this.mapLedgerRow(created);
             } catch (error) {
               if (this.code(error) === "P2002")
                 throw new Error("DUPLICATE_LEDGER_IDEMPOTENCY", {
@@ -78,11 +120,13 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
               throw error;
             }
           },
-          listForWallet: (walletId) =>
-            tx.creditLedgerEntry.findMany({
+          listForWallet: async (walletId) => {
+            const rows = await tx.creditLedgerEntry.findMany({
               where: { walletId },
               orderBy: { createdAt: "asc" },
-            }),
+            });
+            return rows.map((row) => this.mapLedgerRow(row));
+          },
         },
         reservation: {
           findForUser: (id, reservationId) =>
@@ -355,6 +399,36 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
       return operation(repositories);
     });
   }
+  private mapLedgerRow(row: {
+    id: string;
+    walletId: string;
+    userId: string;
+    deltaCredits: bigint;
+    deltaMicrocredits: bigint | null;
+    accountingUnitVersion: number;
+    idempotencyKey: string;
+    source: string;
+    ledgerSource: PrismaCreditLedgerSource | null;
+    referenceId: string | null;
+    billingOrderId: string | null;
+  }): LedgerRecord {
+    return {
+      id: row.id,
+      walletId: row.walletId,
+      userId: row.userId,
+      deltaCredits: row.deltaCredits,
+      deltaMicrocredits: row.deltaMicrocredits,
+      accountingUnitVersion: row.accountingUnitVersion,
+      idempotencyKey: row.idempotencyKey,
+      source: row.source,
+      ledgerSource: row.ledgerSource
+        ? fromPrismaCreditLedgerSource(row.ledgerSource)
+        : null,
+      referenceId: row.referenceId,
+      billingOrderId: row.billingOrderId,
+    };
+  }
+
   private code(error: unknown): string | undefined {
     return typeof error === "object" && error !== null && "code" in error
       ? String(error.code)

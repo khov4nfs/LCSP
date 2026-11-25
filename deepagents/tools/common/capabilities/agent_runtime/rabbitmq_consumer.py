@@ -671,9 +671,10 @@ def _dispatch_delivery(
     if not payload_has_correlation and not header_has_correlation:
         # Persist the minted fallback on the delivery itself. Retry republishing and timeout
         # reporting reuse these properties, so one command cannot fracture into new traces.
-        persisted_headers = dict(headers or {})
-        persisted_headers["x-correlation-id"] = correlation_id
-        properties.headers = persisted_headers
+        if properties is not None:
+            persisted_headers = dict(headers or {})
+            persisted_headers["x-correlation-id"] = correlation_id
+            properties.headers = persisted_headers
     if settlement_state is not None and _delivery_already_settled(settlement_state):
         # Resolve and persist trace identity before aborting queued work so timeout
         # telemetry cannot mint a second fallback for the same delivery.

@@ -12,7 +12,8 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 import model_policy as mp
 from middleware import usage_metering, usage_recovery
 from middleware.usage_metering import (
-    DEFAULT_MAX_OUTPUT_TOKENS,
+    OUTPUT_EVALUATION_STATES,
+    PROVIDER_COMPLETION_STATES,
     AgentRoleMiddleware,
     AgentRunState,
     ModelContextWindowExceeded,
@@ -22,6 +23,7 @@ from middleware.usage_metering import (
     active_agent_run_state,
     assert_model_identity,
     output_cap_settings,
+    output_token_limit,
     check_request_context,
     extract_provider_usage,
 )
@@ -393,15 +395,60 @@ class _BindModel:
         return SimpleNamespace(bound=self, kwargs=kwargs)
 
 
-def test_output_cap_settings_use_the_route_output_cap_or_the_code_default():
+def test_output_cap_settings_use_the_route_output_cap_or_fail_closed():
     assert output_cap_settings(_BindModel(profile={"max_output_tokens": 777})) == {"max_tokens": 777}
-    assert output_cap_settings(_BindModel()) == {"max_tokens": DEFAULT_MAX_OUTPUT_TOKENS}
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        output_cap_settings(_BindModel())
     assert output_cap_settings(_BindModel(provider="apx", profile={"max_output_tokens": 55})) == {"max_tokens": 55}
     assert output_cap_settings(_BindModel(provider="google_genai", profile={"max_output_tokens": 9})) == {"max_output_tokens": 9}
 
 
+@pytest.mark.parametrize("bad_cap", [None, False, True, 0, -1, "4096", 12.5])
+def test_output_token_limit_rejects_missing_bool_non_int_and_non_positive_caps(bad_cap):
+    model = SimpleNamespace(profile={"max_output_tokens": bad_cap}, options={})
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        output_token_limit(model)
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        output_cap_settings(model)
+
+
+def test_output_token_limit_falls_back_through_route_options_and_model_options():
+    route = mp.ResolvedModelConfig(
+        role="default",
+        route_id="r1",
+        provider="openai",
+        protocol="openai",
+        model="model-alpha",
+        options={"max_output_tokens": 12345},
+    )
+    model_with_route = mp.attach_model_route(SimpleNamespace(profile={}), route)
+    assert output_token_limit(model_with_route) == 12345
+
+    model_with_options = SimpleNamespace(profile=None, options={"max_output_tokens": 9876})
+    assert output_token_limit(model_with_options) == 9876
+
+
+def test_usage_metering_exports_separated_completion_and_evaluation_state_sets():
+    assert set(PROVIDER_COMPLETION_STATES) == {
+        "COMPLETED",
+        "MAX_TOKENS",
+        "TRUNCATED",
+        "FAILED",
+        "OUTCOME_UNKNOWN",
+    }
+    assert set(OUTPUT_EVALUATION_STATES) == {
+        "ACCEPTED",
+        "SCHEMA_INVALID",
+        "DOMAIN_REJECTED",
+        "NOT_EVALUATED",
+    }
+    assert {"PROVIDER_COMPLETION_STATES", "OUTPUT_EVALUATION_STATES", "output_cap_settings", "output_token_limit"} <= set(
+        usage_metering.__all__
+    )
+
+
 def test_output_cap_preserves_identity_for_usage_reporting():
-    model = _BindModel()
+    model = _BindModel(profile={"max_output_tokens": 8192})
 
     class Request:
         messages = []
@@ -429,7 +476,7 @@ def test_output_cap_preserves_identity_for_usage_reporting():
 
     # The cap rides in model settings next to the existing ones; the model itself is untouched.
     assert downstream[0].model_settings == {
-        "max_tokens": DEFAULT_MAX_OUTPUT_TOKENS,
+        "max_tokens": 8192,
         "automatic_function_calling": {"disable": True},
     }
     assert downstream[0].model is model

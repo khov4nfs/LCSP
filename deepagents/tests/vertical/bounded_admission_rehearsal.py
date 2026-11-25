@@ -31,13 +31,14 @@ from vertical.live_preparation import LiveUsage, recover_usage
 
 REHEARSAL_MODEL_ROUTES = {
     "routes": {
-        "primary": {"provider": "miraiapi", "model": "model-gamma"},
-        "fallback": {"provider": "inception", "model": "model-delta"},
-        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
+        "primary": {"provider": "miraiapi", "model": "model-gamma", "options": {"max_output_tokens": 65536}},
+        "fallback": {"provider": "inception", "model": "model-delta", "options": {"max_output_tokens": 65536}},
+        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite", "options": {"max_output_tokens": 65536}},
         "fallback-02": {
             "provider": "apx",
             "protocol": "anthropic",
             "model": "claude-sonnet-4-6-free",
+            "options": {"max_output_tokens": 65536},
         },
     },
     "roles": {

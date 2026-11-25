@@ -1,3 +1,5 @@
+import type { ModelUsageDebitMode } from "@lcsp/contracts/billing";
+
 export interface DatabaseConfig {
   url: string;
 }
@@ -87,6 +89,15 @@ export interface BillingConfig {
 }
 
 /**
+ * WP8 model-usage microcredit debit rollout gate configuration.
+ * Rationale: Isolated from customer-payment BillingConfig so SePay config invariants stay intact
+ * while keeping MODEL_USAGE_DEBIT=OFF enforced until Phase B+ gates are closed.
+ */
+export interface ModelUsageDebitConfig {
+  mode: ModelUsageDebitMode;
+}
+
+/**
  * MFA security encryption key configuration.
  * Rationale: Injected into Auth security utilities via ConfigService to eliminate unvalidated process.env reads.
  */
@@ -134,6 +145,7 @@ export interface AppConfig {
   email: EmailConfig;
   orchestration: OrchestrationConfig;
   billing: BillingConfig;
+  modelUsageDebit: ModelUsageDebitConfig;
   mfa: MfaConfig;
   storage: StorageConfig;
 }

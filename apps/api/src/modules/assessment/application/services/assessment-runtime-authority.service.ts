@@ -497,45 +497,10 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.CONFLICT },
         );
       }
-      const blockerRef =
-        row.blockerReference &&
-        typeof row.blockerReference === "object" &&
-        !Array.isArray(row.blockerReference)
-          ? (row.blockerReference as Record<string, unknown>)
-          : {};
-      const overrideNoProgress = blockerRef.overrideNoProgress === true;
-      const configuredNoProgressLimit = resolveConfiguredBudgetLimits(
-        process.env,
-        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
-      ).noProgressLimit;
-      if (
-        configuredNoProgressLimit !== null &&
-        !overrideNoProgress &&
-        !safePauseResume &&
-        !recoveringHumanInterrupt &&
-        !humanAnswerReview &&
-        !failedHumanAnswerReview &&
-        !recoveredExecution
-      ) {
-        const consecutiveTurnsWithoutProgress =
-          await calculateConsecutiveTurnsWithoutProgress(
-            tx,
-            input.assessmentId,
-          );
-        if (consecutiveTurnsWithoutProgress >= configuredNoProgressLimit) {
-          throw problemException(
-            ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
-            input.correlationId,
-            {
-              status: HttpStatus.CONFLICT,
-              meta: {
-                consecutiveTurnsWithoutProgress,
-                noProgressLimit: configuredNoProgressLimit,
-              },
-            },
-          );
-        }
-      }
+      // Why: R2 retired `NO_PROGRESS_LIMIT_EXCEEDED` as a blocking admission gate.
+      // How: Consecutive turns without progress remain diagnostic telemetry only and no longer
+      // throw `NO_PROGRESS_LIMIT_REACHED` during `claimRoot`.
+      // Invariants: Execution admission is governed by lifecycle, lease, and call/token ceilings.
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
       await this.capacity.bindInTx(
@@ -978,8 +943,7 @@ export class AssessmentRuntimeAuthority {
           input.reason === ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
-          input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED ||
-          input.reason === ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
+          input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED;
 
         if (
           !input.checkpointId ||

@@ -31,6 +31,7 @@ class ScriptedModel(BaseChatModel):
     prompts: list[list[Any]] = Field(default_factory=list)
     bound_tool_names: list[list[str]] = Field(default_factory=list)
     bound_tools: list[list[Any]] = Field(default_factory=list)
+    profile: dict[str, Any] | None = Field(default_factory=lambda: {"max_output_tokens": 65536})
 
     @property
     def _llm_type(self) -> str:

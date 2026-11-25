@@ -1343,7 +1343,7 @@ describe("unknown response review on the existing native thread", () => {
     });
   });
 
-  it("denies claimRoot with NO_PROGRESS_LIMIT_REACHED when 15 consecutive turns lack progress and overrideNoProgress is not set", async () => {
+  it("admits claimRoot even when 15 consecutive turns lack progress because NO_PROGRESS_LIMIT_EXCEEDED is retired as a blocker", async () => {
     const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
     process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
     try {
@@ -1360,28 +1360,12 @@ describe("unknown response review on the existing native thread", () => {
         .fn<() => Promise<typeof turns>>()
         .mockResolvedValue(turns);
 
-      let error:
-        | {
-            getStatus?: () => number;
-            getResponse?: () => { problem?: { code?: string } };
-          }
-        | undefined;
-      try {
-        await f.authority.claimRoot({
-          assessmentId: f.assessmentId,
-          correlationId: randomUUID(),
-        });
-      } catch (err: unknown) {
-        error = err as {
-          getStatus?: () => number;
-          getResponse?: () => { problem?: { code?: string } };
-        };
-      }
-      expect(error).toBeDefined();
-      expect(error?.getStatus?.()).toBe(409);
-      expect(error?.getResponse?.()?.problem?.code).toBe(
-        ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
-      );
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+      expect(claim).toBeDefined();
+      expect(claim.leaseToken).toBeDefined();
     } finally {
       if (originalEnv !== undefined) {
         process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;
