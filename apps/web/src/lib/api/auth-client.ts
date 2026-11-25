@@ -14,6 +14,9 @@ import {
   linkedIdentitiesResponseSchema,
   type LinkedIdentitiesResponse,
   type OAuthIdentitySummary,
+  capabilitySettingsSchema,
+  type CapabilitySettingsResponse,
+  type UpdateCapabilitySettingsInput,
   privacySettingsSchema,
   type PrivacySettingsResponse,
   type UpdatePrivacySettingsInput,
@@ -1052,6 +1055,75 @@ export async function updatePrivacySettings(
   }
 
   return parsed.data as PrivacySettingsResponse;
+}
+
+/**
+ * Business purpose: Retrieve effective capability settings and enforced platform policies for the authenticated account.
+ *
+ * Business rules:
+ * - Queries /api/auth/capabilities BFF route using shared apiRequest helper.
+ * - Validates response against capabilitySettingsSchema.
+ *
+ * Execution flow:
+ * 1. Request capability settings from /api/auth/capabilities.
+ * 2. Validate response payload with capabilitySettingsSchema.safeParse.
+ * 3. Return validated CapabilitySettingsResponse.
+ *
+ * Failure cases:
+ * - Network failures or invalid schema shapes throw Error("capability-settings-load-failed").
+ *
+ * Side effects:
+ * - None: read-only GET request.
+ */
+export async function getCapabilitySettings(): Promise<CapabilitySettingsResponse> {
+  // Rationale (Why): apiRequest centralizes session cookie/credential handling and envelope parsing.
+  // Mechanism (How): Dispatches GET to BFF route /api/auth/capabilities.
+  // Invariants (What): Ensures payload matches capabilitySettingsSchema before exposing to UI components.
+  const { payload, ok } = await apiRequest("/api/auth/capabilities");
+  const parsed = capabilitySettingsSchema.safeParse(payload);
+  if (!ok || !parsed.success) {
+    throw new Error("capability-settings-load-failed");
+  }
+
+  return parsed.data as CapabilitySettingsResponse;
+}
+
+/**
+ * Business purpose: Update customer-configurable capability settings for the authenticated account.
+ *
+ * Business rules:
+ * - Transmits configurable updates to /api/auth/capabilities BFF route.
+ * - Validates updated response against capabilitySettingsSchema.
+ *
+ * Execution flow:
+ * 1. Dispatch PATCH request to /api/auth/capabilities with update input body.
+ * 2. Validate response payload against capabilitySettingsSchema.safeParse.
+ * 3. Return confirmed CapabilitySettingsResponse.
+ *
+ * Failure cases:
+ * - Network errors or policy rejections throw Error("capability-settings-update-failed").
+ *
+ * Side effects:
+ * - Mutates capability preferences in database and records an audit event.
+ */
+export async function updateCapabilitySettings(
+  input: UpdateCapabilitySettingsInput,
+): Promise<CapabilitySettingsResponse> {
+  // Rationale (Why): Dispatches verified mutations to BFF proxy with session credentials.
+  // Mechanism (How): HTTP PATCH with JSON-serialized input.
+  // Invariants (What): Rejects and surfaces unexpected errors to UI caller.
+  const { payload, ok } = await apiRequest("/api/auth/capabilities", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  const parsed = capabilitySettingsSchema.safeParse(payload);
+  if (!ok || !parsed.success) {
+    throw new Error("capability-settings-update-failed");
+  }
+
+  return parsed.data as CapabilitySettingsResponse;
 }
 
 export type SessionActionOutcome = {

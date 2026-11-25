@@ -2425,6 +2425,15 @@ export type PagesMessages = {
         domainAllowlist: string;
         domainAllowlistUnsupported: string;
         packageManagersOnly: string;
+        loading: string;
+        loadError: string;
+        retry: string;
+        saveSuccess: string;
+        saveError: string;
+        configurableBadge: string;
+        systemPolicyBadge: string;
+        unsupportedBadge: string;
+        appliesToNewAssessments: string;
       };
       notifications: {
         title: string;

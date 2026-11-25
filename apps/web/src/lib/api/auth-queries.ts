@@ -10,6 +10,7 @@ import {
   generateMfaRecoveryCodes,
   getAuthSessions,
   getAuthSettingsProfile,
+  getCapabilitySettings,
   getLinkedOAuthIdentities,
   getPrivacySettings,
   recordMfaRecoveryCodeAccess,
@@ -19,6 +20,7 @@ import {
   requestPasswordRecovery,
   signUp,
   signOut,
+  updateCapabilitySettings,
   updatePrivacySettings,
   updateProfile,
   verifyMfaRecoveryCode,
@@ -156,6 +158,72 @@ export function useUpdatePrivacySettingsMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: apiQueryKeys.auth.privacySettings(),
+      });
+    },
+  });
+}
+
+/**
+ * Business purpose: Fetch and cache effective capability settings for the authenticated user.
+ *
+ * Business rules:
+ * - Requires active session.
+ * - Surfaces load state and cached capability settings via TanStack Query.
+ *
+ * Execution flow:
+ * 1. Build cache key from apiQueryKeys.auth.capabilitySettings.
+ * 2. Delegate query execution to getCapabilitySettings client helper.
+ *
+ * Failure cases:
+ * - Network failures or unauthorized errors are captured in query.isError.
+ *
+ * Side effects:
+ * - Populates and maintains TanStack Query cache under the auth.capabilitySettings key.
+ */
+export function useCapabilitySettingsQuery(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: apiQueryKeys.auth.capabilitySettings(),
+    queryFn: getCapabilitySettings,
+    ...(options?.enabled !== undefined ? { enabled: options.enabled } : {}),
+  });
+}
+
+/**
+ * Business purpose: Update customer-configurable capability settings and invalidate the cached query on success.
+ *
+ * Business rules:
+ * - Sends partial updates to the backend via the web BFF.
+ * - Only invalidates the capability settings query cache on confirmed confirmation.
+ *
+ * Execution flow:
+ * 1. Delegate mutation execution to updateCapabilitySettings client helper.
+ * 2. On confirmed success, invalidate the auth.capabilitySettings query key.
+ *
+ * Failure cases:
+ * - Mutation failures are caught and surfaced via mutation error states without cache corruption.
+ *
+ * Side effects:
+ * - Refetches capability settings from the server upon mutation success.
+ */
+export function useUpdateCapabilitySettingsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateCapabilitySettings,
+    /**
+     * Business purpose: Synchronize capability cache after confirmed server update.
+     * Business rules:
+     * - Refetches settings only after the backend confirms persistence.
+     * Execution flow:
+     * 1. Invalidate apiQueryKeys.auth.capabilitySettings query cache.
+     * Failure cases:
+     * - Cache invalidation failures are silent and caught by query error boundaries.
+     * Side effects:
+     * - Triggers refetch of capability settings.
+     */
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.auth.capabilitySettings(),
       });
     },
   });

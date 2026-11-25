@@ -2662,16 +2662,16 @@ export const viPages = {
       capabilities: {
         title: "Khả năng",
         description:
-          "Các kiểm soát capability ở trạng thái chỉ đọc cho tới khi backend hỗ trợ lưu cài đặt workspace.",
+          "Quản lý các capability có thể cấu hình và xem các chính sách thực thi bắt buộc của nền tảng.",
         addDomain: "Thêm",
         additionalAllowedDomains: "Domain bổ sung được phép",
         connectorSearch: "Tìm connector",
         connectorSearchDescription:
           "Hiển thị connector liên quan khi orchestration đang chạy.",
         domainAllowlistDescription:
-          "Chọn domain sandbox thực thi được phép truy cập.",
+          "Quyền truy cập domain của sandbox thực thi được quản lý bởi chính sách nền tảng.",
         domainAllowlistNotice:
-          "Các domain package manager phổ biến đã được phép. Chỉ thêm domain bổ sung cần cho verification.",
+          "Các domain package manager phổ biến đã được phép. Chưa hỗ trợ thêm domain tùy chỉnh trong hợp đồng hiện tại.",
         domainInputPlaceholder: "example.com hoặc *.example.com",
         executionTitle: "Thực thi",
         toolAccessMode: "Chế độ truy cập tool",
@@ -2681,17 +2681,27 @@ export const viPages = {
         loadToolsWhenNeeded: "Tải tool khi cần",
         artifacts: "Artifacts",
         artifactsDescription:
-          "Việc tạo artifact đi theo workflow assessment hiện tại.",
+          "Cho phép tạo và tải xuống các artifact của phiên đánh giá tuân thủ.",
         cloudCodeExecution: "Chạy code trên cloud",
         cloudCodeExecutionDescription:
-          "Cloud execution được điều khiển bởi cấu hình nền tảng.",
+          "Cloud execution được kiểm soát bởi cấu hình nền tảng và luôn tắt.",
         networkEgress: "Cho phép network egress",
         networkEgressDescription:
-          "Network access do runtime policy quản trị, không phải toggle local.",
+          "Network access do runtime policy quản trị và không thể bật theo từng tài khoản.",
         domainAllowlist: "Domain allowlist",
         domainAllowlistUnsupported:
           "Chưa thể cấu hình domain bổ sung trong settings contract hiện tại.",
         packageManagersOnly: "Chỉ package manager",
+        loading: "Đang tải cài đặt khả năng...",
+        loadError: "Không thể tải cài đặt khả năng.",
+        retry: "Thử lại",
+        saveSuccess: "Đã lưu cài đặt khả năng.",
+        saveError: "Không thể lưu cài đặt khả năng.",
+        configurableBadge: "Có thể cấu hình",
+        systemPolicyBadge: "Chính sách hệ thống",
+        unsupportedBadge: "Không hỗ trợ",
+        appliesToNewAssessments:
+          "Thay đổi chế độ truy cập tool áp dụng cho assessment mới; kiểm soát tải artifact áp dụng ngay lập tức.",
       },
       notifications: {
         title: "Thông báo",

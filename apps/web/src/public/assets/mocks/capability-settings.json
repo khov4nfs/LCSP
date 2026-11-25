@@ -1,0 +1,21 @@
+{
+  "tool_access_mode": "LOAD_WHEN_NEEDED",
+  "connector_search": true,
+  "artifacts": true,
+  "cloud_code_execution": {
+    "enabled": false,
+    "enforced": true,
+    "policy": "PLATFORM_RESTRICTED"
+  },
+  "network_egress": {
+    "enabled": false,
+    "enforced": true,
+    "policy": "RUNTIME_POLICY_RESTRICTED"
+  },
+  "domain_allowlist": {
+    "mode": "PACKAGE_MANAGERS_ONLY",
+    "custom_domains_supported": false,
+    "allowed_domains": ["registry.npmjs.org", "pypi.org"]
+  },
+  "updated_at": null
+}

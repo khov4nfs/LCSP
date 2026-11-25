@@ -474,3 +474,101 @@ export type PrivacySettingsResponse = {
   };
   updated_at: string | null;
 };
+
+import {
+  CAPABILITY_POLICY_REASONS,
+  DOMAIN_ALLOWLIST_MODES,
+  TOOL_ACCESS_MODES,
+  type DomainAllowlistMode,
+  type ToolAccessMode,
+} from "./states.ts";
+
+/**
+ * Validation schema for complete workspace/account capability settings and enforced platform policies.
+ * Rationale (Why): Backend/runtime is the single source of truth for effective capabilities; frontend must reflect enforced policies.
+ * Mechanism (How): Combines customer-configurable preferences with immutable system/runtime policy descriptors.
+ * Invariants (What): cloud_code_execution and network_egress are permanently enforced false; domain_allowlist custom domains are unsupported.
+ */
+export const capabilitySettingsSchema = z.object({
+  tool_access_mode: z.enum([
+    TOOL_ACCESS_MODES.loadWhenNeeded,
+    TOOL_ACCESS_MODES.guided,
+  ]),
+  connector_search: z.boolean(),
+  artifacts: z.boolean(),
+  cloud_code_execution: z
+    .object({
+      enabled: z.literal(false),
+      enforced: z.literal(true),
+      policy: z.literal(CAPABILITY_POLICY_REASONS.platformRestricted),
+    })
+    .default({
+      enabled: false,
+      enforced: true,
+      policy: CAPABILITY_POLICY_REASONS.platformRestricted,
+    }),
+  network_egress: z
+    .object({
+      enabled: z.literal(false),
+      enforced: z.literal(true),
+      policy: z.literal(CAPABILITY_POLICY_REASONS.runtimePolicyRestricted),
+    })
+    .default({
+      enabled: false,
+      enforced: true,
+      policy: CAPABILITY_POLICY_REASONS.runtimePolicyRestricted,
+    }),
+  domain_allowlist: z
+    .object({
+      mode: z.literal(DOMAIN_ALLOWLIST_MODES.packageManagersOnly),
+      custom_domains_supported: z.literal(false),
+      allowed_domains: z.array(z.string()),
+    })
+    .default({
+      mode: DOMAIN_ALLOWLIST_MODES.packageManagersOnly,
+      custom_domains_supported: false,
+      allowed_domains: ["registry.npmjs.org", "pypi.org"],
+    }),
+  updated_at: z.string().nullable().optional(),
+});
+export type CapabilitySettingsInput = z.infer<typeof capabilitySettingsSchema>;
+
+/**
+ * Validation schema for updating customer-configurable capability settings.
+ * Rationale (Why): Prevents API policy bypass by strictly rejecting attempts to modify system-enforced fields.
+ * Mechanism (How): Uses .strict() so any unexpected key (e.g., cloud_code_execution, network_egress, domain_allowlist) fails validation with 400.
+ */
+export const updateCapabilitySettingsSchema = z
+  .object({
+    tool_access_mode: z
+      .enum([TOOL_ACCESS_MODES.loadWhenNeeded, TOOL_ACCESS_MODES.guided])
+      .optional(),
+    connector_search: z.boolean().optional(),
+    artifacts: z.boolean().optional(),
+  })
+  .strict();
+export type UpdateCapabilitySettingsInput = z.infer<
+  typeof updateCapabilitySettingsSchema
+>;
+
+export type CapabilitySettingsResponse = {
+  tool_access_mode: ToolAccessMode;
+  connector_search: boolean;
+  artifacts: boolean;
+  cloud_code_execution: {
+    enabled: false;
+    enforced: true;
+    policy: typeof CAPABILITY_POLICY_REASONS.platformRestricted;
+  };
+  network_egress: {
+    enabled: false;
+    enforced: true;
+    policy: typeof CAPABILITY_POLICY_REASONS.runtimePolicyRestricted;
+  };
+  domain_allowlist: {
+    mode: DomainAllowlistMode;
+    custom_domains_supported: false;
+    allowed_domains: string[];
+  };
+  updated_at: string | null;
+};

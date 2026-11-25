@@ -5,6 +5,10 @@ import {
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
   AUTH_USER_ROLES,
+  CAPABILITY_POLICY_REASONS,
+  DOMAIN_ALLOWLIST_MODES,
+  TOOL_ACCESS_MODES,
+  type CapabilitySettingsResponse,
 } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 import type { Response } from "supertest";
@@ -2946,6 +2950,94 @@ describe("Auth workspace (e2e)", () => {
 
     const failure = expectFailure(result.body);
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.recoveryInvalid);
+  });
+
+  // Rationale (Why): Verify GET /auth/capabilities returns default preferences and locks platform execution policies.
+  // Mechanism (How): Requests capabilities as an authenticated customer and verifies configurable fields alongside locked platform objects.
+  // Invariants (What): cloud_code_execution, network_egress, and domain_allowlist must always be returned as enforced platform policy.
+  it("GET /auth/capabilities returns default preferences and locked system policies", async () => {
+    const signIn = await signInApprovedUser();
+
+    const response = await httpRequest(app)
+      .get("/auth/capabilities")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(200);
+
+    const body = successBody<CapabilitySettingsResponse>(response);
+    assert.equal(body.tool_access_mode, TOOL_ACCESS_MODES.loadWhenNeeded);
+    assert.equal(body.connector_search, true);
+    assert.equal(body.artifacts, true);
+    assert.deepEqual(body.cloud_code_execution, {
+      enabled: false,
+      enforced: true,
+      policy: CAPABILITY_POLICY_REASONS.platformRestricted,
+    });
+    assert.deepEqual(body.network_egress, {
+      enabled: false,
+      enforced: true,
+      policy: CAPABILITY_POLICY_REASONS.runtimePolicyRestricted,
+    });
+    assert.deepEqual(body.domain_allowlist, {
+      mode: DOMAIN_ALLOWLIST_MODES.packageManagersOnly,
+      custom_domains_supported: false,
+      allowed_domains: ["registry.npmjs.org", "pypi.org"],
+    });
+  });
+
+  // Rationale (Why): Enforce strict schema boundaries rejecting attempts to mutate locked platform policies via PATCH.
+  // Mechanism (How): Dispatches illegal payload attempting to set cloud_code_execution and verifies 400 rejection.
+  // Invariants (What): Non-whitelisted or locked fields must never be accepted from client requests.
+  it("PATCH /auth/capabilities rejects attempts to override locked platform policies", async () => {
+    const signIn = await signInApprovedUser();
+
+    await httpRequest(app)
+      .patch("/auth/capabilities")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({ cloud_code_execution: true })
+      .expect(400);
+  });
+
+  // Rationale (Why): Verify customer can update configurable capability preferences and have them persisted and audited.
+  // Mechanism (How): Dispatches partial update, verifies 200 response, verifies subsequent GET reflects changes, and verifies audit event.
+  // Invariants (What): Persisted settings take effect immediately for customer while emitting structured audit logs.
+  it("PATCH /auth/capabilities persists valid configurable preferences and emits audit event", async () => {
+    const signIn = await signInApprovedUser();
+
+    const patchResponse = await httpRequest(app)
+      .patch("/auth/capabilities")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .send({
+        tool_access_mode: TOOL_ACCESS_MODES.guided,
+        connector_search: false,
+        artifacts: false,
+      })
+      .expect(200);
+
+    const patchBody = successBody<CapabilitySettingsResponse>(patchResponse);
+    assert.equal(patchBody.tool_access_mode, TOOL_ACCESS_MODES.guided);
+    assert.equal(patchBody.connector_search, false);
+    assert.equal(patchBody.artifacts, false);
+
+    const getResponse = await httpRequest(app)
+      .get("/auth/capabilities")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(200);
+
+    const getBody = successBody<CapabilitySettingsResponse>(getResponse);
+    assert.equal(getBody.tool_access_mode, TOOL_ACCESS_MODES.guided);
+    assert.equal(getBody.connector_search, false);
+    assert.equal(getBody.artifacts, false);
+
+    const auditEvents = await prisma.auditEvent.findMany();
+    const capabilityUpdated = auditEvents.find(
+      (e) =>
+        (e.payload as Record<string, unknown>)["event_type"] ===
+        AUTH_AUDIT_EVENT_TYPES.authCapabilitySettingsUpdated,
+    );
+    assert.ok(
+      capabilityUpdated,
+      "auth.capability_settings.updated audit event should be recorded",
+    );
   });
 
   async function signInApprovedUser() {

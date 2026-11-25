@@ -11,9 +11,12 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 
 import {
+  updateCapabilitySettingsSchema,
   updatePrivacySettingsSchema,
   updateProfileSchema,
+  type CapabilitySettingsResponse,
   type PrivacySettingsResponse,
+  type UpdateCapabilitySettingsInput,
   type UpdatePrivacySettingsInput,
   type UpdateProfileInput,
 } from "@lcsp/contracts/auth";
@@ -25,6 +28,7 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";
 import {
   RevokeAllSessionsCommand,
   RevokeOwnedSessionCommand,
+  UpdateCapabilitySettingsCommand,
   UpdatePrivacySettingsCommand,
   UpdateProfileCommand,
 } from "../../application/commands/index.ts";
@@ -37,6 +41,7 @@ import type {
 } from "../../application/contracts/auth/index.ts";
 import {
   GetAuthProfileQuery,
+  GetCapabilitySettingsQuery,
   GetPrivacySettingsQuery,
   ListAuthSessionsQuery,
 } from "../../application/queries/index.ts";
@@ -50,6 +55,74 @@ export class AuthProfileController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
+
+  /**
+   * Business purpose: Retrieve effective capability settings and enforced platform policies for the authenticated user.
+   * Business rules:
+   * - The session guard verifies user authentication.
+   * - Scoped strictly to caller's authenticated user ID.
+   * Execution flow:
+   * 1. Dispatch GetCapabilitySettingsQuery with authenticated context.
+   * 2. Return CapabilitySettingsResponse envelope.
+   * Failure cases:
+   * - Unauthenticated requests are rejected with 401.
+   * Side effects:
+   * - Read-only query.
+   */
+  @Get("capabilities")
+  @UseGuards(RbacGuard)
+  @RequireSession()
+  async getCapabilitySettings(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<CapabilitySettingsResponse> {
+    return this.queryBus.execute<
+      GetCapabilitySettingsQuery,
+      CapabilitySettingsResponse
+    >(
+      new GetCapabilitySettingsQuery(
+        request.rbacContext,
+        request.correlationId,
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Update customer-configurable capability preferences for the authenticated user and record audit trail.
+   * Business rules:
+   * - The session guard verifies user authentication.
+   * - Request body is strictly validated against updateCapabilitySettingsSchema; system-enforced fields cannot be modified.
+   * Execution flow:
+   * 1. Validate request payload using ZodValidationPipe.
+   * 2. Dispatch UpdateCapabilitySettingsCommand with verified userId and payload.
+   * 3. Return updated CapabilitySettingsResponse envelope.
+   * Failure cases:
+   * - Validation failures (including attempts to modify locked platform policies) return 400 Bad Request.
+   * - Unauthenticated requests return 401 Unauthorized.
+   * Side effects:
+   * - Persists capability preferences and records an audit event.
+   */
+  @Patch("capabilities")
+  @UseGuards(RbacGuard)
+  @RequireSession()
+  async updateCapabilitySettings(
+    @Body(new ZodValidationPipe(updateCapabilitySettingsSchema))
+    body: UpdateCapabilitySettingsInput,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<CapabilitySettingsResponse> {
+    return this.commandBus.execute<
+      UpdateCapabilitySettingsCommand,
+      CapabilitySettingsResponse
+    >(
+      new UpdateCapabilitySettingsCommand(
+        body,
+        request.rbacContext.userId,
+        request.rbacContext.sessionId,
+        {
+          correlationId: request.correlationId,
+        },
+      ),
+    );
+  }
 
   /**
    * Business purpose: Retrieve current privacy settings and system policy enforcement for the authenticated user.
