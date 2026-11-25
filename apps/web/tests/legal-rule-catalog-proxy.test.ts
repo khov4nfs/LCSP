@@ -205,3 +205,61 @@ test("backend legal-rule errors retain their status and code", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("POST assessment-rule import forwards a valid v1 document and rejects an invalid one before upstream", async () => {
+  const originalFetch = globalThis.fetch;
+  const result = {
+    catalogVersionId: savedRuleId,
+    catalogRevision: 3,
+    legalSourceVersionId: sourceVersionId,
+    dryRun: true,
+    imported: [],
+    excludedItems: [],
+  };
+  let upstreamCalls = 0;
+  let requestedPath: string | undefined;
+  globalThis.fetch = async (input) => {
+    upstreamCalls += 1;
+    requestedPath = new URL(String(input)).pathname;
+    return Response.json({ ok: true, data: result });
+  };
+  const send = (body: unknown) =>
+    proxyLegalRuleCatalog(
+      new NextRequest(
+        `http://localhost/api/admin/legal-rule-catalog/${savedRuleId}/assessment-rules/import`,
+        {
+          method: "POST",
+          headers: {
+            cookie: sessionCookie,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+        },
+      ),
+      context([savedRuleId, "assessment-rules", "import"]),
+    );
+
+  try {
+    const accepted = await send({
+      schemaVersion: C.ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+      catalogVersionId: savedRuleId,
+      expectedCatalogRevision: 3,
+      legalSourceVersionId: sourceVersionId,
+      items: [],
+      excludedItems: [],
+    });
+    assert.equal(accepted.status, 200);
+    assert.equal(
+      requestedPath,
+      `/admin/legal-rule-catalog/${savedRuleId}/assessment-rules/import`,
+    );
+    assert.equal(upstreamCalls, 1);
+
+    // An unsupported schema version is refused by the BFF without an upstream call.
+    const rejected = await send({ schemaVersion: 2 });
+    assert.equal(rejected.status, 422);
+    assert.equal(upstreamCalls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

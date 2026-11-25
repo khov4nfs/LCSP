@@ -229,6 +229,45 @@ export const enLegalRuleCatalog = {
     "An error occurred while running the AI model to analyze and extract compliance rules.",
   failureGenericGuidance:
     "Click 'Regenerate this rule' to retry or inspect run activity logs below.",
+  importAssessmentRules: "Import Assessment Rules",
+  importDialogTitle: "Import Assessment Rules",
+  importDialogDescription:
+    "Upload one or more Assessment Rule Import v1 documents authored for this catalog. Check them first; nothing is written until you confirm. Imported results are only prepared — activate them separately.",
+  importFiles: "Import documents (.json)",
+  importNoFiles: "Choose at least one JSON document.",
+  importTooManyFiles: "Choose at most 32 documents at a time.",
+  importFileInvalidJson: "Not valid JSON.",
+  importFileInvalidDocument:
+    "Does not match the Assessment Rule Import v1 format.",
+  importFileWrongCatalog: "Targets a different catalog than the one selected.",
+  importFileStaleRevision:
+    "The catalog revision changed after this document was authored. Export again and re-author it.",
+  importFileReady: "Ready to check",
+  importItems: "Items",
+  importExcluded: "Excluded",
+  importCheck: "Check (dry run)",
+  importChecking: "Checking…",
+  importConfirm: "Import",
+  importRunning: "Importing…",
+  importClose: "Close",
+  importCheckPassed: "Check passed. Review the summary, then import.",
+  importCheckFailed:
+    "The check found problems. Fix the documents and check again.",
+  importDone:
+    "Import finished. Select the prepared rules and activate them to publish.",
+  importWouldRecord: "Would record",
+  importRecorded: "Recorded",
+  importReplayed: "Unchanged",
+  importErrorStale:
+    "The catalog or its source changed. Export again and re-author the document.",
+  importErrorConflict:
+    "A rule in this document is still being prepared. Try again when its run finishes.",
+  importErrorInvalid: "The server rejected the document.",
+  importErrorIneligible:
+    "A rule in this document is not eligible for preparation.",
+  importErrorNotFound: "A rule in this document is not in this catalog.",
+  importErrorGeneric: "The import request failed.",
+  importAtPath: "Problem at",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;

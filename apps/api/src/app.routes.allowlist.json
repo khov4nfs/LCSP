@@ -133,6 +133,7 @@
   "POST /admin/compliance-rule-sets/prepare",
   "POST /admin/legal-rule-catalog",
   "POST /admin/legal-rule-catalog/:catalogId/assessment-rules/activate",
+  "POST /admin/legal-rule-catalog/:catalogId/assessment-rules/import",
   "POST /admin/legal-rule-catalog/:catalogId/rules",
   "POST /admin/legal-rule-catalog/:catalogId/source-provisions/import",
   "POST /admin/legal-rule-catalog/preparations",

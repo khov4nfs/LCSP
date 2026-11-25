@@ -51,6 +51,13 @@ const routes = [
     response: C.legalRuleActivationResultSchema,
   },
   {
+    // Externally authored Assessment Rules are recorded as prepared results; activation stays a separate call.
+    method: "POST",
+    pattern: /^[^/]+\/assessment-rules\/import$/,
+    request: C.assessmentRuleImportRequestSchema,
+    response: C.assessmentRuleImportResultSchema,
+  },
+  {
     method: "POST",
     pattern: /^selections$/,
     request: C.legalRuleSelectionSchema,

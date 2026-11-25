@@ -160,6 +160,38 @@ export class LegalRuleCatalogController {
     );
   }
 
+  /**
+   * Business purpose: Load externally authored Assessment Rules for catalog Legal Rules as prepared results without running the Preparation agent.
+   * Business rules:
+   * - Admin authorization applies; the document must match the catalog, its current revision and pinned source, and every item is validated like agent output.
+   * - The import never activates anything; the Admin still confirms through the activation endpoint.
+   * Execution flow:
+   * 1. Validate the catalog UUID and the Assessment Rule Import v1 body.
+   * 2. Delegate verification and all-or-nothing recording to the preparation service.
+   * 3. Return the per-rule acknowledgements in the canonical envelope.
+   * Failure cases:
+   * - Invalid documents, stale revisions, ineligible rules, active runs and invalid output return shared typed problems and write nothing.
+   * Side effects:
+   * - Records prepared result revisions and audit events in one transaction; no model run, outbox message or Rule Set change.
+   */
+  @Post(":catalogId/assessment-rules/import")
+  @HttpCode(200)
+  async importAssessmentRules(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.assessmentRuleImportRequestSchema))
+    request: C.AssessmentRuleImportRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.importAssessmentRules(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
   @Post(":catalogId/rules")
   @HttpCode(200)
   async saveRule(

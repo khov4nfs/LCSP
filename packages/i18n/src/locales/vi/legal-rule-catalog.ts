@@ -230,4 +230,40 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
     "Gặp sự cố trong quá trình chạy mô hình AI để trích xuất quy tắc tuân thủ.",
   failureGenericGuidance:
     "Bấm 'Phân tích lại rule này' để thử lại hoặc kiểm tra nhật ký hoạt động bên dưới.",
+  importAssessmentRules: "Import Assessment Rule",
+  importDialogTitle: "Import Assessment Rule từ file JSON",
+  importDialogDescription:
+    "Tải lên một hoặc nhiều file Assessment Rule Import v1 đã soạn cho catalog này. Hãy kiểm tra trước; không có gì được ghi cho đến khi bạn xác nhận. Kết quả import mới chỉ ở trạng thái đã chuẩn bị — cần kích hoạt riêng.",
+  importFiles: "File import (.json)",
+  importNoFiles: "Hãy chọn ít nhất một file JSON.",
+  importTooManyFiles: "Mỗi lần chỉ chọn tối đa 32 file.",
+  importFileInvalidJson: "Không phải JSON hợp lệ.",
+  importFileInvalidDocument: "Không đúng định dạng Assessment Rule Import v1.",
+  importFileWrongCatalog: "File nhắm tới catalog khác với catalog đang chọn.",
+  importFileStaleRevision:
+    "Revision của catalog đã đổi sau khi file được soạn. Hãy xuất lại input và soạn lại file.",
+  importFileReady: "Sẵn sàng kiểm tra",
+  importItems: "Mục nhập",
+  importExcluded: "Loại trừ",
+  importCheck: "Kiểm tra (chạy thử)",
+  importChecking: "Đang kiểm tra…",
+  importConfirm: "Import",
+  importRunning: "Đang import…",
+  importClose: "Đóng",
+  importCheckPassed: "Kiểm tra đạt. Xem tóm tắt rồi import.",
+  importCheckFailed: "Kiểm tra phát hiện vấn đề. Hãy sửa file và kiểm tra lại.",
+  importDone:
+    "Import xong. Hãy chọn các rule đã chuẩn bị và kích hoạt để áp dụng.",
+  importWouldRecord: "Sẽ ghi mới",
+  importRecorded: "Đã ghi mới",
+  importReplayed: "Không đổi",
+  importErrorStale:
+    "Catalog hoặc nguồn đã thay đổi. Hãy xuất lại input và soạn lại file.",
+  importErrorConflict:
+    "Một rule trong file đang được chuẩn bị. Hãy thử lại khi lượt chạy kết thúc.",
+  importErrorInvalid: "Máy chủ từ chối nội dung file.",
+  importErrorIneligible: "Một rule trong file không đủ điều kiện chuẩn bị.",
+  importErrorNotFound: "Một rule trong file không thuộc catalog này.",
+  importErrorGeneric: "Yêu cầu import thất bại.",
+  importAtPath: "Lỗi tại",
 };
