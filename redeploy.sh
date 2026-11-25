@@ -109,7 +109,17 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-if git remote get-url origin >/dev/null 2>&1; then
+# An explicit branch must go through bootstrap, which fetches and pins that
+# branch before loading this script. Keep direct invocations compatible.
+if [[ -n "${LCSP_DEPLOY_BRANCH:-}" ]]; then
+  case "$LCSP_DEPLOY_BRANCH" in
+    main|develop) ;;
+    *) echo "Unsupported LCSP deployment branch: $LCSP_DEPLOY_BRANCH" >&2; exit 1 ;;
+  esac
+  if [[ "${LCSP_REDEPLOY_BOOTSTRAPPED:-}" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+    exec bash scripts/bootstrap-redeploy.sh "$@"
+  fi
+elif git remote get-url origin >/dev/null 2>&1; then
   echo "==> Fetch target revision without modifying working tree"
   git fetch origin
 fi
@@ -119,10 +129,11 @@ if ! git cat-file -e "${LCSP_DEPLOY_EXPECTED_SHA}^{commit}" 2>/dev/null; then
   exit 1
 fi
 
-echo "==> Verify origin/develop matches expected SHA before drain"
-readonly ORIGIN_DEVELOP_SHA="$(git rev-parse origin/develop 2>/dev/null || true)"
-if [[ -n "$ORIGIN_DEVELOP_SHA" && "$ORIGIN_DEVELOP_SHA" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
-  echo "origin/develop (${ORIGIN_DEVELOP_SHA}) does not match expected SHA (${LCSP_DEPLOY_EXPECTED_SHA}); aborting before drain" >&2
+readonly TARGET_BRANCH="${LCSP_DEPLOY_BRANCH:-develop}"
+echo "==> Verify origin/$TARGET_BRANCH matches expected SHA before drain"
+readonly ORIGIN_TARGET_SHA="$(git rev-parse --verify "refs/remotes/origin/$TARGET_BRANCH" 2>/dev/null || true)"
+if [[ -n "${LCSP_DEPLOY_BRANCH:-}$ORIGIN_TARGET_SHA" && "$ORIGIN_TARGET_SHA" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
+  echo "origin/$TARGET_BRANCH ($ORIGIN_TARGET_SHA) does not match expected SHA ($LCSP_DEPLOY_EXPECTED_SHA); aborting before drain" >&2
   exit 1
 fi
 
@@ -157,8 +168,14 @@ trap - EXIT
 echo "==> Drain actual native execution before changing source or persistence"
 node scripts/drain-agent-runtime.mjs
 
-echo "==> Pull source"
-git pull --ff-only
+echo "==> Check out the verified source revision"
+# CI can switch between main and develop without rewriting either local branch
+# or overwriting ignored runtime configuration. Attached legacy callers still fast-forward.
+if [[ -n "${LCSP_DEPLOY_BRANCH:-}" ]] || ! git symbolic-ref -q HEAD >/dev/null; then
+  git switch --detach --no-overwrite-ignore "$LCSP_DEPLOY_EXPECTED_SHA"
+else
+  git pull --ff-only
+fi
 if [[ "$(git rev-parse HEAD)" != "$LCSP_DEPLOY_EXPECTED_SHA" ]]; then
   echo "Pulled revision differs from the expected PR SHA; no build/restart performed" >&2
   exit 1
@@ -189,6 +206,19 @@ docker build \
 echo "==> Build API"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/api build
 
+if [[ "${LCSP_DEPLOY_DATA_MODE:-keep}" == reset ]]; then
+  # Complete the Web build before a reset can affect any persistent data.
+  echo "==> Build Web"
+  dotenv -e .env.pm2 -- pnpm --filter @lcsp/web build
+
+  # The native drain has completed. Stop LCSP writers before the root-owned
+  # handler resets its stores. A failed handler leaves these apps stopped so
+  # they cannot write to a partially reset environment.
+  echo "==> Stop LCSP processes and reset LCSP data"
+  pm2 stop "${EXPECTED_PM2_APPS[@]}"
+  /usr/local/sbin/lcsp-reset-data "$APP" "$LCSP_DEPLOY_EXPECTED_SHA"
+fi
+
 echo "==> Verify migration credentials and privilege separation preflight (updated checkout)"
 node scripts/check-migration-privilege-preflight.mjs \
   --env-file "${APP}/.env.pm2" \
@@ -198,8 +228,11 @@ node scripts/check-migration-privilege-preflight.mjs \
 echo "==> Apply database migrations"
 dotenv -e .env.pm2 -e "$MIGRATION_ENV_FILE" -- pnpm --filter @lcsp/api prisma:migrate:deploy
 
-echo "==> Build Web"
-dotenv -e .env.pm2 -- pnpm --filter @lcsp/web build
+# Keep the existing migration-before-Web order for regular deployments.
+if [[ "${LCSP_DEPLOY_DATA_MODE:-keep}" != reset ]]; then
+  echo "==> Build Web"
+  dotenv -e .env.pm2 -- pnpm --filter @lcsp/web build
+fi
 
 echo "==> Restart PM2"
 restart_pm2

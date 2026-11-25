@@ -1,3 +1,6 @@
+# The workflow streams Bash source to the Linux VPS, which requires LF line endings.
+/redeploy.sh text eol=lf
+/scripts/bootstrap-redeploy.sh text eol=lf
 deepagents/sandbox/setup.sh text eol=lf
 deepagents/instructions/** text eol=lf
 deepagents/assessment_root/*.vi.md text eol=lf

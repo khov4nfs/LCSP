@@ -1,17 +1,89 @@
-name: Deploy Production
+name: Deploy LCSP on VPS
 
 on:
+  # A merge updates main. The branch protection rules control who can update it.
+  push:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Deploy and keep data, check disk only, or reset LCSP data
+        type: choice
+        options: [keep, disk-only, reset]
+        default: keep
+      confirmation:
+        description: Type RESET LCSP PRODUCTION only when selecting reset
+        type: string
 
 permissions:
   contents: read
-  packages: write
+
+# Both branches target the same PM2 instance and must never deploy concurrently.
+concurrency:
+  group: lcsp-pm2-vps
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    uses: ./.github/workflows/fogewise-deploy.yml
-    secrets:
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_USER: ${{ secrets.VPS_USER }}
-      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop')
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Reject broken bootstrap changes before sending a deployment command to the VPS.
+      - name: Test deployment bootstrap
+        if: inputs.mode != 'disk-only'
+        run: node --test scripts/bootstrap-redeploy.test.mjs
+
+      - name: Check disk or deploy pinned revision via SSH
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode || 'keep' }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          MIN_FREE_MIB: ${{ vars.PM2_MIN_FREE_MIB || '8192' }}
+          # Reuse the existing Fogewise SSH secrets for the VPS connection.
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          # Validate every value interpolated into the remote command. Reset also requires manual consent.
+          case "$MODE" in
+            keep|disk-only) ;;
+            reset)
+              [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$CONFIRMATION" == 'RESET LCSP PRODUCTION' ]] || {
+                echo '::error::Reset requires a manual dispatch and confirmation RESET LCSP PRODUCTION.'
+                exit 1
+              }
+              ;;
+            *) exit 1 ;;
+          esac
+          [[ "$MIN_FREE_MIB" =~ ^[1-9][0-9]{0,7}$ && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$GITHUB_REF_NAME" == main || "$GITHUB_REF_NAME" == develop ]]
+          : "${VPS_HOST:?VPS_HOST is missing}" "${VPS_USER:?VPS_USER is missing}"
+          : "${VPS_SSH_KEY:?VPS_SSH_KEY is missing}" "${VPS_KNOWN_HOSTS:?VPS_KNOWN_HOSTS is missing}"
+
+          # Use the pinned host key and an ephemeral dedicated client key.
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          remote="LCSP_DEPLOY_BRANCH=$GITHUB_REF_NAME LCSP_DEPLOY_EXPECTED_SHA=$GITHUB_SHA LCSP_DEPLOY_MIN_FREE_MIB=$MIN_FREE_MIB"
+          if [[ "$MODE" == disk-only ]]; then
+            remote+=" bash -s -- --disk-only"
+          else
+            # The server lock also covers SSH callers outside this Actions concurrency group.
+            remote+=" flock -n -o /run/lock/lcsp-pm2-deploy.lock bash -s -- --ci $MODE"
+          fi
+          ssh -T -i "$ssh_dir/key" -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null -o ConnectTimeout=15 -o ServerAliveInterval=20 \
+            -l "$VPS_USER" -- "$VPS_HOST" "$remote" < scripts/bootstrap-redeploy.sh
