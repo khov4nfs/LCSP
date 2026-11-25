@@ -100,9 +100,35 @@ export function useLegalRuleCatalogs() {
 }
 
 /**
+ * Business purpose: Read one page of the Admin's catalog search and preparation filters.
+ * Business rules:
+ * - Browsing and bulk selection use the same authenticated list projection and validated page contract.
+ * Execution flow:
+ * 1. Serialize the catalog's search, filter, and page parameters.
+ * 2. Request and validate the matching page through the shared API client.
+ * Failure cases:
+ * - Request and schema failures reject the read.
+ * Side effects:
+ * - Performs a read-only BFF request.
+ */
+function readLegalRulePage(catalogId: string, query: C.LegalRuleList) {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    limit: String(query.limit),
+    search: query.search,
+  });
+  if (query.state) params.set("state", query.state);
+  if (query.withAssessmentRules) params.set("withAssessmentRules", "true");
+  return apiValidated(
+    `${root}/${encodeURIComponent(catalogId)}/rules?${params}`,
+    C.legalRulePageSchema,
+  );
+}
+
+/**
  * Business purpose: Browse one server-filtered catalog page while selection remains independent.
  * Business rules:
- * - Catalog, page and filters (including persisted Assessment Rule availability) partition the cache; the browser never computes Select all totals.
+ * - Catalog, page and filters (including persisted Assessment Rule availability) partition the cache.
  * Execution flow:
  * 1. Register the page query
  * 2. Send bounded normalized query parameters.
@@ -112,13 +138,6 @@ export function useLegalRuleCatalogs() {
  * - Read-only API/cache activity.
  */
 export function useLegalRules(catalogId: string, query: C.LegalRuleList) {
-  const params = new URLSearchParams({
-    page: String(query.page),
-    limit: String(query.limit),
-    search: query.search,
-  });
-  if (query.state) params.set("state", query.state);
-  if (query.withAssessmentRules) params.set("withAssessmentRules", "true");
   return useQuery({
     queryKey: [...legalRuleCatalogKey, "rules", catalogId, query],
     enabled: !!catalogId,
@@ -133,12 +152,96 @@ export function useLegalRules(catalogId: string, query: C.LegalRuleList) {
      * Side effects:
      * - One read request for rule eligibility and preparation state.
      */
-    queryFn: () =>
-      apiValidated(
-        `${root}/${encodeURIComponent(catalogId)}/rules?${params}`,
-        C.legalRulePageSchema,
-      ),
+    queryFn: () => readLegalRulePage(catalogId, query),
     refetchInterval: 3000,
+  });
+}
+
+/**
+ * Business purpose: Resolve all current prepared results matching the Admin's search for one activation.
+ * Business rules:
+ * - Keep every page scoped to the same catalog and revision. Only server-filtered prepared results with exact identities enter the selection.
+ * Execution flow:
+ * 1. Read the first page with the prepared Assessment Rules filter.
+ * 2. Collect the remaining pages using the server total and the same filter.
+ * 3. Return the complete selection once each expected result is accounted for.
+ * Failure cases:
+ * - Failed reads, changed totals or revisions, missing results, and duplicate rows reject the entire selection.
+ * Side effects:
+ * - Performs read-only catalog requests through a manually triggered mutation. Publication remains a separate confirmed command.
+ */
+export function useLegalRuleActivationSelection(catalogId: string) {
+  return useMutation({
+    /**
+     * Business purpose: Assemble a complete cross-page activation selection against the displayed catalog revision.
+     * Business rules:
+     * - Search scope remains fixed across pages. Each row must carry a valid persisted result identity for the later confirmation.
+     * Execution flow:
+     * 1. Request the full set using bounded pages and check each page against the first page's total and the displayed revision.
+     * 2. Accumulate exact result identities and verify that the set contains every matching row once.
+     * Failure cases:
+     * - An empty, stale, incomplete, or invalid projection rejects the fetch before it can replace the user's selection.
+     * Side effects:
+     * - Reads filtered catalog pages and returns local selection data.
+     */
+    mutationFn: async ({
+      filters,
+      expectedRevision,
+    }: {
+      filters: C.LegalRuleFilter;
+      expectedRevision: number;
+    }) => {
+      const query = {
+        ...filters,
+        withAssessmentRules: true,
+        page: 1,
+        limit: C.LEGAL_RULE_LIMITS.pageSize,
+      };
+      const first = await readLegalRulePage(catalogId, query);
+      const candidates = new Map<string, C.LegalRuleListItem>();
+      const resultIds = new Set<string>();
+      const pageCount = Math.ceil(first.total / query.limit);
+      if (first.total <= 0 || first.total > C.LEGAL_RULE_LIMITS.catalogRules)
+        throw new Error(
+          "Prepared activation selection is empty or exceeds the catalog limit",
+        );
+
+      // Publish the selection only after all pages agree, so a changing catalog cannot leave a partial batch selected.
+      for (let page = 1; page <= pageCount; page += 1) {
+        const current =
+          page === 1
+            ? first
+            : await readLegalRulePage(catalogId, { ...query, page });
+        if (
+          current.catalogVersionId !== catalogId ||
+          current.catalogRevision !== expectedRevision ||
+          current.total !== first.total ||
+          current.page !== page ||
+          current.limit !== query.limit
+        )
+          throw new Error("Catalog changed while selecting prepared results");
+
+        for (const rule of current.items) {
+          if (
+            rule.state !== C.LEGAL_RULE_PREPARATION_STATES.PREPARED ||
+            rule.assessmentRuleCount <= 0 ||
+            !rule.lastResultId ||
+            !rule.lastResultRevision ||
+            candidates.has(rule.id) ||
+            resultIds.has(rule.lastResultId)
+          )
+            throw new Error(
+              "Activation selection contains an invalid prepared result",
+            );
+          candidates.set(rule.id, rule);
+          resultIds.add(rule.lastResultId);
+        }
+      }
+
+      if (candidates.size !== first.total)
+        throw new Error("Prepared activation selection is incomplete");
+      return candidates;
+    },
   });
 }
 

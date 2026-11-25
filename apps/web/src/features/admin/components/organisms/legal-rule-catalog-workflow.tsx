@@ -37,6 +37,7 @@ import {
   useLegalRules,
   useLegalRuleCommand,
   useLegalRuleActivation,
+  useLegalRuleActivationSelection,
   useDeleteLegalRuleCatalog,
 } from "@/lib/api/legal-rule-catalog-queries";
 import { useComplianceRuleSetHistoryQuery } from "@/lib/api/compliance-rule-set-queries";
@@ -63,11 +64,11 @@ import { AssessmentRuleImportDialog } from "./assessment-rule-import-dialog";
  * Business purpose: Build a Preparation Rule Set from explicitly selected canonical rules after chunking.
  * Business rules:
  * - No rule starts selected; build and activation selections persist across server pages/filters. The normal list exposes Preparation selection, while the prepared-with-rules filter exposes activation selection, so each row has one action-specific checkbox.
- * - Assessment Rule filtering and activation candidates reflect only current successful persisted outputs.
+ * - Assessment Rule filtering and activation candidates reflect only current successful persisted outputs. Selecting all in activation mode includes every matching page.
  * Execution flow:
  * 1. Choose/edit the catalog
  * 2. Select eligible rules
- * 3. Persist and confirm exact scope
+ * 3. Review and confirm the exact Preparation or activation scope
  * 4. Observe the build and inspect/regenerate individual results.
  * Failure cases:
  * - Empty, stale and ineligible selections cannot submit; request failures retain inputs and stable submission identity.
@@ -135,12 +136,19 @@ export function LegalRuleCatalogWorkflow({
     preparationRuleBatchSchema,
   );
   const activate = useLegalRuleActivation(catalogId);
+  const activationCandidates = useLegalRuleActivationSelection(catalogId);
   const deleteMutation = useDeleteLegalRuleCatalog();
 
   const currentCatalog = catalogs.data?.find(
     (catalog) => catalog.id === catalogId,
   );
-  const busy = selection.isPending || submit.isPending || activate.isPending;
+  // Freeze selection controls while matching activation results are being collected across pages.
+  const selectingAllForActivation = activationCandidates.isPending;
+  const busy =
+    selection.isPending ||
+    submit.isPending ||
+    activate.isPending ||
+    selectingAllForActivation;
   const selectingForActivation = filters.withAssessmentRules === true;
   const selectedAssessmentRuleCount = [...activationSelection.values()].reduce(
     (total, item) => total + item.assessmentRuleCount,
@@ -223,6 +231,32 @@ export function LegalRuleCatalogWorkflow({
     setActivationRevision(
       next.size ? (activationRevision ?? rules.data.catalogRevision) : null,
     );
+    setActivationSuccess(null);
+    activationSubmissionKey.current = "";
+  }
+
+  /**
+   * Business purpose: Select every prepared result matching the Admin's current catalog filters for one confirmation.
+   * Business rules:
+   * - A complete bulk selection replaces the current activation selection. The displayed catalog revision and exact result identities are retained for server revalidation.
+   * Execution flow:
+   * 1. Request the complete set of matching prepared results at the displayed catalog revision.
+   * 2. Replace the checked results and pin their catalog revision once the read succeeds.
+   * Failure cases:
+   * - A failed or stale read leaves the previous selection intact and displays the catalog error.
+   * Side effects:
+   * - Reads catalog data and updates local activation state. Publication requires explicit confirmation.
+   */
+  async function selectAllActivationRules() {
+    if (!rules.data?.total) return;
+    const expectedRevision = rules.data.catalogRevision;
+    const candidates = await activationCandidates
+      .mutateAsync({ filters, expectedRevision })
+      .catch(() => null);
+    if (!candidates) return;
+
+    setActivationSelection(candidates);
+    setActivationRevision(expectedRevision);
     setActivationSuccess(null);
     activationSubmissionKey.current = "";
   }
@@ -411,6 +445,7 @@ export function LegalRuleCatalogWorkflow({
           <Label>{t("catalog")}</Label>
           <Select
             value={catalogId}
+            disabled={selectingAllForActivation}
             onValueChange={(id) => {
               setSelectedCatalogId(id ?? "");
               setPage(1);
@@ -433,7 +468,11 @@ export function LegalRuleCatalogWorkflow({
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" onClick={() => setCreateOpen(true)}>
+        <Button
+          variant="outline"
+          disabled={selectingAllForActivation}
+          onClick={() => setCreateOpen(true)}
+        >
           {t("createCatalog")}
         </Button>
         {catalogId ? (
@@ -464,7 +503,7 @@ export function LegalRuleCatalogWorkflow({
             <Button
               variant="outline"
               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || selectingAllForActivation}
               onClick={() => setDeleteOpen(true)}
             >
               <Trash2Icon className="mr-2 size-4" />
@@ -515,6 +554,7 @@ export function LegalRuleCatalogWorkflow({
                 <Input
                   id="legal-rule-search"
                   value={filters.search}
+                  disabled={selectingAllForActivation}
                   onChange={(event) => {
                     setFilters({ ...filters, search: event.target.value });
                     setPage(1);
@@ -524,6 +564,7 @@ export function LegalRuleCatalogWorkflow({
               <div className="space-y-2">
                 <Label>{t("status")}</Label>
                 <Select
+                  disabled={selectingAllForActivation}
                   value={
                     filters.withAssessmentRules
                       ? LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES
@@ -564,15 +605,23 @@ export function LegalRuleCatalogWorkflow({
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              {!selectingForActivation ? (
-                <Button
-                  variant="outline"
-                  disabled={busy || !rules.data?.eligibleTotal}
-                  onClick={() => void selectAll()}
-                >
-                  {t("selectAll")}
-                </Button>
-              ) : null}
+              {/* Each mode resolves the whole filtered catalog using its own eligibility and selection state. */}
+              <Button
+                variant="outline"
+                disabled={
+                  busy ||
+                  !(selectingForActivation
+                    ? rules.data?.total
+                    : rules.data?.eligibleTotal)
+                }
+                onClick={() =>
+                  void (selectingForActivation
+                    ? selectAllActivationRules()
+                    : selectAll())
+                }
+              >
+                {selectingAllForActivation ? t("loading") : t("selectAll")}
+              </Button>
               <Button
                 variant="ghost"
                 disabled={
@@ -625,6 +674,7 @@ export function LegalRuleCatalogWorkflow({
             ) : null}
             <p className="text-xs text-muted-foreground">{t("acrossPages")}</p>
             {selection.isError ||
+            (selectingForActivation && activationCandidates.isError) ||
             rules.isError ||
             activate.isError ||
             ruleSetHistory.isError ? (

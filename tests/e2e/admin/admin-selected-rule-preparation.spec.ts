@@ -197,17 +197,66 @@ test("source picker shows original evidence for a missing reference and imports 
   await expect(dialog).not.toBeVisible();
 });
 
-test("prepared results expose one activation checkbox in activation mode", async ({
+test("activation Select all includes later pages in one confirmed request", async ({
   page,
 }) => {
+  // Project the existing fixtures into more than one prepared page to verify the exact activation manifest.
+  const preparedRules = fixture.rules.slice(0, 51).map((rule) => ({
+    ...preparedActivationPage.items[0],
+    id: rule.id,
+    legalRuleId: rule.legalRuleId,
+    title: rule.title,
+    lastResultId: rule.id,
+  }));
+  const activations: unknown[] = [];
+  let staleSecondPage = true;
   await page.route(
     /\/api\/admin\/legal-rule-catalog\/[^/]+\/rules(?:\?.*)?$/u,
-    (route) =>
-      route.fulfill({
+    (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      const pageNumber = Number(params.get("page"));
+      const limit = Number(params.get("limit"));
+      return route.fulfill({
         status: 200,
-        json: { ok: true, data: preparedActivationPage },
-      }),
+        json: {
+          ok: true,
+          data: params.has("withAssessmentRules")
+            ? {
+                ...preparedActivationPage,
+                catalogRevision:
+                  preparedActivationPage.catalogRevision +
+                  Number(staleSecondPage && pageNumber === 2),
+                page: pageNumber,
+                limit,
+                total: preparedRules.length,
+                eligibleTotal: preparedRules.length,
+                items: preparedRules.slice(
+                  (pageNumber - 1) * limit,
+                  pageNumber * limit,
+                ),
+              }
+            : preparedActivationPage,
+        },
+      });
+    },
   );
+  await page.route("**/assessment-rules/activate", (route) => {
+    activations.push(route.request().postDataJSON());
+    return route.fulfill({
+      json: {
+        ok: true,
+        data: {
+          activationRecordId: preparedActivationPage.items[0].lastResultId,
+          ruleSetVersionId: preparedActivationPage.items[0].lastRunId,
+          version: preparedActivationPage.catalogVersion,
+          assessmentRuleCount: preparedRules.length * 2,
+          selectedResultCount: preparedRules.length,
+          previousActiveRuleSetVersionId: null,
+          replayed: false,
+        },
+      },
+    });
+  });
   await openWorkflow(page);
   await chooseCatalog(page);
   await page.getByRole("combobox", { name: en.status, exact: true }).click();
@@ -224,19 +273,76 @@ test("prepared results expose one activation checkbox in activation mode", async
   const checkbox = row.getByRole("checkbox");
   await expect(checkbox).toHaveCount(1);
   await expect(
-    page.getByRole("button", { name: en.selectAll, exact: true }),
-  ).toHaveCount(0);
-  await expect(
     page.getByRole("button", { name: en.prepare, exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("button", {
-      name: en.activateSelectedAssessmentRules,
-      exact: true,
-    }),
-  ).toBeVisible();
+  const activateButton = page.getByRole("button", {
+    name: en.activateSelectedAssessmentRules,
+    exact: true,
+  });
+  await expect(activateButton).toBeDisabled();
   await checkbox.check();
   await expect(checkbox).toBeChecked();
+  const selectAllButton = page.getByRole("button", {
+    name: en.selectAll,
+    exact: true,
+  });
+
+  // A catalog revision change on a later page must leave the prior manual selection intact.
+  await selectAllButton.click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: en.error }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(`${en.activationSelectedCount}: 1 ·`, { exact: false }),
+  ).toBeVisible();
+  await expect(checkbox).toBeChecked();
+  expect(activations).toHaveLength(0);
+
+  staleSecondPage = false;
+  await selectAllButton.click();
+  await expect(
+    page.getByText(`${en.activationSelectedCount}: 51`, { exact: false }),
+  ).toBeVisible();
+  expect(activations).toHaveLength(0);
+  await page
+    .getByTestId("rule-set-preparation-entry-point")
+    .getByRole("button", { name: en.next, exact: true })
+    .click();
+  await expect(
+    page.getByRole("checkbox", {
+      name: new RegExp(preparedRules[50].legalRuleId),
+    }),
+  ).toBeChecked();
+  await activateButton.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText(`${en.assessmentRuleCount}: 102`);
+  await dialog
+    .getByRole("button", {
+      name: en.activateSelectedAssessmentRules,
+      exact: true,
+    })
+    .click();
+  await expect
+    .poll(() => activations)
+    .toEqual([
+      {
+        expectedRevision: preparedActivationPage.catalogRevision,
+        idempotencyKey: expect.any(String),
+        results: preparedRules.map((rule) => ({
+          ruleId: rule.id,
+          resultId: rule.lastResultId,
+          revision: rule.lastResultRevision,
+        })),
+      },
+    ]);
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByText(
+      `${en.activationSuccess}: ${preparedActivationPage.catalogVersion}`,
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(activations).toHaveLength(1);
 });
 
 test("cross-page explicit selection, changed filters and server Select all retain exact scope with no implicit preparation", async ({
