@@ -45,7 +45,8 @@ jobs:
         env:
           MODE: ${{ inputs.mode || 'keep' }}
           CONFIRMATION: ${{ inputs.confirmation }}
-          MIN_FREE_MIB: ${{ vars.PM2_MIN_FREE_MIB || '8192' }}
+          # Require 3 GiB free per build filesystem by default, matching the VPS bootstrap.
+          MIN_FREE_MIB: ${{ vars.PM2_MIN_FREE_MIB || '3072' }}
           # Reuse the existing Fogewise SSH secrets for the VPS connection.
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}

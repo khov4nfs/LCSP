@@ -11,6 +11,54 @@ const __dirname = path.dirname(__filename);
 const workspaceRoot = path.resolve(__dirname, "..");
 const bootstrapScript = path.join(workspaceRoot, "scripts/bootstrap-redeploy.sh");
 
+test("bootstrap-redeploy: CI requires 3 GiB free on every deployment filesystem by default", () => {
+  // Stub only capacity discovery. An invalid SHA stops the run before Git or deployment.
+  const run = (availableKiB, override = "") =>
+    spawnSync(
+      "bash",
+      [
+        "-c",
+        [
+          "docker() { echo .; }",
+          "df() {",
+          "  printf '%s\\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on' 'app 9000000 1 9000000 1% /app'",
+          "  printf 'docker 9000000 1 %s 1%% /docker\\n' \"$AVAILABLE_KIB\"",
+          "  printf '%s\\n' 'tmp 9000000 1 9000000 1% /tmp'",
+          "}",
+          "export -f docker df",
+          "bash \"$1\" --ci keep",
+        ].join("\n"),
+        "capacity-fixture",
+        bootstrapScript,
+      ],
+      {
+        cwd: workspaceRoot,
+        env: {
+          ...process.env,
+          APP: ".",
+          AVAILABLE_KIB: String(availableKiB),
+          LCSP_DEPLOY_MIN_FREE_MIB: override,
+          LCSP_DEPLOY_EXPECTED_SHA: "stop-before-deploy",
+        },
+        encoding: "utf8",
+      },
+    );
+
+  const below = run(3072 * 1024 - 1);
+  assert.equal(below.status, 1, below.stderr);
+  assert.match(below.stdout, /Minimum free disk per filesystem: 3072 MiB/);
+  assert.match(below.stderr, /Insufficient free disk for deploy/);
+
+  const atMinimum = run(3072 * 1024);
+  assert.equal(atMinimum.status, 1, atMinimum.stderr);
+  assert.match(atMinimum.stderr, /LCSP_DEPLOY_EXPECTED_SHA must pin/);
+
+  const overridden = run(3072 * 1024, "4096");
+  assert.equal(overridden.status, 1, overridden.stderr);
+  assert.match(overridden.stdout, /Minimum free disk per filesystem: 4096 MiB/);
+  assert.match(overridden.stderr, /Insufficient free disk for deploy/);
+});
+
 test("bootstrap-redeploy: fails when LCSP_DEPLOY_EXPECTED_SHA is invalid or unset", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bootstrap-redeploy-test-"));
   try {

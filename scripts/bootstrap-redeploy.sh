@@ -12,7 +12,8 @@ cd "$APP"
 # works when the checkout is dirty and reports capacity without changing the host.
 case "${1:-}" in
   --disk-only|--ci)
-    readonly MIN_FREE_MIB="${LCSP_DEPLOY_MIN_FREE_MIB:-8192}"
+    # Match the CI preflight's 3 GiB default when invoked directly on the VPS.
+    readonly MIN_FREE_MIB="${LCSP_DEPLOY_MIN_FREE_MIB:-3072}"
     if [[ ! "$MIN_FREE_MIB" =~ ^[1-9][0-9]{0,7}$ ]]; then
       echo "LCSP_DEPLOY_MIN_FREE_MIB must be a positive integer in MiB" >&2
       exit 1
