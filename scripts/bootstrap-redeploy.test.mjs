@@ -26,10 +26,9 @@ test("bootstrap-redeploy: CI requires 3 GiB free on every deployment filesystem 
           "  printf '%s\\n' 'tmp 9000000 1 9000000 1% /tmp'",
           "}",
           "export -f docker df",
-          "bash \"$1\" --ci keep",
+          // The fixture runs from workspaceRoot, so Bash can use a fixed script path.
+          "bash ./scripts/bootstrap-redeploy.sh --ci keep",
         ].join("\n"),
-        "capacity-fixture",
-        bootstrapScript,
       ],
       {
         cwd: workspaceRoot,
