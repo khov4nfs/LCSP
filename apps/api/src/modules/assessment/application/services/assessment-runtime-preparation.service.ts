@@ -7,6 +7,8 @@ import {
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  computeRepositorySetDigest,
+  deriveRepositoryKey,
 } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_ACTOR_IDS,
@@ -106,11 +108,13 @@ export class AssessmentRuntimePreparation {
    * legacy full-scope cases retain their existing whole-catalog coverage.
    * Execution flow:
    * 1. Resolve immutable legal and repository pins and the hydration ticket.
-   * 2. Confirm a nonempty catalog and create legacy coverage when applicable.
+   * 2. Mirror the repository pin into the repository set (one pin, ordinal 0) with its set digest.
+   * 3. Confirm a nonempty catalog and create legacy coverage when applicable.
    * Failure cases:
    * - Missing Rule Set returns WAITING; invalid snapshot rejects the transaction.
+   * - A different repository already pinned to the case rejects with PINS_NOT_READY (pins are immutable).
    * Side effects:
-   * - Writes pins, hydration ticket and legacy coverage within the caller's transaction.
+   * - Writes pins, repository-set pin, hydration ticket and legacy coverage within the caller's transaction.
    */
   async pinRuntimeInputsInTx(
     tx: Prisma.TransactionClient,
@@ -155,7 +159,14 @@ export class AssessmentRuntimePreparation {
         assessmentId: input.assessmentId,
         status: RepositorySnapshotStatus.READY,
       },
-      select: { id: true, commitSha: true },
+      select: {
+        id: true,
+        commitSha: true,
+        connectionId: true,
+        repositoryId: true,
+        repositoryFullName: true,
+        sourcePathPrefix: true,
+      },
     });
     if (!snapshot || !/^[0-9a-fA-F]{40,64}$/u.test(snapshot.commitSha)) {
       throw problemException(
@@ -189,6 +200,12 @@ export class AssessmentRuntimePreparation {
         repositoryCommit: snapshot.commitSha.toLowerCase(),
       },
     });
+    await this.mirrorRepositoryPinInTx(tx, {
+      assessmentId: input.assessmentId,
+      correlationId: input.correlationId,
+      repositoryScanJobId: ticket.id,
+      snapshot,
+    });
 
     const rules = await tx.assessmentRule.findMany({
       where: { ruleSetVersionId: ruleSetId },
@@ -209,6 +226,82 @@ export class AssessmentRuntimePreparation {
       });
     }
     return { result: PIN_RESULTS.PINNED };
+  }
+
+  /**
+   * Business purpose: Record the case's repository as the first member of its repository set so every reader
+   * can move from scalar pins to a set of pins without changing behavior for single-repository assessments.
+   * Business rules:
+   * - The case pins exactly one repository at ordinal 0; its key is derived from the repository name.
+   * - Pins are immutable: a retry for the same snapshot is a no-op, a different snapshot is rejected.
+   * - The set digest covers key, snapshot, commit and source scope, and is stored on the case.
+   * Execution flow:
+   * 1. Read any pin already recorded for the case.
+   * 2. Return when the identical snapshot is already recorded; reject when another one is.
+   * 3. Insert the ordinal-0 pin and stamp the case with its digest and repository count.
+   * Failure cases:
+   * - A conflicting existing pin rejects the transaction with PINS_NOT_READY (409).
+   * Side effects:
+   * - Inserts one AssessmentCaseRepository row and updates repositorySetDigest/repositoryCount on the case
+   *   inside the caller's transaction.
+   */
+  private async mirrorRepositoryPinInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      correlationId: string;
+      repositoryScanJobId: string;
+      snapshot: {
+        id: string;
+        commitSha: string;
+        connectionId: string;
+        repositoryId: string;
+        repositoryFullName: string;
+        sourcePathPrefix: string | null;
+      };
+    },
+  ): Promise<void> {
+    const existing = await tx.assessmentCaseRepository.findMany({
+      where: { assessmentId: input.assessmentId },
+      select: { repositorySnapshotId: true },
+    });
+    if (existing.length > 0) {
+      if (
+        existing.length === 1 &&
+        existing[0]?.repositorySnapshotId === input.snapshot.id
+      ) {
+        return;
+      }
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const pin = {
+      repositoryKey: deriveRepositoryKey(input.snapshot.repositoryFullName, []),
+      ordinal: 0,
+      repositorySnapshotId: input.snapshot.id,
+      repositoryCommit: input.snapshot.commitSha.toLowerCase(),
+      sourcePathPrefix: input.snapshot.sourcePathPrefix,
+    };
+    await tx.assessmentCaseRepository.create({
+      data: {
+        assessmentId: input.assessmentId,
+        ...pin,
+        connectionId: input.snapshot.connectionId,
+        repositoryId: input.snapshot.repositoryId,
+        repositoryFullName: input.snapshot.repositoryFullName,
+        repositoryScanJobId: input.repositoryScanJobId,
+      },
+    });
+    await tx.assessmentCase.update({
+      where: { assessmentId: input.assessmentId },
+      data: {
+        repositorySetDigest: computeRepositorySetDigest([pin]),
+        repositoryCount: 1,
+      },
+    });
   }
 
   /**

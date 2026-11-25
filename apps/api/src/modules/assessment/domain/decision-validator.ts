@@ -31,6 +31,13 @@ export interface DecisionValidationContext {
     ruleSetVersionId: string;
     repositorySnapshotId: string;
     repositoryCommit: string;
+    /** Proof of the complete pinned repository set; absent only for contexts built before the set existed. */
+    repositorySetDigest?: string;
+    /** Every pinned repository; evidence may belong to any of them. Defaults to the single scalar pin. */
+    repositories?: ReadonlyArray<{
+      repositoryKey: string;
+      repositoryCommit: string;
+    }>;
   };
   /** The pinned rule set's AssessmentRule, or null when the ID is not in it. */
   rule: {
@@ -47,7 +54,14 @@ export interface DecisionValidationContext {
   } | null;
   evidence: ReadonlyMap<
     string,
-    { state: string; repositoryCommit: string; type: string; payload: unknown }
+    {
+      state: string;
+      repositoryCommit: string;
+      /** Null for evidence not bound to one repository (for example a human answer). */
+      repositoryKey?: string | null;
+      type: string;
+      payload: unknown;
+    }
   >;
   facts: ReadonlyMap<
     string,
@@ -58,6 +72,37 @@ export interface DecisionValidationContext {
       evidenceIds: readonly string[];
     }
   >;
+}
+
+/**
+ * Business purpose: Decide whether a piece of evidence was gathered from one of the repositories this
+ * assessment is pinned to, so conclusions never rest on code from an unpinned commit.
+ * Business rules:
+ * - Evidence belongs to the set when its commit equals the commit of a pinned repository.
+ * - Evidence bound to a repository key must match that repository's own commit, so a commit pinned for one
+ *   repository cannot vouch for another; evidence without a key (older rows, human answers) matches by commit.
+ * - A context without a recorded set is treated as a set of one: its scalar pinned commit.
+ * Execution flow:
+ * 1. Resolve the pinned repositories, defaulting to the single scalar pin.
+ * 2. Accept when any pinned repository matches the evidence commit and, when present, its key.
+ * Failure cases:
+ * - A commit or key outside the set returns false; the caller records EVIDENCE_PIN_MISMATCH.
+ * Side effects:
+ * - None; pure comparison.
+ */
+export function evidenceBelongsToPinnedSet(
+  evidence: { repositoryCommit: string; repositoryKey?: string | null },
+  pins: DecisionValidationContext["pins"],
+): boolean {
+  const repositories = pins.repositories ?? [
+    { repositoryKey: null, repositoryCommit: pins.repositoryCommit },
+  ];
+  return repositories.some(
+    (repository) =>
+      repository.repositoryCommit === evidence.repositoryCommit &&
+      (evidence.repositoryKey == null ||
+        repository.repositoryKey === evidence.repositoryKey),
+  );
 }
 
 /**
@@ -158,6 +203,22 @@ export function validateRuleDecision(
 
   const references = ruleDecisionReferences(decision);
   const seen = new Set<string>();
+  /**
+   * Business purpose: Accept an evidence reference only when it is a current, in-scope, complete piece of
+   * evidence from one of the repositories the assessment is pinned to.
+   * Business rules:
+   * - Evidence must exist, be ACCEPTED and belong to the pinned repository set (commit, and key when bound).
+   * - Search-coverage evidence cannot support a decision when it has known gaps or truncated queries.
+   * - Each evidence ID is checked once per decision.
+   * Execution flow:
+   * 1. Skip IDs already checked, then resolve the evidence row.
+   * 2. Reject missing, non-accepted or out-of-set evidence, then incomplete search coverage.
+   * Failure cases:
+   * - Records UNKNOWN_EVIDENCE_REFERENCE, EVIDENCE_NOT_ACCEPTED, EVIDENCE_PIN_MISMATCH or
+   *   SEARCH_COVERAGE_INCOMPLETE against the evidence ID.
+   * Side effects:
+   * - Appends failures to the enclosing validation result; no persistence.
+   */
   const validateEvidence = (evidenceId: string) => {
     const key = `E:${evidenceId}`;
     if (seen.has(key)) return;
@@ -170,7 +231,7 @@ export function validateRuleDecision(
       );
     } else if (evidence.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) {
       fail(DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_NOT_ACCEPTED, evidenceId);
-    } else if (evidence.repositoryCommit !== context.pins.repositoryCommit) {
+    } else if (!evidenceBelongsToPinnedSet(evidence, context.pins)) {
       fail(DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_PIN_MISMATCH, evidenceId);
     } else if (evidence.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE) {
       const coverage = searchCoverageEvidenceRequestSchema

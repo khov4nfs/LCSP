@@ -37,6 +37,7 @@ import { SubmitAssessmentFinalReportCommand } from "./submit-assessment-final-re
 import { SubmitAssessmentFinalReportHandler } from "./submit-assessment-final-report.handler.js";
 
 const assessmentId = randomUUID();
+const PINNED_SET_DIGEST = `sha256:${"7".repeat(64)}`;
 const evidenceId = randomUUID();
 const ruleSetId = randomUUID();
 const snapshotId = randomUUID();
@@ -179,6 +180,10 @@ function buildHandler(
         persistedArtifact = { ...(persistedArtifact as object), ...data };
         return Promise.resolve(persistedArtifact);
       }),
+    },
+    assessmentCase: {
+      findUnique: () =>
+        Promise.resolve({ repositorySetDigest: PINNED_SET_DIGEST }),
     },
     repositorySnapshot: {
       findUnique: () => Promise.resolve(options.repositorySnapshot ?? null),
@@ -484,6 +489,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+          repositorySetDigest: PINNED_SET_DIGEST,
         }),
       }),
     );

@@ -658,6 +658,10 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       }
       return;
     }
+    const pinnedCase = await tx.assessmentCase.findUnique({
+      where: { assessmentId: prepared.assessmentId },
+      select: { repositorySetDigest: true },
+    });
     await tx.assessmentArtifact.create({
       data: {
         artifactId: prepared.artifactId,
@@ -667,6 +671,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         ruleSetVersionId: prepared.ruleSetVersionId,
         repositorySnapshotId: prepared.repositorySnapshotId,
         repositoryCommit: prepared.repositoryCommit,
+        repositorySetDigest: pinnedCase?.repositorySetDigest ?? null,
         caseRevision: prepared.caseRevision,
         schemaVersion: prepared.schemaVersion,
         reportRequestDigest: prepared.requestDigest,

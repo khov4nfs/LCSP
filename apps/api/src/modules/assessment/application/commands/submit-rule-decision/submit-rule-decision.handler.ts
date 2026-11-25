@@ -257,6 +257,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
           applicability: decision.applicability,
           compliance: decision.compliance,
           repositoryCommit: pins.repositoryCommit,
+          repositorySetDigest: pins.repositorySetDigest,
           caseRevision: pins.caseRevision,
           idempotencyKey: request.idempotencyKey,
           requestDigest,

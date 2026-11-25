@@ -16,11 +16,12 @@ import {
   ASSESSMENT_RECORD_STATES,
   ASSESSMENT_ROOT_BOUNDARY,
   DECISION_VALIDATION_FAILURE_CODES,
+  computeRepositorySetDigest,
   type AssessmentCompletionBlocker,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
-import { Injectable } from "@nestjs/common";
+import { HttpException, Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
   HumanResolutionRequestStatus,
@@ -30,7 +31,10 @@ import {
   RepositorySnapshotStatus,
 } from "@prisma/client";
 
-import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
+import {
+  AssessmentCaseSupport,
+  type PinnedRepository,
+} from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
 import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { validateLegalProvenance } from "../../domain/legal-provenance-validator.js";
@@ -231,6 +235,8 @@ export class AssessmentCompletionGate {
         repositorySnapshotId: true,
         repositoryScanJobId: true,
         repositoryCommit: true,
+        repositorySetDigest: true,
+        repositoryCount: true,
         pinnedAt: true,
       },
     });
@@ -287,6 +293,8 @@ export class AssessmentCompletionGate {
           commitSha: true,
           sourcePathPrefix: true,
           status: true,
+          connectionId: true,
+          repositoryFullName: true,
         },
       }),
       tx.repositoryScanJob.findUnique({
@@ -458,6 +466,16 @@ export class AssessmentCompletionGate {
         pins.repositorySnapshotId,
       );
     }
+    const repositories =
+      snapshot && snapshotPinsValid
+        ? await this.verifyRepositorySet(tx, {
+            assessmentId,
+            repositoryCount: assessmentCase.repositoryCount,
+            storedDigest: assessmentCase.repositorySetDigest,
+            primary: { ...pins, snapshot },
+            add,
+          })
+        : null;
     for (const request of openRequests) {
       add(
         ASSESSMENT_COMPLETION_BLOCKER_CODES.OPEN_HUMAN_REQUEST,
@@ -560,7 +578,7 @@ export class AssessmentCompletionGate {
         );
         continue;
       }
-      if (!snapshot || !snapshotPinsValid) continue;
+      if (!snapshot || !snapshotPinsValid || !repositories) continue;
       const context = await this.support.buildValidationContext(tx, {
         assessmentId,
         pins: {
@@ -569,6 +587,9 @@ export class AssessmentCompletionGate {
           repositoryId: snapshot.repositoryId,
           sourcePathPrefix: snapshot.sourcePathPrefix,
           caseRevision: assessmentCase.caseRevision,
+          repositorySetDigest: computeRepositorySetDigest(repositories),
+          repositories,
+          repositorySetRecorded: assessmentCase.repositoryCount > 0,
         },
         decision: parsed.data,
       });
@@ -728,6 +749,101 @@ export class AssessmentCompletionGate {
       blockers,
       blockers.length === 0 ? finalizationSnapshot : null,
     );
+  }
+
+  /**
+   * Business purpose: Confirm that every repository the assessment is pinned to is still a usable,
+   * immutable source before any conclusion is allowed to complete.
+   * Business rules:
+   * - The recorded set must agree with the case's primary pin, count and stored digest.
+   * - Every additional repository needs a READY snapshot owned by this assessment and a scan job on that
+   *   snapshot that is queued, running or completed; the primary pin is checked by the caller.
+   * Execution flow:
+   * 1. Resolve the verified repository set for the case.
+   * 2. Load the snapshots and scan jobs of the additional pins and check each one.
+   * Failure cases:
+   * - An inconsistent set or an unusable additional pin adds a REPOSITORY_SNAPSHOT_INVALID blocker naming
+   *   the offending snapshot; the set is then reported unusable (null) so decisions are not evaluated.
+   * Side effects:
+   * - Read-only queries; blockers are appended through the supplied collector.
+   */
+  private async verifyRepositorySet(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      repositoryCount: number;
+      storedDigest: string | null;
+      primary: Parameters<AssessmentCaseSupport["loadRepositorySet"]>[1]["primary"] & {
+        repositorySnapshotId: string;
+      };
+      add: (code: AssessmentCompletionBlocker["code"], reference: string) => void;
+    },
+  ): Promise<PinnedRepository[] | null> {
+    /**
+     * Business purpose: Report an unusable pinned repository as a completion blocker.
+     * Business rules:
+     * - Any unusable pin blocks finalization and makes the whole repository set unusable for evaluation.
+     * Execution flow:
+     * 1. Add a REPOSITORY_SNAPSHOT_INVALID blocker naming the offending snapshot.
+     * 2. Return null so callers skip decision evaluation.
+     * Failure cases:
+     * - None; this records the failure.
+     * Side effects:
+     * - Appends one blocker through the supplied collector; no persistence.
+     */
+    const invalid = (reference: string) => {
+      input.add(
+        ASSESSMENT_COMPLETION_BLOCKER_CODES.REPOSITORY_SNAPSHOT_INVALID,
+        reference,
+      );
+      return null;
+    };
+    let repositories: PinnedRepository[];
+    try {
+      ({ repositories } = await this.support.loadRepositorySet(tx, {
+        assessmentId: input.assessmentId,
+        correlationId: input.assessmentId,
+        repositoryCount: input.repositoryCount,
+        storedDigest: input.storedDigest,
+        primary: input.primary,
+      }));
+    } catch (error) {
+      // Only a rejected set (PINS_NOT_READY) is a blocker; programming errors must surface.
+      if (!(error instanceof HttpException)) throw error;
+      return invalid(input.primary.repositorySnapshotId);
+    }
+    const additional = repositories.slice(1);
+    if (additional.length === 0) return repositories;
+    const [snapshots, scanJobs] = await Promise.all([
+      tx.repositorySnapshot.findMany({
+        where: { id: { in: additional.map((pin) => pin.repositorySnapshotId) } },
+        select: { id: true, assessmentId: true, status: true },
+      }),
+      tx.repositoryScanJob.findMany({
+        where: { id: { in: additional.map((pin) => pin.repositoryScanJobId) } },
+        select: { id: true, assessmentId: true, snapshotId: true, status: true },
+      }),
+    ]);
+    let usable = true;
+    for (const pin of additional) {
+      const snapshot = snapshots.find((row) => row.id === pin.repositorySnapshotId);
+      const scanJob = scanJobs.find((row) => row.id === pin.repositoryScanJobId);
+      if (
+        !snapshot ||
+        snapshot.assessmentId !== input.assessmentId ||
+        snapshot.status !== RepositorySnapshotStatus.READY ||
+        !scanJob ||
+        scanJob.assessmentId !== input.assessmentId ||
+        scanJob.snapshotId !== pin.repositorySnapshotId ||
+        (scanJob.status !== RepositoryScanJobStatus.QUEUED &&
+          scanJob.status !== RepositoryScanJobStatus.RUNNING &&
+          scanJob.status !== RepositoryScanJobStatus.COMPLETED)
+      ) {
+        invalid(pin.repositorySnapshotId);
+        usable = false;
+      }
+    }
+    return usable ? repositories : null;
   }
 
   private result(

@@ -645,6 +645,7 @@ export class AssessmentRuleAuditService {
           ruleSetDigest: ruleSet.ruleSetDigest,
           repositorySnapshotId: domainCase.repositorySnapshotId,
           repositoryCommit: domainCase.repositoryCommit,
+          repositorySetDigest: domainCase.repositorySetDigest,
           rules: {
             create: chosen.map((rule, ordinal) => ({
               ...rule,

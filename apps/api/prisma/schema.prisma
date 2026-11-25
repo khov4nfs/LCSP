@@ -874,6 +874,7 @@ model RepositorySnapshot {
   assessment         Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   connection         RepositoryConnection     @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   scanJobs           RepositoryScanJob[]
+  casePins           AssessmentCaseRepository[]
 
   @@index([assessmentId])
   @@index([connectionId])
@@ -2667,6 +2668,9 @@ model AssessmentCase {
   repositorySnapshotId String?
   repositoryScanJobId  String?
   repositoryCommit     String?
+  // Set-level proof of the immutable repository pins (see AssessmentCaseRepository); the scalar pin columns above mirror ordinal 0 until the cleanup phase.
+  repositorySetDigest  String?
+  repositoryCount      Int                          @default(0)
   pinnedAt             DateTime?                    @db.Timestamptz(3)
   createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
@@ -2683,11 +2687,37 @@ model AssessmentCase {
   discoveryInterviewProposals AssessmentDiscoveryInterviewProposal[]
   repositoryDiscoveries AssessmentRepositoryDiscovery[]
   repositoryDiscoveryExpansions AssessmentRepositoryDiscoveryExpansion[]
+  repositories         AssessmentCaseRepository[]
   factNeeds             AssessmentFactNeed[]
   humanFactProposals    AssessmentHumanFactProposal[]
 
   // Lets children prove they use the case's own pinned rule set (composite FK).
   @@unique([assessmentId, ruleSetVersionId])
+}
+
+/// One immutable repository snapshot pinned to an Assessment. A case pins 1..N of these; the set is
+/// proven unchanged by AssessmentCase.repositorySetDigest and is immutable once the Assessment is ACTIVE.
+model AssessmentCaseRepository {
+  assessmentId         String
+  repositoryKey        String
+  ordinal              Int
+  connectionId         String
+  repositoryId         String
+  repositoryFullName   String
+  repositorySnapshotId String
+  repositoryScanJobId  String
+  repositoryCommit     String
+  sourcePathPrefix     String?
+  pinnedAt             DateTime             @default(now()) @db.Timestamptz(3)
+  assessmentCase       AssessmentCase       @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  snapshot             RepositorySnapshot   @relation(fields: [repositorySnapshotId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  evidence             AssessmentEvidence[]
+
+  @@id([assessmentId, repositoryKey])
+  @@unique([assessmentId, ordinal])
+  @@unique([assessmentId, repositorySnapshotId])
+  @@unique([assessmentId, repositoryKey, repositoryCommit])
+  @@index([repositorySnapshotId])
 }
 
 enum RepositoryScannerVersion {
@@ -2725,6 +2755,8 @@ model AssessmentDiscoveryRun {
   attempt              Int                          @default(1)
   repositorySnapshotId String
   repositoryId         String
+  repositoryKey        String?
+  discoveryBatchId     String?                      @db.Uuid
   repositoryCommit     String
   sourcePathPrefix     String?
   repositoryScanJobId  String
@@ -2827,6 +2859,7 @@ model AssessmentRuleAuditRequest {
   ruleSetDigest        String
   repositorySnapshotId String
   repositoryCommit     String
+  repositorySetDigest  String?
   requestedAt          DateTime                     @default(now()) @db.Timestamptz(3)
   completedAt          DateTime?                    @db.Timestamptz(3)
   assessmentCase       AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
@@ -2872,17 +2905,20 @@ model AssessmentEvidence {
   type             AssessmentEvidenceType
   state            AssessmentRecordState        @default(ACCEPTED)
   repositoryCommit String
+  repositoryKey    String?
   contentSha256    String
   payload          Json
   createdAt        DateTime                     @default(now()) @db.Timestamptz(3)
   invalidatedAt    DateTime?                    @db.Timestamptz(3)
   assessmentCase   AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  repositoryPin    AssessmentCaseRepository?    @relation(fields: [assessmentId, repositoryKey, repositoryCommit], references: [assessmentId, repositoryKey, repositoryCommit], onDelete: NoAction, onUpdate: Restrict)
   factLinks        AssessmentCaseFactEvidence[]
   decisionDependencies AssessmentDecisionEvidenceDependency[]
   discoveryInterviewAcceptances AssessmentDiscoveryInterviewProposal[] @relation("DiscoveryInterviewAcceptedEvidence")
 
   @@unique([evidenceId, assessmentId])
   @@index([assessmentId, state])
+  @@index([assessmentId, repositoryKey, state])
 }
 
 model AssessmentCaseFact {
@@ -3041,6 +3077,7 @@ model AssessmentRuleDecision {
   applicability         RuleDecisionApplicability
   compliance            RuleDecisionComplianceOutcome?
   repositoryCommit      String
+  repositorySetDigest   String?
   caseRevision          Int
   idempotencyKey        String
   requestDigest         String
@@ -3187,6 +3224,7 @@ model AssessmentArtifact {
   ruleSetVersionId     String
   repositorySnapshotId String
   repositoryCommit     String
+  repositorySetDigest  String?
   caseRevision         Int
   schemaVersion        String
   reportRequestDigest  String?

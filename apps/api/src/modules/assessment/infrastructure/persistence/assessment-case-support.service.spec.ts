@@ -20,6 +20,7 @@ import {
 
 import { AssessmentCaseSupport } from "./assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
+import { withSingleRepositorySet } from "../../fixtures/single-repository-set.js";
 
 describe("AssessmentCaseSupport decision provenance", () => {
   it.each([
@@ -31,7 +32,7 @@ describe("AssessmentCaseSupport decision provenance", () => {
     async (conditionLogic) => {
       const assessmentId = randomUUID();
       const evidenceId = randomUUID();
-      const pins = {
+      const pins = withSingleRepositorySet({
         assessmentId,
         repositoryId: "repo",
         ruleSetVersionId: randomUUID(),
@@ -40,7 +41,7 @@ describe("AssessmentCaseSupport decision provenance", () => {
         repositoryCommit: "a".repeat(40),
         sourcePathPrefix: null,
         caseRevision: 1,
-      };
+      });
       const reference = {
         type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
         evidenceId,
@@ -128,7 +129,7 @@ describe("AssessmentCaseSupport decision provenance", () => {
     const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const factId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const evidenceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
-    const pins = {
+    const pins = withSingleRepositorySet({
       assessmentId,
       repositoryId: "repository-123",
       caseRevision: 1,
@@ -137,7 +138,7 @@ describe("AssessmentCaseSupport decision provenance", () => {
       repositoryScanJobId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
       repositoryCommit: "a".repeat(40),
       sourcePathPrefix: null,
-    };
+    });
     const decision = ruleDecisionSchema.parse({
       caseRevision: pins.caseRevision,
       ruleSetVersionId: pins.ruleSetVersionId,
@@ -248,6 +249,8 @@ describe("AssessmentCaseSupport immutable source pins", () => {
     repositorySnapshotId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     repositoryScanJobId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
     repositoryCommit: "a".repeat(40),
+    repositorySetDigest: null,
+    repositoryCount: 0,
   };
   const snapshot = {
     id: row.repositorySnapshotId,
@@ -255,6 +258,8 @@ describe("AssessmentCaseSupport immutable source pins", () => {
     assessmentId,
     commitSha: row.repositoryCommit,
     sourcePathPrefix: "chatbot",
+    connectionId: "connection-123",
+    repositoryFullName: "acme/repository-123",
   };
 
   it.each([
@@ -294,6 +299,7 @@ describe("AssessmentCaseSupport immutable source pins", () => {
       const tx = {
         assessmentCase: { findUnique: () => Promise.resolve(row) },
         repositorySnapshot: { findFirst },
+        assessmentCaseRepository: { findMany: () => Promise.resolve([]) },
       } as unknown as Prisma.TransactionClient;
       const result = await new AssessmentCaseSupport().loadPins(
         tx,

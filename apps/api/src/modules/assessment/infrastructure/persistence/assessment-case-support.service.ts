@@ -9,6 +9,9 @@ import {
 import {
   ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
+  computeRepositorySetDigest,
+  deriveRepositoryKey,
+  type RepositoryPin,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
@@ -22,6 +25,13 @@ export const ROOT_AUDIT_ACTOR = {
   type: AUDIT_ACTOR_TYPES.service,
 } as const;
 
+export type PinnedRepository = RepositoryPin;
+
+/**
+ * The immutable pins of one case. The scalar repository fields describe the primary repository
+ * (ordinal 0) and stay for readers not yet converted; `repositories` is the authoritative set and
+ * `repositorySetDigest` proves it is unchanged.
+ */
 export interface PinnedCase {
   assessmentId: string;
   caseRevision: number;
@@ -31,6 +41,13 @@ export interface PinnedCase {
   repositoryScanJobId: string;
   repositoryCommit: string;
   sourcePathPrefix: string | null;
+  repositorySetDigest: string;
+  repositories: PinnedRepository[];
+  /**
+   * True when the pins are recorded rows; false when the set was derived from the scalar pin of a case
+   * written before the set existed. Only recorded pins may be referenced by foreign keys.
+   */
+  repositorySetRecorded: boolean;
 }
 
 export function invalid(code: string, correlationId: string) {
@@ -58,14 +75,20 @@ export class AssessmentCaseSupport {
    * - The case must have complete rule-set and repository pins.
    * - Source scope comes only from the pinned snapshot owned by this assessment at the same commit.
    * - Null preserves an existing whole-repository snapshot; missing or malformed scope metadata fails closed.
+   * - The repository set is the recorded pin rows; a case written before the set existed is read as a set
+   *   of one derived from its scalar pin. The primary pin (ordinal 0) must equal the scalar pin and any
+   *   stored set digest must match the recomputed one.
    *
    * Execution flow:
    * 1. Read the case and reject incomplete or inconsistent ownership.
    * 2. Read its exact assessment-bound snapshot and verify commit identity and canonical source scope.
-   * 3. Return case revision, repository pins and the stored prefix without normalization.
+   * 3. Read the recorded repository pins, verify them against the scalar pin, their own snapshots and the
+   *    stored digest, or derive the one-pin set for older cases.
+   * 4. Return case revision, repository pins, the set digest and the stored prefix without normalization.
    *
    * Failure cases:
    * - Missing pins, a missing or foreign snapshot, mismatched commit or invalid prefix produces PINS_NOT_READY.
+   * - A set whose primary pin, count, member snapshots or digest disagree with the case produces PINS_NOT_READY.
    *
    * Side effects:
    * - Read-only database queries; existing snapshot scope and case history are never rewritten.
@@ -107,6 +130,8 @@ export class AssessmentCaseSupport {
         assessmentId: true,
         commitSha: true,
         sourcePathPrefix: true,
+        connectionId: true,
+        repositoryFullName: true,
       },
     });
     if (
@@ -125,6 +150,18 @@ export class AssessmentCaseSupport {
         { status: HttpStatus.CONFLICT },
       );
     }
+    const { repositories, recorded } = await this.loadRepositorySet(tx, {
+      assessmentId,
+      correlationId,
+      repositoryCount: row.repositoryCount,
+      storedDigest: row.repositorySetDigest,
+      primary: {
+        repositorySnapshotId: row.repositorySnapshotId,
+        repositoryScanJobId: row.repositoryScanJobId,
+        repositoryCommit: row.repositoryCommit,
+        snapshot,
+      },
+    });
     return {
       assessmentId,
       caseRevision: row.caseRevision,
@@ -134,7 +171,136 @@ export class AssessmentCaseSupport {
       repositoryScanJobId: row.repositoryScanJobId,
       repositoryCommit: row.repositoryCommit,
       sourcePathPrefix: snapshot.sourcePathPrefix,
+      repositorySetDigest: computeRepositorySetDigest(repositories),
+      repositories,
+      repositorySetRecorded: recorded,
     };
+  }
+
+  /**
+   * Business purpose: Resolve the complete, verified set of repositories an assessment is pinned to.
+   *
+   * Business rules:
+   * - Recorded pin rows are authoritative; ordinal 0 must be the case scalar pin.
+   * - Every additional pin must reference a snapshot owned by this assessment at the pinned commit with a
+   *   canonical source scope.
+   * - A case with no recorded rows is a set of one derived from the scalar pin; a stored digest or count
+   *   that disagrees with the recorded rows is rejected.
+   *
+   * Execution flow:
+   * 1. Read pin rows in ordinal order; derive the single pin when there are none.
+   * 2. Check primary identity, contiguous ordinals, stored count and (for extra pins) snapshot ownership.
+   * 3. Check the stored digest against the recomputed digest.
+   *
+   * Failure cases:
+   * - Any disagreement produces PINS_NOT_READY (409).
+   *
+   * Side effects:
+   * - Read-only database queries.
+   */
+  async loadRepositorySet(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      correlationId: string;
+      repositoryCount: number;
+      storedDigest: string | null;
+      primary: {
+        repositorySnapshotId: string;
+        repositoryScanJobId: string;
+        repositoryCommit: string;
+        snapshot: {
+          repositoryId: string;
+          connectionId: string;
+          repositoryFullName: string;
+          sourcePathPrefix: string | null;
+        };
+      };
+    },
+  ): Promise<{ repositories: PinnedRepository[]; recorded: boolean }> {
+    const notReady = problemException(
+      ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+      input.correlationId,
+      { status: HttpStatus.CONFLICT },
+    );
+    const { primary } = input;
+    const rows = await tx.assessmentCaseRepository.findMany({
+      where: { assessmentId: input.assessmentId },
+      orderBy: { ordinal: "asc" },
+    });
+    if (rows.length === 0) {
+      return {
+        recorded: false,
+        repositories: [
+          {
+            repositoryKey: deriveRepositoryKey(
+              primary.snapshot.repositoryFullName,
+              [],
+            ),
+            ordinal: 0,
+            connectionId: primary.snapshot.connectionId,
+            repositoryId: primary.snapshot.repositoryId,
+            repositoryFullName: primary.snapshot.repositoryFullName,
+            repositorySnapshotId: primary.repositorySnapshotId,
+            repositoryScanJobId: primary.repositoryScanJobId,
+            repositoryCommit: primary.repositoryCommit,
+            sourcePathPrefix: primary.snapshot.sourcePathPrefix,
+          },
+        ],
+      };
+    }
+    const first = rows[0];
+    if (
+      !first ||
+      first.ordinal !== 0 ||
+      first.repositorySnapshotId !== primary.repositorySnapshotId ||
+      first.repositoryCommit.toLowerCase() !==
+        primary.repositoryCommit.toLowerCase() ||
+      rows.some((pin, index) => pin.ordinal !== index) ||
+      (input.repositoryCount > 0 && input.repositoryCount !== rows.length)
+    ) {
+      throw notReady;
+    }
+    const extraIds = rows.slice(1).map((pin) => pin.repositorySnapshotId);
+    if (extraIds.length > 0) {
+      const snapshots = await tx.repositorySnapshot.findMany({
+        where: { id: { in: extraIds }, assessmentId: input.assessmentId },
+        select: { id: true, commitSha: true, sourcePathPrefix: true },
+      });
+      const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+      for (const pin of rows.slice(1)) {
+        const snapshot = byId.get(pin.repositorySnapshotId);
+        if (
+          !snapshot ||
+          snapshot.commitSha.toLowerCase() !==
+            pin.repositoryCommit.toLowerCase() ||
+          (snapshot.sourcePathPrefix !== null &&
+            !repositorySourcePathPrefixSchema.safeParse(
+              snapshot.sourcePathPrefix,
+            ).success)
+        ) {
+          throw notReady;
+        }
+      }
+    }
+    const repositories = rows.map((pin) => ({
+      repositoryKey: pin.repositoryKey,
+      ordinal: pin.ordinal,
+      connectionId: pin.connectionId,
+      repositoryId: pin.repositoryId,
+      repositoryFullName: pin.repositoryFullName,
+      repositorySnapshotId: pin.repositorySnapshotId,
+      repositoryScanJobId: pin.repositoryScanJobId,
+      repositoryCommit: pin.repositoryCommit,
+      sourcePathPrefix: pin.sourcePathPrefix,
+    }));
+    if (
+      input.storedDigest !== null &&
+      input.storedDigest !== computeRepositorySetDigest(repositories)
+    ) {
+      throw notReady;
+    }
+    return { repositories, recorded: true };
   }
 
   /**
@@ -411,6 +577,7 @@ export class AssessmentCaseSupport {
         evidenceId: true,
         state: true,
         repositoryCommit: true,
+        repositoryKey: true,
         type: true,
         payload: true,
       },
@@ -421,6 +588,11 @@ export class AssessmentCaseSupport {
         ruleSetVersionId: pins.ruleSetVersionId,
         repositorySnapshotId: pins.repositorySnapshotId,
         repositoryCommit: pins.repositoryCommit,
+        repositorySetDigest: pins.repositorySetDigest,
+        repositories: pins.repositories.map((pin) => ({
+          repositoryKey: pin.repositoryKey,
+          repositoryCommit: pin.repositoryCommit,
+        })),
       },
       rule: rule
         ? {

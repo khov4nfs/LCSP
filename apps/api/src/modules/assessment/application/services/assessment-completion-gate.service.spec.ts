@@ -69,6 +69,8 @@ type Fixture = {
     repositorySnapshotId: string | null;
     repositoryScanJobId: string | null;
     repositoryCommit: string | null;
+    repositorySetDigest: string | null;
+    repositoryCount: number;
     pinnedAt: Date | null;
   };
   ruleSet: {
@@ -84,6 +86,9 @@ type Fixture = {
     commitSha: string;
     sourcePathPrefix: string | null;
     status: string;
+    repositoryId?: string;
+    connectionId?: string;
+    repositoryFullName?: string;
   } | null;
   scanJob: {
     id: string;
@@ -227,6 +232,8 @@ function createFixture() {
       repositorySnapshotId: snapshotId,
       repositoryScanJobId: scanJobId,
       repositoryCommit,
+      repositorySetDigest: null,
+      repositoryCount: 0,
       pinnedAt: new Date(),
     },
     ruleSet: {
@@ -246,6 +253,9 @@ function createFixture() {
       commitSha: repositoryCommit,
       sourcePathPrefix: null,
       status: RepositorySnapshotStatus.READY,
+      repositoryId: "repository-1",
+      connectionId: "connection-1",
+      repositoryFullName: "acme/repository-1",
     },
     scanJob: {
       id: scanJobId,
@@ -364,6 +374,8 @@ function createFixture() {
     assessmentCase: {
       findUnique: () => Promise.resolve(fixture.assessmentCase),
     },
+    // No recorded set rows: the gate reads the case as a set of one derived from its scalar pin.
+    assessmentCaseRepository: { findMany: () => Promise.resolve([]) },
     complianceRuleSetVersion: {
       findUnique: () => Promise.resolve(fixture.ruleSet),
     },
@@ -401,6 +413,10 @@ function createFixture() {
   } as unknown as Prisma.TransactionClient;
 
   const support = {
+    // Real set resolution against the fake transaction; only decision validation is stubbed.
+    loadRepositorySet: (
+      ...args: Parameters<AssessmentCaseSupport["loadRepositorySet"]>
+    ) => new AssessmentCaseSupport().loadRepositorySet(...args),
     buildValidationContext: () =>
       Promise.resolve({
         caseRevision: fixture.assessmentCase.caseRevision,

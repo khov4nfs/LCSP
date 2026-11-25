@@ -23,6 +23,7 @@ import {
   type SubmitRepositoryDiscovery,
 } from "@lcsp/contracts/assessment-domain";
 
+import { withSingleRepositorySet } from "../../fixtures/single-repository-set.js";
 import { AssessmentRepositoryDiscoveryService } from "./assessment-repository-discovery.service.js";
 import type { DiscoveryRuleMatchRule } from "./repository-discovery-rule-matcher.js";
 
@@ -33,7 +34,7 @@ const repositoryId = "repository-1";
 const repositoryCommit = "a".repeat(40);
 const acceptedFactId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-const pins = {
+const pins = withSingleRepositorySet({
   assessmentId,
   caseRevision: 0,
   ruleSetVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -42,7 +43,7 @@ const pins = {
   repositoryScanJobId: "scan-job-1",
   repositoryCommit,
   sourcePathPrefix: "apps/api",
-};
+});
 
 function discovery(
   overrides: Partial<SubmitRepositoryDiscovery> = {},

@@ -136,6 +136,11 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
           assessmentId: input.assessmentId,
           type: request.type,
           repositoryCommit: pins.repositoryCommit,
+          // This handler still accepts evidence for the primary commit only; the key is stored only
+          // when the pin is a recorded row so the (case, key, commit) foreign key always resolves.
+          repositoryKey: pins.repositorySetRecorded
+            ? (pins.repositories[0]?.repositoryKey ?? null)
+            : null,
           contentSha256,
           payload,
         },
