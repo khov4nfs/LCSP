@@ -1,26 +1,27 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import type { Locale } from "@lcsp/contracts/shared/locale";
+import { resolveMessage } from "@lcsp/i18n";
+import {
+  CheckIcon,
+  ClockIcon,
+  CopyIcon,
+  DatabaseIcon,
+  FileTextIcon,
+  ShieldAlertIcon,
+  ShieldCheckIcon
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { resolveMessage } from "@lcsp/i18n";
-import type { Locale } from "@lcsp/contracts/shared/locale";
+import { useEffect, useRef, useState } from "react";
 import { useMarketingLocale } from "./marketing-locale";
-import { 
-  DatabaseIcon, 
-  FileTextIcon, 
-  ShieldAlertIcon, 
-  ShieldCheckIcon, 
-  ClockIcon, 
-  CheckIcon, 
-  CopyIcon 
-} from "lucide-react";
 
 export function FigmaHeroSection() {
   const locale = useMarketingLocale();
   const t = (key: string) => resolveMessage(locale as Locale, key as Parameters<typeof resolveMessage>[1]);
   const [activeScenarioId, setActiveScenarioId] = useState<"retention" | "injection" | "euaiact">("retention");
   const [copied, setCopied] = useState(false);
+  const [inspectEvidenceIndex, setInspectEvidenceIndex] = useState<number | null>(null);
   const heroRef = useRef<HTMLElement>(null);
 
   const handleCopyRepo = () => {
@@ -370,16 +371,41 @@ export function FigmaHeroSection() {
               <div className="my-4 h-px w-full bg-[#435367]" />
 
               <div>
-                <p className="text-[12px] font-semibold tracking-wider text-[#84D49F]">
-                  {t("pages.marketing.home.figmaHeroEvidenceLabel")}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[12px] font-semibold tracking-wider text-[#84D49F]">
+                    {t("pages.marketing.home.figmaHeroEvidenceLabel")}
+                  </p>
+                  <span className="text-[11px] font-mono text-[#84D49F]/80">
+                    {inspectEvidenceIndex !== null ? (locale === "vi" ? "Đang chọn xem vị trí AST" : "AST line pinned") : (locale === "vi" ? "Bấm vào để soi dòng mã" : "Click to inspect")}
+                  </span>
+                </div>
                 <div className="mt-2.5 space-y-2 font-mono text-xs text-slate-100">
-                  <p className="rounded-md bg-black/25 px-3 py-2 border border-white/5">
-                    {activeScenario.evidence1}
-                  </p>
-                  <p className="rounded-md bg-black/25 px-3 py-2 border border-white/5">
-                    {activeScenario.evidence2}
-                  </p>
+                  <div 
+                    onClick={() => setInspectEvidenceIndex(inspectEvidenceIndex === 0 ? null : 0)}
+                    className={`cursor-pointer rounded-md px-3.5 py-2.5 border transition-all duration-200 ${
+                      inspectEvidenceIndex === 0 
+                        ? "bg-[#31BDA7]/20 border-[#31BDA7] text-[#86E8D4] shadow-xs" 
+                        : "bg-black/25 border-white/10 hover:bg-black/40 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{activeScenario.evidence1}</span>
+                      <span className="text-[10px] opacity-75">{inspectEvidenceIndex === 0 ? "✓ PINNED" : "L34-42"}</span>
+                    </div>
+                  </div>
+                  <div 
+                    onClick={() => setInspectEvidenceIndex(inspectEvidenceIndex === 1 ? null : 1)}
+                    className={`cursor-pointer rounded-md px-3.5 py-2.5 border transition-all duration-200 ${
+                      inspectEvidenceIndex === 1 
+                        ? "bg-[#31BDA7]/20 border-[#31BDA7] text-[#86E8D4] shadow-xs" 
+                        : "bg-black/25 border-white/10 hover:bg-black/40 hover:border-white/20"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{activeScenario.evidence2}</span>
+                      <span className="text-[10px] opacity-75">{inspectEvidenceIndex === 1 ? "✓ PINNED" : "L88-95"}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -1,13 +1,38 @@
 "use client";
 
+import { useState } from "react";
 import { useMarketingLocale } from "./marketing-locale";
 import { resolveMessage } from "@lcsp/i18n";
 import type { Locale } from "@lcsp/contracts/shared/locale";
-import { ScaleIcon, LinkIcon, MessageSquareIcon, RotateCcwIcon } from "lucide-react";
+import { ScaleIcon, LinkIcon, MessageSquareIcon, RotateCcwIcon, CheckCircle2Icon } from "lucide-react";
 
 export function FigmaWhySection() {
   const locale = useMarketingLocale();
   const t = (key: string) => resolveMessage(locale as Locale, key as Parameters<typeof resolveMessage>[1]);
+  const [activeBenefitStep, setActiveBenefitStep] = useState<1 | 2 | 3>(3);
+
+  const stepDetails = {
+    1: {
+      tag: "Văn bản luật gốc",
+      title: "Luật Viễn thông & Nghị định 147/2024/NĐ-CP",
+      desc: "Trích xuất điều 24 khoản 1 mục c: Bắt buộc lưu trữ nhật ký dữ liệu người dùng ít nhất 2 năm.",
+      stateBadge: "Yêu cầu nguồn",
+    },
+    2: {
+      tag: "Ngữ cảnh mã nguồn",
+      title: "Repository: acme/notice-service",
+      desc: "Phân tích Abstract Syntax Tree (AST): phát hiện `retention_days = 90` tại `config/retention.py`.",
+      stateBadge: "Trích xuất AST",
+    },
+    3: {
+      tag: "Kết luận & Phán quyết",
+      title: "Xác thực bằng chứng: Chưa tuân thủ",
+      desc: "Thời hạn lưu trữ 90 ngày ngắn hơn mức tối thiểu 2 năm theo luật định. Tạo ngay pull request khắc phục.",
+      stateBadge: "Bằng chứng hoàn chỉnh",
+    },
+  };
+
+  const currentStep = stepDetails[activeBenefitStep];
 
   return (
     <section
@@ -51,16 +76,60 @@ export function FigmaWhySection() {
 
             <div className="mt-8 rounded-lg border border-slate-200 bg-slate-50/80 p-5 font-mono">
               <div className="grid grid-cols-3 gap-2.5 text-center text-xs text-[#48586A]">
-                <div className="rounded-md border border-slate-200 bg-white p-2.5 font-medium shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveBenefitStep(1)}
+                  className={`rounded-md p-2.5 font-medium transition-all duration-200 cursor-pointer ${
+                    activeBenefitStep === 1
+                      ? "border border-[#31BDA7] bg-white text-[#11545B] font-bold shadow-xs scale-102"
+                      : "border border-slate-200 bg-white/70 hover:bg-white text-slate-600"
+                  }`}
+                >
                   {t("pages.marketing.home.whyBenefit1Step1")}
-                </div>
-                <div className="rounded-md border border-slate-200 bg-white p-2.5 font-medium shadow-2xs">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveBenefitStep(2)}
+                  className={`rounded-md p-2.5 font-medium transition-all duration-200 cursor-pointer ${
+                    activeBenefitStep === 2
+                      ? "border border-[#31BDA7] bg-white text-[#11545B] font-bold shadow-xs scale-102"
+                      : "border border-slate-200 bg-white/70 hover:bg-white text-slate-600"
+                  }`}
+                >
                   {t("pages.marketing.home.whyBenefit1Step2")}
-                </div>
-                <div className="rounded-md border border-[#31BDA7]/40 bg-[#31BDA7]/15 p-2.5 text-[#11545B] font-bold shadow-2xs">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveBenefitStep(3)}
+                  className={`rounded-md p-2.5 font-medium transition-all duration-200 cursor-pointer ${
+                    activeBenefitStep === 3
+                      ? "border border-[#31BDA7] bg-[#31BDA7]/15 text-[#11545B] font-bold shadow-xs scale-102"
+                      : "border border-slate-200 bg-white/70 hover:bg-white text-slate-600"
+                  }`}
+                >
                   {t("pages.marketing.home.whyBenefit1Step3")}
-                </div>
+                </button>
               </div>
+
+              {/* Dynamic Interactive Inspection panel */}
+              <div className="mt-4 rounded-md border border-slate-200 bg-white p-3.5 text-left font-sans text-xs transition-all duration-300">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#31BDA7]">
+                    {currentStep.tag}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded bg-[#ECF5F3] px-2 py-0.5 font-mono text-[10px] font-semibold text-[#11545B]">
+                    <CheckCircle2Icon className="size-3 text-[#31BDA7]" />
+                    {currentStep.stateBadge}
+                  </span>
+                </div>
+                <p className="mt-1.5 font-semibold text-[#101C29]">
+                  {currentStep.title}
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#48586A]">
+                  {currentStep.desc}
+                </p>
+              </div>
+
               <p className="mt-4 text-center text-xs font-bold uppercase tracking-wider text-[#11545B]">
                 {t("pages.marketing.home.whyBenefit1Footer")}
               </p>
