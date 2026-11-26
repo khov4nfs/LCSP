@@ -9,6 +9,7 @@ import { ShieldCheckIcon } from "lucide-react";
 import Image from "next/image";
 import { useId, useMemo, useState } from "react";
 
+import { GIT_PROVIDER_LOGOS } from "@/components/molecules/git-provider-identity";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,35 +31,32 @@ import {
   type ProviderCredentialDialogMode,
 } from "../molecules/provider-credential-dialog";
 
-const PROVIDER_LOGOS = {
-  github: "/assets/figma/settings/logo-github.svg",
-  gitlab: "/assets/figma/settings/logo-gitlab.svg",
-  bitbucket: "/assets/figma/settings/logo-bitbucket.svg",
-  azureDevOps: "/assets/figma/settings/logo-azure-devops.svg",
-} as const;
-
+/**
+ * Reuse canonical provider logos from `git-provider-identity` so M14 settings
+ * and M02 repository setup share one Brand asset source.
+ */
 const CONNECTOR_PROVIDER_OPTIONS = [
   {
     id: CREDENTIAL_PROVIDERS.github,
-    logo: PROVIDER_LOGOS.github,
+    logo: GIT_PROVIDER_LOGOS.GITHUB,
     labelKey: "pages.workspace.settingsHub.repositories.githubProvider",
     supported: true,
   },
   {
     id: CREDENTIAL_PROVIDERS.gitlab,
-    logo: PROVIDER_LOGOS.gitlab,
+    logo: GIT_PROVIDER_LOGOS.GITLAB,
     labelKey: "pages.workspace.settingsHub.repositories.gitlabProvider",
     supported: true,
   },
   {
     id: CREDENTIAL_PROVIDERS.bitbucket,
-    logo: PROVIDER_LOGOS.bitbucket,
+    logo: GIT_PROVIDER_LOGOS.BITBUCKET,
     labelKey: "pages.workspace.settingsHub.repositories.bitbucketProvider",
     supported: true,
   },
   {
     id: CREDENTIAL_PROVIDERS.azureDevOps,
-    logo: PROVIDER_LOGOS.azureDevOps,
+    logo: GIT_PROVIDER_LOGOS.AZURE_DEVOPS,
     labelKey: "pages.workspace.settingsHub.repositories.azureDevOpsProvider",
     supported: true,
   },

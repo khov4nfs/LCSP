@@ -3189,6 +3189,118 @@ export const viPages = {
       repositorySetup:
         "Hãy kiểm tra provider credential và quyền truy cập repository, sau đó thử lại.",
     },
+    setupPageTitle: "Hoàn tất thiết lập assessment",
+    setupPageSubtitle:
+      "Kết nối mã nguồn và chuẩn bị assessment trước khi đánh giá các yêu cầu pháp lý.",
+    stepper: {
+      ariaLabel: "Tiến trình thiết lập",
+      step1: "Nhà cung cấp Git",
+      step2: "Kết nối bảo mật",
+      step3: "Nguồn repository",
+      step4: "Quét & kích hoạt",
+      complete: "Hoàn tất",
+      current: "Bước hiện tại",
+      upcoming: "Sắp tới",
+      attention: "Cần chú ý",
+    },
+    stepTitles: {
+      chooseProviderTitle: "Chọn nhà cung cấp Git",
+      chooseProviderSubtitle:
+        "Chọn nơi lưu trữ mã nguồn để cấu hình quyền đọc bảo mật.",
+      secureConnectionTitle: "Kết nối {provider} bảo mật",
+      secureConnectionSubtitle:
+        "Xác minh tài khoản {provider} hoặc token truy cập cá nhân trước khi chọn repository.",
+      chooseRepositoryTitle: "Chọn repository",
+      chooseRepositorySubtitle:
+        "Kết nối {provider} đã được xác minh. Nhập URL repository có quyền truy cập.",
+      connectingTitle: "Đang kết nối repository",
+      connectingSubtitle:
+        "Đang kiểm tra quyền repository, cố định phiên bản mã nguồn và kiểm tra bộ quy tắc tuân thủ.",
+      failedTitle: "Thiết lập repository cần xử lý",
+      failedSubtitle:
+        "Chúng tôi đã giữ lại kết nối và điểm lưu nguồn của bạn. Xem chi tiết bên dưới và thử lại an toàn.",
+      readyTitle: "Assessment của bạn đã sẵn sàng",
+      readySubtitle:
+        "Nguồn repository đã được lưu và bộ quy tắc tuân thủ đã sẵn sàng. Tiếp tục với assessment hiện tại.",
+    },
+    providerCard: {
+      previewTitle: "Nhà cung cấp xem trước",
+      previewBadge: "Chỉ xem trước",
+      previewNotice:
+        "Các nhà cung cấp chỉ xem trước không thể hoàn tất thiết lập repository cho đến khi được bật trong môi trường này.",
+      connectedBadge: "Đã kết nối",
+      needsTokenBadge: "Cần token",
+      selectedProviderLabel: "Nhà cung cấp Git đã chọn",
+    },
+    permissions: {
+      cardTitle: "Quyền truy cập repository",
+      readRequired: "READ",
+      readLabel: "Bắt buộc",
+      writeOptional: "WRITE",
+      writeLabel: "Tùy chọn",
+      checkNoticeTitle: "Quyền truy cập sẽ được kiểm tra trên repository này",
+      checkNoticeBody:
+        "Quyền READ là bắt buộc để tiếp tục. Quyền WRITE là tùy chọn và được kiểm tra riêng.",
+      securityLockNotice:
+        "Thông tin xác thực được mã hóa khi lưu trữ và không bao giờ hiển thị trong báo cáo assessment.",
+    },
+    source: {
+      urlLabel: "URL repository",
+      urlHelper:
+        "Nhập repository mà tài khoản {provider} đã kết nối có quyền truy cập.",
+      pinnedRevisionLabel: "Phiên bản mã nguồn đã cố định",
+      pinnedRevisionDefault:
+        "Nhánh mặc định HEAD (tự động cố định khi kết nối)",
+      connectAction: "Kết nối repository",
+      connectingAction: "Đang kết nối repository...",
+    },
+    actions: {
+      continue: "Tiếp tục",
+      back: "Quay lại",
+      openAssessment: "Mở assessment",
+      retrySafe: "Thử lại thiết lập",
+      changeCredential: "Quản lý credential",
+    },
+    statusRows: {
+      connectionSaved: "Đã lưu kết nối repository",
+      sourceRetained: "Đã giữ điểm lưu mã nguồn",
+      rulesAvailable: "Bộ quy tắc tuân thủ sẵn sàng",
+      rulesWaiting: "Đang chờ bộ quy tắc tuân thủ",
+      setupFailed: "Không thể hoàn tất thiết lập",
+      checkingAccess: "Đang kiểm tra quyền repository",
+      pinningSource: "Đang cố định phiên bản mã nguồn",
+      doneBadge: "Xong",
+      readyBadge: "Sẵn sàng",
+      waitingBadge: "Đang chờ",
+      failedBadge: "Thiết lập thất bại",
+      inProgressBadge: "Đang xử lý",
+      progressRetained: "Tiến trình thiết lập của bạn được giữ lại.",
+      retrySafeNoticeTitle: "Thử lại an toàn",
+      retrySafeNoticeBody:
+        "Kết nối repository và điểm lưu mã nguồn đã lưu vẫn được giữ nguyên.",
+      nextStepTitle: "Bước tiếp theo",
+      nextStepBody:
+        "Mở không gian làm việc findings để đánh giá các yêu cầu pháp lý đã chọn.",
+    },
+    summary: {
+      title: "Tóm tắt assessment",
+      statusPreparing: "Đang chuẩn bị",
+      statusWaiting: "Đang chờ",
+      statusAttention: "Cần chú ý",
+      statusReady: "Sẵn sàng",
+      providerLabel: "Nhà cung cấp Git",
+      providerUnselected: "Chưa chọn",
+      repositoryLabel: "Repository",
+      repositoryUnselected: "Chưa kết nối",
+      rulesLabel: "Quy tắc tuân thủ",
+      rulesPending: "Chờ kiểm tra",
+      rulesReady: "Sẵn sàng",
+      rulesBlocked: "Chờ kích hoạt",
+      whatNextTitle: "Tiếp theo sẽ làm gì?",
+      whatNextBody:
+        "Xem xét các quy tắc áp dụng, findings và bằng chứng trong không gian làm việc assessment.",
+      disclaimer: "Trạng thái thiết lập không phải là kết quả tuân thủ pháp lý.",
+    },
   },
   assessmentForm: {
     pageTitle: "Tạo assessment",

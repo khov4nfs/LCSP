@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { resolveGitProviderLabel } from "@/components/molecules/git-provider-identity";
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
 import type { ConfirmAccessOtpValues } from "@/components/schemas/confirm-access-dialog.schema";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,10 +31,6 @@ import {
   ProviderCredentialDialog,
   type ProviderCredentialDialogMode,
 } from "@/features/settings/components/molecules/provider-credential-dialog";
-import { AgentTurn } from "@/features/workspace/components/molecules/agent-turn";
-import { TurnFooter } from "@/features/workspace/components/molecules/turn-footer";
-import { AssessmentComposer } from "@/features/workspace/components/organisms/assessment-composer";
-import { AssessmentTranscript } from "@/features/workspace/components/organisms/assessment-transcript";
 import {
   useRepositorySetupQuery,
   assessmentDomainKeys,
@@ -60,13 +57,38 @@ import {
 import { useCreateAssessmentMutation } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 
+import { GIT_PROVIDER_OPTIONS } from "../../config/git-provider-options";
 import {
   repositorySetupSchema,
   type RepositorySetupFormData,
 } from "../../schemas/repository-setup.schema";
 import type { GitProviderValue } from "../../types/assessment-flow.types";
 import { deriveRepositorySetupAnswer } from "../../utils/repository-setup-history";
-import { RepositorySetupConversation } from "./repository-setup-conversation";
+import { GitProviderCard } from "../molecules/git-provider-card";
+import { RepositoryPicker } from "../molecules/repository-picker";
+import { SecureConnectionForm } from "../molecules/secure-connection-form";
+import {
+  SetupStatusPanel,
+  SETUP_STATUS_ROW_TONES,
+  type SetupStatusRowItem,
+} from "../molecules/setup-status-panel";
+import {
+  SETUP_STEP_STATES,
+  type SetupStepperItem,
+} from "../molecules/setup-stepper";
+import {
+  RepositorySetupLayout,
+  SETUP_HEADER_TONES,
+  SUMMARY_STATUS_TONES,
+} from "./repository-setup-layout";
+
+const WIZARD_STEPS = {
+  provider: "provider",
+  connection: "connection",
+  repository: "repository",
+} as const;
+
+type WizardStep = (typeof WIZARD_STEPS)[keyof typeof WIZARD_STEPS];
 
 type RepositorySetupStepProps = {
   assessmentId?: string;
@@ -302,133 +324,386 @@ export function RepositorySetupStep({
       }
     }
   }
+  const [wizardStep, setWizardStep] = useState<WizardStep>(WIZARD_STEPS.provider);
   const handleSubmit = form.handleSubmit((data) => runSetup(data));
+
+  const providerAvailability = Object.fromEntries(
+    (credentialStatuses.data ?? []).map((status) => [
+      status.provider,
+      (status.enabled ??
+        (status.provider === CREDENTIAL_PROVIDERS.github ||
+          status.provider === CREDENTIAL_PROVIDERS.gitlab)) &&
+        status.available !== false,
+    ]),
+  );
+
+  const selectedProvider =
+    (savedAnswer?.provider as AssessmentRepositoryProvider | undefined) ??
+    (provider ? (provider as AssessmentRepositoryProvider) : null);
+
+  const selectedProviderEnabled = selectedProvider
+    ? (providerAvailability[toCredentialProvider(selectedProvider) ?? ""] ??
+      providerEnabled)
+    : false;
+
+  const isStatusView =
+    Boolean(savedConnection) || waitingForRules || isSubmitting;
+  const hasSetupError = Boolean(activeErrorKey);
+
+  const stepperItems: SetupStepperItem[] = [
+    {
+      id: "provider",
+      label: t("pages.assessmentFlow.stepper.step1"),
+      state:
+        isStatusView ||
+        (selectedProvider && wizardStep !== WIZARD_STEPS.provider)
+          ? SETUP_STEP_STATES.complete
+          : SETUP_STEP_STATES.current,
+    },
+    {
+      id: "connection",
+      label: t("pages.assessmentFlow.stepper.step2"),
+      state:
+        isStatusView ||
+        (wizardStep === WIZARD_STEPS.repository && credentialConfigured)
+          ? SETUP_STEP_STATES.complete
+          : wizardStep === WIZARD_STEPS.connection
+            ? SETUP_STEP_STATES.current
+            : SETUP_STEP_STATES.upcoming,
+    },
+    {
+      id: "repository",
+      label: t("pages.assessmentFlow.stepper.step3"),
+      state: isStatusView
+        ? SETUP_STEP_STATES.complete
+        : wizardStep === WIZARD_STEPS.repository
+          ? SETUP_STEP_STATES.current
+          : SETUP_STEP_STATES.upcoming,
+    },
+    {
+      id: "activation",
+      label: t("pages.assessmentFlow.stepper.step4"),
+      state: isStatusView
+        ? hasSetupError
+          ? SETUP_STEP_STATES.attention
+          : SETUP_STEP_STATES.current
+        : SETUP_STEP_STATES.upcoming,
+    },
+  ];
+
+  const statusRows: SetupStatusRowItem[] = isStatusView
+    ? [
+        {
+          id: "connection-saved",
+          label: t("pages.assessmentFlow.statusRows.connectionSaved"),
+          context: selectedProvider
+            ? resolveGitProviderLabel(selectedProvider)
+            : t("pages.assessmentFlow.summary.providerUnselected"),
+          badgeLabel: t("pages.assessmentFlow.statusRows.doneBadge"),
+          tone: SETUP_STATUS_ROW_TONES.success,
+        },
+        {
+          id: "source-checkpoint",
+          label: isSubmitting
+            ? t("pages.assessmentFlow.statusRows.pinningSource")
+            : t("pages.assessmentFlow.statusRows.sourceRetained"),
+          context:
+            savedAnswer?.repositoryUrl ??
+            (repositoryUrl.trim() ||
+              t("pages.assessmentFlow.summary.repositoryUnselected")),
+          badgeLabel: isSubmitting
+            ? t("pages.assessmentFlow.statusRows.inProgressBadge")
+            : t("pages.assessmentFlow.statusRows.doneBadge"),
+          tone: isSubmitting
+            ? SETUP_STATUS_ROW_TONES.info
+            : SETUP_STATUS_ROW_TONES.success,
+        },
+        {
+          id: "rules-check",
+          label: hasSetupError
+            ? t("pages.assessmentFlow.statusRows.setupFailed")
+            : waitingForRules
+              ? t("pages.assessmentFlow.statusRows.rulesWaiting")
+              : t("pages.assessmentFlow.statusRows.checkingAccess"),
+          context: hasSetupError
+            ? t(activeErrorKey!)
+            : waitingForRules
+              ? t("pages.assessmentFlow.waitingForRulesDescription")
+              : t("pages.assessmentFlow.stepTitles.connectingSubtitle"),
+          badgeLabel: hasSetupError
+            ? t("pages.assessmentFlow.statusRows.failedBadge")
+            : waitingForRules
+              ? t("pages.assessmentFlow.statusRows.waitingBadge")
+              : t("pages.assessmentFlow.statusRows.inProgressBadge"),
+          tone: hasSetupError
+            ? SETUP_STATUS_ROW_TONES.danger
+            : waitingForRules
+              ? SETUP_STATUS_ROW_TONES.warning
+              : SETUP_STATUS_ROW_TONES.info,
+        },
+      ]
+    : [];
+
+  const providerLabel = selectedProvider
+    ? resolveGitProviderLabel(selectedProvider)
+    : t("pages.assessmentFlow.providers.github");
+
+  const stepTitle = isStatusView
+    ? hasSetupError
+      ? t("pages.assessmentFlow.stepTitles.failedTitle")
+      : waitingForRules
+        ? t("pages.assessmentFlow.waitingForRulesTitle")
+        : isSubmitting
+          ? t("pages.assessmentFlow.stepTitles.connectingTitle")
+          : t("pages.assessmentFlow.resumeSetup")
+    : wizardStep === WIZARD_STEPS.connection
+      ? resolveMessage(
+          appLocale,
+          "pages.assessmentFlow.stepTitles.secureConnectionTitle",
+        ).replace("{provider}", providerLabel)
+      : wizardStep === WIZARD_STEPS.repository
+        ? t("pages.assessmentFlow.stepTitles.chooseRepositoryTitle")
+        : t("pages.assessmentFlow.stepTitles.chooseProviderTitle");
+
+  const stepSubtitle = isStatusView
+    ? hasSetupError
+      ? t("pages.assessmentFlow.stepTitles.failedSubtitle")
+      : waitingForRules
+        ? t("pages.assessmentFlow.waitingForRulesDescription")
+        : isSubmitting
+          ? t("pages.assessmentFlow.stepTitles.connectingSubtitle")
+          : t("pages.assessmentFlow.resumeSetupDescription")
+    : wizardStep === WIZARD_STEPS.connection
+      ? resolveMessage(
+          appLocale,
+          "pages.assessmentFlow.stepTitles.secureConnectionSubtitle",
+        ).replace("{provider}", providerLabel)
+      : wizardStep === WIZARD_STEPS.repository
+        ? resolveMessage(
+            appLocale,
+            "pages.assessmentFlow.stepTitles.chooseRepositorySubtitle",
+          ).replace("{provider}", providerLabel)
+        : t("pages.assessmentFlow.stepTitles.chooseProviderSubtitle");
+
+  const summaryStatusLabel = hasSetupError
+    ? t("pages.assessmentFlow.summary.statusAttention")
+    : waitingForRules
+      ? t("pages.assessmentFlow.summary.statusWaiting")
+      : t("pages.assessmentFlow.summary.statusPreparing");
+
+  const summaryStatusTone = hasSetupError
+    ? SUMMARY_STATUS_TONES.danger
+    : waitingForRules
+      ? SUMMARY_STATUS_TONES.warning
+      : SUMMARY_STATUS_TONES.info;
+
+  const assessmentTitle =
+    assessmentNameFromUrl(
+      savedAnswer?.repositoryUrl ?? repositoryUrl.trim(),
+    ) ?? t("pages.assessmentFlow.setupPageTitle");
 
   return (
     <main
-      className="flex h-full min-h-0 flex-col"
+      className="flex h-full min-h-0 flex-col overflow-y-auto"
       data-surface="repository-setup"
     >
-      <AssessmentTranscript
-        autoScrollKey={[provider, activeErrorKey].join(":")}
+      <RepositorySetupLayout
+        steps={stepperItems}
+        stepTitle={stepTitle}
+        stepSubtitle={stepSubtitle}
+        headerTone={
+          isStatusView && hasSetupError
+            ? SETUP_HEADER_TONES.danger
+            : SETUP_HEADER_TONES.brand
+        }
+        assessmentTitle={assessmentTitle}
+        summaryStatusLabel={summaryStatusLabel}
+        summaryStatusTone={summaryStatusTone}
+        provider={selectedProvider}
+        repositoryLabel={
+          savedAnswer?.repositoryUrl ?? (repositoryUrl.trim() || null)
+        }
+        rulesLabel={
+          waitingForRules
+            ? t("pages.assessmentFlow.summary.rulesBlocked")
+            : t("pages.assessmentFlow.summary.rulesPending")
+        }
       >
-        <RepositorySetupConversation
-          provider={savedAnswer?.provider ?? provider}
-          repositoryUrl={
-            savedAnswer?.repositoryUrl ??
-            (isSubmitting ? repositoryUrl.trim() : undefined)
-          }
-          onProviderChange={(value) => {
-            form.setValue("provider", value, { shouldValidate: true });
-            form.setValue("repositoryUrl", "");
-            form.clearErrors();
-            setSubmitErrorKey(undefined);
-          }}
-          disabled={isSubmitting || Boolean(savedConnection)}
-          providerAvailability={Object.fromEntries(
-            (credentialStatuses.data ?? []).map((status) => [
-              status.provider,
-              (status.enabled ??
-                (status.provider === CREDENTIAL_PROVIDERS.github ||
-                  status.provider === CREDENTIAL_PROVIDERS.gitlab)) &&
-                status.available !== false,
-            ]),
-          )}
-          providerTemporarilyUnavailable={Object.fromEntries(
-            (credentialStatuses.data ?? []).map((status) => [
-              status.provider,
-              status.enabled === true && status.available === false,
-            ]),
-          )}
-          footer={
-            !savedConnection &&
-            provider &&
-            credentialProvider &&
-            !credentialConfigured ? (
-              <TurnFooter
-                actions={[
-                  {
-                    id: "configure-provider",
-                    label: t("pages.assessmentFlow.configureProvider"),
-                    onSelect: () => {
-                      setCredentialDialogMode(
-                        PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
-                      );
-                      setCredentialDialogOpen(true);
-                    },
-                  },
-                ]}
-              />
-            ) : undefined
-          }
-        />
-        {waitingForRules ? (
-          <AgentTurn>
-            <Alert role="status">
-              <AlertTitle>
-                {t("pages.assessmentFlow.waitingForRulesTitle")}
-              </AlertTitle>
-              <AlertDescription>
-                {t("pages.assessmentFlow.waitingForRulesDescription")}
-              </AlertDescription>
-            </Alert>
-          </AgentTurn>
-        ) : null}
-        {activeErrorKey ? (
-          <AgentTurn>
+        <div className="space-y-4">
+          {activeErrorKey && !isStatusView ? (
             <Alert variant="destructive">
               <AlertTitle>{t("pages.assessmentFlow.errors.title")}</AlertTitle>
               <AlertDescription>{t(activeErrorKey)}</AlertDescription>
             </Alert>
-          </AgentTurn>
-        ) : null}
-      </AssessmentTranscript>
-      {savedConnection ? (
-        <div className="flex shrink-0 items-center justify-between gap-4 border-t p-4">
-          <p className="text-sm text-muted-foreground">
-            {t("pages.assessmentFlow.resumeSetupDescription")}
-          </p>
-          <Button disabled={isSubmitting} onClick={() => void runSetup()}>
-            {t(
-              isSubmitting
-                ? "pages.assessmentFlow.resumingSetup"
-                : "pages.assessmentFlow.resumeSetup",
-            )}
-          </Button>
-          {savedAnswer ? (
-            <Button
-              variant="outline"
-              disabled={isSubmitting}
-              onClick={() => void runSetup(savedAnswer, true)}
-            >
-              {t("pages.assessmentFlow.reauthorizeRepository")}
-            </Button>
           ) : null}
-        </div>
-      ) : (
-        <AssessmentComposer
-          value={repositoryUrl}
-          onValueChange={(value) => {
-            form.setValue("repositoryUrl", value);
-            if (submitErrorKey) setSubmitErrorKey(undefined);
-          }}
-          onSubmit={handleSubmit}
-          disabled={
-            !canEnterRepository || Boolean(workingAssessmentId && !setupState)
-          }
-          submitting={isSubmitting}
-          placeholder={t(
-            canEnterRepository
-              ? "pages.assessmentFlow.repositoryPlaceholder"
-              : "pages.assessmentFlow.repositoryDisabledPlaceholder",
+
+          {isStatusView ? (
+            <div className="space-y-4">
+              <SetupStatusPanel
+                rows={statusRows}
+                noticeTitle={
+                  hasSetupError
+                    ? t("pages.assessmentFlow.statusRows.retrySafeNoticeTitle")
+                    : undefined
+                }
+                noticeBody={
+                  hasSetupError
+                    ? t("pages.assessmentFlow.statusRows.retrySafeNoticeBody")
+                    : undefined
+                }
+                noticeTone={
+                  hasSetupError
+                    ? SETUP_STATUS_ROW_TONES.warning
+                    : SETUP_STATUS_ROW_TONES.info
+                }
+              />
+
+              <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+                {savedConnection ? (
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => void runSetup()}
+                  >
+                    {t(
+                      isSubmitting
+                        ? "pages.assessmentFlow.resumingSetup"
+                        : hasSetupError
+                          ? "pages.assessmentFlow.actions.retrySafe"
+                          : "pages.assessmentFlow.resumeSetup",
+                    )}
+                  </Button>
+                ) : null}
+                {savedAnswer ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={() => void runSetup(savedAnswer, true)}
+                  >
+                    {t("pages.assessmentFlow.reauthorizeRepository")}
+                  </Button>
+                ) : null}
+                {workingAssessmentId && !setupState && !setupQuery.isFetching ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void setupQuery.refetch()}
+                  >
+                    {t("pages.assessmentFlow.retrySetupState")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : wizardStep === WIZARD_STEPS.connection && selectedProvider ? (
+            <SecureConnectionForm
+              provider={selectedProvider}
+              connected={credentialConfigured}
+              previewOnly={!selectedProviderEnabled}
+              onConfigureCredential={() => {
+                setCredentialDialogMode(PROVIDER_CREDENTIAL_DIALOG_MODES.connect);
+                setCredentialDialogOpen(true);
+              }}
+              onContinue={() => setWizardStep(WIZARD_STEPS.repository)}
+              onBack={() => setWizardStep(WIZARD_STEPS.provider)}
+            />
+          ) : wizardStep === WIZARD_STEPS.repository && selectedProvider ? (
+            <form onSubmit={handleSubmit}>
+              <RepositoryPicker
+                control={form.control}
+                provider={selectedProvider}
+                connected={credentialConfigured}
+                previewOnly={!selectedProviderEnabled}
+                canEnterRepository={
+                  canEnterRepository &&
+                  !(Boolean(workingAssessmentId) && !setupState)
+                }
+                isSubmitting={isSubmitting}
+                pinnedCommitSha={null}
+                errorMessage={
+                  form.formState.errors.repositoryUrl?.message
+                    ? t("pages.assessmentFlow.errors.repositoryUrl")
+                    : undefined
+                }
+                onManageCredential={() => {
+                  setCredentialDialogMode(
+                    PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
+                  );
+                  setCredentialDialogOpen(true);
+                }}
+                onBack={() => setWizardStep(WIZARD_STEPS.connection)}
+              />
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {GIT_PROVIDER_OPTIONS.map((option) => {
+                  const credProvider = toCredentialProvider(option.id);
+                  const status = credProvider
+                    ? credentialStatuses.data?.find(
+                        (item) => item.provider === credProvider,
+                      )
+                    : undefined;
+                  const enabled = credProvider
+                    ? (providerAvailability[credProvider] ?? false)
+                    : false;
+                  const connected = Boolean(status?.configured);
+
+                  return (
+                    <GitProviderCard
+                      key={option.id}
+                      provider={option.id}
+                      hostname={option.hostname}
+                      selected={selectedProvider === option.id}
+                      connected={connected}
+                      enabled={enabled}
+                      onSelect={(nextProvider) => {
+                        form.setValue("provider", nextProvider, {
+                          shouldValidate: true,
+                        });
+                        form.setValue("repositoryUrl", "");
+                        form.clearErrors();
+                        setSubmitErrorKey(undefined);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {selectedProvider && !selectedProviderEnabled ? (
+                <p className="rounded-lg border border-status-warning-border bg-status-warning-bg px-3.5 py-2.5 text-xs text-status-warning">
+                  {t("pages.assessmentFlow.providerCard.previewNotice")}
+                </p>
+              ) : null}
+
+              <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+                <Button
+                  type="button"
+                  disabled={!selectedProvider || !selectedProviderEnabled}
+                  onClick={() =>
+                    setWizardStep(
+                      credentialConfigured
+                        ? WIZARD_STEPS.repository
+                        : WIZARD_STEPS.connection,
+                    )
+                  }
+                >
+                  {t("pages.assessmentFlow.actions.continue")}
+                </Button>
+                {workingAssessmentId && !setupState && !setupQuery.isFetching ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void setupQuery.refetch()}
+                  >
+                    {t("pages.assessmentFlow.retrySetupState")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
           )}
-        />
-      )}
-      {workingAssessmentId && !setupState && !setupQuery.isFetching ? (
-        <Button variant="outline" onClick={() => void setupQuery.refetch()}>
-          {t("pages.assessmentFlow.retrySetupState")}
-        </Button>
-      ) : null}
+        </div>
+      </RepositorySetupLayout>
       {credentialProvider ? (
         <ProviderCredentialDialog
           mode={credentialDialogMode}
