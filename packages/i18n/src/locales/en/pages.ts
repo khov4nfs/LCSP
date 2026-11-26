@@ -3181,6 +3181,118 @@ export const enPages = {
       repositorySetup:
         "Check the provider credential and repository access, then try again.",
     },
+    setupPageTitle: "Complete assessment setup",
+    setupPageSubtitle:
+      "Connect the source and prepare the assessment before evaluating legal requirements.",
+    stepper: {
+      ariaLabel: "Setup progress",
+      step1: "Git provider",
+      step2: "Secure connection",
+      step3: "Repository source",
+      step4: "Scan & activation",
+      complete: "Complete",
+      current: "Current step",
+      upcoming: "Upcoming",
+      attention: "Needs attention",
+    },
+    stepTitles: {
+      chooseProviderTitle: "Choose your Git provider",
+      chooseProviderSubtitle:
+        "Select where your source repository is hosted to configure secure read access.",
+      secureConnectionTitle: "Connect {provider} securely",
+      secureConnectionSubtitle:
+        "Verify your {provider} account or personal access token before choosing a repository.",
+      chooseRepositoryTitle: "Choose your repository",
+      chooseRepositorySubtitle:
+        "Your {provider} connection is verified. Enter an accessible repository URL.",
+      connectingTitle: "Connecting repository",
+      connectingSubtitle:
+        "Verifying repository permissions, pinning source revision, and checking compliance rules.",
+      failedTitle: "Repository setup needs attention",
+      failedSubtitle:
+        "We kept your saved connection and source checkpoint. Review the details below and retry safely.",
+      readyTitle: "Your assessment is ready",
+      readySubtitle:
+        "Repository source saved and compliance rules available. Continue with the existing assessment.",
+    },
+    providerCard: {
+      previewTitle: "Preview-only providers",
+      previewBadge: "Preview only",
+      previewNotice:
+        "Preview-only provider paths cannot complete backend repository setup until enabled in this deployment.",
+      connectedBadge: "Connected",
+      needsTokenBadge: "Needs token",
+      selectedProviderLabel: "Selected Git provider",
+    },
+    permissions: {
+      cardTitle: "Repository permissions",
+      readRequired: "READ",
+      readLabel: "Required",
+      writeOptional: "WRITE",
+      writeLabel: "Optional",
+      checkNoticeTitle: "Access will be checked against this repository",
+      checkNoticeBody:
+        "READ is required to proceed. WRITE is optional and checked separately.",
+      securityLockNotice:
+        "Credentials are encrypted at rest and never exposed in assessment reports.",
+    },
+    source: {
+      urlLabel: "Repository URL",
+      urlHelper:
+        "Enter a repository accessible to your connected {provider} account.",
+      pinnedRevisionLabel: "Pinned source revision",
+      pinnedRevisionDefault:
+        "Default branch HEAD (pinned automatically on connect)",
+      connectAction: "Connect repository",
+      connectingAction: "Connecting repository...",
+    },
+    actions: {
+      continue: "Continue",
+      back: "Back",
+      openAssessment: "Open assessment",
+      retrySafe: "Retry setup",
+      changeCredential: "Manage credential",
+    },
+    statusRows: {
+      connectionSaved: "Repository connection saved",
+      sourceRetained: "Source checkpoint retained",
+      rulesAvailable: "Compliance rules available",
+      rulesWaiting: "Waiting for compliance rules",
+      setupFailed: "Setup could not be completed",
+      checkingAccess: "Verifying repository access",
+      pinningSource: "Pinning source revision",
+      doneBadge: "Done",
+      readyBadge: "Ready",
+      waitingBadge: "Waiting",
+      failedBadge: "Setup failed",
+      inProgressBadge: "In progress",
+      progressRetained: "Your setup progress is retained.",
+      retrySafeNoticeTitle: "Retry safely",
+      retrySafeNoticeBody:
+        "Your saved repository connection and source checkpoint remain intact.",
+      nextStepTitle: "Next step",
+      nextStepBody:
+        "Open the findings workspace to assess selected legal requirements.",
+    },
+    summary: {
+      title: "Assessment summary",
+      statusPreparing: "Preparing",
+      statusWaiting: "Waiting",
+      statusAttention: "Needs attention",
+      statusReady: "Ready",
+      providerLabel: "Git provider",
+      providerUnselected: "Not selected yet",
+      repositoryLabel: "Repository",
+      repositoryUnselected: "Not connected yet",
+      rulesLabel: "Compliance rules",
+      rulesPending: "Pending check",
+      rulesReady: "Available",
+      rulesBlocked: "Awaiting activation",
+      whatNextTitle: "What happens next?",
+      whatNextBody:
+        "Review applicable rules, findings and evidence in the assessment workspace.",
+      disclaimer: "Setup status is not a legal compliance result.",
+    },
   },
   assessmentForm: {
     pageTitle: "Create assessment",

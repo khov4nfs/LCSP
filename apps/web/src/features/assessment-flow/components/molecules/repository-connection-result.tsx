@@ -3,16 +3,16 @@ import { ASSESSMENT_REPOSITORY_PROVIDERS } from "@lcsp/contracts/assessment";
 import { GitBranchIcon } from "lucide-react";
 import Image from "next/image";
 
+import { GIT_PROVIDER_LOGOS } from "@/components/molecules/git-provider-identity";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 import type { RepositoryHistory } from "../../types/assessment-flow.types";
 
+/** Reuse canonical Figma provider logo assets from shared `git-provider-identity`. */
 const PROVIDER_LOGOS = {
-  [ASSESSMENT_REPOSITORY_PROVIDERS.github]:
-    "/assets/figma/settings/logo-github.svg",
-  [ASSESSMENT_REPOSITORY_PROVIDERS.gitlab]:
-    "/assets/figma/settings/logo-gitlab.svg",
+  [ASSESSMENT_REPOSITORY_PROVIDERS.github]: GIT_PROVIDER_LOGOS.GITHUB,
+  [ASSESSMENT_REPOSITORY_PROVIDERS.gitlab]: GIT_PROVIDER_LOGOS.GITLAB,
 } as const;
 
 type RepositoryConnectionResultProps = RepositoryHistory & {

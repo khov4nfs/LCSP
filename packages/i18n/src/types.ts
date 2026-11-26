@@ -3162,6 +3162,103 @@ export type PagesMessages = {
       createAssessment: string;
       repositorySetup: string;
     };
+    setupPageTitle: string;
+    setupPageSubtitle: string;
+    stepper: {
+      ariaLabel: string;
+      step1: string;
+      step2: string;
+      step3: string;
+      step4: string;
+      complete: string;
+      current: string;
+      upcoming: string;
+      attention: string;
+    };
+    stepTitles: {
+      chooseProviderTitle: string;
+      chooseProviderSubtitle: string;
+      secureConnectionTitle: string;
+      secureConnectionSubtitle: string;
+      chooseRepositoryTitle: string;
+      chooseRepositorySubtitle: string;
+      connectingTitle: string;
+      connectingSubtitle: string;
+      failedTitle: string;
+      failedSubtitle: string;
+      readyTitle: string;
+      readySubtitle: string;
+    };
+    providerCard: {
+      previewTitle: string;
+      previewBadge: string;
+      previewNotice: string;
+      connectedBadge: string;
+      needsTokenBadge: string;
+      selectedProviderLabel: string;
+    };
+    permissions: {
+      cardTitle: string;
+      readRequired: string;
+      readLabel: string;
+      writeOptional: string;
+      writeLabel: string;
+      checkNoticeTitle: string;
+      checkNoticeBody: string;
+      securityLockNotice: string;
+    };
+    source: {
+      urlLabel: string;
+      urlHelper: string;
+      pinnedRevisionLabel: string;
+      pinnedRevisionDefault: string;
+      connectAction: string;
+      connectingAction: string;
+    };
+    actions: {
+      continue: string;
+      back: string;
+      openAssessment: string;
+      retrySafe: string;
+      changeCredential: string;
+    };
+    statusRows: {
+      connectionSaved: string;
+      sourceRetained: string;
+      rulesAvailable: string;
+      rulesWaiting: string;
+      setupFailed: string;
+      checkingAccess: string;
+      pinningSource: string;
+      doneBadge: string;
+      readyBadge: string;
+      waitingBadge: string;
+      failedBadge: string;
+      inProgressBadge: string;
+      progressRetained: string;
+      retrySafeNoticeTitle: string;
+      retrySafeNoticeBody: string;
+      nextStepTitle: string;
+      nextStepBody: string;
+    };
+    summary: {
+      title: string;
+      statusPreparing: string;
+      statusWaiting: string;
+      statusAttention: string;
+      statusReady: string;
+      providerLabel: string;
+      providerUnselected: string;
+      repositoryLabel: string;
+      repositoryUnselected: string;
+      rulesLabel: string;
+      rulesPending: string;
+      rulesReady: string;
+      rulesBlocked: string;
+      whatNextTitle: string;
+      whatNextBody: string;
+      disclaimer: string;
+    };
   };
   assessmentForm: {
     pageTitle: string;

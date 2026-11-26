@@ -27,7 +27,7 @@ test("new assessment page creates through the canonical form and repository setu
 
   assert.match(page, /CreateAssessmentForm/);
   assert.doesNotMatch(page, /RepositorySetupStep/);
-  assert.match(setup, /RepositorySetupConversation/);
+  assert.match(setup, /RepositorySetupLayout/);
   assert.match(setup, /ProviderCredentialDialog/);
   assert.match(setup, /ConfirmAccessDialog/);
   assert.match(setup, /onReauthenticate/);
@@ -37,7 +37,7 @@ test("new assessment page creates through the canonical form and repository setu
   );
   assert.match(setup, /connectAssessmentRepository/);
   assert.match(setup, /startRepositoryAnalysis/);
-  assert.match(setup, /AssessmentComposer/);
+  assert.match(setup, /RepositoryPicker/);
 });
 
 test("repository setup accepts only valid repository URLs matching supported provider rules", () => {
@@ -127,7 +127,7 @@ test("repository history row uses provider and commit icons without repeating th
 
   assert.match(source, /data-slot="repository-connection-result"/);
   assert.match(source, /next\/image/);
-  assert.match(source, /\/assets\/figma\/settings\/logo-github\.svg/);
+  assert.match(source, /GIT_PROVIDER_LOGOS/);
   assert.match(source, /GitBranchIcon/);
   assert.match(source, /repositoryFullName/);
   assert.match(source, /commitSha\.slice\(0, 12\)/);
