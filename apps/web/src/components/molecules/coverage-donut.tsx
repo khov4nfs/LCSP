@@ -76,9 +76,8 @@ export function CoverageDonut({
           cy={center}
           r={radius}
           fill="transparent"
-          stroke={isDark ? "#365862" : "currentColor"}
           strokeWidth={strokeWidth}
-          className={isDark ? undefined : "text-muted"}
+          className={isDark ? "stroke-bento-border" : "stroke-muted"}
         />
         {arcs.map((arc) => (
           <circle
@@ -101,7 +100,7 @@ export function CoverageDonut({
         <span
           className={cn(
             "text-3xl leading-none font-semibold tabular-nums tracking-tight",
-            isDark ? "text-[#f3fdfc]" : "text-foreground",
+            isDark ? "text-bento-heading" : "text-foreground",
           )}
         >
           {centerValue}
@@ -109,7 +108,7 @@ export function CoverageDonut({
         <span
           className={cn(
             "mt-1 text-xs leading-tight",
-            isDark ? "text-[#c9e2e6]" : "text-muted-foreground",
+            isDark ? "text-bento-foreground" : "text-muted-foreground",
           )}
         >
           {centerLabel}

@@ -456,12 +456,36 @@ test("app sidebar exposes the Figma sidebar item state contracts", async () => {
 });
 
 test("assessment sidebar items reveal a three-dot actions popover with rename and delete", async () => {
-  const [recentItemSource, actionsSource, workspaceClientSource] =
-    await Promise.all([
-      readFile(recentAssessmentItemPath, "utf8"),
-      readFile(assessmentActionsMenuPath, "utf8"),
-      readFile(workspaceClientPath, "utf8"),
-    ]);
+  const [
+    recentItemSource,
+    actionsSource,
+    renameDialogSource,
+    deleteDialogSource,
+    workspaceClientSource,
+  ] = await Promise.all([
+    readFile(recentAssessmentItemPath, "utf8"),
+    readFile(assessmentActionsMenuPath, "utf8"),
+    readFile(
+      new URL(
+        "../src/features/workspace/components/molecules/rename-assessment-dialog.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../src/features/workspace/components/molecules/delete-assessment-dialog.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    readFile(workspaceClientPath, "utf8"),
+  ]);
+  const combinedActions = [
+    actionsSource,
+    renameDialogSource,
+    deleteDialogSource,
+  ].join("\n");
 
   assert.match(recentItemSource, /AssessmentActionsMenu/);
   assert.match(actionsSource, /MoreHorizontalIcon/);
@@ -472,8 +496,8 @@ test("assessment sidebar items reveal a three-dot actions popover with rename an
   assert.match(actionsSource, /PencilIcon/);
   assert.match(actionsSource, /Trash2Icon/);
   assert.match(actionsSource, /variant="destructive"/);
-  assert.match(actionsSource, /useRenameAssessmentMutation/);
-  assert.match(actionsSource, /useDeleteAssessmentMutation/);
+  assert.match(combinedActions, /useRenameAssessmentMutation/);
+  assert.match(combinedActions, /useDeleteAssessmentMutation/);
   assert.match(workspaceClientSource, /method: "PATCH"/);
   assert.match(workspaceClientSource, /method: "DELETE"/);
 });

@@ -93,7 +93,7 @@ export function WorkspaceDashboard() {
             {workspace && canCreateAssessment(workspace.user.role) ? (
               <Button
                 type="button"
-                className="bg-[#123e46] text-white hover:bg-[#0e3138]"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => router.push("/assessments/new")}
               >
                 {resolveMessage(

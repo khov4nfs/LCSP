@@ -129,7 +129,7 @@ export function ActionCenter({
                         {item.subtitle}
                       </span>
                     </span>
-                    <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-[#11545b] dark:text-emerald-300">
+                    <span className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-brand-deep">
                       {trackingMessage("actionCenterView")}
                       <ChevronRightIcon className="size-3.5" aria-hidden="true" />
                     </span>

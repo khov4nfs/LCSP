@@ -81,21 +81,14 @@ export function AdminUserStatusCard({
   const suspendedCount = distribution?.suspendedCount ?? 0;
   const totalCount = distribution?.totalCount ?? 0;
 
-  const activePercent =
-    totalCount > 0 ? Math.min(100, (activeCount / totalCount) * 100) : 0;
-  const invitedPercent =
-    totalCount > 0 ? Math.min(100, (invitedCount / totalCount) * 100) : 0;
-  const suspendedPercent =
-    totalCount > 0 ? Math.min(100, (suspendedCount / totalCount) * 100) : 0;
-
   const totalText = distribution
     ? totalTemplate.replace("{count}", totalCount.toLocaleString())
     : "—";
 
   const rows = [
-    { key: "active", label: activeLabel, count: activeCount, color: "#10b981" },
-    { key: "invited", label: invitedLabel, count: invitedCount, color: "#f59e0b" },
-    { key: "suspended", label: suspendedLabel, count: suspendedCount, color: "#f43f5e" },
+    { key: "active", label: activeLabel, count: activeCount, color: "var(--admin-status-active)" },
+    { key: "invited", label: invitedLabel, count: invitedCount, color: "var(--admin-warning)" },
+    { key: "suspended", label: suspendedLabel, count: suspendedCount, color: "var(--admin-status-suspended)" },
   ];
 
   return (

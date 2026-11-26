@@ -75,31 +75,31 @@ export function DashboardBento({
       key: TRACKING_RULE_OUTCOMES.COMPLIANT,
       label: trackingMessage("outcome.COMPLIANT"),
       count: complianceSummary.compliantCount,
-      color: "#46d5b5",
+      color: "var(--outcome-compliant)",
     },
     {
       key: TRACKING_RULE_OUTCOMES.NON_COMPLIANT,
       label: trackingMessage("outcome.NON_COMPLIANT"),
       count: complianceSummary.nonCompliantCount,
-      color: "#fb808b",
+      color: "var(--outcome-non-compliant)",
     },
     {
       key: TRACKING_RULE_OUTCOMES.UNRESOLVED,
       label: trackingMessage("outcome.UNRESOLVED"),
       count: complianceSummary.unresolvedCount,
-      color: "#fbbf67",
+      color: "var(--outcome-unresolved)",
     },
     {
       key: TRACKING_RULE_OUTCOMES.NOT_APPLICABLE,
       label: trackingMessage("outcome.NOT_APPLICABLE"),
       count: complianceSummary.notApplicableCount,
-      color: "#b3c5d4",
+      color: "var(--outcome-not-applicable)",
     },
     {
       key: "notEvaluated",
       label: trackingMessage("notEvaluated"),
       count: notEvaluatedCount,
-      color: "#728898",
+      color: "var(--outcome-not-evaluated)",
     },
   ];
 
@@ -138,13 +138,13 @@ export function DashboardBento({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <section
           aria-label={trackingMessage("coverageCardTitle")}
-          className="flex flex-col justify-between gap-5 rounded-2xl bg-linear-to-r from-[#0a2231] to-[#164c50] p-5 text-white shadow-md lg:col-span-7"
+          className="flex flex-col justify-between gap-5 rounded-2xl bg-linear-to-r from-bento-from to-bento-to p-5 text-white shadow-md lg:col-span-7"
         >
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-[#f7fbfc]">
+            <h2 className="text-lg font-semibold tracking-tight text-bento-heading">
               {trackingMessage("coverageCardTitle")}
             </h2>
-            <p className="mt-0.5 text-sm text-[#b7d6da]">
+            <p className="mt-0.5 text-sm text-bento-muted">
               {trackingMessage("coverageCardSubtitle").replace(
                 "{count}",
                 denominator.toLocaleString(appLocale),
@@ -170,7 +170,7 @@ export function DashboardBento({
             />
 
             <div
-              className="hidden h-40 w-px shrink-0 bg-[#365862] sm:block"
+              className="hidden h-40 w-px shrink-0 bg-bento-border sm:block"
               aria-hidden="true"
             />
 
@@ -184,7 +184,7 @@ export function DashboardBento({
             </div>
           </div>
 
-          <div className="border-t border-[#40616a] pt-3">
+          <div className="border-t border-bento-divider pt-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <NextMetricCard
                 variant={NEXT_METRIC_VARIANTS.embedded}

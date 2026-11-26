@@ -47,14 +47,14 @@ export function SidebarNavItem({
       {active ? (
         <span
           aria-hidden="true"
-          className="absolute top-1.5 left-0 h-5 w-0.75 rounded-xs bg-[#087f75]"
+          className="absolute top-1.5 left-0 h-5 w-0.75 rounded-xs bg-brand"
         />
       ) : null}
       <span
         className={cn(
           "shrink-0",
           active
-            ? "text-[#11545b] dark:text-emerald-300"
+            ? "text-brand-deep"
             : "text-sidebar-foreground/75",
         )}
       >
@@ -64,7 +64,7 @@ export function SidebarNavItem({
         className={cn(
           "min-w-0 truncate text-left text-sm",
           active
-            ? "font-semibold text-[#11545b] dark:text-emerald-300"
+            ? "font-semibold text-brand-deep"
             : variant === SIDEBAR_NAV_ITEM_VARIANTS.new
               ? "font-medium text-sidebar-foreground"
               : "font-medium text-sidebar-foreground/85",
@@ -77,7 +77,7 @@ export function SidebarNavItem({
   const itemClassName = cn(
     "relative flex h-8 w-full items-center gap-2 rounded-lg px-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring",
     active
-      ? "bg-[#e2f6f1] text-[#11545b] hover:bg-[#e2f6f1] dark:bg-emerald-950/50 dark:text-emerald-300"
+      ? "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent"
       : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
     disabled ? "cursor-default" : "cursor-pointer",
     className,
