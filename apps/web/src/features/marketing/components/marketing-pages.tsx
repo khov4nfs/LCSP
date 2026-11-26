@@ -938,19 +938,20 @@ function FeatureBand({
   return (
     <section
       data-section={section}
-      className="mx-auto flex min-h-[520px] w-full max-w-[1440px] flex-col items-center gap-10 px-8 py-14 md:px-[120px] lg:flex-row lg:gap-[72px]"
+      className="mx-auto flex min-h-[520px] w-full max-w-[1440px] flex-col items-center gap-10 px-8 py-16 md:px-[120px] lg:flex-row lg:gap-[72px]"
     >
       <div
         className={cn(
-          "flex w-full max-w-[480px] flex-col items-start gap-[18px]",
+          "flex w-full max-w-[480px] flex-col items-start gap-5",
           reverse && "lg:order-2",
         )}
       >
-        <p className="w-[200px] rounded-full bg-muted px-3 py-[7px] text-xs font-medium leading-normal text-brand">
-          {eyebrow}
-        </p>
-        <h2 className="text-4xl font-semibold leading-[44px]">{title}</h2>
-        <p className="text-[17px] leading-[27px] text-muted-foreground">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-1 text-xs font-semibold text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.12)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{eyebrow}</span>
+        </div>
+        <h2 className="text-3xl sm:text-4xl font-bold leading-[1.2] tracking-tight text-white">{title}</h2>
+        <p className="text-[17px] leading-[27px] text-neutral-400">
           {description}
         </p>
       </div>
