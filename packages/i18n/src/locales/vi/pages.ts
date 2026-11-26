@@ -4121,5 +4121,35 @@ export const viPages = {
       emptyBody:
         "Hệ thống chỉ đặt câu hỏi tại đây khi thiếu thông tin nghiệp vụ.",
     },
+    selectedAudit: {
+      title: "Chọn quy tắc để đánh giá",
+      subtitle:
+        "Chọn các yêu cầu pháp lý để đánh giá độc lập. Kết quả hiện có vẫn được giữ cho đến khi có kết quả mới.",
+      selectionOverview: "Đã chọn {selected} trên {total}",
+      noneSelected:
+        "Chưa chọn quy tắc nào. Chọn một hoặc nhiều yêu cầu bên dưới để bắt đầu.",
+      runSelected: "Chạy các quy tắc đã chọn",
+      clearSelection: "Bỏ chọn",
+      selectAllMatching: "Chọn tất cả khớp bộ lọc",
+      colRule: "Chọn · Nghĩa vụ pháp lý",
+      colReference: "Tham chiếu pháp lý",
+      colPreviousResult: "Kết quả trước đó",
+      colEvidence: "Bằng chứng",
+      progressTitle: "Tiến trình đánh giá",
+      resultsReadySummary: "{ready} trên {total} kết quả sẵn sàng",
+      viewCurrentFindings: "Xem kết quả hiện tại",
+      simulatedBannerTitle:
+        "Đầu ra mô phỏng · Không gọi mô hình hoặc repository thực tế",
+      activityTitle: "Hoạt động chạy",
+      previousResultsRetained: "Các kết quả trước đó vẫn khả dụng.",
+      stageReadRequirement: "Đọc yêu cầu pháp lý gốc",
+      stageAssessEvidence: "Đánh giá tính áp dụng và bằng chứng",
+      stagePublishResult: "Công bố kết quả quy tắc",
+      stageInProgress: "Đang xử lý",
+      stagePending: "Đang chờ",
+      stageDone: "Hoàn tất",
+      priorResult: "Kết quả trước",
+      currentResult: "Kết quả hiện tại",
+    },
   },
 } as const satisfies PagesMessages;

@@ -4111,5 +4111,35 @@ export const enPages = {
       emptyBody:
         "The assessment will surface questions here only when a business fact is missing.",
     },
+    selectedAudit: {
+      title: "Select rules to evaluate",
+      subtitle:
+        "Choose legal requirements to assess independently. Existing findings stay until a new result is ready.",
+      selectionOverview: "{selected} of {total} selected",
+      noneSelected:
+        "No rules selected yet. Select one or more requirements below to start.",
+      runSelected: "Run selected rules",
+      clearSelection: "Clear selection",
+      selectAllMatching: "Select all matching",
+      colRule: "Select · Legal obligation",
+      colReference: "Legal reference",
+      colPreviousResult: "Previous result",
+      colEvidence: "Evidence",
+      progressTitle: "Audit progress",
+      resultsReadySummary: "{ready} of {total} results ready",
+      viewCurrentFindings: "View current findings",
+      simulatedBannerTitle:
+        "Simulated output · No live model or repository call",
+      activityTitle: "Run activity",
+      previousResultsRetained: "Previous results remain available.",
+      stageReadRequirement: "Read original legal requirement",
+      stageAssessEvidence: "Assess applicability and evidence",
+      stagePublishResult: "Publish rule result",
+      stageInProgress: "In progress",
+      stagePending: "Pending",
+      stageDone: "Done",
+      priorResult: "Previous result",
+      currentResult: "Current result",
+    },
   },
 } as const satisfies PagesMessages;
