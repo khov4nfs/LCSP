@@ -124,3 +124,8 @@
 - **Context / Symptom**: A replacement PAT could inherit an earlier token's expiry or reactivate a concurrently disconnected row. Dismissing step-up left the pending form without a cancellation outcome.
 - **Root Cause**: Rotation omitted expiry from the persisted update and matched the old version even after its row was deactivated. The web form did not observe challenge dismissal as a terminal result.
 - **Resolution & Invariant**: Persist metadata and encrypted secret together against the active owner/provider/version. Keep declared expiry when the same secret is submitted again. Treat canceled or superseded proof as terminal, and retry status reads independently of acknowledged writes.
+
+### [2026-11-26] [STACK: apps/web] Cross-page Selection for Prepared Rule Activation
+- **Context / Symptom**: Admins had to check prepared results one by one across the paginated catalog before activating an Assessment Rule Set.
+- **Root Cause**: The existing bulk action only selected legal rules for preparation. Activation needed the exact persisted result identity and revision for every selected legal rule.
+- **Resolution & Invariant**: Resolve the complete filtered selection against one catalog revision before replacing the Admin's checked results. Preserve the previous selection if any page changes or fails, and submit the exact result revisions in one request after explicit confirmation.

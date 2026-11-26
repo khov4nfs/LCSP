@@ -21,7 +21,7 @@ riêng cho Actions và lưu host key đã xác minh vào `VPS_KNOWN_HOSTS`.
 Cho phép hai nhánh `main` và `develop` dùng environment production nếu
 repo có cấu hình giới hạn nhánh.
 
-Workflow yêu cầu mặc định **8.192 MiB trống** trên từng filesystem dùng
+Workflow yêu cầu mặc định **3 GiB (3.072 MiB) trống** trên từng filesystem dùng
 để build. Có thể chỉnh qua biến environment `PM2_MIN_FREE_MIB`. Chạy
 `disk-only` để xem dung lượng trước lần deploy đầu tiên. Khi deploy,
 checkout phải sạch và `origin` phải đọc được nhánh đã chọn. Workflow kiểm
