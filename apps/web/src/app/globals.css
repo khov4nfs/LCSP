@@ -66,9 +66,43 @@
   animation: pulseGlow 6s ease-in-out infinite;
 }
 
+/* Linear & Vercel Developer Tooling Utilities */
+.bg-grid-white {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+.bg-grid-slate {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+}
+
+.bg-radial-hero-glow {
+  background: radial-gradient(circle at 65% 30%, rgba(49, 189, 167, 0.15) 0%, rgba(13, 148, 136, 0.05) 45%, transparent 70%);
+}
+
+@keyframes pulseCircuit {
+  0% {
+    stroke-dashoffset: 24;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-circuit-pulse {
+  stroke-dasharray: 6 6;
+  animation: pulseCircuit 2.5s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-float-slow,
-  .animate-pulse-glow {
+  .animate-pulse-glow,
+  .animate-circuit-pulse {
     animation: none !important;
   }
 }
