@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { ChevronRightIcon } from "lucide-react";
 import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
+import {
   TRACKING_TRUST_STATUSES,
   type CustomerTrackingAssessmentItem,
   type TrackingPagination as TrackingPaginationData,
@@ -66,7 +70,8 @@ function resolveAssessmentRowPresentation(
   }
 
   if (
-    item.executionState === "FAILED" ||
+    item.executionState === AGENT_EXECUTION_STATES.FAILED ||
+    item.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.FAILED ||
     item.trust.trustStatus === TRACKING_TRUST_STATUSES.BLOCKED
   ) {
     return {
@@ -78,7 +83,11 @@ function resolveAssessmentRowPresentation(
     };
   }
 
-  if (item.report.isReady || item.executionState === "COMPLETED") {
+  if (
+    item.report.isReady ||
+    item.executionState === AGENT_EXECUTION_STATES.SUCCEEDED ||
+    item.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE
+  ) {
     return {
       statusLabel: trackingMessage("statusCompleted"),
       badgeClassName:

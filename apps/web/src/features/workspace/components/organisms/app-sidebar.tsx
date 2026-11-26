@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PlusIcon, SettingsIcon } from "lucide-react";
+import { PlusIcon, SettingsIcon, SwatchBookIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { LCSPLogo } from "@/components/atoms/lcsp-logo";
@@ -77,6 +77,8 @@ export function AppSidebar({
     [assessments, filters],
   );
   const newActive = pathname === "/assessments/new";
+  const artifactsActive =
+    pathname === "/artifacts" || pathname.startsWith("/artifacts/");
 
   function updateFilter<Value extends string>(
     key: RecentFilterKey,
@@ -127,7 +129,9 @@ export function AppSidebar({
           {resolveAppMessage("pages.appShell.platformSection")}
         </p>
         <div className="flex flex-col gap-0.5">
-          {primaryNavigation.map((item) => {
+          {primaryNavigation
+            .filter((item) => item.href !== "/artifacts")
+            .map((item) => {
             const Icon = item.icon;
             const active =
               "exact" in item && item.exact
@@ -149,6 +153,15 @@ export function AppSidebar({
               />
             );
           })}
+          <SidebarNavItem
+            active={artifactsActive}
+            href="/artifacts"
+            icon={<SwatchBookIcon className="size-4" />}
+            label={resolveAppMessage("pages.appShell.artifacts")}
+            tooltip={resolveAppMessage("pages.appShell.artifacts")}
+            variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
+            onNavigate={onNavigate}
+          />
           {onOpenSettings ? (
             <SidebarNavItem
               active={pathname === "/workspace/settings"}

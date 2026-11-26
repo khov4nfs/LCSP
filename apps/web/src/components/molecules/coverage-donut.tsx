@@ -75,7 +75,7 @@ export function CoverageDonut({
           cx={center}
           cy={center}
           r={radius}
-          fill="none"
+          fill="transparent"
           stroke={isDark ? "#365862" : "currentColor"}
           strokeWidth={strokeWidth}
           className={isDark ? undefined : "text-muted"}
@@ -86,7 +86,7 @@ export function CoverageDonut({
             cx={center}
             cy={center}
             r={radius}
-            fill="none"
+            fill="transparent"
             stroke={arc.color}
             strokeWidth={strokeWidth}
             strokeDasharray={`${arc.dashLength} ${circumference}`}

@@ -1,6 +1,14 @@
 "use client";
 
-import type { CustomerTrackingOverview } from "@lcsp/contracts/assessment-domain";
+import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
+import {
+  TRACKING_RULE_OUTCOMES,
+  TRACKING_TRUST_STATUSES,
+  type CustomerTrackingOverview,
+} from "@lcsp/contracts/assessment-domain";
 
 import { CoverageDonut } from "@/components/molecules/coverage-donut";
 import { NextMetricCard } from "@/components/molecules/next-metric-card";
@@ -64,31 +72,31 @@ export function DashboardBento({
 
   const segments = [
     {
-      key: "COMPLIANT",
+      key: TRACKING_RULE_OUTCOMES.COMPLIANT,
       label: trackingMessage("outcome.COMPLIANT"),
       count: complianceSummary.compliantCount,
       color: "#46d5b5",
     },
     {
-      key: "NON_COMPLIANT",
+      key: TRACKING_RULE_OUTCOMES.NON_COMPLIANT,
       label: trackingMessage("outcome.NON_COMPLIANT"),
       count: complianceSummary.nonCompliantCount,
       color: "#fb808b",
     },
     {
-      key: "UNRESOLVED",
+      key: TRACKING_RULE_OUTCOMES.UNRESOLVED,
       label: trackingMessage("outcome.UNRESOLVED"),
       count: complianceSummary.unresolvedCount,
       color: "#fbbf67",
     },
     {
-      key: "NOT_APPLICABLE",
+      key: TRACKING_RULE_OUTCOMES.NOT_APPLICABLE,
       label: trackingMessage("outcome.NOT_APPLICABLE"),
       count: complianceSummary.notApplicableCount,
       color: "#b3c5d4",
     },
     {
-      key: "NOT_EVALUATED",
+      key: "notEvaluated",
       label: trackingMessage("notEvaluated"),
       count: notEvaluatedCount,
       color: "#728898",
@@ -97,7 +105,10 @@ export function DashboardBento({
 
   const totalAssessments = Math.max(pagination.total, assessments.length);
   const completedAssessments = assessments.filter(
-    (item) => item.executionState === "COMPLETED" || item.report.isReady,
+    (item) =>
+      item.executionState === AGENT_EXECUTION_STATES.SUCCEEDED ||
+      item.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE ||
+      item.report.isReady,
   ).length;
   const notCompletedAssessments = Math.max(
     0,
@@ -105,7 +116,8 @@ export function DashboardBento({
   );
   const runningAssessments = assessments.filter(
     (item) =>
-      item.executionState === "ACTIVE" || item.executionState === "RUNNING",
+      item.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.ACTIVE ||
+      item.executionState === AGENT_EXECUTION_STATES.RUNNING,
   ).length;
   const awaitingInputAssessments = assessments.filter(
     (item) => item.pendingActionCount > 0,
@@ -113,9 +125,10 @@ export function DashboardBento({
   const activeAssessments = runningAssessments + awaitingInputAssessments;
   const failedAssessments = assessments.filter(
     (item) =>
-      item.executionState === "FAILED" ||
-      item.lifecycleState === "BLOCKED" ||
-      item.trust.trustStatus === "BLOCKED",
+      item.executionState === AGENT_EXECUTION_STATES.FAILED ||
+      item.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED ||
+      item.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.FAILED ||
+      item.trust.trustStatus === TRACKING_TRUST_STATUSES.BLOCKED,
   );
 
   const openRequestsCount = overview.actionsPagination?.total ?? actions.length;
