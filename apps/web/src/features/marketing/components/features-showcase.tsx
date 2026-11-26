@@ -134,34 +134,6 @@ export function FeaturesHeroSection({
             <span>{t("pages.marketing.features.viewPricing")}</span>
           </Link>
         </div>
-
-        {/* Blueprint Stats Strip: separated by 1px hairlines */}
-        <div className="mt-14 grid grid-cols-2 border-t border-[#3A3A38]/20 pt-8 sm:grid-cols-4 max-w-4xl mx-auto divide-x divide-[#3A3A38]/20">
-          <div className="flex flex-col items-center px-4">
-            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">100%</span>
-            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
-              {locale === "vi" ? "Truy vết mã nguồn" : "AST Traceable"}
-            </span>
-          </div>
-          <div className="flex flex-col items-center px-4">
-            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">0</span>
-            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
-              {locale === "vi" ? "Phát hiện suy diễn sai" : "Zero Hallucination"}
-            </span>
-          </div>
-          <div className="flex flex-col items-center px-4">
-            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">SHA-256</span>
-            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
-              {locale === "vi" ? "Nguồn gốc kiểm toán" : "Audit Provenance"}
-            </span>
-          </div>
-          <div className="flex flex-col items-center px-4">
-            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">CI/CD</span>
-            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
-              {locale === "vi" ? "Cổng kiểm soát tự động" : "Automated Gateways"}
-            </span>
-          </div>
-        </div>
       </div>
     </section>
   );
@@ -423,8 +395,8 @@ export function EnhancedHumanContextPreview() {
       </div>
 
       <div className="mt-5 flex items-center justify-between border-t border-[#3A3A38]/20 pt-3 text-[11px] font-mono text-[#3A3A38]/70">
-        <span className="truncate max-w-[320px]">{t("pages.marketing.features.humanContextDescription").slice(0, 44)}…</span>
-        <span className="text-[#1A3C2B] font-bold">LEDGER: SHA-256</span>
+        <span className="truncate max-w-[360px]">{t("pages.marketing.features.humanContextDescription")}</span>
+        <span className="text-[#1A3C2B] font-bold">1 / 1 Required</span>
       </div>
     </div>
   );
@@ -551,7 +523,6 @@ export function EnhancedFindingPreview() {
 export function EnhancedRemediationPreview() {
   const locale = useMarketingLocale();
   const t = (key: string) => resolveMarketingMessage(locale, key);
-  const [remediated, setRemediated] = useState(false);
 
   return (
     <div className="overflow-hidden rounded-[2px] border border-[#3A3A38]/30 bg-[#F7F7F5] p-6 shadow-none">
@@ -560,42 +531,22 @@ export function EnhancedRemediationPreview() {
           <ShieldCheck className="h-3 w-3 text-[#1A3C2B]" />
           {t("pages.marketing.features.proposedChange")}
         </span>
-        <button
-          type="button"
-          onClick={() => setRemediated(!remediated)}
-          className="text-[11px] font-mono font-bold text-[#1A3C2B] hover:underline cursor-pointer flex items-center gap-1 uppercase tracking-wider"
-        >
-          <RefreshCw className={cn("h-3 w-3", remediated && "rotate-180 transition-transform")} />
-          <span>
-            {remediated
-              ? (locale === "vi" ? "KHÔI PHỤC GỐC" : "RESET ORIGINAL")
-              : (locale === "vi" ? "ÁP DỤNG BẢN VÁ" : "APPLY PATCH")}
-          </span>
-        </button>
+        <span className="font-mono text-xs text-[#3A3A38]/70">risk-policy.ts:184-186</span>
       </div>
 
       <div className="mt-4 rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed">
-        {!remediated ? (
-          <>
-            <div className="bg-[#FF8C69]/15 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#FF8C69] font-medium">
-              <span>- return blockPayment;</span>
-            </div>
-            <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] mt-1 font-bold">
-              <span>+ const review = await requireHumanReview(tx);</span>
-            </div>
-            <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] font-bold">
-              <span>+ return review.approved ? blockPayment : continueFlow;</span>
-            </div>
-          </>
-        ) : (
-          <div className="bg-[#9EFFBF]/30 -mx-4 px-4 py-2 text-[#1A3C2B] border-l-2 border-[#1A3C2B]">
-            <div className="text-[10px] text-[#1A3C2B] mb-1 font-bold uppercase tracking-wider">
-              {locale === "vi" ? "// ĐÃ BỔ SUNG: CƠ CHẾ RÀ SOÁT CỦA CON NGƯỜI" : "// PATCHED: HUMAN OVERSIGHT ENFORCED"}
-            </div>
-            <div className="font-bold">const review = await requireHumanReview(tx);</div>
-            <div className="font-bold">return review.approved ? blockPayment : continueFlow;</div>
-          </div>
-        )}
+        <div className="text-muted-foreground select-none pb-1 text-[11px]">
+          {locale === "vi" ? "// Đề xuất sửa đổi code rà soát thủ công:" : "// Code-review proposal for human oversight:"}
+        </div>
+        <div className="bg-[#FF8C69]/15 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#FF8C69] font-medium">
+          <span>- return blockPayment;</span>
+        </div>
+        <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] mt-1 font-bold">
+          <span>+ const review = await requireHumanReview(tx);</span>
+        </div>
+        <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] font-bold">
+          <span>+ return review.approved ? blockPayment : continueFlow;</span>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-3 border-t border-[#3A3A38]/20 pt-3">
