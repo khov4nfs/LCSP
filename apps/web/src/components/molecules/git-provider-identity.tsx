@@ -138,13 +138,59 @@ export function GitPermissionsBadges({
 }
 
 /**
+ * Business purpose: Render the shared semantic provider connection status badge (`ProviderStatus`) across M02 and M14.
+ * Business rules:
+ * - Maps `connected`, `previewOnly`, or `needsToken` states to semantic `status-*` tokens without hardcoded hex values.
+ * Execution flow:
+ * 1. Determine badge tone and localized label from `connected` and `previewOnly`.
+ * 2. Render `Badge` with accessible contrast.
+ * Failure cases:
+ * - None.
+ * Side effects:
+ * - Pure presentational component.
+ */
+export function ProviderStatus({
+  connected,
+  previewOnly = false,
+  labelOverride,
+  className,
+}: {
+  connected: boolean;
+  previewOnly?: boolean;
+  labelOverride?: string;
+  className?: string;
+}) {
+  const toneClass = previewOnly
+    ? "border-status-warning-border bg-status-warning-bg text-status-warning"
+    : connected
+      ? "border-status-success-border bg-status-success-bg text-status-success"
+      : "border-status-warning-border bg-status-warning-bg text-status-warning";
+
+  const label =
+    labelOverride ??
+    resolveAppMessage(
+      previewOnly
+        ? "pages.assessmentFlow.providerCard.previewBadge"
+        : connected
+          ? "pages.assessmentFlow.providerCard.connectedBadge"
+          : "pages.assessmentFlow.providerCard.needsTokenBadge",
+    );
+
+  return (
+    <Badge variant="outline" className={cn(toneClass, className)}>
+      {label}
+    </Badge>
+  );
+}
+
+/**
  * Business purpose: Render the shared `LCSP Git / Account strip` (`1719:9102`) showing provider identity, credential status, and optional action.
  * Business rules:
  * - Preview-only providers must display preview-only status and never imply active backend credentials.
  * - Connected credentials display a positive semantic badge; missing credentials prompt configuration.
  * Execution flow:
  * 1. Render provider brand badge and localized provider name.
- * 2. Render connection status badge (`Connected`, `Needs token`, or `Preview only`).
+ * 2. Render `ProviderStatus` badge (`Connected`, `Needs token`, or `Preview only`).
  * 3. Render optional subtitle (e.g., masked account/token hint) and action button.
  * Failure cases:
  * - Missing action callback omits the action button cleanly.
@@ -184,34 +230,7 @@ export function GitAccountStrip({
             <span className="text-sm font-semibold text-foreground">
               {providerLabel}
             </span>
-            {previewOnly ? (
-              <Badge
-                variant="outline"
-                className="border-status-warning-border bg-status-warning-bg text-status-warning"
-              >
-                {resolveAppMessage(
-                  "pages.assessmentFlow.providerCard.previewBadge",
-                )}
-              </Badge>
-            ) : connected ? (
-              <Badge
-                variant="outline"
-                className="border-status-success-border bg-status-success-bg text-status-success"
-              >
-                {resolveAppMessage(
-                  "pages.assessmentFlow.providerCard.connectedBadge",
-                )}
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="border-status-warning-border bg-status-warning-bg text-status-warning"
-              >
-                {resolveAppMessage(
-                  "pages.assessmentFlow.providerCard.needsTokenBadge",
-                )}
-              </Badge>
-            )}
+            <ProviderStatus connected={connected} previewOnly={previewOnly} />
           </div>
           {subtitle ? (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">

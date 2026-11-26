@@ -9,7 +9,11 @@ import { ShieldCheckIcon } from "lucide-react";
 import Image from "next/image";
 import { useId, useMemo, useState } from "react";
 
-import { GIT_PROVIDER_LOGOS } from "@/components/molecules/git-provider-identity";
+import {
+  GIT_PROVIDER_LOGOS,
+  GitPermissionsBadges,
+  ProviderStatus,
+} from "@/components/molecules/git-provider-identity";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -226,16 +230,23 @@ export function RepositoriesSettingsSection({
                       </p>
                       <span
                         className={cn(
-                          "text-xs sm:w-32 sm:shrink-0 sm:text-sm",
+                          "flex flex-wrap items-center gap-2 text-xs sm:w-44 sm:shrink-0 sm:text-sm",
                           PROVIDER_CONNECTION_TONE_CLASSES[connectionState],
                         )}
                         data-connection-state={connectionState}
                       >
-                        {resolveMessage(
-                          appLocale,
-                          PROVIDER_CONNECTION_LABEL_KEYS[connectionState],
-                        )}
+                        <ProviderStatus
+                          connected={configured}
+                          previewOnly={!providerDeploymentEnabled && !configured}
+                          labelOverride={resolveMessage(
+                            appLocale,
+                            PROVIDER_CONNECTION_LABEL_KEYS[connectionState],
+                          )}
+                        />
                       </span>
+                      {configured ? (
+                        <GitPermissionsBadges className="hidden md:flex" />
+                      ) : null}
                       {providerStatus?.implemented && !providerDeploymentEnabled ? (
                         <span
                           className="text-xs text-muted-foreground sm:w-48 sm:shrink-0"
