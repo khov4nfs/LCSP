@@ -2032,9 +2032,9 @@ export const viPages = {
       humanEyebrow: "Ý kiến chuyên gia",
       humanContextDescription:
         "Trợ lý Pháp lý xem xét toàn bộ bằng chứng trước khi hỏi bạn về thông tin còn thiếu. Câu trả lời của bạn được ghi nhận và phân tích tiếp tục tự động.",
-      remediationTitle: "Khắc phục và xác minh",
+      remediationTitle: "Xác minh có mục tiêu",
       remediationDescription:
-        "Chuyển khoảng thiếu đã xác nhận thành công việc rà soát mã có mục tiêu, kiểm tra lint, kiểu dữ liệu, kiểm thử và bảo mật rồi quét lại đúng phạm vi bị ảnh hưởng.",
+        "Quét lại đúng phạm vi bị ảnh hưởng sau khi sửa đổi mã để xác nhận code mới đáp ứng chuẩn pháp lý trong khi vẫn lưu giữ trọn vẹn lịch sử bằng chứng.",
       artifactsTitle: "Tài liệu kết quả và dấu vết kiểm toán",
       artifactsDescription:
         "Giữ phân tích khoảng thiếu, tài liệu được bảo vệ, bản tải xuống có phiên bản, tham chiếu bằng chứng và quyết định của phiên đánh giá trong cùng một lịch sử rà soát và bàn giao.",
@@ -2054,9 +2054,9 @@ export const viPages = {
       humanContextTitle:
         "Chuyên môn của bạn, áp dụng đúng nơi cần thiết.",
       findingsTitle: "Rà soát phát hiện với bằng chứng đã được đính kèm.",
-      remediationEyebrow: "Khắc phục + xác minh",
+      remediationEyebrow: "Xác minh khắc phục",
       verificationTitle:
-        "Đi từ phát hiện đến bản sửa mà không mất mạch bằng chứng.",
+        "Xác minh thay đổi theo yêu cầu pháp lý mà không mất mạch bằng chứng.",
       capabilitiesEyebrow: "Khả năng của không gian làm việc",
       capabilitiesTitle: "Phần còn lại của quy trình vẫn ở một nơi.",
       capabilitiesDescription:

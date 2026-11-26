@@ -529,23 +529,23 @@ export function EnhancedRemediationPreview() {
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-1.5 rounded-[2px] border border-[#1A3C2B]/30 bg-[#9EFFBF]/30 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold">
           <ShieldCheck className="h-3 w-3 text-[#1A3C2B]" />
-          {t("pages.marketing.features.proposedChange")}
+          {locale === "vi" ? "KẾT QUẢ TÁI KIỂM TOÁN" : "VERIFICATION RESULT"}
         </span>
-        <span className="font-mono text-xs text-[#3A3A38]/70">risk-policy.ts:184-186</span>
+        <span className="font-mono text-xs text-[#3A3A38]/70">PR #104 · commit 4f2a1b9</span>
       </div>
 
       <div className="mt-4 rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed">
-        <div className="text-muted-foreground select-none pb-1 text-[11px]">
-          {locale === "vi" ? "// Đề xuất sửa đổi code rà soát thủ công:" : "// Code-review proposal for human oversight:"}
+        <div className="text-muted-foreground select-none pb-1.5 text-[11px] flex items-center justify-between border-b border-[#3A3A38]/10 mb-2">
+          <span>{locale === "vi" ? "// Phạm vi sửa đổi được quét lại:" : "// Re-scanned scope after developer fix:"}</span>
+          <span className="text-emerald-700 font-bold">{locale === "vi" ? "✓ ĐÃ ĐẠT CHUẨN" : "✓ COMPLIANT"}</span>
         </div>
-        <div className="bg-[#FF8C69]/15 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#FF8C69] font-medium">
-          <span>- return blockPayment;</span>
+        <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1.5 text-[#1A3C2B] border-l-2 border-[#1A3C2B] font-medium">
+          <span>✓ {locale === "vi" ? "Quy tắc: Giám sát con người đối với quyết định rủi ro cao" : "Rule: Human oversight for high-risk decisions"}</span>
         </div>
-        <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] mt-1 font-bold">
-          <span>+ const review = await requireHumanReview(tx);</span>
-        </div>
-        <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] font-bold">
-          <span>+ return review.approved ? blockPayment : continueFlow;</span>
+        <div className="mt-2 text-xs text-[#3A3A38]/80 font-sans">
+          {locale === "vi" 
+            ? "Mạch bằng chứng gốc được bảo lưu: Commit mới khắc phục vi phạm mà không làm mất lịch sử đánh giá ban đầu."
+            : "Original audit trail preserved: New commit resolves finding while retaining full initial assessment lineage."}
         </div>
       </div>
 

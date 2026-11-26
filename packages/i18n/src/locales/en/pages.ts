@@ -2024,9 +2024,9 @@ export const enPages = {
       humanEyebrow: "Expert input",
       humanContextDescription:
         "The Legal AI reviews all available evidence before asking you for missing facts. Your answer is recorded and the analysis continues automatically.",
-      remediationTitle: "Remediation and verification",
+      remediationTitle: "Targeted verification",
       remediationDescription:
-        "Translate confirmed gaps into targeted code-review work, verify lint, types, tests, and security checks, then re-scan the affected scope.",
+        "Re-scan the affected scope after code review to verify that updated code satisfies legal requirements while keeping past evidence intact.",
       artifactsTitle: "Artifacts and audit trail",
       artifactsDescription:
         "Keep gap analysis, guarded documents, versioned downloads, evidence references, and assessment decisions together for review and handoff.",
@@ -2043,9 +2043,9 @@ export const enPages = {
       outputVerification: "Verification results and targeted re-scan history",
       humanContextTitle: "Your expertise, applied exactly where it matters.",
       findingsTitle: "Review findings with the evidence already attached.",
-      remediationEyebrow: "Remediate + verify",
+      remediationEyebrow: "Verify remediation",
       verificationTitle:
-        "Move from finding to fix without losing the evidence trail.",
+        "Verify changes against legal requirements without losing the evidence trail.",
       capabilitiesEyebrow: "Workspace capabilities",
       capabilitiesTitle: "The rest of the workflow stays in one place.",
       capabilitiesDescription:
