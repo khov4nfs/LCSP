@@ -196,10 +196,10 @@ export function EnhancedRepositoryEvidencePreview() {
             </div>
             <div className="rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed overflow-x-auto">
               <div className="text-[#3A3A38]">{"{"}</div>
-              <div className="text-[#1A3C2B] pl-4 font-bold">"targetModel": "credit-scoring-v3",</div>
-              <div className="text-[#1A3C2B] pl-4">"highRiskThreshold": 0.82,</div>
-              <div className="text-[#FF8C69] pl-4 font-bold">"autonomousExecutionAllowed": false,</div>
-              <div className="text-[#3A3A38]/70 pl-4">"auditProvenanceSha": "e4f81c9d2f60a..."</div>
+              <div className="text-[#1A3C2B] pl-4 font-bold">{'"targetModel": "credit-scoring-v3",'}</div>
+              <div className="text-[#1A3C2B] pl-4">{'"highRiskThreshold": 0.82,'}</div>
+              <div className="text-[#FF8C69] pl-4 font-bold">{'"autonomousExecutionAllowed": false,'}</div>
+              <div className="text-[#3A3A38]/70 pl-4">{'"auditProvenanceSha": "e4f81c9d2f60a..."'}</div>
               <div className="text-[#3A3A38]">{"}"}</div>
             </div>
           </>
@@ -215,9 +215,9 @@ export function EnhancedRepositoryEvidencePreview() {
             </div>
             <div className="rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed overflow-x-auto">
               <div className="text-[#1A3C2B] font-bold">{"export const humanOversightControl = {"}</div>
-              <div className="text-[#3A3A38] pl-4">statute: "EU AI Act Article 14",</div>
-              <div className="text-[#3A3A38] pl-4">requirement: "Human oversight for high-risk AI",</div>
-              <div className="text-[#FF8C69] pl-4 font-bold">status: "NON_COMPLIANT_UNVERIFIED"</div>
+              <div className="text-[#3A3A38] pl-4">{'statute: "EU AI Act Article 14",'}</div>
+              <div className="text-[#3A3A38] pl-4">{'requirement: "Human oversight for high-risk AI",'}</div>
+              <div className="text-[#FF8C69] pl-4 font-bold">{'status: "NON_COMPLIANT_UNVERIFIED"'}</div>
               <div className="text-[#1A3C2B] font-bold">{"};"}</div>
             </div>
           </>

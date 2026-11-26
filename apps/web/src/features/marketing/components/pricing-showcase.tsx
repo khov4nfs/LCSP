@@ -18,7 +18,6 @@ import {
   ArrowRight,
   HelpCircle,
   Coins,
-  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +78,6 @@ const topUpsVnd = [
 
 export function EnhancedPricingHero() {
   const locale = useMarketingLocale();
-  const t = (key: string) => resolveMarketingMessage(locale, key);
 
   return (
     <section
@@ -310,7 +308,6 @@ export function EnhancedCreditTopUpsSection() {
 
 export function EnhancedHowCreditsWorkSection() {
   const locale = useMarketingLocale();
-  const t = (key: string) => resolveMarketingMessage(locale, key);
 
   const steps = [
     {
