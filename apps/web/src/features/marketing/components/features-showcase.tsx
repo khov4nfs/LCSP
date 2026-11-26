@@ -11,21 +11,12 @@ import {
   CheckCircle2,
   AlertTriangle,
   GitBranch,
-  Terminal,
   Cpu,
   Layers,
   ArrowRight,
   Sparkles,
   Lock,
   RefreshCw,
-  Search,
-  ExternalLink,
-  SlidersHorizontal,
-  History,
-  FileCheck,
-  Check,
-  Eye,
-  FileCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMarketingLocale } from "./marketing-locale";
@@ -61,12 +52,14 @@ export function FeaturesHeroSection({
       </div>
 
       <div className="relative z-10 mx-auto max-w-[1240px] px-6 text-center">
-        {/* Subtle fit-content pill badge */}
+        {/* Fit-content Pill Badge from canonical i18n */}
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-1 text-xs font-semibold text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)] mb-6">
           <Sparkles className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
           <span>{t("pages.marketing.features.eyebrow")}</span>
           <span className="h-1 w-1 rounded-full bg-emerald-400" />
-          <span className="text-emerald-400/80">Architecture Blueprint</span>
+          <span className="text-emerald-400/80">
+            {locale === "vi" ? "Kiến trúc hệ thống" : "Architecture Blueprint"}
+          </span>
         </div>
 
         <h1 className="mx-auto max-w-[900px] text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.15]">
@@ -95,23 +88,31 @@ export function FeaturesHeroSection({
           </Link>
         </div>
 
-        {/* Blueprint Stats Strip */}
+        {/* Canonical System Stats Strip */}
         <div className="mt-14 grid grid-cols-2 gap-4 border-t border-white/[0.08] pt-8 sm:grid-cols-4 max-w-4xl mx-auto">
           <div className="flex flex-col items-center">
             <span className="font-mono text-2xl font-bold text-white">100%</span>
-            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">AST Traceable</span>
+            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">
+              {locale === "vi" ? "Truy vết mã nguồn" : "AST Traceable"}
+            </span>
           </div>
           <div className="flex flex-col items-center">
             <span className="font-mono text-2xl font-bold text-emerald-400">0</span>
-            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">Hallucinated Findings</span>
+            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">
+              {locale === "vi" ? "Phát hiện suy diễn sai" : "Hallucinated Findings"}
+            </span>
           </div>
           <div className="flex flex-col items-center">
             <span className="font-mono text-2xl font-bold text-white">SHA-256</span>
-            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">Audit Provenance</span>
+            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">
+              {locale === "vi" ? "Nguồn gốc kiểm toán" : "Audit Provenance"}
+            </span>
           </div>
           <div className="flex flex-col items-center">
             <span className="font-mono text-2xl font-bold text-teal-400">CI/CD</span>
-            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">Automated Gateways</span>
+            <span className="text-xs text-neutral-400 mt-1 uppercase tracking-wider">
+              {locale === "vi" ? "Cổng kiểm soát tự động" : "Automated Gateways"}
+            </span>
           </div>
         </div>
       </div>
@@ -131,7 +132,7 @@ export function EnhancedRepositoryEvidencePreview() {
     { label: "pages.marketing.home.finding", icon: AlertTriangle },
   ];
 
-  // Dynamic content based on clicked tab
+  // Dynamic content based on clicked tab with accurate domain semantics
   const renderTabContent = () => {
     switch (activeTab) {
       case 0: // Source
@@ -156,7 +157,7 @@ export function EnhancedRepositoryEvidencePreview() {
                 <span className="w-9 select-none text-rose-400/80 font-bold">185</span>
                 <span className="font-semibold">decision = provider.score(tx);</span>
                 <span className="ml-auto text-[10px] text-rose-400 font-sans tracking-wide self-center bg-rose-950/80 px-1.5 py-0.5 rounded border border-rose-800/60">
-                  MISSING GUARD
+                  {locale === "vi" ? "THIẾU KIỂM SOÁT" : "MISSING GUARD"}
                 </span>
               </div>
               <div className="text-neutral-400 flex">
@@ -172,7 +173,7 @@ export function EnhancedRepositoryEvidencePreview() {
             <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
               <span className="font-mono text-teal-400">models/risk-evaluation-graph.json</span>
               <span className="text-teal-400 font-mono text-[11px] bg-teal-950/60 border border-teal-800/40 px-2 py-0.5 rounded">
-                Confidence: 0.994
+                {t("pages.marketing.features.evidenceTitle")}
               </span>
             </div>
             <div className="rounded-xl border border-white/5 bg-[#070b14] p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-inner">
@@ -180,7 +181,7 @@ export function EnhancedRepositoryEvidencePreview() {
               <div className="text-teal-300 pl-4">"targetModel": "credit-scoring-v3",</div>
               <div className="text-teal-300 pl-4">"highRiskThreshold": 0.82,</div>
               <div className="text-amber-300 pl-4">"autonomousExecutionAllowed": false,</div>
-              <div className="text-neutral-400 pl-4">"auditProvenanceSha": "e4f81c9d2..."</div>
+              <div className="text-neutral-400 pl-4">"auditProvenanceSha": "e4f81c9d2f60a..."</div>
               <div className="text-neutral-400">{"}"}</div>
             </div>
           </>
@@ -191,14 +192,14 @@ export function EnhancedRepositoryEvidencePreview() {
             <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
               <span className="font-mono text-cyan-400">compliance/rules/eu-ai-act-art14.ts</span>
               <span className="text-cyan-400 font-mono text-[11px] bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded">
-                Statutory Rule: Active
+                {t("pages.marketing.home.control")}
               </span>
             </div>
             <div className="rounded-xl border border-white/5 bg-[#070b14] p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-inner">
               <div className="text-cyan-200">{"export const humanOversightControl = {"}</div>
               <div className="text-neutral-300 pl-4">statute: "EU AI Act Article 14",</div>
-              <div className="text-neutral-300 pl-4">condition: "High-risk systems must enable human override",</div>
-              <div className="text-rose-300 pl-4">status: "FAIL_UNMITIGATED_DIRECT_EXECUTION"</div>
+              <div className="text-neutral-300 pl-4">requirement: "Human oversight for high-risk AI",</div>
+              <div className="text-rose-300 pl-4">status: "NON_COMPLIANT_UNVERIFIED"</div>
               <div className="text-cyan-200">{"};"}</div>
             </div>
           </>
@@ -207,15 +208,17 @@ export function EnhancedRepositoryEvidencePreview() {
         return (
           <>
             <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-              <span className="font-mono text-rose-400">LCSP-FINDING-084.audit</span>
+              <span className="font-mono text-rose-400">{t("pages.marketing.features.findingLabel")} #185</span>
               <span className="text-rose-400 font-mono text-[11px] bg-rose-950/60 border border-rose-800/40 px-2 py-0.5 rounded">
-                Severity: CRITICAL
+                {t("pages.marketing.features.findingMeta")}
               </span>
             </div>
             <div className="rounded-xl border border-rose-500/20 bg-[#160c14] p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-inner">
-              <div className="text-rose-300 font-bold">CRITICAL: Autonomous decision bypasses human gateway</div>
-              <p className="text-neutral-400 text-xs mt-1">
-                Execution path at risk-policy.ts:185 allows third-party scoring response to return directly without human sign-off.
+              <div className="text-rose-300 font-bold">
+                {t("pages.marketing.features.findingPreviewTitle")}
+              </div>
+              <p className="text-neutral-400 text-xs mt-1 leading-relaxed">
+                {t("pages.marketing.features.findingEvidence")}
               </p>
             </div>
           </>
@@ -281,17 +284,26 @@ export function EnhancedHumanContextPreview() {
     {
       id: "auto",
       key: "pages.marketing.features.choiceAutomatic",
-      detail: locale === "vi" ? "Ghi nhận: Áp dụng rule set tự động cho mọi giao dịch" : "Recorded: Apply automated rule set across transactions",
+      detail:
+        locale === "vi"
+          ? "Đã lưu vào nhật ký: Áp dụng biện pháp kiểm soát tự động đối với luồng xử lý này."
+          : "Recorded: Automated control applied to this execution path.",
     },
     {
       id: "manual",
       key: "pages.marketing.features.choiceManual",
-      detail: locale === "vi" ? "Ghi nhận: Yêu cầu nhân viên phê duyệt khi điểm rủi ro vượt ngưỡng" : "Recorded: Require compliance staff sign-off on high scores",
+      detail:
+        locale === "vi"
+          ? "Đã lưu vào nhật ký: Yêu cầu con người rà soát thủ công khi rủi ro vượt ngưỡng."
+          : "Recorded: Manual oversight required when risk score exceeds threshold.",
     },
     {
       id: "none",
       key: "pages.marketing.features.choiceNone",
-      detail: locale === "vi" ? "Cảnh báo: Không rà soát sẽ kích hoạt cờ đỏ điều khoản rủi ro cao" : "Warning: No additional review triggers high-risk non-compliance",
+      detail:
+        locale === "vi"
+          ? "Cảnh báo: Không có bước rà soát bổ sung sẽ kích hoạt cờ đỏ trong kết quả phân tích khoảng thiếu."
+          : "Warning: Absence of review triggers a flagged item in gap analysis.",
     },
   ];
 
@@ -304,7 +316,9 @@ export function EnhancedHumanContextPreview() {
           <AlertTriangle className="h-3.5 w-3.5" />
           {t("pages.marketing.features.contextNeeded")}
         </span>
-        <span className="font-mono text-[11px] text-neutral-500">Step 2 of 4</span>
+        <span className="font-mono text-[11px] text-neutral-500">
+          {locale === "vi" ? "Làm rõ bối cảnh" : "Clarification Turn"}
+        </span>
       </div>
 
       <p className="mt-4 text-lg font-medium leading-snug text-neutral-100">
@@ -343,7 +357,7 @@ export function EnhancedHumanContextPreview() {
                 "text-xs font-mono transition-opacity",
                 isSelected ? "text-emerald-400 opacity-100" : "opacity-0 group-hover:opacity-60 text-neutral-500"
               )}>
-                {isSelected ? "ACTIVE CONTEXT" : "SELECT"}
+                {isSelected ? (locale === "vi" ? "ĐÃ CHỌN" : "ACTIVE") : (locale === "vi" ? "CHỌN" : "SELECT")}
               </span>
             </button>
           );
@@ -352,13 +366,15 @@ export function EnhancedHumanContextPreview() {
 
       {/* Dynamic feedback panel reflecting the selected choice */}
       <div className="mt-4 rounded-xl border border-white/[0.08] bg-[#070b14] p-3 text-xs text-neutral-300 transition-all">
-        <span className="font-mono text-emerald-400 mr-2">Audit Ledger Impact:</span>
+        <span className="font-mono text-emerald-400 mr-2">
+          {locale === "vi" ? "Ghi nhận đánh giá:" : "Assessment Record:"}
+        </span>
         <span className="text-neutral-400">{currentOption.detail}</span>
       </div>
 
       <div className="mt-5 flex items-center justify-between border-t border-white/[0.08] pt-4 text-xs text-neutral-400">
-        <span>Recorded directly into Assessment Provenance Ledger</span>
-        <span className="font-mono text-emerald-400">SHA-256 Signed</span>
+        <span>{t("pages.marketing.features.humanContextDescription").slice(0, 48)}…</span>
+        <span className="font-mono text-emerald-400">SHA-256</span>
       </div>
     </div>
   );
@@ -380,9 +396,15 @@ export function EnhancedFindingPreview() {
             : "border-rose-500/30 bg-rose-500/10 text-rose-400"
         )}>
           {reviewed ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-          <span>{reviewed ? (locale === "vi" ? "Đã xác nhận rà soát" : "Review Confirmed") : t("pages.marketing.features.findingLabel")}</span>
+          <span>
+            {reviewed
+              ? (locale === "vi" ? "Đã xác nhận rà soát" : "Review Confirmed")
+              : t("pages.marketing.features.findingLabel")}
+          </span>
         </span>
-        <span className="font-mono text-xs text-neutral-500">EU AI Act · Article 14</span>
+        <span className="font-mono text-xs text-neutral-400">
+          EU AI Act · Article 14
+        </span>
       </div>
 
       <h3 className="mt-4 text-xl font-bold tracking-tight text-white">
@@ -396,7 +418,9 @@ export function EnhancedFindingPreview() {
             ? "bg-emerald-950/70 border-emerald-900/50 text-emerald-300"
             : "bg-rose-950/70 border-rose-900/50 text-rose-300"
         )}>
-          {reviewed ? "MITIGATION PENDING" : "HIGH SEVERITY"}
+          {reviewed
+            ? (locale === "vi" ? "ĐANG KHẮC PHỤC" : "REMEDIATION PENDING")
+            : (locale === "vi" ? "MỨC ĐỘ CAO" : "HIGH IMPACT")}
         </span>
         <span>•</span>
         <span>{t("pages.marketing.features.findingMeta")}</span>
@@ -419,10 +443,16 @@ export function EnhancedFindingPreview() {
           </div>
         ) : (
           <div className="font-mono text-xs">
-            <div className="text-emerald-400 mb-1">AST Call Tree Traversal:</div>
+            <div className="text-emerald-400 mb-1">
+              {locale === "vi" ? "Cây thực thi mã nguồn AST:" : "AST Call Tree Traversal:"}
+            </div>
             <div className="text-neutral-500">↳ FunctionDeclaration: processTransaction()</div>
             <div className="text-neutral-500 pl-4">↳ IfStatement (test: riskScore &gt; threshold)</div>
-            <div className="text-rose-400 pl-8 font-bold">↳ DirectExecution: provider.score(tx) [VULNERABLE]</div>
+            <div className="text-rose-400 pl-8 font-bold">
+              ↳ DirectExecution: provider.score(tx) [
+              {locale === "vi" ? "Chưa có rà soát" : "Missing Oversight"}
+              ]
+            </div>
           </div>
         )}
       </div>
@@ -439,7 +469,11 @@ export function EnhancedFindingPreview() {
           )}
         >
           <Code2 className="h-3.5 w-3.5 text-neutral-400" />
-          <span>{viewMode === "ast" ? (locale === "vi" ? "Xem tóm tắt" : "View Summary") : t("pages.marketing.features.openSource")}</span>
+          <span>
+            {viewMode === "ast"
+              ? (locale === "vi" ? "Xem tóm tắt" : "View Summary")
+              : t("pages.marketing.features.openSource")}
+          </span>
         </button>
 
         <button
@@ -453,7 +487,11 @@ export function EnhancedFindingPreview() {
           )}
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
-          <span>{reviewed ? (locale === "vi" ? "Đã duyệt ✓" : "Approved ✓") : t("pages.marketing.features.reviewFinding")}</span>
+          <span>
+            {reviewed
+              ? (locale === "vi" ? "Đã duyệt ✓" : "Approved ✓")
+              : t("pages.marketing.features.reviewFinding")}
+          </span>
         </button>
       </div>
     </div>
@@ -478,7 +516,11 @@ export function EnhancedRemediationPreview() {
           className="text-xs font-mono text-emerald-400 hover:underline cursor-pointer flex items-center gap-1"
         >
           <RefreshCw className={cn("h-3 w-3", remediated && "rotate-180 transition-transform")} />
-          <span>{remediated ? (locale === "vi" ? "Khôi phục gốc" : "Reset original") : (locale === "vi" ? "Áp dụng bản vá" : "Apply patch")}</span>
+          <span>
+            {remediated
+              ? (locale === "vi" ? "Khôi phục gốc" : "Reset original")
+              : (locale === "vi" ? "Áp dụng bản vá" : "Apply patch")}
+          </span>
         </button>
       </div>
 
@@ -497,7 +539,9 @@ export function EnhancedRemediationPreview() {
           </>
         ) : (
           <div className="bg-emerald-500/15 -mx-4 px-4 py-2 text-emerald-200 border-l-2 border-emerald-400">
-            <div className="text-xs text-emerald-400 mb-1">// PATCHED: Human-in-the-loop oversight enforced</div>
+            <div className="text-xs text-emerald-400 mb-1">
+              {locale === "vi" ? "// ĐÃ BỔ SUNG: Cơ chế rà soát của con người" : "// PATCHED: Human oversight enforced"}
+            </div>
             <div>const review = await requireHumanReview(tx);</div>
             <div>return review.approved ? blockPayment : continueFlow;</div>
           </div>
