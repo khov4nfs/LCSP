@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
+import { GIT_PROVIDER_LOGOS } from "@/components/molecules/git-provider-identity";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -74,13 +75,8 @@ type ProviderCredentialDialogProps = {
   status?: ProviderCredentialStatus | null;
 };
 
-const PROVIDER_LOGOS: Record<CredentialProvider, string> = {
-  [CREDENTIAL_PROVIDERS.github]: "/assets/figma/settings/logo-github.svg",
-  [CREDENTIAL_PROVIDERS.gitlab]: "/assets/figma/settings/logo-gitlab.svg",
-  [CREDENTIAL_PROVIDERS.bitbucket]: "/assets/figma/settings/logo-bitbucket.svg",
-  [CREDENTIAL_PROVIDERS.azureDevOps]:
-    "/assets/figma/settings/logo-azure-devops.svg",
-};
+/** Reuse canonical Figma provider logo assets from shared `git-provider-identity`. */
+const PROVIDER_LOGOS: Record<CredentialProvider, string> = GIT_PROVIDER_LOGOS;
 
 const PROVIDER_TITLE_KEYS = {
   [CREDENTIAL_PROVIDERS.github]: {
