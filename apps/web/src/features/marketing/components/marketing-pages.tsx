@@ -42,6 +42,7 @@ import {
 } from "./marketing-locale";
 import { MarketingShell } from "./marketing-shell";
 import { ProviderLogoStrip } from "./provider-logo-strip";
+import { ScrollRevealObserver } from "./scroll-reveal";
 import { WordHighlightStatement } from "./word-highlight-statement";
 import { WorkflowSteps } from "./workflow-steps";
 
@@ -229,6 +230,7 @@ function ProductMarketingPageContent() {
 
   return (
     <MarketingShell active="product">
+      <ScrollRevealObserver />
       <div data-figma-node="923:31255" data-figma-name="M01 Overview">
         {/* Frame 01: Hero & Product Preview (Figma 1662:659 / 1757:12980) */}
         <FigmaHeroSection />

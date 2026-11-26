@@ -50,7 +50,7 @@ export function FigmaHowItWorksSection() {
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 scroll-reveal">
           <div>
             <p className="text-xs font-semibold tracking-wider text-[#11545B]">
               {t("pages.marketing.home.howWorkflowEyebrow")}
@@ -99,7 +99,7 @@ export function FigmaHowItWorksSection() {
             {steps.map(({ num, title, desc, tag }, index) => (
               <div
                 key={num}
-                className="group relative flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white/90 backdrop-blur-xs p-6 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:border-[#31BDA7] hover:shadow-lg"
+                className={`scroll-reveal scroll-delay-${index + 1} group relative flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white/90 backdrop-blur-xs p-6 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:border-[#31BDA7] hover:shadow-lg`}
               >
                 <div>
                   <div className="flex items-center justify-between">

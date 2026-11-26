@@ -11,10 +11,11 @@ export function FigmaWhySection() {
 
   return (
     <section
+      id="why-lcsp"
       data-section="why-lcsp"
-      className="mx-auto w-full max-w-[1440px] px-8 py-20 md:px-[96px]"
+      className="mx-auto w-full max-w-[1440px] px-8 pt-12 pb-20 md:px-[96px]"
     >
-      <div className="max-w-2xl">
+      <div className="max-w-2xl scroll-reveal">
         <h2 className="text-3xl font-semibold tracking-tight text-[#101C29] sm:text-4xl">
           {t("pages.marketing.home.whyTitle")}
         </h2>
@@ -25,7 +26,7 @@ export function FigmaWhySection() {
 
       <div className="mt-12 grid gap-6 lg:grid-cols-2">
         {/* Large Benefit Card (Left): Features-style box with crisp hairlines, corner markers, and inner code panel */}
-        <div className="relative group flex flex-col justify-between rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] p-8 shadow-none transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white">
+        <div className="scroll-reveal scroll-delay-1 relative group flex flex-col justify-between rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] p-8 shadow-none transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white">
           {/* Subtle L-shaped corner markers */}
           <span className="absolute top-0 left-0 h-2.5 w-2.5 border-t-2 border-l-2 border-[#1A3C2B]" />
           <span className="absolute top-0 right-0 h-2.5 w-2.5 border-t-2 border-r-2 border-[#1A3C2B]" />
@@ -65,7 +66,7 @@ export function FigmaWhySection() {
         {/* 3 Stacked Benefit Cards (Right) */}
         <div className="space-y-4">
           {/* Card 2 */}
-          <div className="group flex items-start gap-4 rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#1A3C2B] bg-[#FAF9F6] p-6 transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
+          <div className="scroll-reveal scroll-delay-2 group flex items-start gap-4 rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#1A3C2B] bg-[#FAF9F6] p-6 transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-[2px] border border-[#3A3A38]/20 bg-white text-[#1A3C2B]">
               <LinkIcon className="size-5" />
             </div>
@@ -80,7 +81,7 @@ export function FigmaWhySection() {
           </div>
 
           {/* Card 3 */}
-          <div className="group flex items-start gap-4 rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#FF8C69] bg-[#FAF9F6] p-6 transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
+          <div className="scroll-reveal scroll-delay-3 group flex items-start gap-4 rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#FF8C69] bg-[#FAF9F6] p-6 transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-[2px] border border-[#3A3A38]/20 bg-white text-[#1A3C2B]">
               <MessageSquareIcon className="size-5" />
             </div>
@@ -95,7 +96,7 @@ export function FigmaWhySection() {
           </div>
 
           {/* Card 4 */}
-          <div className="group flex items-start gap-4 rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#F4D35E] bg-[#FAF9F6] p-6 transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
+          <div className="scroll-reveal scroll-delay-4 group flex items-start gap-4 rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#F4D35E] bg-[#FAF9F6] p-6 transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-[2px] border border-[#3A3A38]/20 bg-white text-[#1A3C2B]">
               <RotateCcwIcon className="size-5" />
             </div>

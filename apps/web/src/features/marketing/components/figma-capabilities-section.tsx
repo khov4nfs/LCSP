@@ -14,7 +14,7 @@ export function FigmaCapabilitiesSection() {
       data-section="figma-capabilities"
       className="mx-auto w-full max-w-[1440px] px-8 py-20 md:px-[96px]"
     >
-      <div className="max-w-2xl">
+      <div className="max-w-2xl scroll-reveal">
         <h2 className="text-3xl font-semibold tracking-tight text-[#101C29] sm:text-4xl">
           {t("pages.marketing.home.capabilitiesTitle")}
         </h2>
@@ -25,7 +25,7 @@ export function FigmaCapabilitiesSection() {
 
       <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_420px]">
         {/* Main Large Card (Evidence-led assessment) styled like Features Preview Box */}
-        <div className="relative group rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] p-8 text-[#3A3A38] shadow-none transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white">
+        <div className="scroll-reveal scroll-delay-1 relative group rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] p-8 text-[#3A3A38] shadow-none transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white">
           {/* L-shaped corner markers */}
           <span className="absolute top-0 left-0 h-2.5 w-2.5 border-t-2 border-l-2 border-[#1A3C2B]" />
           <span className="absolute top-0 right-0 h-2.5 w-2.5 border-t-2 border-r-2 border-[#1A3C2B]" />
@@ -75,7 +75,7 @@ export function FigmaCapabilitiesSection() {
         {/* 2 Right Column Cards styled with colored left-borders */}
         <div className="flex flex-col justify-between gap-6">
           {/* Card 2: Information request */}
-          <div className="group rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#F4D35E] bg-[#FAF9F6] p-7 text-[#101C29] transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
+          <div className="scroll-reveal scroll-delay-2 group rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#F4D35E] bg-[#FAF9F6] p-7 text-[#101C29] transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
             <div className="flex size-10 items-center justify-center rounded-[2px] border border-[#3A3A38]/20 bg-white text-[#1A3C2B]">
               <MessageCircleIcon className="size-5" />
             </div>
@@ -88,7 +88,7 @@ export function FigmaCapabilitiesSection() {
           </div>
 
           {/* Card 3: Selective re-evaluation */}
-          <div className="group rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#9EFFBF] bg-[#FAF9F6] p-7 text-[#101C29] transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
+          <div className="scroll-reveal scroll-delay-3 group rounded-[2px] border border-[#3A3A38]/30 border-l-4 border-l-[#9EFFBF] bg-[#FAF9F6] p-7 text-[#101C29] transition-all duration-200 hover:border-[#1A3C2B] hover:bg-white shadow-none">
             <div className="flex size-10 items-center justify-center rounded-[2px] border border-[#3A3A38]/20 bg-white text-[#1A3C2B]">
               <TargetIcon className="size-5" />
             </div>

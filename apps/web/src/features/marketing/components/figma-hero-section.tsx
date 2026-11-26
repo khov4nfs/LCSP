@@ -393,6 +393,27 @@ export function FigmaHeroSection() {
           </div>
         </div>
       </div>
+
+      {/* Atmospheric Visual Bridge & Exploration Indicator connecting Hero to Why section */}
+      <div 
+        aria-hidden="true" 
+        className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent via-[#FAF9F6]/20 to-[#FAF9F6]" 
+      />
+      <div className="relative z-10 mx-auto -mb-6 mt-8 flex max-w-[1440px] items-center justify-between px-8 text-xs font-mono text-[#86E8D4]/80 md:px-[96px]">
+        <div className="flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-[#31BDA7] animate-pulse" />
+          <span className="tracking-wider uppercase text-[11px] text-[#A2E2D4]">
+            {locale === "vi" ? "Kiểm toán hệ thống AST trực tiếp" : "Live AST Proof Engine"}
+          </span>
+        </div>
+        <a 
+          href="#why-lcsp" 
+          className="group inline-flex items-center gap-1.5 text-[11px] text-[#C6D9DE] hover:text-white transition-colors"
+        >
+          <span>{locale === "vi" ? "Cuộn xuống để khám phá" : "Scroll to explore"}</span>
+          <span className="inline-block transition-transform duration-200 group-hover:translate-y-0.5">↓</span>
+        </a>
+      </div>
     </section>
   );
 }
