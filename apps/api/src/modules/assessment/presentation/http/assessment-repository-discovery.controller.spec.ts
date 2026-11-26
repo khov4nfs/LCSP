@@ -174,6 +174,7 @@ describe("AssessmentRepositoryDiscoveryController", () => {
     const response = await controller.summary(
       randomUUID(),
       randomUUID(),
+      {},
       request,
     );
 

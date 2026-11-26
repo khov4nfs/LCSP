@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { HttpStatus } from "@nestjs/common";
+
 import {
   ASSESSMENT_LIFECYCLE_STATES,
   RULE_DECISION_APPLICABILITIES,
@@ -12,6 +14,8 @@ import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
+  computeRepositorySetDigest,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_DECISION_SCOPE,
@@ -96,8 +100,30 @@ function buildHandler(
       status: string;
       blockedReason: string | null;
     } | null;
+    /** Pin a second repository so the report must name every repository (V4). */
+    pinnedSet?: boolean;
   } = {},
 ) {
+  const pinOf = (
+    repositoryKey: string,
+    ordinal: number,
+    repositorySnapshotId: string,
+    repositoryCommit: string,
+  ) => ({
+    repositoryKey,
+    ordinal,
+    connectionId: `connection-${repositoryKey}`,
+    repositoryId: `repository-${repositoryKey}`,
+    repositoryFullName: `acme/${repositoryKey}`,
+    repositorySnapshotId,
+    repositoryScanJobId: `scan-${repositoryKey}`,
+    repositoryCommit,
+    sourcePathPrefix: null,
+  });
+  const repositories = [
+    pinOf("web", 0, snapshotId, "a".repeat(40)),
+    pinOf("api", 1, "snapshot-api", "c".repeat(40)),
+  ];
   const snapshot = {
     caseRevision: 1,
     pins: {
@@ -105,6 +131,12 @@ function buildHandler(
       repositorySnapshotId: snapshotId,
       repositoryScanJobId: "scan-1",
       repositoryCommit: "a".repeat(40),
+      ...(options.pinnedSet
+        ? {
+            repositories,
+            repositorySetDigest: computeRepositorySetDigest(repositories),
+          }
+        : {}),
     },
     decisions: [{ decisionId: randomUUID(), decisionRevision: 1, decision }],
     evidence: [
@@ -296,6 +328,7 @@ function buildHandler(
             type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
             state: "ACCEPTED",
             repositoryCommit: "a".repeat(40),
+            repositoryKey: options.pinnedSet ? "web" : null,
             contentSha256: `sha256:${"b".repeat(64)}`,
             payload: { path: "src/retention.ts", startLine: 1, endLine: 2 },
           },
@@ -493,6 +526,137 @@ describe("SubmitAssessmentFinalReportHandler", () => {
         }),
       }),
     );
+  });
+
+  it("persists a V4 artifact naming every repository when several are pinned", async () => {
+    const { handler, writeImmutableArtifact, tx } = buildHandler({
+      pinnedSet: true,
+    });
+    const result = await handler.execute(
+      new SubmitAssessmentFinalReportCommand(
+        assessmentId,
+        randomUUID(),
+        requestFor({}),
+        randomUUID(),
+      ),
+    );
+
+    expect(result.replayed).toBe(false);
+    expect(tx.assessmentArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
+          repositoryCommit: "a".repeat(40),
+          repositorySetDigest: PINNED_SET_DIGEST,
+        }),
+      }),
+    );
+    const stored = JSON.parse(writeImmutableArtifact.mock.calls[0][1]) as {
+      pins: { repositories: Array<{ repositoryKey: string }> };
+    };
+    expect(stored.pins.repositories.map((pin) => pin.repositoryKey)).toEqual([
+      "web",
+      "api",
+    ]);
+  });
+
+  describe("replaying a V4 artifact", () => {
+    const request = requestFor({});
+
+    /** Publish once, then describe the stored artifact the way the database would. */
+    async function publishedArtifact() {
+      const first = buildHandler({ pinnedSet: true });
+      await first.handler.execute(
+        new SubmitAssessmentFinalReportCommand(
+          assessmentId,
+          randomUUID(),
+          request,
+          randomUUID(),
+        ),
+      );
+      const [artifactId, storedContent] =
+        first.writeImmutableArtifact.mock.calls[0];
+      const report = JSON.parse(storedContent) as {
+        pins: { repositorySetDigest: string };
+      };
+      const contentHash = sha256Hex(storedContent);
+      return {
+        storedContent,
+        existingArtifact: {
+          artifactId,
+          assessmentId,
+          kind: AssessmentArtifactKind.FINAL_REPORT,
+          lifecycleState: ArtifactLifecycleState.ACTIVE,
+          ruleSetVersionId: ruleSetId,
+          repositorySnapshotId: snapshotId,
+          repositoryCommit: "a".repeat(40),
+          repositorySetDigest: report.pins.repositorySetDigest,
+          caseRevision: 1,
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
+          reportRequestDigest: sha256Hex(canonicalJson(request)),
+          contentSha256: `sha256:${contentHash}`,
+          sizeBytes: Buffer.byteLength(storedContent, "utf8"),
+          storageRef: JSON.stringify({
+            artifact_id: artifactId,
+            total_size: Buffer.byteLength(storedContent, "utf8"),
+            hash: contentHash,
+            chunks: ["artifact.chunk"],
+          }),
+        },
+      };
+    }
+
+    const replay = (handler: SubmitAssessmentFinalReportHandler) =>
+      handler.execute(
+        new SubmitAssessmentFinalReportCommand(
+          assessmentId,
+          randomUUID(),
+          request,
+          randomUUID(),
+        ),
+      );
+
+    it("verifies the stored set against the recorded digest and every pinned snapshot", async () => {
+      const { existingArtifact, storedContent } = await publishedArtifact();
+      const { handler, writeImmutableArtifact } = buildHandler({
+        existingArtifact,
+        storedContent,
+        repositorySnapshot: { sourcePathPrefix: null },
+      });
+
+      await expect(replay(handler)).resolves.toMatchObject({ replayed: true });
+      expect(writeImmutableArtifact).not.toHaveBeenCalled();
+    });
+
+    it("refuses a replay when the artifact row recorded a different repository set", async () => {
+      const { existingArtifact, storedContent } = await publishedArtifact();
+      const { handler } = buildHandler({
+        existingArtifact: {
+          ...existingArtifact,
+          repositorySetDigest: PINNED_SET_DIGEST,
+        },
+        storedContent,
+        repositorySnapshot: { sourcePathPrefix: null },
+      });
+
+      // A replay against a different set is persisted damage, answered as the integrity conflict.
+      await expect(replay(handler)).rejects.toMatchObject({
+        status: HttpStatus.CONFLICT,
+      });
+    });
+
+    it("refuses a replay when a pinned snapshot's source scope drifted", async () => {
+      const { existingArtifact, storedContent } = await publishedArtifact();
+      const { handler } = buildHandler({
+        existingArtifact,
+        storedContent,
+        repositorySnapshot: { sourcePathPrefix: "services/other" },
+      });
+
+      await expect(replay(handler)).rejects.toMatchObject({
+        status: HttpStatus.CONFLICT,
+      });
+    });
   });
 
   it("[RED][ASM-REPORT-01B] preserves authoritative BUILDING metadata when storage fails", async () => {

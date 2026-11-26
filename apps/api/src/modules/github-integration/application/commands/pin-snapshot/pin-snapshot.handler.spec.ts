@@ -1,3 +1,4 @@
+import { REPOSITORY_SET_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   GITHUB_CREDENTIAL_ERROR_CODES,
@@ -71,7 +72,11 @@ function command(overrides?: Partial<PinSnapshotCommand>) {
 
 function buildHandler(options?: {
   connection?: RepositoryConnection | null;
-  assessment?: { id: string; ownerId: string } | null;
+  assessment?: {
+    id: string;
+    ownerId: string;
+    domainCase?: { repositoryCount: number } | null;
+  } | null;
   resolveError?: Error;
   resolvedRepositoryFullName?: string;
 }) {
@@ -126,6 +131,7 @@ function buildHandler(options?: {
       () => Promise<{
         id: string;
         ownerId: string;
+        domainCase?: { repositoryCount: number } | null;
       } | null>
     >()
     .mockResolvedValue(
@@ -242,6 +248,33 @@ describe("PinSnapshotHandler", () => {
       expect(resolveCommit).not.toHaveBeenCalled();
       expect(saveWithCreatedEvent).not.toHaveBeenCalled();
     }
+  });
+
+  it("refuses a new snapshot once the assessment's repository set is pinned", async () => {
+    const { handler, resolveCommit, saveWithCreatedEvent, write } =
+      buildHandler({
+        assessment: {
+          id: "assessment-1",
+          ownerId: "manager-1",
+          domainCase: { repositoryCount: 2 },
+        },
+      });
+
+    await expect(handler.execute(command())).rejects.toMatchObject({
+      status: 409,
+      response: {
+        problem: { code: REPOSITORY_SET_ERROR_CODES.immutable },
+      },
+    });
+    expect(resolveCommit).not.toHaveBeenCalled();
+    expect(saveWithCreatedEvent).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          reasonCode: REPOSITORY_SET_ERROR_CODES.immutable,
+        }),
+      }),
+    );
   });
 
   it("blocks an admin even when scope does not match the assessment", async () => {

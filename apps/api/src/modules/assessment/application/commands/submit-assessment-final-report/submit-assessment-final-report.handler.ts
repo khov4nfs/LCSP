@@ -8,6 +8,7 @@ import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
   RULE_AUDIT_STATUSES,
   assessmentFinalReportResultSchema,
   type AssessmentFinalReportResult,
@@ -54,12 +55,22 @@ import {
 import { decisionFingerprint } from "../../../domain/decision-fingerprint.js";
 import { SubmitAssessmentFinalReportCommand } from "./submit-assessment-final-report.command.js";
 import {
+  assertReportRepositorySetCurrent,
+  reportIdentityMatchesPins,
+  reportPrimaryPin,
+} from "../../../domain/final-report-repository-pins.js";
+import {
+  buildAssessmentFinalReportV4,
+  finalReportNeedsRepositorySet,
+} from "./assessment-final-report-v4.builder.js";
+import {
   buildAssessmentFinalReportV3,
   FinalReportAssemblyError,
 } from "./assessment-final-report-v3.builder.js";
 import {
   assessmentFinalReportArtifactVersionedSchema,
   type AssessmentFinalReportV3,
+  type AssessmentFinalReportV4,
 } from "@lcsp/contracts/assessment-report";
 import { ZodError } from "zod";
 
@@ -208,12 +219,14 @@ type PreparedBuildingReport = {
   content: string;
   hash: string;
   manifest: ReturnType<typeof buildChunkedManifest>["manifest"];
-  report: AssessmentFinalReportV3;
+  report: AssessmentFinalReportV3 | AssessmentFinalReportV4;
   repositoryCommit: string;
   repositorySnapshotId: string;
   requestDigest: string;
   ruleSetVersionId: string;
-  schemaVersion: typeof ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION;
+  schemaVersion:
+    | typeof ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION
+    | typeof ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION;
   sizeBytes: number;
 };
 
@@ -580,15 +593,19 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       `${command.assessmentId}:${requestDigest}`,
     );
     rejectUnresolvedLanguage(command.request, command.correlationId);
-    let report: AssessmentFinalReportV3;
+    let report: AssessmentFinalReportV3 | AssessmentFinalReportV4;
+    const buildInput = {
+      tx,
+      assessmentId: command.assessmentId,
+      artifactId,
+      request: command.request,
+      snapshot,
+    };
     try {
-      report = await buildAssessmentFinalReportV3({
-        tx,
-        assessmentId: command.assessmentId,
-        artifactId,
-        request: command.request,
-        snapshot,
-      });
+      // Several pinned repositories need the format that names each repository; one keeps V3.
+      report = finalReportNeedsRepositorySet(buildInput)
+        ? await buildAssessmentFinalReportV4(buildInput)
+        : await buildAssessmentFinalReportV3(buildInput);
     } catch (error) {
       if (isFinalReportDependencyUnavailable(error)) throw error;
       if (
@@ -620,7 +637,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       repositorySnapshotId: snapshot.pins.repositorySnapshotId,
       requestDigest,
       ruleSetVersionId: snapshot.pins.ruleSetVersionId,
-      schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+      schemaVersion: report.schemaVersion,
       sizeBytes,
     };
   }
@@ -887,9 +904,10 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
     const report = assessmentFinalReportArtifactVersionedSchema.parse(
       JSON.parse(stored) as unknown,
     );
+    const primaryPin = reportPrimaryPin(report);
     await this.prisma.$transaction(async (tx) => {
       const pinnedScanJob = await tx.repositoryScanJob.findUnique({
-        where: { id: report.pins.repositoryScanJobId },
+        where: { id: primaryPin.repositoryScanJobId },
         select: { assessmentId: true, snapshotId: true },
       });
       // A scan-job identifier is not sufficient authority by itself. Bind it
@@ -916,10 +934,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         });
         if (
           !pinnedRuleSet ||
-          report.identity.repositorySnapshotId !==
-            report.pins.repositorySnapshotId ||
-          report.identity.repositoryCommit.toLowerCase() !==
-            report.pins.repositoryCommit.toLowerCase() ||
+          !reportIdentityMatchesPins(report) ||
           report.pins.ruleSetVersionId !== pinnedRuleSet.id ||
           report.pins.ruleSetVersion !== pinnedRuleSet.version ||
           report.pins.ruleSetDigest !== pinnedRuleSet.ruleSetDigest ||
@@ -950,6 +965,25 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           );
         }
       }
+      if (report.schemaVersion === ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION) {
+        try {
+          await assertReportRepositorySetCurrent(
+            report,
+            [existing.repositorySetDigest],
+            (snapshotId) =>
+              tx.repositorySnapshot.findUnique({
+                where: { id: snapshotId },
+                select: { sourcePathPrefix: true },
+              }),
+          );
+        } catch (error) {
+          throw new FinalReportIntegrityError(
+            error instanceof Error
+              ? error.message
+              : "Persisted final-report repository set mismatch",
+          );
+        }
+      }
     });
     const expectedFingerprint = decisionFingerprintForReport(report);
     if (
@@ -959,8 +993,8 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       report.kind !== ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT ||
       report.schemaVersion !== existing.schemaVersion ||
       report.pins.ruleSetVersionId !== existing.ruleSetVersionId ||
-      report.pins.repositorySnapshotId !== existing.repositorySnapshotId ||
-      report.pins.repositoryCommit.toLowerCase() !==
+      primaryPin.repositorySnapshotId !== existing.repositorySnapshotId ||
+      primaryPin.repositoryCommit.toLowerCase() !==
         existing.repositoryCommit.toLowerCase() ||
       report.caseRevision !== existing.caseRevision ||
       report.decisionFingerprint !== expectedFingerprint ||

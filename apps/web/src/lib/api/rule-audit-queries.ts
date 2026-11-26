@@ -97,6 +97,7 @@ export function useRuleAuditCatalogQuery(id: string) {
           page.ruleSetDigest !== first.ruleSetDigest ||
           page.repositorySnapshotId !== first.repositorySnapshotId ||
           page.repositoryCommit !== first.repositoryCommit ||
+          page.repositorySetDigest !== first.repositorySetDigest ||
           page.auditRevision !== first.auditRevision ||
           JSON.stringify(page.groups) !== JSON.stringify(first.groups)
         )

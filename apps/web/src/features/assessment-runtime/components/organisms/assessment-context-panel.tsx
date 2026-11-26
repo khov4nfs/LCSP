@@ -33,6 +33,8 @@ import {
 } from "../../config/customer-assessment-states";
 import { assessmentProgress } from "../../utils/assessment-progress";
 import { copy } from "../../utils/conversation-copy";
+import { RepositoryPinList } from "../molecules/repository-pin-list";
+import { repositoryPinViews } from "../../utils/repository-pins";
 import { customerAssessmentState } from "../../utils/customer-assessment-state";
 import { formatTokens } from "../../utils/format-tokens";
 
@@ -43,7 +45,8 @@ const DOT: Record<CustomerAssessmentState, string> = {
   [CUSTOMER_ASSESSMENT_STATES.WORKING]: "bg-primary motion-safe:animate-pulse",
   [CUSTOMER_ASSESSMENT_STATES.WAITING]: "bg-amber-500",
   [CUSTOMER_ASSESSMENT_STATES.PAUSED]: "bg-muted-foreground",
-  [CUSTOMER_ASSESSMENT_STATES.FINALIZING]: "bg-primary motion-safe:animate-pulse",
+  [CUSTOMER_ASSESSMENT_STATES.FINALIZING]:
+    "bg-primary motion-safe:animate-pulse",
   [CUSTOMER_ASSESSMENT_STATES.COMPLETE]: "bg-emerald-500",
   [CUSTOMER_ASSESSMENT_STATES.BLOCKED]: "bg-amber-500",
   [CUSTOMER_ASSESSMENT_STATES.FAILED]: "bg-destructive",
@@ -94,12 +97,14 @@ export function AssessmentContextPanel({
   const usage = assessment?.usage;
   const reportReady = Boolean(
     assessment?.case?.artifacts.some(
-      (artifact) => artifact.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      (artifact) =>
+        artifact.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
     ),
   );
-  const commit = (
-    setup.data?.snapshot?.commitSha ?? assessment?.case?.repositoryCommit
-  )?.slice(0, 7);
+  const repositories = repositoryPinViews(
+    setup.data,
+    assessment?.case?.repositoryCommit ?? null,
+  );
 
   const applicableDecisions = (assessment?.case?.decisions ?? []).filter(
     (d) =>
@@ -115,19 +120,24 @@ export function AssessmentContextPanel({
 
   // Compute compliance risk distribution metrics
   const nonCompliantCount = applicableDecisions.filter(
-    (d) => d.decision.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
+    (d) =>
+      d.decision.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
   ).length;
   const compliantCount = applicableDecisions.filter(
-    (d) => d.decision.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT,
+    (d) =>
+      d.decision.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT,
   ).length;
   const totalApplicable = applicableDecisions.length;
 
-  const nonCompliantPct = totalApplicable > 0 ? (nonCompliantCount / totalApplicable) * 100 : 0;
-  const compliantPct = totalApplicable > 0 ? (compliantCount / totalApplicable) * 100 : 0;
+  const nonCompliantPct =
+    totalApplicable > 0 ? (nonCompliantCount / totalApplicable) * 100 : 0;
+  const compliantPct =
+    totalApplicable > 0 ? (compliantCount / totalApplicable) * 100 : 0;
 
   // Setup Bidirectional Scrollspy
   useEffect(() => {
-    if (typeof window === "undefined" || applicableDecisions.length === 0) return;
+    if (typeof window === "undefined" || applicableDecisions.length === 0)
+      return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -177,23 +187,24 @@ export function AssessmentContextPanel({
       </header>
 
       <dl className="flex flex-col gap-4">
-        {setup.data?.connection ? (
-          <Fact label={copy("context.repository")}>
-            <span className="font-mono text-xs font-semibold text-foreground break-all">
-              {setup.data.connection.repositoryFullName}
-            </span>
-            {commit ? (
-              <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">
-                {copy("context.commit", { commit })}
-              </span>
-            ) : null}
+        {repositories.length > 0 ? (
+          <Fact
+            label={copy(
+              repositories.length > 1
+                ? "context.repositories"
+                : "context.repository",
+            )}
+          >
+            <RepositoryPinList repositories={repositories} />
           </Fact>
         ) : null}
 
         <Fact label={copy("context.ruleSet")}>
           {ruleSet ? (
             <>
-              <span className="font-medium text-foreground">{ruleSet.version}</span>
+              <span className="font-medium text-foreground">
+                {ruleSet.version}
+              </span>
               <span className="block text-xs text-muted-foreground">
                 {copy("context.ruleSetSummary", {
                   requirements: ruleSet.legalRequirementCount,
@@ -210,12 +221,19 @@ export function AssessmentContextPanel({
 
         {progress ? (
           <Fact label={copy("context.progress")}>
-            {assessment?.case?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED
+            {assessment?.case?.auditMode ===
+            ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED
               ? copy("context.selectedProgressValue", progress)
               : copy("context.progressValue", progress)}
-            {assessment?.case?.auditMode === ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED && ruleSet ? (
+            {assessment?.case?.auditMode ===
+              ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED && ruleSet ? (
               <span className="block text-xs text-muted-foreground">
-                {copy("ruleAudit.notRequested", { count: Math.max(0, ruleSet.assessmentRuleCount - progress.total) })}
+                {copy("ruleAudit.notRequested", {
+                  count: Math.max(
+                    0,
+                    ruleSet.assessmentRuleCount - progress.total,
+                  ),
+                })}
               </span>
             ) : null}
             <progress
@@ -229,7 +247,10 @@ export function AssessmentContextPanel({
 
         {usage?.invocationCount ? (
           <Fact label={copy("context.usage")}>
-            <span data-usage-total={usage.totalTokens ?? 0} className="font-semibold text-foreground">
+            <span
+              data-usage-total={usage.totalTokens ?? 0}
+              className="font-semibold text-foreground"
+            >
               {copy("context.usageValue", {
                 tokens: formatTokens(usage.totalTokens ?? 0),
               })}
@@ -256,7 +277,10 @@ export function AssessmentContextPanel({
               className: "w-full justify-start text-xs font-medium gap-2",
             })}
           >
-            <ShieldCheckIcon className="size-3.5 text-primary" aria-hidden="true" />
+            <ShieldCheckIcon
+              className="size-3.5 text-primary"
+              aria-hidden="true"
+            />
             <span>{copy("provenance.viewProvenance")}</span>
           </Link>
         </div>
@@ -275,7 +299,10 @@ export function AssessmentContextPanel({
               </div>
 
               {/* Visual Compliance Risk Meter (Thanh phân bổ tỷ lệ tuân thủ trực quan) */}
-              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/60" aria-hidden="true">
+              <div
+                className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/60"
+                aria-hidden="true"
+              >
                 {nonCompliantPct > 0 && (
                   <div
                     style={{ width: `${nonCompliantPct}%` }}
@@ -295,13 +322,21 @@ export function AssessmentContextPanel({
                 {nonCompliantCount > 0 && (
                   <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 font-medium text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60">
                     <AlertTriangleIcon className="size-3" aria-hidden="true" />
-                    <span>{copy("context.riskSummaryNonCompliant", { count: nonCompliantCount })}</span>
+                    <span>
+                      {copy("context.riskSummaryNonCompliant", {
+                        count: nonCompliantCount,
+                      })}
+                    </span>
                   </span>
                 )}
                 {compliantCount > 0 && (
                   <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/60">
                     <CheckCircle2Icon className="size-3" aria-hidden="true" />
-                    <span>{copy("context.riskSummaryCompliant", { count: compliantCount })}</span>
+                    <span>
+                      {copy("context.riskSummaryCompliant", {
+                        count: compliantCount,
+                      })}
+                    </span>
                   </span>
                 )}
               </div>
@@ -383,7 +418,10 @@ export function AssessmentContextPanel({
 
                     {/* Middle Row: Statutory Citation */}
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <BookOpenIcon className="size-3 text-primary shrink-0" aria-hidden="true" />
+                      <BookOpenIcon
+                        className="size-3 text-primary shrink-0"
+                        aria-hidden="true"
+                      />
                       <span className="font-medium text-foreground/80 truncate">
                         {citation}
                       </span>
@@ -393,23 +431,35 @@ export function AssessmentContextPanel({
                     <div className="flex items-center justify-between gap-2 pt-0.5 text-[11px]">
                       {isNonCompliant ? (
                         <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
-                          <AlertTriangleIcon className="size-3" aria-hidden="true" />
+                          <AlertTriangleIcon
+                            className="size-3"
+                            aria-hidden="true"
+                          />
                           <span>{copy("context.nonCompliantBadge")}</span>
                         </span>
                       ) : isCompliant ? (
                         <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2Icon className="size-3" aria-hidden="true" />
+                          <CheckCircle2Icon
+                            className="size-3"
+                            aria-hidden="true"
+                          />
                           <span>{copy("context.compliantBadge")}</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-                          <AlertTriangleIcon className="size-3" aria-hidden="true" />
+                          <AlertTriangleIcon
+                            className="size-3"
+                            aria-hidden="true"
+                          />
                           <span>{copy("context.undeterminedBadge")}</span>
                         </span>
                       )}
 
                       <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground truncate max-w-32.5">
-                        <FileCode2Icon className="size-3 shrink-0" aria-hidden="true" />
+                        <FileCode2Icon
+                          className="size-3 shrink-0"
+                          aria-hidden="true"
+                        />
                         <span className="truncate">{evidenceHint}</span>
                       </span>
                     </div>
@@ -422,7 +472,10 @@ export function AssessmentContextPanel({
       </dl>
 
       {/* Audit Metadata Details (Không in bất kỳ UUID nào ra UI) */}
-      <details className="text-xs border-t border-border/60 pt-2" data-slot="run-details">
+      <details
+        className="text-xs border-t border-border/60 pt-2"
+        data-slot="run-details"
+      >
         <summary className="cursor-pointer list-none rounded-md text-muted-foreground select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden font-medium">
           {copy("context.runDetails")}
         </summary>
@@ -443,7 +496,9 @@ export function AssessmentContextPanel({
           </Fact>
           <Fact label={copy("context.assessmentRevision")}>
             <span className="font-mono text-foreground">
-              {copy("context.revisionValue", { revision: assessment?.lifecycle?.assessmentRevision ?? 1 })}
+              {copy("context.revisionValue", {
+                revision: assessment?.lifecycle?.assessmentRevision ?? 1,
+              })}
             </span>
           </Fact>
           <Fact label={copy("context.connection")}>

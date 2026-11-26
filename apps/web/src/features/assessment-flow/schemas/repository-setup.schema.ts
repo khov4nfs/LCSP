@@ -1,18 +1,20 @@
 import { z } from "zod";
-import { ASSESSMENT_REPOSITORY_PROVIDERS } from "@lcsp/contracts/assessment";
-import {
-  parseAzureDevOpsRepositoryUrl,
-  parseBitbucketRepositoryUrl,
-  parseGitHubRepositoryUrl,
-  parseGitLabRepositoryUrl,
-} from "@lcsp/contracts/github-integration";
+import { ASSESSMENT_REPOSITORY_LIMITS } from "@lcsp/contracts/assessment-domain";
+import { repositorySourcePathPrefixSchema } from "@lcsp/contracts/github-integration";
 
 import { GIT_PROVIDER_OPTIONS } from "../config/git-provider-options";
+import { REPOSITORY_SETUP_ISSUES } from "../config/repository-setup-issues";
+import {
+  repositoryFullNameOf,
+  repositoryIdentityOf,
+} from "../utils/repository-entry";
 
-export const repositorySetupSchema = z
+/** One repository: the provider chosen and a URL that really belongs to that provider. */
+export const repositoryEntrySchema = z
   .object({
     provider: z.string().trim().min(1),
     repositoryUrl: z.string().trim().min(1),
+    sourcePathPrefix: repositorySourcePathPrefixSchema.nullable(),
   })
   .superRefine((value, context) => {
     const provider = GIT_PROVIDER_OPTIONS.find(
@@ -20,40 +22,57 @@ export const repositorySetupSchema = z
     );
     if (!provider?.supported) {
       context.addIssue({
-        code: "custom", path: ["provider"], message: "provider-not-supported",
+        code: "custom",
+        path: ["provider"],
+        message: REPOSITORY_SETUP_ISSUES.providerNotSupported,
       });
       return;
     }
-    const parsedProvider = parseProviderRepositoryUrl(value.repositoryUrl);
-    if (!parsedProvider || parsedProvider.provider !== provider.id) {
+    // The shared parser for the chosen provider must accept the URL; a URL of another provider is invalid here.
+    if (
+      !repositoryFullNameOf({
+        provider: provider.id,
+        repositoryUrl: value.repositoryUrl,
+      })
+    ) {
       context.addIssue({
-        code: "custom", path: ["repositoryUrl"], message: "repository-url-invalid",
+        code: "custom",
+        path: ["repositoryUrl"],
+        message: REPOSITORY_SETUP_ISSUES.repositoryUrlInvalid,
       });
     }
   });
 
 /**
- * Business purpose: Determine which supported provider owns a candidate direct repository URL.
- * Business rules:
- * - The selected provider must exactly match one shared parser's recognized host and path contract.
- * - URL syntax is a locator and cannot establish repository access.
- * Execution flow:
- * 1. Test each provider parser.
- * 2. Return its provider discriminator and normalized locator, or null.
- * Failure cases:
- * - Malformed or unsupported URLs remain invalid and cannot be connected under another provider.
- * Side effects:
- * - Pure URL parsing; no network request or persistence.
+ * The whole setup form: the draft fields stay free text, while the collected repositories must be valid,
+ * duplicate-free entries within the product limit. Whether at least one repository exists also depends on the
+ * repositories already saved on the server, so that rule lives in the form container.
  */
-function parseProviderRepositoryUrl(value: string) {
-  const github = parseGitHubRepositoryUrl(value);
-  if (github) return { provider: ASSESSMENT_REPOSITORY_PROVIDERS.github, locator: github };
-  const gitlab = parseGitLabRepositoryUrl(value);
-  if (gitlab) return { provider: ASSESSMENT_REPOSITORY_PROVIDERS.gitlab, locator: gitlab };
-  const bitbucket = parseBitbucketRepositoryUrl(value);
-  if (bitbucket) return { provider: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket, locator: bitbucket };
-  const azure = parseAzureDevOpsRepositoryUrl(value);
-  return azure ? { provider: ASSESSMENT_REPOSITORY_PROVIDERS.azureDevOps, locator: azure } : null;
-}
+export const repositorySetupSchema = z
+  .object({
+    provider: z.string().trim().optional(),
+    repositoryUrl: z.string(),
+    repositories: z
+      .array(repositoryEntrySchema)
+      .max(ASSESSMENT_REPOSITORY_LIMITS.maxRepositories),
+  })
+  .superRefine((value, context) => {
+    const seen = new Set<string>();
+    value.repositories.forEach((entry, index) => {
+      const identity = repositoryIdentityOf({
+        provider: entry.provider,
+        repositoryFullName: repositoryFullNameOf(entry),
+        sourcePathPrefix: entry.sourcePathPrefix,
+      });
+      if (identity && seen.has(identity)) {
+        context.addIssue({
+          code: "custom",
+          path: ["repositories", index, "repositoryUrl"],
+          message: REPOSITORY_SETUP_ISSUES.duplicateRepository,
+        });
+      }
+      if (identity) seen.add(identity);
+    });
+  });
 
-export type RepositorySetupFormData = z.infer<typeof repositorySetupSchema>;
+export type RepositorySetupFormData = z.input<typeof repositorySetupSchema>;

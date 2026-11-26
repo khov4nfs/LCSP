@@ -782,6 +782,15 @@ export const enPages = {
         allCandidates:
           "All {total} candidate rules (investigative suggestions only)",
         selectCandidateRules: "Select suggested rules (review before auditing)",
+        repositories: "Repositories",
+        showRepository: "Show results for {repository}",
+        viewingRepository: "Showing results for {repository}",
+        statusQueued: "Queued",
+        statusRunning: "Scanning…",
+        statusCompleted: "Done",
+        statusFailed: "Failed",
+        selectCandidateRulesFromRepository:
+          "Add suggested rules from {repository} (review before auditing)",
         loadMore: "Load more candidate rules",
         // Pre-audit Discovery asks about intended product behavior.
         contextQuestions: "Questions about AI features",
@@ -847,6 +856,7 @@ export const enPages = {
     userName: "You",
     opening: "I'm starting your assessment.",
     openingRepository: "Repository: {repository} at {commit}.",
+    openingRepositories: "Repositories assessed together: {repositories}.",
     openingRuleSet:
       "Compliance rule set {version} is pinned for this assessment.",
     work: {
@@ -1075,6 +1085,7 @@ export const enPages = {
     context: {
       title: "Assessment context",
       repository: "Repository",
+      repositories: "Repositories",
       ruleSet: "Compliance rule set",
       ruleSetSummary: "{requirements} requirements · {rules} assessment rules",
       ruleSetWaiting: "Waiting for an active rule set",
@@ -1163,6 +1174,11 @@ export const enPages = {
         compliantResult: "Compliant",
         nonCompliantResult: "Non-compliant",
         publishedResult: "Published and integrity-verified",
+        repositories: "Repositories assessed together",
+        repositorySetDigest: "Repository set digest",
+        repositoryKey: "Repository",
+        repositoryScope: "Scope and visibility",
+        repositoryEvidence: "Evidence cited from this repository",
       },
       v1Compatibility:
         "Historical V1 report — only fields present in the original artifact are shown.",
@@ -1182,6 +1198,8 @@ export const enPages = {
       ruleSetRuleCount: "Rules in pinned Rule Set",
       selectedScope: "Selected-rule audit scope",
       repository: "Repository snapshot",
+      repositories: "Repositories",
+      repositorySetDigest: "Repository set digest",
       lineage: "Runtime execution lineage",
       facts: "Accepted facts",
       evidence: "Accepted evidence",
@@ -2510,6 +2528,8 @@ export const enPages = {
       freshness: "Source freshness",
       trust: "Result status",
       repository: "Repository",
+      repositories: "Repositories",
+      moreRepositories: "+{count} more repositories",
       assessedCommit: "Assessed commit",
       latestObservedCommit: "Latest observed commit",
       observedAt: "Last observed",
@@ -3498,6 +3518,16 @@ export const enPages = {
     configureProvider: "Configure secure connection",
     repositoryPlaceholder: "Paste a repository URL to continue...",
     repositoryDisabledPlaceholder: "Connect a provider to continue...",
+    repositoriesTitle: "Repositories to assess ({count} of {limit})",
+    addRepositoryHint:
+      "Paste another repository URL to add it, or start the analysis with the repositories above.",
+    repositoryLimitReached:
+      "You can assess up to {limit} repositories in one assessment.",
+    removeRepository: "Remove {repository}",
+    startAnalysis: "Start analysis",
+    startingAnalysis: "Starting analysis...",
+    addRepository: "Add another repository",
+    multiRepositoryName: "{name} +{count}",
     providers: {
       github: "GitHub",
       gitlab: "GitLab",
@@ -3509,6 +3539,7 @@ export const enPages = {
       connectedDescription:
         "Repository connected. This assessment is locked to the selected repository and pinned commit.",
       pinnedCommit: "pinned commit {commit}",
+      sourceScope: "scope {path}",
       pending: "Pending",
       loadingState: "Loading repository state...",
     },
@@ -3520,6 +3551,13 @@ export const enPages = {
         "The assessment could not be created. Please try again.",
       repositorySetup:
         "Check the provider credential and repository access, then try again.",
+      duplicateRepository: "This repository is already in the list.",
+      repositoryLimit:
+        "The repository limit for one assessment has been reached.",
+      repositorySetImmutable:
+        "Repositories can no longer be changed once setup is completed.",
+      removeRepository:
+        "The repository could not be removed. Please try again.",
     },
     setupPageTitle: "Complete assessment setup",
     setupPageSubtitle:
@@ -3585,6 +3623,7 @@ export const enPages = {
         "Default branch HEAD (pinned automatically on connect)",
       connectAction: "Connect repository",
       connectingAction: "Connecting repository...",
+      addAction: "Add repository",
     },
     actions: {
       continue: "Continue",

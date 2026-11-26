@@ -25,6 +25,7 @@ import {
 import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import { ApiRequestError, apiValidated } from "./api-request";
+import { removeAssessmentRepository } from "./repository-analysis-client";
 
 export const assessmentDomainKeys = {
   detail: (id: string) => ["assessment", id, "detail"] as const,
@@ -294,6 +295,60 @@ export function useRepositorySetupQuery(id: string) {
       ),
     enabled: Boolean(id),
   });
+}
+/**
+ * Business purpose: Let the setup screen drop a repository candidate and show the server list afterwards.
+ * Business rules:
+ * - Removal always goes through the dedicated endpoint; the setup view is reloaded whether it succeeds or fails,
+ *   so the list never keeps a repository the server no longer has (or hides one it still has).
+ * Execution flow:
+ * 1. Call the removal client for the chosen snapshot.
+ * 2. Invalidate the setup query when the call settles.
+ * Failure cases:
+ * - A rejected removal surfaces to the caller, which shows the removal error; the reload still runs.
+ * Side effects:
+ * - Deletes one candidate through the API and refreshes the cached setup state.
+ */
+export function useRemoveAssessmentRepositoryMutation(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: removeCandidate(id),
+    onSettled: refreshSetupView(client, id),
+  });
+}
+
+/**
+ * Business purpose: Bind the assessment to the removal call so the setup screen only has to name the snapshot to drop.
+ * Business rules:
+ * - Removal is always scoped to one assessment; the snapshot alone never selects which assessment to change.
+ * Execution flow:
+ * 1. Capture the assessment id. 2. Return the removal call for a snapshot id.
+ * Failure cases:
+ * - None here; the returned call rejects with the API problem when removal is refused.
+ * Side effects:
+ * - None until the returned call runs, which deletes one candidate through the API.
+ */
+function removeCandidate(id: string) {
+  return (snapshotId: string) => removeAssessmentRepository(id, snapshotId);
+}
+
+/**
+ * Business purpose: Reload the setup view after a removal attempt so the list always mirrors the server.
+ * Business rules:
+ * - The reload runs whether the removal succeeded or failed, because a failed call may still have changed state.
+ * Execution flow:
+ * 1. Capture the cache client and assessment id. 2. Return a callback that invalidates the setup query.
+ * Failure cases:
+ * - None; invalidation only marks the cached view stale.
+ * Side effects:
+ * - Marks the cached setup state stale, which triggers one refetch.
+ */
+function refreshSetupView(
+  client: ReturnType<typeof useQueryClient>,
+  id: string,
+) {
+  return () =>
+    client.invalidateQueries({ queryKey: assessmentDomainKeys.setup(id) });
 }
 export function useAnswerHumanRequestMutation(id: string, requestId: string) {
   const client = useQueryClient();

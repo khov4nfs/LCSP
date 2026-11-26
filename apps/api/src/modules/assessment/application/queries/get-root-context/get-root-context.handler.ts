@@ -62,6 +62,8 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
    * Business rules:
    * - Selected membership comes from the assessment's immutable request; a missing selected request never widens to full scope.
    * - The source prefix comes from the immutable snapshot, and open human blockers must have a dependency in this audit.
+   * - The context carries the whole pinned repository set and its digest so the Root can prove every cited repository
+   *   is pinned; the scalar repository fields keep describing the primary repository for workers that predate the set.
    * - Human answer history remains separate from accepted facts; UNKNOWN grants no fact or compliance authority.
    * - Reconciles cumulative LLM usage against configured budget limits, evaluates admission, and applies versioned extensions in lineage order.
    * Execution flow:
@@ -300,6 +302,8 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         repositoryScanJobId: pins.repositoryScanJobId,
         repositoryCommit: pins.repositoryCommit,
         sourcePathPrefix: pins.sourcePathPrefix,
+        repositorySetDigest: pins.repositorySetDigest,
+        repositories: pins.repositories,
         decisionScopeId: ASSESSMENT_DECISION_SCOPE,
         auditRequest: auditRequest
           ? {
@@ -339,6 +343,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
           type: row.type,
           state: row.state,
           repositoryCommit: row.repositoryCommit,
+          repositoryKey: row.repositoryKey ?? null,
           contentSha256: row.contentSha256,
           payload: row.payload as Record<string, unknown>,
           createdAt: row.createdAt.toISOString(),

@@ -18,15 +18,45 @@ const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ownerId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const correlationId = "corr-discovery-test";
 const repositoryCommit = "a".repeat(40);
+const web = {
+  repositoryKey: "web",
+  ordinal: 0,
+  connectionId: "connection-1",
+  repositoryId: "repository-1",
+  repositoryFullName: "acme/web",
+  repositorySnapshotId: "snapshot-1",
+  repositoryScanJobId: "scan-job-1",
+  repositoryCommit,
+  sourcePathPrefix: null,
+};
+const api = {
+  repositoryKey: "api",
+  ordinal: 1,
+  connectionId: "connection-2",
+  repositoryId: "repository-2",
+  repositoryFullName: "acme/api",
+  repositorySnapshotId: "snapshot-2",
+  repositoryScanJobId: "scan-job-2",
+  repositoryCommit: "b".repeat(40),
+  sourcePathPrefix: "services/billing",
+};
 const pins = {
   assessmentId,
   caseRevision: 0,
   ruleSetVersionId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-  repositorySnapshotId: "snapshot-1",
-  repositoryId: "repository-1",
-  repositoryScanJobId: "scan-job-1",
+  repositorySnapshotId: web.repositorySnapshotId,
+  repositoryId: web.repositoryId,
+  repositoryScanJobId: web.repositoryScanJobId,
   repositoryCommit,
   sourcePathPrefix: null,
+  repositorySetDigest: `sha256:${"1".repeat(64)}`,
+  repositories: [web],
+  repositorySetRecorded: true,
+};
+const pairPins = {
+  ...pins,
+  repositorySetDigest: `sha256:${"2".repeat(64)}`,
+  repositories: [web, api],
 };
 
 type TestRun = {
@@ -39,6 +69,8 @@ type TestRun = {
   attempt: number;
   repositorySnapshotId: string;
   repositoryId: string;
+  repositoryKey: string | null;
+  discoveryBatchId: string | null;
   repositoryCommit: string;
   sourcePathPrefix: string | null;
   repositoryScanJobId: string;
@@ -81,6 +113,23 @@ function fixture() {
               r.assessmentId === input?.assessmentId &&
               r.idempotencyKey === input?.idempotencyKey,
           ) ?? null,
+        );
+      },
+    ),
+    findMany: jest.fn(
+      ({
+        where,
+      }: {
+        where: { idempotencyKey?: { in: string[] }; OR?: unknown };
+      }) => {
+        const all = [...rows.values()];
+        // Idempotency lookups filter by key; the "latest" lookup lists runs newest first.
+        return Promise.resolve(
+          where.idempotencyKey
+            ? all.filter((r) =>
+                where.idempotencyKey?.in.includes(r.idempotencyKey),
+              )
+            : [...all].reverse(),
         );
       },
     ),
@@ -185,7 +234,7 @@ function fixture() {
   };
   const support = {
     lockCase: jest.fn(() => Promise.resolve(undefined)),
-    loadPins: jest.fn(() => Promise.resolve(pins)),
+    loadPins: jest.fn(() => Promise.resolve<typeof pairPins>(pins)),
   };
   const discoveries = {
     getOwnerSummary: jest.fn(() =>
@@ -194,12 +243,14 @@ function fixture() {
         discovery: null,
       }),
     ),
-    saveAuthorizedInTx: jest.fn(() =>
-      Promise.resolve({
+    saveAuthorizedInTx: jest.fn((tx: unknown, input: unknown) => {
+      void tx;
+      void input;
+      return Promise.resolve({
         recordId: randomUUID(),
         replayed: false,
-      }),
-    ),
+      });
+    }),
   };
   const service = new AssessmentDiscoveryRunService(
     prisma as unknown as PrismaService,
@@ -234,15 +285,21 @@ function request(key = randomUUID()) {
 describe("AssessmentDiscoveryRunService pre-scope authority", () => {
   it("creates an authorized queued run and durable command without opening an audit", async () => {
     const { service, rows, outbox, tx } = fixture();
-    const result = await service.start(request());
+    const batch = await service.start(request());
+    const result = batch.run;
     expect(result.status).toBe(AssessmentDiscoveryRunStatus.QUEUED);
     expect(result.discovery.available).toBe(false);
+    expect(batch.runs).toHaveLength(1);
+    expect(result.repositoryKey).toBe("web");
     expect(rows.size).toBe(1);
     expect(tx.assessmentRuntime.findUnique).toHaveBeenCalled();
     expect(outbox.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: ASSESSMENT_DISCOVERY_COMMAND_TYPES.DISCOVERY_REQUESTED,
-        payload: expect.objectContaining({ assessmentId, runId: result.runId }),
+        payload: expect.objectContaining({
+          assessmentId,
+          runId: result.runId,
+        }),
       }),
       expect.anything(),
     );
@@ -253,14 +310,14 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
     const original = request();
     const first = await service.start(original);
     const second = await service.start(original);
-    expect(second.runId).toBe(first.runId);
+    expect(second.run.runId).toBe(first.run.runId);
     expect(outbox.enqueue).toHaveBeenCalledTimes(1);
   });
 
   it("preserves an authorized discovery history after an assessment changes lifecycle", async () => {
     const { service, setLifecycle, setAuditRequest, outbox } = fixture();
     const original = request();
-    const run = await service.start(original);
+    const run = (await service.start(original)).run;
     setLifecycle(ASSESSMENT_LIFECYCLE_STATES.PAUSED);
     setAuditRequest("later-selected-audit");
     const historical = await service.get({
@@ -277,8 +334,9 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
     });
     expect(latest.available).toBe(true);
     if (latest.available) expect(latest.run.runId).toBe(run.runId);
+    if (latest.available) expect(latest.runs).toHaveLength(1);
     const replay = await service.start(original);
-    expect(replay.runId).toBe(run.runId);
+    expect(replay.run.runId).toBe(run.runId);
     expect(outbox.enqueue).toHaveBeenCalledTimes(1);
   });
 
@@ -298,7 +356,7 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
 
   it("grants one scan lease and denies a concurrent worker", async () => {
     const { service, rows } = fixture();
-    const result = await service.start(request());
+    const result = (await service.start(request())).run;
     const claim = await service.claim({
       assessmentId,
       runId: result.runId,
@@ -316,7 +374,7 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
 
   it("fails closed on invalid worker leases without saving discovery", async () => {
     const { service, discoveries } = fixture();
-    const result = await service.start(request());
+    const result = (await service.start(request())).run;
     await service.claim({ assessmentId, runId: result.runId, correlationId });
     await expect(
       service.complete({
@@ -332,7 +390,7 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
 
   it("settles only a current failed run and allows an owner to retry with a new request key", async () => {
     const { service, rows, outbox } = fixture();
-    const first = await service.start(request());
+    const first = (await service.start(request())).run;
     const claim = await service.claim({
       assessmentId,
       runId: first.runId,
@@ -348,14 +406,14 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
     expect(rows.get(first.runId)?.status).toBe(
       AssessmentDiscoveryRunStatus.FAILED,
     );
-    const second = await service.start(request());
+    const second = (await service.start(request())).run;
     expect(second.runId).not.toBe(first.runId);
     expect(outbox.enqueue).toHaveBeenCalledTimes(2);
   });
 
   it("accepts one scan result and replays only the identical worker digest", async () => {
     const { service, rows, discoveries } = fixture();
-    const started = await service.start(request());
+    const started = (await service.start(request())).run;
     const claim = await service.claim({
       assessmentId,
       runId: started.runId,
@@ -391,7 +449,7 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
 
   it("denies scan result after the pinned source coordinates have changed", async () => {
     const { service, support, discoveries } = fixture();
-    const started = await service.start(request());
+    const started = (await service.start(request())).run;
     const claim = await service.claim({
       assessmentId,
       runId: started.runId,
@@ -400,6 +458,7 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
     support.loadPins.mockResolvedValue({
       ...pins,
       repositoryCommit: "b".repeat(40),
+      repositories: [{ ...web, repositoryCommit: "b".repeat(40) }],
     });
     await expect(
       service.complete({
@@ -415,7 +474,7 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
 
   it("rejects a different result after the original scan lease has completed", async () => {
     const { service, rows } = fixture();
-    const result = await service.start(request());
+    const result = (await service.start(request())).run;
     const claim = await service.claim({
       assessmentId,
       runId: result.runId,
@@ -433,6 +492,149 @@ describe("AssessmentDiscoveryRunService pre-scope authority", () => {
         correlationId,
         leaseToken: claim.leaseToken,
         discovery: { contentDigest: `sha256:${"b".repeat(64)}` } as never,
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("AssessmentDiscoveryRunService repository sets", () => {
+  it("starts one run per pinned repository in a shared batch with one command each", async () => {
+    const { service, rows, outbox, support } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const batch = await service.start(request());
+    expect(batch.runs.map((run) => run.repositoryKey)).toEqual(["web", "api"]);
+    expect(batch.run.repositoryKey).toBe("web");
+    expect(new Set(batch.runs.map((run) => run.discoveryBatchId)).size).toBe(1);
+    expect(batch.batchId).toBe(batch.run.discoveryBatchId);
+    expect(rows.size).toBe(2);
+    expect(outbox.enqueue).toHaveBeenCalledTimes(2);
+    const [first, second] = [...rows.values()];
+    expect(first?.idempotencyKey).not.toBe(second?.idempotencyKey);
+    expect(second?.repositorySnapshotId).toBe("snapshot-2");
+    expect(second?.sourcePathPrefix).toBe("services/billing");
+    expect(second?.repositoryScanJobId).toBe("scan-job-2");
+  });
+
+  it("replays a repository-set batch without creating or enqueuing again", async () => {
+    const { service, rows, outbox, support } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const original = request();
+    const first = await service.start(original);
+    const replay = await service.start(original);
+    expect(replay.runs.map((run) => run.runId)).toEqual(
+      first.runs.map((run) => run.runId),
+    );
+    expect(rows.size).toBe(2);
+    expect(outbox.enqueue).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses to reuse a key after the pinned set changed", async () => {
+    const { service, support } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const original = request();
+    await service.start(original);
+    support.loadPins.mockResolvedValue({
+      ...pairPins,
+      repositorySetDigest: `sha256:${"3".repeat(64)}`,
+    });
+    await expect(service.start(original)).rejects.toThrow();
+  });
+
+  it("claims each run with its own repository coordinates and settles it against that pin", async () => {
+    const { service, support, discoveries } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const batch = await service.start(request());
+    const second = batch.runs[1];
+    const claim = await service.claim({
+      assessmentId,
+      runId: second.runId,
+      correlationId,
+    });
+    expect(claim).toMatchObject({
+      repositoryKey: "api",
+      repositorySnapshotId: "snapshot-2",
+      repositoryId: "repository-2",
+      repositoryCommit: "b".repeat(40),
+      sourcePathPrefix: "services/billing",
+      repositoryScanJobId: "scan-job-2",
+    });
+    const discovery = { contentDigest: `sha256:${"a".repeat(64)}` } as never;
+    await service.complete({
+      assessmentId,
+      runId: second.runId,
+      correlationId,
+      leaseToken: claim.leaseToken,
+      discovery,
+    });
+    expect(discoveries.saveAuthorizedInTx).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ repositoryKey: "api", discovery }),
+    );
+  });
+
+  it("denies a run of one repository once only that repository's pin has changed", async () => {
+    const { service, support, discoveries } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const batch = await service.start(request());
+    const second = batch.runs[1];
+    const claim = await service.claim({
+      assessmentId,
+      runId: second.runId,
+      correlationId,
+    });
+    support.loadPins.mockResolvedValue({
+      ...pairPins,
+      repositories: [web, { ...api, repositoryCommit: "c".repeat(40) }],
+    });
+    await expect(
+      service.complete({
+        assessmentId,
+        runId: second.runId,
+        correlationId,
+        leaseToken: claim.leaseToken,
+        discovery: { contentDigest: `sha256:${"a".repeat(64)}` } as never,
+      }),
+    ).rejects.toThrow();
+    expect(discoveries.saveAuthorizedInTx).not.toHaveBeenCalled();
+    // The untouched repository's run is still claimable.
+    await expect(
+      service.claim({
+        assessmentId,
+        runId: batch.runs[0].runId,
+        correlationId,
+      }),
+    ).resolves.toMatchObject({ repositoryKey: "web" });
+  });
+
+  it("restores the whole newest batch, primary repository first", async () => {
+    const { service, support } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const batch = await service.start(request());
+    const latest = await service.latest({
+      assessmentId,
+      ownerId,
+      correlationId,
+    });
+    expect(latest.available).toBe(true);
+    if (latest.available) {
+      expect(latest.runs.map((run) => run.runId)).toEqual(
+        batch.runs.map((run) => run.runId),
+      );
+      expect(latest.run.repositoryKey).toBe("web");
+    }
+  });
+
+  it("does not show a run whose repository is no longer pinned", async () => {
+    const { service, support } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const batch = await service.start(request());
+    support.loadPins.mockResolvedValue(pins);
+    await expect(
+      service.get({
+        assessmentId,
+        ownerId,
+        correlationId,
+        runId: batch.runs[1].runId,
       }),
     ).rejects.toThrow();
   });

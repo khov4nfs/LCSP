@@ -216,6 +216,10 @@ export function projectConversation(
       repositoryFullName: input.repository?.fullName ?? null,
       commit:
         input.repository?.commit ?? detail?.case?.repositoryCommit ?? null,
+      repositories: (input.repositories ?? []).map((repository) => ({
+        fullName: repository.fullName,
+        commit: repository.commit,
+      })),
       ruleSetVersion: detail?.case?.ruleSet?.version ?? null,
     });
   }

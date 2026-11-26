@@ -38,6 +38,10 @@ describe("RuntimeHydrationTicketLifecycle", () => {
     runtimeState?: string;
     leaseToken?: string | null;
     turnState?: AssessmentRuntimeControlState;
+    /** Primary pin of the case; defaults to the ticket itself. */
+    primaryPin?: { repositoryScanJobId: string; repositorySnapshotId: string };
+    /** Number of pin rows matching the ticket in the repository set. */
+    setPinMatches?: number;
   }) {
     const findTicket = jest
       .fn<(...args: unknown[]) => Promise<unknown>>()
@@ -69,10 +73,17 @@ describe("RuntimeHydrationTicketLifecycle", () => {
       assessmentCase: {
         findUnique: jest
           .fn<(...args: unknown[]) => Promise<unknown>>()
-          .mockResolvedValue({
-            repositoryScanJobId: ticket.id,
-            repositorySnapshotId: ticket.snapshotId,
-          }),
+          .mockResolvedValue(
+            options?.primaryPin ?? {
+              repositoryScanJobId: ticket.id,
+              repositorySnapshotId: ticket.snapshotId,
+            },
+          ),
+      },
+      assessmentCaseRepository: {
+        count: jest
+          .fn<(...args: unknown[]) => Promise<number>>()
+          .mockResolvedValue(options?.setPinMatches ?? 0),
       },
       assessmentRuntimeTurn: { findUnique: findTurn },
     } as unknown as PrismaService;
@@ -271,6 +282,39 @@ describe("RuntimeHydrationTicketLifecycle", () => {
 
   it("refuses reconciliation while the Root still has a lease", async () => {
     const { lifecycle, updateTicket } = setup({ leaseToken: "lease-1" });
+    await expect(
+      lifecycle.reconcileTerminalRuntime({
+        ticketId: ticket.id,
+        snapshotId: ticket.snapshotId,
+      }),
+    ).rejects.toThrow("not safely reconcilable");
+    expect(updateTicket).not.toHaveBeenCalled();
+  });
+
+  const otherPrimary = {
+    repositoryScanJobId: "hydration-other",
+    repositorySnapshotId: "snapshot-other",
+  };
+
+  it("reconciles a ticket that is a non-primary pin of the repository set", async () => {
+    const { lifecycle, updateTicket } = setup({
+      primaryPin: otherPrimary,
+      setPinMatches: 1,
+    });
+    await expect(
+      lifecycle.reconcileTerminalRuntime({
+        ticketId: ticket.id,
+        snapshotId: ticket.snapshotId,
+      }),
+    ).resolves.toMatchObject({ changed: true });
+    expect(updateTicket).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a ticket that is not pinned anywhere in the repository set", async () => {
+    const { lifecycle, updateTicket } = setup({
+      primaryPin: otherPrimary,
+      setPinMatches: 0,
+    });
     await expect(
       lifecycle.reconcileTerminalRuntime({
         ticketId: ticket.id,

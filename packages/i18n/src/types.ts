@@ -722,6 +722,14 @@ export type PagesMessages = {
         preview: string;
         allCandidates: string;
         selectCandidateRules: string;
+        repositories: string;
+        showRepository: string;
+        viewingRepository: string;
+        statusQueued: string;
+        statusRunning: string;
+        statusCompleted: string;
+        statusFailed: string;
+        selectCandidateRulesFromRepository: string;
         loadMore: string;
         contextQuestions: string;
         contextAdvisory: string;
@@ -778,6 +786,7 @@ export type PagesMessages = {
     userName: string;
     opening: string;
     openingRepository: string;
+    openingRepositories: string;
     openingRuleSet: string;
     work: {
       running: string;
@@ -993,6 +1002,7 @@ export type PagesMessages = {
     context: {
       title: string;
       repository: string;
+      repositories: string;
       ruleSet: string;
       ruleSetSummary: string;
       ruleSetWaiting: string;
@@ -1080,6 +1090,11 @@ export type PagesMessages = {
         compliantResult: string;
         nonCompliantResult: string;
         publishedResult: string;
+        repositories: string;
+        repositorySetDigest: string;
+        repositoryKey: string;
+        repositoryScope: string;
+        repositoryEvidence: string;
       };
       v1Compatibility: string;
     };
@@ -1098,6 +1113,8 @@ export type PagesMessages = {
       ruleSetRuleCount: string;
       selectedScope: string;
       repository: string;
+      repositories: string;
+      repositorySetDigest: string;
       lineage: string;
       facts: string;
       evidence: string;
@@ -2294,6 +2311,8 @@ export type PagesMessages = {
       freshness: string;
       trust: string;
       repository: string;
+      repositories: string;
+      moreRepositories: string;
       assessedCommit: string;
       latestObservedCommit: string;
       observedAt: string;
@@ -3473,6 +3492,14 @@ export type PagesMessages = {
     configureProvider: string;
     repositoryPlaceholder: string;
     repositoryDisabledPlaceholder: string;
+    repositoriesTitle: string;
+    addRepositoryHint: string;
+    repositoryLimitReached: string;
+    removeRepository: string;
+    startAnalysis: string;
+    startingAnalysis: string;
+    addRepository: string;
+    multiRepositoryName: string;
     providers: {
       github: string;
       gitlab: string;
@@ -3483,6 +3510,7 @@ export type PagesMessages = {
       connected: string;
       connectedDescription: string;
       pinnedCommit: string;
+      sourceScope: string;
       pending: string;
       loadingState: string;
     };
@@ -3491,6 +3519,10 @@ export type PagesMessages = {
       repositoryUrl: string;
       createAssessment: string;
       repositorySetup: string;
+      duplicateRepository: string;
+      repositoryLimit: string;
+      repositorySetImmutable: string;
+      removeRepository: string;
     };
     setupPageTitle: string;
     setupPageSubtitle: string;
@@ -3544,6 +3576,7 @@ export type PagesMessages = {
       pinnedRevisionDefault: string;
       connectAction: string;
       connectingAction: string;
+      addAction: string;
     };
     actions: {
       continue: string;

@@ -15,6 +15,7 @@ import {
   ruleDecisionSchema,
 } from "../assessment/agentic-runtime.ts";
 import { assessmentFinalReportV3Schema } from "./v3-schemas.ts";
+import { assessmentFinalReportV4Schema } from "./v4-schemas.ts";
 
 const identifierSchema = z.string().min(1).max(200);
 const uuidSchema = z.uuid();
@@ -506,6 +507,7 @@ export const assessmentFinalReportArtifactVersionedSchema =
     assessmentFinalReportArtifactSchema,
     assessmentFinalReportV2Schema,
     assessmentFinalReportV3Schema,
+    assessmentFinalReportV4Schema,
   ]);
 
 export type AssessmentFinalReportArtifactVersioned = z.infer<

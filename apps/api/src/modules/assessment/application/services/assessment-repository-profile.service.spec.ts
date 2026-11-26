@@ -90,6 +90,7 @@ describe("AssessmentRepositoryProfileService", () => {
         repositorySnapshotId: "snapshot-456",
         repositoryCommit: "132b5d796b32bf2f4454990b64df7d0435e28161",
         sourcePathPrefix: "packages/api",
+        repositories: [],
       }),
     };
     const mockPrisma = {
@@ -167,6 +168,7 @@ describe("AssessmentRepositoryProfileService", () => {
         repositorySnapshotId: "snapshot-456",
         repositoryCommit: "0000000000000000000000000000000000000000",
         sourcePathPrefix: "packages/api",
+        repositories: [],
       });
 
       await expect(
@@ -184,6 +186,7 @@ describe("AssessmentRepositoryProfileService", () => {
         repositorySnapshotId: "snapshot-456",
         repositoryCommit: "132b5d796b32bf2f4454990b64df7d0435e28161",
         sourcePathPrefix: "packages/other",
+        repositories: [],
       });
 
       await expect(
@@ -193,6 +196,72 @@ describe("AssessmentRepositoryProfileService", () => {
           profile: validProfile,
         }),
       ).rejects.toThrow();
+    });
+  });
+
+  describe("repository sets", () => {
+    const pin = (overrides: Record<string, unknown>) => ({
+      repositoryKey: "web",
+      ordinal: 0,
+      connectionId: "connection-1",
+      repositoryFullName: "acme/web",
+      repositoryId: "repo-other",
+      repositorySnapshotId: "snapshot-1",
+      repositoryScanJobId: "scan-1",
+      repositoryCommit: "a".repeat(40),
+      sourcePathPrefix: null,
+      ...overrides,
+    });
+    const setOf = (second: Record<string, unknown>) => {
+      const repositories = [pin({}), pin(second)];
+      return {
+        repositorySnapshotId: "snapshot-1",
+        repositoryCommit: "a".repeat(40),
+        sourcePathPrefix: null,
+        repositories,
+      };
+    };
+    const secondMatchingProfile = {
+      repositoryKey: "api",
+      ordinal: 1,
+      repositoryId: "repo-123",
+      repositorySnapshotId: "snapshot-456",
+      repositoryCommit: "132b5d796b32bf2f4454990b64df7d0435e28161",
+      sourcePathPrefix: "packages/api",
+    };
+
+    it("judges a profile against the pinned repository its coordinates identify", async () => {
+      mockSupport.loadPins.mockResolvedValueOnce(setOf(secondMatchingProfile));
+      const result = await service.saveProfileInTx(getMockTx(), {
+        assessmentId: "assessment-1",
+        correlationId: "corr-1",
+        profile: validProfile,
+      });
+      expect(result.contentDigest).toBe(validProfile.contentDigest);
+    });
+
+    it("rejects a profile that matches no pinned repository of the set", async () => {
+      mockSupport.loadPins.mockResolvedValueOnce(
+        setOf({ ...secondMatchingProfile, repositoryId: "repo-unrelated" }),
+      );
+      await expect(
+        service.saveProfileInTx(getMockTx(), {
+          assessmentId: "assessment-1",
+          correlationId: "corr-1",
+          profile: validProfile,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("reads nothing for a repository key that is not pinned", async () => {
+      mockSupport.loadPins.mockResolvedValueOnce(setOf(secondMatchingProfile));
+      await expect(
+        service.getProfileInTx(getMockTx(), {
+          assessmentId: "assessment-1",
+          correlationId: "corr-1",
+          repositoryKey: "mobile",
+        }),
+      ).resolves.toBeNull();
     });
   });
 

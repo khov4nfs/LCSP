@@ -18,6 +18,7 @@ import {
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import {
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
   assessmentFinalReportArtifactVersionedSchema,
 } from "@lcsp/contracts/assessment-report";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -37,6 +38,11 @@ import {
   withFinalReportDependencyDeadline,
 } from "../../application/services/final-report-error-classifier.js";
 import { buildCanonicalRepositoryUrl } from "@lcsp/contracts/github-integration";
+import {
+  assertReportRepositorySetCurrent,
+  reportIdentityMatchesPins,
+  reportPrimaryPin,
+} from "../../domain/final-report-repository-pins.js";
 
 /** Reads the existing immutable artifact. This path never generates a report. */
 @Injectable()
@@ -169,10 +175,7 @@ export class AssessmentReportLoader {
           });
         if (
           !pinnedRuleSet ||
-          report.identity.repositorySnapshotId !==
-            report.pins.repositorySnapshotId ||
-          report.identity.repositoryCommit.toLowerCase() !==
-            report.pins.repositoryCommit.toLowerCase() ||
+          !reportIdentityMatchesPins(report) ||
           report.pins.ruleSetVersionId !== pinnedRuleSet.id ||
           report.pins.ruleSetVersion !== pinnedRuleSet.version ||
           report.pins.ruleSetDigest !== pinnedRuleSet.ruleSetDigest ||
@@ -206,6 +209,27 @@ export class AssessmentReportLoader {
           );
         }
       }
+      if (report.schemaVersion === ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION) {
+        try {
+          await assertReportRepositorySetCurrent(
+            report,
+            [artifact.repositorySetDigest, domainCase.repositorySetDigest],
+            (snapshotId) =>
+              this.prisma.repositorySnapshot.findUnique({
+                where: { id: snapshotId },
+                select: { sourcePathPrefix: true },
+              }),
+          );
+        } catch (error) {
+          // A drifted or foreign repository set is persisted damage, not a server fault.
+          throw new FinalReportIntegrityError(
+            error instanceof Error
+              ? error.message
+              : "Final report repository set mismatch",
+          );
+        }
+      }
+      const primaryPin = reportPrimaryPin(report);
       const reportDecisions =
         "ruleDetails" in report ? report.ruleDetails : report.findings;
       const fingerprint = decisionFingerprint(reportDecisions);
@@ -216,10 +240,10 @@ export class AssessmentReportLoader {
         report.kind !== artifact.kind ||
         report.schemaVersion !== artifact.schemaVersion ||
         report.pins.ruleSetVersionId !== artifact.ruleSetVersionId ||
-        report.pins.repositorySnapshotId !== artifact.repositorySnapshotId ||
+        primaryPin.repositorySnapshotId !== artifact.repositorySnapshotId ||
         // Git object IDs are hexadecimal identifiers, so letter casing is not
         // semantic. Normalize both persisted boundaries before comparison.
-        report.pins.repositoryCommit.toLowerCase() !==
+        primaryPin.repositoryCommit.toLowerCase() !==
           artifact.repositoryCommit.toLowerCase() ||
         report.caseRevision !== artifact.caseRevision ||
         report.decisionFingerprint !== fingerprint ||
@@ -228,17 +252,17 @@ export class AssessmentReportLoader {
         Buffer.byteLength(content) !== artifact.sizeBytes ||
         report.caseRevision !== domainCase.caseRevision ||
         report.pins.ruleSetVersionId !== domainCase.ruleSetVersionId ||
-        report.pins.repositorySnapshotId !== domainCase.repositorySnapshotId ||
-        report.pins.repositoryScanJobId !== domainCase.repositoryScanJobId ||
-        report.pins.repositoryCommit.toLowerCase() !==
+        primaryPin.repositorySnapshotId !== domainCase.repositorySnapshotId ||
+        primaryPin.repositoryScanJobId !== domainCase.repositoryScanJobId ||
+        primaryPin.repositoryCommit.toLowerCase() !==
           domainCase.repositoryCommit?.toLowerCase()
       ) {
         throw new FinalReportIntegrityError("Final report integrity mismatch");
       }
       const repositorySource = await this.loadRepositorySource({
         assessmentId: input.assessmentId,
-        snapshotId: report.pins.repositorySnapshotId,
-        commitSha: report.pins.repositoryCommit,
+        snapshotId: primaryPin.repositorySnapshotId,
+        commitSha: primaryPin.repositoryCommit,
       });
       const locale = input.locale
         ? resolveResponseLanguage(input.locale)

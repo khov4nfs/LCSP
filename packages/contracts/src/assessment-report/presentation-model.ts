@@ -3,6 +3,7 @@ import {
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
 } from "../assessment-domain/constants.ts";
 import type { AssessmentFinalReportArtifact } from "../assessment-domain/schemas.ts";
 import type {
@@ -17,6 +18,7 @@ import {
   resolveV3BoundedActionPlanItems,
   type AssessmentFinalReportV3,
 } from "./v3-schemas.ts";
+import type { AssessmentFinalReportV4 } from "./v4-schemas.ts";
 
 export const ASSESSMENT_REPORT_SECTION_IDS = {
   result: "RESULT",
@@ -38,7 +40,8 @@ export const ASSESSMENT_REPORT_OUTCOME_LABELS = {
 export type AssessmentReportPresentation =
   | AssessmentReportV1Presentation
   | AssessmentReportV2Presentation
-  | AssessmentReportV3Presentation;
+  | AssessmentReportV3Presentation
+  | AssessmentReportV4Presentation;
 
 export type AssessmentReportSection = {
   id: AssessmentReportSectionId;
@@ -312,6 +315,59 @@ export type AssessmentReportV3Presentation = {
   };
 };
 
+/** One repository of a multi-repository report as the customer sees it. */
+export type AssessmentReportRepositoryPresentation = {
+  repositoryKey: string;
+  ordinal: number;
+  repositoryFullName: string;
+  repositorySnapshotId: string;
+  repositoryCommit: string;
+  sourcePathPrefix: string | null;
+  sourceScope: Omit<AssessmentFinalReportV3["sourceScope"], never>;
+  /** Evidence of this repository that the report cites. */
+  evidenceIds: string[];
+};
+
+type WithRepositoryKey<T> = T extends { evidence: Array<infer E> }
+  ? Omit<T, "evidence"> & {
+      evidence: Array<E & { repositoryKey: string | null }>;
+    }
+  : T;
+
+/**
+ * Multi-repository report presentation. It has the V3 sections; the header and traceability keep the primary
+ * repository in the original single-repository fields and add the whole pinned set, and every evidence
+ * entry names the repository it came from.
+ */
+export type AssessmentReportV4Presentation = Omit<
+  AssessmentReportV3Presentation,
+  | "version"
+  | "header"
+  | "scopeTraceability"
+  | "applicabilityFacts"
+  | "obligationDetails"
+> & {
+  version: typeof ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION;
+  header: AssessmentReportV3Presentation["header"] & {
+    repositorySetDigest: string;
+    repositories: AssessmentReportRepositoryPresentation[];
+  };
+  applicabilityFacts: Array<
+    WithRepositoryKey<
+      AssessmentReportV3Presentation["applicabilityFacts"][number]
+    >
+  >;
+  obligationDetails: Array<
+    WithRepositoryKey<
+      AssessmentReportV3Presentation["obligationDetails"][number]
+    >
+  >;
+  scopeTraceability: AssessmentReportV3Presentation["scopeTraceability"] & {
+    repositorySetDigest: string;
+    repositories: AssessmentReportRepositoryPresentation[];
+  };
+};
+
 /**
  * Business purpose: Keep the customer-facing V1 and V2 report sections in the shared canonical order.
  *
@@ -347,6 +403,9 @@ export function buildAssessmentReportPresentation(
   artifact: AssessmentFinalReportV3,
 ): AssessmentReportV3Presentation;
 export function buildAssessmentReportPresentation(
+  artifact: AssessmentFinalReportV4,
+): AssessmentReportV4Presentation;
+export function buildAssessmentReportPresentation(
   artifact: AssessmentFinalReportArtifactVersioned,
 ): AssessmentReportPresentation;
 /**
@@ -374,6 +433,8 @@ export function buildAssessmentReportPresentation(
     return buildV2Presentation(artifact);
   if (artifact.schemaVersion === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION)
     return buildV3Presentation(artifact);
+  if (artifact.schemaVersion === ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION)
+    return buildV4Presentation(artifact);
   throw new Error(
     `Unsupported report schema version: ${(artifact as { schemaVersion?: string }).schemaVersion}`,
   );
@@ -794,6 +855,115 @@ function buildV3Presentation(
       factIds: artifact.factIndex.map((item) => item.factId),
       evidenceIds: artifact.evidenceIndex.map((item) => item.evidenceId),
       scopeLimitations: artifact.boundedNarrative.scopeLimitations,
+    },
+  };
+}
+
+/**
+ * Business purpose: Present an immutable multi-repository report so the customer sees one system-level result
+ * together with the repositories it covers, each repository's commit, scope and coverage, and the repository
+ * every cited piece of evidence came from.
+ *
+ * Business rules:
+ * - Rules, decisions, facts, outcomes and the action plan are projected exactly as in V3; nothing is recalculated.
+ * - The first pinned repository fills the original single-repository header fields so older views keep working.
+ * - Each repository lists the evidence ids it owns; evidence that belongs to no repository (a customer answer) stays unlabelled.
+ * Execution flow:
+ * 1. Project the report onto the V3 shape through its primary repository and reuse the V3 projection.
+ * 2. Label every evidence entry with its repository key.
+ * 3. Add the pinned set and the per-repository scope and evidence to the header and the traceability section.
+ * Failure cases:
+ * - Unresolvable action plan references throw, as for V3; a report without repositories cannot pass its schema.
+ * Side effects:
+ * - None: returns an in-memory presentation projection.
+ */
+function buildV4Presentation(
+  artifact: AssessmentFinalReportV4,
+): AssessmentReportV4Presentation {
+  const [primary] = artifact.pins.repositories;
+  const [primaryScope] = artifact.sourceScopes;
+  if (!primary || !primaryScope) {
+    throw new Error("Final report has no pinned repository");
+  }
+  const { repositoryKey: ignoredKey, ...primaryDeclared } = primaryScope;
+  void ignoredKey;
+  const projected = {
+    ...artifact,
+    schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+    identity: {
+      repositorySnapshotId: primary.repositorySnapshotId,
+      repositoryCommit: primary.repositoryCommit,
+    },
+    pins: {
+      legalSourceVersionId: artifact.pins.legalSourceVersionId,
+      legalSourceVersion: artifact.pins.legalSourceVersion,
+      ruleSetVersionId: artifact.pins.ruleSetVersionId,
+      ruleSetVersion: artifact.pins.ruleSetVersion,
+      ruleSetDigest: artifact.pins.ruleSetDigest,
+      repositorySnapshotId: primary.repositorySnapshotId,
+      repositoryScanJobId: primary.repositoryScanJobId,
+      repositoryCommit: primary.repositoryCommit,
+      sourcePathPrefix: primary.sourcePathPrefix,
+    },
+    sourceScope: primaryDeclared,
+    evidenceIndex: artifact.evidenceIndex.map((item) => {
+      const { repositoryKey: ignored, ...plain } = item;
+      void ignored;
+      return plain;
+    }),
+  } as unknown as AssessmentFinalReportV3;
+  const base = buildV3Presentation(projected);
+  const keyByEvidence = new Map(
+    artifact.evidenceIndex.map((item) => [item.evidenceId, item.repositoryKey]),
+  );
+  const repositories: AssessmentReportRepositoryPresentation[] =
+    artifact.pins.repositories.map((pin, index) => {
+      const { repositoryKey, ...scope } = artifact.sourceScopes[index] ?? {
+        repositoryKey: pin.repositoryKey,
+        ...primaryDeclared,
+      };
+      void repositoryKey;
+      return {
+        repositoryKey: pin.repositoryKey,
+        ordinal: pin.ordinal,
+        repositoryFullName: pin.repositoryFullName,
+        repositorySnapshotId: pin.repositorySnapshotId,
+        repositoryCommit: pin.repositoryCommit,
+        sourcePathPrefix: pin.sourcePathPrefix,
+        sourceScope: scope,
+        evidenceIds: artifact.evidenceIndex
+          .filter((item) => item.repositoryKey === pin.repositoryKey)
+          .map((item) => item.evidenceId),
+      };
+    });
+  return {
+    ...base,
+    version: artifact.schemaVersion,
+    header: {
+      ...base.header,
+      schemaVersion: artifact.schemaVersion,
+      repositorySetDigest: artifact.pins.repositorySetDigest,
+      repositories,
+    },
+    applicabilityFacts: base.applicabilityFacts.map((fact) => ({
+      ...fact,
+      evidence: fact.evidence.map((item) => ({
+        ...item,
+        repositoryKey: keyByEvidence.get(item.evidenceId) ?? null,
+      })),
+    })),
+    obligationDetails: base.obligationDetails.map((detail) => ({
+      ...detail,
+      evidence: detail.evidence.map((item) => ({
+        ...item,
+        repositoryKey: keyByEvidence.get(item.evidenceId) ?? null,
+      })),
+    })),
+    scopeTraceability: {
+      ...base.scopeTraceability,
+      schemaVersion: artifact.schemaVersion,
+      repositorySetDigest: artifact.pins.repositorySetDigest,
+      repositories,
     },
   };
 }

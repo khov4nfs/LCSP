@@ -67,15 +67,17 @@ export function utf8ByteLength(value: string): number {
   return utf8Encoder.encode(value).byteLength;
 }
 
-const identifierSchema = z
+export const identifierSchema = z
   .string()
   .min(1)
   .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_IDENTIFIER_CHARS);
-const uuidSchema = z.uuid();
-const revisionSchema = z.number().int().nonnegative();
-const sha256Schema = z.string().regex(/^sha256:[a-f0-9]{64}$/);
-const commitSchema = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i);
-const boundedTextSchema = z
+export const uuidSchema = z.uuid();
+export const revisionSchema = z.number().int().nonnegative();
+export const sha256Schema = z.string().regex(/^sha256:[a-f0-9]{64}$/);
+export const commitSchema = z
+  .string()
+  .regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i);
+export const boundedTextSchema = z
   .string()
   .trim()
   .min(1)
@@ -87,7 +89,7 @@ const boundedTextSchema = z
       message: `Text exceeds maximum UTF-8 byte limit (${ASSESSMENT_REPORT_V3_LIMITS.MAX_TEXT_UTF8_BYTES})`,
     },
   );
-const boundedTextListSchema = z
+export const boundedTextListSchema = z
   .array(boundedTextSchema)
   .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS);
 
@@ -100,7 +102,7 @@ const sourceReferenceSchemaV3 = z.strictObject({
   contentSha256: sha256Schema,
 });
 
-const legalRequirementSchemaV3 = z.strictObject({
+export const legalRequirementSchemaV3 = z.strictObject({
   legalRequirementId: identifierSchema,
   title: boundedTextSchema,
   proposition: boundedTextSchema,
@@ -136,7 +138,7 @@ export type SearchCoverageRecordV3 = z.infer<
   typeof searchCoverageRecordSchemaV3
 >;
 
-const evidenceIndexSchemaV3 = z.strictObject({
+export const evidenceIndexSchemaV3 = z.strictObject({
   evidenceId: uuidSchema,
   type: z.enum(ASSESSMENT_EVIDENCE_TYPES),
   contentSha256: sha256Schema,
@@ -145,7 +147,7 @@ const evidenceIndexSchemaV3 = z.strictObject({
   searchCoverage: searchCoverageRecordSchemaV3.nullable().optional(),
 });
 
-const factIndexSchemaV3 = z.strictObject({
+export const factIndexSchemaV3 = z.strictObject({
   factId: uuidSchema,
   caseRevision: revisionSchema,
   kind: z.enum(ASSESSMENT_FACT_KINDS),
@@ -166,13 +168,17 @@ const criterionReferenceEntrySchemaV3 = z.strictObject({
   reference: ruleDecisionReferenceSchema,
 });
 
-export const assessmentReportApplicabilityBasisReferenceSchema = z.strictObject({
-  origin: z.literal(ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis),
-  legalRequirementId: identifierSchema,
-  kind: z.enum(RULE_DECISION_BASIS_KINDS),
-  index: z.number().int().nonnegative(),
-  reference: ruleDecisionReferenceSchema,
-});
+export const assessmentReportApplicabilityBasisReferenceSchema = z.strictObject(
+  {
+    origin: z.literal(
+      ASSESSMENT_REPORT_V3_REFERENCE_ORIGINS.applicabilityBasis,
+    ),
+    legalRequirementId: identifierSchema,
+    kind: z.enum(RULE_DECISION_BASIS_KINDS),
+    index: z.number().int().nonnegative(),
+    reference: ruleDecisionReferenceSchema,
+  },
+);
 export type AssessmentReportApplicabilityBasisReference = z.infer<
   typeof assessmentReportApplicabilityBasisReferenceSchema
 >;
@@ -225,7 +231,7 @@ const relatedLegalContextSchemaV3 = z.strictObject({
     .max(ASSESSMENT_REPORT_V3_LIMITS.MAX_ARRAY_ITEMS),
 });
 
-const ruleDetailSchemaV3 = z.strictObject({
+export const ruleDetailSchemaV3 = z.strictObject({
   assessmentRuleId: identifierSchema,
   assessmentRuleVersion: identifierSchema,
   legalRequirementIds: z
@@ -324,14 +330,14 @@ export type AssessmentReportBoundedActionPlan = z.infer<
   typeof assessmentReportBoundedActionPlanSchema
 >;
 
-const outcomeSummarySchemaV3 = z.strictObject({
+export const outcomeSummarySchemaV3 = z.strictObject({
   totalRules: z.number().int().nonnegative(),
   applicableCompliant: z.number().int().nonnegative(),
   applicableNonCompliant: z.number().int().nonnegative(),
   notApplicable: z.number().int().nonnegative(),
 });
 
-const publicationProvenanceSchemaV3 = z.strictObject({
+export const publicationProvenanceSchemaV3 = z.strictObject({
   sourceManifestDigest: sha256Schema.nullable(),
   publishedAt: z.string().datetime({ offset: true }).nullable(),
 });
@@ -443,7 +449,7 @@ function parseRepositorySourceSafeLocator(
  * Side effects:
  * - None: records validation issues on the Zod refinement context only.
  */
-function validateV3SourceScope(
+export function validateV3SourceScope(
   report: {
     pins: {
       sourcePathPrefix?: string | null;
@@ -454,14 +460,17 @@ function validateV3SourceScope(
   },
   evidenceById: ReadonlyMap<string, z.infer<typeof evidenceIndexSchemaV3>>,
   context: z.RefinementCtx,
+  /** Restricts the evidence whose locators are checked (a repository of a set); absent means all evidence. */
+  includeEvidence: (
+    item: z.infer<typeof evidenceIndexSchemaV3>,
+  ) => boolean = () => true,
 ): void {
   const { sourceScope } = report;
   const pinnedPrefix = report.pins.sourcePathPrefix ?? null;
 
   if (pinnedPrefix !== null) {
     if (
-      sourceScope.mode ===
-      ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.WHOLE_REPOSITORY
+      sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.WHOLE_REPOSITORY
     ) {
       context.addIssue({
         code: "custom",
@@ -480,7 +489,9 @@ function validateV3SourceScope(
         message: `SUBTREE sourcePathPrefix (${sourceScope.sourcePathPrefix}) does not match pinned repositorySnapshot sourcePathPrefix (${pinnedPrefix})`,
       });
     }
-  } else if (sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE) {
+  } else if (
+    sourceScope.mode === ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE
+  ) {
     context.addIssue({
       code: "custom",
       path: ["sourceScope", "mode"],
@@ -771,6 +782,7 @@ function validateV3SourceScope(
   }
 
   for (const [index, item] of report.evidenceIndex.entries()) {
+    if (!includeEvidence(item)) continue;
     if (item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE) {
       if (item.safeLocator === null) continue;
       const parsedLocator = parseRepositorySourceSafeLocator(item.safeLocator);
@@ -862,8 +874,7 @@ function validateV3BoundedActionPlan(
     boundedActionPlan.maxHighlightItems,
   );
   const expectedOmitted = expectedTotal - expectedIncluded;
-  const expectedTruncated =
-    expectedTotal > boundedActionPlan.maxHighlightItems;
+  const expectedTruncated = expectedTotal > boundedActionPlan.maxHighlightItems;
 
   if (boundedActionPlan.totalRecommendations !== expectedTotal) {
     context.addIssue({
@@ -952,6 +963,61 @@ function validateV3BoundedActionPlan(
 }
 
 /**
+ * Business purpose: Tell the shared V3/V4 report invariants which repository pin each evidence item must agree with.
+ * Business rules:
+ * - A single-repository report binds every evidence item to its one pin.
+ * - A multi-repository report binds an item to the pin its `repositoryKey` names; an item that names no pinned repository has no pin.
+ * - Evidence that is not repository-specific (a customer answer) may carry the commit of any pinned repository.
+ * Execution flow:
+ * 1. Look the evidence key up in `pinByKey`; items without a key use `defaultPin`.
+ * 2. Check customer-answer commits against `humanAnswerCommits`.
+ * 3. Skip the shared source-scope check when the caller validates every repository's scope itself.
+ * Failure cases:
+ * - Describes the checks only; the invariants report the issues.
+ * Side effects:
+ * - None.
+ */
+export interface ReportRepositoryBinding {
+  /** Whether the identity block must repeat the pinned repository (the single-repository shape). */
+  checkIdentity: boolean;
+  pinByKey: ReadonlyMap<
+    string,
+    { commit: string; sourcePathPrefix: string | null }
+  >;
+  /** The pin of an evidence item that names no repository; null when a key is mandatory. */
+  defaultPin: { commit: string; sourcePathPrefix: string | null } | null;
+  humanAnswerCommits: ReadonlySet<string>;
+  skipSourceScope: boolean;
+}
+
+/**
+ * Business purpose: Bind every V3 evidence item to the report's single pinned repository.
+ * Business rules:
+ * - The pinned commit and source prefix of a V3 report apply to all of its evidence.
+ * Execution flow:
+ * 1. Capture the pin and return the binding.
+ * Failure cases:
+ * - Pure construction that cannot fail for a parsed report.
+ * Side effects:
+ * - Pure construction without persistence or validation issues.
+ */
+function singleRepositoryBinding(
+  report: AssessmentFinalReportV3,
+): ReportRepositoryBinding {
+  const pin = {
+    commit: report.pins.repositoryCommit,
+    sourcePathPrefix: report.pins.sourcePathPrefix ?? null,
+  };
+  return {
+    checkIdentity: true,
+    pinByKey: new Map(),
+    defaultPin: pin,
+    humanAnswerCommits: new Set([pin.commit.toLowerCase()]),
+    skipSourceScope: false,
+  };
+}
+
+/**
  * Business purpose: Validate all V3 report cross-field invariants covering pins, criterion equality, related legal context authorization, reference/evidence transitive closure, source scope, outcome totals, and bounded action plan.
  *
  * Business rules:
@@ -972,14 +1038,17 @@ function validateV3BoundedActionPlan(
  * Side effects:
  * - None: pure validation on the parsed candidate V3 report.
  */
-function validateAssessmentFinalReportV3Invariants(
+export function validateAssessmentFinalReportV3Invariants(
   report: AssessmentFinalReportV3,
   context: z.RefinementCtx,
+  binding: ReportRepositoryBinding = singleRepositoryBinding(report),
 ): void {
   if (
-    report.identity.repositorySnapshotId !== report.pins.repositorySnapshotId ||
-    report.identity.repositoryCommit.toLowerCase() !==
-      report.pins.repositoryCommit.toLowerCase()
+    binding.checkIdentity &&
+    (report.identity.repositorySnapshotId !==
+      report.pins.repositorySnapshotId ||
+      report.identity.repositoryCommit.toLowerCase() !==
+        report.pins.repositoryCommit.toLowerCase())
   ) {
     context.addIssue({
       code: "custom",
@@ -1035,10 +1104,7 @@ function validateAssessmentFinalReportV3Invariants(
     }
   }
 
-  const evidenceById = new Map<
-    string,
-    z.infer<typeof evidenceIndexSchemaV3>
-  >();
+  const evidenceById = new Map<string, z.infer<typeof evidenceIndexSchemaV3>>();
   for (const [index, item] of report.evidenceIndex.entries()) {
     if (evidenceById.has(item.evidenceId)) {
       context.addIssue({
@@ -1050,7 +1116,23 @@ function validateAssessmentFinalReportV3Invariants(
       evidenceById.set(item.evidenceId, item);
     }
 
-    const pinnedCommit = report.pins.repositoryCommit.toLowerCase();
+    const itemKey = (item as { repositoryKey?: string | null }).repositoryKey;
+    const bound = itemKey
+      ? (binding.pinByKey.get(itemKey) ?? null)
+      : binding.defaultPin;
+    const pinnedCommit = bound?.commit.toLowerCase() ?? null;
+    const pinnedEvidencePrefix = bound?.sourcePathPrefix ?? null;
+    if (
+      bound === null &&
+      item.type !== ASSESSMENT_EVIDENCE_TYPES.HUMAN_ANSWER
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["evidenceIndex", index, "repositoryKey"],
+        message:
+          "Repository evidence must name a repository pinned to the report",
+      });
+    }
     if (
       item.type !== ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE &&
       item.searchCoverage !== undefined &&
@@ -1059,13 +1141,15 @@ function validateAssessmentFinalReportV3Invariants(
       context.addIssue({
         code: "custom",
         path: ["evidenceIndex", index, "searchCoverage"],
-        message: "Non-SEARCH_COVERAGE evidence cannot carry searchCoverage metadata",
+        message:
+          "Non-SEARCH_COVERAGE evidence cannot carry searchCoverage metadata",
       });
     }
     if (item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE) {
       if (
         item.repositoryCommit === null ||
-        item.repositoryCommit.toLowerCase() !== pinnedCommit
+        (pinnedCommit !== null &&
+          item.repositoryCommit.toLowerCase() !== pinnedCommit)
       ) {
         context.addIssue({
           code: "custom",
@@ -1084,7 +1168,8 @@ function validateAssessmentFinalReportV3Invariants(
     } else if (item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE) {
       if (
         item.repositoryCommit === null ||
-        item.repositoryCommit.toLowerCase() !== pinnedCommit
+        (pinnedCommit !== null &&
+          item.repositoryCommit.toLowerCase() !== pinnedCommit)
       ) {
         context.addIssue({
           code: "custom",
@@ -1150,10 +1235,17 @@ function validateAssessmentFinalReportV3Invariants(
           scopeEntry,
         ] of item.searchCoverage.scopes.entries()) {
           if (scopeEntry.path === ".") {
-            if (report.pins.sourcePathPrefix !== null) {
+            if (pinnedEvidencePrefix !== null) {
               context.addIssue({
                 code: "custom",
-                path: ["evidenceIndex", index, "searchCoverage", "scopes", scopeIdx, "path"],
+                path: [
+                  "evidenceIndex",
+                  index,
+                  "searchCoverage",
+                  "scopes",
+                  scopeIdx,
+                  "path",
+                ],
                 message:
                   "Search coverage scope '.' is only valid when pinned sourcePathPrefix is null",
               });
@@ -1161,20 +1253,34 @@ function validateAssessmentFinalReportV3Invariants(
           } else if (!isCanonicalRepositorySourcePath(scopeEntry.path)) {
             context.addIssue({
               code: "custom",
-              path: ["evidenceIndex", index, "searchCoverage", "scopes", scopeIdx, "path"],
+              path: [
+                "evidenceIndex",
+                index,
+                "searchCoverage",
+                "scopes",
+                scopeIdx,
+                "path",
+              ],
               message:
                 "Search coverage scope path must be canonical repository path or '.'",
             });
           } else if (
-            report.pins.sourcePathPrefix !== null &&
+            pinnedEvidencePrefix !== null &&
             !isRepositoryPathInSourceScope(
               scopeEntry.path,
-              report.pins.sourcePathPrefix,
+              pinnedEvidencePrefix,
             )
           ) {
             context.addIssue({
               code: "custom",
-              path: ["evidenceIndex", index, "searchCoverage", "scopes", scopeIdx, "path"],
+              path: [
+                "evidenceIndex",
+                index,
+                "searchCoverage",
+                "scopes",
+                scopeIdx,
+                "path",
+              ],
               message:
                 "Search coverage scope path lies outside pinned repositorySnapshot sourcePathPrefix",
             });
@@ -1192,7 +1298,7 @@ function validateAssessmentFinalReportV3Invariants(
       }
       if (
         item.repositoryCommit !== null &&
-        item.repositoryCommit.toLowerCase() !== pinnedCommit
+        !binding.humanAnswerCommits.has(item.repositoryCommit.toLowerCase())
       ) {
         context.addIssue({
           code: "custom",
@@ -1270,8 +1376,7 @@ function validateAssessmentFinalReportV3Invariants(
         context.addIssue({
           code: "custom",
           path: ["factIndex", index, "evidenceIds", evIndex],
-          message:
-            "EVIDENCE_CITED fact cannot rely on HUMAN_ANSWER evidence",
+          message: "EVIDENCE_CITED fact cannot rely on HUMAN_ANSWER evidence",
         });
       }
     }
@@ -1385,7 +1490,10 @@ function validateAssessmentFinalReportV3Invariants(
     ]);
 
     const seenLegalContextIds = new Set<string>();
-    for (const [contextIdx, legalContext] of rule.decision.legalContextRefs.entries()) {
+    for (const [
+      contextIdx,
+      legalContext,
+    ] of rule.decision.legalContextRefs.entries()) {
       if (seenLegalContextIds.has(legalContext.legalContextId)) {
         context.addIssue({
           code: "custom",
@@ -1764,7 +1872,9 @@ function validateAssessmentFinalReportV3Invariants(
     });
   }
 
-  validateV3SourceScope(report, evidenceById, context);
+  if (!binding.skipSourceScope) {
+    validateV3SourceScope(report, evidenceById, context);
+  }
   validateV3BoundedActionPlan(report, ruleIndexById, context);
 }
 
@@ -1941,7 +2051,8 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
         ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.CANONICAL_AUTHORITATIVE,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
-      notes: "Version discriminator ASSESSMENT_FINAL_REPORT_V3; never translated.",
+      notes:
+        "Version discriminator ASSESSMENT_FINAL_REPORT_V3; never translated.",
     },
     {
       pathPattern:
@@ -1963,8 +2074,7 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     },
     {
       pathPattern: "/sourceScope/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: "sourceScope",
       notes:
@@ -1990,8 +2100,7 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     },
     {
       pathPattern: "/legalRequirements/*/sourceRefs/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
       notes: "Excluded by B1 protectedKeys (sourceRefs).",
@@ -2007,8 +2116,7 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     },
     {
       pathPattern: "/ruleDetails/*/relatedLegalContexts/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: "relatedLegalContexts",
       notes:
@@ -2037,7 +2145,8 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
         ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.LOCALIZABLE_NARRATIVE,
       b1AuthoredFieldsIncluded: true,
       c2ProtectedKeysRecommendation: null,
-      notes: "Covered by B1 statement path regex /\\/(?:criteria|criteriaDecisions)\\/\\d+$/.",
+      notes:
+        "Covered by B1 statement path regex /\\/(?:criteria|criteriaDecisions)\\/\\d+$/.",
     },
     {
       pathPattern:
@@ -2060,8 +2169,7 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     {
       pathPattern:
         "/ruleDetails/*/decision/references/*, /ruleDetails/*/decision/criteria/*/references/*, /ruleDetails/*/decision/applicabilityBasis/*/references/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
       notes: "Excluded by B1 protectedKeys (references).",
@@ -2073,13 +2181,13 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
         ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.CANONICAL_AUTHORITATIVE,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
-      notes: "Canonical criterion outcomes and applicability-basis coordinates.",
+      notes:
+        "Canonical criterion outcomes and applicability-basis coordinates.",
     },
     {
       pathPattern:
         "/ruleDetails/*/decisionReferences/*, /ruleDetails/*/applicabilityBasisReferences/*, /ruleDetails/*/factEvidenceReferences/*, /ruleDetails/*/dependencyValidation/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation:
         "decisionReferences, applicabilityBasisReferences, factEvidenceReferences, dependencyValidation",
@@ -2106,8 +2214,7 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     },
     {
       pathPattern: "/ruleDetails/*/criteriaDecisions/*/references/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
       notes: "Excluded by B1 protectedKeys (references).",
@@ -2123,16 +2230,14 @@ export const ASSESSMENT_FINAL_REPORT_V3_FIELD_PATH_CLASSIFICATIONS: ReadonlyArra
     },
     {
       pathPattern: "/ruleDetails/*/sourceRefs/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
       notes: "Excluded by B1 protectedKeys (sourceRefs).",
     },
     {
       pathPattern: "/factIndex/*, /evidenceIndex/*",
-      classification:
-        ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
+      classification: ASSESSMENT_REPORT_FIELD_CLASSIFICATIONS.PROTECTED_DATA,
       b1AuthoredFieldsIncluded: false,
       c2ProtectedKeysRecommendation: null,
       notes:
@@ -2218,4 +2323,3 @@ export function resolveV3BoundedActionPlanItems(
     };
   });
 }
-

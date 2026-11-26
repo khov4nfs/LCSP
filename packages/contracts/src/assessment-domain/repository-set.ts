@@ -11,6 +11,29 @@ export const ASSESSMENT_REPOSITORY_LIMITS = {
   maxKeyLength: 40,
 } as const;
 
+/**
+ * Business purpose: Resolve how many repositories one Assessment may pin right now, so operators can
+ * keep the product at a single repository until every runtime stage understands a repository set.
+ * Business rules:
+ * - The contract maximum is a hard ceiling that configuration can only lower, never raise.
+ * - A missing or malformed setting means the contract maximum; zero or negative values mean one repository.
+ * Execution flow:
+ * 1. Parse the raw setting as an integer.
+ * 2. Clamp it between one and the contract maximum.
+ * Failure cases:
+ * - None; invalid input falls back to the maximum.
+ * Side effects:
+ * - Pure calculation.
+ */
+export function resolveRepositoryLimit(raw: string | null | undefined): number {
+  const parsed = Number.parseInt((raw ?? "").trim(), 10);
+  if (!Number.isFinite(parsed)) return ASSESSMENT_REPOSITORY_LIMITS.maxRepositories;
+  return Math.min(
+    ASSESSMENT_REPOSITORY_LIMITS.maxRepositories,
+    Math.max(1, parsed),
+  );
+}
+
 /** Error codes raised by repository-set validation, shared by API, web and worker. */
 export const REPOSITORY_SET_ERROR_CODES = {
   limitExceeded: "REPOSITORY_SET_LIMIT_EXCEEDED",

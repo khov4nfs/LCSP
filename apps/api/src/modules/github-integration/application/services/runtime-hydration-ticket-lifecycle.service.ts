@@ -296,13 +296,23 @@ export class RuntimeHydrationTicketLifecycle {
         select: { repositoryScanJobId: true, repositorySnapshotId: true },
       }),
     ]);
+    // The ticket must be the one pinned for its repository: the case's primary pin or any pin of its set.
+    const ticketIsPinned =
+      !!pinnedCase &&
+      ((pinnedCase.repositoryScanJobId === ticket.id &&
+        pinnedCase.repositorySnapshotId === ticket.snapshotId) ||
+        (await this.prisma.assessmentCaseRepository.count({
+          where: {
+            assessmentId: ticket.assessmentId,
+            repositorySnapshotId: ticket.snapshotId,
+            repositoryScanJobId: ticket.id,
+          },
+        })) > 0);
     if (
       !runtime?.currentExecutionId ||
       runtime.leaseToken !== null ||
       runtime.leaseExpiresAt !== null ||
-      !pinnedCase ||
-      pinnedCase.repositoryScanJobId !== ticket.id ||
-      pinnedCase.repositorySnapshotId !== ticket.snapshotId
+      !ticketIsPinned
     ) {
       throw new ConflictException(
         "Runtime hydration outcome is not safely reconcilable",

@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "node:test";
+import { afterEach, mock, test } from "node:test";
 
 import { JSDOM } from "jsdom";
 import React, { useState } from "react";
 import { act } from "react";
 import { ASSESSMENT_REPOSITORY_PROVIDERS } from "@lcsp/contracts/assessment";
-import { deriveRepositorySetupAnswer } from "../src/features/assessment-flow/utils/repository-setup-history";
 import type { Root } from "react-dom/client";
 import { setAppLocale } from "../src/lib/locale";
 
@@ -97,6 +96,12 @@ const actEnvironment = globalThis as typeof globalThis & {
 };
 actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
 
+// next/image is an app-router component; the list only needs the provider logo as a plain image here.
+mock.module("next/image", {
+  defaultExport: (props: Record<string, unknown>) =>
+    React.createElement("img", { alt: "", src: String(props.src) }),
+});
+
 const { createRoot } = await import("react-dom/client");
 const { ChatSingleSelect } =
   await import("../src/features/workspace/components/molecules/chat-single-select");
@@ -109,6 +114,11 @@ const { AssessmentTranscript } =
   await import("../src/features/workspace/components/organisms/assessment-transcript");
 const { RepositorySetupConversation } =
   await import("../src/features/assessment-flow/components/organisms/repository-setup-conversation");
+const { RepositorySetupList } =
+  await import("../src/features/assessment-flow/components/organisms/repository-setup-list");
+const { FormProvider, useForm } = await import("react-hook-form");
+const { repositoryFullNameOf, repositoryIdentityOf, assessmentNameFromRepositories } =
+  await import("../src/features/assessment-flow/utils/repository-entry");
 
 const mountedRoots: Root[] = [];
 
@@ -141,17 +151,8 @@ test("repository setup remains a read-only conversation after submission and rem
   );
   assert.equal(selectedProvider, provider);
 
-  const persistedAnswer = deriveRepositorySetupAnswer({
-    provider,
-    repositoryFullName: "organization/subgroup/software",
-  });
-  assert.ok(persistedAnswer);
-  assert.equal(
-    persistedAnswer.repositoryUrl,
-    "https://gitlab.com/organization/subgroup/software",
-  );
   const history = React.createElement(RepositorySetupConversation, {
-    ...persistedAnswer,
+    provider,
     disabled: true,
   });
   await rerender(history);
@@ -160,10 +161,6 @@ test("repository setup remains a read-only conversation after submission and rem
     assert.equal(
       target.querySelector('[data-slot="agent-message"]')?.textContent,
       prompt,
-    );
-    assert.equal(
-      target.querySelector('[data-role="user"]')?.textContent,
-      persistedAnswer.repositoryUrl,
     );
     const choices = [
       ...target.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
@@ -181,21 +178,146 @@ test("repository setup remains a read-only conversation after submission and rem
   }
 });
 
-test("repository history requires persisted identity and never guesses a provider", () => {
-  assert.equal(deriveRepositorySetupAnswer(null), null);
+function ListHarness(props: {
+  pending: Array<{
+    provider: string;
+    repositoryUrl: string;
+    sourcePathPrefix: string | null;
+  }>;
+  onRemoveSaved: (snapshotId: string) => void;
+  pinned?: boolean;
+}) {
+  const form = useForm({
+    defaultValues: {
+      provider: undefined,
+      repositoryUrl: "",
+      repositories: props.pending,
+    },
+  });
+  return React.createElement(
+    FormProvider,
+    form as never,
+    React.createElement(RepositorySetupList, {
+      saved: [
+        {
+          snapshotId: "snapshot-1",
+          provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+          repositoryFullName: "acme/web",
+          sourcePathPrefix: "apps/web",
+          commitSha: "a".repeat(40),
+          pinned: props.pinned ?? false,
+        },
+      ],
+      limit: 5,
+      onRemoveSaved: props.onRemoveSaved,
+    }),
+  );
+}
+
+test("repository list shows saved and pending repositories and removes each kind through its own path", async () => {
+  const removed: string[] = [];
+  const { container } = await renderElement(
+    React.createElement(ListHarness, {
+      pending: [
+        {
+          provider: ASSESSMENT_REPOSITORY_PROVIDERS.gitlab,
+          repositoryUrl: "https://gitlab.com/acme/billing-api",
+          sourcePathPrefix: null,
+        },
+      ],
+      onRemoveSaved: (snapshotId: string) => removed.push(snapshotId),
+    }),
+  );
+
+  const rows = [
+    ...container.querySelectorAll('[data-slot="repository-entry-row"]'),
+  ];
+  assert.equal(rows.length, 2);
+  assert.match(rows[0]?.textContent ?? "", /acme\/web/u);
+  assert.match(rows[0]?.textContent ?? "", /apps\/web/u);
+  assert.match(rows[1]?.textContent ?? "", /acme\/billing-api/u);
+
+  await click(rows[0]!.querySelector<HTMLButtonElement>("button")!);
+  assert.deepEqual(removed, ["snapshot-1"]);
+
+  await click(rows[1]!.querySelector<HTMLButtonElement>("button")!);
   assert.equal(
-    deriveRepositorySetupAnswer({
-      provider: null,
-      repositoryFullName: "acme/app",
+    container.querySelectorAll('[data-slot="repository-entry-row"]').length,
+    1,
+  );
+});
+
+test("a pinned repository set can no longer be changed from the list", async () => {
+  const { container } = await renderElement(
+    React.createElement(ListHarness, {
+      pending: [],
+      pinned: true,
+      onRemoveSaved: () => undefined,
+    }),
+  );
+  assert.equal(
+    container.querySelectorAll('[data-slot="repository-entry-row"]').length,
+    1,
+  );
+  assert.equal(container.querySelectorAll("button").length, 0);
+});
+
+test("repository identity never guesses a provider and treats scopes of one repository as distinct", () => {
+  const github = ASSESSMENT_REPOSITORY_PROVIDERS.github;
+  assert.equal(
+    repositoryFullNameOf({
+      provider: "UNKNOWN_PROVIDER",
+      repositoryUrl: "https://bitbucket.org/acme/app",
+    }),
+    null,
+  );
+  // Every supported provider resolves through its own shared parser; a URL of another provider never does.
+  assert.equal(
+    repositoryFullNameOf({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket,
+      repositoryUrl: "https://bitbucket.org/acme/app",
+    }),
+    "acme/app",
+  );
+  assert.equal(
+    repositoryFullNameOf({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.azureDevOps,
+      repositoryUrl: "https://dev.azure.com/acme/platform/_git/service",
+    }),
+    "acme/platform/service",
+  );
+  assert.equal(
+    repositoryFullNameOf({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+      repositoryUrl: "https://bitbucket.org/acme/app",
     }),
     null,
   );
   assert.equal(
-    deriveRepositorySetupAnswer({
-      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+    repositoryIdentityOf({
+      provider: github,
       repositoryFullName: null,
+      sourcePathPrefix: null,
     }),
     null,
+  );
+  const identity = (name: string, prefix: string | null) =>
+    repositoryIdentityOf({
+      provider: github,
+      repositoryFullName: name,
+      sourcePathPrefix: prefix,
+    });
+  assert.equal(identity("Acme/App", null), identity("acme/app", null));
+  assert.notEqual(identity("acme/app", "apps/web"), identity("acme/app", null));
+});
+
+test("a multi-repository assessment is named after its first repository with a localised count", () => {
+  const more = (name: string, count: number) => `${name} +${count}`;
+  assert.equal(assessmentNameFromRepositories([], more), "");
+  assert.equal(assessmentNameFromRepositories(["acme/web"], more), "acme/web");
+  assert.equal(
+    assessmentNameFromRepositories(["acme/web", "acme/api", "acme/ops"], more),
+    "acme/web +2",
   );
 });
 

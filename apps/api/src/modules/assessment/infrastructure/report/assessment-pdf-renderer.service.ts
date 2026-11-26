@@ -9,15 +9,18 @@ import {
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
   type AssessmentFinalReportArtifact,
 } from "@lcsp/contracts/assessment-domain";
 import {
   buildAssessmentReportPresentation,
   type AssessmentFinalReportV2,
   type AssessmentFinalReportV3,
+  type AssessmentFinalReportV4,
 } from "@lcsp/contracts/assessment-report";
 import { assessmentReportV2Html } from "./assessment-report-v2-pdf-html.js";
 import { assessmentReportV3Html } from "./assessment-report-v3-pdf-html.js";
+import { assessmentReportV4Html } from "./assessment-report-v4-pdf-html.js";
 import type { ReportTranslationCatalog } from "./assessment-report-v2-pdf-presentation.js";
 import type { RepositoryReportSource } from "./assessment-report-source-link.js";
 
@@ -312,6 +315,68 @@ export class AssessmentPdfRenderer implements OnModuleDestroy {
       throw new Error("PDF rendering requires an Assessment Final Report V3");
     const model = buildAssessmentReportPresentation(report);
     if (!("summary" in model)) throw new Error("Invalid V3 presentation model");
+    return this.renderHtmlDocument(report, () =>
+      assessmentReportV3Html(model, options),
+    );
+  }
+
+  /**
+   * Business purpose: Produce a downloadable PDF of a multi-repository report, showing the pinned repositories and the repository of every evidence entry.
+   *
+   * Business rules:
+   * - Require the V4 version discriminator and apply the same size, concurrency and isolation limits as V3.
+   * - Render the shared V4 presentation model without changing accepted decisions, evidence or scope declarations.
+   *
+   * Execution flow:
+   * 1. Validate the artifact version and build its presentation model.
+   * 2. Render the V4 HTML through the shared isolated Chromium step.
+   * 3. Return the complete PDF bytes after enforcing timeout and output-size bounds.
+   *
+   * Failure cases:
+   * - A non-V4 version, invalid projection, exhausted concurrency, browser failure, timeout, empty output, or oversized input/output rejects the request.
+   *
+   * Side effects:
+   * - Launches or reuses the local Chromium process and allocates a temporary browser context; no assessment or artifact records are written.
+   */
+  async renderV4(
+    report: AssessmentFinalReportV4,
+    options: {
+      preview?: boolean;
+      translations?: ReportTranslationCatalog;
+    } = {},
+  ): Promise<Buffer> {
+    if (report.schemaVersion !== ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION)
+      throw new Error("PDF rendering requires an Assessment Final Report V4");
+    const model = buildAssessmentReportPresentation(report);
+    if (!("summary" in model)) throw new Error("Invalid V4 presentation model");
+    return this.renderHtmlDocument(report, () =>
+      assessmentReportV4Html(model, options),
+    );
+  }
+
+  /**
+   * Business purpose: Turn a prepared report HTML document into PDF bytes under one bounded, isolated rendering policy shared by the V3 and V4 reports.
+   *
+   * Business rules:
+   * - The stored report may not exceed the input limit; at most the configured number of renders run at once.
+   * - The page runs without JavaScript and every request except about:blank and data: URLs is blocked.
+   * - Rendering is bounded by a timeout and the output by a size limit.
+   *
+   * Execution flow:
+   * 1. Check the input size and the render capacity.
+   * 2. Build the document, load it into an isolated Chromium context and print it.
+   * 3. Enforce the timeout and output bounds and release the context and capacity.
+   *
+   * Failure cases:
+   * - Oversized input or output, exhausted capacity, browser failure, timeout or an empty PDF rejects the request.
+   *
+   * Side effects:
+   * - Launches or reuses the local Chromium process and allocates a temporary browser context; nothing is persisted.
+   */
+  private async renderHtmlDocument(
+    report: unknown,
+    buildDocument: () => string,
+  ): Promise<Buffer> {
     if (Buffer.byteLength(JSON.stringify(report), "utf8") > MAX_BYTES)
       throw new Error("Assessment report exceeds PDF input limit");
     if (this.activeRenders >= this.maxConcurrent)
@@ -328,7 +393,7 @@ export class AssessmentPdfRenderer implements OnModuleDestroy {
           ? route.continue()
           : route.abort("blockedbyclient"),
       );
-      const document = assessmentReportV3Html(model, options);
+      const document = buildDocument();
       await page.setContent(document, {
         waitUntil: "domcontentloaded",
         timeout: TIMEOUT,

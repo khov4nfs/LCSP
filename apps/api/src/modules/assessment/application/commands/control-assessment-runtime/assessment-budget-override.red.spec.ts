@@ -120,6 +120,8 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
         })),
         update: assessmentUpdate,
       },
+      // Resume also verifies every other pinned repository; this assessment pins only its primary one.
+      assessmentCaseRepository: { findMany: jest.fn(() => []) },
       repositorySnapshot: {
         findUnique: jest.fn(() => ({
           id: "snap-1",

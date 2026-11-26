@@ -8,6 +8,7 @@ import {
 import {
   ASSESSMENT_DECISION_SCOPE,
   HUMAN_RESOLUTION_CONTROL_TYPES,
+  computeRepositorySetDigest,
   RULE_AUDIT_SCOPE_MODES,
   RULE_AUDIT_STATUSES,
 } from "@lcsp/contracts/assessment-domain";
@@ -25,13 +26,26 @@ describe("GetRootContextHandler locale authority", () => {
   const leaseToken = randomUUID();
   const correlationId = "corr-1";
 
+  const repositoryPin = {
+    repositoryKey: "notice-service",
+    ordinal: 0,
+    connectionId: randomUUID(),
+    repositoryId: "repository-123",
+    repositoryFullName: "acme/notice-service",
+    repositorySnapshotId: randomUUID(),
+    repositoryScanJobId: randomUUID(),
+    repositoryCommit: "a".repeat(40),
+    sourcePathPrefix: null,
+  };
   const pins = {
     caseRevision: 1,
     ruleSetVersionId: randomUUID(),
-    repositorySnapshotId: randomUUID(),
-    repositoryId: "repository-123",
-    repositoryScanJobId: randomUUID(),
-    repositoryCommit: "a".repeat(40),
+    repositorySnapshotId: repositoryPin.repositorySnapshotId,
+    repositoryId: repositoryPin.repositoryId,
+    repositoryScanJobId: repositoryPin.repositoryScanJobId,
+    repositoryCommit: repositoryPin.repositoryCommit,
+    repositorySetDigest: computeRepositorySetDigest([repositoryPin]),
+    repositories: [repositoryPin],
   };
 
   function createFixture(
@@ -160,6 +174,30 @@ describe("GetRootContextHandler locale authority", () => {
     );
     expect(result.sourcePathPrefix).toBe("chatbot");
     expect(result.repositoryId).toBe("repository-123");
+  });
+
+  it("exposes the pinned repository set, its digest and the repository of each evidence", async () => {
+    const { handler, tx } = createFixture();
+    const evidenceId = randomUUID();
+    tx.assessmentEvidence.findMany.mockResolvedValue([
+      {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: repositoryPin.repositoryCommit,
+        repositoryKey: repositoryPin.repositoryKey,
+        contentSha256: `sha256:${"b".repeat(64)}`,
+        payload: {},
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ]);
+    const result = await handler.execute(
+      new GetRootContextQuery(assessmentId, leaseToken, correlationId),
+    );
+    expect(result.repositories).toEqual([repositoryPin]);
+    expect(result.repositorySetDigest).toBe(pins.repositorySetDigest);
+    expect(result.evidence[0]?.repositoryKey).toBe("notice-service");
   });
 
   it("resolves default application locale (vi) when no saved selection exists in server state", async () => {

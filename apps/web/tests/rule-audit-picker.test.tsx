@@ -44,7 +44,7 @@ for (const locale of ["en", "vi"] as const) {
       if (url.pathname.endsWith("/discovery-runs/latest")) {
         return Response.json({
           ok: true,
-          data: { available: false, run: null },
+          data: { available: false, run: null, runs: [] },
         });
       }
       const offset = Number(url.searchParams.get("offset"));

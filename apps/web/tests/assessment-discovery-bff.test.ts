@@ -9,14 +9,26 @@ import { GET as discoveryDetails } from "../src/app/api/assessments/[id]/discove
 const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const runId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const key = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const batchId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const secondRunId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
 const cookie = "lcsp_session=authorized-test-session; lcsp_locale=vi";
 
-function queuedView() {
+function queuedView(
+  overrides: Partial<{
+    runId: string;
+    repositoryKey: string | null;
+    repositorySnapshotId: string;
+    repositoryCommit: string;
+    sourcePathPrefix: string | null;
+  }> = {},
+) {
   return {
     runId,
     assessmentId,
     status: "QUEUED",
     attempt: 1,
+    repositoryKey: "web",
+    discoveryBatchId: batchId,
     repositorySnapshotId: "snapshot-test",
     repositoryCommit: "a".repeat(40),
     sourcePathPrefix: null,
@@ -26,7 +38,13 @@ function queuedView() {
     failedAt: null,
     errorCode: null,
     discovery: { available: false, discovery: null },
+    ...overrides,
   };
+}
+
+/** One "Run discovery" action returns the primary run and every repository's run. */
+function queuedBatch(runs = [queuedView()]) {
+  return { batchId, run: runs[0], runs };
 }
 
 test("pre-scope Discovery POST preserves owner session and strict idempotency", async () => {
@@ -38,7 +56,7 @@ test("pre-scope Discovery POST preserves owner session and strict idempotency", 
     sentUrl = String(url);
     sentBody = String(init?.body ?? "");
     auth = new Headers(init?.headers).get("authorization") ?? "";
-    return Response.json({ ok: true, data: queuedView() });
+    return Response.json({ ok: true, data: queuedBatch() });
   };
   try {
     const req = new NextRequest(
@@ -56,7 +74,9 @@ test("pre-scope Discovery POST preserves owner session and strict idempotency", 
     assert.ok(sentUrl.includes(`/assessments/${assessmentId}/discovery-runs`));
     assert.equal(auth, "Bearer authorized-test-session");
     assert.deepEqual(JSON.parse(sentBody), { idempotencyKey: key });
-    assert.equal((await response.json()).data.status, "QUEUED");
+    const batch = (await response.json()).data;
+    assert.equal(batch.run.status, "QUEUED");
+    assert.equal(batch.runs.length, 1);
   } finally {
     globalThis.fetch = oldFetch;
   }
@@ -139,6 +159,7 @@ test("pre-scope Discovery latest and candidate paging remain read-only owner req
     assert.deepEqual((await latest.json()).data, {
       available: false,
       run: null,
+      runs: [],
     });
 
     const page = await discoveryDetails(
@@ -190,6 +211,107 @@ test("pre-scope Discovery pages AI use cases without granting audit or fact auth
     assert.equal((await response.json()).data.collection, "AI_USE_CASES");
     assert.ok(requests[0]?.includes("collection=AI_USE_CASES"));
     assert.ok(requests[0]?.includes("offset=0"));
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("pre-scope Discovery start returns one run per pinned repository in one batch", async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    Response.json({
+      ok: true,
+      data: queuedBatch([
+        queuedView(),
+        queuedView({
+          runId: secondRunId,
+          repositoryKey: "api",
+          repositorySnapshotId: "snapshot-api",
+          repositoryCommit: "b".repeat(40),
+          sourcePathPrefix: "services/billing",
+        }),
+      ]),
+    });
+  try {
+    const response = await startDiscovery(
+      new NextRequest(
+        `http://localhost/api/assessments/${assessmentId}/discovery-runs`,
+        {
+          method: "POST",
+          headers: { cookie, "content-type": "application/json" },
+          body: JSON.stringify({ idempotencyKey: key }),
+        },
+      ),
+      { params: Promise.resolve({ id: assessmentId }) },
+    );
+    assert.equal(response.status, 200);
+    const batch = (await response.json()).data;
+    assert.equal(batch.batchId, batchId);
+    assert.deepEqual(
+      batch.runs.map((run: { repositoryKey: string }) => run.repositoryKey),
+      ["web", "api"],
+    );
+    assert.equal(batch.run.runId, runId);
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("pre-scope Discovery latest restores every repository run of the newest batch", async () => {
+  const oldFetch = globalThis.fetch;
+  const second = queuedView({
+    runId: secondRunId,
+    repositoryKey: "api",
+    repositorySnapshotId: "snapshot-api",
+    repositoryCommit: "b".repeat(40),
+    sourcePathPrefix: "services/billing",
+  });
+  globalThis.fetch = async () =>
+    Response.json({
+      ok: true,
+      data: {
+        available: true,
+        run: queuedView(),
+        runs: [queuedView(), second],
+      },
+    });
+  try {
+    const latest = await latestDiscovery(
+      new NextRequest(
+        `http://localhost/api/assessments/${assessmentId}/discovery-runs/latest`,
+        { headers: { cookie } },
+      ),
+      { params: Promise.resolve({ id: assessmentId }) },
+    );
+    assert.equal(latest.status, 200);
+    const data = (await latest.json()).data;
+    assert.equal(data.runs.length, 2);
+    assert.equal(data.runs[1].sourcePathPrefix, "services/billing");
+  } finally {
+    globalThis.fetch = oldFetch;
+  }
+});
+
+test("pre-scope Discovery rejects a batch whose repository key is malformed before it reaches the page", async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    Response.json({
+      ok: true,
+      data: queuedBatch([queuedView({ repositoryKey: "Not A Key" })]),
+    });
+  try {
+    const response = await startDiscovery(
+      new NextRequest(
+        `http://localhost/api/assessments/${assessmentId}/discovery-runs`,
+        {
+          method: "POST",
+          headers: { cookie, "content-type": "application/json" },
+          body: JSON.stringify({ idempotencyKey: key }),
+        },
+      ),
+      { params: Promise.resolve({ id: assessmentId }) },
+    );
+    assert.notEqual(response.status, 200);
   } finally {
     globalThis.fetch = oldFetch;
   }

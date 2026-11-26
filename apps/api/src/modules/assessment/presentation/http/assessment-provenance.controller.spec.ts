@@ -57,6 +57,8 @@ describe("AssessmentProvenanceController", () => {
       repositorySnapshotId: "snap-1",
       repositoryScanJobId: null,
       repositoryCommit: "abc1234",
+      repositorySetDigest: null,
+      repositories: [],
       pinnedAt: new Date().toISOString(),
     },
     runtime: {

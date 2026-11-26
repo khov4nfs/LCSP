@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import {
-  assessmentDiscoveryRunViewSchema,
+  assessmentDiscoveryBatchViewSchema,
   startAssessmentDiscoveryRunSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { proxyAssessmentJson } from "@/lib/server/assessment-domain-proxy";
@@ -14,7 +14,7 @@ import { proxyAssessmentJson } from "@/lib/server/assessment-domain-proxy";
  * Failure cases:
  * - Invalid session, body, or API rejection returns the standard problem envelope.
  * Side effects:
- * - May enqueue one deterministic scan, never an audit decision.
+ * - May enqueue one deterministic scan per pinned repository, never an audit decision.
  */
 export async function POST(
   request: NextRequest,
@@ -23,6 +23,6 @@ export async function POST(
   return proxyAssessmentJson(request, (await params).id, "/discovery-runs", {
     method: "POST",
     bodySchema: startAssessmentDiscoveryRunSchema,
-    responseSchema: assessmentDiscoveryRunViewSchema,
+    responseSchema: assessmentDiscoveryBatchViewSchema,
   });
 }

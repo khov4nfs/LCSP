@@ -197,6 +197,7 @@ export function buildLegalRulePresentationModel(params: {
         evidenceList.push({
           evidenceId: accepted.evidenceId,
           type: accepted.type,
+          repositoryKey: accepted.repositoryKey ?? null,
           path: payload.path ?? null,
           startLine: payload.startLine ?? null,
           endLine: payload.endLine ?? null,
@@ -212,6 +213,7 @@ export function buildLegalRulePresentationModel(params: {
         evidenceList.push({
           evidenceId: ref.evidenceId,
           type: "ASSESSMENT_EVIDENCE",
+          repositoryKey: null,
           path: null,
           startLine: null,
           endLine: null,

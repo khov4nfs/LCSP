@@ -92,7 +92,13 @@ export interface DecisionValidationContext {
  */
 export function evidenceBelongsToPinnedSet(
   evidence: { repositoryCommit: string; repositoryKey?: string | null },
-  pins: DecisionValidationContext["pins"],
+  pins: {
+    repositoryCommit: string;
+    repositories?: ReadonlyArray<{
+      repositoryKey: string | null;
+      repositoryCommit: string;
+    }>;
+  },
 ): boolean {
   const repositories = pins.repositories ?? [
     { repositoryKey: null, repositoryCommit: pins.repositoryCommit },

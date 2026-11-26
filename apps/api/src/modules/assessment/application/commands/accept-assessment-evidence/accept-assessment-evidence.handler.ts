@@ -5,6 +5,7 @@ import {
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
+  REPOSITORY_SET_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import {
   isCanonicalRepositorySourcePath,
@@ -17,6 +18,7 @@ import {
   deterministicUuid,
   sha256Hex,
 } from "../../../domain/domain-ids.js";
+import { resolvePinnedRepository } from "../../../domain/repository-set-pin.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -42,20 +44,22 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
   ) {}
 
   /**
-   * Business purpose: Accept source or search evidence only for the assessment's immutable commit and approved source directory.
+   * Business purpose: Accept source or search evidence only for a pinned repository's immutable commit and approved source directory.
    *
    * Business rules:
    * - The current Root lease and complete server-owned snapshot pins authorize the write.
+   * - The evidence names one pinned repository (the key may be omitted only when exactly one is pinned) and is judged against that
+   *   repository's own commit and source prefix, never another repository's.
    * - Every source path and every search scope, inspected entry point and fallback path must be canonical and inside the pinned directory.
    * - Scope validation precedes replay lookup so an existing evidence identifier cannot bypass the boundary.
    *
    * Execution flow:
    * 1. Authorize the Root and load the case's exact snapshot scope.
-   * 2. Reject a commit mismatch or any out-of-scope evidence path.
+   * 2. Resolve the target repository, then reject a commit mismatch or any out-of-scope evidence path.
    * 3. Derive the evidence identity and return its existing receipt or atomically persist the evidence and event.
    *
    * Failure cases:
-   * - Invalid lease or pins, a wrong commit, ambiguous path or sibling/outside directory rejects before replay or persistence.
+   * - Invalid lease or pins, an unknown or ambiguous repository key (REPOSITORY_KEY_UNKNOWN), a wrong commit, ambiguous path or sibling/outside directory rejects before replay or persistence.
    *
    * Side effects:
    * - A new accepted evidence row and audit/event are written transactionally; a valid replay is read-only.
@@ -72,7 +76,18 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
         input.correlationId,
         true,
       );
-      if (request.repositoryCommit !== pins.repositoryCommit) {
+      const repository = resolvePinnedRepository(
+        pins.repositories,
+        request.repositoryKey,
+      );
+      if (!repository) {
+        throw problemException(
+          REPOSITORY_SET_ERROR_CODES.keyUnknown,
+          input.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
+      if (request.repositoryCommit !== repository.repositoryCommit) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_PIN_MISMATCH,
           input.correlationId,
@@ -82,17 +97,17 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
       const pathsAllowed =
         request.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE
           ? isCanonicalRepositorySourcePath(request.path) &&
-            isRepositoryPathInSourceScope(request.path, pins.sourcePathPrefix)
+            isRepositoryPathInSourceScope(request.path, repository.sourcePathPrefix)
           : request.scopes.every((scope) =>
-              isRepositoryPathInSourceScope(scope.path, pins.sourcePathPrefix),
+              isRepositoryPathInSourceScope(scope.path, repository.sourcePathPrefix),
             ) &&
             request.inspectedEntryPoints.every((path) =>
-              isRepositoryPathInSourceScope(path, pins.sourcePathPrefix),
+              isRepositoryPathInSourceScope(path, repository.sourcePathPrefix),
             ) &&
             request.directSourceFallbacks.every((fallback) =>
               isRepositoryPathInSourceScope(
                 fallback.path,
-                pins.sourcePathPrefix,
+                repository.sourcePathPrefix,
               ),
             );
       if (!pathsAllowed) {
@@ -114,15 +129,25 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
         };
         identity = `${request.type}|${request.path}|${request.startLine}|${request.endLine}|${contentSha256}`;
       } else {
-        const { type: _type, repositoryCommit: _commit, ...coverage } = request;
+        const {
+          type: _type,
+          repositoryCommit: _commit,
+          repositoryKey: _key,
+          ...coverage
+        } = request;
         void _type;
         void _commit;
+        void _key;
         contentSha256 = `sha256:${sha256Hex(canonicalJson(coverage))}`;
         payload = coverage;
         identity = `${request.type}|${contentSha256}`;
       }
+      // One-repository assessments keep the original identity so replays of existing evidence stay
+      // idempotent; with several repositories the key keeps equal excerpts of different repositories apart.
       const evidenceId = deterministicUuid(
-        `${input.assessmentId}|${pins.repositoryCommit}|${identity}`,
+        pins.repositories.length > 1
+          ? `${input.assessmentId}|${repository.repositoryKey}|${repository.repositoryCommit}|${identity}`
+          : `${input.assessmentId}|${repository.repositoryCommit}|${identity}`,
       );
       const existing = await tx.assessmentEvidence.findUnique({
         where: { evidenceId },
@@ -135,11 +160,11 @@ export class AcceptAssessmentEvidenceHandler implements ICommandHandler<AcceptAs
           evidenceId,
           assessmentId: input.assessmentId,
           type: request.type,
-          repositoryCommit: pins.repositoryCommit,
-          // This handler still accepts evidence for the primary commit only; the key is stored only
-          // when the pin is a recorded row so the (case, key, commit) foreign key always resolves.
+          repositoryCommit: repository.repositoryCommit,
+          // The key is stored only when the pin is a recorded row so the (case, key, commit) foreign
+          // key always resolves.
           repositoryKey: pins.repositorySetRecorded
-            ? (pins.repositories[0]?.repositoryKey ?? null)
+            ? repository.repositoryKey
             : null,
           contentSha256,
           payload,

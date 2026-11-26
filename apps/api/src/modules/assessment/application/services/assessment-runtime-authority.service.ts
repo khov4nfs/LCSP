@@ -309,6 +309,7 @@ export class AssessmentRuntimeAuthority {
               ruleSetVersionId: true,
               repositorySnapshotId: true,
               repositoryCommit: true,
+              repositorySetDigest: true,
               caseRevision: true,
             },
           })
@@ -1352,6 +1353,8 @@ async function querySeparateCheckpointDatabase(
  *   assessment, transport run, Root boundary, agent identity, and exact immutable case pins (rule set, repository snapshot, commit).
  * - Authoritative case pins (rule set, repository snapshot, commit) are required; missing case pins fail closed.
  * - Checkpoint metadata must explicitly contain string values for rule_set_version_id, repository_snapshot_id, and repository_commit matching case pins.
+ * - A checkpoint that records repository_set_digest must match the case's repository set digest exactly; checkpoints written before the
+ *   set existed carry only the primary-repository scalars and are accepted on those (the set is immutable once pinned).
  * - Missing checkpoint pins, malformed pins, or mismatching pins immediately fail closed and return null.
  * - The checkpoint row ID must match its serialized checkpoint ID, and its timestamp must fall within that turn.
  * - If the checkpoint table is absent from the API database, the authority checks the configured native checkpoint database URL.
@@ -1385,6 +1388,7 @@ async function findFailedNativeCheckpoint(
       ruleSetVersionId?: string | null;
       repositorySnapshotId?: string | null;
       repositoryCommit?: string | null;
+      repositorySetDigest?: string | null;
     } | null;
   },
 ): Promise<FailedNativeCheckpoint | null> {
@@ -1474,7 +1478,10 @@ async function findFailedNativeCheckpoint(
     typeof metadata.repository_snapshot_id !== "string" ||
     metadata.repository_snapshot_id !== input.casePins.repositorySnapshotId ||
     typeof metadata.repository_commit !== "string" ||
-    metadata.repository_commit !== input.casePins.repositoryCommit
+    metadata.repository_commit !== input.casePins.repositoryCommit ||
+    (metadata.repository_set_digest !== undefined &&
+      (typeof metadata.repository_set_digest !== "string" ||
+        metadata.repository_set_digest !== input.casePins.repositorySetDigest))
   ) {
     return null;
   }

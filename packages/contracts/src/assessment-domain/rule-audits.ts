@@ -6,6 +6,7 @@ import {
   RULE_CATALOG_REVIEW_STATES,
 } from "./rule-groups.ts";
 import { AUTHORED_LOCALIZATION_READINESS_STATES } from "./localization.ts";
+import { repositoryKeySchema, repositorySetDigestSchema } from "./repository-set.ts";
 
 export const ASSESSMENT_AUDIT_MODES = {
   LEGACY_FULL: "LEGACY_FULL",
@@ -48,6 +49,8 @@ export const submitRuleAuditSchema = z.strictObject({
   ruleSetDigest: z.string().min(1),
   repositorySnapshotId: z.string().min(1),
   repositoryCommit: z.string().regex(/^[a-f0-9]{40,64}$/i),
+  /** Proof of the whole pinned repository set; required once an assessment pins more than one repository. */
+  repositorySetDigest: repositorySetDigestSchema.optional(),
   scopeMode: z.enum(RULE_AUDIT_SCOPE_MODES),
   rules: z.array(ruleIdentitySchema).max(10000),
 });
@@ -70,6 +73,7 @@ export const ruleAuditCatalogSchema = z.strictObject({
   ruleSetDigest: z.string().min(1),
   repositorySnapshotId: z.string().min(1),
   repositoryCommit: z.string().min(1),
+  repositorySetDigest: repositorySetDigestSchema.optional(),
   latestRequestId: z.uuid().nullable(),
   latestRequestStatus: z.enum(RULE_AUDIT_STATUSES).nullable(),
   total: z.number().int().nonnegative(),
@@ -111,6 +115,7 @@ export const ruleAuditRequestViewSchema = z.strictObject({
   ruleSetDigest: z.string().min(1),
   repositorySnapshotId: z.string().min(1),
   repositoryCommit: z.string().min(1),
+  repositorySetDigest: repositorySetDigestSchema.optional(),
   requestedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().nullable(),
   totalPinned: z.number().int().nonnegative(),
@@ -154,6 +159,18 @@ export const ruleAuditExportSchema = z.strictObject({
   ruleSetDigest: z.string().min(1),
   repositorySnapshotId: z.string().min(1),
   repositoryCommit: z.string().min(1),
+  repositorySetDigest: repositorySetDigestSchema.optional(),
+  /** Display-only summary of every pinned repository; authority is the digest. */
+  repositories: z
+    .array(
+      z.strictObject({
+        repositoryKey: repositoryKeySchema,
+        repositoryFullName: z.string().min(1),
+        repositoryCommit: z.string().min(1),
+        sourcePathPrefix: z.string().nullable(),
+      }),
+    )
+    .default([]),
   requestRevision: z.number().int().positive(),
   requestedRuleIds: z.array(z.string().min(1)).min(1),
   includedRuleIds: z.array(z.string().min(1)).min(1),
@@ -172,6 +189,7 @@ export const ruleAuditExportSchema = z.strictObject({
             evidenceId: z.uuid(),
             type: z.string().min(1),
             repositoryCommit: z.string().min(1),
+            repositoryKey: repositoryKeySchema.nullable().default(null),
             payload: z.unknown(),
           }),
         ),

@@ -8,12 +8,14 @@ import {
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
 } from "@lcsp/contracts/assessment-domain";
 import {
   buildAssessmentReportPresentation,
   type AssessmentReportV1Presentation,
   type AssessmentReportV2Presentation,
   type AssessmentReportV3Presentation,
+  type AssessmentReportV4Presentation,
 } from "@lcsp/contracts/assessment-report";
 import {
   buildRepositorySourceLink,
@@ -28,6 +30,7 @@ import {
 } from "@/lib/api/assessment-domain-queries";
 import { copy } from "../../utils/conversation-copy";
 import { AssessmentReportActions } from "../molecules/assessment-report-actions";
+import { ReportRepositorySet } from "../molecules/report-repository-set";
 
 type ReportSourceContext = {
   provider: CredentialProvider;
@@ -666,19 +669,28 @@ function V2Report({
 }
 
 /**
- * Business purpose: Present the immutable V3 assessment report, source scope and supporting evidence.
- * Business rules: External citations must remain bound to the report's validated pinned snapshot; source scope and compliance decisions are not altered for presentation.
- * Execution flow: 1. Render scope-aware report sections. 2. Link only repository evidence whose path and line range pass shared validation. 3. Preserve internal citations when provenance is incomplete.
- * Failure cases: Unsafe or incomplete citations remain plain text and never become Agent-supplied URLs.
- * Side effects: Read-only rendering; a customer may follow a provider URL to view the pinned source.
+ * Business purpose: Present a V3 report, and the multi-repository V4 report that shares its sections, to the customer.
+ * Business rules:
+ * - A V4 report lists every pinned repository with its own commit, scope and limitations, and a limited repository raises the report-wide warning.
+ * - Evidence entries of a V4 report name the repository they came from; the single-repository fields are not shown for a set.
+ * - External citations stay bound to the report's validated pinned snapshot; a V4 report has no single snapshot, so its citations remain plain text.
+ * Execution flow:
+ * 1. Derive the pinned set (if any) and the limited scopes from the model.
+ * 2. Render the warning, header, repository set and the unchanged report sections.
+ * Failure cases:
+ * - None; pure presentation of the validated model.
+ * Side effects:
+ * - None.
  */
 function V3Report({
   model,
   sourceContext,
 }: {
-  model: AssessmentReportV3Presentation;
+  model: AssessmentReportV3Presentation | AssessmentReportV4Presentation;
   sourceContext: ReportSourceContext | null;
 }) {
+  const repositories =
+    "repositories" in model.header ? model.header.repositories : null;
   const labels = (key: string) => copy(`labels.${key}`);
   const applicabilityLabel = (value: string) =>
     value === "APPLICABLE" ? labels("applicable") : labels("notApplicable");
@@ -687,24 +699,50 @@ function V3Report({
     if (value === "NON_COMPLIANT") return labels("nonCompliantResult");
     return labels("notApplicable");
   };
-  const isLimited =
-    model.header.sourceScope.visibility !== "KNOWN_FULL" ||
-    model.header.sourceScope.limitationReasons.length > 0;
+  const scopes = repositories
+    ? repositories.map((repository) => ({
+        label: repository.repositoryKey as string | null,
+        prefix: repository.sourcePathPrefix,
+        declared: repository.sourceScope,
+      }))
+    : [
+        {
+          label: null as string | null,
+          prefix: model.header.sourcePathPrefix,
+          declared: model.header.sourceScope,
+        },
+      ];
+  const limitedScopes = scopes.filter(
+    ({ declared }) =>
+      declared.visibility !== "KNOWN_FULL" ||
+      declared.limitationReasons.length > 0,
+  );
 
   return (
     <>
-      {isLimited ? (
+      {limitedScopes.length > 0 ? (
         <Alert variant="destructive">
           <AlertDescription>
-            {model.header.sourceScope.mode} · {model.header.sourceScope.visibility}
-            {model.header.sourcePathPrefix ? ` (${model.header.sourcePathPrefix})` : ""}
-            {model.header.sourceScope.limitationReasons.length > 0 ? (
-              <span className="mt-1 block text-xs">
-                {model.header.sourceScope.limitationReasons.join("; ")}
+            {limitedScopes.map(({ label, prefix, declared }) => (
+              <span key={label ?? "single"} className="block">
+                {label ? `${label}: ` : ""}
+                {declared.mode} · {declared.visibility}
+                {prefix ? ` (${prefix})` : ""}
+                {declared.limitationReasons.length > 0 ? (
+                  <span className="mt-1 block text-xs">
+                    {declared.limitationReasons.join("; ")}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
+            ))}
           </AlertDescription>
         </Alert>
+      ) : null}
+      {repositories && "repositorySetDigest" in model.header ? (
+        <ReportRepositorySet
+          repositories={repositories}
+          repositorySetDigest={model.header.repositorySetDigest}
+        />
       ) : null}
       <section
         className="grid gap-3 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2"
@@ -719,15 +757,22 @@ function V3Report({
           label={labels("schemaVersion")}
           value={model.header.schemaVersion}
         />
-        <Field
-          label={labels("repository")}
-          value={model.header.repositorySnapshotId}
-        />
-        <Field label={labels("commit")} value={model.header.repositoryCommit} />
-        <Field
-          label={labels("prefix")}
-          value={model.header.sourcePathPrefix ?? labels("unavailable")}
-        />
+        {repositories ? null : (
+          <>
+            <Field
+              label={labels("repository")}
+              value={model.header.repositorySnapshotId}
+            />
+            <Field
+              label={labels("commit")}
+              value={model.header.repositoryCommit}
+            />
+            <Field
+              label={labels("prefix")}
+              value={model.header.sourcePathPrefix ?? labels("unavailable")}
+            />
+          </>
+        )}
         <Field
           label={labels("legalSource")}
           value={`${model.header.legalSourceVersion} (${model.header.legalSourceVersionId})`}
@@ -857,6 +902,10 @@ function V3Report({
                     <ul className="list-disc pl-5">
                       {item.evidence.map((evidence) => (
                         <li key={evidence.evidenceId}>
+                          {(evidence as { repositoryKey?: string | null })
+                            .repositoryKey
+                            ? `[${(evidence as { repositoryKey?: string | null }).repositoryKey}] `
+                            : ""}
                           {evidence.type}
                           {evidence.safeLocator ? " · " : ""}
                           <EvidenceSourceLocator
@@ -908,7 +957,9 @@ function V3Report({
                     {item.relatedLegalContexts.length ? (
                       <div className="mt-1 text-xs text-muted-foreground">
                         {item.relatedLegalContexts
-                          .map((ctx) => `${ctx.kind}: ${ctx.toLegalRequirementId}`)
+                          .map(
+                            (ctx) => `${ctx.kind}: ${ctx.toLegalRequirementId}`,
+                          )
                           .join("; ")}
                       </div>
                     ) : null}
@@ -916,9 +967,7 @@ function V3Report({
                   <td className="p-3">
                     {applicabilityLabel(item.applicability)}
                   </td>
-                  <td className="p-3">
-                    {complianceLabel(item.compliance)}
-                  </td>
+                  <td className="p-3">{complianceLabel(item.compliance)}</td>
                 </tr>
               ))}
             </tbody>
@@ -996,6 +1045,10 @@ function V3Report({
               <ul className="list-disc pl-5 text-sm">
                 {detail.evidence.map((evidence) => (
                   <li key={evidence.evidenceId}>
+                    {(evidence as { repositoryKey?: string | null })
+                      .repositoryKey
+                      ? `[${(evidence as { repositoryKey?: string | null }).repositoryKey}] `
+                      : ""}
                     {evidence.type}
                     {evidence.safeLocator ? " · " : ""}
                     <EvidenceSourceLocator
@@ -1086,18 +1139,25 @@ function V3Report({
             label={labels("schemaVersion")}
             value={model.scopeTraceability.schemaVersion}
           />
-          <Field
-            label={labels("repository")}
-            value={model.scopeTraceability.repositorySnapshotId}
-          />
-          <Field
-            label={labels("commit")}
-            value={model.scopeTraceability.repositoryCommit}
-          />
-          <Field
-            label={labels("prefix")}
-            value={model.scopeTraceability.sourcePathPrefix ?? labels("unavailable")}
-          />
+          {repositories ? null : (
+            <>
+              <Field
+                label={labels("repository")}
+                value={model.scopeTraceability.repositorySnapshotId}
+              />
+              <Field
+                label={labels("commit")}
+                value={model.scopeTraceability.repositoryCommit}
+              />
+              <Field
+                label={labels("prefix")}
+                value={
+                  model.scopeTraceability.sourcePathPrefix ??
+                  labels("unavailable")
+                }
+              />
+            </>
+          )}
           <Field
             label={labels("legalSource")}
             value={`${model.scopeTraceability.legalSourceVersion} (${model.scopeTraceability.legalSourceVersionId})`}
@@ -1174,8 +1234,9 @@ export function AssessmentReportView({
       </div>
     );
   const model = buildAssessmentReportPresentation(report.data);
+  // A multi-repository (V4) report has no single pinned snapshot to link citations to.
   const sourceContext =
-    "legacy" in model
+    "legacy" in model || "repositories" in model.header
       ? null
       : resolveReportSourceContext(
           repositorySetup.data,
@@ -1200,7 +1261,8 @@ export function AssessmentReportView({
         <V1Report model={model} />
       ) : model.version === ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION ? (
         <V2Report model={model} sourceContext={sourceContext} />
-      ) : model.version === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION ? (
+      ) : model.version === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION ||
+        model.version === ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION ? (
         <V3Report model={model} sourceContext={sourceContext} />
       ) : (
         <Alert variant="destructive">

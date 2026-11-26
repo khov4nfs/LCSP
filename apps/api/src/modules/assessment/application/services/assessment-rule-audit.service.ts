@@ -54,6 +54,7 @@ import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
 import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
+import { pinnedRepositorySetMatches } from "../../domain/repository-set-pin.js";
 import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 
@@ -383,6 +384,7 @@ export class AssessmentRuleAuditService {
         ruleSetDigest: ruleSet.ruleSetDigest,
         repositorySnapshotId: domainCase.repositorySnapshotId,
         repositoryCommit: domainCase.repositoryCommit,
+        repositorySetDigest: domainCase.repositorySetDigest ?? undefined,
         latestRequestId: latestRequest?.requestId ?? null,
         latestRequestStatus: latestRequest?.status ?? null,
         total: selectableTotal,
@@ -506,8 +508,7 @@ export class AssessmentRuleAuditService {
         ruleSet.id !== body.ruleSetVersionId ||
         ruleSet.ruleSetDigest !== body.ruleSetDigest ||
         domainCase.repositorySnapshotId !== body.repositorySnapshotId ||
-        domainCase.repositoryCommit?.toLowerCase() !==
-          body.repositoryCommit.toLowerCase()
+        !pinnedRepositorySetMatches(body, domainCase)
       )
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
@@ -627,7 +628,7 @@ export class AssessmentRuleAuditService {
               byId.get(row.assessmentRuleId)?.assessmentRuleVersion &&
             decision?.state === ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED &&
             supportedCaseRevision &&
-            decision.repositoryCommit === domainCase.repositoryCommit &&
+            pinnedRepositorySetMatches(decision, domainCase) &&
             decision.ruleSetVersionId === ruleSet.id
             ? [[row.assessmentRuleId, decision.decisionId] as const]
             : [];
@@ -750,7 +751,7 @@ export class AssessmentRuleAuditService {
         request.ruleSetVersionId !== ruleSet.id ||
         request.ruleSetDigest !== ruleSet.ruleSetDigest ||
         request.repositorySnapshotId !== domainCase.repositorySnapshotId ||
-        request.repositoryCommit !== domainCase.repositoryCommit
+        !pinnedRepositorySetMatches(request, domainCase)
       )
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
@@ -900,6 +901,7 @@ export class AssessmentRuleAuditService {
       ruleSetDigest: row.ruleSetDigest,
       repositorySnapshotId: row.repositorySnapshotId,
       repositoryCommit: row.repositoryCommit,
+      repositorySetDigest: row.repositorySetDigest ?? undefined,
       requestedAt: row.requestedAt.toISOString(),
       completedAt: row.completedAt?.toISOString() ?? null,
       totalPinned,
@@ -966,7 +968,7 @@ export class AssessmentRuleAuditService {
         request.ruleSetVersionId !== ruleSet.id ||
         request.ruleSetDigest !== ruleSet.ruleSetDigest ||
         request.repositorySnapshotId !== domainCase.repositorySnapshotId ||
-        request.repositoryCommit !== domainCase.repositoryCommit
+        !pinnedRepositorySetMatches(request, domainCase)
       )
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
@@ -1020,7 +1022,10 @@ export class AssessmentRuleAuditService {
           coverage?.resolutionState !== DECISION_RESOLUTION_STATES.RESOLVED ||
           record?.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED ||
           record.caseRevision > pins.caseRevision ||
-          record.repositoryCommit !== pins.repositoryCommit ||
+          !pinnedRepositorySetMatches(record, {
+            ...pins,
+            repositoryCount: pins.repositories.length,
+          }) ||
           record.assessmentRuleVersion !== item.assessmentRuleVersion
         )
           continue;
@@ -1078,6 +1083,7 @@ export class AssessmentRuleAuditService {
               evidenceId,
               type: source.type,
               repositoryCommit: source.repositoryCommit,
+              repositoryKey: source.repositoryKey ?? null,
               payload: source.payload,
             })),
           legalBasis: {
@@ -1116,6 +1122,13 @@ export class AssessmentRuleAuditService {
         ruleSetDigest: request.ruleSetDigest,
         repositorySnapshotId: request.repositorySnapshotId,
         repositoryCommit: request.repositoryCommit,
+        repositorySetDigest: request.repositorySetDigest ?? undefined,
+        repositories: pins.repositories.map((pin) => ({
+          repositoryKey: pin.repositoryKey,
+          repositoryFullName: pin.repositoryFullName,
+          repositoryCommit: pin.repositoryCommit,
+          sourcePathPrefix: pin.sourcePathPrefix,
+        })),
         requestedRuleIds: request.rules.map((rule) => rule.assessmentRuleId),
         includedRuleIds: results.map((item) => item.assessmentRuleId),
         notRequestedRuleCount: Math.max(0, totalPinned - request.rules.length),
@@ -1314,6 +1327,15 @@ export class AssessmentRuleAuditService {
         correlationId,
         { status: HttpStatus.CONFLICT },
       );
-    return { assessment, domainCase, ruleSet };
+    // The guard above proves the scalar pins exist; expose that to callers.
+    return {
+      assessment,
+      domainCase: domainCase as typeof domainCase & {
+        ruleSetVersionId: string;
+        repositorySnapshotId: string;
+        repositoryCommit: string;
+      },
+      ruleSet,
+    };
   }
 }

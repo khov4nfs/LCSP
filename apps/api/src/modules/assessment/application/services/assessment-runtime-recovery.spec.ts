@@ -373,6 +373,11 @@ describe("persisted Agent Server run recovery", () => {
     ["malformed rule set pin", { rule_set_version_id: 12345 }],
     ["malformed snapshot pin", { repository_snapshot_id: null }],
     ["malformed commit pin", { repository_commit: ["invalid"] }],
+    [
+      "a repository set digest the case does not carry",
+      { repository_set_digest: `sha256:${"c".repeat(64)}` },
+    ],
+    ["a malformed repository set digest", { repository_set_digest: null }],
   ])(
     "does not recover a native checkpoint with %s",
     async (_label, mismatch) => {
@@ -438,6 +443,61 @@ describe("persisted Agent Server run recovery", () => {
       expect(f.turn.checkpointJson).toBeNull();
     },
   );
+
+  it("recovers a native checkpoint whose repository set digest equals the case digest and rejects a stale one", async () => {
+    const digest = `sha256:${"d".repeat(64)}`;
+    for (const [checkpointDigest, recovered] of [
+      [digest, true],
+      [`sha256:${"e".repeat(64)}`, false],
+    ] as const) {
+      const f = fixture();
+      const checkpointId = randomUUID();
+      Object.assign(f.row, {
+        executionState: Execution.FAILED,
+        checkpointId: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+      });
+      Object.assign(f.turn, {
+        state: Controls.completed,
+        checkpointJson: null,
+      });
+      f.tx.assessmentCase.findUnique.mockResolvedValue({
+        ruleSetVersionId: f.ruleSetVersionId,
+        repositorySnapshotId: f.repositorySnapshotId,
+        repositoryCommit: f.repositoryCommit,
+        repositorySetDigest: digest,
+      } as never);
+      f.tx.$queryRaw
+        .mockResolvedValueOnce([f.row])
+        .mockResolvedValueOnce([f.row])
+        .mockResolvedValueOnce([{ tableName: "checkpoints" }])
+        .mockResolvedValueOnce([
+          {
+            checkpointId,
+            serializedCheckpointId: checkpointId,
+            checkpointTimestamp: "2026-10-26T16:33:19.748Z",
+            metadata: {
+              assessment_id: f.assessmentId,
+              lcsp_runtime_run_id: f.runtimeRunId,
+              lcsp_boundary_name: "assessment_root_requested",
+              lc_agent_name: "lcsp-assessment-root",
+              rule_set_version_id: f.ruleSetVersionId,
+              repository_snapshot_id: f.repositorySnapshotId,
+              repository_commit: f.repositoryCommit,
+              repository_set_digest: checkpointDigest,
+            },
+          },
+        ]);
+
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+
+      expect(claim.resumeCheckpointId).toBe(recovered ? checkpointId : null);
+    }
+  });
 
   it("does not recover a native checkpoint when AssessmentCase record is missing", async () => {
     const f = fixture();

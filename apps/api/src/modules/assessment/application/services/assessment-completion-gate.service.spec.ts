@@ -545,6 +545,34 @@ describe("AssessmentCompletionGate", () => {
       evidence: [{ evidenceId }],
       facts: [{ factId }],
     });
+    // The frozen snapshot carries the verified pinned set (a set of one for a single repository) and its digest.
+    expect(result.snapshot?.pins.repositories).toHaveLength(1);
+    expect(result.snapshot?.pins.repositories?.[0]).toMatchObject({
+      ordinal: 0,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit,
+    });
+    expect(result.snapshot?.pins.repositorySetDigest).toMatch(/^sha256:/u);
+  });
+
+  it("reads each decision's repository set digest, so a decision of a multi-repository set is not judged stale", async () => {
+    const { gate, transaction } = createFixture();
+    const decisions = jest.spyOn(
+      transaction.assessmentRuleDecision,
+      "findMany",
+    );
+
+    await gate.inspectInTx(transaction, assessmentId);
+
+    // pinnedRepositorySetMatches refuses a decision without a digest once the assessment pins several repositories.
+    expect(decisions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          repositoryCommit: true,
+          repositorySetDigest: true,
+        }),
+      }),
+    );
   });
 
   it("blocks a pinned source whose provenance hash no longer matches", async () => {

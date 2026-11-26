@@ -132,8 +132,8 @@ class FakeClient:
         ]
         return {"matches": matches, "truncated": False}
 
-    def repository_discovery_summary(self) -> dict[str, Any]:
-        self.calls.append(("discovery_summary", None))
+    def repository_discovery_summary(self, repository_key: str | None = None) -> dict[str, Any]:
+        self.calls.append(("discovery_summary", repository_key))
         return {"available": False, "discovery": None}
 
     def repository_discovery_ranges(

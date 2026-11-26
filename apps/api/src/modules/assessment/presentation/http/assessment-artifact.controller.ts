@@ -18,6 +18,7 @@ import {
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION,
   claimAssessmentRootRequestSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
@@ -150,9 +151,12 @@ export class AssessmentArtifactController {
             ? await this.pdfRenderer.renderV3(parsed.data, {
                 repositorySource: report.repositorySource,
               })
-            : await Promise.reject(
-                new Error("Unsupported report schema version"),
-              );
+            : parsed.data.schemaVersion ===
+                ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION
+              ? await this.pdfRenderer.renderV4(parsed.data)
+              : await Promise.reject(
+                  new Error("Unsupported report schema version"),
+                );
     for (const [name, value] of Object.entries(
       buildPdfResponseHeaders(
         report.artifactId,

@@ -17,6 +17,7 @@ from pydantic import ConfigDict, Field
 
 from tools.common.capabilities.platform.codebase_memory import (
     CODEBASE_MEMORY_PROJECT,
+    active_codebase_memory_index,
     codebase_memory_cli,
 )
 from tools.common.capabilities.platform.repository_sandbox import (
@@ -28,11 +29,31 @@ _MAX_OUTPUT_CHARS = 12_000
 
 
 def _run(tool_name: str, arguments: dict[str, Any]) -> str:
+    """Business purpose: Run one Codebase Memory graph query against the index this dispatch ensured and present its result safely.
+
+    Business rules:
+    - The query targets the project the engine registered for this assessment: its one repository, or the shared root of a multi-repository assessment, where every file path already starts with the repository key.
+    - Output is bounded so a broad query cannot flood the model context.
+
+    Execution flow:
+    1. Resolve the project from the active index, falling back to the original project name when none was ensured.
+    2. Execute the engine command with that project and the given arguments.
+    3. Bound the output and return it, or an explanatory message when the engine fails.
+
+    Failure cases:
+    - An unavailable sandbox or an engine failure returns explanatory text instead of raising, so the model can continue with other tools.
+
+    Side effects:
+    - Runs a read-only query in the sandbox and changes nothing.
+    """
     backend = current_repository_backend()
     execute = getattr(backend, "execute", None)
     if not callable(execute):
         return "Codebase Memory graph is unavailable: no repository sandbox is active."
-    payload = {"project": CODEBASE_MEMORY_PROJECT}
+    # A multi-repository assessment indexes its shared root as one project whose name the engine chose; every
+    # other assessment keeps the original project name.
+    identity = active_codebase_memory_index()
+    payload = {"project": identity.project_id if identity is not None else CODEBASE_MEMORY_PROJECT}
     payload.update({key: value for key, value in arguments.items() if value is not None})
     result = execute(codebase_memory_cli(tool_name, payload))
     output = str(getattr(result, "output", "") or "").strip()

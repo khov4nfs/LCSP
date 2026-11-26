@@ -53,6 +53,12 @@ import {
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
 import { assessmentBudgetStateSchema } from "./budget.ts";
 import {
+  ASSESSMENT_REPOSITORY_LIMITS,
+  repositoryKeySchema,
+  repositoryPinSchema,
+  repositorySetDigestSchema,
+} from "./repository-set.ts";
+import {
   factNeedInputSchema,
   factNeedViewSchema,
   normalizedFactNeedAnswerSchema,
@@ -101,6 +107,8 @@ const pathSchema = z
 export const repositorySourceEvidenceRequestSchema = z
   .strictObject({
     type: z.literal(ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE),
+    /** Repository the excerpt belongs to; may be omitted only when the assessment pins one repository. */
+    repositoryKey: repositoryKeySchema.optional(),
     repositoryCommit: commitSchema,
     path: pathSchema,
     startLine: z.number().int().min(1),
@@ -124,6 +132,8 @@ const boundedList = <T extends z.ZodType>(item: T, min = 0) =>
  * server only verifies pin and shape. */
 export const searchCoverageEvidenceRequestSchema = z.strictObject({
   type: z.literal(ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE),
+  /** Repository the search covered; scope paths are relative to it. Optional only for one-repository assessments. */
+  repositoryKey: repositoryKeySchema.optional(),
   repositoryCommit: commitSchema,
   scopes: boundedList(
     z.strictObject({
@@ -156,12 +166,27 @@ export const acceptEvidenceRequestSchema = z.discriminatedUnion("type", [
 ]);
 export type AcceptEvidenceRequest = z.infer<typeof acceptEvidenceRequestSchema>;
 
+/** One repository of the pinned set as the provenance record shows it. */
+export const assessmentProvenanceRepositoryPinSchema = z.strictObject({
+  repositoryKey: repositoryKeySchema,
+  ordinal: z.number().int().min(0),
+  repositoryFullName: z.string().min(1),
+  repositorySnapshotId: identifierSchema,
+  repositoryCommit: commitSchema,
+  sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),
+});
+export type AssessmentProvenanceRepositoryPin = z.infer<
+  typeof assessmentProvenanceRepositoryPinSchema
+>;
+
 export const assessmentEvidenceSchema = z.strictObject({
   evidenceId: uuidSchema,
   assessmentId: uuidSchema,
   type: z.enum(ASSESSMENT_EVIDENCE_TYPES),
   state: z.enum(ASSESSMENT_RECORD_STATES),
   repositoryCommit: commitSchema,
+  /** Repository the evidence was gathered from; null for evidence not bound to one repository. */
+  repositoryKey: repositoryKeySchema.nullable().default(null),
   contentSha256: sha256Schema,
   payload: z.record(z.string(), z.unknown()),
   createdAt: z.iso.datetime(),
@@ -525,6 +550,12 @@ export const assessmentRootContextSchema = z.strictObject({
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
   sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),
+  /**
+   * The complete pinned repository set. The scalar repository fields above describe the primary
+   * repository (ordinal 0) and remain for workers that predate the set.
+   */
+  repositorySetDigest: repositorySetDigestSchema.optional(),
+  repositories: z.array(repositoryPinSchema).default([]),
   decisionScopeId: identifierSchema,
   auditRequest: z
     .strictObject({
@@ -860,58 +891,123 @@ export const assessmentReadListSchema = z.union([
 ]);
 export type AssessmentReadList = z.infer<typeof assessmentReadListSchema>;
 
+const repositorySetupConnectionSchema = z.strictObject({
+  connectionId: identifierSchema,
+  provider: z.enum(CREDENTIAL_PROVIDERS),
+  repositoryId: identifierSchema,
+  repositoryFullName: identifierSchema,
+  canonicalRepositoryUrl: z.url().nullable().optional(),
+  defaultBranch: identifierSchema,
+  status: z.enum(REPOSITORY_CONNECTION_STATUSES),
+});
+const repositorySetupSnapshotSchema = z.strictObject({
+  id: identifierSchema,
+  assessmentId: uuidSchema,
+  connectionId: identifierSchema,
+  provider: z.enum(CREDENTIAL_PROVIDERS),
+  repositoryFullName: identifierSchema,
+  branch: identifierSchema.nullable(),
+  commitSha: commitSchema,
+  sourcePathPrefix: repositorySourcePathPrefixSchema.nullable().default(null),
+  createdAt: z.iso.datetime(),
+});
+const repositorySetupScanJobSchema = z.strictObject({
+  id: identifierSchema,
+  assessmentId: uuidSchema,
+  snapshotId: identifierSchema,
+  status: z.enum(REPOSITORY_SCAN_JOB_STATUSES),
+  attemptCount: z.number().int().nonnegative(),
+  blockedReason: identifierSchema.nullable(),
+  updatedAt: z.iso.datetime(),
+});
+
+/** One repository chosen for the assessment: its connection and the immutable snapshot taken from it. */
+export const assessmentRepositorySetupEntrySchema = z.strictObject({
+  /** Set once the repository is pinned; null while the entry is still a candidate. */
+  repositoryKey: repositoryKeySchema.nullable().default(null),
+  connection: repositorySetupConnectionSchema,
+  snapshot: repositorySetupSnapshotSchema.nullable(),
+  scanJob: repositorySetupScanJobSchema.nullable(),
+});
+export type AssessmentRepositorySetupEntry = z.infer<
+  typeof assessmentRepositorySetupEntrySchema
+>;
+
 /** Repository hydration has resource-local status; it never determines ALS/AES. */
 export const assessmentRepositorySetupSchema = z.strictObject({
   assessmentId: uuidSchema,
   lifecycle: assessmentLifecycleSchema.nullable(),
-  connection: z
-    .strictObject({
-      connectionId: identifierSchema,
-      provider: z.enum(CREDENTIAL_PROVIDERS),
-      repositoryId: identifierSchema,
-      repositoryFullName: identifierSchema,
-      canonicalRepositoryUrl: z.url().nullable().optional(),
-      defaultBranch: identifierSchema,
-      status: z.enum(REPOSITORY_CONNECTION_STATUSES),
-    })
-    .nullable(),
-  snapshot: z
-    .strictObject({
-      id: identifierSchema,
-      assessmentId: uuidSchema,
-      connectionId: identifierSchema,
-      provider: z.enum(CREDENTIAL_PROVIDERS),
-      repositoryFullName: identifierSchema,
-      branch: identifierSchema.nullable(),
-      commitSha: commitSchema,
-      sourcePathPrefix: repositorySourcePathPrefixSchema
-        .nullable()
-        .default(null),
-      createdAt: z.iso.datetime(),
-    })
-    .nullable(),
-  scanJob: z
-    .strictObject({
-      id: identifierSchema,
-      assessmentId: uuidSchema,
-      snapshotId: identifierSchema,
-      status: z.enum(REPOSITORY_SCAN_JOB_STATUSES),
-      attemptCount: z.number().int().nonnegative(),
-      blockedReason: identifierSchema.nullable(),
-      updatedAt: z.iso.datetime(),
-    })
-    .nullable(),
+  /** The primary (first) repository; kept for readers that predate multi-repository setup. */
+  connection: repositorySetupConnectionSchema.nullable(),
+  snapshot: repositorySetupSnapshotSchema.nullable(),
+  scanJob: repositorySetupScanJobSchema.nullable(),
+  /** Every repository chosen for the assessment, in pin order once the set is pinned. */
+  repositories: z.array(assessmentRepositorySetupEntrySchema).default([]),
+  repositorySetDigest: repositorySetDigestSchema.nullable().default(null),
+  /** How many repositories this assessment may pin; the web never offers more than this. */
+  repositoryLimit: z
+    .number()
+    .int()
+    .min(1)
+    .max(ASSESSMENT_REPOSITORY_LIMITS.maxRepositories)
+    .default(1),
+  /** True once the repository set is pinned and can no longer change. */
+  setupCompleted: z.boolean().default(false),
 });
 export type AssessmentRepositorySetup = z.infer<
   typeof assessmentRepositorySetupSchema
 >;
 
+/** Names the exact snapshots to pin; when omitted the latest snapshot of the sole active connection is used. */
+export const completeAssessmentRepositorySetupRequestSchema = z.strictObject({
+  snapshotIds: z
+    .array(identifierSchema)
+    .min(1)
+    .max(ASSESSMENT_REPOSITORY_LIMITS.maxRepositories)
+    .optional(),
+});
+export type CompleteAssessmentRepositorySetupRequest = z.infer<
+  typeof completeAssessmentRepositorySetupRequestSchema
+>;
+
+/**
+ * Wire form of the same request: a client that sends no body at all (an older web bundle) means "no explicit
+ * snapshot list", which is the single-repository behaviour.
+ */
+export const completeAssessmentRepositorySetupBodySchema = z.preprocess(
+  (value) => value ?? {},
+  completeAssessmentRepositorySetupRequestSchema,
+);
+
 export const completeAssessmentRepositorySetupResultSchema = z.strictObject({
   assessment_id: uuidSchema,
+  /** Primary (first) repository; kept for readers that predate multi-repository setup. */
   repository_connection_id: identifierSchema,
   snapshot_id: identifierSchema,
   commit_sha: commitSchema,
+  repository_set_digest: repositorySetDigestSchema.optional(),
+  repositories: z
+    .array(
+      z.strictObject({
+        repository_key: repositoryKeySchema,
+        connection_id: identifierSchema,
+        snapshot_id: identifierSchema,
+        commit_sha: commitSchema,
+      }),
+    )
+    .default([]),
 });
+
+export const removeAssessmentRepositoryResultSchema = z.strictObject({
+  assessment_id: uuidSchema,
+  snapshot_id: identifierSchema,
+  connection_id: identifierSchema,
+  /** True when no snapshot of the connection remained and the connection itself was revoked. */
+  connection_revoked: z.boolean(),
+});
+export type RemoveAssessmentRepositoryResult = z.infer<
+  typeof removeAssessmentRepositoryResultSchema
+>;
 
 export const reconcileOrphanedAssessmentResultSchema = z.strictObject({
   assessmentId: z.uuid(),
@@ -1023,6 +1119,9 @@ export const assessmentProvenanceArtifactSchema = z.strictObject({
       repositorySnapshotId: identifierSchema.nullable(),
       repositoryScanJobId: identifierSchema.nullable(),
       repositoryCommit: commitSchema.nullable(),
+      /** The whole pinned set in pin order; empty for a case written before repository sets existed. */
+      repositorySetDigest: repositorySetDigestSchema.nullable().default(null),
+      repositories: z.array(assessmentProvenanceRepositoryPinSchema).default([]),
       pinnedAt: z.iso.datetime().nullable(),
     })
     .nullable(),
@@ -1057,6 +1156,9 @@ export const assessmentProvenanceExportSchema = z.strictObject({
       repositorySnapshotId: identifierSchema.nullable(),
       repositoryScanJobId: identifierSchema.nullable(),
       repositoryCommit: commitSchema.nullable(),
+      /** The whole pinned set in pin order; empty for a case written before repository sets existed. */
+      repositorySetDigest: repositorySetDigestSchema.nullable().default(null),
+      repositories: z.array(assessmentProvenanceRepositoryPinSchema).default([]),
       pinnedAt: z.iso.datetime().nullable(),
     })
     .nullable(),
@@ -1139,9 +1241,25 @@ export const customerTrackingAssessmentItemSchema = z.strictObject({
     pinnedCommit: z.string().nullable(),
     latestCommit: z.string().nullable(),
     observedAt: z.iso.datetime().nullable(),
+    /** Aggregate over every pinned repository: STALE when any of them is stale. */
     freshnessStatus: trackingFreshnessStatusSchema,
     isStale: z.boolean(),
   }),
+  /** Every pinned repository in pin order; empty when none could be resolved. The first is also `repository`. */
+  repositories: z
+    .array(
+      z.strictObject({
+        repositoryKey: repositoryKeySchema.nullable(),
+        name: z.string().nullable(),
+        owner: z.string().nullable(),
+        pinnedCommit: z.string().nullable(),
+        latestCommit: z.string().nullable(),
+        observedAt: z.iso.datetime().nullable(),
+        freshnessStatus: trackingFreshnessStatusSchema,
+        isStale: z.boolean(),
+      }),
+    )
+    .default([]),
   ruleSet: z.strictObject({
     ruleSetVersionId: z.string().nullable(),
     ruleSetName: z.string().nullable(),

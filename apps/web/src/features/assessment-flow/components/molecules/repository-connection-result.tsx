@@ -15,7 +15,11 @@ const PROVIDER_LOGOS = {
   [ASSESSMENT_REPOSITORY_PROVIDERS.gitlab]: GIT_PROVIDER_LOGOS.GITLAB,
 } as const;
 
-type RepositoryConnectionResultProps = RepositoryHistory & {
+type RepositoryConnectionResultProps = Omit<RepositoryHistory, "commitSha"> & {
+  /** Absent while the repository is chosen but its commit is not pinned yet. */
+  commitSha?: string;
+  /** Directory the assessment is limited to; omitted for a whole repository. */
+  sourcePathPrefix?: string | null;
   className?: string;
 };
 
@@ -23,17 +27,34 @@ export function RepositoryConnectionResult({
   provider,
   repositoryFullName,
   commitSha,
+  sourcePathPrefix,
   className,
 }: RepositoryConnectionResultProps) {
   const providerLabel = formatProvider(provider);
-  const shortCommit = commitSha.slice(0, 12);
+  const shortCommit = commitSha?.slice(0, 12);
+  const scopeLabel = sourcePathPrefix
+    ? t("pages.assessmentFlow.repository.sourceScope").replace(
+        "{path}",
+        sourcePathPrefix,
+      )
+    : null;
 
   return (
     <div
       data-slot="repository-connection-result"
-      aria-label={`${providerLabel} ${repositoryFullName} ${t(
-        "pages.assessmentFlow.repository.pinnedCommit",
-      ).replace("{commit}", shortCommit)}`}
+      aria-label={[
+        providerLabel,
+        repositoryFullName,
+        scopeLabel,
+        shortCommit
+          ? t("pages.assessmentFlow.repository.pinnedCommit").replace(
+              "{commit}",
+              shortCommit,
+            )
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       className={cn(
         "flex min-h-6 min-w-0 items-center gap-2 text-[12.5px] leading-4.5 text-muted-foreground",
         className,
@@ -41,16 +62,28 @@ export function RepositoryConnectionResult({
     >
       <ProviderIcon provider={provider} />
       <span className="min-w-0 truncate font-medium">{repositoryFullName}</span>
-      <span aria-hidden="true" className="shrink-0 text-muted-foreground/70">
-        ·
-      </span>
-      <GitBranchIcon
-        aria-hidden="true"
-        className="size-3.5 shrink-0 text-muted-foreground"
-      />
-      <span className="shrink-0 font-mono text-muted-foreground">
-        {shortCommit}
-      </span>
+      {scopeLabel ? (
+        <span className="shrink-0 font-mono text-muted-foreground">
+          {scopeLabel}
+        </span>
+      ) : null}
+      {shortCommit ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="shrink-0 text-muted-foreground/70"
+          >
+            ·
+          </span>
+          <GitBranchIcon
+            aria-hidden="true"
+            className="size-3.5 shrink-0 text-muted-foreground"
+          />
+          <span className="shrink-0 font-mono text-muted-foreground">
+            {shortCommit}
+          </span>
+        </>
+      ) : null}
     </div>
   );
 }

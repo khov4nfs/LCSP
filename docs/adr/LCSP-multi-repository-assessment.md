@@ -18,10 +18,10 @@ consent and a backend that stores and deletes data).
 | D1 | At most 5 repositories per Assessment (`ASSESSMENT_REPOSITORY_LIMITS.maxRepositories`). |
 | D2 | The same repository may appear more than once with different `sourcePathPrefix` values (monorepo scopes). Uniqueness is per snapshot, not per repositoryId. |
 | D3 | The repository set is immutable once the Assessment is ACTIVE. Changing it means a new Assessment. |
-| D4 | Discovery runs one run per repository, each in its own sandbox, bounded by Root capacity. |
+| D4 | Discovery runs one run per repository, each in its own sandbox, bounded by Root capacity. One "Run discovery" action creates the runs as one batch. The discovery artifact itself is unchanged: the repository a record describes is the pin of its snapshot, so scanner signatures and content digests stay stable. |
 | D5 | Total hydrated size is capped at twice the current single-repository budget, checked when pinning. |
 | D6 | Reports gain a V4 schema; V2/V3 stay read-only for existing artifacts. |
-| D7 | Feature capability `MULTI_REPOSITORY_ASSESSMENT`; when off the UI limits N to 1 while the backend stays on the new model. |
+| D7 | The number of repositories is capped by the contract maximum and can only be lowered by the API environment variable `LCSP_MAX_ASSESSMENT_REPOSITORIES` (default 5). The API reports the effective `repositoryLimit` in the setup view and the UI never offers more. A capability-policy toggle replaces the variable when the capability framework gains a per-platform setting. Keep it at 1 in production until the worker, discovery and report phases land. |
 
 ## Model
 

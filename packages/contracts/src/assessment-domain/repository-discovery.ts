@@ -5,6 +5,7 @@ import {
   REPOSITORY_SCANNER_VERSIONS,
   type RepositoryScannerVersion,
 } from "./repository-profile.ts";
+import { repositoryKeySchema } from "./repository-set.ts";
 
 export const ASSESSMENT_DISCOVERY_RUN_STATUSES = {
   queued: "QUEUED",
@@ -404,6 +405,8 @@ export type RepositoryDiscoveryExpansionResult = z.infer<
 
 const repositoryDiscoverySummaryDetailSchema = z.strictObject({
   recordId: z.uuid(),
+  /** The pinned repository this discovery describes (resolved by its snapshot); null for unrecorded legacy sets. */
+  repositoryKey: repositoryKeySchema.nullable().default(null),
   repositorySnapshotId: z.string().min(1),
   repositoryId: z.string().min(1).max(200),
   repositoryCommit: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
@@ -506,6 +509,10 @@ export const assessmentDiscoveryRunViewSchema = z.strictObject({
   assessmentId: z.uuid(),
   status: z.enum(ASSESSMENT_DISCOVERY_RUN_STATUSES),
   attempt: z.number().int().positive(),
+  /** The repository of the pinned set this run scanned; null only for runs written before the set existed. */
+  repositoryKey: repositoryKeySchema.nullable().default(null),
+  /** Runs started by one "Run discovery" action share a batch; null for runs written before batches existed. */
+  discoveryBatchId: z.uuid().nullable().default(null),
   repositorySnapshotId: z.string().min(1),
   repositoryCommit: z.string().regex(/^[a-f0-9]{40,64}$/),
   sourcePathPrefix: repositorySourcePathPrefixSchema.nullable(),
@@ -520,13 +527,31 @@ export type AssessmentDiscoveryRunView = z.infer<
   typeof assessmentDiscoveryRunViewSchema
 >;
 
+/**
+ * One "Run discovery" action: one run per pinned repository. `run` is the primary repository's run (kept for
+ * readers that show a single status) and `runs` lists every repository in ordinal order.
+ */
+export const assessmentDiscoveryBatchViewSchema = z.strictObject({
+  batchId: z.uuid().nullable(),
+  run: assessmentDiscoveryRunViewSchema,
+  runs: z.array(assessmentDiscoveryRunViewSchema).min(1).max(5),
+});
+export type AssessmentDiscoveryBatchView = z.infer<
+  typeof assessmentDiscoveryBatchViewSchema
+>;
+
 export const assessmentDiscoveryLatestRunSchema = z.discriminatedUnion(
   "available",
   [
-    z.strictObject({ available: z.literal(false), run: z.null() }),
+    z.strictObject({
+      available: z.literal(false),
+      run: z.null(),
+      runs: z.array(assessmentDiscoveryRunViewSchema).max(0).default([]),
+    }),
     z.strictObject({
       available: z.literal(true),
       run: assessmentDiscoveryRunViewSchema,
+      runs: z.array(assessmentDiscoveryRunViewSchema).min(1).max(5),
     }),
   ],
 );
@@ -539,6 +564,7 @@ export const assessmentDiscoveryRunClaimSchema = z.strictObject({
   assessmentId: z.uuid(),
   leaseToken: z.uuid(),
   threadId: z.string().trim().min(1).max(500),
+  repositoryKey: repositoryKeySchema.nullable().default(null),
   repositorySnapshotId: z.string().trim().min(1),
   repositoryId: z.string().trim().min(1),
   repositoryCommit: z.string().regex(/^[a-f0-9]{40,64}$/),
@@ -554,6 +580,14 @@ export type AssessmentDiscoveryRunClaim = z.infer<
 export const failAssessmentDiscoveryRunSchema = z.strictObject({
   errorCode: z.string().trim().min(1).max(200),
 });
+
+/** Selects which pinned repository's discovery summary a leased Root reads; absent means the primary one. */
+export const repositoryDiscoverySummaryQuerySchema = z.strictObject({
+  repositoryKey: repositoryKeySchema.optional(),
+});
+export type RepositoryDiscoverySummaryQuery = z.infer<
+  typeof repositoryDiscoverySummaryQuerySchema
+>;
 
 export const repositoryDiscoveryRangePageQuerySchema = z.strictObject({
   recordId: z.uuid(),

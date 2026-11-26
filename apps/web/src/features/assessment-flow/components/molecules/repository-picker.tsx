@@ -1,4 +1,5 @@
 import type { AssessmentRepositoryProvider } from "@lcsp/contracts/assessment";
+import type { ReactNode } from "react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
 
@@ -19,6 +20,8 @@ import { SourceVersionPicker } from "./source-version-picker";
  * Business rules:
  * - Binds `repositoryUrl` via `react-hook-form` `Controller` and displays localized validation errors inline.
  * - Disables repository submission when the provider credential is missing or preview-only.
+ * - A one-repository assessment submits with the connect label; an assessment that may hold several repositories submits
+ *   with an add label and the caller supplies the follow-up action (start analysis) through `actions`.
  * Execution flow:
  * 1. Render `GitAccountStrip` for the active provider.
  * 2. Render URL input bound to `control` with helper text and validation error.
@@ -38,6 +41,8 @@ export function RepositoryPicker({
   isSubmitting,
   pinnedCommitSha,
   errorMessage,
+  submitLabel,
+  actions,
   onManageCredential,
   onBack,
 }: {
@@ -49,6 +54,10 @@ export function RepositoryPicker({
   isSubmitting: boolean;
   pinnedCommitSha?: string | null;
   errorMessage?: string;
+  /** Overrides the default connect label, e.g. with an add label for a multi-repository assessment. */
+  submitLabel?: string;
+  /** Extra actions rendered between the submit and back buttons. */
+  actions?: ReactNode;
   onManageCredential: () => void;
   onBack: () => void;
 }) {
@@ -122,8 +131,10 @@ export function RepositoryPicker({
         <Button type="submit" disabled={!canEnterRepository || isSubmitting}>
           {isSubmitting
             ? resolveAppMessage("pages.assessmentFlow.source.connectingAction")
-            : resolveAppMessage("pages.assessmentFlow.source.connectAction")}
+            : (submitLabel ??
+              resolveAppMessage("pages.assessmentFlow.source.connectAction"))}
         </Button>
+        {actions}
         <Button
           type="button"
           variant="outline"

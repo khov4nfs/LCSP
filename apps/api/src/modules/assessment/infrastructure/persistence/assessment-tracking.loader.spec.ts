@@ -806,6 +806,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -948,6 +949,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: null, // MISSING PIN!
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -1049,6 +1051,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "snap-payments-1",
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -1154,6 +1157,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           humanRequests: [],
           artifacts: [],
@@ -1217,6 +1221,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -1335,6 +1340,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "snap-1",
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -1428,6 +1434,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "snap-old",
           repositoryScanJobId: "job-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -1500,6 +1507,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000011",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: now,
           humanRequests: [],
           artifacts: [],
@@ -1520,6 +1528,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000012",
           repositoryScanJobId: "job-2",
+          repositories: [],
           pinnedAt: now,
           humanRequests: [],
           artifacts: [],
@@ -1652,6 +1661,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: now,
           humanRequests: [],
           artifacts: [],
@@ -1720,6 +1730,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: now,
           humanRequests: [],
           artifacts: [],
@@ -1792,6 +1803,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: olderTime,
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -1918,6 +1930,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: now,
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -2019,6 +2032,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: now,
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -2153,6 +2167,7 @@ describe("AssessmentTrackingLoader", () => {
           repositoryCommit: "a000000000000000000000000000000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
+          repositories: [],
           pinnedAt: twoMinutesAgo,
           ruleSet: {
             id: "00000000-0000-4000-8000-000000000001",
@@ -2428,6 +2443,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryCommit: "a000000000000000000000000000000000000001",
+          repositories: [],
           pinnedAt: now,
           humanRequests: [],
           artifacts: [],
@@ -2576,6 +2592,7 @@ describe("AssessmentTrackingLoader", () => {
             ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
             repositorySnapshotId: snapshotId,
             repositoryScanJobId: "scan-1",
+            repositories: [],
             repositoryCommit: "a000000000000000000000000000000000000001",
             ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
             coverage: [],
@@ -2655,6 +2672,7 @@ describe("AssessmentTrackingLoader", () => {
             ruleSetVersionId,
             repositorySnapshotId: snapshotId,
             repositoryScanJobId: "scan-1",
+            repositories: [],
             repositoryCommit: "a000000000000000000000000000000000000001",
             ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
             coverage: [
@@ -2804,6 +2822,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId,
           repositorySnapshotId: "snapshot-pinned",
           repositoryScanJobId: "scan-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
           coverage: [
@@ -2939,6 +2958,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId,
           repositorySnapshotId: "snapshot-pinned",
           repositoryScanJobId: "scan-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
           coverage: [],
@@ -3028,6 +3048,7 @@ describe("AssessmentTrackingLoader", () => {
           ruleSetVersionId,
           repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "scan-1",
+          repositories: [],
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
           coverage: [
@@ -3270,6 +3291,7 @@ describe("AssessmentTrackingLoader", () => {
             ruleSetVersionId,
             repositorySnapshotId: null,
             repositoryScanJobId: "scan-1",
+            repositories: [],
             repositoryCommit: "a000000000000000000000000000000000000001",
             ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
             coverage: [
@@ -3389,6 +3411,7 @@ describe("AssessmentTrackingLoader", () => {
             ruleSetVersionId,
             repositorySnapshotId: null,
             repositoryScanJobId: "scan-1",
+            repositories: [],
             repositoryCommit: "a000000000000000000000000000000000000001",
             ruleSet: { version: "1.0.0", validationOutcome: "PASSED" },
             coverage: [

@@ -38,6 +38,7 @@ import {
 import { validateRuleDecision } from "../../domain/decision-validator.js";
 import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { validateLegalProvenance } from "../../domain/legal-provenance-validator.js";
+import { pinnedRepositorySetMatches } from "../../domain/repository-set-pin.js";
 
 const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
   BLOCKER_REASONS.REQUIRED_DOCUMENT_UNAVAILABLE,
@@ -74,6 +75,9 @@ export interface AssessmentFinalizationSnapshot {
     repositorySnapshotId: string;
     repositoryScanJobId: string;
     repositoryCommit: string;
+    /** The verified pinned set when the assessment is pinned to several repositories. */
+    repositorySetDigest?: string;
+    repositories?: PinnedRepository[];
   };
   legalProvenance: {
     source: { id: string; version: string; status: string };
@@ -381,6 +385,7 @@ export class AssessmentCompletionGate {
           decisionRevision: true,
           state: true,
           repositoryCommit: true,
+          repositorySetDigest: true,
           caseRevision: true,
           decision: true,
           dependencyGraphComplete: true,
@@ -540,8 +545,11 @@ export class AssessmentCompletionGate {
         record.scopeId !== ASSESSMENT_DECISION_SCOPE ||
         record.ruleSetVersionId !== pins.ruleSetVersionId ||
         record.assessmentRuleVersion !== rule.assessmentRuleVersion ||
-        record.repositoryCommit.toLowerCase() !==
-          pins.repositoryCommit.toLowerCase() ||
+        !pinnedRepositorySetMatches(record, {
+          repositorySetDigest: assessmentCase.repositorySetDigest,
+          repositoryCommit: pins.repositoryCommit,
+          repositoryCount: assessmentCase.repositoryCount,
+        }) ||
         record.caseRevision > assessmentCase.caseRevision
       ) {
         add(
@@ -701,7 +709,15 @@ export class AssessmentCompletionGate {
     }
     const finalizationSnapshot: AssessmentFinalizationSnapshot = {
       caseRevision: assessmentCase.caseRevision,
-      pins,
+      pins: {
+        ...pins,
+        ...(repositories
+          ? {
+              repositories,
+              repositorySetDigest: computeRepositorySetDigest(repositories),
+            }
+          : {}),
+      },
       legalProvenance: {
         source: {
           id: ruleSet.legalSourceVersion.id,

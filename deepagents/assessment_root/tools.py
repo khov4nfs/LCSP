@@ -27,6 +27,8 @@ from assessment_root.learning import retrieve_shared_heuristics
 from assessment_root.skills import list_skills, load_skill
 from assessment_root.tool_contracts import describe_tool
 from tools.common.capabilities.platform.repository_sandbox import (
+    repository_pins_from_context,
+    repository_set_digest,
     source_path_in_scope,
     validate_source_path_prefix,
 )
@@ -44,6 +46,18 @@ _DISCOVERY_EXPANSION_TRACE_TOOLS = {
     "get_repository_architecture": "GET_REPOSITORY_ARCHITECTURE",
     "read_file": "READ_FILE",
 }
+# Returned by get_assessment_context only when several repositories are pinned; one repository keeps the original
+# instructions unchanged.
+MULTI_REPOSITORY_GUIDANCE = (
+    "This assessment pins several repositories. Your filesystem root (/) holds one directory per repository, named "
+    "by its repositoryKey: address every file as /<repositoryKey>/<path> (for example /web/src/consent.ts). "
+    "The code graph spans all repositories at once: its file paths start with the repository key, so prefix them "
+    "with / to read or cite them. cite_repository_source takes the same /<repositoryKey>/<path>; "
+    "record_search_coverage returns one coverage record per repository you searched, and every evidenceId it "
+    "returns is separate evidence. A conclusion that depends on more than one repository must cite evidence "
+    "gathered in each of those repositories; absence in one repository says nothing about another. "
+    "A repository with a sourcePathPrefix may only be read inside that directory."
+)
 _SCOPE_DIRECTORY = "SOURCE_DIRECTORY"
 _SCOPE_FILE = "SOURCE_FILE"
 _SCOPE_GRAPH = "GRAPH_INDEX"
@@ -238,6 +252,13 @@ class RootRun:
     audit_request: dict[str, Any] | None = None
     pins: dict[str, str] = field(default_factory=dict)
     source_path_prefix: str | None = None
+    # Several pinned repositories: key -> {snapshotId, commit, prefix, fullName, ordinal}. Empty for one repository,
+    # which keeps the original single-repository paths and tool contracts.
+    repositories: dict[str, dict[str, Any]] = field(default_factory=dict)
+    repository_set_digest: str | None = None
+    # Immutable discovery record id -> repository key, learned from the governed per-repository summaries. The API
+    # files each record under one pinned repository; expansions must be audited against that repository only.
+    discovery_record_keys: dict[str, str] = field(default_factory=dict)
     decision_revisions: dict[str, int] = field(default_factory=dict)
     rule_versions: dict[str, str] = field(default_factory=dict)
     rule_criteria: dict[str, list[str]] = field(default_factory=dict)
@@ -287,6 +308,68 @@ class RootRun:
         self.human_answer_review_request_ids = request_ids
         return True
 
+    @property
+    def multi(self) -> bool:
+        """Business purpose: Tell the Root tools whether paths must name a repository.
+
+        Business rules:
+        - Only an API context that pins several repositories switches the Root to repository-qualified paths.
+        - One repository keeps the original paths and tool contracts.
+
+        Execution flow:
+        1. Count the repositories adopted from the API context.
+
+        Failure cases:
+        - No failure path: before a context is adopted the answer is simply false.
+
+        Side effects:
+        - Pure computation: it reads no sandbox state and writes nothing.
+        """
+        return len(self.repositories) > 1
+
+    def _adopt_repository_set(self, context: dict[str, Any]) -> None:
+        """Business purpose: Bind this Root to the exact repositories the API pinned, and keep that set fixed.
+
+        Business rules:
+        - Only an API context listing several repositories switches the Root to repository-qualified paths.
+        - The pinned set is immutable within an execution: a different digest, key set, commit or source scope fails closed.
+
+        Execution flow:
+        1. Parse the pinned repositories of a multi-repository context.
+        2. Compare them with any set this execution already adopted.
+        3. Store the set and its digest.
+
+        Failure cases:
+        - A malformed set, or one that changes within the execution, raises before further retrieval.
+
+        Side effects:
+        - Updates this run's in-memory repository map only.
+        """
+        listed = context.get("repositories")
+        if not isinstance(listed, list) or len(listed) < 2:
+            if self.repositories:
+                raise RuntimeError("assessment repository set changed within the Root execution")
+            return
+        pins = repository_pins_from_context(context)
+        digest = repository_set_digest(pins)
+        adopted = {
+            pin.key: {
+                "snapshotId": pin.snapshot_id,
+                "commit": pin.commit_sha,
+                "prefix": pin.source_path_prefix,
+                "fullName": pin.full_name,
+                "ordinal": pin.ordinal,
+            }
+            for pin in pins
+        }
+        declared = context.get("repositorySetDigest")
+        if isinstance(declared, str) and declared != digest:
+            raise RuntimeError("assessment repository set digest does not match its pinned repositories")
+        if self.repositories and (self.repositories != adopted or self.repository_set_digest != digest):
+            raise RuntimeError("assessment repository set changed within the Root execution")
+        self.repositories = adopted
+        self.repository_set_digest = digest
+
     def adopt_context(self, context: dict[str, Any]) -> None:
         """Business purpose: Bind one leased Root to the latest server-owned scope and decision revision.
 
@@ -320,11 +403,14 @@ class RootRun:
         self.source_path_prefix = source_path_prefix
         self.case_revision = int(context["caseRevision"])
         self.audit_request = audit_request
+        self._adopt_repository_set(context)
         self.pins = {
             "ruleSetVersionId": context["ruleSetVersionId"],
             "repositorySnapshotId": context["repositorySnapshotId"],
             "repositoryCommit": context["repositoryCommit"],
         }
+        if self.repository_set_digest:
+            self.pins["repositorySetDigest"] = self.repository_set_digest
         for row in context.get("coverage", []):
             self.decision_revisions[row["assessmentRuleId"]] = int(row["decisionRevision"])
             self.rule_versions[row["assessmentRuleId"]] = row["assessmentRuleVersion"]
@@ -840,6 +926,300 @@ def _source_evidence_path(run: RootRun, value: Any) -> str | None:
     return normalized
 
 
+def _locate_source(run: RootRun, value: Any) -> tuple[str, str] | None:
+    """Business purpose: Resolve a repository-qualified path of a multi-repository assessment to the repository
+    it belongs to and the path inside that repository, so every source observation is judged against that
+    repository's own boundary.
+
+    Business rules:
+    - The first path segment must be the key of a repository pinned to this assessment; there is no default repository.
+    - The remainder must be a canonical repository path inside that repository's immutable source prefix; a
+      directory root is the dot path.
+    - A path naming no repository (for example the filesystem root) belongs to none and is never accepted here.
+
+    Execution flow:
+    1. Normalise the path and split off the repository key.
+    2. Verify the key is pinned and the remainder lies within that repository's source prefix.
+
+    Failure cases:
+    - Keys that are not pinned, ambiguous paths and out-of-prefix paths yield no location, so the caller refuses the call before any source I/O.
+
+    Side effects:
+    - Pure validation; creates no read, trace or evidence.
+    """
+    if not isinstance(value, str):
+        return None
+    literal = value[1:] if value.startswith("/") else value
+    normalized = _repo_path(value)
+    if normalized == "." or literal.rstrip("/") != normalized.rstrip("/"):
+        return None
+    key, _, rest = normalized.partition("/")
+    pin = run.repositories.get(key)
+    if pin is None:
+        return None
+    rest = rest or "."
+    prefix = pin["prefix"]
+    if rest == ".":
+        # A whole-repository directory scope is only allowed when the repository is not limited to a subdirectory.
+        return (key, ".") if prefix is None else None
+    if not source_path_in_scope(rest, prefix):
+        return None
+    return key, rest
+
+
+def _record_multi_repository_coverage(
+    run: RootRun,
+    client: AssessmentRuntimeClient,
+    inspected_entry_points: list[str] | None,
+    known_gaps: list[str] | None,
+    direct_source_fallbacks: list[dict[str, str]] | None,
+) -> dict[str, Any]:
+    """Business purpose: Record what the Root actually searched and read in each pinned repository, as one
+    authenticated coverage record per repository, so a conclusion that spans repositories can cite the coverage
+    of every repository it rests on.
+
+    Business rules:
+    - Coverage is attributed from the runtime trace, never from model claims: a path belongs to the repository named
+      by its first segment, a graph query or a search at the filesystem root to every
+      pinned repository.
+    - Every attributed path must lie inside that repository's immutable source prefix; an out-of-scope trace is
+      rejected before anything is submitted.
+    - Entry points and direct-source fallbacks count only for files the trace shows were read in that repository.
+    - Root-authored caveats and trace limitations apply to every repository record, and the trace is consumed only
+      after all scope guards pass.
+
+    Execution flow:
+    1. Validate the supplied paths and the repository metadata of every repository the trace touched.
+    2. Group the executed searches and reads by repository, bounding each list.
+    3. Submit one coverage record per repository touched and return their evidence identifiers.
+
+    Failure cases:
+    - No activity, unknown repository keys or out-of-scope paths return repair feedback and keep the trace.
+    - A conflicting runtime scope stops the operation; truncated traces remain explicit known gaps.
+
+    Side effects:
+    - Consumes the execution-local trace and submits coverage records only after every guard passes.
+    """
+    keys = list(run.repositories)
+    limits = 200
+    outside = {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "repositoryKeys": keys,
+               "hint": f"Address files as /<repositoryKey>/<path> with a pinned key ({_repository_keys_hint(run)}) and stay inside that repository's source directory."}
+    supplied = [*(inspected_entry_points or []), *(item.get("path") for item in (direct_source_fallbacks or []))]
+    if any(_locate_source(run, value) is None for value in supplied):
+        return outside
+    entries, dropped_count = run.trace.snapshot()
+    buckets: dict[str, dict[str, Any]] = {
+        key: {"scopes": {}, "queries": [], "read_paths": set(), "gaps": []} for key in keys
+    }
+
+    def target_keys(entry: dict[str, Any]) -> list[tuple[str, str | None]] | None:
+        """Business purpose: Decide which pinned repositories a traced search or read actually touched, so coverage is attributed from what ran and not from what the model claims.
+
+        Business rules:
+        - A read belongs to the repository named by its path.
+        - A search at the filesystem root covers every pinned repository inside its source directory.
+        - A graph query covers every pinned repository, because the graph spans the shared root.
+        - A path outside every pinned repository or source directory is not attributable.
+
+        Execution flow:
+        1. Resolve the operation's path or repository argument.
+        2. Return the repository and in-repository path pairs it covers.
+
+        Failure cases:
+        - An unattributable path returns the out-of-scope signal so the whole coverage record is refused before submission.
+
+        Side effects:
+        - Reads the in-memory trace entry only.
+        """
+        args = entry.get("args") or {}
+        tool = entry["tool"]
+        if tool in _READ_TOOLS:
+            located = _locate_source(run, args.get("file_path") or args.get("path"))
+            return None if located is None else [located]
+        if tool in {"ls", "glob", "grep"}:
+            raw = args.get("path") or args.get("directory") or "/"
+            if _repo_path(raw) == ".":
+                # A search from the filesystem root covers every pinned repository (inside its source prefix).
+                return [(key, run.repositories[key]["prefix"] or ".") for key in keys]
+            located = _locate_source(run, raw)
+            if located is None:
+                prefix_dir = _repo_path(raw).partition("/")[0]
+                pin = run.repositories.get(prefix_dir)
+                rest = _repo_path(raw).partition("/")[2] or "."
+                # A directory above a limited repository's prefix is still a legitimate search start.
+                if pin and pin["prefix"] is not None and rest != "." and pin["prefix"].startswith(rest.rstrip("/") + "/"):
+                    return [(prefix_dir, pin["prefix"])]
+                return None
+            return [located]
+        # The graph covers the shared repositories root, so a graph query covers every pinned repository.
+        return [(key, run.repositories[key]["prefix"]) for key in keys]
+
+    touched: set[str] = set()
+    for entry in entries:
+        targets = target_keys(entry)
+        if targets is None:
+            return outside
+        tool = entry["tool"]
+        args = entry.get("args") or {}
+        if not targets:
+            for bucket in buckets.values():
+                bucket["gaps"].append(f"The {tool} search named no pinned repository, so it is not attributed to any.")
+            continue
+        for key, path in targets:
+            bucket = buckets[key]
+            touched.add(key)
+            if tool in _READ_TOOLS:
+                if entry.get("failed"):
+                    bucket["gaps"].append(f"The {tool} read did not return a usable result.")
+                    continue
+                bucket["read_paths"].add(path)
+                bucket["scopes"][(_SCOPE_FILE, path)] = None
+                continue
+            if tool in {"ls", "glob", "grep"}:
+                bucket["scopes"][(_SCOPE_DIRECTORY, path or ".")] = None
+            else:
+                bucket["scopes"][(_SCOPE_GRAPH, path or ".")] = None
+            bucket["queries"].append({
+                "tool": tool,
+                "query": str(args.get("pattern") or args.get("query") or args.get("name_pattern") or entry.get("input") or tool)[:500],
+                "resultCount": int(entry.get("resultCount", 0)),
+                "truncated": bool(entry.get("truncated", False)),
+            })
+            if entry.get("failed"):
+                bucket["gaps"].append(f"The {tool} search did not return a usable result.")
+    if not touched:
+        return {"ok": False, "code": "NO_SEARCH_ACTIVITY", "hint": "Run searches before recording coverage."}
+    for key in touched:
+        if run.repositories[key]["prefix"] is not None:
+            _repository_view_of(run, key)
+    run.trace.snapshot_and_reset()
+    shared_gaps = [str(gap)[:2000] for gap in (known_gaps or [])]
+    if dropped_count:
+        shared_gaps.append(f"Search trace omitted {dropped_count} tool result(s) after its runtime limit.")
+    results: list[dict[str, Any]] = []
+    for key in sorted(touched, key=lambda item: run.repositories[item]["ordinal"]):
+        bucket = buckets[key]
+        located_entry_points = [located[1] for located in (_locate_source(run, value) for value in (inspected_entry_points or []))
+                                if located and located[0] == key and located[1] in bucket["read_paths"]]
+        fallbacks = []
+        for item in direct_source_fallbacks or []:
+            located = _locate_source(run, item.get("path"))
+            if located and located[0] == key and located[1] in bucket["read_paths"]:
+                fallbacks.append({"path": located[1], "reason": str(item.get("reason") or "direct read")[:500]})
+        gaps = [*shared_gaps, *bucket["gaps"]]
+        for label, values in (("scope", list(bucket["scopes"])), ("query", bucket["queries"]),
+                              ("entry point", located_entry_points), ("direct-source fallback", fallbacks)):
+            if len(values) > limits:
+                gaps.append(f"Coverage {label} list was capped at {limits} of {len(values)} records.")
+        body = {
+            "type": "SEARCH_COVERAGE",
+            "repositoryKey": key,
+            "repositoryCommit": run.repositories[key]["commit"],
+            "scopes": [{"kind": kind, "path": value} for (kind, value) in list(bucket["scopes"])[:limits]],
+            "queries": bucket["queries"][:limits],
+            "inspectedEntryPoints": located_entry_points[:limits],
+            "knownGaps": [str(gap)[:2000] for gap in gaps[:limits]],
+            "directSourceFallbacks": fallbacks[:limits],
+        }
+        results.append({"repositoryKey": key, **client.post_evidence(body)})
+    return {"ok": True, "coverages": results, "evidenceIds": [item["evidenceId"] for item in results if "evidenceId" in item]}
+
+
+def _repository_discoveries(
+    run: RootRun, client: Any, *, primary: dict[str, Any] | None = None
+) -> dict[str, dict[str, Any]]:
+    """Business purpose: Give the Root each pinned repository's own discovery overview, so no repository is judged from another one's priorities.
+
+    Business rules:
+    - Every pinned repository has its own immutable discovery; a repository without one is reported as unavailable, never as free of AI use.
+    - The primary repository's overview is reused when the caller already loaded it.
+    - Each returned record is remembered with its repository so later expansion audits are bound to the right repository.
+
+    Execution flow:
+    1. Visit the pinned repositories in ordinal order.
+    2. Load (or reuse) the governed summary for each key.
+    3. Remember the record-to-repository mapping of every available summary.
+
+    Failure cases:
+    - Lease, pin, integrity and transport failures propagate from the governed client.
+
+    Side effects:
+    - Read-only API calls; updates the run's in-memory record map.
+    """
+    ordered = sorted(run.repositories, key=lambda item: run.repositories[item]["ordinal"])
+    overviews: dict[str, dict[str, Any]] = {}
+    for position, key in enumerate(ordered):
+        summary = primary if position == 0 and primary is not None else client.repository_discovery_summary(key)
+        overviews[key] = summary
+        record = summary.get("discovery") if isinstance(summary, dict) and summary.get("available") is True else None
+        if isinstance(record, dict) and isinstance(record.get("recordId"), str):
+            run.discovery_record_keys[record["recordId"]] = key
+    return overviews
+
+
+def _discovery_record_repository(run: RootRun, client: Any, record_id: str) -> str | None:
+    """Business purpose: Find which pinned repository an immutable discovery record describes.
+
+    Business rules:
+    - Only records the governed API returned for a pinned repository are attributable; an unknown id is never guessed.
+
+    Execution flow:
+    1. Look the record up in the remembered mapping.
+    2. When it is not known yet, load every repository's summary and look again.
+
+    Failure cases:
+    - Returns None for an unknown record; governed-client failures propagate.
+
+    Side effects:
+    - May perform read-only API calls and update the in-memory record map.
+    """
+    if record_id not in run.discovery_record_keys:
+        _repository_discoveries(run, client)
+    return run.discovery_record_keys.get(record_id)
+
+
+def _repository_summary(run: RootRun) -> list[dict[str, Any]]:
+    """Business purpose: Present the pinned repositories to the model the way it must address them.
+
+    Business rules:
+    - Each repository is listed with its key, absolute path, name, commit and optional source directory, in pin order.
+
+    Execution flow:
+    1. Order the pinned repositories by ordinal.
+    2. Project each to its model-facing summary.
+
+    Failure cases:
+    - No failure path: the set was validated when the context was adopted.
+
+    Side effects:
+    - Pure computation: it reads no sandbox state and writes nothing.
+    """
+    return [
+        {"repositoryKey": key, "path": f"/{key}", "repositoryFullName": pin["fullName"],
+         "repositoryCommit": pin["commit"], "sourcePathPrefix": pin["prefix"]}
+        for key, pin in sorted(run.repositories.items(), key=lambda item: item[1]["ordinal"])
+    ]
+
+
+def _repository_keys_hint(run: RootRun) -> str:
+    """Business purpose: List the valid repository keys in repair feedback so the model can correct a bad path.
+
+    Business rules:
+    - Keys appear in pin order and come only from the adopted API context.
+
+    Execution flow:
+    1. Order the keys by ordinal.
+    2. Join them for the hint.
+
+    Failure cases:
+    - No failure path.
+
+    Side effects:
+    - Pure computation: it reads no sandbox state and writes nothing.
+    """
+    return ", ".join(sorted(run.repositories, key=lambda item: run.repositories[item]["ordinal"]))
+
+
 def _repository_view(run: RootRun) -> dict[str, Any]:
     """Business purpose:
     Disclose the pinned sandbox's source limitations before the investigator reasons from absence.
@@ -860,6 +1240,8 @@ def _repository_view(run: RootRun) -> dict[str, Any]:
     Side effects:
     - Read-only sandbox access; does not create assessment evidence or choose any compliance outcome.
     """
+    if run.multi:
+        return {key: _repository_view_of(run, key) for key in run.repositories}
     unavailable = {"coverageLimited": None, "reason": "RUNTIME_VIEW_METADATA_UNAVAILABLE"}
     files = run.backend.download_files(["/.lcsp/repository.json"])
     if not files or files[0].error or files[0].content is None:
@@ -883,6 +1265,40 @@ def _repository_view(run: RootRun) -> dict[str, Any]:
     if run.source_path_prefix is not None:
         raise RuntimeError("scoped repository coverage metadata is unavailable")
     return unavailable
+
+
+def _repository_view_of(run: RootRun, key: str) -> dict[str, Any]:
+    """Business purpose: Disclose one pinned repository's source limitations before the investigator reasons from absence.
+
+    Business rules:
+    - Only runtime metadata matching this assessment and that repository's snapshot, commit and source scope
+      describes its source view; unavailable metadata never authorises a wider view.
+    - Intentional scope exclusions establish the boundary and are not facts about sibling projects.
+
+    Execution flow:
+    1. Read the repository-owned runtime marker through the current filesystem backend.
+    2. Verify its pins and return its coverage record.
+
+    Failure cases:
+    - Missing or conflicting metadata raises instead of exposing another source view.
+
+    Side effects:
+    - Read-only sandbox access; creates no evidence and chooses no compliance outcome.
+    """
+    pin = run.repositories[key]
+    files = run.backend.download_files([f"/{key}/.lcsp/repository.json"])
+    if not files or files[0].error or files[0].content is None:
+        raise RuntimeError(f"repository {key} view metadata is unavailable")
+    marker = json.loads(files[0].content)
+    expected = {"assessmentId": run.assessment_id, "snapshotId": pin["snapshotId"],
+                "commitSha": pin["commit"], "sourcePathPrefix": pin["prefix"], "repositoryKey": key}
+    if not isinstance(marker, dict) or any(marker.get(name) != value for name, value in expected.items()):
+        raise RuntimeError(f"repository {key} view pins do not match the assessment")
+    coverage = marker.get("sourceCoverage")
+    if not isinstance(coverage, dict) or validate_source_path_prefix(coverage.get("sourcePathPrefix")) != pin["prefix"]:
+        raise RuntimeError(f"repository {key} coverage metadata does not match the assessment")
+    return {name: value for name, value in coverage.items()
+            if name not in {"sourceScopeExcludedEntries", "sourceScopeExclusionsTruncated"}}
 
 
 def _legal_sources(rule: dict[str, Any], requirements: list[dict[str, Any]], relations: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -1370,6 +1786,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         context = client.context()
         discovery = client.repository_discovery_summary()
         run.adopt_context(context)
+        discoveries = _repository_discoveries(run, client, primary=discovery) if run.multi else None
         coverage, snapshot_token = _coverage_snapshot(run, context)
         context_collections, context_snapshot_token = _context_snapshot(run, context)
         resolution_counts: dict[str, int] = {}
@@ -1381,10 +1798,13 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "caseRevision": context["caseRevision"],
             "pins": run.pins,
             "sourcePathPrefix": run.source_path_prefix,
+            **({"repositories": _repository_summary(run), "repositoryGuidance": MULTI_REPOSITORY_GUIDANCE}
+               if run.multi else {}),
             "repositoryView": _repository_view(run),
             "decisionScopeId": context["decisionScopeId"],
             "auditRequest": context.get("auditRequest"),
             "repositoryDiscovery": discovery,
+            **({"repositoryDiscoveries": discoveries} if discoveries is not None else {}),
             "coverageSummary": {
                 "totalRuleCount": len(coverage),
                 "resolutionCounts": resolution_counts,
@@ -1489,6 +1909,15 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         """
         if not run.pins:
             run.adopt_context(client.context())
+        record_key: str | None = None
+        if run.multi:
+            record_key = _discovery_record_repository(run, client, record_id)
+            if record_key is None:
+                return {
+                    "ok": False,
+                    "code": "DISCOVERY_RECORD_UNKNOWN",
+                    "hint": "Use a recordId returned by repositoryDiscovery or repositoryDiscoveries.",
+                }
         entries, dropped_count = run.trace.snapshot()
         if not entries:
             return {
@@ -1507,7 +1936,16 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             args = entry.get("args") if isinstance(entry.get("args"), dict) else {}
             if tool_name in _READ_TOOLS or tool_name in {"ls", "glob", "grep"}:
                 candidate_path = args.get("file_path") or args.get("path") or args.get("directory") or "."
-                scoped_path = _source_evidence_path(run, candidate_path)
+                if run.multi:
+                    # A discovery record belongs to one repository; operations on the others are not part of its audit.
+                    located = _locate_source(run, candidate_path)
+                    if located is None and _repo_path(candidate_path) != ".":
+                        return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "repositoryKeys": list(run.repositories)}
+                    if located is None or located[0] != record_key:
+                        continue
+                    scoped_path = located[1]
+                else:
+                    scoped_path = _source_evidence_path(run, candidate_path)
                 if scoped_path is None:
                     return {
                         "ok": False,
@@ -1935,15 +2373,30 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         """
         if not run.pins:
             run.adopt_context(client.context())
-        normalized = _source_evidence_path(run, path)
-        if normalized is None:
-            return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "sourcePathPrefix": run.source_path_prefix,
-                    "hint": f"Use a canonical source path under {run.source_path_prefix!r}; repeat native searches with that explicit path."}
-        if normalized == "." or end_line < start_line:
-            return {"ok": False, "code": "INVALID_RANGE"}
-        if run.source_path_prefix is not None:
-            _repository_view(run)
-        downloaded = run.backend.download_files([f"/{normalized}"])
+        repository_key: str | None = None
+        repository_commit = run.pins["repositoryCommit"]
+        if run.multi:
+            located = _locate_source(run, path)
+            if located is None:
+                return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "repositoryKeys": list(run.repositories),
+                        "hint": f"Start the path with a pinned repository key ({_repository_keys_hint(run)}), e.g. /{next(iter(run.repositories))}/src/file.py, "
+                                "and stay inside that repository's source directory."}
+            repository_key, normalized = located
+            repository_commit = run.repositories[repository_key]["commit"]
+            if normalized == "." or end_line < start_line:
+                return {"ok": False, "code": "INVALID_RANGE"}
+            _repository_view_of(run, repository_key)
+            downloaded = run.backend.download_files([f"/{repository_key}/{normalized}"])
+        else:
+            normalized = _source_evidence_path(run, path)
+            if normalized is None:
+                return {"ok": False, "code": "SOURCE_PATH_OUTSIDE_SCOPE", "sourcePathPrefix": run.source_path_prefix,
+                        "hint": f"Use a canonical source path under {run.source_path_prefix!r}; repeat native searches with that explicit path."}
+            if normalized == "." or end_line < start_line:
+                return {"ok": False, "code": "INVALID_RANGE"}
+            if run.source_path_prefix is not None:
+                _repository_view(run)
+            downloaded = run.backend.download_files([f"/{normalized}"])
         item = downloaded[0] if downloaded else None
         content = getattr(item, "content", None)
         if content is None or getattr(item, "error", None):
@@ -1953,19 +2406,23 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             return {"ok": False, "code": "RANGE_OUT_OF_BOUNDS", "path": normalized, "lineCount": len(lines)}
         excerpt = "\n".join(lines[start_line - 1 : end_line]).encode("utf-8")
         run.trace.record(
-            {"tool": "read_file", "args": {"file_path": normalized}, "resultCount": end_line - start_line + 1, "truncated": False}
+            {"tool": "read_file",
+             "args": {"file_path": f"/{repository_key}/{normalized}" if repository_key else normalized},
+             "resultCount": end_line - start_line + 1, "truncated": False}
         )
         result = client.post_evidence(
             {
                 "type": "REPOSITORY_SOURCE",
-                "repositoryCommit": run.pins["repositoryCommit"],
+                **({"repositoryKey": repository_key} if repository_key else {}),
+                "repositoryCommit": repository_commit,
                 "path": normalized,
                 "startLine": start_line,
                 "endLine": end_line,
                 "excerptSha256": "sha256:" + hashlib.sha256(excerpt).hexdigest(),
             }
         )
-        return {"ok": True, "path": normalized, "startLine": start_line, "endLine": end_line, **result}
+        return {"ok": True, **({"repositoryKey": repository_key} if repository_key else {}),
+                "path": normalized, "startLine": start_line, "endLine": end_line, **result}
 
     def record_search_coverage(
         inspected_entry_points: list[str] | None = None,
@@ -1993,6 +2450,10 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         """
         if not run.pins:
             run.adopt_context(client.context())
+        if run.multi:
+            return _record_multi_repository_coverage(
+                run, client, inspected_entry_points, known_gaps, direct_source_fallbacks,
+            )
         if run.source_path_prefix is not None:
             supplied_paths = [*(inspected_entry_points or []),
                               *(item.get("path") for item in (direct_source_fallbacks or []))]
