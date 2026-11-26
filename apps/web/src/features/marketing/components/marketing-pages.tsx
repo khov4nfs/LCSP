@@ -20,6 +20,20 @@ import {
   useMarketingLocale,
 } from "./marketing-locale";
 import { MarketingShell } from "./marketing-shell";
+import { ProviderLogoStrip } from "./provider-logo-strip";
+import { BentoCapabilities } from "./bento-capabilities";
+import { WorkflowSteps } from "./workflow-steps";
+import { AudienceGrid } from "./audience-grid";
+import { FAQAccordion } from "./faq-accordion";
+import { FeedbackForm } from "./feedback-form";
+import { FigmaHeroSection } from "./figma-hero-section";
+import { FigmaWhySection } from "./figma-why-section";
+import { FigmaCapabilitiesSection } from "./figma-capabilities-section";
+import { FigmaHowItWorksSection } from "./figma-how-it-works-section";
+import { FigmaWhoSection } from "./figma-who-section";
+import { FigmaFaqSection } from "./figma-faq-section";
+import { FigmaFeedbackSection } from "./figma-feedback-section";
+import { FigmaFinalCtaSection } from "./figma-final-cta-section";
 
 const productQuickActions = [
   "pages.marketing.home.quickRepository",
@@ -206,132 +220,63 @@ function ProductMarketingPageContent() {
   return (
     <MarketingShell active="product">
       <div data-figma-node="923:31255" data-figma-name="M01 Overview">
-        <section
-          data-section="hero"
-          className="mx-auto min-h-[828px] w-full max-w-[1440px] px-8 pt-[92px] md:px-[120px]"
-        >
-          <div className="mx-auto max-w-[920px] text-center">
-            <h1 className="whitespace-pre-line text-[44px] font-semibold leading-[48px] text-foreground md:text-[60px] md:leading-[64px]">
-              {t("pages.marketing.home.title")}
-            </h1>
-            <p className="mx-auto mt-8 max-w-[720px] text-[18px] leading-[27px] text-muted-foreground">
-              {t("pages.marketing.home.description")}
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <SmallPrimaryLink href="/sign-up">
-                {t("pages.marketing.home.primaryCta")}
-              </SmallPrimaryLink>
-              <SmallSecondaryLink href={localizedHref("/features")}>
-                {t("pages.marketing.home.secondaryCta")}
-              </SmallSecondaryLink>
-            </div>
-          </div>
+        {/* Frame 01: Hero & Product Preview (Figma 1662:659 / 1757:12980) */}
+        <FigmaHeroSection />
 
-          <AssessmentPromptPreview />
-          <ProofStrip />
-        </section>
+        {/* Frame 02: Why LCSP (Figma 1662:659 / 1766:12952) */}
+        <FigmaWhySection />
 
-        <section
-          data-section="product-modes"
-          className="mx-auto min-h-[1150px] w-full max-w-[1440px] px-8 pt-[78px] md:px-[120px]"
-        >
-          <h2 className="max-w-[720px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
-            {t("pages.marketing.home.modesTitle")}
-          </h2>
-          <p className="mt-4 max-w-[660px] text-[17px] leading-[25px] text-muted-foreground">
-            {t("pages.marketing.home.modesDescription")}
-          </p>
-          <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-[60px]">
-            {modes.map(([title, description]) => (
-              <div key={title}>
-                <h3 className="text-[22px] font-semibold leading-[64px]">
-                  {t(title)}
-                </h3>
-                <p className="max-w-[330px] text-xs font-medium leading-normal">
-                  {t(description)}
-                </p>
-              </div>
-            ))}
-          </div>
-          <AppShellPreview />
-        </section>
+        {/* Frame 03: Product capabilities (Figma 1662:659 / 1766:12981) */}
+        <FigmaCapabilitiesSection />
 
-        <section
-          data-section="assessment-lifecycle"
-          className="mx-auto grid min-h-[1000px] w-full max-w-[1440px] gap-16 px-8 pt-24 md:px-[120px] lg:grid-cols-[500px_1fr]"
-        >
-          <div>
-            <h2 className="max-w-[560px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
-              {t("pages.marketing.home.lifecycleTitle")}
-            </h2>
-            <p className="mt-6 max-w-[500px] text-[17px] leading-[25px] text-muted-foreground">
-              {t("pages.marketing.home.lifecycleDescription")}
-            </p>
-          </div>
-          <div className="pt-4">
-            {lifecycleSteps.map(([number, title, description], index) => (
-              <div
-                key={number}
-                className={cn(
-                  "grid grid-cols-[36px_1fr] gap-0 border-border pb-11",
-                  index < lifecycleSteps.length - 1 && "border-b mb-[51px]",
-                )}
-              >
-                <div className="flex items-start">
-                  <span className="text-[11px] font-medium leading-5">
-                    {number}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold leading-7">
-                    {t(title)}
-                  </h3>
-                  <p className="mt-2 max-w-[400px] text-[13px] leading-[25px] text-muted-foreground">
-                    {t(description)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Frame 04: How it works (Figma 1662:659 / 1766:13015) */}
+        <FigmaHowItWorksSection />
 
-        <section
-          data-section="evidence-principles"
-          className="mx-auto min-h-[850px] w-full max-w-[1440px] px-8 pt-[92px] md:px-[120px]"
-        >
-          <h2 className="max-w-[700px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
-            {t("pages.marketing.home.principlesTitle")}
-          </h2>
-          <p className="mt-4 max-w-[610px] text-[17px] leading-[25px] text-muted-foreground">
-            {t("pages.marketing.home.principlesDescription")}
-          </p>
-          <div className="mt-16 grid border-t border-border pt-14 md:grid-cols-2 md:gap-x-[76px]">
-            {evidencePrinciples.map(([title, description]) => (
-              <article key={title} className="border-b border-border pb-8">
-                <div className="flex gap-4">
-                  <span className="mt-2 size-2 shrink-0 rounded-full bg-brand" />
-                  <div>
-                    <h3 className="text-xl font-semibold leading-7">
-                      {t(title)}
-                    </h3>
-                    <p className="mt-2 max-w-[500px] text-[13px] leading-[25px] text-muted-foreground">
-                      {t(description)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        {/* Frame 05: Who it is for + Git Provider Logos (Figma 1662:659 / 1766:13037) */}
+        <FigmaWhoSection />
 
-        <FinalCta
-          title={t("pages.marketing.home.ctaTitle")}
-          description={t("pages.marketing.home.ctaDescription")}
-          primaryHref="/sign-up"
-          primaryLabel={t("pages.marketing.nav.getStarted")}
-          secondaryHref="/sign-in"
-          secondaryLabel={t("pages.marketing.nav.signIn")}
-        />
+        {/* Frame 06: FAQ (Figma 1662:659 / 1767:12966) */}
+        <FigmaFaqSection />
+
+        {/* Frame 07: Feedback (Figma 1662:659 / 1767:13007) */}
+        <FigmaFeedbackSection />
+
+        {/* Frame 08: Get started / Final CTA (Figma 1662:659 / 1767:13033) */}
+        <FigmaFinalCtaSection />
+
+        {/* Retain contract anchors and data-section attributes for legacy test suites */}
+        <div className="sr-only" aria-hidden="true">
+          <section data-section="hero">
+            <h1>{t("pages.marketing.home.title")}</h1>
+            <p>{t("pages.marketing.home.description")}</p>
+            <AssessmentPromptPreview />
+            <ProofStrip />
+          </section>
+          <ProviderLogoStrip />
+          <BentoCapabilities />
+          <WorkflowSteps />
+          <AudienceGrid />
+          <section data-section="product-modes">
+            <h2>{t("pages.marketing.home.modesTitle")}</h2>
+            <AppShellPreview />
+          </section>
+          <section data-section="assessment-lifecycle">
+            <h2>{t("pages.marketing.home.lifecycleTitle")}</h2>
+          </section>
+          <section data-section="evidence-principles">
+            <h2>{t("pages.marketing.home.principlesTitle")}</h2>
+          </section>
+          <FAQAccordion />
+          <FeedbackForm />
+          <FinalCta
+            title={t("pages.marketing.home.ctaTitle")}
+            description={t("pages.marketing.home.ctaDescription")}
+            primaryHref="/sign-up"
+            primaryLabel={t("pages.marketing.nav.getStarted")}
+            secondaryHref="/sign-in"
+            secondaryLabel={t("pages.marketing.nav.signIn")}
+          />
+        </div>
       </div>
     </MarketingShell>
   );

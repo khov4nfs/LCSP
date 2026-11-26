@@ -58,7 +58,7 @@ export default async function RootLayout({
   return (
     <html
       lang={initialLocale}
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`scroll-smooth ${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
       <body className="font-sans">

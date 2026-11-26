@@ -9,6 +9,9 @@ import { LCSPLogo } from "@/components/atoms/lcsp-logo";
 import { cn } from "@/lib/utils";
 import { useMarketingLocale } from "./marketing-locale";
 import { LanguageSwitcher } from "./language-switcher";
+import { PublicHeader, PublicFooter, type PublicNavKey } from "./public-header-footer";
+
+export { PublicHeader, PublicFooter };
 
 const navigation = [
   {
