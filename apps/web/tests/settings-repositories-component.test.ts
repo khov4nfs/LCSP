@@ -38,10 +38,10 @@ test("Settings repository section supports provider rows and never renders a sto
   assert.match(component, /gitlabProvider/);
   assert.match(component, /bitbucketProvider/);
   assert.match(component, /azureDevOpsProvider/);
-  assert.match(component, /logo-github\.svg/);
-  assert.match(component, /logo-gitlab\.svg/);
-  assert.match(component, /logo-bitbucket\.svg/);
-  assert.match(component, /logo-azure-devops\.svg/);
+  assert.match(component, /GIT_PROVIDER_LOGOS\.GITHUB/);
+  assert.match(component, /GIT_PROVIDER_LOGOS\.GITLAB/);
+  assert.match(component, /GIT_PROVIDER_LOGOS\.BITBUCKET/);
+  assert.match(component, /GIT_PROVIDER_LOGOS\.AZURE_DEVOPS/);
   assert.match(component, /providerDeploymentEnabled && providerAvailable/);
   assert.match(component, /providerTemporarilyUnavailable/);
   assert.doesNotMatch(component, /Personal access token value/);

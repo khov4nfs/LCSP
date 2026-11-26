@@ -1,11 +1,21 @@
 "use client";
 
-import { PlusIcon, SwatchBookIcon } from "lucide-react";
+import Link from "next/link";
+import { PlusIcon, SettingsIcon, SwatchBookIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
+import { LCSPLogo } from "@/components/atoms/lcsp-logo";
+import {
+  LCSP_LOGO_SIZES,
+  LCSP_LOGO_VARIANTS,
+} from "@/components/types/lcsp-logo.types";
 import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
-import type { SettingsSectionId } from "@/features/settings/types/settings.types";
+import {
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+} from "@/features/settings/types/settings.types";
 import { resolveAppMessage } from "@/lib/i18n";
+import { primaryNavigation } from "../../config/app-shell-navigation";
 
 import {
   DEFAULT_RECENT_FILTERS,
@@ -86,6 +96,27 @@ export function AppSidebar({
       className="flex h-full min-h-0 w-full flex-col bg-sidebar text-sidebar-foreground"
       data-component="AppSidebar"
     >
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-3 py-3">
+        <Link
+          href="/workspace"
+          onClick={onNavigate}
+          className="flex min-w-0 items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        >
+          <LCSPLogo
+            variant={LCSP_LOGO_VARIANTS.mark}
+            size={LCSP_LOGO_SIZES.md}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-base leading-tight font-semibold text-sidebar-foreground">
+              {resolveAppMessage("pages.appShell.productName")}
+            </p>
+            <p className="truncate text-xs leading-tight text-sidebar-foreground/65">
+              {resolveAppMessage("pages.appShell.workspaceNavigation")}
+            </p>
+          </div>
+        </Link>
+      </div>
+
       <SidebarHeaderControls
         onBack={onBack}
         onForward={onForward}
@@ -93,28 +124,68 @@ export function AppSidebar({
         onToggleCollapse={onToggleCollapse}
       />
 
-      <div className="shrink-0 px-2.5 pt-2">
+      <div className="shrink-0 px-2.5 pt-3">
+        <p className="mb-1.5 px-2.5 text-xs font-semibold text-sidebar-foreground/65">
+          {resolveAppMessage("pages.appShell.platformSection")}
+        </p>
+        <div className="flex flex-col gap-0.5">
+          {primaryNavigation
+            .filter((item) => item.href !== "/artifacts")
+            .map((item) => {
+            const Icon = item.icon;
+            const active =
+              "exact" in item && item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const label = resolveAppMessage(
+              item.labelKey as Parameters<typeof resolveAppMessage>[0],
+            );
+            return (
+              <SidebarNavItem
+                key={item.href}
+                active={active}
+                href={item.href}
+                icon={<Icon className="size-4" />}
+                label={label}
+                tooltip={label}
+                variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
+                onNavigate={onNavigate}
+              />
+            );
+          })}
+          <SidebarNavItem
+            active={artifactsActive}
+            href="/artifacts"
+            icon={<SwatchBookIcon className="size-4" />}
+            label={resolveAppMessage("pages.appShell.artifacts")}
+            tooltip={resolveAppMessage("pages.appShell.artifacts")}
+            variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
+            onNavigate={onNavigate}
+          />
+          {onOpenSettings ? (
+            <SidebarNavItem
+              active={pathname === "/workspace/settings"}
+              icon={<SettingsIcon className="size-4" />}
+              label={resolveAppMessage("pages.appShell.settings")}
+              tooltip={resolveAppMessage("pages.appShell.settings")}
+              variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
+              onClick={() => onOpenSettings(SETTINGS_SECTION_IDS.general)}
+            />
+          ) : null}
+        </div>
+
         <SidebarNavItem
           active={newActive}
+          className="mt-2.5"
           href="/assessments/new"
           icon={
-            <span className="flex size-4.5 items-center justify-center rounded-[10px] border border-sidebar-border">
+            <span className="flex size-4.5 items-center justify-center rounded-full border border-sidebar-border">
               <PlusIcon className="size-3" />
             </span>
           }
           label={resolveAppMessage("pages.appShell.new")}
           onNavigate={onNavigate}
           variant={SIDEBAR_NAV_ITEM_VARIANTS.new}
-        />
-        <SidebarNavItem
-          active={artifactsActive}
-          className="mt-3"
-          href="/artifacts"
-          icon={<SwatchBookIcon className="size-4" />}
-          label={resolveAppMessage("pages.appShell.artifacts")}
-          tooltip={resolveAppMessage("pages.appShell.artifacts")}
-          variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
-          onNavigate={onNavigate}
         />
       </div>
 

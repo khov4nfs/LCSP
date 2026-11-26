@@ -1,10 +1,10 @@
 "use client";
 
+import { LOCALES, type Locale } from "@lcsp/contracts/shared";
 import { resolveMessage } from "@lcsp/i18n";
 import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import type { Locale } from "@lcsp/contracts/shared";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,19 +14,23 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useSignOutMutation } from "@/lib/api/auth-queries";
+import { AssessmentContextPanel } from "@/features/assessment-runtime";
 import { SettingsModal } from "@/features/settings/components/organisms/settings-modal";
 import {
   SETTINGS_SECTION_IDS,
   type SettingsSectionId,
 } from "@/features/settings/types/settings.types";
+import { useSignOutMutation } from "@/lib/api/auth-queries";
 import {
   useAssessmentsQuery,
   useWorkspaceQuery,
 } from "@/lib/api/workspace-queries";
-import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
+import {
+  getAppLocaleSnapshot,
+  setAppLocale,
+  subscribeToAppLocale,
+} from "@/lib/locale";
 import { cn } from "@/lib/utils";
-import { AssessmentContextPanel } from "@/features/assessment-runtime";
 
 import type {
   AppShellNavigationItem,
@@ -38,13 +42,14 @@ import {
   ASSESSMENT_SHELL_SCREENS,
   type AssessmentShellState,
 } from "../../types/assessment-shell-state.types";
+import { QuickActionsDialog } from "../molecules/quick-actions-dialog";
+import { SidebarHeaderControls } from "../molecules/sidebar-header-controls";
 import { AppSidebar, SIDEBAR_RECENT_LOAD_STATES } from "./app-sidebar";
 import {
   AssessmentRightPanelSlot,
   CenterContentSlot,
   LeftSidebarSlot,
 } from "./assessment-shell-slots";
-import { SidebarHeaderControls } from "../molecules/sidebar-header-controls";
 
 type AssessmentAppShellProps = {
   assessmentId?: string;
@@ -93,6 +98,7 @@ export function AssessmentAppShell({
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [mobileRuntimeOpen, setMobileRuntimeOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionId>(SETTINGS_SECTION_IDS.general);
   const signOutMutation = useSignOutMutation();
@@ -150,7 +156,8 @@ export function AssessmentAppShell({
 
   async function handleSignOut() {
     await signOutMutation.mutateAsync();
-    window.location.assign("/sign-in");
+    // Use Next.js router navigation for internal routes instead of window.location.assign.
+    router.push("/sign-in");
   }
 
   function toggleLeftSidebar() {
@@ -261,31 +268,57 @@ export function AssessmentAppShell({
             ) : null}
           </div>
 
-          {assessmentId ? (
-            <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-2">
+            {!assessmentId ? (
               <Button
                 type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setMobileRuntimeOpen(true)}
-                aria-label={t("pages.appShell.runtimePanelTitle")}
-                className="xl:hidden"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickActionsOpen(true)}
               >
-                <PanelRightIcon />
+                {t("pages.appShell.quickActions")}
               </Button>
-              <Button
-                type="button"
-                variant={rightPanelOpen ? "secondary" : "ghost"}
-                size="icon-sm"
-                onClick={toggleRightPanel}
-                aria-label={t("pages.appShell.runtimePanelTitle")}
-                aria-pressed={rightPanelOpen}
-                className="hidden xl:inline-flex"
-              >
-                <PanelRightIcon />
-              </Button>
-            </div>
-          ) : null}
+            ) : null}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t("pages.appShell.localeSwitchLabel")}
+              onClick={() =>
+                setAppLocale(locale === LOCALES[0] ? LOCALES[1] : LOCALES[0])
+              }
+              className="text-xs font-medium text-muted-foreground"
+            >
+              {locale.toUpperCase()}
+            </Button>
+
+            {assessmentId ? (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setMobileRuntimeOpen(true)}
+                  aria-label={t("pages.appShell.runtimePanelTitle")}
+                  className="xl:hidden"
+                >
+                  <PanelRightIcon />
+                </Button>
+                <Button
+                  type="button"
+                  variant={rightPanelOpen ? "secondary" : "ghost"}
+                  size="icon-sm"
+                  onClick={toggleRightPanel}
+                  aria-label={t("pages.appShell.runtimePanelTitle")}
+                  aria-pressed={rightPanelOpen}
+                  className="hidden xl:inline-flex"
+                >
+                  <PanelRightIcon />
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </header>
 
         <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/10">
@@ -336,6 +369,12 @@ export function AssessmentAppShell({
         onOpenChange={setSettingsModalOpen}
         onSectionChange={setActiveSettingsSection}
         open={settingsModalOpen}
+      />
+
+      <QuickActionsDialog
+        open={quickActionsOpen}
+        onOpenChange={setQuickActionsOpen}
+        onOpenSettings={() => openSettings(SETTINGS_SECTION_IDS.general)}
       />
     </div>
   );

@@ -1,79 +1,143 @@
 "use client";
 
 import { useDeferredValue, useState } from "react";
-import { SearchIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCustomerTrackingOverviewQuery } from "@/lib/api/tracking-queries";
-import { TrackingEmptyState } from "../molecules/tracking-empty-state";
-import { AssessmentTrackingCard } from "../molecules/assessment-tracking-card";
-import { TrackingError } from "../molecules/tracking-error";
-import { TrackingPagination } from "../molecules/tracking-pagination";
+import { canCreateAssessment } from "@/lib/api/workspace-client";
+import { useWorkspaceQuery } from "@/lib/api/workspace-queries";
+import {
+  ASSESSMENT_LIST_DATE_FILTERS,
+  ASSESSMENT_LIST_SORT_OPTIONS,
+  ASSESSMENT_LIST_STATUS_FILTERS,
+  type AssessmentListDateFilter,
+  type AssessmentListSortOption,
+  type AssessmentListStatusFilter,
+} from "../../types/assessment-list.types";
 import { trackingMessage } from "../../utils/tracking-display";
+import { TrackingError } from "../molecules/tracking-error";
+import { AssessmentList } from "./assessment-list";
 
+/**
+ * Business purpose:
+ * Host the Assessments directory page (Frame 18) with search, lifecycle filters,
+ * date window, sort order, pagination, and row-level rename/delete dialogs.
+ *
+ * Business rules:
+ * - Gate the "New assessment" CTA by `canCreateAssessment(workspace.user.role)`.
+ * - Any filter or sort change resets pagination offset to 0.
+ *
+ * Execution flow:
+ * 1. Load workspace permissions and customer tracking overview data.
+ * 2. Render header with New assessment CTA.
+ * 3. Render loading skeletons, error retry banner, or AssessmentList.
+ *
+ * Failure cases:
+ * - Overview query failure displays TrackingError with retry action.
+ *
+ * Side effects:
+ * - Navigates to `/assessments/new` on CTA click.
+ */
 export function TrackingAssessmentsPage() {
+  const router = useRouter();
+  const workspaceQuery = useWorkspaceQuery();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<AssessmentListStatusFilter>(
+    ASSESSMENT_LIST_STATUS_FILTERS.all,
+  );
+  const [dateFilter, setDateFilter] = useState<AssessmentListDateFilter>(
+    ASSESSMENT_LIST_DATE_FILTERS.all,
+  );
+  const [sortBy, setSortBy] = useState<AssessmentListSortOption>(
+    ASSESSMENT_LIST_SORT_OPTIONS.recentlyUpdated,
+  );
   const [offset, setOffset] = useState(0);
+
   const deferredSearch = useDeferredValue(search.trim());
-  const query = useCustomerTrackingOverviewQuery(deferredSearch, offset);
+  const query = useCustomerTrackingOverviewQuery(deferredSearch, 0);
   const data = query.data;
+  const workspace =
+    workspaceQuery.data?.kind === "loaded"
+      ? workspaceQuery.data.workspace
+      : null;
+
+  function resetFilters() {
+    setSearch("");
+    setStatusFilter(ASSESSMENT_LIST_STATUS_FILTERS.all);
+    setDateFilter(ASSESSMENT_LIST_DATE_FILTERS.all);
+    setSortBy(ASSESSMENT_LIST_SORT_OPTIONS.recentlyUpdated);
+    setOffset(0);
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-6">
-      <header className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold">
-          {trackingMessage("assessmentsTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {trackingMessage("assessmentsDescription")}
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">
+            {trackingMessage("assessmentsTitle")}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {trackingMessage("assessmentsListSubtitle")}
+          </p>
+        </div>
+
+        {workspace && canCreateAssessment(workspace.user.role) ? (
+          <Button
+            type="button"
+            className="shrink-0 bg-primary text-primary-foreground"
+            onClick={() => router.push("/assessments/new")}
+          >
+            {trackingMessage("newAssessment")}
+          </Button>
+        ) : null}
       </header>
-      <label className="relative block max-w-md">
-        <SearchIcon
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setOffset(0);
-          }}
-          aria-label={trackingMessage("searchLabel")}
-          placeholder={trackingMessage("searchPlaceholder")}
-          className="pl-9"
-        />
-      </label>
+
       {query.isError ? (
         <TrackingError onRetry={() => void query.refetch()} />
       ) : null}
-      {query.isPending ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Skeleton className="h-56" />
-          <Skeleton className="h-56" />
-          <Skeleton className="h-56" />
+
+      {query.isPending && !data ? (
+        <div className="flex flex-col gap-4" aria-label={trackingMessage("loading")}>
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-72 w-full rounded-xl" />
         </div>
       ) : null}
-      {data && data.assessments.length ? (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {data.assessments.map((item) => (
-              <AssessmentTrackingCard key={item.assessmentId} item={item} />
-            ))}
-          </div>
-          <TrackingPagination
-            total={data.pagination.total}
-            limit={data.pagination.limit}
-            offset={offset}
-            hasMore={data.pagination.hasMore}
-            onOffsetChange={setOffset}
-            showTotal
-          />
-        </>
-      ) : data ? (
-        <TrackingEmptyState className="items-center rounded-lg border p-8 text-center">
-          {trackingMessage("noAssessments")}
-        </TrackingEmptyState>
+
+      {data ? (
+        <AssessmentList
+          assessments={data.assessments}
+          referenceNowMs={
+            Number.isFinite(Date.parse(data.generatedAt))
+              ? Date.parse(data.generatedAt)
+              : query.dataUpdatedAt
+          }
+          search={search}
+          onSearchChange={(val) => {
+            setSearch(val);
+            setOffset(0);
+          }}
+          statusFilter={statusFilter}
+          onStatusFilterChange={(val) => {
+            setStatusFilter(val);
+            setOffset(0);
+          }}
+          dateFilter={dateFilter}
+          onDateFilterChange={(val) => {
+            setDateFilter(val);
+            setOffset(0);
+          }}
+          sortBy={sortBy}
+          onSortByChange={(val) => {
+            setSortBy(val);
+            setOffset(0);
+          }}
+          offset={offset}
+          onOffsetChange={setOffset}
+          onResetFilters={resetFilters}
+        />
       ) : null}
     </main>
   );

@@ -1,5 +1,7 @@
 import type { MessageKey } from "@lcsp/i18n";
 import type { AdminOverviewAccountDistribution } from "@lcsp/contracts/auth";
+import { OutcomeLegend } from "@/components/molecules/outcome-legend";
+import { DASHBOARD_SURFACES } from "@/components/types/dashboard-primitives.types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -79,21 +81,14 @@ export function AdminUserStatusCard({
   const suspendedCount = distribution?.suspendedCount ?? 0;
   const totalCount = distribution?.totalCount ?? 0;
 
-  const activePercent =
-    totalCount > 0 ? Math.min(100, (activeCount / totalCount) * 100) : 0;
-  const invitedPercent =
-    totalCount > 0 ? Math.min(100, (invitedCount / totalCount) * 100) : 0;
-  const suspendedPercent =
-    totalCount > 0 ? Math.min(100, (suspendedCount / totalCount) * 100) : 0;
-
   const totalText = distribution
     ? totalTemplate.replace("{count}", totalCount.toLocaleString())
     : "—";
 
   const rows = [
-    { label: activeLabel, count: activeCount, percent: activePercent },
-    { label: invitedLabel, count: invitedCount, percent: invitedPercent },
-    { label: suspendedLabel, count: suspendedCount, percent: suspendedPercent },
+    { key: "active", label: activeLabel, count: activeCount, color: "var(--admin-status-active)" },
+    { key: "invited", label: invitedLabel, count: invitedCount, color: "var(--admin-warning)" },
+    { key: "suspended", label: suspendedLabel, count: suspendedCount, color: "var(--admin-status-suspended)" },
   ];
 
   return (
@@ -110,23 +105,12 @@ export function AdminUserStatusCard({
       </div>
 
       {/* Rows */}
-      <div className="space-y-3.5 py-1">
-        {rows.map((row) => (
-          <div key={row.label} className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-foreground">{row.label}</span>
-              <span className="font-semibold text-foreground">
-                {distribution ? row.count.toLocaleString() : "—"}
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-sm bg-muted">
-              <div
-                style={{ width: `${row.percent}%` }}
-                className="h-full rounded-sm bg-foreground/80 transition-all duration-300"
-              />
-            </div>
-          </div>
-        ))}
+      <div className="py-1">
+        <OutcomeLegend
+          items={rows}
+          denominator={totalCount}
+          surface={DASHBOARD_SURFACES.light}
+        />
       </div>
 
       {/* Footer */}

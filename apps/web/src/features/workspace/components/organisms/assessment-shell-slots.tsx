@@ -45,8 +45,9 @@ export function CenterContentSlot({
           assessmentId ? "overflow-hidden" : "overflow-y-auto",
         )}
       >
+        {/* Expand to full remaining width for wide setup flows while preserving max-w-3xl reading width for chat transcripts. */}
         {assessmentId ? (
-          <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col sm:px-4 md:px-5 lg:px-6">
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col has-data-[surface=assessment-workspace]:max-w-none has-data-[surface=repository-setup]:max-w-none sm:px-4 md:px-5 lg:px-6">
             {children}
           </div>
         ) : (

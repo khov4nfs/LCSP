@@ -13,7 +13,7 @@ import {
 import { apiValidated } from "./api-request";
 import { getAppLocaleSnapshot } from "../locale";
 
-const trackingKeys = {
+export const trackingKeys = {
   /**
    * Business purpose: Keep overview caches separate by search text and display locale.
    * Business rules:

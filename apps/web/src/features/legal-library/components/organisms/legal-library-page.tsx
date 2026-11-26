@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo, useState } from "react";
+import { SearchIcon } from "lucide-react";
 import {
   LEGAL_SOURCE_ERROR_CODES,
   type ActiveLegalLibrary,
@@ -9,11 +10,14 @@ import type { MessageKey } from "@lcsp/i18n";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiRequestError } from "@/lib/api/api-request";
 import { useActiveLegalLibraryQuery } from "@/lib/api/legal-source-queries";
 import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
+import { appLocale } from "@/lib/locale";
+
+import { LegalDocumentCard } from "../molecules/legal-document-card";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -44,11 +48,22 @@ export function LegalLibraryPage() {
 }
 
 function LegalLibraryContent({ library }: { library: ActiveLegalLibrary }) {
+  const [search, setSearch] = useState("");
+  const filteredDocuments = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return library.documents;
+    return library.documents.filter(
+      (doc) =>
+        doc.title.toLowerCase().includes(query) ||
+        doc.sourceEffectStatus.toLowerCase().includes(query),
+    );
+  }, [library.documents, search]);
+
   if (library.documents.length === 0) return <LegalLibraryEmptyState />;
   return (
     <div className="flex flex-col gap-6 pb-12">
       <header className="flex flex-col gap-2">
-        <p className="text-sm font-medium text-primary">
+        <p className="text-sm font-medium text-brand-deep">
           {formatAppMessage(
             "pages.legalLibrary.activeVersionLabel" as MessageKey,
             {
@@ -56,75 +71,50 @@ function LegalLibraryContent({ library }: { library: ActiveLegalLibrary }) {
             },
           )}
         </p>
-        <h1 className="text-3xl font-semibold">
+        <h1 className="font-heading text-3xl font-semibold tracking-tight">
           {t("pages.legalLibrary.pageTitle")}
         </h1>
-        <p className="max-w-3xl text-muted-foreground">
+        <p className="max-w-3xl text-sm text-muted-foreground">
           {t("pages.legalLibrary.pageDescription")}
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {t("pages.legalLibrary.sourceNameLabel")}: {library.sourceName}
         </p>
       </header>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {library.documents.map((document) => (
-          <Card key={document.id} className="h-full">
-            <CardHeader>
-              <CardTitle>{document.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-muted-foreground">
-                    {t("pages.legalLibrary.sourceEffectStatusLabel")}
-                  </dt>
-                  <dd>{document.sourceEffectStatus}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">
-                    {t("pages.legalLibrary.effectiveDateLabel")}
-                  </dt>
-                  <dd>{document.effectiveDate ?? "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">
-                    {t("pages.legalLibrary.chunkCountLabel")}
-                  </dt>
-                  <dd>{document.chunkCount}</dd>
-                </div>
-              </dl>
-              <div className="mt-auto flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="default"
-                  nativeButton={false}
-                  render={
-                    <Link href={`/laws/${encodeURIComponent(document.id)}`} />
-                  }
-                >
-                  {t("pages.legalLibrary.readDocument")}
-                </Button>
-                {httpsUrl(document.sourceUrl) ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    nativeButton={false}
-                    render={
-                      <a
-                        href={httpsUrl(document.sourceUrl)}
-                        target="_blank"
-                        rel="noreferrer"
-                      />
-                    }
-                  >
-                    {t("pages.legalLibrary.openOfficialSource")}
-                  </Button>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-64 flex-1 sm:max-w-sm">
+          <SearchIcon
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            aria-label={t("pages.legalLibrary.searchPlaceholder")}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t("pages.legalLibrary.searchPlaceholder")}
+            className="h-9 pl-9"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {formatAppMessage("pages.legalLibrary.showingCount" as MessageKey, {
+            shown: filteredDocuments.length.toLocaleString(appLocale),
+            total: library.documents.length.toLocaleString(appLocale),
+          })}
+        </p>
       </div>
+
+      {filteredDocuments.length === 0 ? (
+        <section className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+          {t("pages.legalLibrary.noMatchingDocuments")}
+        </section>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {filteredDocuments.map((document) => (
+            <LegalDocumentCard key={document.id} document={document} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -140,13 +130,4 @@ function LegalLibraryEmptyState() {
       </p>
     </section>
   );
-}
-
-function httpsUrl(value: string): string | undefined {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "https:" ? parsed.toString() : undefined;
-  } catch {
-    return undefined;
-  }
 }

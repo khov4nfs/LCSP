@@ -17,6 +17,7 @@ import {
 import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
 import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
 import { LEGAL_LIBRARY_CHUNK_PAGE_SIZES } from "../../config/legal-library.config";
+import { ProvisionSearch } from "../molecules/provision-search";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -27,6 +28,7 @@ export function LegalDocumentReaderPage({
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(25);
+  const [provisionQuery, setProvisionQuery] = useState("");
   const library = useActiveLegalLibraryQuery();
   const document = library.data?.documents.find(
     (item) => item.id === documentRowId,
@@ -147,10 +149,27 @@ export function LegalDocumentReaderPage({
           </div>
         </div>
         {chunks.data.items.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            {chunks.data.items.map((chunk) => (
-              <Card key={chunk.id}>
-                <CardContent className="flex flex-col gap-4">
+          <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <ProvisionSearch
+              query={provisionQuery}
+              onQueryChange={setProvisionQuery}
+              items={chunks.data.items.filter((chunk) => {
+                const term = provisionQuery.trim().toLowerCase();
+                if (!term) return true;
+                return (
+                  chunk.locator.toLowerCase().includes(term) ||
+                  JSON.stringify(chunk.hierarchy).toLowerCase().includes(term) ||
+                  chunk.content.toLowerCase().includes(term)
+                );
+              })}
+            />
+            <div className="flex min-w-0 flex-col gap-4">
+              {chunks.data.items.map((chunk) => (
+                <Card
+                  key={chunk.id}
+                  id={`chunk-${encodeURIComponent(chunk.id)}`}
+                >
+                  <CardContent className="flex flex-col gap-4">
                   <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                     <div>
                       <p className="text-muted-foreground">
@@ -193,6 +212,7 @@ export function LegalDocumentReaderPage({
                 </CardContent>
               </Card>
             ))}
+            </div>
           </div>
         ) : (
           <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
