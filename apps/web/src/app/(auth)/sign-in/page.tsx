@@ -11,9 +11,12 @@ export async function generateMetadata(): Promise<Metadata> {
   );
 }
 
+// Keep the search parameter contract local so clean workspace checks do not depend on Next-generated route globals.
 export default async function SignInPage({
   searchParams,
-}: PageProps<"/sign-in">) {
+}: {
+  searchParams: Promise<{ oauth?: string }>;
+}) {
   const { oauth } = await searchParams;
 
   // Render a generic localized notice only for the known callback failure marker; never surface callback details.
