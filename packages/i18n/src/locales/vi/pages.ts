@@ -4069,4 +4069,57 @@ export const viPages = {
       defaultReason: "Tạm khóa bởi quản trị viên",
     },
   },
+  assessmentWorkspace: {
+    tabs: {
+      overview: "Tổng quan",
+      findings: "Kết quả đánh giá",
+      requests: "Yêu cầu thông tin",
+      sourceEvidence: "Mã nguồn & bằng chứng",
+    },
+    overview: {
+      resultsTitle: "Kết quả đánh giá",
+      resultsRatio: "{ready} trên {total} quy tắc đã có kết quả tuân thủ",
+      resultsReadyLabel: "kết quả sẵn sàng",
+      compliantSummary: "{compliant} tuân thủ · {nonCompliant} không tuân thủ",
+      pendingSummary:
+        "{needsInfo} cần thông tin · {notRequested} chưa yêu cầu",
+      reviewFindings: "Xem kết quả",
+      attentionTitle: "Cần xử lý",
+      attentionBlocking:
+        "Một yêu cầu đang mở đang chặn việc đánh giá nghĩa vụ liên quan.",
+      answerRequest: "Trả lời yêu cầu",
+      scopeTitle: "Phạm vi đánh giá",
+      repositoryPrefix: "Repository",
+      legalSourcePrefix: "Phiên bản nguồn pháp lý",
+      viewSourceEvidence: "Xem mã nguồn & bằng chứng",
+      evaluateTitle: "Đánh giá các quy tắc đã chọn",
+      evaluateSubtitle: "Chọn các yêu cầu để đánh giá có mục tiêu.",
+      evaluateHint: "Các kết quả hiện có vẫn khả dụng để rà soát.",
+      auditSelectedRules: "Chọn quy tắc đánh giá",
+    },
+    findings: {
+      listTitle: "Danh sách kết quả",
+      emptyTitle: "Chưa có kết quả đánh giá quy tắc",
+      emptyBody:
+        "Bắt đầu hoặc chọn quy tắc để đánh giá mức độ tuân thủ trên repository.",
+      selectFindingHint:
+        "Chọn một mục để xem lập luận, trích dẫn pháp lý và bằng chứng.",
+      evidenceCount: "{count} mục",
+      missingEvidence: "Thiếu bằng chứng",
+    },
+    source: {
+      title: "Mã nguồn & bằng chứng",
+      pinnedCommit: "Commit đã cố định",
+      viewReport: "Xem báo cáo",
+      viewProvenance: "Xem nguồn gốc",
+      noEvidenceTitle: "Chưa ghi nhận bằng chứng",
+      noEvidenceBody:
+        "Trích dẫn bằng chứng sẽ hiển thị tại đây khi quy tắc được đánh giá.",
+    },
+    requests: {
+      emptyTitle: "Không có yêu cầu bổ sung",
+      emptyBody:
+        "Hệ thống chỉ đặt câu hỏi tại đây khi thiếu thông tin nghiệp vụ.",
+    },
+  },
 } as const satisfies PagesMessages;

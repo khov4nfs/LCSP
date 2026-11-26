@@ -3634,6 +3634,53 @@ export type PagesMessages = {
       defaultReason: string;
     };
   };
+  assessmentWorkspace: {
+    tabs: {
+      overview: string;
+      findings: string;
+      requests: string;
+      sourceEvidence: string;
+    };
+    overview: {
+      resultsTitle: string;
+      resultsRatio: string;
+      resultsReadyLabel: string;
+      compliantSummary: string;
+      pendingSummary: string;
+      reviewFindings: string;
+      attentionTitle: string;
+      attentionBlocking: string;
+      answerRequest: string;
+      scopeTitle: string;
+      repositoryPrefix: string;
+      legalSourcePrefix: string;
+      viewSourceEvidence: string;
+      evaluateTitle: string;
+      evaluateSubtitle: string;
+      evaluateHint: string;
+      auditSelectedRules: string;
+    };
+    findings: {
+      listTitle: string;
+      emptyTitle: string;
+      emptyBody: string;
+      selectFindingHint: string;
+      evidenceCount: string;
+      missingEvidence: string;
+    };
+    source: {
+      title: string;
+      pinnedCommit: string;
+      viewReport: string;
+      viewProvenance: string;
+      noEvidenceTitle: string;
+      noEvidenceBody: string;
+    };
+    requests: {
+      emptyTitle: string;
+      emptyBody: string;
+    };
+  };
 };
 
 export type AssessmentMessages = {
