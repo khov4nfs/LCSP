@@ -20,7 +20,7 @@ test("Artifacts destination is wired through the redesigned shell", async () => 
   assert.match(sidebar, /artifactsActive/);
   assert.match(page, /pages\.artifacts\.tabs/);
   assert.match(page, /\/assessments\/new/);
-  assert.match(page, /SearchIcon/);
+  assert.match(page, /DocumentCollection/);
   assert.match(page, /pages\.artifacts\.search/);
 });
 
