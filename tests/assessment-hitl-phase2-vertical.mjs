@@ -1005,7 +1005,9 @@ try {
   }
   // Even an imported legacy row with a matching deterministic identity cannot bypass the scope guard through replay.
   const { deterministicUuid } = await import(
-    path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js")
+    pathToFileURL(
+      path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js"),
+    ).href
   );
   const legacy = sourceRequest(
     "tkh/Astromo/TheConstruct/src/utils/aiService.js",
