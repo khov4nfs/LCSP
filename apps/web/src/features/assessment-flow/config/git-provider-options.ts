@@ -17,17 +17,12 @@ export const GIT_PROVIDER_OPTIONS = [
     id: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket,
     labelKey: "pages.assessmentFlow.providers.bitbucket",
     hostname: "bitbucket.org",
-    supported: false,
+    supported: true,
   },
   {
     id: ASSESSMENT_REPOSITORY_PROVIDERS.azureDevOps,
     labelKey: "pages.assessmentFlow.providers.azureDevOps",
     hostname: "dev.azure.com",
-    supported: false,
+    supported: true,
   },
-] as const;
-
-const SUPPORTED_ASSESSMENT_REPOSITORY_PROVIDERS = [
-  ASSESSMENT_REPOSITORY_PROVIDERS.github,
-  ASSESSMENT_REPOSITORY_PROVIDERS.gitlab,
 ] as const;

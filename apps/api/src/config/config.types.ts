@@ -33,12 +33,6 @@ export interface BitbucketCliConfig {
   maxJsonOutputBytes: number;
 }
 
-export interface AzureDevOpsCliConfig {
-  executablePath: string;
-  timeoutMs: number;
-  maxJsonOutputBytes: number;
-}
-
 export interface GithubCredentialPersistenceConfig {
   activeKekVersion: string;
   encodedKekKeyring: string;
@@ -123,7 +117,11 @@ export interface AppConfig {
   githubCli: GithubCliConfig;
   gitlabCli: GitlabCliConfig;
   bitbucketCli: BitbucketCliConfig;
-  azureDevOpsCli: AzureDevOpsCliConfig;
+  providerAvailability: {
+    bitbucketRestEnabled: boolean;
+    azureDevOpsRestEnabled: boolean;
+    externalIdentitySchemaReady: boolean;
+  };
   githubCredentialPersistence: GithubCredentialPersistenceConfig;
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;

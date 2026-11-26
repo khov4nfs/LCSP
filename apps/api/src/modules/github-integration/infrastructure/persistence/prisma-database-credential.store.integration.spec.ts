@@ -36,6 +36,7 @@ describeDatabase("PrismaDatabaseCredentialStore PostgreSQL integration", () => {
         provider: CredentialProvider.GITHUB,
         ownerUserId: "manager-a",
         providerAccountId: 9876543210n,
+        providerAccountExternalId: null,
         providerLogin: "manager-a-gh",
         status: ProviderCredentialStatus.ACTIVE,
         currentVersion: 1,

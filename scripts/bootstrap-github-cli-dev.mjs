@@ -17,7 +17,6 @@ import { parse } from "dotenv";
 export const SUPPORTED_GITHUB_CLI_VERSION = "2.98.0";
 export const SUPPORTED_GITLAB_CLI_VERSION = "1.113.0";
 export const SUPPORTED_BITBUCKET_CLI_VERSION = "0.1.0";
-export const SUPPORTED_AZURE_DEVOPS_CLI_VERSION = "2.60.0";
 export const LOCAL_GITHUB_CLI_ENV_FILE = ".env";
 export const LOCAL_CLI_CACHE_ROOT = ".cache/lcsp-cli";
 
@@ -268,70 +267,6 @@ export async function bootstrapLocalBitbucketCli(options = {}) {
   };
 }
 
-/**
- * Business purpose: Discover an available Azure DevOps CLI for local repository access.
- * Business rules: Skip production; persist only the executable path, without retired provider flags.
- * Execution flow:
- * 1. Check the configured executable, then PATH, leaving the path empty if neither is runnable.
- * 2. Persist/apply the path when requested and return the optional CLI location.
- * Failure cases: A missing CLI is allowed; environment write failures propagate to stop preparation.
- * Side effects: May update the local env file/process and log the available CLI location; never installs Azure CLI.
- */
-export async function bootstrapLocalAzureDevOpsCli(options = {}) {
-  const repoRoot = options.repoRoot ?? process.cwd();
-  const env = options.env ?? process.env;
-  const platform = options.platform ?? process.platform;
-  const envFilePath =
-    options.envFilePath ?? path.join(repoRoot, LOCAL_GITHUB_CLI_ENV_FILE);
-  const fileValues = readEnvFile(envFilePath);
-  const configuredPath =
-    env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH ??
-    fileValues.AZURE_DEVOPS_CLI_EXECUTABLE_PATH;
-  if (
-    (env.NODE_ENV ?? fileValues.NODE_ENV ?? "development").toLowerCase() ===
-    "production"
-  ) {
-    return { skipped: true, reason: "production" };
-  }
-
-  const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
-  let executablePath = resolveConfiguredExecutablePath(
-    repoRoot,
-    configuredPath,
-  );
-  if (executablePath && !isRunnableAzureCli(executablePath, spawnSyncImpl)) {
-    executablePath = undefined;
-  }
-  if (!executablePath) {
-    const candidate = resolveOnPath("az", platform, spawnSyncImpl);
-    if (candidate && isRunnableAzureCli(candidate, spawnSyncImpl)) {
-      executablePath = candidate;
-    }
-  }
-
-  const updates = {
-    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath
-      ? toPortableExecutablePath(repoRoot, executablePath)
-      : "",
-  };
-  if (options.persist !== false && Object.keys(updates).length > 0) {
-    writeEnvValues(envFilePath, updates);
-  }
-  if (options.applyToProcessEnv ?? false) {
-    Object.assign(process.env, updates);
-    process.env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH = executablePath ?? "";
-  }
-  if (executablePath) {
-    console.log(`[dev-bootstrap] Azure DevOps CLI: ${executablePath}`);
-  }
-  return {
-    skipped: false,
-    executablePath: executablePath ?? "",
-    version: SUPPORTED_AZURE_DEVOPS_CLI_VERSION,
-    envFilePath,
-  };
-}
-
 function isRunnableBitbucketCli(executablePath, spawnSyncImpl) {
   if (!existsSync(executablePath) || !statSync(executablePath).isFile())
     return false;
@@ -405,17 +340,6 @@ process.exit(1);
     });
   }
   return scriptPath;
-}
-
-function isRunnableAzureCli(executablePath, spawnSyncImpl) {
-  if (!existsSync(executablePath) || !statSync(executablePath).isFile())
-    return false;
-  const result = spawnSyncImpl(executablePath, ["version"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    shell: false,
-  });
-  return result.status === 0;
 }
 
 function resolveOnPath(command, platform, spawnSyncImpl) {

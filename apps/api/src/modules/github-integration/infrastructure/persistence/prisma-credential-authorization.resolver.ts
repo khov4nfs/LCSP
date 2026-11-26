@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import {
+  CredentialProvider,
   CredentialAuthorizationStatus,
   ProviderCredentialStatus,
   RepositoryAuthenticationMode,
@@ -34,7 +35,7 @@ export class CredentialResolutionError extends Error {
   }
 }
 
-/** Persistence-backed resolver. It is registered only as an internal foundation and is not used by production handlers. */
+/** Persistence-backed authorization resolver used by snapshot pinning and archive retrieval. */
 @Injectable()
 export class PrismaCredentialAuthorizationResolver implements CredentialAuthorizationResolverPort {
   constructor(
@@ -42,6 +43,13 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
     @Inject(CREDENTIAL_STORE) private readonly store: CredentialStorePort,
   ) {}
 
+  /**
+   * Business purpose: Issue a short-lived credential lease only for the repository connection's current authorized identity.
+   * Business rules: Owner, provider, repository, assessment, connection status, credential status, expiry, and exact credential version must all match persisted authorization.
+   * Execution flow: Load the bound connection and credential, reject any stale or mismatched binding, check known expiration, then decrypt the owned secret into a bounded lease.
+   * Failure cases: Unauthorized, revoked, expired, cross-provider, cross-owner, cross-repository, and version-mismatched bindings fail before secret access; storage errors become providerClientUnavailable.
+   * Side effects: Reads encrypted credential material and returns a disposable in-memory lease; it does not contact the provider or change persisted state.
+   */
   async resolveForConnection(
     context: CredentialOperationContext,
     connectionId: string,
@@ -68,6 +76,7 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
     if (
       !connection ||
       !credential ||
+      connection.provider !== credential.provider ||
       connection.repositoryFullName !== expectedRepositoryFullName ||
       connection.providerCredentialId === null ||
       connection.credentialAuthorizationStatus !==
@@ -76,6 +85,11 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
       (connection.assessmentId !== null &&
         connection.assessmentId !== context.assessmentId) ||
       credential.ownerUserId !== context.userId ||
+      !hasValidProviderIdentity(
+        credential.provider,
+        credential.providerAccountId,
+        credential.providerAccountExternalId,
+      ) ||
       (!isConnectionConsumption(context.operation) &&
         context.actorId !== null &&
         credential.ownerUserId !== context.actorId)
@@ -228,6 +242,32 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
       );
     return row;
   }
+}
+
+/**
+ * Business purpose: Ensure a persisted credential binding contains the provider's exact account identity representation.
+ * Business rules: Numeric providers require only the legacy numeric key; Bitbucket and Azure require only a non-empty external identity.
+ * Execution flow: Validate the provider-specific column pair before encrypted credential access.
+ * Failure cases: Missing or mixed identities return false and the caller rejects authorization.
+ * Side effects: Pure persistence-boundary validation.
+ */
+function hasValidProviderIdentity(
+  provider: CredentialProvider,
+  numericId: bigint | null,
+  externalId: string | null,
+): boolean {
+  if (
+    provider === CredentialProvider.BITBUCKET ||
+    provider === CredentialProvider.AZURE_DEVOPS
+  ) {
+    if (numericId !== null || typeof externalId !== "string") return false;
+    return provider === CredentialProvider.BITBUCKET
+      ? /^(?:\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/iu.test(
+          externalId,
+        )
+      : /^azure-organization:[a-z0-9][a-z0-9-]{0,63}$/iu.test(externalId);
+  }
+  return numericId !== null && externalId === null;
 }
 
 function isConnectionConsumption(

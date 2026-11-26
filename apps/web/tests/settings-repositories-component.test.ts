@@ -42,7 +42,13 @@ test("Settings repository section supports provider rows and never renders a sto
   assert.match(component, /logo-gitlab\.svg/);
   assert.match(component, /logo-bitbucket\.svg/);
   assert.match(component, /logo-azure-devops\.svg/);
+  assert.match(component, /providerDeploymentEnabled && providerAvailable/);
+  assert.match(component, /providerTemporarilyUnavailable/);
   assert.doesNotMatch(component, /Personal access token value/);
+
+  const dialog = await readFile(credentialDialogPath, "utf8");
+  assert.match(dialog, /azureDevOpsOrganizationAccess/);
+  assert.match(dialog, /azureDevOpsIdentityNotice/);
 });
 
 test("provider credential input is isolated in the credential dialog", async () => {
@@ -169,13 +175,13 @@ test("manage and update modes do not fabricate PAT, username, or repository scop
   assert.doesNotMatch(dialog, /connected-user|abcd|Read \+ Write/);
 });
 
-test("credential request submits only provider and credential", async () => {
+test("credential request submits the provider-specific typed payload and declared expiry", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
 
-  assert.match(
-    dialog,
-    /configureProviderCredential\(\s*\{\s*provider,\s*credential:\s*submittedCredential\s*\}/,
-  );
+  assert.match(dialog, /configureProviderCredential\(submission, signal\)/);
+  assert.match(dialog, /BITBUCKET_CREDENTIAL_TYPES\.atlassianApiToken/);
+  assert.match(dialog, /AZURE_DEVOPS_CREDENTIAL_TYPES\.organizationPat/);
+  assert.match(dialog, /credential_expires_at:\s*credentialExpiresAt/);
   assert.doesNotMatch(dialog, /username:\s*/);
 });
 
@@ -200,7 +206,10 @@ test("all 4 git providers are supported in connector list and disabled state res
   assert.match(connectors, /gitlabProvider[\s\S]*?supported:\s*true/);
   assert.match(connectors, /bitbucketProvider[\s\S]*?supported:\s*true/);
   assert.match(connectors, /azureDevOpsProvider[\s\S]*?supported:\s*true/);
-  assert.match(connectors, /disabled={!option\.supported}/);
+  assert.match(
+    connectors,
+    /disabled={!option\.supported \|\| \(!providerEnabled && !configured\)}/,
+  );
 });
 
 test("disconnect requires an explicit confirmation step and only reports success after the backend acknowledges it", async () => {
@@ -223,7 +232,9 @@ test("disconnect requires an explicit confirmation step and only reports success
 test("disconnect reauthentication retries once after confirmation and reports cancellation without retrying", async () => {
   const dialog = await readFile(credentialDialogPath, "utf8");
   const section =
-    dialog.match(/function submitDisconnect\(\)[\s\S]*?\n  }\n\n/)?.[0] ?? "";
+    dialog.match(
+      /function submitDisconnect\(\)[\s\S]*?\n  function changeMode\(/,
+    )?.[0] ?? "";
 
   assert.match(section, /REQUIRED_ACTIONS\.reauthenticate/);
   assert.match(section, /queueMicrotask\(submitDisconnect\)/);

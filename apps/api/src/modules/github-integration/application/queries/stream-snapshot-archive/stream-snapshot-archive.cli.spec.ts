@@ -17,6 +17,7 @@ import { CredentialLease } from "../../../application/security/credential-lease.
 import type { CredentialAuthorizationResolverPort } from "../../../application/ports/security/credential-authorization-resolver.port.js";
 import type { GitHubArchiveTransportPort } from "../../../application/ports/github-archive-transport.port.js";
 import { GitHubArchiveTransportError } from "../../../infrastructure/github/github-secure-archive-http.transport.js";
+import { RepositoryProviderUnavailableError } from "../../../infrastructure/repository-provider.registry.js";
 import type { SnapshotArchiveCache } from "../../../infrastructure/github/snapshot-archive-cache.js";
 import { StreamSnapshotArchiveHandler } from "./stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
@@ -32,9 +33,15 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
     } = {},
   ) {
     const prisma = {
+      assessment: {
+        findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+          id: "assessment-1",
+        }),
+      },
       repositoryScanJob: {
         findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
           id: "job-1",
+          assessmentId: "assessment-1",
           snapshotId: "snapshot-1",
           status: REPOSITORY_SCAN_JOB_STATUSES.running,
         }),
@@ -89,6 +96,7 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
           redirectValidation:
             GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
           validatedHost: "codeload.github.com",
+          archiveRoot: null,
         });
       });
     const cache = {
@@ -114,11 +122,19 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
       prisma,
       cache,
       { resolveForConnection, markInvalid } as never,
-      { downloadArchive },
       {
         isHydrationTicket: () => false,
         claim: jest.fn(),
         finalizeDelivery: jest.fn(),
+      } as never,
+      { get: () => ({ downloadArchive }) },
+      {
+        get: (provider: string) => {
+          if (provider !== CREDENTIAL_PROVIDERS.github) {
+            throw new RepositoryProviderUnavailableError();
+          }
+          return {};
+        },
       } as never,
     );
     return {
@@ -152,13 +168,14 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
     expect(f.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it("serves a verified cache hit without resolving a credential", async () => {
+  it("serves a verified cache hit only after resolving and disposing authorization", async () => {
     const f = fixture({ cacheHit: true });
     await f.handler.execute(
       new StreamSnapshotArchiveQuery("snapshot-1", "job-1", "corr-cache"),
     );
-    expect(f.resolveForConnection).not.toHaveBeenCalled();
+    expect(f.resolveForConnection).toHaveBeenCalledTimes(1);
     expect(f.downloadArchive).not.toHaveBeenCalled();
+    expect(f.dispose).toHaveBeenCalledTimes(1);
   });
 
   it("invalidates only the lease version for an authoritative 401", async () => {

@@ -57,6 +57,13 @@ export class GitHubSecureArchiveHttpTransport implements GitHubArchiveTransportP
     private readonly fetchImplementation: GitHubArchiveFetch = globalThis.fetch,
   ) {}
 
+  /**
+   * Business purpose: Deliver the exact pinned GitHub archive and its provider-generated wrapper identity.
+   * Business rules: Archive retrieval is bound to the validated owner/repository and immutable commit; only approved HTTPS redirects and a matching codeload response filename establish the wrapper.
+   * Execution flow: 1. Validate repository and SHA. 2. Request GitHub's archive endpoint and validate each redirect. 3. Validate response metadata and wrapper identity. 4. Stream bounded bytes with timeout and cancellation cleanup.
+   * Failure cases: Unsafe redirects, invalid archive metadata, mismatched wrapper identity, provider errors, timeout, or cancellation reject before usable bytes are delivered.
+   * Side effects: Performs read-only HTTPS requests and streams provider bytes; credentials and signed redirect data are not logged.
+   */
   async downloadArchive(input: {
     credentialLease: CredentialLease;
     repositoryFullName: string;
@@ -161,6 +168,21 @@ export class GitHubSecureArchiveHttpTransport implements GitHubArchiveTransportP
           }
         }
 
+        let archiveRoot: string;
+        try {
+          const [owner = "", repository = ""] =
+            input.repositoryFullName.split("/");
+          archiveRoot = parsePinnedArchiveRoot(
+            response.headers.get("content-disposition"),
+            owner,
+            repository,
+            input.commitSha,
+          );
+        } catch (error: unknown) {
+          await discardBody(response);
+          throw error;
+        }
+
         const stream = Readable.fromWeb(response.body).pipe(
           createArchiveByteLimit(this.config.maxArchiveBytes),
         );
@@ -172,6 +194,7 @@ export class GitHubSecureArchiveHttpTransport implements GitHubArchiveTransportP
         return {
           stream,
           contentType,
+          archiveRoot,
           redirectValidation:
             GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
           validatedHost: currentUrl.hostname,
@@ -196,6 +219,75 @@ export class GitHubSecureArchiveHttpTransport implements GitHubArchiveTransportP
       if (!streamOwnsTimeout) clearTimeout(timeout);
     }
   }
+}
+
+/**
+ * Business purpose: Remove the exact GitHub-generated wrapper from repository-relative source paths.
+ * Business rules: Only a codeload response filename tied to the requested owner, repository, and immutable SHA prefix establishes the wrapper; missing or contradictory metadata is rejected.
+ * Execution flow: 1. Require one safe attachment filename. 2. Require the owner and repository prefix. 3. Verify the filename SHA fragment is a prefix of the pinned commit. 4. Return the exact filename stem.
+ * Failure cases: Missing, ambiguous, path-like, or mismatched response metadata raises a provider-response error before archive delivery.
+ * Side effects: Pure metadata validation; does not alter or disclose archive contents.
+ */
+function parsePinnedArchiveRoot(
+  contentDisposition: string | null,
+  owner: string,
+  repository: string,
+  commitSha: string,
+): string {
+  if (
+    !contentDisposition ||
+    contentDisposition.length > 512 ||
+    /[\r\n]/u.test(contentDisposition) ||
+    [...contentDisposition].some((character) => {
+      const codePoint = character.charCodeAt(0);
+      return codePoint < 32 || codePoint === 127;
+    }) ||
+    /(?:^|;)\s*filename\*\s*=/iu.test(contentDisposition)
+  ) {
+    throw new GitHubArchiveTransportError(
+      GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+    );
+  }
+  const segments = contentDisposition.split(";");
+  const filenameMatches = [
+    ...contentDisposition.matchAll(
+      /(?:^|;)\s*filename\s*=\s*(?:"([^"\\]*)"|([^;\s]*))\s*(?=;|$)/giu,
+    ),
+  ];
+  if (
+    segments[0]?.trim().toLowerCase() !== "attachment" ||
+    filenameMatches.length !== 1
+  ) {
+    throw new GitHubArchiveTransportError(
+      GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+    );
+  }
+  const filename = filenameMatches[0]?.[1] ?? filenameMatches[0]?.[2] ?? "";
+  if (
+    !filename.toLowerCase().endsWith(".tar.gz") ||
+    filename.includes("/") ||
+    filename.includes("\\") ||
+    filename.includes(":")
+  ) {
+    throw new GitHubArchiveTransportError(
+      GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+    );
+  }
+  const archiveRoot = filename.slice(0, -7);
+  const expectedPrefix = `${owner}-${repository}-`;
+  const shaPrefix = archiveRoot.slice(expectedPrefix.length);
+  if (
+    archiveRoot.length > 255 ||
+    !archiveRoot.toLowerCase().startsWith(expectedPrefix.toLowerCase()) ||
+    shaPrefix.length < 7 ||
+    shaPrefix.length > commitSha.length ||
+    !commitSha.toLowerCase().startsWith(shaPrefix.toLowerCase())
+  ) {
+    throw new GitHubArchiveTransportError(
+      GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+    );
+  }
+  return archiveRoot;
 }
 
 function parseApprovedRedirect(location: string | null, baseUrl: URL): URL {

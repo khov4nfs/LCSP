@@ -24,6 +24,7 @@ import {
 } from "../../../../platform/storage/artifact-storage.service.js";
 import { sha256Hex } from "../../domain/domain-ids.js";
 import { decisionFingerprint } from "../../domain/decision-fingerprint.js";
+import { buildCanonicalRepositoryUrl } from "@lcsp/contracts/github-integration";
 
 /** Reads the existing immutable artifact. This path never generates a report. */
 @Injectable()
@@ -168,6 +169,11 @@ export class AssessmentReportLoader {
       ) {
         throw new Error("Final report integrity mismatch");
       }
+      const repositorySource = await this.loadRepositorySource({
+        assessmentId: input.assessmentId,
+        snapshotId: report.pins.repositorySnapshotId,
+        commitSha: report.pins.repositoryCommit,
+      });
       const locale = input.locale
         ? resolveResponseLanguage(input.locale)
         : null;
@@ -187,6 +193,7 @@ export class AssessmentReportLoader {
           content: localizedContent,
           contentSha256: sha256Hex(localizedContent.toString("utf8")),
           sourceArtifactSha256: sha256Hex(content),
+          repositorySource,
         };
       }
       return {
@@ -194,6 +201,7 @@ export class AssessmentReportLoader {
         content: Buffer.from(content),
         contentSha256: sha256Hex(content),
         sourceArtifactSha256: sha256Hex(content),
+        repositorySource,
       };
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -203,5 +211,42 @@ export class AssessmentReportLoader {
         { status: HttpStatus.CONFLICT },
       );
     }
+  }
+
+  /**
+   * Business purpose: Resolve the pinned report's validated canonical repository identity for provider-correct PDF citations.
+   * Business rules: The snapshot must belong to the authorized assessment, match the report commit, and agree with its connection's repository ID and full name.
+   * Execution flow: 1. Load the exact snapshot and connection. 2. Verify immutable identity fields. 3. Build a provider-specific canonical URL from the persisted provider identity.
+   * Failure cases: Missing or inconsistent provenance returns null, preserving the report and internal evidence without an external link.
+   * Side effects: Performs a read-only database query; no report or evidence records are changed.
+   */
+  private async loadRepositorySource(input: {
+    assessmentId: string;
+    snapshotId: string;
+    commitSha: string;
+  }) {
+    const snapshot = await this.prisma.repositorySnapshot.findFirst({
+      where: { id: input.snapshotId, assessmentId: input.assessmentId },
+      include: { connection: true },
+    });
+    if (
+      !snapshot ||
+      snapshot.commitSha.toLowerCase() !== input.commitSha.toLowerCase() ||
+      snapshot.repositoryId !== snapshot.connection.repositoryId ||
+      snapshot.repositoryFullName !== snapshot.connection.repositoryFullName
+    ) {
+      return null;
+    }
+    const canonicalRepositoryUrl = buildCanonicalRepositoryUrl(
+      snapshot.connection.provider,
+      snapshot.connection.repositoryFullName,
+    );
+    return canonicalRepositoryUrl
+      ? {
+          provider: snapshot.connection.provider,
+          canonicalRepositoryUrl,
+          commitSha: snapshot.commitSha,
+        }
+      : null;
   }
 }

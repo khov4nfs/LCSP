@@ -796,7 +796,8 @@ model ProviderCredential {
   id                          String                   @id
   provider                    CredentialProvider
   ownerUserId                 String
-  providerAccountId           BigInt
+  providerAccountId           BigInt?
+  providerAccountExternalId   String?
   providerLogin               String
   status                      ProviderCredentialStatus
   currentVersion              Int
@@ -823,6 +824,7 @@ model ProviderCredential {
 
   @@index([ownerUserId, provider, isActive])
   @@index([ownerUserId, provider, providerAccountId])
+  @@index([ownerUserId, provider, providerAccountExternalId])
 }
 
 model RepositorySnapshot {

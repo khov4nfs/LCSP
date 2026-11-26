@@ -58,6 +58,7 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
         provider: true,
         ownerUserId: true,
         providerAccountId: true,
+        providerAccountExternalId: true,
         providerLogin: true,
         status: true,
         currentVersion: true,
@@ -95,6 +96,7 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
       },
       data: {
         providerAccountId: record.providerAccountId,
+        providerAccountExternalId: record.providerAccountExternalId,
         providerLogin: record.providerLogin,
         status: toCredentialStatus(record.status),
         currentVersion: record.currentVersion,
@@ -134,6 +136,7 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
         provider: true,
         ownerUserId: true,
         providerAccountId: true,
+        providerAccountExternalId: true,
         providerLogin: true,
         status: true,
         currentVersion: true,
@@ -147,6 +150,7 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
           provider: fromPrismaCredentialProvider(row.provider),
           ownerUserId: row.ownerUserId,
           providerAccountId: row.providerAccountId,
+          providerAccountExternalId: row.providerAccountExternalId,
           providerLogin: row.providerLogin,
           status: fromCredentialStatus(row.status),
           currentVersion: row.currentVersion,
@@ -245,7 +249,8 @@ function toRecord(row: {
   id: string;
   provider: PrismaCredentialProvider;
   ownerUserId: string;
-  providerAccountId: bigint;
+  providerAccountId: bigint | null;
+  providerAccountExternalId: string | null;
   providerLogin: string;
   status: PrismaCredentialStatus;
   currentVersion: number;
@@ -257,6 +262,7 @@ function toRecord(row: {
     provider: fromPrismaCredentialProvider(row.provider),
     ownerUserId: row.ownerUserId,
     providerAccountId: row.providerAccountId,
+    providerAccountExternalId: row.providerAccountExternalId,
     providerLogin: row.providerLogin,
     status: fromCredentialStatus(row.status),
     currentVersion: row.currentVersion,

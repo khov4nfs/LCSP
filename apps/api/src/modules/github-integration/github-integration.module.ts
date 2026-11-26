@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Logger, Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 
@@ -65,34 +65,23 @@ import {
   assertGitLabCliRuntime,
   resolveGitLabCliExecutablePath,
 } from "./infrastructure/gitlab/gitlab-cli-runtime.validator.js";
-import {
-  BitbucketCliProviderError,
-  BitbucketCliRepositoryProvider,
-} from "./infrastructure/bitbucket/bitbucket-cli-repository.provider.js";
 import { BitbucketSecureArchiveHttpTransport } from "./infrastructure/bitbucket/bitbucket-secure-archive-http.transport.js";
-import {
-  assertBitbucketCliRuntime,
-  resolveBitbucketCliExecutablePath,
-} from "./infrastructure/bitbucket/bitbucket-cli-runtime.validator.js";
-import {
-  AzureDevOpsCliProviderError,
-  AzureDevOpsCliRepositoryProvider,
-} from "./infrastructure/azure-devops/azure-devops-cli-repository.provider.js";
+import { BitbucketRestRepositoryProvider } from "./infrastructure/bitbucket/bitbucket-rest-repository.provider.js";
 import { AzureDevOpsSecureArchiveHttpTransport } from "./infrastructure/azure-devops/azure-devops-secure-archive-http.transport.js";
-import {
-  assertAzureDevOpsCliRuntime,
-  resolveAzureDevOpsCliExecutablePath,
-} from "./infrastructure/azure-devops/azure-devops-cli-runtime.validator.js";
+import { AzureDevOpsRestRepositoryProvider } from "./infrastructure/azure-devops/azure-devops-rest-repository.provider.js";
 import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
+import { PrismaModule } from "../../infrastructure/prisma/prisma.module.js";
+import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
+import { isExternalIdentitySchemaCompatible } from "./infrastructure/external-identity-schema.readiness.js";
 import { RuntimeHydrationTicketLifecycle } from "./application/services/runtime-hydration-ticket-lifecycle.service.js";
 import { FinalizeRuntimeHydrationTicketHandler } from "./application/commands/finalize-runtime-hydration-ticket/finalize-runtime-hydration-ticket.handler.js";
 import { ReconcileRuntimeHydrationTicketHandler } from "./application/commands/reconcile-runtime-hydration-ticket/reconcile-runtime-hydration-ticket.handler.js";
 
 /**
- * Wires per-user credential repository access (GitHub, GitLab, Bitbucket, Azure DevOps), immutable snapshot pinning/streaming, and mechanical sandbox hydration across HTTP, CQRS, and Prisma adapters.
+ * Wires active GitHub/GitLab repository adapters, fail-closed provider readiness, immutable snapshot streaming, and mechanical sandbox hydration across HTTP, CQRS, and Prisma adapters.
  */
 @Module({
-  imports: [CqrsModule, RbacModule],
+  imports: [CqrsModule, RbacModule, PrismaModule],
   controllers: [GitHubIntegrationController, InternalSnapshotController],
   providers: [
     PinSnapshotHandler,
@@ -108,12 +97,14 @@ import { ReconcileRuntimeHydrationTicketHandler } from "./application/commands/r
     ConnectAssessmentRepositoryHandler,
     {
       provide: REPOSITORY_PROVIDER_REGISTRY,
-      inject: [GITHUB_REPOSITORY_PROVIDER, ConfigService],
-      useFactory: (
+      inject: [GITHUB_REPOSITORY_PROVIDER, ConfigService, PrismaService],
+      useFactory: async (
         githubProvider: GitHubRepositoryProviderPort,
         configService: ConfigService<AppConfig, true>,
+        prisma: PrismaService,
       ) => {
         const cwd = CONFIG_WORKSPACE_ROOT;
+        const githubCli = configService.get("githubCli", { infer: true });
         const gitlab = configService.get("gitlabCli", { infer: true });
         const gitlabProvider = providerOrUnavailable(
           () => {
@@ -134,48 +125,49 @@ import { ReconcileRuntimeHydrationTicketHandler } from "./application/commands/r
             ),
         );
 
-        const bitbucket = configService.get("bitbucketCli", { infer: true });
-        const bitbucketProvider = providerOrUnavailable(
-          () => {
-            const executablePath = resolveBitbucketCliExecutablePath(
-              bitbucket.executablePath,
-              { cwd },
-            );
-            assertBitbucketCliRuntime(executablePath, { cwd });
-            return new BitbucketCliRepositoryProvider({
-              ...bitbucket,
-              executablePath,
-              workspaceRoot: cwd,
-            });
-          },
-          () =>
-            new BitbucketCliProviderError(
-              GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
-            ),
-        );
-
-        const azureDevOps = configService.get("azureDevOpsCli", {
+        const bitbucketProvider = new BitbucketRestRepositoryProvider({
+          timeoutMs: githubCli.metadataTimeoutMs,
+          maxArchiveBytes: githubCli.maxArchiveBytes,
+        });
+        const azureDevOpsProvider = new AzureDevOpsRestRepositoryProvider({
+          timeoutMs: githubCli.metadataTimeoutMs,
+          maxArchiveBytes: githubCli.maxArchiveBytes,
+        });
+        const providerAvailability = configService.get("providerAvailability", {
           infer: true,
         });
-        const azureDevOpsProvider = providerOrUnavailable(
-          () => {
-            const executablePath = resolveAzureDevOpsCliExecutablePath(
-              azureDevOps.executablePath,
-              { cwd },
-            );
-            assertAzureDevOpsCliRuntime(executablePath, { cwd });
-            return new AzureDevOpsCliRepositoryProvider({
-              ...azureDevOps,
-              executablePath,
-              workspaceRoot: cwd,
-            });
-          },
-          () =>
-            new AzureDevOpsCliProviderError(
-              GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
-            ),
-        );
+        const disabledProviders = new Set<
+          | typeof CREDENTIAL_PROVIDERS.bitbucket
+          | typeof CREDENTIAL_PROVIDERS.azureDevOps
+        >();
+        const activationRequested =
+          providerAvailability.bitbucketRestEnabled ||
+          providerAvailability.azureDevOpsRestEnabled;
+        const schemaAssertion =
+          providerAvailability.externalIdentitySchemaReady;
+        const databaseSchemaReady =
+          activationRequested &&
+          schemaAssertion &&
+          (await isExternalIdentitySchemaCompatible(prisma));
+        if (activationRequested && schemaAssertion && !databaseSchemaReady) {
+          new Logger("GitHubIntegrationModule").warn(
+            "Bitbucket and Azure DevOps remain unavailable because the active database does not match the external credential identity schema",
+          );
+        }
+        if (
+          !providerAvailability.bitbucketRestEnabled ||
+          !databaseSchemaReady
+        ) {
+          disabledProviders.add(CREDENTIAL_PROVIDERS.bitbucket);
+        }
+        if (
+          !providerAvailability.azureDevOpsRestEnabled ||
+          !databaseSchemaReady
+        ) {
+          disabledProviders.add(CREDENTIAL_PROVIDERS.azureDevOps);
+        }
 
+        // Register the native adapters while deployment flags and the active database schema enforce operation readiness.
         return new ConfiguredRepositoryProviderRegistry(
           new Map([
             [CREDENTIAL_PROVIDERS.github, githubProvider],
@@ -183,6 +175,7 @@ import { ReconcileRuntimeHydrationTicketHandler } from "./application/commands/r
             [CREDENTIAL_PROVIDERS.bitbucket, bitbucketProvider],
             [CREDENTIAL_PROVIDERS.azureDevOps, azureDevOpsProvider],
           ]),
+          disabledProviders,
         );
       },
     },

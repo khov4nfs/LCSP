@@ -17,11 +17,9 @@ import {
   bootstrapLocalGitHubCli,
   bootstrapLocalGitLabCli,
   bootstrapLocalBitbucketCli,
-  bootstrapLocalAzureDevOpsCli,
   SUPPORTED_GITHUB_CLI_VERSION,
   SUPPORTED_GITLAB_CLI_VERSION,
   SUPPORTED_BITBUCKET_CLI_VERSION,
-  SUPPORTED_AZURE_DEVOPS_CLI_VERSION,
 } from "./bootstrap-github-cli-dev.mjs";
 
 async function withTempEnv(callback) {
@@ -111,32 +109,6 @@ test("Bitbucket bootstrap persists its CLI path without retired provider flags",
     });
     assert.deepEqual(parse(readFileSync(envFilePath)), {
       BITBUCKET_CLI_EXECUTABLE_PATH: "bb.exe",
-    });
-  }));
-
-test("Azure DevOps bootstrap persists its CLI path without retired provider flags", () =>
-  withTempEnv(async (root, envFilePath) => {
-    const executablePath = path.join(root, "az.exe");
-    writeFileSync(executablePath, "fake-az", "utf8");
-    const spawnSyncImpl = (_command, args) =>
-      args[0] === "version"
-        ? {
-            status: 0,
-            stdout: `azure-cli ${SUPPORTED_AZURE_DEVOPS_CLI_VERSION} (test)\n`,
-          }
-        : { status: 0, stdout: `${executablePath}\n` };
-    await bootstrapLocalAzureDevOpsCli({
-      repoRoot: root,
-      env: {
-        NODE_ENV: "development",
-        AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath,
-      },
-      platform: "win32",
-      envFilePath,
-      spawnSyncImpl,
-    });
-    assert.deepEqual(parse(readFileSync(envFilePath)), {
-      AZURE_DEVOPS_CLI_EXECUTABLE_PATH: "az.exe",
     });
   }));
 

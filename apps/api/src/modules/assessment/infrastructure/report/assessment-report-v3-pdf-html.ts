@@ -7,16 +7,22 @@ import {
   ASSESSMENT_REPORT_ACTION_PRIORITIES,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
 } from "@lcsp/contracts/assessment-report";
+import { ASSESSMENT_EVIDENCE_TYPES } from "@lcsp/contracts/assessment-domain";
 import {
   localizedApplicability,
   localizedCompliance,
   localizedEvidenceType,
   type ReportTranslationCatalog,
 } from "./assessment-report-v2-pdf-presentation.js";
+import {
+  renderReportSourceLocator,
+  type RepositoryReportSource,
+} from "./assessment-report-source-link.js";
 
 type RenderOptions = {
   preview?: boolean;
   translations?: ReportTranslationCatalog;
+  repositorySource?: RepositoryReportSource | null;
 };
 
 const text = (value: unknown) => (typeof value === "string" ? value : "");
@@ -97,6 +103,7 @@ function buildV3ReferenceIndex(model: AssessmentReportV3Presentation) {
  *
  * Business rules:
  * - Render only accepted findings, canonical verdicts, authoritative source scope, and bounded action plans without recalculating compliance.
+ * - Add repository citations only from validated pinned snapshot context; malformed or incomplete provenance remains an escaped locator.
  * - Treat all persisted narrative, facts, locators, and limitation text as untrusted data and strictly escape them for HTML output.
  * - Forbid script execution, active markup, or remote resource loading through strict CSP and isolated styling.
  *
@@ -170,7 +177,7 @@ export function assessmentReportV3Html(
             const evRef = refs.evidenceReference(e.evidenceId);
             const refLabel = evRef ? `[${inline(evRef)}] ` : "";
             const locator = e.safeLocator
-              ? `<br><code>${inline(e.safeLocator)}</code>`
+              ? `<br>${e.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE ? renderReportSourceLocator(e.safeLocator, options.repositorySource) : `<code>${inline(e.safeLocator)}</code>`}`
               : "";
             return `<div>${refLabel}${inline(localizedEvidenceType(e.type))}${locator}</div>`;
           })

@@ -32,6 +32,7 @@ from tools.common.capabilities.platform.docker_sandbox import DockerSandboxManag
 from tools.common.capabilities.platform.repository_snapshot_client import (
     RepositoryArchiveRequest,
     RepositorySnapshotClient,
+    RepositoryTreePathManifest,
 )
 from tools.common.capabilities.platform.repository_workspace import RepositoryWorkspace
 
@@ -559,10 +560,10 @@ def hydrate_repository(
 
     config = load_config()
     _emit_lifecycle(lifecycle, "repository_archive_downloading")
-    archive = RepositorySnapshotClient(
+    archive_download = RepositorySnapshotClient(
         config.nestjs_api_base_url,
         config.worker_api_key,
-    ).download_archive(
+    ).download_archive_with_metadata(
         RepositoryArchiveRequest(
             snapshot_id=snapshot_id,
             scan_job_id=scan_job_id,
@@ -571,7 +572,11 @@ def hydrate_repository(
     )
     _emit_lifecycle(lifecycle, "repository_archive_downloaded")
     sanitized_archive, source_coverage = _sanitize_archive(
-        archive, snapshot_id=snapshot_id, source_path_prefix=source_path_prefix,
+        archive_download.content,
+        snapshot_id=snapshot_id,
+        source_path_prefix=source_path_prefix,
+        archive_root=archive_download.archive_root,
+        tree_manifest=getattr(archive_download, "tree_manifest", None),
     )
 
     upload_files = getattr(backend, "upload_files", None)
@@ -678,19 +683,22 @@ def _read_marker(backend: object) -> dict[str, Any]:
 
 def _sanitize_archive(
     archive: bytes, *, snapshot_id: str, source_path_prefix: str | None = None,
+    archive_root: str | None = None,
+    tree_manifest: RepositoryTreePathManifest | None = None,
 ) -> tuple[bytes, dict[str, Any]]:
     """Business purpose:
     Build the runtime source view for the immutable customer selection with truthful coverage.
 
     Business rules:
     - Workspace safety guards apply before filtering; links and runtime-owned .git/.lcsp never become source.
+    - A provider wrapper is removed only when transport metadata names it or a complete pinned-tree manifest uniquely proves it.
     - A selected subtree retains original repository-relative paths and excludes similarly named siblings.
     - Intentional scope exclusions do not limit in-scope coverage; guarded omissions inside it do.
     - Scope-exclusion samples are bounded; their exact count remains available without exposing sibling content.
     - A scoped view must retain at least one real source file and cannot silently fall back to the full archive.
 
     Execution flow:
-    1. Validate the exact source prefix and materialize the archive through the existing bounded extractor.
+    1. Validate the exact source prefix and materialize the archive through the existing bounded extractor and path verifier.
     2. Classify guarded omissions and retained files against the selected scope.
     3. Return only allowed source with separate safety and scope-exclusion provenance.
 
@@ -703,8 +711,22 @@ def _sanitize_archive(
     source_path_prefix = validate_source_path_prefix(source_path_prefix)
     with tempfile.TemporaryDirectory(prefix="lcsp-repository-sandbox-") as root:
         workspace = RepositoryWorkspace(Path(root))
-        result = workspace.materialize("snapshot", archive, snapshot_id=snapshot_id)
-        source_root = _repository_root(result.workspace_path)
+        result = workspace.materialize(
+            "snapshot",
+            archive,
+            snapshot_id=snapshot_id,
+            archive_root=archive_root,
+            tree_manifest=tree_manifest,
+        )
+        effective_archive_root = (
+            result.verified_archive_root
+            if tree_manifest is not None
+            else archive_root
+        )
+        source_root = _repository_root(
+            result.workspace_path,
+            archive_root=effective_archive_root,
+        )
         archive_prefix = source_root.relative_to(result.workspace_path)
         skipped = []
         excluded = []
@@ -749,11 +771,38 @@ def _sanitize_archive(
         }
 
 
-def _repository_root(workspace_path: Path) -> Path:
-    entries = list(workspace_path.iterdir())
-    if len(entries) == 1 and entries[0].is_dir():
-        return entries[0]
-    return workspace_path
+def _repository_root(workspace_path: Path, *, archive_root: str | None = None) -> Path:
+    """Business purpose:
+    Keep archive wrapper directories out of repository-relative paths only when their identity is explicit.
+
+    Business rules:
+    - A top-level directory is preserved by default; its shape alone does not prove it is a provider wrapper.
+    - An explicitly supplied wrapper must be the archive's sole top-level directory.
+
+    Execution flow:
+    1. Return the complete workspace when no exact wrapper name is supplied.
+    2. Validate the supplied wrapper name and confirm it owns the complete extracted archive.
+
+    Failure cases:
+    - Invalid or missing wrapper metadata fails closed before source filtering or sandbox upload.
+
+    Side effects:
+    - Read-only path selection; does not rename or modify repository source files.
+    """
+    if archive_root is None:
+        return workspace_path
+    parts = archive_root.split("/")
+    if len(parts) != 1 or not archive_root or any(
+        part in {"", ".", ".."} or "\\" in part or ":" in part for part in parts
+    ):
+        raise RuntimeError("archive root metadata is invalid")
+    source_root = workspace_path.joinpath(*parts)
+    if not source_root.is_dir():
+        raise RuntimeError("declared archive root is missing")
+    expected_top_level = workspace_path / parts[0]
+    if list(workspace_path.iterdir()) != [expected_top_level]:
+        raise RuntimeError("declared archive root does not contain the complete archive")
+    return source_root
 
 
 def _real_path(path: str) -> str:

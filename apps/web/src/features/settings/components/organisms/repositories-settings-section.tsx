@@ -74,6 +74,13 @@ const SUPPORTED_CREDENTIAL_PROVIDERS = [
 type SupportedCredentialProvider =
   (typeof SUPPORTED_CREDENTIAL_PROVIDERS)[number];
 
+/**
+ * Business purpose: Present owner-scoped provider credential status and safe management actions in Settings.
+ * Business rules: New credential operations require backend readiness; disconnected or unavailable providers may still be managed only when a stored credential exists so it can be removed.
+ * Execution flow: 1. Project status by provider. 2. Show lifecycle and readiness. 3. Open the existing connect/manage dialog for an allowed action.
+ * Failure cases: Unknown or unavailable status does not enable a new credential write; status loading failures keep actions closed.
+ * Side effects: Reads status queries and may open credential dialogs; this component does not persist credential data itself.
+ */
 export function RepositoriesSettingsSection({
   providerCredentialStatuses = [],
   isLoading = false,
@@ -187,6 +194,13 @@ export function RepositoriesSettingsSection({
                   getProviderConnectionState(providerStatus);
                 const configured =
                   option.supported && hasProviderCredential(providerStatus);
+                const providerDeploymentEnabled =
+                  providerStatus?.enabled ??
+                  (option.id === CREDENTIAL_PROVIDERS.github ||
+                    option.id === CREDENTIAL_PROVIDERS.gitlab);
+                const providerAvailable = providerStatus?.available !== false;
+                const providerEnabled =
+                  providerDeploymentEnabled && providerAvailable;
                 const actionLabel = configured
                   ? "pages.workspace.settingsHub.repositories.managePat"
                   : "pages.workspace.settingsHub.repositories.connect";
@@ -224,12 +238,36 @@ export function RepositoriesSettingsSection({
                           PROVIDER_CONNECTION_LABEL_KEYS[connectionState],
                         )}
                       </span>
+                      {providerStatus?.implemented && !providerDeploymentEnabled ? (
+                        <span
+                          className="text-xs text-muted-foreground sm:w-48 sm:shrink-0"
+                          role="status"
+                        >
+                          {resolveMessage(
+                            appLocale,
+                            "pages.workspace.settingsHub.repositories.providerUnavailable",
+                          )}
+                        </span>
+                      ) : null}
+                      {providerStatus?.implemented &&
+                      providerDeploymentEnabled &&
+                      !providerAvailable ? (
+                        <span
+                          className="text-xs text-muted-foreground sm:w-48 sm:shrink-0"
+                          role="status"
+                        >
+                          {resolveMessage(
+                            appLocale,
+                            "pages.workspace.settingsHub.repositories.providerTemporarilyUnavailable",
+                          )}
+                        </span>
+                      ) : null}
                     </div>
                     <Button
                       type="button"
                       variant="outline"
                       className="h-9 shrink-0 sm:w-28"
-                      disabled={!option.supported}
+                      disabled={!option.supported || (!providerEnabled && !configured)}
                       onClick={() => {
                         if (
                           SUPPORTED_CREDENTIAL_PROVIDERS.includes(

@@ -27,6 +27,13 @@ export class GitLabSecureArchiveHttpTransport implements GitHubArchiveTransportP
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
+  /**
+   * Business purpose: Deliver the GitLab archive for the repository's immutable pinned commit with repository-relative paths.
+   * Business rules: The exact GitLab project, token lease, and commit SHA select the archive; the current API wrapper convention is derived from the project slug and SHA and is later checked against the complete extracted wrapper.
+   * Execution flow: 1. Validate project path and SHA. 2. Request the exact commit archive through the trusted GitLab host. 3. Return bounded TAR.GZ bytes with the deterministic current wrapper name.
+   * Failure cases: Invalid identity, authorization, timeout, redirect, response, archive format, or a changed wrapper convention fails closed during transport or workspace materialization.
+   * Side effects: Performs read-only HTTPS requests and yields a bounded archive stream; credentials are never logged.
+   */
   async downloadArchive(input: {
     credentialLease: CredentialLease;
     repositoryId?: string;
@@ -38,6 +45,12 @@ export class GitLabSecureArchiveHttpTransport implements GitHubArchiveTransportP
       !PROJECT_PATTERN.test(input.repositoryFullName) ||
       !SHA_PATTERN.test(input.commitSha)
     ) {
+      throw new GitHubArchiveTransportError(
+        GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+      );
+    }
+    const repositorySlug = input.repositoryFullName.split("/").at(-1);
+    if (!repositorySlug) {
       throw new GitHubArchiveTransportError(
         GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
       );
@@ -146,6 +159,7 @@ export class GitLabSecureArchiveHttpTransport implements GitHubArchiveTransportP
       return {
         stream,
         contentType,
+        archiveRoot: `${repositorySlug}-${input.commitSha}-${input.commitSha}`,
         redirectValidation:
           GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
         validatedHost: "gitlab.com",

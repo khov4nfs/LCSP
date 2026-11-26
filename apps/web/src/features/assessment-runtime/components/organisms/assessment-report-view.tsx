@@ -5,6 +5,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
+  ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
 } from "@lcsp/contracts/assessment-domain";
@@ -14,14 +15,96 @@ import {
   type AssessmentReportV2Presentation,
   type AssessmentReportV3Presentation,
 } from "@lcsp/contracts/assessment-report";
+import {
+  buildRepositorySourceLink,
+  type CredentialProvider,
+} from "@lcsp/contracts/github-integration";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import {
   useAssessmentDetailQuery,
   useAssessmentReportQuery,
+  useRepositorySetupQuery,
 } from "@/lib/api/assessment-domain-queries";
 import { copy } from "../../utils/conversation-copy";
 import { AssessmentReportActions } from "../molecules/assessment-report-actions";
+
+type ReportSourceContext = {
+  provider: CredentialProvider;
+  canonicalRepositoryUrl: string;
+  commitSha: string;
+};
+
+/**
+ * Business purpose: Bind an assessment report to the exact repository snapshot that supplied its source evidence.
+ * Business rules: The setup connection, snapshot, report snapshot ID, provider, repository full name and pinned commit must agree before links are made.
+ * Execution flow: 1. Read the current authorized setup projection. 2. Compare its snapshot identity to the report traceability fields. 3. Return only canonical provider context when every identity field matches.
+ * Failure cases: Missing, disconnected, stale, or contradictory setup metadata returns null and leaves report evidence internal.
+ * Side effects: Pure projection of already fetched assessment metadata; no source or report data is changed.
+ */
+function resolveReportSourceContext(
+  setup: ReturnType<typeof useRepositorySetupQuery>["data"],
+  repositorySnapshotId: string,
+  commitSha: string,
+): ReportSourceContext | null {
+  const connection = setup?.connection;
+  const snapshot = setup?.snapshot;
+  if (
+    !connection?.canonicalRepositoryUrl ||
+    !snapshot ||
+    snapshot.id !== repositorySnapshotId ||
+    snapshot.assessmentId !== setup?.assessmentId ||
+    snapshot.connectionId !== connection.connectionId ||
+    snapshot.provider !== connection.provider ||
+    snapshot.repositoryFullName !== connection.repositoryFullName ||
+    snapshot.commitSha !== commitSha
+  ) {
+    return null;
+  }
+  return {
+    provider: connection.provider,
+    canonicalRepositoryUrl: connection.canonicalRepositoryUrl,
+    commitSha: snapshot.commitSha,
+  };
+}
+
+/**
+ * Business purpose: Render a persisted evidence locator as a safe provider link when pinned repository provenance is available.
+ * Business rules: Only repository-source evidence with a canonical path and positive ordered line range can link; other evidence and invalid provenance remain plain text.
+ * Execution flow: 1. Parse the stored path and line range. 2. Ask the shared source-link builder to validate and construct the provider URL. 3. Render the locator with that URL or as internal text.
+ * Failure cases: Missing context, malformed locator, or rejected path returns a code label without an external URL.
+ * Side effects: Opens an external source page only when the user follows the generated link; evidence remains unchanged.
+ */
+function EvidenceSourceLocator({
+  evidenceType,
+  safeLocator,
+  sourceContext,
+}: {
+  evidenceType: string;
+  safeLocator: string | null;
+  sourceContext: ReportSourceContext | null;
+}) {
+  if (!safeLocator) return null;
+  const match = /^(.+):([1-9]\d*)-([1-9]\d*)$/u.exec(safeLocator);
+  const href =
+    evidenceType === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE &&
+    match &&
+    sourceContext
+      ? buildRepositorySourceLink({
+          ...sourceContext,
+          path: match[1],
+          startLine: Number(match[2]),
+          endLine: Number(match[3]),
+        })
+      : null;
+  return href ? (
+    <a className="underline" href={href} target="_blank" rel="noopener noreferrer">
+      <code className="break-all text-xs">{safeLocator}</code>
+    </a>
+  ) : (
+    <code className="break-all text-xs">{safeLocator}</code>
+  );
+}
 
 function Field({
   label,
@@ -111,7 +194,20 @@ function V1Report({ model }: { model: AssessmentReportV1Presentation }) {
   );
 }
 
-function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
+/**
+ * Business purpose: Present the immutable V2 assessment report and its supporting repository evidence.
+ * Business rules: External source links are rendered only when the report's snapshot-bound context is complete and the shared URL builder validates each locator.
+ * Execution flow: 1. Render report facts and conclusions. 2. Attach provider links to valid repository-source locators. 3. Keep other evidence and incomplete provenance internal.
+ * Failure cases: Invalid source locators render as plain text without affecting report presentation.
+ * Side effects: Read-only rendering; following an external link navigates to the pinned provider commit.
+ */
+function V2Report({
+  model,
+  sourceContext,
+}: {
+  model: AssessmentReportV2Presentation;
+  sourceContext: ReportSourceContext | null;
+}) {
   const labels = (key: string) => copy(`labels.${key}`);
   const applicabilityLabel = (value: string) =>
     value === "APPLICABLE" ? labels("applicable") : labels("notApplicable");
@@ -255,9 +351,12 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
                       {item.evidence.map((evidence) => (
                         <li key={evidence.evidenceId}>
                           {evidence.type}
-                          {evidence.safeLocator
-                            ? ` · ${evidence.safeLocator}`
-                            : ""}{" "}
+                          {evidence.safeLocator ? " · " : ""}
+                          <EvidenceSourceLocator
+                            evidenceType={evidence.type}
+                            safeLocator={evidence.safeLocator}
+                            sourceContext={sourceContext}
+                          />{" "}
                           <code className="break-all text-xs">
                             [{evidence.evidenceId}]
                           </code>
@@ -413,9 +512,12 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
                       className="break-words text-sm"
                     >
                       {evidence.type}
-                      {evidence.safeLocator
-                        ? ` · ${evidence.safeLocator}`
-                        : ""}{" "}
+                      {evidence.safeLocator ? " · " : ""}
+                      <EvidenceSourceLocator
+                        evidenceType={evidence.type}
+                        safeLocator={evidence.safeLocator}
+                        sourceContext={sourceContext}
+                      />{" "}
                       · {evidence.contentSha256} [{evidence.evidenceId}]
                     </p>
                   ))
@@ -563,7 +665,20 @@ function V2Report({ model }: { model: AssessmentReportV2Presentation }) {
   );
 }
 
-function V3Report({ model }: { model: AssessmentReportV3Presentation }) {
+/**
+ * Business purpose: Present the immutable V3 assessment report, source scope and supporting evidence.
+ * Business rules: External citations must remain bound to the report's validated pinned snapshot; source scope and compliance decisions are not altered for presentation.
+ * Execution flow: 1. Render scope-aware report sections. 2. Link only repository evidence whose path and line range pass shared validation. 3. Preserve internal citations when provenance is incomplete.
+ * Failure cases: Unsafe or incomplete citations remain plain text and never become Agent-supplied URLs.
+ * Side effects: Read-only rendering; a customer may follow a provider URL to view the pinned source.
+ */
+function V3Report({
+  model,
+  sourceContext,
+}: {
+  model: AssessmentReportV3Presentation;
+  sourceContext: ReportSourceContext | null;
+}) {
   const labels = (key: string) => copy(`labels.${key}`);
   const applicabilityLabel = (value: string) =>
     value === "APPLICABLE" ? labels("applicable") : labels("notApplicable");
@@ -743,9 +858,12 @@ function V3Report({ model }: { model: AssessmentReportV3Presentation }) {
                       {item.evidence.map((evidence) => (
                         <li key={evidence.evidenceId}>
                           {evidence.type}
-                          {evidence.safeLocator
-                            ? ` · ${evidence.safeLocator}`
-                            : ""}{" "}
+                          {evidence.safeLocator ? " · " : ""}
+                          <EvidenceSourceLocator
+                            evidenceType={evidence.type}
+                            safeLocator={evidence.safeLocator}
+                            sourceContext={sourceContext}
+                          />{" "}
                           <code className="break-all text-xs">
                             [{evidence.evidenceId}]
                           </code>
@@ -879,9 +997,12 @@ function V3Report({ model }: { model: AssessmentReportV3Presentation }) {
                 {detail.evidence.map((evidence) => (
                   <li key={evidence.evidenceId}>
                     {evidence.type}
-                    {evidence.safeLocator
-                      ? ` · ${evidence.safeLocator}`
-                      : ""}{" "}
+                    {evidence.safeLocator ? " · " : ""}
+                    <EvidenceSourceLocator
+                      evidenceType={evidence.type}
+                      safeLocator={evidence.safeLocator}
+                      sourceContext={sourceContext}
+                    />{" "}
                     <code className="break-all text-xs">
                       [{evidence.evidenceId}]
                     </code>
@@ -1002,6 +1123,13 @@ function V3Report({ model }: { model: AssessmentReportV3Presentation }) {
   );
 }
 
+/**
+ * Business purpose: Show the authorized immutable final report with provider-correct source citations.
+ * Business rules: Source links require exact agreement between the report snapshot/commit and the owner-authorized repository setup projection; historical report content remains visible when link context is absent.
+ * Execution flow: 1. Load assessment, report and repository setup metadata. 2. Validate snapshot-bound link context. 3. Render the selected report schema and its safe evidence links.
+ * Failure cases: Query or report validation failures use the existing report error state; incomplete repository metadata suppresses only external links.
+ * Side effects: Reads cached report/setup queries and renders links; no report or evidence is modified.
+ */
 export function AssessmentReportView({
   assessmentId,
   artifactId,
@@ -1010,6 +1138,7 @@ export function AssessmentReportView({
   artifactId?: string;
 }) {
   const detail = useAssessmentDetailQuery(assessmentId);
+  const repositorySetup = useRepositorySetupQuery(assessmentId);
   const artifact = detail.data?.case?.artifacts.find(
     (item) =>
       item.kind === ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT &&
@@ -1045,6 +1174,14 @@ export function AssessmentReportView({
       </div>
     );
   const model = buildAssessmentReportPresentation(report.data);
+  const sourceContext =
+    "legacy" in model
+      ? null
+      : resolveReportSourceContext(
+          repositorySetup.data,
+          model.header.repositorySnapshotId,
+          model.header.repositoryCommit,
+        );
   return (
     <article
       data-slot="assessment-report"
@@ -1062,9 +1199,9 @@ export function AssessmentReportView({
       {"legacy" in model ? (
         <V1Report model={model} />
       ) : model.version === ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION ? (
-        <V2Report model={model} />
+        <V2Report model={model} sourceContext={sourceContext} />
       ) : model.version === ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION ? (
-        <V3Report model={model} />
+        <V3Report model={model} sourceContext={sourceContext} />
       ) : (
         <Alert variant="destructive">
           <AlertDescription>{copy("failed")}</AlertDescription>

@@ -126,9 +126,9 @@ function build(
     connections,
     snapshots,
     resolver,
-    provider,
     prisma,
     audit,
+    { get: () => provider },
   );
   return {
     handler,

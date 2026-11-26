@@ -2,6 +2,8 @@
 
 import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import {
+  AZURE_DEVOPS_CREDENTIAL_TYPES,
+  BITBUCKET_CREDENTIAL_TYPES,
   CREDENTIAL_PROVIDERS,
   GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
@@ -30,6 +32,7 @@ import {
   GitHubRepositoryRequestError,
   githubRepositoryProblemMessageKey,
   type ProviderCredentialStatus,
+  type ProviderCredentialSubmission,
 } from "@/lib/api/github-repository-client";
 import {
   useDisconnectProviderCredentialMutation,
@@ -43,6 +46,7 @@ import {
   PROVIDER_CONNECTION_TONE_CLASSES,
 } from "../../config/provider-connection.config";
 import {
+  bitbucketProviderCredentialSchema,
   azureProviderCredentialSchema,
   providerCredentialSchema,
   type ProviderCredentialValues,
@@ -134,6 +138,13 @@ const PROVIDER_GUIDANCE_KEYS = {
   Parameters<typeof resolveMessage>[1]
 >;
 
+/**
+ * Business purpose: Configure, replace, inspect, or disconnect a provider credential in the existing Settings workflow.
+ * Business rules: Bitbucket and Azure submissions use their typed identity-bound contracts and expiry; disabled providers cannot receive new secrets, while existing credentials remain disconnectable.
+ * Execution flow: 1. Select the provider-specific schema. 2. Submit a masked typed credential or manage its lifecycle. 3. Confirm saved status from the backend before showing success.
+ * Failure cases: Unavailable providers, invalid inputs, failed authorization, or unconfirmed writes remain actionable and never report success.
+ * Side effects: May submit encrypted credential changes or disconnect commands through existing API mutations; raw secrets are not cached or displayed.
+ */
 export function ProviderCredentialDialog({
   mode,
   onModeChange,
@@ -143,14 +154,21 @@ export function ProviderCredentialDialog({
   provider,
   status,
 }: ProviderCredentialDialogProps) {
+  const providerEnabled =
+    (status?.enabled ??
+      (provider === CREDENTIAL_PROVIDERS.github ||
+        provider === CREDENTIAL_PROVIDERS.gitlab)) &&
+    status?.available !== false;
   // Keep PAT drafts in the mounted form, outside TanStack mutation variables and caches.
   const form = useForm<ProviderCredentialValues>({
     resolver: zodResolver(
       provider === CREDENTIAL_PROVIDERS.azureDevOps
         ? azureProviderCredentialSchema
-        : providerCredentialSchema,
+        : provider === CREDENTIAL_PROVIDERS.bitbucket
+          ? bitbucketProviderCredentialSchema
+          : providerCredentialSchema,
     ),
-    defaultValues: { credential: "", organization: "" },
+    defaultValues: { credential: "", organization: "", email: "", expiresAt: "" },
   });
   const [reauthRequired, setReauthRequired] = useState(false);
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
@@ -317,35 +335,46 @@ export function ProviderCredentialDialog({
   }
 
   /**
-   * Business purpose: Save a new or replacement PAT under the current account's policy.
-   * Business rules: Only completed verification can authorize one automatic retry.
+   * Business purpose: Save a provider-specific credential with explicit identity context and declared expiry.
+   * Business rules: Bitbucket requires account email and API Token, Azure requires organization and PAT, and GitHub/GitLab retain their string contract; only completed verification can authorize one automatic retry.
    * Execution flow:
    * 1. Submit the validated PAT and request proof only on a backend challenge.
    * 2. Retry once after proof, then clear the acknowledged draft and confirm by reading status.
    * Failure cases: Cancellation clears the PAT; other failures keep the masked draft and report the error.
    * Side effects: May update the provider credential and its shared status.
    */
-  async function submitCredential({
-    credential,
-    organization,
-  }: ProviderCredentialValues) {
+  async function submitCredential({ credential, organization, email, expiresAt }: ProviderCredentialValues) {
     if (saveOperation.current || pendingConfirmation !== null) return;
     const operation = new AbortController();
     saveOperation.current = operation;
     const { signal } = operation;
     setErrorKey(null);
-    // Preserve Azure's existing combined format while keeping validation errors on the correct fields.
-    const submittedCredential =
-      provider === CREDENTIAL_PROVIDERS.azureDevOps &&
-      organization &&
-      !credential.includes(":")
-        ? `${organization}:${credential}`
-        : credential;
-    const write = () =>
-      configureProviderCredential(
-        { provider, credential: submittedCredential },
-        signal,
-      );
+    const credentialExpiresAt = expiresAt
+      ? new Date(`${expiresAt}T23:59:59.999Z`).toISOString()
+      : undefined;
+    const submission: ProviderCredentialSubmission =
+      provider === CREDENTIAL_PROVIDERS.bitbucket
+        ? {
+            provider,
+            credential: {
+              type: BITBUCKET_CREDENTIAL_TYPES.atlassianApiToken,
+              email,
+              apiToken: credential,
+            },
+            credential_expires_at: credentialExpiresAt,
+          }
+        : provider === CREDENTIAL_PROVIDERS.azureDevOps
+          ? {
+              provider,
+              credential: {
+                type: AZURE_DEVOPS_CREDENTIAL_TYPES.organizationPat,
+                organization,
+                pat: credential,
+              },
+              credential_expires_at: credentialExpiresAt,
+            }
+          : { provider, credential, credential_expires_at: credentialExpiresAt };
+    const write = () => configureProviderCredential(submission, signal);
     try {
       let acknowledged;
       try {
@@ -459,9 +488,11 @@ export function ProviderCredentialDialog({
         ) : mode === PROVIDER_CREDENTIAL_DIALOG_MODES.manage ? (
           <ManageCredentialContent
             accountUsername={accountUsername}
+            provider={provider}
             onDisconnectRequest={() => setConfirmingDisconnect(true)}
             onModeChange={changeMode}
             status={status}
+            providerEnabled={providerEnabled}
           />
         ) : (
           <FormProvider {...form}>
@@ -481,6 +512,7 @@ export function ProviderCredentialDialog({
               }}
               onSubmit={form.handleSubmit(submitCredential)}
               provider={provider}
+              providerEnabled={providerEnabled}
               reauthRequired={reauthRequired}
             />
           </FormProvider>
@@ -529,6 +561,7 @@ function CredentialForm({
   onCancel,
   onSubmit,
   provider,
+  providerEnabled,
   reauthRequired,
 }: {
   accountUsername: string;
@@ -540,6 +573,7 @@ function CredentialForm({
   onCancel: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   provider: CredentialProvider;
+  providerEnabled: boolean;
   reauthRequired: boolean;
 }) {
   const isUpdateMode = mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update;
@@ -549,33 +583,55 @@ function CredentialForm({
   } = useFormContext<ProviderCredentialValues>();
   const organizationError = errors.organization?.message as
     MessageKey | undefined;
+  const emailError = errors.email?.message as MessageKey | undefined;
+  const expiryError = errors.expiresAt?.message as MessageKey | undefined;
   const credentialError = errors.credential?.message as MessageKey | undefined;
 
   return (
     <form className="mt-4 flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
-      <div className="flex h-18 flex-col gap-2">
-        <label className="text-[13px] font-medium" htmlFor="provider-username">
-          {resolveMessage(
-            appLocale,
-            "pages.workspace.settingsHub.repositories.username",
-          )}
-        </label>
-        <div
-          className={cn(
-            "flex h-11 items-center rounded-lg border border-border bg-muted/35 px-3 text-[13px]",
-            accountUsername ? "text-foreground" : "text-muted-foreground",
-          )}
-          id="provider-username"
-          data-field="credential-username"
-        >
-          {isUpdateMode && accountUsername
-            ? accountUsername
-            : resolveMessage(
-                appLocale,
-                "pages.workspace.settingsHub.repositories.detectAccountFromCredential",
-              )}
+      {provider !== CREDENTIAL_PROVIDERS.azureDevOps ? (
+        <div className="flex h-18 flex-col gap-2">
+          <label className="text-[13px] font-medium" htmlFor="provider-username">
+            {resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.repositories.username",
+            )}
+          </label>
+          <div
+            className={cn(
+              "flex h-11 items-center rounded-lg border border-border bg-muted/35 px-3 text-[13px]",
+              accountUsername ? "text-foreground" : "text-muted-foreground",
+            )}
+            id="provider-username"
+            data-field="credential-username"
+          >
+            {isUpdateMode && accountUsername
+              ? accountUsername
+              : resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.repositories.detectAccountFromCredential",
+                )}
+          </div>
         </div>
-      </div>
+      ) : null}
+      {provider === CREDENTIAL_PROVIDERS.bitbucket ? (
+        <div className="mt-4 flex min-h-18 flex-col gap-2">
+          <label className="text-[13px] font-medium" htmlFor="provider-email">
+            {resolveMessage(appLocale, "pages.workspace.settingsHub.repositories.bitbucketEmailLabel")}
+          </label>
+          <Input
+            id="provider-email"
+            className="h-11 text-[13px]"
+            type="email"
+            autoComplete="username"
+            {...register("email")}
+            readOnly={isPending || confirmationPending}
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby={emailError ? "provider-email-error" : undefined}
+          />
+          {emailError ? <p id="provider-email-error" role="alert" className="text-xs text-destructive">{resolveMessage(appLocale, emailError)}</p> : null}
+        </div>
+      ) : null}
       {provider === CREDENTIAL_PROVIDERS.azureDevOps ? (
         <div className="mt-4 flex min-h-18 flex-col gap-2">
           <label
@@ -611,6 +667,23 @@ function CredentialForm({
               {resolveMessage(appLocale, organizationError)}
             </p>
           ) : null}
+        </div>
+      ) : null}
+      {provider === CREDENTIAL_PROVIDERS.bitbucket || provider === CREDENTIAL_PROVIDERS.azureDevOps ? (
+        <div className="mt-4 flex min-h-18 flex-col gap-2">
+          <label className="text-[13px] font-medium" htmlFor="provider-expiry">
+            {resolveMessage(appLocale, "pages.workspace.settingsHub.repositories.credentialExpiryLabel")}
+          </label>
+          <Input
+            id="provider-expiry"
+            className="h-11 text-[13px]"
+            type="date"
+            {...register("expiresAt")}
+            readOnly={isPending || confirmationPending}
+            aria-invalid={expiryError ? true : undefined}
+            aria-describedby={expiryError ? "provider-expiry-error" : undefined}
+          />
+          {expiryError ? <p id="provider-expiry-error" role="alert" className="text-xs text-destructive">{resolveMessage(appLocale, expiryError)}</p> : null}
         </div>
       ) : null}
       <div className="mt-4 flex min-h-18 flex-col gap-2">
@@ -657,6 +730,11 @@ function CredentialForm({
       >
         {resolveMessage(appLocale, PROVIDER_GUIDANCE_KEYS[provider])}
       </div>
+      {!providerEnabled ? (
+        <p role="status" className="mt-2 text-xs text-muted-foreground">
+          {resolveMessage(appLocale, "pages.workspace.settingsHub.repositories.providerUnavailable")}
+        </p>
+      ) : null}
       {errorKey && !reauthRequired ? (
         <p role="alert" className="mt-2 text-xs font-medium text-destructive">
           {resolveMessage(appLocale, errorKey)}
@@ -687,7 +765,7 @@ function CredentialForm({
         {confirmationPending ? (
           <Button
             type="button"
-            disabled={isPending}
+            disabled={isPending || !providerEnabled}
             onClick={() => void onConfirmStatus()}
           >
             {resolveMessage(
@@ -699,7 +777,7 @@ function CredentialForm({
           <Button
             className={cn("h-9", isUpdateMode ? "min-w-21" : "min-w-25")}
             type="submit"
-            disabled={isPending}
+            disabled={isPending || !providerEnabled}
           >
             {resolveMessage(
               appLocale,
@@ -718,14 +796,18 @@ function CredentialForm({
 
 function ManageCredentialContent({
   accountUsername,
+  provider,
   onDisconnectRequest,
   onModeChange,
   status,
+  providerEnabled,
 }: {
   accountUsername: string;
+  provider: CredentialProvider;
   onDisconnectRequest: () => void;
   onModeChange: (mode: ProviderCredentialDialogMode) => void;
   status?: ProviderCredentialStatus | null;
+  providerEnabled: boolean;
 }) {
   const connectionState = getProviderConnectionState(status);
   return (
@@ -755,7 +837,11 @@ function ManageCredentialContent({
         data-component="ProviderCredentialDetails"
       >
         <CredentialDetailRow
-          labelKey="pages.workspace.settingsHub.repositories.username"
+          labelKey={
+            provider === CREDENTIAL_PROVIDERS.azureDevOps
+              ? "pages.workspace.settingsHub.repositories.azureDevOpsOrganizationAccess"
+              : "pages.workspace.settingsHub.repositories.username"
+          }
           value={
             accountUsername ||
             resolveMessage(
@@ -779,12 +865,29 @@ function ManageCredentialContent({
           )}
         />
       </div>
+      {provider === CREDENTIAL_PROVIDERS.azureDevOps ? (
+        <p className="mt-2 text-xs leading-4 text-muted-foreground">
+          {resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.repositories.azureDevOpsIdentityNotice",
+          )}
+        </p>
+      ) : null}
       <p className="mt-4 h-8.5 text-xs leading-4 text-muted-foreground">
         {resolveMessage(
           appLocale,
           "pages.workspace.settingsHub.repositories.credentialStoredHelper",
         )}
       </p>
+      {provider === CREDENTIAL_PROVIDERS.bitbucket ||
+      provider === CREDENTIAL_PROVIDERS.azureDevOps ? (
+        <p className="mt-2 text-xs leading-4 text-muted-foreground">
+          {resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.repositories.credentialRotationReconnect",
+          )}
+        </p>
+      ) : null}
       <DialogFooter className="mt-auto flex-row justify-end gap-2.5 px-0 pb-0">
         <Button
           className="h-9 w-28"
@@ -801,6 +904,7 @@ function ManageCredentialContent({
           className="h-9 w-29.5"
           type="button"
           variant="outline"
+          disabled={!providerEnabled}
           onClick={() => onModeChange(PROVIDER_CREDENTIAL_DIALOG_MODES.update)}
         >
           {resolveMessage(

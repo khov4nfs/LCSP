@@ -81,6 +81,13 @@ function isValidSmtpFrom(value: string): boolean {
   );
 }
 
+/**
+ * Business purpose: Validate deployment settings that control provider operations and credential persistence compatibility.
+ * Business rules: Bitbucket and Azure REST adapters default off and require an explicit external-identity schema readiness assertion; runtime activation also verifies the required database schema.
+ * Execution flow: 1. Validate each typed environment variable. 2. Check cross-variable provider activation constraints. 3. Return the Joi schema for application bootstrap.
+ * Failure cases: Invalid configuration or activation without the migration readiness assertion rejects application startup.
+ * Side effects: Pure schema creation and validation; no provider network requests or database access occur.
+ */
 export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
   void workspaceRoot;
   return Joi.object({
@@ -155,17 +162,10 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       .integer()
       .positive()
       .default(1048576),
-    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
-      "AZURE_DEVOPS_CLI_EXECUTABLE_PATH",
-    ),
-    AZURE_DEVOPS_CLI_TIMEOUT_MS: Joi.number()
-      .integer()
-      .positive()
-      .default(30000),
-    AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
-      .integer()
-      .positive()
-      .default(1048576),
+    BITBUCKET_REST_ENABLED: Joi.boolean().default(false),
+    AZURE_DEVOPS_REST_ENABLED: Joi.boolean().default(false),
+    PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY:
+      Joi.boolean().default(false),
     GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: Joi.string().trim().required(),
     GITHUB_CLI_CREDENTIAL_KEK_KEYRING: Joi.string().trim().required(),
     RABBITMQ_URL: Joi.string()
@@ -270,6 +270,15 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       if (typeof activeVersion !== "string" || activeVersion.length === 0) {
         return helpers.error("credentialKek.activeVersion");
       }
+      const targetProviderEnabled =
+        env.BITBUCKET_REST_ENABLED === true ||
+        env.AZURE_DEVOPS_REST_ENABLED === true;
+      if (
+        targetProviderEnabled &&
+        env.PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY !== true
+      ) {
+        return helpers.error("providerAvailability.schemaNotReady");
+      }
       try {
         const parsed: unknown = JSON.parse(String(encodedKeyring));
         if (!isValidKekKeyring(parsed, activeVersion)) {
@@ -285,6 +294,8 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
         "Repository credential storage requires an active KEK version",
       "credentialKek.keyring":
         "Repository credential storage requires a valid 32-byte base64 KEK keyring containing the active version",
+      "providerAvailability.schemaNotReady":
+        "External provider identity persistence must be migrated before enabling Bitbucket or Azure DevOps",
       "string.paymentQrTemplate":
         '"BILLING_SEPAY_QR_URL_TEMPLATE" must include {amountVnd} and {paymentCode} placeholders',
     });
@@ -526,14 +537,15 @@ export function config(): AppConfig {
         1048576,
       ),
     },
-    azureDevOpsCli: {
-      executablePath: resolveCliExecutablePath(
-        env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH,
+    providerAvailability: {
+      bitbucketRestEnabled: parseBoolean(env.BITBUCKET_REST_ENABLED, false),
+      azureDevOpsRestEnabled: parseBoolean(
+        env.AZURE_DEVOPS_REST_ENABLED,
+        false,
       ),
-      timeoutMs: parsePositiveInteger(env.AZURE_DEVOPS_CLI_TIMEOUT_MS, 30000),
-      maxJsonOutputBytes: parsePositiveInteger(
-        env.AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES,
-        1048576,
+      externalIdentitySchemaReady: parseBoolean(
+        env.PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY,
+        false,
       ),
     },
     githubCredentialPersistence: {

@@ -3,7 +3,10 @@ import {
   RULE_DECISION_COMPLIANCE_OUTCOMES,
   RULE_DECISION_CRITERION_OUTCOMES,
 } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_FACT_AUTHORITIES } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_EVIDENCE_TYPES,
+  ASSESSMENT_FACT_AUTHORITIES,
+} from "@lcsp/contracts/assessment-domain";
 import type { AssessmentReportV2Presentation } from "@lcsp/contracts/assessment-report";
 import { legalDocumentDisplayName } from "@lcsp/contracts/legal-source";
 import {
@@ -18,10 +21,15 @@ import {
   ruleTitleInVietnamese,
   type ReportTranslationCatalog,
 } from "./assessment-report-v2-pdf-presentation.js";
+import {
+  renderReportSourceLocator,
+  type RepositoryReportSource,
+} from "./assessment-report-source-link.js";
 
 type RenderOptions = {
   preview?: boolean;
   translations?: ReportTranslationCatalog;
+  repositorySource?: RepositoryReportSource | null;
 };
 type RulePresentation =
   AssessmentReportV2Presentation["obligationDetails"][number];
@@ -150,9 +158,17 @@ function decisionSummary(
     : `Kết quả đã chấp nhận: ${localizedCompliance(rule.applicability, rule.compliance)}. Lý do chi tiết chưa có bản giải thích tiếng Việt đã duyệt trong dữ liệu báo cáo.`;
 }
 
+/**
+ * Business purpose: Render the accepted rule facts and evidence citations in the V2 applicability appendix.
+ * Business rules: Report findings are not recalculated; repository source links are added only from trusted snapshot context and validated persisted locators.
+ * Execution flow: 1. Localize the accepted text. 2. Escape all narrative fields. 3. Render repository evidence through the shared pinned-link builder and keep other citations textual.
+ * Failure cases: Invalid or incomplete source provenance renders as escaped text without an external link.
+ * Side effects: Pure HTML projection; the report artifact and evidence records remain unchanged.
+ */
 function applicabilityRow(
   rule: RulePresentation,
   translations: ReportTranslationCatalog,
+  repositorySource?: RepositoryReportSource | null,
 ) {
   const conditions = rule.conditions.map(
     (item) =>
@@ -168,7 +184,7 @@ function applicabilityRow(
   });
   const evidence = rule.evidence.map(
     (item) =>
-      `<div class="reference-item">${inline(localizedEvidenceType(item.type))}${item.safeLocator ? ` · ${inline(item.safeLocator)}` : ""}</div>`,
+      `<div class="reference-item">${inline(localizedEvidenceType(item.type))}${item.safeLocator ? ` · ${item.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE ? renderReportSourceLocator(item.safeLocator, repositorySource) : inline(item.safeLocator)}` : ""}</div>`,
   );
   const acceptedApplicabilityRationale = localizeReportText(
     rule.rationale,
@@ -415,6 +431,13 @@ function localizedFactAuthority(authority: string): string {
   return "Dữ kiện đã được ghi nhận";
 }
 
+/**
+ * Business purpose: Produce safe, self-contained HTML for the accepted V2 assessment report PDF.
+ * Business rules: Preserve stored legal and compliance decisions, escape untrusted report text, and derive any repository citation only from caller-supplied pinned provenance.
+ * Execution flow: 1. Build canonical presentation indexes. 2. Render summary, rule details and evidence references. 3. Return a document protected by the renderer's isolated browser boundary.
+ * Failure cases: Invalid model values or serialization failures reject rendering; invalid source links fall back to escaped locators.
+ * Side effects: Pure HTML construction with no persistence or provider access.
+ */
 export function assessmentReportV2Html(
   model: AssessmentReportV2Presentation,
   options: RenderOptions = {},
@@ -425,7 +448,7 @@ export function assessmentReportV2Html(
     model.obligationDetails.map((rule) => [rule.assessmentRuleId, rule]),
   );
   const applicabilityRows = model.obligationDetails.map((rule) =>
-    applicabilityRow(rule, translations),
+    applicabilityRow(rule, translations, options.repositorySource),
   );
   const factsRows = applicabilityRows;
   const catalogRows = model.obligationCatalog.map((item) => {

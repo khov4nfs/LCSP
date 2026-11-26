@@ -5,6 +5,8 @@ import {
 import {
   CREDENTIAL_PROVIDERS,
   GITHUB_INTEGRATION_ERROR_CODES,
+  parseAzureDevOpsRepositoryUrl,
+  parseBitbucketRepositoryUrl,
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
 } from "@lcsp/contracts/github-integration";
@@ -32,29 +34,36 @@ export type AssessmentRepositoryConnection = NonNullable<
   AssessmentRepositorySetup["connection"]
 >;
 
+/**
+ * Business purpose: Connect or explicitly reauthorize the repository selected for an owned assessment.
+ * Business rules:
+ * - A retry cannot replace the saved provider or repository.
+ * - Reconnection bypasses only the idempotent UI shortcut and remains subject to backend ownership and credential checks.
+ * Execution flow:
+ * 1. Read the authoritative setup checkpoint.
+ * 2. For ordinary retries, match the parsed provider and repository identity.
+ * 3. Submit only a new or explicitly reauthorized connection to the backend.
+ * Failure cases:
+ * - Provider mismatch, different repository identity, malformed response, disabled provider, or failed authorization rejects without updating client state.
+ * Side effects:
+ * - May create or reauthorize one repository connection through the authenticated API.
+ */
 export async function connectAssessmentRepository(
   assessmentId: string,
   repositoryUrl: string,
+  forceReauthorization = false,
 ): Promise<AssessmentRepositoryConnection> {
   // A previous request may have committed even when its response was lost.
   const state = await getRepositorySetupState(assessmentId);
   if (
     state.connection &&
-    (state.connection.provider === CREDENTIAL_PROVIDERS.github ||
-      state.connection.provider === CREDENTIAL_PROVIDERS.gitlab)
+    !forceReauthorization
   ) {
-    const locator =
-      state.connection.provider === CREDENTIAL_PROVIDERS.github
-        ? parseGitHubRepositoryUrl(repositoryUrl)
-        : state.connection.provider === CREDENTIAL_PROVIDERS.gitlab
-          ? parseGitLabRepositoryUrl(repositoryUrl)
-          : null;
+    const parsed = parseRepositoryUrl(repositoryUrl);
     const sameRepository =
-      locator &&
-      (state.connection.provider === CREDENTIAL_PROVIDERS.github
-        ? locator.repositoryFullName.toLowerCase() ===
-          state.connection.repositoryFullName.toLowerCase()
-        : locator.repositoryFullName === state.connection.repositoryFullName);
+      parsed?.provider === state.connection.provider &&
+      parsed.locator.repositoryFullName ===
+        state.connection.repositoryFullName;
     if (!sameRepository) {
       throw new Error(GITHUB_INTEGRATION_ERROR_CODES.connectionAlreadyExists);
     }
@@ -72,6 +81,29 @@ export async function connectAssessmentRepository(
     throw new Error(response.problemCode ?? "repository-connection-failed");
   }
   return response.payload;
+}
+
+/**
+ * Business purpose: Match a repository URL to exactly one recognized provider locator for idempotent setup checks.
+ * Business rules:
+ * - Parsing is provider-specific, rejects unsupported hosts, and never establishes access or repository identity.
+ * Execution flow:
+ * 1. Try the supported host parsers in fixed order.
+ * 2. Return the first provider-locator pair or null.
+ * Failure cases:
+ * - Invalid or unsupported URLs return null and are rejected by the calling connection flow.
+ * Side effects:
+ * - Pure URL parsing with no network access or persistence.
+ */
+function parseRepositoryUrl(value: string) {
+  const github = parseGitHubRepositoryUrl(value);
+  if (github) return { provider: CREDENTIAL_PROVIDERS.github, locator: github };
+  const gitlab = parseGitLabRepositoryUrl(value);
+  if (gitlab) return { provider: CREDENTIAL_PROVIDERS.gitlab, locator: gitlab };
+  const bitbucket = parseBitbucketRepositoryUrl(value);
+  if (bitbucket) return { provider: CREDENTIAL_PROVIDERS.bitbucket, locator: bitbucket };
+  const azure = parseAzureDevOpsRepositoryUrl(value);
+  return azure ? { provider: CREDENTIAL_PROVIDERS.azureDevOps, locator: azure } : null;
 }
 
 function isAssessmentConnection(

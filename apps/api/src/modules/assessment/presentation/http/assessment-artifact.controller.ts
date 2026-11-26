@@ -94,6 +94,13 @@ export class AssessmentArtifactController {
   }
 
   @Get(":artifactId/report.pdf")
+  /**
+   * Business purpose: Download the authorized immutable assessment report as a PDF with validated provider source citations.
+   * Business rules: The report query verifies the pinned artifact; source links use only the exact snapshot provenance returned by that query and never Agent-supplied URLs.
+   * Execution flow: 1. Load the owner-authorized report. 2. Apply approved localization and validate its versioned contract. 3. Render the corresponding PDF with safe repository source context and set integrity headers.
+   * Failure cases: Missing or invalid report data returns the established API problem; unsafe source context suppresses links inside the PDF.
+   * Side effects: Performs read-only database/storage operations and uses the local PDF renderer; no assessment or evidence is changed.
+   */
   async downloadPdf(
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Param("artifactId", idPipe()) artifactId: string,
@@ -135,10 +142,14 @@ export class AssessmentArtifactController {
         ? await this.pdfRenderer.renderLegacyV1(parsed.data)
         : parsed.data.schemaVersion ===
             ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION
-          ? await this.pdfRenderer.render(parsed.data)
+          ? await this.pdfRenderer.render(parsed.data, {
+              repositorySource: report.repositorySource,
+            })
           : parsed.data.schemaVersion ===
               ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION
-            ? await this.pdfRenderer.renderV3(parsed.data)
+            ? await this.pdfRenderer.renderV3(parsed.data, {
+                repositorySource: report.repositorySource,
+              })
             : await Promise.reject(
                 new Error("Unsupported report schema version"),
               );

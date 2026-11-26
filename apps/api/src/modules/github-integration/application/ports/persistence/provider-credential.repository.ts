@@ -12,7 +12,8 @@ export type ProviderCredentialRecord = {
   id: string;
   provider: CredentialProvider;
   ownerUserId: string;
-  providerAccountId: bigint;
+  providerAccountId: bigint | null;
+  providerAccountExternalId: string | null;
   providerLogin: string;
   status: ProviderCredentialStatus;
   currentVersion: number;

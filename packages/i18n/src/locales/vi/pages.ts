@@ -2929,9 +2929,9 @@ export const viPages = {
         repositoryUrlRequired: "Hãy nhập URL repository HTTPS hợp lệ.",
         credentialLabel: "GitHub personal access token",
         gitlabCredentialLabel: "GitLab access token",
-        bitbucketCredentialLabel: "Bitbucket app password",
+        bitbucketCredentialLabel: "Atlassian API Token",
         azureDevOpsCredentialLabel: "Azure DevOps personal access token",
-        credentialRequired: "Hãy nhập access token hoặc app password hợp lệ.",
+        credentialRequired: "Hãy nhập thông tin xác thực hợp lệ của provider.",
         repositoryLabel: "Repository",
         discoverAction: "Xác thực và tìm repository",
         connectAction: "Kết nối repository",
@@ -3005,16 +3005,27 @@ export const viPages = {
         gitlabRepositoryAccessGuidance:
           "Dùng token có quyền đọc repository. Chỉ thêm quyền ghi repository khi bật sửa code.",
         bitbucketRepositoryAccessGuidance:
-          "Dùng app password có quyền đọc repository. Chỉ thêm quyền ghi repository khi bật sửa code.",
+          "Tạo Atlassian API token với các quyền read:user:bitbucket, read:workspace:bitbucket và read:repository:bitbucket. Không hỗ trợ app password.",
         azureDevOpsRepositoryAccessGuidance:
-          "Dùng tên tổ chức và personal access token có scope Code (Read).",
+          "Dùng PAT giới hạn trong một tổ chức với quyền Code (Read). LCSP xác minh quyền truy cập tổ chức, không xác minh danh tính cá nhân của người sở hữu PAT.",
+        bitbucketEmailLabel: "Email tài khoản Atlassian",
+        credentialExpiryLabel: "Ngày hết hạn credential (không bắt buộc)",
+        credentialExpiryInvalid: "Hãy nhập ngày hết hạn hợp lệ.",
+        credentialEmailRequired: "Hãy nhập email của tài khoản Atlassian sở hữu API token này.",
+        providerUnavailable: "Provider chưa được bật trong môi trường này.",
+        providerTemporarilyUnavailable:
+          "Provider đã được bật nhưng runtime hiện tạm thời không khả dụng.",
+        credentialRotationReconnect: "Sau khi thay credential, hãy kết nối lại từng repository để cấp quyền cho credential mới.",
         azureDevOpsOrganizationLabel: "Tổ chức",
+        azureDevOpsOrganizationAccess: "Quyền truy cập tổ chức Azure",
+        azureDevOpsIdentityNotice:
+          "LCSP đã xác thực PAT có quyền truy cập tổ chức này, nhưng không xác minh danh tính cá nhân của chủ sở hữu PAT.",
         azureDevOpsOrganizationPlaceholder:
           "Nhập tên tổ chức Azure DevOps (ví dụ: anhkn7)",
         githubPatAccessTitle: "Quyền GitHub PAT",
         manageGithubPatTitle: "Quản lý GitHub PAT",
         manageGitlabPatTitle: "Quản lý GitLab PAT",
-        manageBitbucketPatTitle: "Quản lý App Password Bitbucket",
+        manageBitbucketPatTitle: "Quản lý Bitbucket API Token",
         manageAzureDevOpsPatTitle: "Quản lý Azure DevOps PAT",
         managePat: "Quản lý PAT",
         manageProvidersDescription:
@@ -3066,6 +3077,7 @@ export const viPages = {
     resumeSetup: "Tiếp tục thiết lập",
     resumingSetup: "Đang tiếp tục thiết lập...",
     resumeSetupDescription: "Tiếp tục từ bước thiết lập đã được lưu.",
+    reauthorizeRepository: "Ủy quyền lại repository",
     retrySetupState: "Tải lại trạng thái thiết lập",
     thinking: {
       running: "Đang suy nghĩ...",
@@ -3078,6 +3090,7 @@ export const viPages = {
     providerHelp:
       "Chọn nhà cung cấp để mở kết nối bảo mật. Điều tra yêu cầu kho mã và bản cam kết được cố định.",
     providerComingSoon: "Sắp hỗ trợ",
+    providerUnavailable: "Chưa được bật trong môi trường này",
     configureProvider: "Cấu hình kết nối bảo mật",
     repositoryPlaceholder: "Dán URL repository để tiếp tục...",
     repositoryDisabledPlaceholder: "Kết nối provider để tiếp tục...",

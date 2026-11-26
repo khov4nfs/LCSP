@@ -43,6 +43,8 @@ export type RepositoryProviderAdapter = GitHubRepositoryProviderPort;
 
 export type RepositoryProviderRegistry = {
   get(provider: CredentialProvider): RepositoryProviderAdapter;
+  isEnabled?(provider: CredentialProvider): boolean;
+  isAvailable?(provider: CredentialProvider): boolean;
 };
 
 export type GitHubArchiveStream = {
@@ -51,10 +53,13 @@ export type GitHubArchiveStream = {
   repositoryFullName: string;
   commitSha: string;
   finalRedirectHostValidation: GitHubArchiveRedirectValidationStatus;
+  archiveRoot?: string | null;
 };
 
 /** GitHub-specific application boundary for the CLI-only MVP. */
 export interface GitHubRepositoryProviderPort {
+  /** False only for a registered adapter whose local runtime dependency failed startup validation. */
+  readonly isRuntimeAvailable?: boolean;
   validateIdentity(credential: CredentialLease): Promise<GitHubIdentity>;
   listAccessibleRepositories(
     credential: CredentialLease,
@@ -69,11 +74,13 @@ export interface GitHubRepositoryProviderPort {
     credential: CredentialLease,
     repositoryFullName: string,
     revision: string,
+    expectedRepositoryId?: string,
   ): Promise<GitHubResolvedCommit>;
   downloadArchive(
     credential: CredentialLease,
     repositoryFullName: string,
     commitSha: string,
     abortSignal?: AbortSignal,
+    expectedRepositoryId?: string,
   ): Promise<GitHubArchiveStream>;
 }

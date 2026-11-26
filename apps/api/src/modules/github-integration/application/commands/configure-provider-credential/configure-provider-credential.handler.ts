@@ -15,10 +15,9 @@ import type { AppConfig } from "../../../../../config/config.types.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { PrismaCredentialPersistenceUnitOfWork } from "../../../infrastructure/persistence/prisma-credential-persistence.unit-of-work.js";
 import {
-  GITHUB_REPOSITORY_PROVIDER,
   REPOSITORY_PROVIDER_REGISTRY,
   type GitHubIdentity,
-  type GitHubRepositoryProviderPort,
+  type RepositoryProviderAdapter,
   type RepositoryProviderRegistry,
 } from "../../ports/github-repository-provider.port.js";
 import type {
@@ -38,8 +37,6 @@ const ENVELOPE_VERSION = 1;
 export class ConfigureProviderCredentialHandler implements ICommandHandler<ConfigureProviderCredentialCommand> {
   private readonly logger = new Logger(ConfigureProviderCredentialHandler.name);
   constructor(
-    @Inject(GITHUB_REPOSITORY_PROVIDER)
-    private readonly fallbackProvider: GitHubRepositoryProviderPort,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly unitOfWork: PrismaCredentialPersistenceUnitOfWork,
     @Inject(REPOSITORY_PROVIDER_REGISTRY)
@@ -81,7 +78,12 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
       );
     }
     const providerKey = command.provider as CredentialProvider;
-    const provider = this.registry.get(providerKey) ?? this.fallbackProvider;
+    let provider: RepositoryProviderAdapter;
+    try {
+      provider = this.registry.get(providerKey);
+    } catch (error: unknown) {
+      mapProviderFailure(error, command.correlationId);
+    }
     const { existing, user } = await this.unitOfWork.execute(
       async (transaction) => {
         const existingCred =
@@ -119,8 +121,17 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
         envelopeVersion: ENVELOPE_VERSION,
       };
       const validatedAt = new Date();
-      const providerAccountId = toProviderAccountIdBigInt(identity.id);
+      const providerIdentity = toProviderIdentity(
+        identity.id,
+        providerKey,
+        command.correlationId,
+      );
       let expired = false;
+      const submittedExpiry = parseDeclaredExpiry(
+        command.credentialExpiresAt,
+        validatedAt,
+        command.correlationId,
+      );
       try {
         expired = await this.unitOfWork.execute(async (transaction) => {
           if (existing) {
@@ -138,6 +149,9 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
               if (!sameCredential) declaredExpiresAt = null;
               else if (declaredExpiresAt <= validatedAt) return true;
             }
+            if (submittedExpiry !== undefined) {
+              declaredExpiresAt = submittedExpiry;
+            }
             const updated =
               await transaction.providerCredentials.updateForRotation(
                 existing.id,
@@ -146,7 +160,7 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
                 {
                   ...existing,
                   provider: context.provider,
-                  providerAccountId,
+                  ...providerIdentity,
                   providerLogin: identity.login,
                   status: PROVIDER_CREDENTIAL_STATUSES.active,
                   currentVersion: credentialVersion,
@@ -166,11 +180,11 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
               id: credentialId,
               provider: context.provider,
               ownerUserId: command.userId,
-              providerAccountId,
+              ...providerIdentity,
               providerLogin: identity.login,
               status: PROVIDER_CREDENTIAL_STATUSES.active,
               currentVersion: credentialVersion,
-              declaredExpiresAt: null,
+              declaredExpiresAt: submittedExpiry ?? null,
               validatedAt,
             });
             await transaction.credentialStore.store(
@@ -232,17 +246,105 @@ function credentialExpiryDigest(
   provider: CredentialProvider,
   credential: string,
 ): Buffer {
-  // Azure accepts organization:PAT; only the suffix is used for authentication.
-  const delimiter = credential.indexOf(":");
-  const secret =
-    provider === CREDENTIAL_PROVIDERS.azureDevOps
-      ? credential.slice(delimiter + 1).trim() || credential
-      : credential;
+  // Compare only PAT bytes across the retired string form and the typed Azure contract.
+  let secret = credential;
+  if (provider === CREDENTIAL_PROVIDERS.azureDevOps) {
+    try {
+      const parsed = JSON.parse(credential) as { pat?: unknown };
+      if (typeof parsed.pat === "string") secret = parsed.pat;
+    } catch {
+      const delimiter = credential.indexOf(":");
+      if (delimiter >= 0) secret = credential.slice(delimiter + 1).trim();
+    }
+  }
   return createHash("sha256").update(secret).digest();
 }
 
-function toProviderAccountIdBigInt(id: string): bigint {
-  if (/^\d+$/u.test(id)) return BigInt(id);
-  const hash = createHash("sha256").update(id).digest();
-  return hash.readBigUInt64BE(0) & 0x7fffffffffffffffn;
+/**
+ * Business purpose: Convert provider account identity into the existing credential persistence key.
+ * Business rules:
+ * - Decimal GitHub/GitLab provider identifiers remain exact.
+ * - Bitbucket UUIDs and verified Azure organization locators use the external identity column and are never hashed.
+ * Execution flow:
+ * 1. Convert decimal identifiers directly.
+ * 2. Validate the target provider's exact external identity shape.
+ * 3. Preserve exact decimal identifiers for GitHub and GitLab and exact validated external identifiers for the new providers.
+ * Failure cases:
+ * - Malformed or nonnumeric GitHub/GitLab identity raises providerResponseInvalid before credential or metadata persistence; external IDs are never hashed into numeric identity fields.
+ * Side effects:
+ * - Pure conversion or rejection; no data is written.
+ */
+function toProviderIdentity(
+  id: string,
+  provider: CredentialProvider,
+  correlationId: string,
+): {
+  providerAccountId: bigint | null;
+  providerAccountExternalId: string | null;
+} {
+  if (
+    provider === CREDENTIAL_PROVIDERS.bitbucket ||
+    provider === CREDENTIAL_PROVIDERS.azureDevOps
+  ) {
+    const validExternalIdentity =
+      provider === CREDENTIAL_PROVIDERS.bitbucket
+        ? /^(?:\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/iu.test(
+            id,
+          )
+        : /^azure-organization:[a-z0-9][a-z0-9-]{0,63}$/iu.test(id);
+    if (!validExternalIdentity) {
+      throw problemException(
+        GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+        correlationId,
+        { status: HttpStatus.BAD_GATEWAY },
+      );
+    }
+    return { providerAccountId: null, providerAccountExternalId: id };
+  }
+  if (/^\d+$/u.test(id)) {
+    return { providerAccountId: BigInt(id), providerAccountExternalId: null };
+  }
+  throw problemException(
+    GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+    correlationId,
+    { status: HttpStatus.BAD_GATEWAY },
+  );
+}
+
+/**
+ * Business purpose: Persist only a future user-declared expiration after the provider has validated the submitted credential.
+ * Business rules:
+ * - Omitted expiry preserves existing same-secret metadata.
+ * - Malformed or elapsed values are rejected without rotating the stored secret.
+ * Execution flow:
+ * 1. Accept omission.
+ * 2. Parse the provided timestamp.
+ * 3. Require a finite future instant and return its Date value.
+ * Failure cases:
+ * - Invalid or non-future timestamps raise the shared credential request problem.
+ * Side effects:
+ * - Pure validation; persistence remains inside the credential transaction.
+ */
+function parseDeclaredExpiry(
+  value: string | undefined,
+  now: Date,
+  correlationId: string,
+): Date | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || value.length > 64) {
+    throw problemException(
+      GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid,
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+  const expiry = new Date(value);
+  if (Number.isNaN(expiry.getTime()) || expiry <= now) {
+    throw problemException(
+      GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+      correlationId,
+      { status: HttpStatus.UNAUTHORIZED },
+    );
+  }
+  return expiry;
 }

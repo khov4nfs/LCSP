@@ -22,6 +22,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { AppConfig } from "../../../../config/config.types.js";
+import type { PinnedRepositoryTreeManifest } from "../../application/ports/github-archive-transport.port.js";
 
 const DEFAULT_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -35,12 +36,16 @@ export type SnapshotArchiveCacheLookup = {
 export type SnapshotArchiveCacheHit = {
   contentType: string;
   resolvedUrl: string;
-  stream: NodeJS.ReadableStream;
+  archiveRoot?: string | null;
+  treeManifest?: PinnedRepositoryTreeManifest;
+  stream: Readable;
 };
 
 export type SnapshotArchiveCacheCaptureInput = SnapshotArchiveCacheLookup & {
   contentType: string;
   resolvedUrl: string;
+  archiveRoot?: string | null;
+  treeManifest?: PinnedRepositoryTreeManifest;
   source: NodeJS.ReadableStream;
 };
 
@@ -52,6 +57,8 @@ export type SnapshotArchiveCacheCapture = {
 type SnapshotArchiveCacheMetadata = SnapshotArchiveCacheLookup & {
   contentType: string;
   resolvedUrl: string;
+  archiveRoot?: string | null;
+  treeManifest?: PinnedRepositoryTreeManifest;
   expiresAt: number;
 };
 
@@ -100,10 +107,11 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Opens a valid cached archive for the exact pinned snapshot and commit.
-   *
-   * @param lookup - Immutable snapshot and commit identity.
-   * @returns Cached stream metadata, or null when the entry is absent, expired, or invalid.
+   * Business purpose: Reuse bytes only when the ephemeral cache entry matches the exact pinned snapshot and commit.
+   * Business rules: Cache metadata and archive root must be valid and bound to the lookup; cache presence never replaces authorization performed by the caller.
+   * Execution flow: 1. Read metadata for the derived cache key. 2. Validate pin, expiry, format, and wrapper metadata. 3. Open the private archive stream or remove an invalid entry.
+   * Failure cases: Missing, expired, malformed, mismatched, or unreadable entries return null and invalid entries are removed.
+   * Side effects: May open a temporary file stream, schedule TTL eviction, or delete an invalid cache entry.
    */
   async get(
     lookup: SnapshotArchiveCacheLookup,
@@ -130,6 +138,12 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
       return {
         contentType: metadata.contentType,
         resolvedUrl: metadata.resolvedUrl,
+        ...(metadata.archiveRoot === undefined
+          ? {}
+          : { archiveRoot: metadata.archiveRoot }),
+        ...(metadata.treeManifest === undefined
+          ? {}
+          : { treeManifest: metadata.treeManifest }),
         stream: createReadStream(paths.archive),
       };
     } catch (error: unknown) {
@@ -141,11 +155,11 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Mirrors a GitHub archive stream into a private temporary file while preserving streaming to the worker.
-   * Cache write failures are represented by the completion promise and do not corrupt the downstream stream.
-   *
-   * @param input - Pinned identity, archive metadata, and source stream.
-   * @returns Downstream stream plus asynchronous cache commit completion.
+   * Business purpose: Preserve the exact provider archive and its format/root metadata for authorized reruns.
+   * Business rules: Bytes and metadata are keyed by snapshot plus commit; temporary storage is private and cache failure never changes the downstream stream.
+   * Execution flow: 1. Tee source bytes to the worker and a private temporary file. 2. On successful completion, atomically commit bytes and all archive metadata. 3. Remove partial state on failure.
+   * Failure cases: Cache write failures reject completion and remove partial files while returning the original streaming path.
+   * Side effects: Writes ephemeral private files, schedules eviction, and emits the source stream to the caller.
    */
   async capture(
     input: SnapshotArchiveCacheCaptureInput,
@@ -177,6 +191,12 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
           commitSha: input.commitSha,
           contentType: input.contentType,
           resolvedUrl: input.resolvedUrl,
+          ...(input.archiveRoot === undefined
+            ? {}
+            : { archiveRoot: input.archiveRoot }),
+          ...(input.treeManifest === undefined
+            ? {}
+            : { treeManifest: input.treeManifest }),
           expiresAt: Date.now() + this.ttlMs,
         };
         const temporaryMetadata = `${paths.metadata}.${randomUUID()}.tmp`;
@@ -342,6 +362,13 @@ function cacheKey(lookup: SnapshotArchiveCacheLookup): string {
     .digest("hex");
 }
 
+/**
+ * Business purpose: Trust cache metadata only when it preserves the exact pinned archive contract.
+ * Business rules: Snapshot, commit, content type, resolved origin, expiry, and optional exact archive root must have safe types and values.
+ * Execution flow: 1. Parse JSON. 2. Validate required fields and root shape. 3. Preserve a missing root as unknown and a null root as verified rootless.
+ * Failure cases: Malformed or contradictory metadata returns null so the cache entry is discarded.
+ * Side effects: Pure parsing and validation.
+ */
 function parseMetadata(value: string): SnapshotArchiveCacheMetadata | null {
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>;
@@ -350,15 +377,86 @@ function parseMetadata(value: string): SnapshotArchiveCacheMetadata | null {
       typeof parsed.commitSha !== "string" ||
       typeof parsed.contentType !== "string" ||
       typeof parsed.resolvedUrl !== "string" ||
+      (parsed.archiveRoot !== undefined &&
+        parsed.archiveRoot !== null &&
+        (typeof parsed.archiveRoot !== "string" ||
+          !isSafeArchiveRoot(parsed.archiveRoot))) ||
+      (parsed.treeManifest !== undefined &&
+        !isValidTreeManifest(parsed.treeManifest)) ||
       typeof parsed.expiresAt !== "number" ||
       !Number.isFinite(parsed.expiresAt)
     ) {
       return null;
     }
-    return parsed as SnapshotArchiveCacheMetadata;
+    return {
+      ...(parsed as SnapshotArchiveCacheMetadata),
+      ...(parsed.archiveRoot === undefined
+        ? {}
+        : { archiveRoot: parsed.archiveRoot }),
+      ...(parsed.treeManifest === undefined
+        ? {}
+        : { treeManifest: parsed.treeManifest as PinnedRepositoryTreeManifest }),
+    };
   } catch {
     return null;
   }
+}
+
+function isValidTreeManifest(value: unknown): value is PinnedRepositoryTreeManifest {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const manifest = value as Record<string, unknown>;
+  return (
+    manifest.version === 1 &&
+    typeof manifest.commitSha === "string" &&
+    /^[0-9a-f]{40}$/iu.test(manifest.commitSha) &&
+    typeof manifest.treeId === "string" &&
+    /^[0-9a-f]{40}$/iu.test(manifest.treeId) &&
+    typeof manifest.fileCount === "number" &&
+    Number.isSafeInteger(manifest.fileCount) &&
+    manifest.fileCount >= 0 &&
+    manifest.fileCount <= 100_000 &&
+    typeof manifest.pathSha256 === "string" &&
+    /^[0-9a-f]{64}$/iu.test(manifest.pathSha256)
+  );
+}
+
+/**
+ * Business purpose: Reject cache wrapper metadata that could alter repository-relative source paths ambiguously.
+ * Business rules: Only one non-empty bounded path component is valid; absent metadata is handled separately as null.
+ * Execution flow: Validate length, traversal tokens, separators, drive syntax, and controls.
+ * Failure cases: Invalid components return false and cause the cache entry to be discarded.
+ * Side effects: Pure validation.
+ */
+function isSafeArchiveRoot(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value.length <= 255 &&
+    value !== "." &&
+    value !== ".." &&
+    !/[\\/:]/u.test(value) &&
+    !containsControlCharacter(value)
+  );
+}
+
+/**
+ * Business purpose: Detect control characters that could make cache wrapper metadata ambiguous.
+ * Business rules:
+ * - C0 controls and DEL are not valid archive root components.
+ * Execution flow:
+ * 1. Inspect each code unit.
+ * 2. Return true for a control value.
+ * Failure cases:
+ * - The caller treats true as invalid metadata and evicts the cache entry.
+ * Side effects:
+ * - Pure validation.
+ */
+function containsControlCharacter(value: string): boolean {
+  return [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 0x20 || code === 0x7f;
+  });
 }
 
 function readCacheTtlMs(): number {

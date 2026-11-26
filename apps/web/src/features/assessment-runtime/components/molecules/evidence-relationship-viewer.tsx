@@ -12,6 +12,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ASSESSMENT_EVIDENCE_TYPES } from "@lcsp/contracts/assessment-domain";
+import {
+  buildRepositorySourceLink,
+  type CredentialProvider,
+} from "@lcsp/contracts/github-integration";
 import type { LegalRuleEvidenceItem } from "../../types/legal-rule-output.types";
 import { copy } from "../../utils/conversation-copy";
 
@@ -19,12 +23,25 @@ type EvidenceRelationshipViewerProps = {
   evidenceList: LegalRuleEvidenceItem[];
   hasEvidenceGap: boolean;
   onNavigateToObligation?: (criterionId?: string | null) => void;
+  sourceContext?: {
+    provider: CredentialProvider;
+    canonicalRepositoryUrl: string;
+    commitSha: string;
+  } | null;
 };
 
+/**
+ * Business purpose: Display persisted evidence and optional external source citations tied to a pinned repository snapshot.
+ * Business rules: External links are generated only for repository-source evidence with validated provider URL, full commit SHA, safe relative path, and valid line range; internal evidence remains visible if provenance is incomplete.
+ * Execution flow: 1. Render the evidence and excerpts. 2. Derive a provider-specific link from trusted snapshot context. 3. Offer the link only when the shared builder validates it.
+ * Failure cases: Unsafe paths or missing provenance omit the external link without hiding or changing evidence.
+ * Side effects: Reads evidence props and opens a provider URL only after the customer follows the link; no evidence is modified.
+ */
 export function EvidenceRelationshipViewer({
   evidenceList,
   hasEvidenceGap,
   onNavigateToObligation,
+  sourceContext,
 }: EvidenceRelationshipViewerProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -60,6 +77,15 @@ export function EvidenceRelationshipViewer({
           const locationLabel = item.path
             ? `${item.path}${item.startLine ? `:${item.startLine}-${item.endLine}` : ""}`
             : item.evidenceId;
+          const sourceLink =
+            isSource && item.path && sourceContext
+              ? buildRepositorySourceLink({
+                  ...sourceContext,
+                  path: item.path,
+                  startLine: item.startLine,
+                  endLine: item.endLine,
+                })
+              : null;
 
           return (
             <li
@@ -98,6 +124,17 @@ export function EvidenceRelationshipViewer({
 
                 {/* Actions & Copy */}
                 <div className="flex items-center gap-1.5">
+                  {sourceLink ? (
+                    <a
+                      href={sourceLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <span>{copy("viewOriginalFile")}</span>
+                      <ArrowUpRightIcon className="size-3" aria-hidden="true" />
+                    </a>
+                  ) : null}
                   {item.path && (
                     <Button
                       type="button"

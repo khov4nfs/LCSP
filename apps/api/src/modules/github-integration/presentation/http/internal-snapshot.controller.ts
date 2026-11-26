@@ -40,13 +40,11 @@ export class InternalSnapshotController {
   ) {}
 
   /**
-   * Streams the exact pinned repository archive authorized for a scan job without caching it in the API response path.
-   *
-   * @param snapshotId - Immutable repository snapshot identifier.
-   * @param scanJobId - Scan job that must be bound to the snapshot.
-   * @param request - Worker-authenticated request used to read the optional correlation header.
-   * @param response - Express response that receives archive metadata headers and streamed content.
-   * @returns A promise that resolves after the archive stream has been piped to the client.
+   * Business purpose: Deliver one authorized immutable repository archive to the worker hydration client.
+   * Business rules: Worker authentication and query-handler authorization are required; format and optional exact wrapper metadata are returned with the same pinned bytes.
+   * Execution flow: 1. Dispatch the snapshot/scan association query. 2. Set no-store and pin/archive metadata headers. 3. Pipeline archive bytes and finalize hydration delivery.
+   * Failure cases: Query, stream, or delivery failures finalize the hydration ticket as failed and propagate through the shared API error path.
+   * Side effects: Streams repository source to the worker and records hydration ticket completion; it does not wrap the binary response in JSON.
    */
   @Get(":snapshotId/archive")
   async streamArchive(
@@ -72,6 +70,35 @@ export class InternalSnapshotController {
       response.setHeader("x-commit-sha", result.commitSha);
       response.setHeader("x-repository-full-name", result.repositoryFullName);
       response.setHeader("x-resolved-url", result.resolvedUrl);
+      response.setHeader(
+        "x-repository-archive-root-status",
+        result.archiveRootStatus,
+      );
+      if (typeof result.archiveRoot === "string") {
+        response.setHeader("x-repository-archive-root", result.archiveRoot);
+      }
+      if (result.treeManifest) {
+        response.setHeader(
+          "x-repository-tree-manifest-version",
+          String(result.treeManifest.version),
+        );
+        response.setHeader(
+          "x-repository-tree-commit-sha",
+          result.treeManifest.commitSha,
+        );
+        response.setHeader(
+          "x-repository-tree-id",
+          result.treeManifest.treeId,
+        );
+        response.setHeader(
+          "x-repository-tree-file-count",
+          String(result.treeManifest.fileCount),
+        );
+        response.setHeader(
+          "x-repository-tree-path-sha256",
+          result.treeManifest.pathSha256,
+        );
+      }
       await pipeline(result.stream, response);
     } catch (error: unknown) {
       if (result.hydrationDeliveryTicketId) {

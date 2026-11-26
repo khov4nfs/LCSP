@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RULE_DECISION_COMPLIANCE_OUTCOMES } from "@lcsp/contracts/assessment";
+import type { AssessmentRepositorySetup } from "@lcsp/contracts/assessment-domain";
 import {
   useAssessmentDetailQuery,
   useAssessmentProvenanceQuery,
+  useRepositorySetupQuery,
 } from "@/lib/api/assessment-domain-queries";
 import { useRuleAuditCatalogQuery } from "@/lib/api/rule-audit-queries";
 import { useActiveLegalLibraryQuery } from "@/lib/api/legal-source-queries";
@@ -39,6 +41,35 @@ type LegalRuleOutputProps = {
 type ActiveDetailSection = "evidence" | "rawRule" | "synthesis" | "applicability" | null;
 
 /**
+ * Business purpose: Bind live evidence links to the exact active repository snapshot shown by the assessment setup API.
+ * Business rules: Connection and snapshot must agree on provider, repository, connection ID, assessment, and pinned commit; incomplete provenance does not produce a link.
+ * Execution flow: 1. Read the setup connection and snapshot. 2. Compare their association and identity fields. 3. Return the canonical source context only on an exact match.
+ * Failure cases: Missing or contradictory setup metadata returns null while preserving the internal evidence view.
+ * Side effects: Pure projection of fetched setup data; no assessment or evidence records are changed.
+ */
+function resolveLiveEvidenceSourceContext(
+  setup: AssessmentRepositorySetup | undefined,
+) {
+  const connection = setup?.connection;
+  const snapshot = setup?.snapshot;
+  if (
+    !connection?.canonicalRepositoryUrl ||
+    !snapshot ||
+    snapshot.assessmentId !== setup?.assessmentId ||
+    snapshot.connectionId !== connection.connectionId ||
+    snapshot.provider !== connection.provider ||
+    snapshot.repositoryFullName !== connection.repositoryFullName
+  ) {
+    return null;
+  }
+  return {
+    provider: connection.provider,
+    canonicalRepositoryUrl: connection.canonicalRepositoryUrl,
+    commitSha: snapshot.commitSha,
+  };
+}
+
+/**
  * Business purpose: Present a recorded compliance decision with its legal basis and evidence.
  * Business rules: Keep source content intact and translate interface captions using the active locale.
  * Execution flow:
@@ -53,6 +84,7 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
   const catalogQuery = useRuleAuditCatalogQuery(assessmentId);
   const libraryQuery = useActiveLegalLibraryQuery();
   const provenanceQuery = useAssessmentProvenanceQuery(assessmentId);
+  const repositorySetupQuery = useRepositorySetupQuery(assessmentId);
 
   // Progressive disclosure: default to collapsed executive view for instant scannability
   const [activeSection, setActiveSection] = useState<ActiveDetailSection>(null);
@@ -381,6 +413,9 @@ export function LegalRuleOutput({ turn }: LegalRuleOutputProps) {
             <EvidenceRelationshipViewer
               evidenceList={model.evidenceList}
               hasEvidenceGap={model.hasEvidenceGap}
+              sourceContext={resolveLiveEvidenceSourceContext(
+                repositorySetupQuery.data,
+              )}
               onNavigateToObligation={handleNavigateToObligation}
             />
           </section>

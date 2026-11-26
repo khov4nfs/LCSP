@@ -6,5 +6,6 @@ export class ConfigureProviderCredentialCommand {
     public readonly provider: string,
     public readonly credential: string,
     public readonly correlationId: string,
+    public readonly credentialExpiresAt?: string,
   ) {}
 }

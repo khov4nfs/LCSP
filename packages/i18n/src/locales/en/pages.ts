@@ -2922,9 +2922,9 @@ export const enPages = {
         repositoryUrlRequired: "Enter a valid HTTPS repository URL.",
         credentialLabel: "GitHub personal access token",
         gitlabCredentialLabel: "GitLab access token",
-        bitbucketCredentialLabel: "Bitbucket app password",
+        bitbucketCredentialLabel: "Atlassian API Token",
         azureDevOpsCredentialLabel: "Azure DevOps personal access token",
-        credentialRequired: "Enter a personal access token or app password.",
+        credentialRequired: "Enter a valid provider credential.",
         repositoryLabel: "Repository",
         discoverAction: "Validate and discover repositories",
         connectAction: "Connect repository",
@@ -2998,16 +2998,27 @@ export const enPages = {
         gitlabRepositoryAccessGuidance:
           "Use a token with repository read access. Add repository write access only when code fixes are enabled.",
         bitbucketRepositoryAccessGuidance:
-          "Use an app password with repository read access. Add repository write access only when code fixes are enabled.",
+          "Create an Atlassian API token with read:user:bitbucket, read:workspace:bitbucket, and read:repository:bitbucket. App passwords are not supported.",
         azureDevOpsRepositoryAccessGuidance:
-          "Use your organization name and a personal access token with Code (Read) scope.",
+          "Use an organization-scoped PAT with Code (Read). LCSP verifies organization access, not the PAT holder's human identity.",
+        bitbucketEmailLabel: "Atlassian account email",
+        credentialExpiryLabel: "Credential expiry date (optional)",
+        credentialExpiryInvalid: "Enter a valid expiry date.",
+        credentialEmailRequired: "Enter the email for the Atlassian account that owns this API token.",
+        providerUnavailable: "This provider is not enabled in this deployment.",
+        providerTemporarilyUnavailable:
+          "This provider is enabled, but its local runtime is temporarily unavailable.",
+        credentialRotationReconnect: "After replacing this credential, reconnect each repository to authorize the new credential.",
         azureDevOpsOrganizationLabel: "Organization",
+        azureDevOpsOrganizationAccess: "Azure organization access",
+        azureDevOpsIdentityNotice:
+          "LCSP validated this PAT's access to the organization. It did not verify the PAT holder's personal identity.",
         azureDevOpsOrganizationPlaceholder:
           "Enter Azure DevOps organization name (e.g. anhkn7)",
         githubPatAccessTitle: "GitHub PAT access",
         manageGithubPatTitle: "Manage GitHub PAT",
         manageGitlabPatTitle: "Manage GitLab PAT",
-        manageBitbucketPatTitle: "Manage Bitbucket App Password",
+        manageBitbucketPatTitle: "Manage Bitbucket API Token",
         manageAzureDevOpsPatTitle: "Manage Azure DevOps PAT",
         managePat: "Manage PAT",
         manageProvidersDescription:
@@ -3057,6 +3068,7 @@ export const enPages = {
     resumeSetup: "Continue setup",
     resumingSetup: "Continuing setup...",
     resumeSetupDescription: "Continue from the last saved setup step.",
+    reauthorizeRepository: "Reauthorize repository",
     retrySetupState: "Reload setup status",
     thinking: {
       running: "Thinking...",
@@ -3069,6 +3081,7 @@ export const enPages = {
     providerHelp:
       "Select a provider to open the secure connector. A repository and pinned commit are required for investigation.",
     providerComingSoon: "Coming soon",
+    providerUnavailable: "Not enabled in this deployment",
     configureProvider: "Configure secure connection",
     repositoryPlaceholder: "Paste a repository URL to continue...",
     repositoryDisabledPlaceholder: "Connect a provider to continue...",

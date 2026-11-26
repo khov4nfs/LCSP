@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   CREDENTIAL_PROVIDERS,
+  GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
 } from "@lcsp/contracts/github-integration";
 
@@ -139,11 +140,11 @@ describe("GitHub CLI Manager lifecycle handlers", () => {
       repositoryConnection: { findFirst: jest.fn(() => Promise.resolve(null)) },
     };
     const handler = new ConnectGitHubCliRepositoryHandler(
-      github,
       config as never,
       prisma as never,
       unitOfWork as never,
       audit as never,
+      { get: () => github },
     );
     const result = await handler.execute(
       new ConnectGitHubCliRepositoryCommand(
@@ -188,11 +189,11 @@ describe("GitHub CLI Manager lifecycle handlers", () => {
   it("rejects a provider/URL mismatch before provider access", async () => {
     const github = provider();
     const handler = new ConnectGitHubCliRepositoryHandler(
-      github,
       config as never,
       { assessment: { findFirst: jest.fn() } } as never,
       { execute: jest.fn() } as never,
       audit as never,
+      { get: () => github },
     );
 
     await expect(
@@ -214,12 +215,53 @@ describe("GitHub CLI Manager lifecycle handlers", () => {
     expect(github.validateIdentity).not.toHaveBeenCalled();
   });
 
+  it.each([CREDENTIAL_PROVIDERS.bitbucket, CREDENTIAL_PROVIDERS.azureDevOps])(
+    "requires typed credential configuration for %s",
+    async (providerId) => {
+      const adapter = provider();
+      const persist = jest.fn();
+      const handler = new ConnectGitHubCliRepositoryHandler(
+        config as never,
+        { assessment: { findFirst: jest.fn() } } as never,
+        { execute: persist } as never,
+        audit as never,
+        { get: () => adapter },
+      );
+
+      await expect(
+        handler.execute(
+          new ConnectGitHubCliRepositoryCommand(
+            "user",
+            AUTH_USER_ROLES.customer,
+            "session",
+            FAKE_PAT,
+            undefined,
+            undefined,
+            undefined,
+            "corr",
+            providerId,
+            providerId === CREDENTIAL_PROVIDERS.bitbucket
+              ? "https://bitbucket.org/workspace/repo"
+              : "https://dev.azure.com/org/project/_git/repo",
+          ),
+        ),
+      ).rejects.toMatchObject({
+        response: expect.objectContaining({
+          problem: expect.objectContaining({
+            code: GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired,
+          }),
+        }),
+      });
+      expect(adapter.validateIdentity).not.toHaveBeenCalled();
+      expect(persist).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not enter persistence when source-read validation fails", async () => {
     const github = provider();
     github.resolveCommit.mockRejectedValueOnce(new Error("provider failed"));
     const execute = jest.fn();
     const handler = new ConnectGitHubCliRepositoryHandler(
-      github,
       config as never,
       {
         assessment: { findFirst: jest.fn() },
@@ -227,6 +269,7 @@ describe("GitHub CLI Manager lifecycle handlers", () => {
       } as never,
       { execute } as never,
       audit as never,
+      { get: () => github },
     );
     await expect(
       handler.execute(
