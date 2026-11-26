@@ -8,6 +8,9 @@ import {
   type TrackingFreshnessStatus,
   type TrackingRuleOutcome,
 } from "@lcsp/contracts/assessment-domain";
+import { CoverageDonut } from "@/components/molecules/coverage-donut";
+import { OutcomeLegend } from "@/components/molecules/outcome-legend";
+import { DASHBOARD_SURFACES } from "@/components/types/dashboard-primitives.types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { appLocale } from "@/lib/locale";
@@ -104,6 +107,74 @@ export function TrackingCompliancePage() {
           </Button>
         </div>
       ) : null}
+      {data && data.items.length > 0 ? (() => {
+        const totals = data.items.reduce(
+          (acc, item) => ({
+            compliant: acc.compliant + item.compliantCount,
+            nonCompliant: acc.nonCompliant + item.nonCompliantCount,
+            unresolved: acc.unresolved + item.unresolvedCount,
+            notApplicable: acc.notApplicable + item.notApplicableCount,
+          }),
+          { compliant: 0, nonCompliant: 0, unresolved: 0, notApplicable: 0 },
+        );
+        const denominator =
+          totals.compliant +
+          totals.nonCompliant +
+          totals.unresolved +
+          totals.notApplicable;
+        const segments = [
+          {
+            key: TRACKING_RULE_OUTCOMES.COMPLIANT,
+            label: trackingMessage("outcome.COMPLIANT"),
+            count: totals.compliant,
+            color: "#087f75",
+          },
+          {
+            key: TRACKING_RULE_OUTCOMES.NON_COMPLIANT,
+            label: trackingMessage("outcome.NON_COMPLIANT"),
+            count: totals.nonCompliant,
+            color: "#e11d48",
+          },
+          {
+            key: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+            label: trackingMessage("outcome.UNRESOLVED"),
+            count: totals.unresolved,
+            color: "#d97706",
+          },
+          {
+            key: TRACKING_RULE_OUTCOMES.NOT_APPLICABLE,
+            label: trackingMessage("outcome.NOT_APPLICABLE"),
+            count: totals.notApplicable,
+            color: "#94a3b8",
+          },
+        ];
+        return (
+          <TrackingSection
+            title={trackingMessage("complianceBreakdownTitle")}
+            description={trackingMessage("complianceBreakdownSubtitle")}
+          >
+            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+              <CoverageDonut
+                segments={segments}
+                total={denominator}
+                centerValue={(totals.compliant + totals.nonCompliant).toLocaleString(appLocale)}
+                centerLabel={trackingMessage("coverageResultsReady")}
+                size={148}
+                strokeWidth={18}
+                surface={DASHBOARD_SURFACES.light}
+              />
+              <div className="w-full min-w-0 flex-1">
+                <OutcomeLegend
+                  items={segments}
+                  denominator={denominator}
+                  surface={DASHBOARD_SURFACES.light}
+                  locale={appLocale}
+                />
+              </div>
+            </div>
+          </TrackingSection>
+        );
+      })() : null}
       {data ? (
         <TrackingSection
           title={trackingMessage("obligationsTitle")}

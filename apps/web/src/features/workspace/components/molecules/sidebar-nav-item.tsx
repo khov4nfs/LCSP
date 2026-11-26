@@ -23,6 +23,7 @@ type SidebarNavItemProps = {
   href?: string;
   icon: ReactNode;
   label: string;
+  onClick?: () => void;
   onNavigate?: () => void;
   tooltip?: string;
   variant: SidebarNavItemVariant;
@@ -36,19 +37,37 @@ export function SidebarNavItem({
   href,
   icon,
   label,
+  onClick,
   onNavigate,
   tooltip,
   variant,
 }: SidebarNavItemProps) {
   const content = (
     <>
-      {icon}
+      {active ? (
+        <span
+          aria-hidden="true"
+          className="absolute top-1.5 left-0 h-5 w-0.75 rounded-xs bg-[#087f75]"
+        />
+      ) : null}
       <span
         className={cn(
-          "min-w-0 truncate text-left",
-          variant === SIDEBAR_NAV_ITEM_VARIANTS.new
-            ? "text-sm font-medium text-sidebar-foreground"
-            : "text-sm font-normal text-sidebar-foreground",
+          "shrink-0",
+          active
+            ? "text-[#11545b] dark:text-emerald-300"
+            : "text-sidebar-foreground/75",
+        )}
+      >
+        {icon}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 truncate text-left text-sm",
+          active
+            ? "font-semibold text-[#11545b] dark:text-emerald-300"
+            : variant === SIDEBAR_NAV_ITEM_VARIANTS.new
+              ? "font-medium text-sidebar-foreground"
+              : "font-medium text-sidebar-foreground/85",
         )}
       >
         {label}
@@ -56,9 +75,9 @@ export function SidebarNavItem({
     </>
   );
   const itemClassName = cn(
-    "flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+    "relative flex h-8 w-full items-center gap-2 rounded-lg px-2.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring",
     active
-      ? "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent"
+      ? "bg-[#e2f6f1] text-[#11545b] hover:bg-[#e2f6f1] dark:bg-emerald-950/50 dark:text-emerald-300"
       : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
     disabled ? "cursor-default" : "cursor-pointer",
     className,
@@ -83,6 +102,8 @@ export function SidebarNavItem({
       aria-disabled={disabled || undefined}
       aria-label={ariaLabel}
       className={itemClassName}
+      disabled={disabled}
+      onClick={onClick}
       type="button"
     >
       {content}
