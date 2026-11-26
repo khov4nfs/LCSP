@@ -13,7 +13,7 @@ export function FigmaWhySection() {
     <section
       id="why-lcsp"
       data-section="why-lcsp"
-      className="mx-auto w-full max-w-[1440px] px-8 pt-12 pb-20 md:px-[96px]"
+      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-8 pt-16 pb-20 md:px-[96px]"
     >
       <div className="max-w-2xl scroll-reveal">
         <h2 className="text-3xl font-semibold tracking-tight text-[#101C29] sm:text-4xl">
