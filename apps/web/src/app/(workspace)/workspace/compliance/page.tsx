@@ -1,5 +1,5 @@
-import { TrackingCompliancePage } from "@/features/tracking/components/organisms/tracking-compliance-page";
+import { InformationRequestsDashboard } from "@/features/tracking/components/organisms/information-requests-dashboard";
 
 export default function WorkspaceCompliancePage() {
-  return <TrackingCompliancePage />;
+  return <InformationRequestsDashboard />;
 }
