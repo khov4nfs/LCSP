@@ -4059,4 +4059,57 @@ export const enPages = {
       defaultReason: "Administrative suspension",
     },
   },
+  assessmentWorkspace: {
+    tabs: {
+      overview: "Overview",
+      findings: "Findings",
+      requests: "Information requests",
+      sourceEvidence: "Source & evidence",
+    },
+    overview: {
+      resultsTitle: "Assessment results",
+      resultsRatio: "{ready} of {total} rules have a compliance result",
+      resultsReadyLabel: "results ready",
+      compliantSummary: "{compliant} compliant · {nonCompliant} non-compliant",
+      pendingSummary:
+        "{needsInfo} needs information · {notRequested} not requested",
+      reviewFindings: "Review findings",
+      attentionTitle: "Attention required",
+      attentionBlocking:
+        "An open request is blocking evaluation of a related obligation.",
+      answerRequest: "Answer request",
+      scopeTitle: "Assessment scope",
+      repositoryPrefix: "Repository",
+      legalSourcePrefix: "Legal source version",
+      viewSourceEvidence: "View source & evidence",
+      evaluateTitle: "Evaluate selected rules",
+      evaluateSubtitle: "Select requirements for a targeted evaluation.",
+      evaluateHint: "Existing results remain available for review.",
+      auditSelectedRules: "Audit selected rules",
+    },
+    findings: {
+      listTitle: "Findings",
+      emptyTitle: "No rule evaluations yet",
+      emptyBody:
+        "Start or select rules to evaluate compliance against your repository.",
+      selectFindingHint:
+        "Select a finding to inspect its rationale, legal citation, and evidence.",
+      evidenceCount: "{count} items",
+      missingEvidence: "Missing evidence",
+    },
+    source: {
+      title: "Source & evidence",
+      pinnedCommit: "Pinned commit",
+      viewReport: "View report",
+      viewProvenance: "View provenance",
+      noEvidenceTitle: "No evidence recorded yet",
+      noEvidenceBody:
+        "Evidence citations will appear here as rules are evaluated.",
+    },
+    requests: {
+      emptyTitle: "No follow-up requests",
+      emptyBody:
+        "The assessment will surface questions here only when a business fact is missing.",
+    },
+  },
 } as const satisfies PagesMessages;

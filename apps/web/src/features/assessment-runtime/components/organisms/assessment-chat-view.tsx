@@ -1,19 +1,37 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_LIFECYCLE_STATES,
+  RULE_DECISION_APPLICABILITIES,
+  RULE_DECISION_COMPLIANCE_OUTCOMES,
+} from "@lcsp/contracts/assessment";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { resolveAppMessage } from "@/lib/i18n";
+import { useRepositorySetupQuery } from "@/lib/api/assessment-domain-queries";
 import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
 import { useWorkspaceRuntime } from "@/features/workspace/components/organisms/workspace-runtime-provider";
 import { useAssessmentConversation } from "../../hooks/use-assessment-conversation";
 import { useStructuredAnswerSubmit } from "../../hooks/use-structured-answer-submit";
 import { CUSTOMER_ASSESSMENT_STATES } from "../../config/customer-assessment-states";
+import {
+  CONVERSATION_TURN_KINDS,
+  type DecisionTurn,
+} from "../../types/conversation.types";
 import { copy } from "../../utils/conversation-copy";
 import { customerAssessmentState } from "../../utils/customer-assessment-state";
 import { AssessmentInteractionBar } from "../molecules/assessment-interaction-bar";
+import { EvidenceInspector } from "../molecules/evidence-inspector";
+import { SourceVersionSummary } from "../molecules/source-version-summary";
 import { AssessmentConversation } from "./assessment-conversation";
+import { AssessmentOutcomeSummary } from "./assessment-outcome-summary";
+import {
+  ASSESSMENT_WORKSPACE_TABS,
+  AssessmentWorkspaceLayout,
+  type AssessmentWorkspaceTab,
+} from "./assessment-workspace-layout";
+import { FindingList } from "./finding-list";
 import { RuleAuditPicker } from "./rule-audit-picker";
 
 /**
@@ -30,6 +48,12 @@ export function AssessmentChatView({
 }) {
   const { detail, requests, events, projection } =
     useAssessmentConversation(assessmentId);
+  const setupQuery = useRepositorySetupQuery(assessmentId);
+  const [activeTab, setActiveTab] = useState<AssessmentWorkspaceTab>(
+    targetRequestId
+      ? ASSESSMENT_WORKSPACE_TABS.requests
+      : ASSESSMENT_WORKSPACE_TABS.overview,
+  );
   const workspace = useWorkspaceRuntime();
   const client = useQueryClient();
   const sequence =
@@ -101,6 +125,53 @@ export function AssessmentChatView({
     assessment.runtime,
     assessment.case,
   );
+  const openRequestsCount = (requests.data?.requests ?? []).filter(
+    (request) => request.status.toLowerCase() === "open",
+  ).length;
+  const decisionTurns = projection.turns.filter(
+    (turn): turn is DecisionTurn =>
+      turn.kind === CONVERSATION_TURN_KINDS.DECISION,
+  );
+  const applicableTurns = decisionTurns.filter(
+    (turn) =>
+      turn.record.decision.applicability ===
+      RULE_DECISION_APPLICABILITIES.APPLICABLE,
+  );
+  const outcomeCounts = {
+    compliant: applicableTurns.filter(
+      (turn) =>
+        turn.record.decision.applicability ===
+          RULE_DECISION_APPLICABILITIES.APPLICABLE &&
+        turn.record.decision.compliance ===
+          RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT,
+    ).length,
+    nonCompliant: applicableTurns.filter(
+      (turn) =>
+        turn.record.decision.applicability ===
+          RULE_DECISION_APPLICABILITIES.APPLICABLE &&
+        turn.record.decision.compliance ===
+          RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
+    ).length,
+    needsInfo: openRequestsCount,
+    notRequested: applicableTurns.filter(
+      (turn) =>
+        turn.record.decision.applicability ===
+          RULE_DECISION_APPLICABILITIES.APPLICABLE &&
+        turn.record.decision.compliance !==
+          RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT &&
+        turn.record.decision.compliance !==
+          RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
+    ).length,
+  };
+  const repositoryName =
+    setupQuery.data?.connection?.repositoryFullName ?? null;
+  const commitSha =
+    setupQuery.data?.snapshot?.commitSha ??
+    assessment.case?.repositoryCommit ??
+    null;
+  const legalSourceVersion =
+    assessment.case?.ruleSet?.legalSourceVersion ?? null;
+
   return (
     <main
       className="flex h-full min-h-0 flex-col"
@@ -126,45 +197,104 @@ export function AssessmentChatView({
           ? ` ${openRequest.question}`
           : ""}
       </p>
-      <AssessmentConversation
-        projection={projection}
-        intro={<RuleAuditPicker assessmentId={assessmentId} />}
-        targetRequestId={targetRequestId}
-        answerPending={answer.pending}
-        answerFailed={answer.failed}
-        answerStaleConflict={answer.staleConflict}
-        submittingRequestId={answer.submittingRequestId}
-        failedRequestId={answer.failedRequestId}
-        staleConflictRequestId={answer.staleConflictRequestId}
-        onAnswer={(value, req) => void answer.submit(value, req)}
-        footer={
-          requests.isError || events.isError ? (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {resolveAppMessage("pages.agenticAssessment.requestFailed")}{" "}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    void requests.refetch();
-                    void events.refetch();
-                  }}
-                >
-                  {resolveAppMessage("pages.agenticAssessment.retry")}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : null
+
+      <AssessmentWorkspaceLayout
+        title={assessment.name}
+        statusLabel={copy(`state.${state}`)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        openRequestsCount={openRequestsCount}
+        onAuditSelectedRules={() =>
+          setActiveTab(ASSESSMENT_WORKSPACE_TABS.requests)
         }
-      />
-      <AssessmentInteractionBar
-        assessment={assessment}
-        state={state}
-        onRefresh={() => {
-          void detail.refetch();
-          void requests.refetch();
-          void events.refetch();
-        }}
-      />
+        interactionBar={
+          <AssessmentInteractionBar
+            assessment={assessment}
+            state={state}
+            onRefresh={() => {
+              void detail.refetch();
+              void requests.refetch();
+              void events.refetch();
+            }}
+          />
+        }
+      >
+        {activeTab === ASSESSMENT_WORKSPACE_TABS.overview ? (
+          <AssessmentOutcomeSummary
+            assessmentId={assessmentId}
+            counts={outcomeCounts}
+            openRequestQuestion={openRequest?.question}
+            repositoryName={repositoryName}
+            commitSha={commitSha}
+            legalSourceVersion={legalSourceVersion}
+            onReviewFindings={() =>
+              setActiveTab(ASSESSMENT_WORKSPACE_TABS.findings)
+            }
+            onAnswerRequest={
+              openRequest
+                ? () => setActiveTab(ASSESSMENT_WORKSPACE_TABS.requests)
+                : undefined
+            }
+            onViewSourceEvidence={() =>
+              setActiveTab(ASSESSMENT_WORKSPACE_TABS.source)
+            }
+            onAuditSelectedRules={() =>
+              setActiveTab(ASSESSMENT_WORKSPACE_TABS.requests)
+            }
+          />
+        ) : activeTab === ASSESSMENT_WORKSPACE_TABS.findings ? (
+          <FindingList turns={decisionTurns} />
+        ) : activeTab === ASSESSMENT_WORKSPACE_TABS.source ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+              <SourceVersionSummary
+                assessmentId={assessmentId}
+                repositoryName={repositoryName}
+                commitSha={commitSha}
+                legalSourceVersion={legalSourceVersion}
+                showArtifactLinks
+              />
+            </div>
+            <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+              <EvidenceInspector
+                evidenceList={[]}
+                hasEvidenceGap={applicableTurns.length === 0}
+              />
+            </div>
+          </div>
+        ) : (
+          <AssessmentConversation
+            projection={projection}
+            intro={<RuleAuditPicker assessmentId={assessmentId} />}
+            targetRequestId={targetRequestId}
+            answerPending={answer.pending}
+            answerFailed={answer.failed}
+            answerStaleConflict={answer.staleConflict}
+            submittingRequestId={answer.submittingRequestId}
+            failedRequestId={answer.failedRequestId}
+            staleConflictRequestId={answer.staleConflictRequestId}
+            onAnswer={(value, req) => void answer.submit(value, req)}
+            footer={
+              requests.isError || events.isError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {resolveAppMessage("pages.agenticAssessment.requestFailed")}{" "}
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        void requests.refetch();
+                        void events.refetch();
+                      }}
+                    >
+                      {resolveAppMessage("pages.agenticAssessment.retry")}
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : null
+            }
+          />
+        )}
+      </AssessmentWorkspaceLayout>
     </main>
   );
 }
