@@ -2313,6 +2313,13 @@ export const enPages = {
       nextActionAnswer: "Answer request",
       nextActionReview: "Review findings",
       nextActionProgress: "View progress",
+      galleryView: "Gallery",
+      listView: "List",
+      reportsSearchPlaceholder: "Search reports…",
+      reportsCurrentMetricLabel: "Current reports",
+      reportsStaleMetricLabel: "Stale reports",
+      reportsTotalMetricLabel: "Total reports",
+      reportsOpenReport: "Open report",
       requestsPageTitle: "Information requests",
       requestsPageSubtitle:
         "Answer unresolved questions linked to legal obligations.",

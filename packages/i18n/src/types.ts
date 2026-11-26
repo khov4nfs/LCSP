@@ -2139,6 +2139,13 @@ export type PagesMessages = {
       nextActionAnswer: string;
       nextActionReview: string;
       nextActionProgress: string;
+      galleryView: string;
+      listView: string;
+      reportsSearchPlaceholder: string;
+      reportsCurrentMetricLabel: string;
+      reportsStaleMetricLabel: string;
+      reportsTotalMetricLabel: string;
+      reportsOpenReport: string;
       showingRecords: string;
       complianceBreakdownTitle: string;
       complianceBreakdownSubtitle: string;
