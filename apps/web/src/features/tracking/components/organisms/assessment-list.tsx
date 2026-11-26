@@ -40,6 +40,7 @@ const PAGE_SIZE = 10;
 
 type AssessmentListProps = {
   assessments: readonly CustomerTrackingAssessmentItem[];
+  referenceNowMs?: number;
   search: string;
   onSearchChange: (value: string) => void;
   statusFilter: AssessmentListStatusFilter;
@@ -87,6 +88,7 @@ function getCoverageRatio(item: CustomerTrackingAssessmentItem): number {
  */
 export function AssessmentList({
   assessments,
+  referenceNowMs,
   search,
   onSearchChange,
   statusFilter,
@@ -121,7 +123,6 @@ export function AssessmentList({
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const now = Date.now();
     const cutoffMs =
       dateFilter === ASSESSMENT_LIST_DATE_FILTERS.last7Days
         ? 7 * 24 * 60 * 60 * 1000
@@ -145,9 +146,9 @@ export function AssessmentList({
         if (bucket !== statusFilter) return false;
       }
 
-      if (cutoffMs !== null) {
+      if (cutoffMs !== null && referenceNowMs !== undefined) {
         const updatedMs = Date.parse(item.updatedAt);
-        if (!Number.isFinite(updatedMs) || now - updatedMs > cutoffMs) {
+        if (!Number.isFinite(updatedMs) || referenceNowMs - updatedMs > cutoffMs) {
           return false;
         }
       }
@@ -164,7 +165,7 @@ export function AssessmentList({
       }
       return b.updatedAt.localeCompare(a.updatedAt);
     });
-  }, [assessments, dateFilter, search, sortBy, statusFilter]);
+  }, [assessments, dateFilter, referenceNowMs, search, sortBy, statusFilter]);
 
   const safeOffset = offset >= filtered.length ? 0 : offset;
   const pageItems = filtered.slice(safeOffset, safeOffset + PAGE_SIZE);

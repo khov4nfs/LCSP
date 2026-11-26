@@ -109,6 +109,11 @@ export function TrackingAssessmentsPage() {
       {data ? (
         <AssessmentList
           assessments={data.assessments}
+          referenceNowMs={
+            Number.isFinite(Date.parse(data.generatedAt))
+              ? Date.parse(data.generatedAt)
+              : query.dataUpdatedAt
+          }
           search={search}
           onSearchChange={(val) => {
             setSearch(val);

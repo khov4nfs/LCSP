@@ -81,13 +81,6 @@ export function AdminUserStatusCard({
   const suspendedCount = distribution?.suspendedCount ?? 0;
   const totalCount = distribution?.totalCount ?? 0;
 
-  const activePercent =
-    totalCount > 0 ? Math.min(100, (activeCount / totalCount) * 100) : 0;
-  const invitedPercent =
-    totalCount > 0 ? Math.min(100, (invitedCount / totalCount) * 100) : 0;
-  const suspendedPercent =
-    totalCount > 0 ? Math.min(100, (suspendedCount / totalCount) * 100) : 0;
-
   const totalText = distribution
     ? totalTemplate.replace("{count}", totalCount.toLocaleString())
     : "—";
