@@ -815,6 +815,7 @@ export const assessmentRepositorySetupSchema = z.strictObject({
       provider: z.enum(CREDENTIAL_PROVIDERS),
       repositoryId: identifierSchema,
       repositoryFullName: identifierSchema,
+      canonicalRepositoryUrl: z.url().nullable().optional(),
       defaultBranch: identifierSchema,
       status: z.enum(REPOSITORY_CONNECTION_STATUSES),
     })

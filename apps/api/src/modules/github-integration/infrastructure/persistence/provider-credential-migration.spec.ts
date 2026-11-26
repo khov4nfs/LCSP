@@ -16,6 +16,9 @@ function resolveMigrationPath(relativePath: string): string {
 const migrationPath = resolveMigrationPath(
   "20260824120000_add_provider_credentials/migration.sql",
 );
+const externalIdentityMigrationPath = resolveMigrationPath(
+  "20261126120000_provider_credential_external_identity/migration.sql",
+);
 
 describe("provider credential migration", () => {
   it("explicitly backfills existing connections before enforcing the mode", () => {
@@ -41,5 +44,28 @@ describe("provider credential migration", () => {
     expect(sql).toContain('"wrappedDekCiphertext" BYTEA');
     expect(sql).not.toContain('CREATE TABLE "ProviderCredentialSecret"');
     expect(sql).not.toMatch(/"(plaintext|token|pat|secret)"\s/iu);
+  });
+
+  it("preserves numeric provider identities and retires only unverifiable legacy external identities", () => {
+    const sql = readFileSync(externalIdentityMigrationPath, "utf8");
+    expect(sql).toContain('ALTER COLUMN "providerAccountId" DROP NOT NULL');
+    expect(sql).toContain('ADD COLUMN "providerAccountExternalId" TEXT');
+    expect(sql).toContain(
+      "WHERE \"provider\" IN ('BITBUCKET', 'AZURE_DEVOPS')",
+    );
+    expect(sql).toContain("'INVALID'");
+    expect(sql).toContain('"isActive" = false');
+    expect(sql).not.toMatch(/SET\s+"providerAccountId"\s*=\s*NULL/iu);
+    expect(sql).toContain(
+      '"providerAccountId" IS NOT NULL AND "providerAccountExternalId" IS NULL',
+    );
+    expect(sql).toContain("\"provider\" = 'BITBUCKET'");
+    expect(sql).toContain("\"provider\" = 'AZURE_DEVOPS'");
+    expect(sql).toContain(
+      '"providerAccountExternalId" IS NULL AND "isActive" = false',
+    );
+    expect(sql).not.toMatch(
+      /UPDATE[\s\S]+WHERE\s+"provider"\s+IN\s*\('GITHUB',\s*'GITLAB'\)/iu,
+    );
   });
 });

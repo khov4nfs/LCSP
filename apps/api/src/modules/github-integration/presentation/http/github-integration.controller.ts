@@ -15,14 +15,22 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
+  BITBUCKET_CREDENTIAL_TYPES,
+  AZURE_DEVOPS_CREDENTIAL_TYPES,
   CREDENTIAL_PROVIDERS,
   PROVIDER_CREDENTIAL_STATUSES,
+  encodeBitbucketApiTokenCredential,
+  encodeAzureDevOpsOrganizationPatCredential,
+  GITHUB_INTEGRATION_ERROR_CODES,
 } from "@lcsp/contracts/github-integration";
 
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
+import {
+  problemException,
+  resultEnvelope,
+} from "../../../../platform/http/filters/error.factory.js";
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
 import { PinSnapshotCommand } from "../../application/commands/pin-snapshot/pin-snapshot.command.js";
@@ -45,6 +53,10 @@ import {
   ACTIVE_PROVIDER_CREDENTIAL_RESOLVER,
   type ActiveProviderCredentialResolver,
 } from "../../application/ports/security/active-provider-credential.resolver.js";
+import {
+  REPOSITORY_PROVIDER_REGISTRY,
+  type RepositoryProviderRegistry,
+} from "../../application/ports/github-repository-provider.port.js";
 
 interface GitHubIntegrationRequest {
   rbacContext?: RbacRequestContext;
@@ -67,6 +79,9 @@ export class GitHubIntegrationController {
     @Optional()
     @Inject(ACTIVE_PROVIDER_CREDENTIAL_RESOLVER)
     private readonly activeCredentials?: ActiveProviderCredentialResolver,
+    @Optional()
+    @Inject(REPOSITORY_PROVIDER_REGISTRY)
+    private readonly providerRegistry?: RepositoryProviderRegistry,
   ) {}
 
   @Get("github/repositories")
@@ -82,6 +97,13 @@ export class GitHubIntegrationController {
   @Get("provider-credentials")
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer)
+  /**
+   * Business purpose: Return the authenticated customer's credential lifecycle and deployment readiness for each known provider.
+   * Business rules: Credential metadata is owner-scoped and secret-free; enabled means the exact provider adapter is registered, runtime-available, and permitted by deployment configuration.
+   * Execution flow: 1. Resolve each provider's current lifecycle metadata. 2. Project safe account/status fields and exact registry readiness. 3. Return the standard success envelope.
+   * Failure cases: Missing credential resolver fails closed; a missing registry reports target providers unavailable without exposing credential material.
+   * Side effects: Performs read-only credential metadata lookups; no provider call, secret read, or persistence occurs.
+   */
   async listProviderCredentials(@Req() request: GitHubIntegrationRequest) {
     const context = request.rbacContext as RbacRequestContext;
     if (!this.activeCredentials)
@@ -105,6 +127,15 @@ export class GitHubIntegrationController {
             configured:
               metadata?.status === PROVIDER_CREDENTIAL_STATUSES.active,
             status: metadata?.status ?? null,
+            implemented: true,
+            enabled:
+              this.providerRegistry?.isEnabled?.(provider) ??
+              (provider === CREDENTIAL_PROVIDERS.github ||
+                provider === CREDENTIAL_PROVIDERS.gitlab),
+            available:
+              this.providerRegistry?.isAvailable?.(provider) ??
+              (provider === CREDENTIAL_PROVIDERS.github ||
+                provider === CREDENTIAL_PROVIDERS.gitlab),
             account: metadata
               ? {
                   id: metadata.providerAccountId,
@@ -192,11 +223,60 @@ export class GitHubIntegrationController {
     pathTemplate: "/provider-credentials",
     aliases: [{ method: "POST", pathTemplate: "/api/provider-credentials" }],
   })
+  /**
+   * Business purpose: Configure an owner-scoped provider credential using the shared encrypted credential lifecycle.
+   * Business rules: Legacy string submissions remain valid for existing providers; target providers accept only their typed credential shapes and declared expiry is passed for provider validation and persistence.
+   * Execution flow: 1. Normalize the typed provider credential into the existing encrypted string-secret boundary. 2. Dispatch the configure command for the authenticated user. 3. Return the standard success envelope.
+   * Failure cases: Invalid typed fields raise the shared credential request problem; provider validation or readiness failures are mapped by the command handler.
+   * Side effects: The command may validate and persist an encrypted credential transactionally; raw secret data is never included in the response.
+   */
   async configureProviderCredential(
     @Body() body: ProviderCredentialRequest,
     @Req() request: GitHubIntegrationRequest,
   ) {
     const context = request.rbacContext as RbacRequestContext;
+    let credential = body.credential;
+    if (typeof credential !== "string") {
+      if (
+        body.provider === CREDENTIAL_PROVIDERS.bitbucket &&
+        credential.type === BITBUCKET_CREDENTIAL_TYPES.atlassianApiToken
+      ) {
+        try {
+          credential = encodeBitbucketApiTokenCredential({
+            email: credential.email,
+            apiToken: credential.apiToken,
+          });
+        } catch {
+          throw problemException(
+            GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid,
+            request.correlationId as string,
+            { status: HttpStatus.BAD_REQUEST },
+          );
+        }
+      } else if (
+        body.provider === CREDENTIAL_PROVIDERS.azureDevOps &&
+        credential.type === AZURE_DEVOPS_CREDENTIAL_TYPES.organizationPat
+      ) {
+        try {
+          credential = encodeAzureDevOpsOrganizationPatCredential({
+            organization: credential.organization,
+            pat: credential.pat,
+          });
+        } catch {
+          throw problemException(
+            GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid,
+            request.correlationId as string,
+            { status: HttpStatus.BAD_REQUEST },
+          );
+        }
+      } else {
+        throw problemException(
+          GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid,
+          request.correlationId as string,
+          { status: HttpStatus.BAD_REQUEST },
+        );
+      }
+    }
     return resultEnvelope(
       await this.commandBus.execute(
         new ConfigureProviderCredentialCommand(
@@ -204,8 +284,9 @@ export class GitHubIntegrationController {
           context.role,
           context.sessionId,
           body.provider,
-          body.credential,
+          credential,
           request.correlationId as string,
+          body.credential_expires_at,
         ),
       ),
     );

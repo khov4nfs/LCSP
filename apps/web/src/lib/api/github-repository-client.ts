@@ -8,6 +8,8 @@ import {
   type CredentialProvider,
   type ProviderCredentialStatus as ProviderCredentialLifecycleStatus,
   type RepositoryAuthenticationMode,
+  type BitbucketApiTokenCredential,
+  type AzureDevOpsOrganizationPatCredential,
 } from "@lcsp/contracts/github-integration";
 import type { MessageKey } from "@lcsp/i18n";
 
@@ -54,7 +56,18 @@ export type ProviderCredentialStatus = {
   /** Backend lifecycle state; null/absent when the provider has no credential. */
   status?: ProviderCredentialLifecycleStatus | null;
   account: { id: string; username: string } | null;
+  /** Adapter is part of this deployment's supported implementation. */
+  implemented?: boolean;
+  /** Current deployment allows new source operations for this provider. */
+  enabled?: boolean;
+  /** Local adapter runtime is available now; false can indicate a temporary outage. */
+  available?: boolean;
 };
+
+export type ProviderCredentialSubmission =
+  | { provider: typeof CREDENTIAL_PROVIDERS.github | typeof CREDENTIAL_PROVIDERS.gitlab; credential: string; credential_expires_at?: string }
+  | { provider: typeof CREDENTIAL_PROVIDERS.bitbucket; credential: BitbucketApiTokenCredential; credential_expires_at?: string }
+  | { provider: typeof CREDENTIAL_PROVIDERS.azureDevOps; credential: AzureDevOpsOrganizationPatCredential; credential_expires_at?: string };
 
 export class GitHubRepositoryRequestError extends Error {
   readonly problemCode: string | undefined;
@@ -139,7 +152,7 @@ export async function connectGitHubRepository(input: {
  * - Updates the backend credential without caching or returning the PAT.
  */
 export async function configureProviderCredential(
-  input: { provider: CredentialProvider; credential: string },
+  input: ProviderCredentialSubmission,
   signal?: AbortSignal,
 ): Promise<ProviderCredentialStatus> {
   const response = await apiRequest("/api/provider-credentials", {
@@ -166,6 +179,9 @@ export async function configureProviderCredential(
     provider: status.provider,
     configured: true,
     account: status.account,
+    status: status.status,
+    implemented: status.implemented,
+    enabled: status.enabled,
   };
 }
 
@@ -290,6 +306,9 @@ function isCredentialStatus(value: unknown): value is ProviderCredentialStatus {
       item.provider === CREDENTIAL_PROVIDERS.gitlab ||
       item.provider === CREDENTIAL_PROVIDERS.bitbucket ||
       item.provider === CREDENTIAL_PROVIDERS.azureDevOps) &&
+    (item.implemented === undefined || typeof item.implemented === "boolean") &&
+    (item.enabled === undefined || typeof item.enabled === "boolean") &&
+    (item.available === undefined || typeof item.available === "boolean") &&
     (item.configured === false ||
       (item.configured === true &&
         typeof account?.id === "string" &&

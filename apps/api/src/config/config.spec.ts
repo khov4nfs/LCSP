@@ -119,6 +119,46 @@ describe("configValidationSchema", () => {
     expect(error?.message).toContain("MFA_SECRET_ENCRYPTION_KEY");
   });
 
+  it("keeps new REST providers disabled unless the non-production schema gate is explicit", () => {
+    const { error: noSchema } = validate({
+      ...VALID_ENV,
+      BITBUCKET_REST_ENABLED: "true",
+      PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY: "false",
+    });
+    expect(noSchema?.message).toContain(
+      "External provider identity persistence",
+    );
+
+    const { error: accepted } = validate({
+      ...VALID_ENV,
+      BITBUCKET_REST_ENABLED: "true",
+      AZURE_DEVOPS_REST_ENABLED: "true",
+      PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY: "true",
+    });
+    expect(accepted).toBeUndefined();
+  });
+
+  it("allows explicitly configured production activation only with the schema assertion", () => {
+    const { error: schemaReady } = validate({
+      ...VALID_ENV,
+      NODE_ENV: "production",
+      BITBUCKET_REST_ENABLED: "true",
+      AZURE_DEVOPS_REST_ENABLED: "true",
+      PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY: "true",
+    });
+    expect(schemaReady).toBeUndefined();
+
+    const { error: schemaMissing } = validate({
+      ...VALID_ENV,
+      NODE_ENV: "production",
+      BITBUCKET_REST_ENABLED: "true",
+      PROVIDER_CREDENTIAL_EXTERNAL_IDENTITY_SCHEMA_READY: "false",
+    });
+    expect(schemaMissing?.message).toContain(
+      "External provider identity persistence",
+    );
+  });
+
   it("T05: ORCHESTRATION_DEBUG is off by default and opt-in", () => {
     const previous = process.env.ORCHESTRATION_DEBUG;
     try {
@@ -401,11 +441,6 @@ describe("config()", () => {
         timeoutMs: 30000,
         maxJsonOutputBytes: 1048576,
       },
-      azureDevOpsCli: {
-        executablePath: "",
-        timeoutMs: 30000,
-        maxJsonOutputBytes: 1048576,
-      },
       rabbitmq: {
         url: VALID_ENV.RABBITMQ_URL,
         exchange: VALID_ENV.RABBITMQ_EXCHANGE,
@@ -446,6 +481,11 @@ describe("config()", () => {
       storage: {
         artifactStoragePath: "",
         snapshotArchiveCacheDir: "",
+      },
+      providerAvailability: {
+        bitbucketRestEnabled: false,
+        azureDevOpsRestEnabled: false,
+        externalIdentitySchemaReady: false,
       },
     });
   });

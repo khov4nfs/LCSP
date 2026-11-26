@@ -17,7 +17,15 @@ test("Settings repository section contains credential status only", async () => 
 test("provider credential BFF validates and forwards only provider and credential", async () => {
   const source = await read("../src/app/api/provider-credentials/route.ts");
   assert.equal(source.includes("provider: string"), true);
-  assert.equal(source.includes("credential: string"), true);
+  assert.equal(source.includes("credential: unknown"), true);
+  assert.equal(
+    source.includes("BITBUCKET_CREDENTIAL_TYPES.atlassianApiToken"),
+    true,
+  );
+  assert.equal(
+    source.includes("AZURE_DEVOPS_CREDENTIAL_TYPES.organizationPat"),
+    true,
+  );
   assert.equal(source.includes("repositoryUrl"), false);
 });
 

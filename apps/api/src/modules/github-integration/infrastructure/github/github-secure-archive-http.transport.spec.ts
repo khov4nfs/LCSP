@@ -55,7 +55,11 @@ describe("GitHubSecureArchiveHttpTransport", () => {
             })
           : new Response(Buffer.from("archive"), {
               status: 200,
-              headers: { "content-type": "application/x-gzip" },
+              headers: {
+                "content-type": "application/x-gzip",
+                "content-disposition":
+                  'attachment; filename="acme-repo-aaaaaaa.tar.gz"',
+              },
             }),
       );
     });
@@ -70,10 +74,44 @@ describe("GitHubSecureArchiveHttpTransport", () => {
       GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
     );
     expect(result.validatedHost).toBe("codeload.github.com");
+    expect(result.archiveRoot).toBe("acme-repo-aaaaaaa");
     expect(calls[0]?.authorization).toBe(`Bearer ${SECRET}`);
     expect(calls[1]?.authorization).toBeUndefined();
     expect(JSON.stringify(result)).not.toContain(SECRET);
     expect(JSON.stringify(result)).not.toContain(SIGNED_MARKER);
+  });
+
+  it("rejects codeload wrapper metadata tied to a different commit", async () => {
+    const fakeFetch = jest
+      .fn<GitHubArchiveFetch>()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://codeload.github.com/acme/repo/tar.gz/${SHA}`,
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(Buffer.from("archive"), {
+          status: 200,
+          headers: {
+            "content-type": "application/x-gzip",
+            "content-disposition":
+              'attachment; filename="acme-repo-bbbbbbb.tar.gz"',
+          },
+        }),
+      );
+
+    await expect(
+      transport(fakeFetch).downloadArchive({
+        credentialLease: lease(),
+        repositoryFullName: "acme/repo",
+        commitSha: SHA,
+      }),
+    ).rejects.toMatchObject({
+      code: GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+    });
   });
 
   it.each([
@@ -167,7 +205,11 @@ describe("GitHubSecureArchiveHttpTransport", () => {
           Readable.toWeb(Readable.from([Buffer.alloc(4), Buffer.alloc(4)])),
           {
             status: 200,
-            headers: { "content-type": "application/gzip" },
+            headers: {
+              "content-type": "application/gzip",
+              "content-disposition":
+                'attachment; filename="acme-repo-aaaaaaa.tar.gz"',
+            },
           },
         ),
       );

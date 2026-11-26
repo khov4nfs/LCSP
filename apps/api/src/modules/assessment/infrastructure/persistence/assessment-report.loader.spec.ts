@@ -134,6 +134,10 @@ describe("AssessmentReportLoader locale read projection", () => {
     assessmentArtifact: {
       findUnique: () => Promise.resolve(artifactRow),
     },
+    repositorySnapshot: {
+      findFirst: () => Promise.resolve(null),
+      findUnique: () => Promise.resolve(null),
+    },
   } as unknown as PrismaService;
 
   const mockStorage = {
@@ -270,6 +274,10 @@ describe("AssessmentReportLoader historical compatibility", () => {
               assessment: { lifecycleState: "COMPLETE", ownerId: "owner-1" },
             },
           }),
+        },
+        repositorySnapshot: {
+          findFirst: () => Promise.resolve(null),
+          findUnique: () => Promise.resolve(null),
         },
       } as never,
       { readAndReconstruct: () => raw } as never,

@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { HttpStatus, Inject, Optional } from "@nestjs/common";
+import { HttpStatus, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
@@ -11,6 +10,7 @@ import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   CREDENTIAL_AUTHORIZATION_STATUSES,
   CREDENTIAL_PROVIDERS,
+  GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
   PROVIDER_CREDENTIAL_STATUSES,
@@ -25,7 +25,6 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { GitHubCliRepositoryConnectionDto } from "../../contracts/github-integration/github-cli-connect.contract.js";
 import {
-  GITHUB_REPOSITORY_PROVIDER,
   type GitHubIdentity,
   type GitHubRepositoryMetadata,
   type GitHubRepositoryProviderPort,
@@ -55,17 +54,28 @@ const ENVELOPE_VERSION = 1;
 @CommandHandler(ConnectGitHubCliRepositoryCommand)
 export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<ConnectGitHubCliRepositoryCommand> {
   constructor(
-    @Inject(GITHUB_REPOSITORY_PROVIDER)
-    private readonly provider: GitHubRepositoryProviderPort,
     private readonly config: ConfigService<AppConfig, true>,
     private readonly prisma: PrismaService,
     private readonly unitOfWork: PrismaCredentialPersistenceUnitOfWork,
     private readonly auditWriter: AuditWriterService,
-    @Optional()
     @Inject(REPOSITORY_PROVIDER_REGISTRY)
-    private readonly providerRegistry?: RepositoryProviderRegistry,
+    private readonly providerRegistry: RepositoryProviderRegistry,
   ) {}
 
+  /**
+   * Business purpose: Validate and persist one customer's provider repository connection.
+   * Business rules:
+   * - This legacy credential-in-request endpoint accepts only GitHub and GitLab; Bitbucket and Azure credentials must use their typed, owner-scoped credential configuration.
+   * - Only customer-owned operations using a registered provider adapter may validate or persist access, and numeric provider account IDs must remain exact.
+   * - A provider cannot fall back to another provider's adapter or replace an external identity with a numeric hash.
+   * Execution flow:
+   * 1. Validate input and assessment ownership, reject new-provider use on this legacy endpoint, then select the exact provider adapter.
+   * 2. Resolve identity and repository access, then persist encrypted credential metadata and the version-bound connection.
+   * Failure cases:
+   * - Invalid input, unsupported legacy credential shape, disabled provider, nonnumeric account ID, missing assessment, provider denial, or persistence conflict rejects without creating a connection.
+   * Side effects:
+   * - May call the selected provider, store encrypted credential material, persist the connection, and write an audit event; the lease is always disposed.
+   */
   async execute(
     command: ConnectGitHubCliRepositoryCommand,
   ): Promise<GitHubCliRepositoryConnectionDto> {
@@ -76,8 +86,22 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
     if (!Object.values(CREDENTIAL_PROVIDERS).includes(provider)) {
       this.invalid(command.correlationId);
     }
-    const providerAdapter =
-      this.providerRegistry?.get(provider) ?? this.provider;
+    let providerAdapter: GitHubRepositoryProviderPort;
+    try {
+      providerAdapter = this.providerRegistry.get(provider);
+    } catch (error: unknown) {
+      mapProviderFailure(error, command.correlationId);
+    }
+    if (
+      provider === CREDENTIAL_PROVIDERS.bitbucket ||
+      provider === CREDENTIAL_PROVIDERS.azureDevOps
+    ) {
+      throw problemException(
+        GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired,
+        command.correlationId,
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    }
     const repositoryFullName = parseRepositoryFullName(
       provider,
       command.repositoryUrl,
@@ -126,6 +150,13 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
         providerCredentialId,
         command.repositoryUrl !== undefined,
       );
+      if (!/^\d+$/u.test(identity.id)) {
+        throw problemException(
+          GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+          command.correlationId,
+          { status: HttpStatus.BAD_GATEWAY },
+        );
+      }
 
       const authenticationMode = toRepositoryAuthenticationMode(provider);
       const duplicate = await this.prisma.repositoryConnection.findFirst({
@@ -160,7 +191,8 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
           id: providerCredentialId,
           provider,
           ownerUserId: command.userId,
-          providerAccountId: toProviderAccountIdBigInt(identity.id),
+          providerAccountId: BigInt(identity.id),
+          providerAccountExternalId: null,
           providerLogin: identity.login,
           status: PROVIDER_CREDENTIAL_STATUSES.active,
           currentVersion: INITIAL_CREDENTIAL_VERSION,
@@ -363,10 +395,4 @@ function toRepositoryAuthenticationMode(
     case CREDENTIAL_PROVIDERS.azureDevOps:
       return RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL;
   }
-}
-
-function toProviderAccountIdBigInt(id: string): bigint {
-  if (/^\d+$/u.test(id)) return BigInt(id);
-  const hash = createHash("sha256").update(id).digest();
-  return hash.readBigUInt64BE(0) & 0x7fffffffffffffffn;
 }

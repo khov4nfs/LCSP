@@ -15,6 +15,7 @@ export function providerOrUnavailable(
     const unavailable = (): Promise<never> =>
       Promise.reject(unavailableError());
     return {
+      isRuntimeAvailable: false,
       validateIdentity: unavailable,
       listAccessibleRepositories: unavailable,
       validateRepositoryAccess: unavailable,

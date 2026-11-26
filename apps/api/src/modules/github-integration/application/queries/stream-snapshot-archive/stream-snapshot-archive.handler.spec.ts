@@ -28,6 +28,8 @@ import { CredentialLease } from "../../../application/security/credential-lease.
 import type { CredentialAuthorizationResolverPort } from "../../../application/ports/security/credential-authorization-resolver.port.js";
 import type { GitHubArchiveTransportPort } from "../../../application/ports/github-archive-transport.port.js";
 import { GitHubArchiveTransportError } from "../../../infrastructure/github/github-secure-archive-http.transport.js";
+import { CredentialResolutionError } from "../../../infrastructure/persistence/prisma-credential-authorization.resolver.js";
+import { RepositoryProviderUnavailableError } from "../../../infrastructure/repository-provider.registry.js";
 import type {
   SnapshotArchiveCache,
   SnapshotArchiveCacheCaptureInput,
@@ -66,7 +68,17 @@ describe("StreamSnapshotArchiveHandler", () => {
     idempotencyKey: "manual:scan-job-1",
   };
 
-  const connection = {
+  const connection: {
+    id: string;
+    userId: string;
+    provider: string;
+    installationId: null;
+    status: typeof REPOSITORY_CONNECTION_STATUSES.active;
+    authenticationMode: RepositoryAuthenticationMode;
+    providerCredentialId: string;
+    repositoryId: string;
+    repositoryFullName: string;
+  } = {
     id: "connection-1",
     userId: "user-1",
     provider: CREDENTIAL_PROVIDERS.github,
@@ -78,27 +90,32 @@ describe("StreamSnapshotArchiveHandler", () => {
     repositoryFullName: "acme/example-repo",
   };
 
-  const lease = new CredentialLease("github_pat_test_lease_secret", {
-    internalCredentialId: "credential-1",
-    credentialVersion: 1,
-    repositoryFullName: "acme/example-repo",
-    expiresAt: new Date(Date.now() + 60_000),
-  });
-
   function buildHandler(options?: {
     scanJob?: ScanJobFixture | null;
     snapshot?: typeof snapshot | null;
     connection?: typeof connection | null;
+    azureConnection?: boolean;
     archive?: {
       contentType: string;
       redirectValidation: GitHubArchiveRedirectValidationStatus;
       validatedHost: string;
+      archiveRoot?: string | null;
+      treeManifest?: {
+        version: 1;
+        commitSha: string;
+        treeId: string;
+        fileCount: number;
+        pathSha256: string;
+      };
       stream: Readable;
     };
     archiveError?: Error;
     cacheHit?: SnapshotArchiveCacheHit | null;
+    authorizationError?: Error;
     claimCount?: number;
     hydration?: boolean;
+    assessmentAuthorized?: boolean;
+    providerEnabled?: boolean;
   }) {
     const hasOption = <K extends keyof NonNullable<typeof options>>(
       key: K,
@@ -109,6 +126,15 @@ describe("StreamSnapshotArchiveHandler", () => {
       .fn<() => Promise<{ count: number }>>()
       .mockResolvedValue({ count: options?.claimCount ?? 1 });
     const prisma = {
+      assessment: {
+        findFirst: jest.fn(() =>
+          Promise.resolve(
+            options?.assessmentAuthorized === false
+              ? null
+              : { id: "assessment-1" },
+          ),
+        ),
+      },
       repositoryScanJob: {
         findUnique: jest
           .fn<() => Promise<ScanJobFixture | null | undefined>>()
@@ -126,14 +152,34 @@ describe("StreamSnapshotArchiveHandler", () => {
         findUnique: jest
           .fn<() => Promise<typeof connection | null | undefined>>()
           .mockResolvedValue(
-            hasOption("connection") ? options?.connection : connection,
+            hasOption("connection")
+              ? options?.connection
+              : options?.azureConnection
+                ? {
+                    ...connection,
+                    provider: CREDENTIAL_PROVIDERS.azureDevOps,
+                    authenticationMode:
+                      RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL,
+                  }
+                : connection,
           ),
       },
     } as unknown as PrismaService;
 
+    const lease = new CredentialLease("archive-test-secret", {
+      internalCredentialId: "credential-1",
+      credentialVersion: 1,
+      repositoryFullName: "acme/example-repo",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const disposeLease = jest.spyOn(lease, "dispose");
     const resolveForConnection = jest
       .fn<CredentialAuthorizationResolverPort["resolveForConnection"]>()
-      .mockResolvedValue(lease);
+      .mockImplementation(() =>
+        options?.authorizationError
+          ? Promise.reject(options.authorizationError)
+          : Promise.resolve(lease),
+      );
     const markInvalid = jest
       .fn<CredentialAuthorizationResolverPort["markInvalid"]>()
       .mockResolvedValue();
@@ -152,6 +198,7 @@ describe("StreamSnapshotArchiveHandler", () => {
             redirectValidation:
               GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
             validatedHost: "codeload.github.com",
+            archiveRoot: null,
             stream: Readable.from([Buffer.from("archive")]),
           },
         );
@@ -198,8 +245,21 @@ describe("StreamSnapshotArchiveHandler", () => {
         prisma,
         snapshotArchiveCache,
         credentialResolver,
-        { downloadArchive: downloadRepositoryArchiveMock },
         hydrationLifecycle as never,
+        {
+          get: () => ({ downloadArchive: downloadRepositoryArchiveMock }),
+        },
+        {
+          get: (provider: string) => {
+            if (
+              provider !== CREDENTIAL_PROVIDERS.github &&
+              !options?.providerEnabled
+            ) {
+              throw new RepositoryProviderUnavailableError();
+            }
+            return {};
+          },
+        } as never,
       ),
       downloadRepositoryArchiveMock,
       resolveForConnection,
@@ -207,6 +267,8 @@ describe("StreamSnapshotArchiveHandler", () => {
       cacheCaptureMock,
       claimScanJobMock,
       hydrationLifecycle,
+      disposeLease,
+      authorizationLease: lease,
     };
   }
   it("streams the pinned repository archive when scope is valid", async () => {
@@ -227,24 +289,339 @@ describe("StreamSnapshotArchiveHandler", () => {
     );
   });
 
+  it("fails closed when a Bitbucket archive has unknown root semantics", async () => {
+    const stream = Readable.from([Buffer.from("ambiguous-source")]);
+    const { handler, cacheCaptureMock } = buildHandler({
+      providerEnabled: true,
+      connection: {
+        ...connection,
+        provider: CREDENTIAL_PROVIDERS.bitbucket,
+        authenticationMode:
+          RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL,
+      } as unknown as typeof connection,
+      archive: {
+        contentType: "application/zip",
+        redirectValidation:
+          GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
+        validatedHost: "api.bitbucket.org",
+        stream,
+      },
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-root"),
+      ),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+        }),
+      }),
+    });
+    expect(stream.destroyed).toBe(true);
+    expect(cacheCaptureMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed on an Azure cache hit with unknown root metadata", async () => {
+    const stream = Readable.from([Buffer.from("ambiguous-cached-source")]);
+    const { handler, downloadRepositoryArchiveMock } = buildHandler({
+      providerEnabled: true,
+      connection: {
+        ...connection,
+        provider: CREDENTIAL_PROVIDERS.azureDevOps,
+        authenticationMode:
+          RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL,
+      } as unknown as typeof connection,
+      cacheHit: {
+        contentType: "application/zip",
+        resolvedUrl:
+          "https://dev.azure.com/org/project/_apis/git/repositories/id/items",
+        stream,
+      },
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-cache-root",
+        ),
+      ),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
+        }),
+      }),
+    });
+    expect(stream.destroyed).toBe(true);
+    expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves an explicitly verified rootless Azure archive on a cache hit", async () => {
+    const stream = Readable.from([Buffer.from("verified-rootless-source")]);
+    const { handler, downloadRepositoryArchiveMock } = buildHandler({
+      providerEnabled: true,
+      connection: {
+        ...connection,
+        provider: CREDENTIAL_PROVIDERS.azureDevOps,
+        authenticationMode:
+          RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL,
+      } as unknown as typeof connection,
+      cacheHit: {
+        contentType: "application/zip",
+        resolvedUrl:
+          "https://dev.azure.com/org/project/_apis/git/repositories/id/items",
+        archiveRoot: null,
+        stream,
+      },
+    });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery(
+        "snapshot-1",
+        "scan-job-1",
+        "corr-rootless-cache",
+      ),
+    );
+
+    expect(result.stream).toBe(stream);
+    expect(result.archiveRoot).toBeNull();
+    expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+  });
+
   it("reuses a valid ephemeral archive for the same pinned snapshot", async () => {
     const cacheHit: SnapshotArchiveCacheHit = {
       contentType: "application/gzip",
       resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
+      archiveRoot: "trusted-wrapper",
       stream: Readable.from([Buffer.from("cached-archive")]),
     };
-    const { handler, downloadRepositoryArchiveMock, cacheGetMock } =
-      buildHandler({ cacheHit });
+    const {
+      handler,
+      downloadRepositoryArchiveMock,
+      cacheGetMock,
+      resolveForConnection,
+      disposeLease,
+    } = buildHandler({ cacheHit });
 
     const result = await handler.execute(
       new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-cache"),
     );
 
     expect(result.stream).toBe(cacheHit.stream);
+    expect(result.archiveRoot).toBe("trusted-wrapper");
     expect(cacheGetMock).toHaveBeenCalledWith({
       snapshotId: "snapshot-1",
       commitSha: "a".repeat(40),
     });
+    expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+    expect(resolveForConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        assessmentId: "assessment-1",
+      }),
+      "connection-1",
+      "acme/example-repo",
+    );
+    expect(resolveForConnection.mock.invocationCallOrder[0]).toBeLessThan(
+      cacheGetMock.mock.invocationCallOrder[0],
+    );
+    expect(disposeLease).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows an unknown Azure root only when a commit-bound tree manifest is present", async () => {
+    const treeManifest = {
+      version: 1 as const,
+      commitSha: "a".repeat(40),
+      treeId: "b".repeat(40),
+      fileCount: 1,
+      pathSha256: "c".repeat(64),
+    };
+    const { handler, cacheCaptureMock } = buildHandler({
+      azureConnection: true,
+      providerEnabled: true,
+      archive: {
+        contentType: "application/zip",
+        redirectValidation:
+          GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
+        validatedHost: "dev.azure.com",
+        treeManifest,
+        stream: Readable.from([Buffer.from("zip")]),
+      },
+    });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-tree"),
+    );
+
+    expect(result.archiveRoot).toBeUndefined();
+    expect(result.archiveRootStatus).toBe("UNKNOWN");
+    expect(result.treeManifest).toEqual(treeManifest);
+    expect(cacheCaptureMock).toHaveBeenCalledWith(
+      expect.objectContaining({ treeManifest }),
+    );
+  });
+
+  it("rejects a revoked credential before looking up a cached archive", async () => {
+    const cacheHit: SnapshotArchiveCacheHit = {
+      contentType: "application/gzip",
+      resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
+      archiveRoot: null,
+      stream: Readable.from([Buffer.from("must-not-deliver")]),
+    };
+    const { handler, cacheGetMock, downloadRepositoryArchiveMock } =
+      buildHandler({
+        cacheHit,
+        authorizationError: new CredentialResolutionError(
+          GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid,
+        ),
+      });
+
+    let rejection: unknown;
+    try {
+      await handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-revoked",
+        ),
+      );
+    } catch (error: unknown) {
+      rejection = error;
+    }
+
+    expect(rejection).toBeInstanceOf(HttpException);
+    expect((rejection as HttpException).getStatus()).toBe(401);
+    expect(cacheGetMock).not.toHaveBeenCalled();
+    expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid,
+    GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+  ])("rejects %s before a cache miss can retrieve source", async (code) => {
+    const { handler, cacheGetMock, downloadRepositoryArchiveMock } =
+      buildHandler({
+        authorizationError: new CredentialResolutionError(code),
+      });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-stale-authorization",
+        ),
+      ),
+    ).rejects.toBeInstanceOf(HttpException);
+
+    expect(cacheGetMock).not.toHaveBeenCalled();
+    expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+  });
+
+  it("allows an archive delivery already authorized before disconnect to finish", async () => {
+    const cacheHit: SnapshotArchiveCacheHit = {
+      contentType: "application/gzip",
+      resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
+      archiveRoot: "trusted-root",
+      stream: Readable.from([Buffer.from("authorized-before-revoke")]),
+    };
+    const {
+      handler,
+      resolveForConnection,
+      cacheGetMock,
+      authorizationLease,
+      disposeLease,
+    } = buildHandler({ cacheHit });
+    let authorizationLinearized = false;
+    let revocationCommitted = false;
+    resolveForConnection.mockImplementation(() => {
+      authorizationLinearized = true;
+      return Promise.resolve(authorizationLease);
+    });
+    cacheGetMock.mockImplementation(() => {
+      expect(authorizationLinearized).toBe(true);
+      revocationCommitted = true;
+      return Promise.resolve(cacheHit);
+    });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-race"),
+    );
+
+    expect(revocationCommitted).toBe(true);
+    expect(result.stream).toBe(cacheHit.stream);
+    expect(disposeLease).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a scan job whose assessment differs from the pinned snapshot", async () => {
+    const { handler, resolveForConnection, cacheGetMock } = buildHandler({
+      snapshot: { ...snapshot, assessmentId: "assessment-other" },
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-binding",
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    expect(resolveForConnection).not.toHaveBeenCalled();
+    expect(cacheGetMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a source request when the assessment owner no longer matches the connection", async () => {
+    const { handler, resolveForConnection, cacheGetMock } = buildHandler({
+      assessmentAuthorized: false,
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-owner",
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    expect(resolveForConnection).not.toHaveBeenCalled();
+    expect(cacheGetMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks a disabled provider before authorization, cache lookup, or archive retrieval", async () => {
+    const {
+      handler,
+      resolveForConnection,
+      cacheGetMock,
+      downloadRepositoryArchiveMock,
+    } = buildHandler({
+      connection: {
+        ...connection,
+        provider: CREDENTIAL_PROVIDERS.bitbucket,
+        authenticationMode:
+          RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL,
+      } as unknown as typeof connection,
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-disabled",
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    expect(resolveForConnection).not.toHaveBeenCalled();
+    expect(cacheGetMock).not.toHaveBeenCalled();
     expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
   });
 
@@ -447,7 +824,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     const loggerError = jest
       .spyOn(Logger.prototype, "error")
       .mockImplementation(() => undefined);
-    const { handler } = buildHandler({
+    const { handler, disposeLease } = buildHandler({
       archiveError: new GitHubArchiveTransportError(
         GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
         404,
@@ -461,17 +838,37 @@ describe("StreamSnapshotArchiveHandler", () => {
     ).rejects.toBeInstanceOf(BadGatewayException);
 
     expect(loggerError).toHaveBeenCalledWith(
-      "GitHub snapshot archive retrieval failed: PROVIDER_RESPONSE_INVALID",
+      "Repository snapshot archive retrieval failed: PROVIDER_RESPONSE_INVALID",
       undefined,
       expect.objectContaining({
         correlationId: "corr-1",
-        githubStatus: 404,
+        providerStatus: 404,
         repositoryFullName: "acme/example-repo",
         scanJobId: "scan-job-1",
         snapshotId: "snapshot-1",
       }),
     );
+    expect(disposeLease).toHaveBeenCalledTimes(1);
     loggerError.mockRestore();
+  });
+
+  it("disposes the credential lease when archive delivery is cancelled", async () => {
+    const { handler, disposeLease } = buildHandler({
+      archiveError: new GitHubArchiveTransportError(
+        GITHUB_CREDENTIAL_ERROR_CODES.operationCancelled,
+      ),
+    });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          "scan-job-1",
+          "corr-cancelled",
+        ),
+      ),
+    ).rejects.toMatchObject({ status: 499 });
+    expect(disposeLease).toHaveBeenCalledTimes(1);
   });
 
   it("preserves GitHub 429 so the worker can apply rate-limit backoff", async () => {

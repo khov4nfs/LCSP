@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Logger, Optional } from "@nestjs/common";
+import { HttpStatus, Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import {
@@ -16,7 +16,6 @@ import {
   REPOSITORY_AUTHENTICATION_MODES,
   REPOSITORY_CONNECTION_STATUSES,
   repositorySourcePathPrefixSchema,
-  type GitHubCredentialErrorCode,
 } from "@lcsp/contracts/github-integration";
 import {
   buildOutboxMessageInput,
@@ -27,7 +26,6 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { RepositorySnapshot } from "../../../domain/entities/repository-snapshot.entity.js";
-import { GitHubCliProviderError } from "../../../infrastructure/github/github-cli-repository.provider.js";
 import type { PinSnapshotDto } from "../../contracts/github-integration/pin-snapshot.contract.js";
 import {
   REPOSITORY_CONNECTION_REPOSITORY,
@@ -43,14 +41,15 @@ import {
   type CredentialAuthorizationResolverPort,
 } from "../../ports/security/credential-authorization-resolver.port.js";
 import {
-  GITHUB_REPOSITORY_PROVIDER,
-  type GitHubRepositoryProviderPort,
   type GitHubResolvedCommit,
   REPOSITORY_PROVIDER_REGISTRY,
   type RepositoryProviderRegistry,
 } from "../../ports/github-repository-provider.port.js";
-import { CredentialResolutionError } from "../../../infrastructure/persistence/prisma-credential-authorization.resolver.js";
 import type { CredentialLease } from "../../security/credential-lease.js";
+import {
+  providerFailureCategory,
+  providerFailureStatus,
+} from "../github-cli-connect.support.js";
 
 /**
  * Resolves an authorized Git revision to an immutable commit and persists an assessment-bound repository snapshot plus outbox/audit evidence.
@@ -74,13 +73,10 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
     private readonly snapshotRepository: RepositorySnapshotRepository,
     @Inject(CREDENTIAL_AUTHORIZATION_RESOLVER)
     private readonly credentialResolver: CredentialAuthorizationResolverPort,
-    @Inject(GITHUB_REPOSITORY_PROVIDER)
-    private readonly githubRepositoryProvider: GitHubRepositoryProviderPort,
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
     @Inject(REPOSITORY_PROVIDER_REGISTRY)
-    @Optional()
-    private readonly providerRegistry?: RepositoryProviderRegistry,
+    private readonly providerRegistry: RepositoryProviderRegistry,
   ) {}
 
   /**
@@ -324,6 +320,20 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
     }
   }
 
+  /**
+   * Business purpose: Resolve a mutable user-selected revision through the provider bound to the repository connection.
+   * Business rules:
+   * - Only the registered provider for the connection may run.
+   * - Only the connection's current authorized credential lease may be used.
+   * Execution flow:
+   * 1. Resolve the provider adapter before acquiring the bound credential lease.
+   * 2. Request commit resolution, classify safe failures, and dispose the lease.
+   * Failure cases:
+   * - Disabled, stale, expired, unauthorized, timed-out, or malformed provider operations become established API problems.
+   * - Only authoritative invalid-credential evidence changes credential state.
+   * Side effects:
+   * - May call the provider, mark the exact lease version invalid on typed evidence, and write a denial audit event.
+   */
   private async resolveCliCommit(
     command: PinSnapshotCommand,
     connection: NonNullable<
@@ -333,6 +343,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
   ): Promise<GitHubResolvedCommit> {
     let lease: CredentialLease | undefined;
     try {
+      const provider = this.providerRegistry.get(connection.provider);
       lease = await this.credentialResolver.resolveForConnection(
         {
           actorId: command.actorId,
@@ -344,16 +355,14 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         connection.id,
         connection.repositoryFullName,
       );
-      const provider =
-        this.providerRegistry?.get(connection.provider) ??
-        this.githubRepositoryProvider;
       return await provider.resolveCommit(
         lease,
         connection.repositoryFullName,
         revision,
+        connection.repositoryId,
       );
     } catch (error: unknown) {
-      const category = cliFailureCategory(error);
+      const category = providerFailureCategory(error);
       if (
         lease &&
         category === GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid
@@ -366,7 +375,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       }
       await this.auditDenied(command, category);
       throw problemException(category, command.correlationId, {
-        status: cliFailureStatus(category),
+        status: providerFailureStatus(category),
       });
     } finally {
       lease?.dispose();
@@ -423,32 +432,4 @@ function clean(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
-}
-
-function cliFailureCategory(error: unknown): GitHubCredentialErrorCode {
-  if (error instanceof GitHubCliProviderError) return error.category;
-  if (error instanceof CredentialResolutionError) return error.code;
-  return GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid;
-}
-
-function cliFailureStatus(category: GitHubCredentialErrorCode): number {
-  const statuses: Record<GitHubCredentialErrorCode, number> = {
-    [GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired]: HttpStatus.BAD_REQUEST,
-    [GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid]: HttpStatus.UNAUTHORIZED,
-    [GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired]: HttpStatus.UNAUTHORIZED,
-    [GITHUB_CREDENTIAL_ERROR_CODES.credentialApprovalRequired]:
-      HttpStatus.FORBIDDEN,
-    [GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied]:
-      HttpStatus.NOT_FOUND,
-    [GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable]: HttpStatus.NOT_FOUND,
-    [GITHUB_CREDENTIAL_ERROR_CODES.providerRateLimited]:
-      HttpStatus.TOO_MANY_REQUESTS,
-    [GITHUB_CREDENTIAL_ERROR_CODES.providerTimeout]: HttpStatus.GATEWAY_TIMEOUT,
-    [GITHUB_CREDENTIAL_ERROR_CODES.operationCancelled]: 499,
-    [GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable]:
-      HttpStatus.SERVICE_UNAVAILABLE,
-    [GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid]:
-      HttpStatus.BAD_GATEWAY,
-  };
-  return statuses[category];
 }

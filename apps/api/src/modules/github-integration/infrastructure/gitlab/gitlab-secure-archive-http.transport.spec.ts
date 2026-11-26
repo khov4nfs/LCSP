@@ -31,6 +31,7 @@ describe("GitLabSecureArchiveHttpTransport", () => {
         repositoryFullName: "group/project",
         commitSha: sha,
       });
+      expect(result.archiveRoot).toBe(`project-${sha}-${sha}`);
       let bytes = 0;
       for await (const chunk of result.stream) bytes += chunk.length;
       expect(bytes).toBeGreaterThan(0);

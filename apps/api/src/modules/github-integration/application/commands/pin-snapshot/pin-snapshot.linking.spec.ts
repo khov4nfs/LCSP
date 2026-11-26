@@ -101,9 +101,9 @@ describe("PinSnapshotHandler repository reuse", () => {
         resolveForConnection: jest.fn(() => Promise.resolve(lease)),
         markInvalid: jest.fn(() => Promise.resolve()),
       } as unknown as CredentialAuthorizationResolverPort,
-      { resolveCommit } as unknown as GitHubRepositoryProviderPort,
       prisma,
       auditWriter,
+      { get: () => ({ resolveCommit }) } as never,
     );
 
     await handler.execute(

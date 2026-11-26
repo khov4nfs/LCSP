@@ -55,7 +55,6 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
     } as unknown as import("@nestjs/config").ConfigService<AppConfig, true>;
     const registry = { get: () => provider };
     handler = new ConfigureProviderCredentialHandler(
-      provider as never,
       config,
       unitOfWork,
       registry as never,
@@ -179,6 +178,7 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
           provider: current.provider,
           ownerUserId: current.ownerUserId,
           providerAccountId: 99n,
+          providerAccountExternalId: null,
           providerLogin: "conflict",
           status: ProviderCredentialStatus.ACTIVE,
           isActive: true,
@@ -389,7 +389,6 @@ run("ConfigureProviderCredential Prisma replacement integration", () => {
       } as never,
     );
     const failingHandler = new ConfigureProviderCredentialHandler(
-      provider as never,
       { get: () => ({ enabled: true }) } as never,
       failingUnitOfWork,
       { get: () => provider } as never,

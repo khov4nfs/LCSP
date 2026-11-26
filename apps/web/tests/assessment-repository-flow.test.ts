@@ -60,6 +60,29 @@ test("repository setup accepts only valid repository URLs matching supported pro
       provider: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket,
       repositoryUrl: "https://bitbucket.org/workspace-slug/repo-slug",
     }).success,
+    true,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.azureDevOps,
+      repositoryUrl:
+        "https://dev.azure.com/acme/Platform%20Team/_git/service%20api",
+    }).success,
+    true,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.azureDevOps,
+      repositoryUrl:
+        "https://acme.visualstudio.com/Platform%20Team/_git/service%20api",
+    }).success,
+    true,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket,
+      repositoryUrl: "https://dev.azure.com/acme/project/_git/repo",
+    }).success,
     false,
   );
   assert.equal(

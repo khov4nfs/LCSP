@@ -145,9 +145,9 @@ function buildHandler(options?: {
       connectionRepository,
       snapshotRepository,
       credentialResolver,
-      githubRepositoryProvider,
       prisma,
       auditWriter,
+      { get: () => githubRepositoryProvider },
     ),
     findById,
     saveWithCreatedEvent,
@@ -168,6 +168,7 @@ describe("PinSnapshotHandler", () => {
       lease,
       "acme/example-repo",
       "main",
+      "repo-1",
     );
     expect(result).toMatchObject({
       repository_full_name: "acme/example-repo",
@@ -212,6 +213,7 @@ describe("PinSnapshotHandler", () => {
       expect.anything(),
       "acme/example-repo",
       sha,
+      "repo-1",
     );
   });
 

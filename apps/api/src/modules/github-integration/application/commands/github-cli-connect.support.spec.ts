@@ -1,11 +1,18 @@
 import { describe, expect, it } from "@jest/globals";
+import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
 
 import {
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
   parseBitbucketRepositoryUrl,
   parseAzureDevOpsRepositoryUrl,
+  providerFailureCategory,
 } from "./github-cli-connect.support.js";
+import { GitHubCliProviderError } from "../../infrastructure/github/github-cli-repository.provider.js";
+import { GitLabCliProviderError } from "../../infrastructure/gitlab/gitlab-cli-repository.provider.js";
+import { BitbucketCliProviderError } from "../../infrastructure/bitbucket/bitbucket-cli-repository.provider.js";
+import { BitbucketRestProviderError } from "../../infrastructure/bitbucket/bitbucket-rest-repository.provider.js";
+import { AzureDevOpsRestProviderError } from "../../infrastructure/azure-devops/azure-devops-rest-repository.provider.js";
 
 describe("parseGitHubRepositoryUrl", () => {
   it.each([
@@ -119,5 +126,31 @@ describe("parseAzureDevOpsRepositoryUrl", () => {
     "https://dev.azure.com/org/proj/_git/repo/branches",
   ])("rejects invalid Azure DevOps locator %s", (value) => {
     expect(parseAzureDevOpsRepositoryUrl(value)).toBeNull();
+  });
+});
+
+describe("providerFailureCategory", () => {
+  it.each([
+    new GitHubCliProviderError(GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired),
+    new GitLabCliProviderError(GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired),
+    new BitbucketCliProviderError(
+      GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+    ),
+    new BitbucketRestProviderError(
+      GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+    ),
+    new AzureDevOpsRestProviderError(
+      GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+    ),
+  ])("preserves typed failures from each provider", (error) => {
+    expect(providerFailureCategory(error)).toBe(
+      GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired,
+    );
+  });
+
+  it("does not infer credential revocation from an untyped error", () => {
+    expect(
+      providerFailureCategory(new Error("provider said unauthorized")),
+    ).toBe(GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid);
   });
 });

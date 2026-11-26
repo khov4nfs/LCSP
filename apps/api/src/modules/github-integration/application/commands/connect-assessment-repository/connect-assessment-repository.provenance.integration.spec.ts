@@ -121,7 +121,6 @@ run("ConnectAssessmentRepository credential provenance", () => {
     } as never;
     const registry = { get: () => provider } as never;
     configure = new ConfigureProviderCredentialHandler(
-      provider as never,
       config,
       unitOfWork,
       registry,
@@ -434,7 +433,6 @@ run("ConnectAssessmentRepository credential provenance", () => {
         ),
         markInvalid: jest.fn(),
       } as never,
-      snapshotProvider as never,
       prisma as never,
       { write: jest.fn(async () => undefined) } as never,
       { get: () => snapshotProvider } as never,
@@ -511,7 +509,6 @@ run("ConnectAssessmentRepository credential provenance", () => {
         ),
         markInvalid: jest.fn(),
       } as never,
-      githubSnapshotProvider as never,
       prisma as never,
       { write: jest.fn(async () => undefined) } as never,
       { get: () => githubSnapshotProvider } as never,

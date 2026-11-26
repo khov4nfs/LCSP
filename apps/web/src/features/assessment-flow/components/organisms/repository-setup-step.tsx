@@ -10,6 +10,10 @@ import {
   CREDENTIAL_PROVIDERS,
   GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
+  parseAzureDevOpsRepositoryUrl,
+  parseBitbucketRepositoryUrl,
+  parseGitHubRepositoryUrl,
+  parseGitLabRepositoryUrl,
   type CredentialProvider,
 } from "@lcsp/contracts/github-integration";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
@@ -41,6 +45,10 @@ import {
 } from "@/lib/api/auth-queries";
 import { useProviderCredentialStatusesQuery } from "@/lib/api/github-repository-queries";
 import {
+  GitHubRepositoryRequestError,
+  githubRepositoryProblemMessageKey,
+} from "@/lib/api/github-repository-client";
+import {
   connectAssessmentRepository,
   getRepositorySetupState,
   startRepositoryAnalysis,
@@ -64,6 +72,13 @@ type RepositorySetupStepProps = {
   assessmentId?: string;
 };
 
+/**
+ * Business purpose: Guide an authorized customer through provider selection, credential setup and direct repository onboarding.
+ * Business rules: GitHub/GitLab preserve current behavior; Bitbucket/Azure require backend readiness and an active owner credential, and reconnection is an explicit action.
+ * Execution flow: 1. Load safe provider readiness and persisted setup. 2. Validate a provider-matched URL and credential state. 3. Connect/reconnect and prepare the pinned repository through existing mutations.
+ * Failure cases: Unavailable providers, invalid credentials, URL mismatches and setup errors stop submission while preserving the existing assessment checkpoint.
+ * Side effects: May configure a credential, connect a repository, start preparation, update query caches and navigate after the backend activates the assessment.
+ */
 export function RepositorySetupStep({
   assessmentId: initialAssessmentId,
 }: RepositorySetupStepProps) {
@@ -116,8 +131,13 @@ export function RepositorySetupStep({
     (status) => status.provider === credentialProvider,
   );
   const credentialConfigured = activeCredentialStatus?.configured === true;
+  const providerEnabled =
+    provider === CREDENTIAL_PROVIDERS.github ||
+    provider === CREDENTIAL_PROVIDERS.gitlab ||
+    (activeCredentialStatus?.enabled === true &&
+      activeCredentialStatus.available !== false);
   const canEnterRepository = Boolean(
-    provider && credentialProvider && credentialConfigured,
+    provider && credentialProvider && credentialConfigured && providerEnabled,
   );
   const validationErrorKey =
     form.formState.errors.repositoryUrl || form.formState.errors.provider
@@ -205,6 +225,7 @@ export function RepositorySetupStep({
    * Business purpose: Save a customer's repository input and advance only when the assessment is activated.
    * Business rules:
    * - Reuse persisted assessments, connections and snapshots on retries; never delete a saved checkpoint.
+   * - Reauthorize a connection only after the customer selects the explicit reconnection action.
    * - A successful completion that remains PREPARING waits for approved compliance rules and must not navigate as if active.
    * Execution flow:
    * 1. Create an assessment only when needed and reconcile its repository connection.
@@ -215,7 +236,10 @@ export function RepositorySetupStep({
    * Side effects:
    * - May create assessment/repository records through the API, update query caches and navigate to an activated assessment.
    */
-  async function runSetup(data?: RepositorySetupFormData) {
+  async function runSetup(
+    data?: RepositorySetupFormData,
+    forceReauthorization = false,
+  ) {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitErrorKey(undefined);
@@ -236,7 +260,7 @@ export function RepositorySetupStep({
       }
       const persisted = await getRepositorySetupState(assessmentId);
       let connection = persisted.connection;
-      if (!connection) {
+      if (!connection || forceReauthorization) {
         if (!data) {
           setSubmitErrorKey("pages.assessmentFlow.errors.repositorySetup");
           return;
@@ -244,6 +268,7 @@ export function RepositorySetupStep({
         connection = await connectAssessmentRepository(
           assessmentId,
           data.repositoryUrl,
+          forceReauthorization,
         );
       }
       const result = await startRepositoryAnalysis(assessmentId, {
@@ -300,6 +325,21 @@ export function RepositorySetupStep({
             setSubmitErrorKey(undefined);
           }}
           disabled={isSubmitting || Boolean(savedConnection)}
+          providerAvailability={Object.fromEntries(
+            (credentialStatuses.data ?? []).map((status) => [
+              status.provider,
+              (status.enabled ??
+                (status.provider === CREDENTIAL_PROVIDERS.github ||
+                  status.provider === CREDENTIAL_PROVIDERS.gitlab)) &&
+                status.available !== false,
+            ]),
+          )}
+          providerTemporarilyUnavailable={Object.fromEntries(
+            (credentialStatuses.data ?? []).map((status) => [
+              status.provider,
+              status.enabled === true && status.available === false,
+            ]),
+          )}
           footer={
             !savedConnection &&
             provider &&
@@ -355,6 +395,15 @@ export function RepositorySetupStep({
                 : "pages.assessmentFlow.resumeSetup",
             )}
           </Button>
+          {savedAnswer ? (
+            <Button
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => void runSetup(savedAnswer, true)}
+            >
+              {t("pages.assessmentFlow.reauthorizeRepository")}
+            </Button>
+          ) : null}
         </div>
       ) : (
         <AssessmentComposer
@@ -444,7 +493,17 @@ export function RepositorySetupStep({
   );
 }
 
+/**
+ * Business purpose: Map repository onboarding failures to localized corrective guidance.
+ * Business rules: Provider problem categories take precedence over opaque exception messages; unknown errors retain the generic setup failure message.
+ * Execution flow: 1. Map typed provider problems through the shared credential mapper. 2. Map known legacy setup codes. 3. Use the generic retry message.
+ * Failure cases: Unrecognized details are not exposed to the customer.
+ * Side effects: Pure error projection without logging provider response data.
+ */
 function resolveRepositorySetupErrorKey(error: unknown): string {
+  if (error instanceof GitHubRepositoryRequestError) {
+    return githubRepositoryProblemMessageKey(error);
+  }
   if (error instanceof Error) {
     const code = error.message;
     if (
@@ -481,11 +540,21 @@ function toCredentialProvider(
   );
 }
 
+/**
+ * Business purpose: Choose a readable initial assessment name from a validated provider repository locator.
+ * Business rules: Names come from a recognized provider path; Azure excludes its routing-only `/_git/` segment and retains project/repository context.
+ * Execution flow: 1. Parse the URL with each exact shared provider parser. 2. Select the canonical repository identity. 3. Use its final two identity components as the assessment label.
+ * Failure cases: An invalid URL yields the neutral `repository` label; submission validation still rejects that URL before connection.
+ * Side effects: Pure display-name derivation with no assessment mutation.
+ */
 function assessmentNameFromUrl(repositoryUrl: string) {
-  const pathname = new URL(repositoryUrl).pathname
-    .replace(/\/$/u, "")
-    .replace(/\.git$/u, "");
-  return pathname.split("/").filter(Boolean).slice(-2).join("/");
+  const locator =
+    parseGitHubRepositoryUrl(repositoryUrl) ??
+    parseGitLabRepositoryUrl(repositoryUrl) ??
+    parseBitbucketRepositoryUrl(repositoryUrl) ??
+    parseAzureDevOpsRepositoryUrl(repositoryUrl);
+  if (!locator) return "repository";
+  return locator.repositoryFullName.split("/").slice(-2).join("/");
 }
 
 function t(key: string) {

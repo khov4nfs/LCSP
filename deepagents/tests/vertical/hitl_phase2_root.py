@@ -34,7 +34,7 @@ def main():
     def claim(identity):
         result = native_claim(identity)
         captured["claim"] = {name: result.get(name) for name in
-                             ["checkpointThreadId", "threadId", "executionId", "resumeCheckpointId", "humanAnswerReviewRequired", "humanAnswerReviewCheckpointId", "humanAnswerReviewExecutionId", "recoveredExecution"]}
+                             ["checkpointThreadId", "threadId", "executionId", "resumeCheckpointId", "humanAnswerReviewRequired", "humanAnswerReviewCheckpointId", "humanAnswerReviewExecutionId", "recoveredExecution", "lifecycleState"]}
         return result
 
     def context():
@@ -66,7 +66,11 @@ def main():
                 member = tarfile.TarInfo(name)
                 member.size = len(payload)
                 bundle.addfile(member, io.BytesIO(payload))
-        clean, coverage = _sanitize_archive(archive.getvalue(), snapshot_id=context["repositorySnapshotId"])
+        clean, coverage = _sanitize_archive(
+            archive.getvalue(),
+            snapshot_id=context["repositorySnapshotId"],
+            archive_root="snapshot",
+        )
         with tarfile.open(fileobj=io.BytesIO(clean), mode="r:gz") as bundle:
             bundle.extractall(source_root, filter="data")
         assert not (source_root / ".lcsp/injected.txt").exists()

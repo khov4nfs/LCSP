@@ -291,6 +291,10 @@ async function setup(version: string) {
     document: canonical,
   });
   const db = Object.assign(store.db, {
+    repositorySnapshot: {
+      findFirst: () => Promise.resolve(null),
+      findUnique: () => Promise.resolve(null),
+    },
     assessmentArtifact: {
       findUnique: () =>
         Promise.resolve({

@@ -6,13 +6,17 @@ import type { CommandBus } from "@nestjs/cqrs";
 import type { Response } from "express";
 
 import { InternalSnapshotController } from "./internal-snapshot.controller.js";
-import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  ARCHIVE_ROOT_VERIFICATION_STATUSES,
+  REPOSITORY_SCAN_JOB_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { ReconcileRuntimeHydrationTicketCommand } from "../../application/commands/reconcile-runtime-hydration-ticket/reconcile-runtime-hydration-ticket.command.js";
 
 describe("InternalSnapshotController", () => {
   it("waits until the archive stream is fully written to the worker response", async () => {
     const body: Buffer[] = [];
     const responseStatus = jest.fn().mockReturnThis();
+    const setHeader = jest.fn();
     const response = Object.assign(
       new Writable({
         write(chunk: Buffer, _encoding, callback) {
@@ -21,7 +25,7 @@ describe("InternalSnapshotController", () => {
         },
       }),
       {
-        setHeader: jest.fn(),
+        setHeader,
         status: responseStatus,
       },
     ) as unknown as Response;
@@ -33,8 +37,17 @@ describe("InternalSnapshotController", () => {
             commitSha: string;
             repositoryFullName: string;
             contentType: string;
+            archiveRoot?: string | null;
+            archiveRootStatus: string;
             resolvedUrl: string;
             stream: Readable;
+            treeManifest?: {
+              version: 1;
+              commitSha: string;
+              treeId: string;
+              fileCount: number;
+              pathSha256: string;
+            };
             hydrationDeliveryTicketId?: string;
           }>
         >()
@@ -43,6 +56,8 @@ describe("InternalSnapshotController", () => {
           commitSha: "a".repeat(40),
           repositoryFullName: "acme/example-repo",
           contentType: "application/gzip",
+          archiveRoot: "trusted-wrapper",
+          archiveRootStatus: ARCHIVE_ROOT_VERIFICATION_STATUSES.verifiedWrapper,
           resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
           stream: Readable.from([Buffer.from("archive")]),
           hydrationDeliveryTicketId: "hydration-ticket-1",
@@ -62,6 +77,14 @@ describe("InternalSnapshotController", () => {
     );
 
     expect(Buffer.concat(body).toString()).toBe("archive");
+    expect(setHeader).toHaveBeenCalledWith(
+      "x-repository-archive-root",
+      "trusted-wrapper",
+    );
+    expect(setHeader).toHaveBeenCalledWith(
+      "x-repository-archive-root-status",
+      ARCHIVE_ROOT_VERIFICATION_STATUSES.verifiedWrapper,
+    );
     expect(responseStatus).toHaveBeenCalledWith(200);
     expect(commandExecute).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -89,6 +112,7 @@ describe("InternalSnapshotController", () => {
           commitSha: "a".repeat(40),
           repositoryFullName: "acme/example-repo",
           contentType: "application/gzip",
+          archiveRootStatus: ARCHIVE_ROOT_VERIFICATION_STATUSES.unknown,
           resolvedUrl: "https://codeload.github.com/",
           stream: Readable.from([Buffer.from("archive")]),
           hydrationDeliveryTicketId: "hydration-ticket-1",

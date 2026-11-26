@@ -2619,6 +2619,13 @@ export type PagesMessages = {
         credentialLabel: string;
         gitlabCredentialLabel: string;
         bitbucketCredentialLabel: string;
+        bitbucketEmailLabel: string;
+        credentialExpiryLabel: string;
+        credentialExpiryInvalid: string;
+        credentialEmailRequired: string;
+        providerUnavailable: string;
+        providerTemporarilyUnavailable: string;
+        credentialRotationReconnect: string;
         azureDevOpsCredentialLabel: string;
         credentialRequired: string;
         repositoryLabel: string;
@@ -2670,6 +2677,8 @@ export type PagesMessages = {
         bitbucketRepositoryAccessGuidance: string;
         azureDevOpsRepositoryAccessGuidance: string;
         azureDevOpsOrganizationLabel: string;
+        azureDevOpsOrganizationAccess: string;
+        azureDevOpsIdentityNotice: string;
         azureDevOpsOrganizationPlaceholder: string;
         githubPatAccessTitle: string;
         manageGithubPatTitle: string;
@@ -3048,6 +3057,7 @@ export type PagesMessages = {
     resumeSetup: string;
     resumingSetup: string;
     resumeSetupDescription: string;
+    reauthorizeRepository: string;
     retrySetupState: string;
     thinking: {
       running: string;
@@ -3058,6 +3068,7 @@ export type PagesMessages = {
     providerQuestion: string;
     providerHelp: string;
     providerComingSoon: string;
+    providerUnavailable: string;
     configureProvider: string;
     repositoryPlaceholder: string;
     repositoryDisabledPlaceholder: string;

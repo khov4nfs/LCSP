@@ -13,7 +13,7 @@ from tools.common.capabilities.platform.repository_workspace import RepositoryWo
 def archive():
     output = io.BytesIO()
     with tarfile.open(fileobj=output, mode="w:gz") as handle:
-        for name, content in [("repo/main.py", b"x"), ("repo/models/model.pt", b"abcd")]:
+        for name, content in [("main.py", b"x"), ("models/model.pt", b"abcd")]:
             entry = tarfile.TarInfo(name)
             entry.size = len(content)
             handle.addfile(entry, io.BytesIO(content))
@@ -36,7 +36,15 @@ def test_legacy_marker_upgrade_preserves_working_source_and_agent_state(monkeypa
     marker = {"assessmentId": "assessment", "snapshotId": "snapshot", "scanJobId": "job", "commitSha": "a" * 40}
     writes = []
     monkeypatch.setattr(sandbox, "load_config", lambda: SimpleNamespace(nestjs_api_base_url="http://local", worker_api_key="test"))
-    monkeypatch.setattr(sandbox, "RepositorySnapshotClient", lambda *_: SimpleNamespace(download_archive=lambda _: archive()))
+    monkeypatch.setattr(
+        sandbox,
+        "RepositorySnapshotClient",
+        lambda *_: SimpleNamespace(
+            download_archive_with_metadata=lambda _: SimpleNamespace(
+                content=archive(), archive_root=None
+            )
+        ),
+    )
     backend = SimpleNamespace(
         read=lambda *_args, **_kwargs: SimpleNamespace(file_data={"content": json.dumps(marker)}),
         write=lambda path, body: writes.append((path, json.loads(body))),
@@ -64,11 +72,11 @@ def source_archive(entries, links=()):
     output = io.BytesIO()
     with tarfile.open(fileobj=output, mode="w:gz") as handle:
         for name, content in entries:
-            entry = tarfile.TarInfo("repo/" + name)
+            entry = tarfile.TarInfo(name)
             entry.size = len(content)
             handle.addfile(entry, io.BytesIO(content))
         for name, target, kind in links:
-            entry = tarfile.TarInfo("repo/" + name)
+            entry = tarfile.TarInfo(name)
             entry.type = kind
             entry.linkname = target
             handle.addfile(entry)
@@ -110,7 +118,7 @@ def test_scoped_archive_keeps_original_paths_without_sibling_or_runtime_source()
         original, snapshot_id="snapshot", source_path_prefix="projects/chatbot",
     )
     with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as handle:
-        assert handle.getnames() == ["projects/chatbot/README.md", "projects/chatbot/app.py"]
+        assert sorted(handle.getnames()) == ["projects/chatbot/README.md", "projects/chatbot/app.py"]
         assert handle.extractfile("projects/chatbot/app.py").read() == b"chatbot"
     assert coverage["sourcePathPrefix"] == "projects/chatbot"
     assert coverage["coverageLimited"] is False
@@ -157,7 +165,7 @@ def test_scope_filter_does_not_bypass_archive_traversal_guards(unsafe):
     from tools.common.capabilities.platform.repository_workspace import ArchiveMaterializationError
     output = io.BytesIO()
     with tarfile.open(fileobj=output, mode="w:gz") as handle:
-        for name in ["repo/app/main.py", unsafe]:
+        for name in ["app/main.py", unsafe]:
             entry = tarfile.TarInfo(name)
             entry.size = 1
             handle.addfile(entry, io.BytesIO(b"x"))

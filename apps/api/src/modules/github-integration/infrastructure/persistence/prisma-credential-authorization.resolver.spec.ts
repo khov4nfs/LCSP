@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import {
+  CredentialProvider,
   CredentialAuthorizationStatus,
   ProviderCredentialStatus,
 } from "@prisma/client";
@@ -24,9 +25,12 @@ function binding(overrides: Record<string, unknown> = {}) {
     (overrides.authorization as Record<string, unknown> | undefined) ?? {};
   const credential = {
     id: "credential-1",
+    provider: CredentialProvider.GITHUB,
     ownerUserId: "manager-1",
     status: ProviderCredentialStatus.ACTIVE,
     currentVersion: 1,
+    providerAccountId: 100n,
+    providerAccountExternalId: null,
     declaredExpiresAt: new Date(Date.now() + 60_000),
     ...(overrides.credential as object | undefined),
   };
@@ -38,6 +42,7 @@ function binding(overrides: Record<string, unknown> = {}) {
     userId: "manager-1",
     status: "ACTIVE",
     authenticationMode: "GITHUB_CLI_CREDENTIAL",
+    provider: CredentialProvider.GITHUB,
     providerCredentialId: credential.id,
     credentialVersion: authorization.credentialVersion ?? 1,
     credentialAuthorizationStatus:
@@ -79,6 +84,10 @@ describe("PrismaCredentialAuthorizationResolver", () => {
 
   it.each([
     ["cross account", { credential: { ownerUserId: "other-user" } }],
+    [
+      "cross provider binding",
+      { credential: { provider: CredentialProvider.GITLAB } },
+    ],
     ["repository mismatch", { repositoryFullName: "other/repo" }],
     [
       "assessment mismatch",

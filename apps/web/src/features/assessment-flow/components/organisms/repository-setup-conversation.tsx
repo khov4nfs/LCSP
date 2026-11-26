@@ -13,12 +13,21 @@ import { appLocale } from "@/lib/locale";
 import type { RepositorySetupConversationProps } from "../../types/repository-setup-conversation.types";
 import { GitProviderQuestion } from "../molecules/git-provider-question";
 
+/**
+ * Business purpose: Present the direct repository setup conversation and deployment-specific provider choices.
+ * Business rules: Provider selection is constrained by backend readiness, including a separate temporary-unavailability state for enabled adapters.
+ * Execution flow: 1. Render the setup prompt. 2. Pass current provider availability to the selection control. 3. Preserve the existing user URL answer and footer actions.
+ * Failure cases: Missing readiness is handled by the selection control as unavailable for target providers.
+ * Side effects: Renders the existing Assessment setup interaction; it does not connect or authorize repositories.
+ */
 export function RepositorySetupConversation({
   provider,
   repositoryUrl,
   onProviderChange,
   disabled,
   footer,
+  providerAvailability,
+  providerTemporarilyUnavailable,
 }: RepositorySetupConversationProps) {
   return (
     <>
@@ -42,6 +51,8 @@ export function RepositorySetupConversation({
             value={provider}
             onValueChange={onProviderChange ?? (() => undefined)}
             disabled={disabled || !onProviderChange}
+            providerAvailability={providerAvailability}
+            providerTemporarilyUnavailable={providerTemporarilyUnavailable}
           />
         }
         footer={footer}

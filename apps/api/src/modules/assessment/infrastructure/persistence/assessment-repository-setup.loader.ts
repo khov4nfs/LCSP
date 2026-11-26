@@ -7,6 +7,7 @@ import {
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
+import { buildCanonicalRepositoryUrl } from "@lcsp/contracts/github-integration";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { projectCanonicalAssessment } from "../../../../platform/runtime-events/canonical-assessment-projection.js";
@@ -110,6 +111,10 @@ export class AssessmentRepositorySetupLoader {
                 provider: connection.provider,
                 repositoryId: connection.repositoryId,
                 repositoryFullName: connection.repositoryFullName,
+                canonicalRepositoryUrl: buildCanonicalRepositoryUrl(
+                  connection.provider,
+                  connection.repositoryFullName,
+                ),
                 defaultBranch: connection.defaultBranch,
                 status: connection.status,
               }

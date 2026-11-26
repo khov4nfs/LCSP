@@ -19,6 +19,7 @@ import {
 import { assessmentReportV2Html } from "./assessment-report-v2-pdf-html.js";
 import { assessmentReportV3Html } from "./assessment-report-v3-pdf-html.js";
 import type { ReportTranslationCatalog } from "./assessment-report-v2-pdf-presentation.js";
+import type { RepositoryReportSource } from "./assessment-report-source-link.js";
 
 /**
  * Business purpose: Normalize PDF resource settings while preserving their positive-integer safety guards.
@@ -223,6 +224,7 @@ export class AssessmentPdfRenderer implements OnModuleDestroy {
     options: {
       preview?: boolean;
       translations?: ReportTranslationCatalog;
+      repositorySource?: RepositoryReportSource | null;
     } = {},
   ): Promise<Buffer> {
     if (report.schemaVersion !== ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION)
@@ -303,6 +305,7 @@ export class AssessmentPdfRenderer implements OnModuleDestroy {
     options: {
       preview?: boolean;
       translations?: ReportTranslationCatalog;
+      repositorySource?: RepositoryReportSource | null;
     } = {},
   ): Promise<Buffer> {
     if (report.schemaVersion !== ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION)

@@ -29,6 +29,13 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
     @Inject(CREDENTIAL_STORE) private readonly store: CredentialStorePort,
   ) {}
 
+  /**
+   * Business purpose: Lease the owner's active provider credential for validating one repository connection.
+   * Business rules: Only an active credential owned by the caller and matching the requested provider can be leased; missing credentials are reported as required, while unusable stored material is invalid.
+   * Execution flow: Load the active provider row, validate its exact persisted account identity, read encrypted material, and bind the lease to the requested repository and credential version.
+   * Failure cases: Missing credentials raise credentialRequired; missing ciphertext or malformed identity raises credentialInvalid; storage failures do not produce a lease.
+   * Side effects: Reads persistence and encrypted credential material and returns an in-memory disposable lease; no provider request is made.
+   */
   async resolveActiveCredential(input: {
     userId: string;
     provider: CredentialProvider;
@@ -43,7 +50,12 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
       },
       orderBy: [{ validatedAt: "desc" }, { id: "desc" }],
     });
-    if (!row || !row.ciphertext) {
+    if (!row) {
+      throw new CredentialResolutionError(
+        GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired,
+      );
+    }
+    if (!row.ciphertext) {
       throw new CredentialResolutionError(
         GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid,
       );
@@ -51,7 +63,11 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
     const metadata: ActiveProviderCredentialMetadata = {
       id: row.id,
       provider: fromPrismaProvider(row.provider),
-      providerAccountId: row.providerAccountId.toString(),
+      providerAccountId: projectAccountIdentity(
+        row.provider,
+        row.providerAccountId,
+        row.providerAccountExternalId,
+      ),
       providerLogin: row.providerLogin,
       currentVersion: row.currentVersion,
     };
@@ -83,6 +99,7 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
         id: true,
         provider: true,
         providerAccountId: true,
+        providerAccountExternalId: true,
         providerLogin: true,
         currentVersion: true,
       },
@@ -91,7 +108,11 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
       ? {
           id: row.id,
           provider: fromPrismaProvider(row.provider),
-          providerAccountId: row.providerAccountId.toString(),
+          providerAccountId: projectAccountIdentity(
+            row.provider,
+            row.providerAccountId,
+            row.providerAccountExternalId,
+          ),
           providerLogin: row.providerLogin,
           currentVersion: row.currentVersion,
         }
@@ -113,6 +134,7 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
         id: true,
         provider: true,
         providerAccountId: true,
+        providerAccountExternalId: true,
         providerLogin: true,
         currentVersion: true,
         status: true,
@@ -125,7 +147,11 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
     return {
       id: row.id,
       provider: fromPrismaProvider(row.provider),
-      providerAccountId: row.providerAccountId.toString(),
+      providerAccountId: projectAccountIdentity(
+        row.provider,
+        row.providerAccountId,
+        row.providerAccountExternalId,
+      ),
       providerLogin: row.providerLogin,
       currentVersion: row.currentVersion,
       status:
@@ -142,6 +168,47 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
   }): Promise<CredentialLease> {
     return (await this.resolveActiveCredential(input)).lease;
   }
+}
+
+/**
+ * Business purpose: Project a verified provider identity into the existing string response field.
+ * Business rules: GitHub/GitLab retain numeric identity; Bitbucket/Azure require exact external identity and cannot fall back to a numeric hash.
+ * Execution flow: Validate the provider-specific persisted pair, then return its canonical stored representation.
+ * Failure cases: Missing, mixed, or contradictory identity columns raise credentialInvalid.
+ * Side effects: Pure validation and projection.
+ */
+function projectAccountIdentity(
+  provider: CredentialProvider,
+  numericId: bigint | null,
+  externalId: string | null,
+): string {
+  if (
+    provider === CredentialProvider.BITBUCKET ||
+    provider === CredentialProvider.AZURE_DEVOPS
+  ) {
+    if (
+      numericId !== null ||
+      !externalId ||
+      externalId.trim() !== externalId ||
+      (provider === CredentialProvider.BITBUCKET &&
+        !/^(?:\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/iu.test(
+          externalId,
+        )) ||
+      (provider === CredentialProvider.AZURE_DEVOPS &&
+        !/^azure-organization:[a-z0-9][a-z0-9-]{0,63}$/iu.test(externalId))
+    ) {
+      throw new CredentialResolutionError(
+        GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid,
+      );
+    }
+    return externalId;
+  }
+  if (numericId === null || externalId !== null) {
+    throw new CredentialResolutionError(
+      GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid,
+    );
+  }
+  return numericId.toString();
 }
 
 function fromPrismaProvider(

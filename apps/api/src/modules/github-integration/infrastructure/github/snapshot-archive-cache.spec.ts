@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "@jest/globals";
-import { mkdtemp } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -42,6 +43,7 @@ describe("SnapshotArchiveCache", () => {
       commitSha: "a".repeat(40),
       contentType: "application/gzip",
       resolvedUrl: "https://codeload.github.com/acme/repo/tar.gz/a",
+      archiveRoot: "trusted-root",
       source: Readable.from([Buffer.from("pinned-archive")]),
     });
 
@@ -55,6 +57,7 @@ describe("SnapshotArchiveCache", () => {
       commitSha: "a".repeat(40),
     });
     expect(hit).not.toBeNull();
+    expect(hit?.archiveRoot).toBe("trusted-root");
     expect(await readStream(hit!.stream)).toEqual(
       Buffer.from("pinned-archive"),
     );
@@ -80,6 +83,7 @@ describe("SnapshotArchiveCache", () => {
       commitSha: "c".repeat(40),
       contentType: "application/gzip",
       resolvedUrl: "https://codeload.github.com/acme/repo/tar.gz/c",
+      archiveRoot: null,
       source: Readable.from([Buffer.from("ephemeral-source")]),
     });
     await readStream(capture.stream);
@@ -97,6 +101,77 @@ describe("SnapshotArchiveCache", () => {
         commitSha: "c".repeat(40),
       }),
     ).resolves.toBeNull();
+  });
+
+  it("preserves missing legacy root metadata as unknown instead of rootless", async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "lcsp-snapshot-cache-test-"),
+    );
+    process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR = directory;
+    cache = new SnapshotArchiveCache();
+    await cache.onModuleInit();
+
+    const snapshotId = "snapshot-unknown-root";
+    const commitSha = "d".repeat(40);
+    const capture = await cache.capture({
+      snapshotId,
+      commitSha,
+      contentType: "application/zip",
+      resolvedUrl: "https://bitbucket.org/workspace/repository/get/pinned.zip",
+      archiveRoot: null,
+      source: Readable.from([Buffer.from("pinned-archive")]),
+    });
+    await readStream(capture.stream);
+    await capture.completion;
+
+    const key = createHash("sha256")
+      .update(`${snapshotId}:${commitSha}`)
+      .digest("hex");
+    const metadataPath = join(directory, `${key}.json`);
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    delete metadata.archiveRoot;
+    await writeFile(metadataPath, JSON.stringify(metadata));
+
+    const hit = await cache.get({ snapshotId, commitSha });
+    expect(hit).not.toBeNull();
+    expect(hit?.archiveRoot).toBeUndefined();
+    await readStream(hit!.stream);
+  });
+
+  it("preserves the pinned tree path manifest for an unknown-root Azure ZIP", async () => {
+    process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR = await mkdtemp(
+      join(tmpdir(), "lcsp-snapshot-cache-test-"),
+    );
+    cache = new SnapshotArchiveCache();
+    await cache.onModuleInit();
+    const treeManifest = {
+      version: 1 as const,
+      commitSha: "e".repeat(40),
+      treeId: "f".repeat(40),
+      fileCount: 2,
+      pathSha256: "a".repeat(64),
+    };
+    const capture = await cache.capture({
+      snapshotId: "snapshot-azure-tree",
+      commitSha: treeManifest.commitSha,
+      contentType: "application/zip",
+      resolvedUrl: "https://dev.azure.com/",
+      treeManifest,
+      source: Readable.from([Buffer.from("pinned-azure-zip")]),
+    });
+    await readStream(capture.stream);
+    await capture.completion;
+
+    const hit = await cache.get({
+      snapshotId: "snapshot-azure-tree",
+      commitSha: treeManifest.commitSha,
+    });
+    expect(hit?.archiveRoot).toBeUndefined();
+    expect(hit?.treeManifest).toEqual(treeManifest);
+    await readStream(hit!.stream);
   });
 });
 

@@ -1,5 +1,4 @@
 import {
-  bootstrapLocalAzureDevOpsCli,
   bootstrapLocalBitbucketCli,
   bootstrapLocalGitHubCli,
   bootstrapLocalGitLabCli,
@@ -9,7 +8,6 @@ const bootstrapSteps = [
   ["GitHub", bootstrapLocalGitHubCli],
   ["GitLab", bootstrapLocalGitLabCli],
   ["Bitbucket", bootstrapLocalBitbucketCli],
-  ["Azure DevOps", bootstrapLocalAzureDevOpsCli],
 ];
 const bootstrapHeartbeatMs = resolveHeartbeatMs(
   process.env.LCSP_CLI_BOOTSTRAP_HEARTBEAT_MS,

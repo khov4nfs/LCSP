@@ -12,5 +12,7 @@ export type RepositorySetupConversationProps = {
   repositoryUrl?: string;
   onProviderChange?: (provider: GitProviderValue) => void;
   disabled?: boolean;
+  providerAvailability?: Partial<Record<GitProviderValue, boolean>>;
+  providerTemporarilyUnavailable?: Partial<Record<GitProviderValue, boolean>>;
   footer?: ReactNode;
 };

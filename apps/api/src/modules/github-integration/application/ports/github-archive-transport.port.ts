@@ -14,6 +14,18 @@ export type GitHubArchiveTransportResult = {
   contentType: string;
   redirectValidation: GitHubArchiveRedirectValidationStatus;
   validatedHost: string;
+  /** Exact provider-confirmed wrapper directory; null means verified rootless; undefined means unknown. */
+  archiveRoot?: string | null;
+  /** Pinned Azure Git tree path commitment used by the workspace to resolve an unknown ZIP wrapper. */
+  treeManifest?: PinnedRepositoryTreeManifest;
+};
+
+export type PinnedRepositoryTreeManifest = {
+  version: 1;
+  commitSha: string;
+  treeId: string;
+  fileCount: number;
+  pathSha256: string;
 };
 
 /** GitHub-specific exact-SHA archive transport; all control-plane operations remain on gh. */
