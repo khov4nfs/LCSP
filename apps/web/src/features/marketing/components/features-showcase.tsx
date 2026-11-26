@@ -17,6 +17,8 @@ import {
   Sparkles,
   Lock,
   RefreshCw,
+  CornerDownRight,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMarketingLocale } from "./marketing-locale";
@@ -25,6 +27,51 @@ import type { Locale } from "@lcsp/contracts/shared/locale";
 
 function resolveMarketingMessage(locale: Locale, key: string) {
   return resolveMessage(locale, key as Parameters<typeof resolveMessage>[1]);
+}
+
+/**
+ * Mosaic Technical Background inspired by structural blueprints & interlocking panels:
+ * Palette: Paper (#F7F7F5), Forest (#1A3C2B), Hairlines (#3A3A38 at 0.15 - 0.25 opacity)
+ */
+export function TechnicalBlueprintBackground() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      {/* SVG Mosaic of interlocking rectangular panels */}
+      <svg
+        className="absolute inset-0 h-full w-full opacity-90"
+        xmlns="http://www.w3.org/2000/svg"
+        width="100%"
+        height="100%"
+      >
+        <defs>
+          <pattern
+            id="blueprint-mosaic"
+            width="320"
+            height="320"
+            patternUnits="userSpaceOnUse"
+          >
+            {/* Panel 1: Top-Left Large Block */}
+            <rect x="0" y="0" width="160" height="160" fill="#F7F7F5" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
+            {/* Panel 2: Top-Right Horizontal Strips */}
+            <rect x="160" y="0" width="160" height="80" fill="#FAF9F6" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
+            <rect x="160" y="80" width="160" height="80" fill="#F7F7F5" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
+            {/* Panel 3: Bottom-Left Vertical Blocks */}
+            <rect x="0" y="160" width="80" height="160" fill="#FAF9F6" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
+            <rect x="80" y="160" width="80" height="160" fill="#F7F7F5" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
+            {/* Panel 4: Bottom-Right Interlocking Block */}
+            <rect x="160" y="160" width="160" height="160" fill="#F4F4F0" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
+            
+            {/* Blueprint Grid Crosshairs at intersections */}
+            <path d="M 155 0 L 165 0 M 160 -5 L 160 5" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
+            <path d="M 155 160 L 165 160 M 160 155 L 160 165" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
+            <path d="M -5 160 L 5 160 M 0 155 L 0 165" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
+            <path d="M 315 160 L 325 160 M 320 155 L 320 165" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#blueprint-mosaic)" />
+      </svg>
+    </div>
+  );
 }
 
 export function FeaturesHeroSection({
@@ -42,75 +89,75 @@ export function FeaturesHeroSection({
   return (
     <section
       data-section={section}
-      className="relative overflow-hidden border-b border-emerald-900/10 bg-gradient-to-b from-[#f8fafc] via-[#f1f5f9] to-[#ffffff] py-20 lg:py-28"
+      className="relative overflow-hidden border-b border-[#3A3A38]/20 bg-[#F7F7F5] py-20 lg:py-28"
     >
-      {/* Background Soft Emerald Aurora & Dot Grid Pattern */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 h-[550px] w-[850px] rounded-full bg-emerald-400/15 blur-[120px]" />
-        <div className="absolute top-[15%] left-[15%] h-[350px] w-[500px] rounded-full bg-teal-300/15 blur-[100px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(#059669_0.75px,transparent_0.75px)] [background-size:24px_24px] opacity-[0.12] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
-      </div>
+      <TechnicalBlueprintBackground />
 
       <div className="relative z-10 mx-auto max-w-[1240px] px-6 text-center">
-        {/* Fit-content Pill Badge from canonical i18n */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-800 shadow-[0_2px_8px_rgba(16,185,129,0.1)] mb-6">
-          <Sparkles className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
+        {/* Status Badge: inline-flex container with 1px border (#1A3C2B/20), 8x8 solid square dot */}
+        <div className="inline-flex items-center gap-2.5 rounded-[2px] border border-[#1A3C2B]/30 bg-[#FAF9F6] px-3.5 py-1 text-[11px] font-mono tracking-widest text-[#1A3C2B] uppercase mb-6 shadow-none">
+          <span className="h-2 w-2 bg-[#1A3C2B]" />
           <span>{t("pages.marketing.features.eyebrow")}</span>
-          <span className="h-1 w-1 rounded-full bg-emerald-500" />
-          <span className="text-emerald-700">
-            {locale === "vi" ? "Kiến trúc hệ thống" : "Architecture Blueprint"}
+          <span className="text-[#3A3A38]/40">•</span>
+          <span className="text-[#1A3C2B]/80">
+            {locale === "vi" ? "KIẾN TRÚC HỆ THỐNG" : "TECHNICAL BLUEPRINT"}
           </span>
         </div>
 
-        <h1 className="mx-auto max-w-[920px] text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.18]">
+        {/* Space Grotesk header styling: bold, tight-tracking, prestige forest green */}
+        <h1 className="mx-auto max-w-[960px] font-sans text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#1A3C2B] leading-[1.08]">
           {title}
         </h1>
 
-        <p className="mx-auto mt-6 max-w-[760px] text-lg sm:text-xl text-slate-600 leading-relaxed font-normal">
-          {description}
-        </p>
+        {/* Subtext with left vertical accent marker */}
+        <div className="mx-auto mt-6 flex max-w-[760px] items-center justify-center gap-4 text-left">
+          <div className="hidden h-12 w-[2px] bg-[#1A3C2B]/40 sm:block" />
+          <p className="text-base sm:text-lg text-[#3A3A38] leading-relaxed font-normal">
+            {description}
+          </p>
+        </div>
 
-        {/* Tactile Keycap Actions (Bright & Clear) */}
+        {/* Technical Keycap Actions: 0px / 2px radius, flat 1px hairlines, Forest & Paper */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/sign-up"
-            className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_2px_4px_rgba(5,150,105,0.25),inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_rgba(0,0,0,0.15)] transition-all duration-150 hover:bg-emerald-500 active:translate-y-0.5 active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
+            className="group relative inline-flex items-center justify-center gap-2 rounded-[2px] bg-[#1A3C2B] px-7 py-3 text-xs font-mono font-semibold tracking-wider uppercase text-[#F7F7F5] border border-[#1A3C2B] transition-all duration-150 hover:bg-[#23503a] active:translate-y-0.5"
           >
             <span>{t("pages.marketing.nav.getStarted")}</span>
-            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
 
           <Link
             href={`/${locale}/pricing`}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-7 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-150 hover:border-emerald-600/40 hover:bg-slate-50 hover:text-slate-900 active:translate-y-0.5"
+            className="inline-flex items-center justify-center gap-2 rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] px-7 py-3 text-xs font-mono font-semibold tracking-wider uppercase text-[#1A3C2B] transition-all duration-150 hover:border-[#1A3C2B] hover:bg-white active:translate-y-0.5"
           >
             <span>{t("pages.marketing.features.viewPricing")}</span>
           </Link>
         </div>
 
-        {/* Canonical System Stats Strip */}
-        <div className="mt-14 grid grid-cols-2 gap-4 border-t border-slate-200/80 pt-8 sm:grid-cols-4 max-w-4xl mx-auto">
-          <div className="flex flex-col items-center">
-            <span className="font-mono text-2xl font-bold text-slate-900">100%</span>
-            <span className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">
+        {/* Blueprint Stats Strip: separated by 1px hairlines */}
+        <div className="mt-14 grid grid-cols-2 border-t border-[#3A3A38]/20 pt-8 sm:grid-cols-4 max-w-4xl mx-auto divide-x divide-[#3A3A38]/20">
+          <div className="flex flex-col items-center px-4">
+            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">100%</span>
+            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
               {locale === "vi" ? "Truy vết mã nguồn" : "AST Traceable"}
             </span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="font-mono text-2xl font-bold text-emerald-600">0</span>
-            <span className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">
-              {locale === "vi" ? "Phát hiện suy diễn sai" : "Hallucinated Findings"}
+          <div className="flex flex-col items-center px-4">
+            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">0</span>
+            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
+              {locale === "vi" ? "Phát hiện suy diễn sai" : "Zero Hallucination"}
             </span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="font-mono text-2xl font-bold text-slate-900">SHA-256</span>
-            <span className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">
+          <div className="flex flex-col items-center px-4">
+            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">SHA-256</span>
+            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
               {locale === "vi" ? "Nguồn gốc kiểm toán" : "Audit Provenance"}
             </span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="font-mono text-2xl font-bold text-teal-600">CI/CD</span>
-            <span className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">
+          <div className="flex flex-col items-center px-4">
+            <span className="font-mono text-2xl font-bold text-[#1A3C2B]">CI/CD</span>
+            <span className="font-mono text-[10px] text-[#3A3A38]/80 mt-1 uppercase tracking-widest font-semibold">
               {locale === "vi" ? "Cổng kiểm soát tự động" : "Automated Gateways"}
             </span>
           </div>
@@ -126,42 +173,41 @@ export function EnhancedRepositoryEvidencePreview() {
   const [activeTab, setActiveTab] = useState(0);
 
   const tabs = [
-    { label: "pages.marketing.home.source", icon: Code2 },
-    { label: "pages.marketing.home.model", icon: Cpu },
-    { label: "pages.marketing.home.control", icon: Lock },
-    { label: "pages.marketing.home.finding", icon: AlertTriangle },
+    { label: "pages.marketing.home.source", icon: Code2, accent: "border-l-[#1A3C2B]" },
+    { label: "pages.marketing.home.model", icon: Cpu, accent: "border-l-[#FF8C69]" },
+    { label: "pages.marketing.home.control", icon: Lock, accent: "border-l-[#9EFFBF]" },
+    { label: "pages.marketing.home.finding", icon: AlertTriangle, accent: "border-l-[#F4D35E]" },
   ];
 
-  // Dynamic content based on clicked tab with crisp light code aesthetics
   const renderTabContent = () => {
     switch (activeTab) {
       case 0: // Source
         return (
           <>
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-mono font-medium text-emerald-700">apps/payment/risk-policy.ts</span>
-              <span className="text-emerald-800 font-mono text-[11px] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-medium">
+            <div className="flex items-center justify-between text-xs font-mono text-[#3A3A38] mb-2">
+              <span className="font-bold text-[#1A3C2B]">apps/payment/risk-policy.ts</span>
+              <span className="text-[#1A3C2B] font-mono text-[10px] bg-[#FAF9F6] border border-[#1A3C2B]/30 px-2 py-0.5 rounded-[2px] font-semibold">
                 AST Node: CallExpression #185
               </span>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-[#f8fafc] p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-sm">
-              <div className="text-slate-400 flex">
-                <span className="w-9 select-none text-slate-400">183</span>
+            <div className="rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed overflow-x-auto">
+              <div className="text-[#3A3A38]/50 flex">
+                <span className="w-8 select-none text-[#3A3A38]/40">183</span>
                 <span>{"// Invariant: payment decisions above threshold require human review"}</span>
               </div>
-              <div className="text-slate-700 flex">
-                <span className="w-9 select-none text-slate-400">184</span>
+              <div className="text-[#3A3A38] flex">
+                <span className="w-8 select-none text-[#3A3A38]/40">184</span>
                 <span>{"if (riskScore > threshold) {"}</span>
               </div>
-              <div className="flex bg-rose-50 -mx-4 px-4 py-1 border-l-3 border-rose-500 text-rose-900 font-medium">
-                <span className="w-9 select-none text-rose-500 font-bold">185</span>
+              <div className="flex bg-[#FF8C69]/15 -mx-4 px-4 py-1 border-l-2 border-[#FF8C69] text-[#1A3C2B] font-semibold">
+                <span className="w-8 select-none text-[#FF8C69] font-bold">185</span>
                 <span>decision = provider.score(tx);</span>
-                <span className="ml-auto text-[10px] text-rose-700 font-sans tracking-wide self-center bg-rose-100 px-2 py-0.5 rounded border border-rose-200 font-semibold">
+                <span className="ml-auto text-[9px] text-[#1A3C2B] font-mono uppercase tracking-widest self-center bg-white px-1.5 py-0.5 rounded-[2px] border border-[#FF8C69]/40 font-bold">
                   {locale === "vi" ? "THIẾU KIỂM SOÁT" : "MISSING GUARD"}
                 </span>
               </div>
-              <div className="text-slate-700 flex">
-                <span className="w-9 select-none text-slate-400">186</span>
+              <div className="text-[#3A3A38] flex">
+                <span className="w-8 select-none text-[#3A3A38]/40">186</span>
                 <span>{"}"}</span>
               </div>
             </div>
@@ -170,54 +216,54 @@ export function EnhancedRepositoryEvidencePreview() {
       case 1: // Model
         return (
           <>
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-mono font-medium text-teal-700">models/risk-evaluation-graph.json</span>
-              <span className="text-teal-800 font-mono text-[11px] bg-teal-50 border border-teal-200 px-2 py-0.5 rounded font-medium">
+            <div className="flex items-center justify-between text-xs font-mono text-[#3A3A38] mb-2">
+              <span className="font-bold text-[#1A3C2B]">models/risk-evaluation-graph.json</span>
+              <span className="text-[#1A3C2B] font-mono text-[10px] bg-[#FAF9F6] border border-[#1A3C2B]/30 px-2 py-0.5 rounded-[2px] font-semibold">
                 {t("pages.marketing.features.evidenceTitle")}
               </span>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-[#f8fafc] p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-sm">
-              <div className="text-slate-600">{"{"}</div>
-              <div className="text-teal-800 pl-4 font-medium">"targetModel": "credit-scoring-v3",</div>
-              <div className="text-teal-800 pl-4">"highRiskThreshold": 0.82,</div>
-              <div className="text-amber-800 pl-4 font-medium">"autonomousExecutionAllowed": false,</div>
-              <div className="text-slate-500 pl-4">"auditProvenanceSha": "e4f81c9d2f60a..."</div>
-              <div className="text-slate-600">{"}"}</div>
+            <div className="rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed overflow-x-auto">
+              <div className="text-[#3A3A38]">{"{"}</div>
+              <div className="text-[#1A3C2B] pl-4 font-bold">"targetModel": "credit-scoring-v3",</div>
+              <div className="text-[#1A3C2B] pl-4">"highRiskThreshold": 0.82,</div>
+              <div className="text-[#FF8C69] pl-4 font-bold">"autonomousExecutionAllowed": false,</div>
+              <div className="text-[#3A3A38]/70 pl-4">"auditProvenanceSha": "e4f81c9d2f60a..."</div>
+              <div className="text-[#3A3A38]">{"}"}</div>
             </div>
           </>
         );
       case 2: // Control
         return (
           <>
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-mono font-medium text-cyan-700">compliance/rules/eu-ai-act-art14.ts</span>
-              <span className="text-cyan-800 font-mono text-[11px] bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded font-medium">
+            <div className="flex items-center justify-between text-xs font-mono text-[#3A3A38] mb-2">
+              <span className="font-bold text-[#1A3C2B]">compliance/rules/eu-ai-act-art14.ts</span>
+              <span className="text-[#1A3C2B] font-mono text-[10px] bg-[#FAF9F6] border border-[#1A3C2B]/30 px-2 py-0.5 rounded-[2px] font-semibold">
                 {t("pages.marketing.home.control")}
               </span>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-[#f8fafc] p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-sm">
-              <div className="text-slate-800 font-semibold">{"export const humanOversightControl = {"}</div>
-              <div className="text-slate-700 pl-4">statute: "EU AI Act Article 14",</div>
-              <div className="text-slate-700 pl-4">requirement: "Human oversight for high-risk AI",</div>
-              <div className="text-rose-700 pl-4 font-medium">status: "NON_COMPLIANT_UNVERIFIED"</div>
-              <div className="text-slate-800 font-semibold">{"};"}</div>
+            <div className="rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed overflow-x-auto">
+              <div className="text-[#1A3C2B] font-bold">{"export const humanOversightControl = {"}</div>
+              <div className="text-[#3A3A38] pl-4">statute: "EU AI Act Article 14",</div>
+              <div className="text-[#3A3A38] pl-4">requirement: "Human oversight for high-risk AI",</div>
+              <div className="text-[#FF8C69] pl-4 font-bold">status: "NON_COMPLIANT_UNVERIFIED"</div>
+              <div className="text-[#1A3C2B] font-bold">{"};"}</div>
             </div>
           </>
         );
       case 3: // Finding
         return (
           <>
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span className="font-mono font-semibold text-rose-700">{t("pages.marketing.features.findingLabel")} #185</span>
-              <span className="text-rose-800 font-mono text-[11px] bg-rose-50 border border-rose-200 px-2 py-0.5 rounded font-medium">
+            <div className="flex items-center justify-between text-xs font-mono text-[#3A3A38] mb-2">
+              <span className="font-bold text-[#FF8C69]">{t("pages.marketing.features.findingLabel")} #185</span>
+              <span className="text-[#1A3C2B] font-mono text-[10px] bg-[#FAF9F6] border border-[#3A3A38]/20 px-2 py-0.5 rounded-[2px] font-semibold">
                 {t("pages.marketing.features.findingMeta")}
               </span>
             </div>
-            <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 font-mono text-[13px] leading-relaxed overflow-x-auto shadow-sm">
-              <div className="text-rose-900 font-bold">
+            <div className="rounded-[2px] border border-[#FF8C69]/40 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed overflow-x-auto">
+              <div className="text-[#1A3C2B] font-bold">
                 {t("pages.marketing.features.findingPreviewTitle")}
               </div>
-              <p className="text-slate-600 text-xs mt-1.5 leading-relaxed font-sans">
+              <p className="text-[#3A3A38] text-xs mt-1.5 leading-relaxed font-sans">
                 {t("pages.marketing.features.findingEvidence")}
               </p>
             </div>
@@ -227,28 +273,26 @@ export function EnhancedRepositoryEvidencePreview() {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
-      {/* Window title bar */}
-      <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+    <div className="overflow-hidden rounded-[2px] border border-[#3A3A38]/30 bg-[#F7F7F5] shadow-none">
+      {/* Blueprint Window header */}
+      <div className="flex items-center justify-between border-b border-[#3A3A38]/20 bg-[#FAF9F6] px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full bg-red-400" />
-          <div className="h-3 w-3 rounded-full bg-amber-400" />
-          <div className="h-3 w-3 rounded-full bg-emerald-400" />
-          <span className="ml-2 font-mono text-xs text-slate-600 font-medium">
+          <div className="h-2 w-2 rounded-[1px] bg-[#1A3C2B]" />
+          <span className="font-mono text-[11px] font-bold text-[#1A3C2B]">
             {t("pages.marketing.features.pinnedRepo")}
           </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 font-mono text-[11px] text-emerald-800 font-medium">
-          <GitBranch className="h-3 w-3 text-emerald-600" /> main@7f3a9c1
+        <span className="inline-flex items-center gap-1.5 rounded-[2px] border border-[#1A3C2B]/30 bg-white px-2 py-0.5 font-mono text-[10px] text-[#1A3C2B] font-bold uppercase tracking-wider">
+          <GitBranch className="h-3 w-3 text-[#1A3C2B]" /> main@7f3a9c1
         </span>
       </div>
 
       {/* Code Editor Panel */}
-      <div className="p-6">
+      <div className="p-5">
         {renderTabContent()}
 
-        {/* Tab Pills */}
-        <div className="mt-5 grid grid-cols-4 gap-2">
+        {/* Tab Pills with 0px radius & 1px hairlines */}
+        <div className="mt-5 grid grid-cols-4 gap-1.5">
           {tabs.map((tab, idx) => {
             const Icon = tab.icon;
             const isSelected = activeTab === idx;
@@ -258,13 +302,13 @@ export function EnhancedRepositoryEvidencePreview() {
                 key={tab.label}
                 onClick={() => setActiveTab(idx)}
                 className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95",
+                  "flex items-center justify-center gap-1.5 rounded-[2px] px-2.5 py-2 text-[11px] font-mono font-semibold uppercase tracking-wider transition-all duration-150 cursor-pointer",
                   isSelected
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm"
-                    : "bg-slate-100/70 text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-[#1A3C2B] text-[#F7F7F5] border border-[#1A3C2B]"
+                    : "bg-[#FAF9F6] text-[#3A3A38] border border-[#3A3A38]/20 hover:border-[#1A3C2B] hover:text-[#1A3C2B]"
                 )}
               >
-                <Icon className={cn("h-3.5 w-3.5", isSelected ? "text-emerald-600" : "text-slate-500")} />
+                <Icon className="h-3 w-3" />
                 <span className="truncate">{t(tab.label)}</span>
               </button>
             );
@@ -310,22 +354,28 @@ export function EnhancedHumanContextPreview() {
   const currentOption = options.find((o) => o.id === selectedOption) || options[1];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+    <div className="relative overflow-hidden rounded-[2px] border border-[#3A3A38]/30 bg-[#F7F7F5] p-6 shadow-none">
+      {/* 4 L-shaped corner markers (10px x 10px) in #1A3C2B */}
+      <span className="absolute top-0 left-0 h-2.5 w-2.5 border-t-2 border-l-2 border-[#1A3C2B]" />
+      <span className="absolute top-0 right-0 h-2.5 w-2.5 border-t-2 border-r-2 border-[#1A3C2B]" />
+      <span className="absolute bottom-0 left-0 h-2.5 w-2.5 border-b-2 border-l-2 border-[#1A3C2B]" />
+      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 border-b-2 border-r-2 border-[#1A3C2B]" />
+
       <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+        <span className="inline-flex items-center gap-1.5 rounded-[2px] border border-[#1A3C2B]/30 bg-[#FAF9F6] px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold">
+          <AlertTriangle className="h-3 w-3 text-[#FF8C69]" />
           {t("pages.marketing.features.contextNeeded")}
         </span>
-        <span className="font-mono text-[11px] text-slate-500 font-medium">
-          {locale === "vi" ? "Làm rõ bối cảnh" : "Clarification Turn"}
+        <span className="font-mono text-[10px] uppercase tracking-wider text-[#3A3A38]/70 font-semibold">
+          {locale === "vi" ? "LÀM RÕ BỐI CẢNH" : "CLARIFICATION TURN"}
         </span>
       </div>
 
-      <p className="mt-4 text-lg font-semibold leading-snug text-slate-900">
+      <p className="mt-4 text-lg font-bold leading-snug text-[#1A3C2B]">
         {t("pages.marketing.features.questionPrompt")}
       </p>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 space-y-2.5">
         {options.map((opt) => {
           const isSelected = selectedOption === opt.id;
           return (
@@ -334,30 +384,30 @@ export function EnhancedHumanContextPreview() {
               key={opt.id}
               onClick={() => setSelectedOption(opt.id)}
               className={cn(
-                "group flex w-full items-center justify-between rounded-xl border p-4 text-left text-sm transition-all duration-150 cursor-pointer",
+                "group flex w-full items-center justify-between rounded-[2px] border p-3.5 text-left text-xs font-mono transition-all duration-150 cursor-pointer",
                 isSelected
-                  ? "border-emerald-500 bg-emerald-50/70 text-slate-900 shadow-sm"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                  ? "border-[#1A3C2B] bg-white text-[#1A3C2B] font-bold shadow-none"
+                  : "border-[#3A3A38]/20 bg-[#FAF9F6] text-[#3A3A38] hover:border-[#1A3C2B]/40 hover:bg-white"
               )}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <div
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full border text-xs transition-colors",
+                    "flex h-4 w-4 items-center justify-center rounded-[1px] border text-[10px] transition-colors",
                     isSelected
-                      ? "border-emerald-600 bg-emerald-600 text-white font-bold"
-                      : "border-slate-400 bg-transparent"
+                      ? "border-[#1A3C2B] bg-[#1A3C2B] text-[#F7F7F5] font-bold"
+                      : "border-[#3A3A38]/40 bg-transparent"
                   )}
                 >
                   {isSelected && "✓"}
                 </div>
-                <span className="font-medium">{t(opt.key)}</span>
+                <span>{t(opt.key)}</span>
               </div>
               <span className={cn(
-                "text-xs font-mono font-semibold transition-opacity",
-                isSelected ? "text-emerald-700 opacity-100" : "opacity-0 group-hover:opacity-60 text-slate-400"
+                "text-[10px] font-mono tracking-wider uppercase",
+                isSelected ? "text-[#1A3C2B] opacity-100" : "opacity-0 group-hover:opacity-60 text-[#3A3A38]"
               )}>
-                {isSelected ? (locale === "vi" ? "ĐÃ CHỌN" : "ACTIVE") : (locale === "vi" ? "CHỌN" : "SELECT")}
+                {isSelected ? (locale === "vi" ? "[ĐÃ CHỌN]" : "[ACTIVE]") : (locale === "vi" ? "CHỌN" : "SELECT")}
               </span>
             </button>
           );
@@ -365,16 +415,16 @@ export function EnhancedHumanContextPreview() {
       </div>
 
       {/* Dynamic feedback panel reflecting the selected choice */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-700 transition-all">
-        <span className="font-mono font-bold text-emerald-700 mr-2">
-          {locale === "vi" ? "Ghi nhận đánh giá:" : "Assessment Record:"}
+      <div className="mt-4 rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-3 text-xs text-[#3A3A38]">
+        <span className="font-mono font-bold text-[#1A3C2B] mr-2 uppercase tracking-wide">
+          {locale === "vi" ? "NHẬT KÝ KIỂM TOÁN:" : "AUDIT RECORD:"}
         </span>
-        <span className="text-slate-600">{currentOption.detail}</span>
+        <span className="font-sans text-xs">{currentOption.detail}</span>
       </div>
 
-      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500">
-        <span>{t("pages.marketing.features.humanContextDescription").slice(0, 48)}…</span>
-        <span className="font-mono text-emerald-700 font-semibold">SHA-256</span>
+      <div className="mt-5 flex items-center justify-between border-t border-[#3A3A38]/20 pt-3 text-[11px] font-mono text-[#3A3A38]/70">
+        <span className="truncate max-w-[320px]">{t("pages.marketing.features.humanContextDescription").slice(0, 44)}…</span>
+        <span className="text-[#1A3C2B] font-bold">LEDGER: SHA-256</span>
       </div>
     </div>
   );
@@ -387,91 +437,91 @@ export function EnhancedFindingPreview() {
   const [reviewed, setReviewed] = useState(false);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+    <div className="relative overflow-hidden rounded-[2px] border border-[#3A3A38]/30 bg-[#F7F7F5] p-6 shadow-none">
       <div className="flex items-center justify-between">
         <span className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+          "inline-flex items-center gap-1.5 rounded-[2px] border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-widest font-bold",
           reviewed
-            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-            : "border-rose-300 bg-rose-50 text-rose-800"
+            ? "border-[#1A3C2B] bg-[#9EFFBF]/30 text-[#1A3C2B]"
+            : "border-[#FF8C69] bg-[#FF8C69]/20 text-[#1A3C2B]"
         )}>
-          {reviewed ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />}
+          {reviewed ? <CheckCircle2 className="h-3 w-3 text-[#1A3C2B]" /> : <AlertTriangle className="h-3 w-3 text-[#FF8C69]" />}
           <span>
             {reviewed
-              ? (locale === "vi" ? "Đã xác nhận rà soát" : "Review Confirmed")
+              ? (locale === "vi" ? "ĐÃ DUYỆT RÀ SOÁT" : "REVIEW CONFIRMED")
               : t("pages.marketing.features.findingLabel")}
           </span>
         </span>
-        <span className="font-mono text-xs text-slate-500 font-medium">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-[#3A3A38]/70 font-semibold">
           EU AI Act · Article 14
         </span>
       </div>
 
-      <h3 className="mt-4 text-xl font-bold tracking-tight text-slate-900">
+      <h3 className="mt-4 text-xl font-bold tracking-tight text-[#1A3C2B]">
         {t("pages.marketing.features.findingPreviewTitle")}
       </h3>
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-mono">
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-mono">
         <span className={cn(
-          "rounded border px-2 py-0.5 font-semibold",
+          "rounded-[2px] border px-2 py-0.5 font-bold uppercase tracking-wider",
           reviewed
-            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-            : "bg-rose-50 border-rose-200 text-rose-800"
+            ? "bg-[#9EFFBF]/40 border-[#1A3C2B]/30 text-[#1A3C2B]"
+            : "bg-[#FF8C69]/30 border-[#FF8C69]/50 text-[#1A3C2B]"
         )}>
           {reviewed
             ? (locale === "vi" ? "ĐANG KHẮC PHỤC" : "REMEDIATION PENDING")
             : (locale === "vi" ? "MỨC ĐỘ CAO" : "HIGH IMPACT")}
         </span>
-        <span className="text-slate-400">•</span>
-        <span className="text-slate-600">{t("pages.marketing.features.findingMeta")}</span>
+        <span className="text-[#3A3A38]/40">•</span>
+        <span className="text-[#3A3A38]">{t("pages.marketing.features.findingMeta")}</span>
       </div>
 
       {/* Toggle View Mode between Summary & AST Trace */}
-      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mt-5 rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4">
         {viewMode === "summary" ? (
           <div>
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
+            <div className="flex items-center justify-between text-xs font-mono font-bold text-[#1A3C2B]">
               <span className="flex items-center gap-1.5">
-                <FileSearch className="h-3.5 w-3.5 text-emerald-600" />
+                <FileSearch className="h-3.5 w-3.5 text-[#1A3C2B]" />
                 {t("pages.marketing.features.evidenceLabel")}
               </span>
-              <span className="font-mono text-[11px] text-slate-500">Hash: 8a4f…11c2</span>
+              <span className="text-[10px] text-[#3A3A38]/60">HASH: 8A4F…11C2</span>
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600 font-normal">
+            <p className="mt-2 text-xs leading-relaxed text-[#3A3A38] font-sans">
               {t("pages.marketing.features.findingEvidence")}
             </p>
           </div>
         ) : (
           <div className="font-mono text-xs">
-            <div className="text-emerald-700 font-semibold mb-1">
-              {locale === "vi" ? "Cây thực thi mã nguồn AST:" : "AST Call Tree Traversal:"}
+            <div className="text-[#1A3C2B] font-bold mb-1 uppercase tracking-wider text-[10px]">
+              {locale === "vi" ? "CÂY THỰC THI MÃ NGUỒN AST:" : "AST CALL TREE TRAVERSAL:"}
             </div>
-            <div className="text-slate-600">↳ FunctionDeclaration: processTransaction()</div>
-            <div className="text-slate-600 pl-4">↳ IfStatement (test: riskScore &gt; threshold)</div>
-            <div className="text-rose-700 pl-8 font-bold">
+            <div className="text-[#3A3A38]/80">↳ FunctionDeclaration: processTransaction()</div>
+            <div className="text-[#3A3A38]/80 pl-4">↳ IfStatement (test: riskScore &gt; threshold)</div>
+            <div className="text-[#FF8C69] pl-8 font-bold">
               ↳ DirectExecution: provider.score(tx) [
-              {locale === "vi" ? "Chưa có rà soát" : "Missing Oversight"}
+              {locale === "vi" ? "CHƯA CÓ RÀ SOÁT" : "MISSING OVERSIGHT"}
               ]
             </div>
           </div>
         )}
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-wrap gap-2.5">
         <button
           type="button"
           onClick={() => setViewMode(viewMode === "summary" ? "ast" : "summary")}
           className={cn(
-            "inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold transition-all cursor-pointer active:scale-95",
+            "inline-flex h-9 items-center justify-center gap-1.5 rounded-[2px] border px-4 text-xs font-mono font-semibold uppercase tracking-wider transition-all cursor-pointer active:scale-95",
             viewMode === "ast"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              ? "border-[#1A3C2B] bg-[#1A3C2B] text-[#F7F7F5]"
+              : "border-[#3A3A38]/30 bg-[#FAF9F6] text-[#1A3C2B] hover:bg-white"
           )}
         >
-          <Code2 className="h-3.5 w-3.5 text-slate-500" />
+          <Code2 className="h-3.5 w-3.5" />
           <span>
             {viewMode === "ast"
-              ? (locale === "vi" ? "Xem tóm tắt" : "View Summary")
+              ? (locale === "vi" ? "XEM TÓM TẮT" : "VIEW SUMMARY")
               : t("pages.marketing.features.openSource")}
           </span>
         </button>
@@ -480,16 +530,16 @@ export function EnhancedFindingPreview() {
           type="button"
           onClick={() => setReviewed(!reviewed)}
           className={cn(
-            "inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95",
+            "inline-flex h-9 items-center justify-center gap-1.5 rounded-[2px] px-4 text-xs font-mono font-semibold uppercase tracking-wider transition-all cursor-pointer active:scale-95 border",
             reviewed
-              ? "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
-              : "bg-emerald-600 text-white hover:bg-emerald-500"
+              ? "bg-[#FAF9F6] text-[#3A3A38] border-[#3A3A38]/30"
+              : "bg-[#1A3C2B] text-[#F7F7F5] border-[#1A3C2B] hover:bg-[#23503a]"
           )}
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
           <span>
             {reviewed
-              ? (locale === "vi" ? "Đã duyệt ✓" : "Approved ✓")
+              ? (locale === "vi" ? "ĐÃ DUYỆT ✓" : "APPROVED ✓")
               : t("pages.marketing.features.reviewFinding")}
           </span>
         </button>
@@ -504,74 +554,74 @@ export function EnhancedRemediationPreview() {
   const [remediated, setRemediated] = useState(false);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+    <div className="overflow-hidden rounded-[2px] border border-[#3A3A38]/30 bg-[#F7F7F5] p-6 shadow-none">
       <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+        <span className="inline-flex items-center gap-1.5 rounded-[2px] border border-[#1A3C2B]/30 bg-[#9EFFBF]/30 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold">
+          <ShieldCheck className="h-3 w-3 text-[#1A3C2B]" />
           {t("pages.marketing.features.proposedChange")}
         </span>
         <button
           type="button"
           onClick={() => setRemediated(!remediated)}
-          className="text-xs font-mono font-medium text-emerald-700 hover:text-emerald-800 hover:underline cursor-pointer flex items-center gap-1"
+          className="text-[11px] font-mono font-bold text-[#1A3C2B] hover:underline cursor-pointer flex items-center gap-1 uppercase tracking-wider"
         >
           <RefreshCw className={cn("h-3 w-3", remediated && "rotate-180 transition-transform")} />
           <span>
             {remediated
-              ? (locale === "vi" ? "Khôi phục gốc" : "Reset original")
-              : (locale === "vi" ? "Áp dụng bản vá" : "Apply patch")}
+              ? (locale === "vi" ? "KHÔI PHỤC GỐC" : "RESET ORIGINAL")
+              : (locale === "vi" ? "ÁP DỤNG BẢN VÁ" : "APPLY PATCH")}
           </span>
         </button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-[#f8fafc] p-4 font-mono text-[13px] leading-relaxed shadow-sm">
+      <div className="mt-4 rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-4 font-mono text-[12px] leading-relaxed">
         {!remediated ? (
           <>
-            <div className="bg-rose-50 -mx-4 px-4 py-1 text-rose-800 border-l-3 border-rose-500 font-medium">
+            <div className="bg-[#FF8C69]/15 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#FF8C69] font-medium">
               <span>- return blockPayment;</span>
             </div>
-            <div className="bg-emerald-50 -mx-4 px-4 py-1 text-emerald-800 border-l-3 border-emerald-500 mt-1 font-medium">
+            <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] mt-1 font-bold">
               <span>+ const review = await requireHumanReview(tx);</span>
             </div>
-            <div className="bg-emerald-50 -mx-4 px-4 py-1 text-emerald-800 border-l-3 border-emerald-500 font-medium">
+            <div className="bg-[#9EFFBF]/25 -mx-4 px-4 py-1 text-[#1A3C2B] border-l-2 border-[#1A3C2B] font-bold">
               <span>+ return review.approved ? blockPayment : continueFlow;</span>
             </div>
           </>
         ) : (
-          <div className="bg-emerald-50 -mx-4 px-4 py-2 text-emerald-900 border-l-3 border-emerald-600">
-            <div className="text-xs text-emerald-700 mb-1 font-bold">
-              {locale === "vi" ? "// ĐÃ BỔ SUNG: Cơ chế rà soát của con người" : "// PATCHED: Human oversight enforced"}
+          <div className="bg-[#9EFFBF]/30 -mx-4 px-4 py-2 text-[#1A3C2B] border-l-2 border-[#1A3C2B]">
+            <div className="text-[10px] text-[#1A3C2B] mb-1 font-bold uppercase tracking-wider">
+              {locale === "vi" ? "// ĐÃ BỔ SUNG: CƠ CHẾ RÀ SOÁT CỦA CON NGƯỜI" : "// PATCHED: HUMAN OVERSIGHT ENFORCED"}
             </div>
-            <div>const review = await requireHumanReview(tx);</div>
-            <div>return review.approved ? blockPayment : continueFlow;</div>
+            <div className="font-bold">const review = await requireHumanReview(tx);</div>
+            <div className="font-bold">return review.approved ? blockPayment : continueFlow;</div>
           </div>
         )}
       </div>
 
-      <div className="mt-6 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
+      <div className="mt-6 grid grid-cols-3 gap-3 border-t border-[#3A3A38]/20 pt-3">
         <div>
-          <p className="text-[11px] font-medium text-slate-500">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-[#3A3A38]/70 font-semibold">
             {t("pages.marketing.features.verificationSource")}
           </p>
-          <p className="mt-1 font-mono text-xs font-bold text-emerald-700 flex items-center gap-1">
+          <p className="mt-1 font-mono text-xs font-bold text-[#1A3C2B] flex items-center gap-1">
             <CheckCircle2 className="h-3 w-3" />
             {t("pages.marketing.features.verificationPinned")}
           </p>
         </div>
         <div>
-          <p className="text-[11px] font-medium text-slate-500">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-[#3A3A38]/70 font-semibold">
             {t("pages.marketing.features.verificationFinding")}
           </p>
-          <p className="mt-1 font-mono text-xs font-bold text-emerald-700 flex items-center gap-1">
+          <p className="mt-1 font-mono text-xs font-bold text-[#1A3C2B] flex items-center gap-1">
             <CheckCircle2 className="h-3 w-3" />
             {t("pages.marketing.features.verificationResolved")}
           </p>
         </div>
         <div>
-          <p className="text-[11px] font-medium text-slate-500">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-[#3A3A38]/70 font-semibold">
             {t("pages.marketing.features.verificationGate")}
           </p>
-          <p className="mt-1 font-mono text-xs font-bold text-teal-700 flex items-center gap-1">
+          <p className="mt-1 font-mono text-xs font-bold text-[#1A3C2B] flex items-center gap-1">
             <ShieldCheck className="h-3 w-3" />
             {t("pages.marketing.features.verificationPassed")}
           </p>
@@ -592,53 +642,63 @@ export function FeaturesCapabilitiesMosaicGrid({
   return (
     <section
       data-section="workspace-capabilities"
-      className="relative overflow-hidden border-t border-slate-200/80 bg-slate-50/60 py-24"
+      className="relative overflow-hidden border-t border-[#3A3A38]/20 bg-[#F7F7F5] py-24"
     >
-      <div className="mx-auto max-w-[1240px] px-6">
+      <TechnicalBlueprintBackground />
+
+      <div className="relative z-10 mx-auto max-w-[1240px] px-6">
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-800 shadow-sm mb-4">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+          <div className="inline-flex items-center gap-2 rounded-[2px] border border-[#1A3C2B]/30 bg-[#FAF9F6] px-3.5 py-1 text-[11px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold mb-4 shadow-none">
+            <span className="h-2 w-2 bg-[#1A3C2B]" />
             <span>{t("pages.marketing.features.capabilitiesEyebrow")}</span>
           </div>
-          <h2 className="mx-auto max-w-[800px] text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900">
+          <h2 className="mx-auto max-w-[800px] text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#1A3C2B]">
             {t("pages.marketing.features.capabilitiesTitle")}
           </h2>
-          <p className="mx-auto mt-4 max-w-[700px] text-base sm:text-lg text-slate-600">
+          <p className="mx-auto mt-4 max-w-[700px] text-base sm:text-lg text-[#3A3A38]">
             {t("pages.marketing.features.capabilitiesDescription")}
           </p>
         </div>
 
+        {/* Bento Grid: 1px gap separating the cells with colored left-border accent */}
         <div className="mt-16 grid gap-6 lg:grid-cols-3">
-          {capabilities.map(([number, titleKey, descKey, metaKey]) => (
-            <div
-              key={number}
-              className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 transition-all duration-300 hover:border-emerald-400 hover:shadow-[0_12px_30px_rgba(16,185,129,0.12)]"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-700">
-                    Phase {number}
-                  </span>
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 group-hover:bg-emerald-600 transition-colors" />
+          {capabilities.map(([number, titleKey, descKey, metaKey], idx) => {
+            const accents = ["border-l-[#1A3C2B]", "border-l-[#FF8C69]", "border-l-[#F4D35E]"];
+            const accent = accents[idx % accents.length];
+            return (
+              <div
+                key={number}
+                className={cn(
+                  "group relative flex flex-col justify-between rounded-[2px] border border-[#3A3A38]/20 border-l-4 bg-[#FAF9F6] p-8 transition-all duration-200 hover:border-[#1A3C2B]/50 hover:bg-white shadow-none",
+                  accent
+                )}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold uppercase tracking-widest text-[#1A3C2B]">
+                      PHASE {number}
+                    </span>
+                    <div className="h-2 w-2 rounded-[1px] bg-[#1A3C2B]/50 group-hover:bg-[#1A3C2B] transition-colors" />
+                  </div>
+
+                  <h3 className="mt-6 text-xl font-bold tracking-tight text-[#1A3C2B] group-hover:text-[#23503a] transition-colors">
+                    {t(titleKey)}
+                  </h3>
+
+                  <p className="mt-3 text-xs leading-relaxed text-[#3A3A38] font-sans">
+                    {t(descKey)}
+                  </p>
                 </div>
 
-                <h3 className="mt-6 text-xl font-bold tracking-tight text-slate-900 group-hover:text-emerald-800 transition-colors">
-                  {t(titleKey)}
-                </h3>
-
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                  {t(descKey)}
-                </p>
+                <div className="mt-8 border-t border-[#3A3A38]/20 pt-4">
+                  <p className="font-mono text-[11px] text-[#3A3A38]/80 font-bold flex items-center justify-between uppercase tracking-wider">
+                    <span>{t(metaKey)}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-[#3A3A38]/50 group-hover:text-[#1A3C2B] transition-colors" />
+                  </p>
+                </div>
               </div>
-
-              <div className="mt-8 border-t border-slate-100 pt-4">
-                <p className="font-mono text-xs text-slate-500 font-medium flex items-center justify-between">
-                  <span>{t(metaKey)}</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -652,25 +712,30 @@ export function FeaturesFinalCtaSection() {
   return (
     <section
       data-section="final-cta"
-      className="relative overflow-hidden border-t border-slate-200 bg-gradient-to-b from-white via-emerald-50/20 to-slate-50 py-24 text-center"
+      className="relative overflow-hidden border-t border-[#3A3A38]/20 bg-[#F7F7F5] py-24 text-center"
     >
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[320px] w-[650px] rounded-full bg-emerald-300/15 blur-[100px]" />
-      </div>
+      <TechnicalBlueprintBackground />
 
-      <div className="relative z-10 mx-auto max-w-[800px] px-6">
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+      {/* Technical Form CTA style box with 4 corner markers */}
+      <div className="relative z-10 mx-auto max-w-[800px] border border-[#3A3A38]/30 bg-[#FAF9F6] p-10 sm:p-14 shadow-none rounded-[2px]">
+        {/* Four L-shaped corner markers (10px x 10px) in #1A3C2B */}
+        <span className="absolute top-0 left-0 h-2.5 w-2.5 border-t-2 border-l-2 border-[#1A3C2B]" />
+        <span className="absolute top-0 right-0 h-2.5 w-2.5 border-t-2 border-r-2 border-[#1A3C2B]" />
+        <span className="absolute bottom-0 left-0 h-2.5 w-2.5 border-b-2 border-l-2 border-[#1A3C2B]" />
+        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 border-b-2 border-r-2 border-[#1A3C2B]" />
+
+        <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1A3C2B] leading-tight">
           {t("pages.marketing.features.ctaTitle")}
         </h2>
 
-        <p className="mx-auto mt-6 max-w-[640px] text-base sm:text-lg text-slate-600 leading-relaxed font-normal">
+        <p className="mx-auto mt-6 max-w-[640px] text-base text-[#3A3A38] leading-relaxed">
           {t("pages.marketing.features.ctaDescription")}
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/sign-up"
-            className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_2px_4px_rgba(5,150,105,0.25),inset_0_1px_0_rgba(255,255,255,0.3),inset_0_-2px_0_rgba(0,0,0,0.15)] transition-all duration-150 hover:bg-emerald-500 active:translate-y-0.5"
+            className="group relative inline-flex items-center justify-center gap-2 rounded-[2px] bg-[#1A3C2B] px-8 py-3.5 text-xs font-mono font-semibold uppercase tracking-wider text-[#F7F7F5] border border-[#1A3C2B] transition-all duration-150 hover:bg-[#23503a] active:translate-y-0.5"
           >
             <span>{t("pages.marketing.nav.getStarted")}</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -678,7 +743,7 @@ export function FeaturesFinalCtaSection() {
 
           <Link
             href={`/${locale}/pricing`}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-7 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-150 hover:border-emerald-600/40 hover:bg-slate-50"
+            className="inline-flex items-center justify-center gap-2 rounded-[2px] border border-[#3A3A38]/30 bg-white px-8 py-3.5 text-xs font-mono font-semibold uppercase tracking-wider text-[#1A3C2B] transition-all duration-150 hover:border-[#1A3C2B] hover:bg-[#FAF9F6]"
           >
             <span>{t("pages.marketing.features.viewPricing")}</span>
           </Link>
