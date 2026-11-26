@@ -28,9 +28,11 @@ import {
   FeaturesHeroSection,
 } from "./features-showcase";
 import {
-  FigmaVndPricingHero,
-  FigmaVndTopUpsSection,
-  FigmaVndPricingFooter,
+  EnhancedCreditTopUpsSection,
+  EnhancedHowCreditsWorkSection,
+  EnhancedPricingFaqSection,
+  EnhancedPricingFinalCta,
+  EnhancedPricingHero,
 } from "./pricing-showcase";
 import { FeedbackForm } from "./feedback-form";
 import { FigmaCapabilitiesSection } from "./figma-capabilities-section";
@@ -402,12 +404,14 @@ function PricingMarketingPageContent() {
       <div
         data-figma-node="1662:1040"
         data-figma-name="03 Landing · Pricing"
-        className="min-h-screen bg-white"
+        className="min-h-screen bg-[#FAFBFB]"
       >
-        {/* Figma #1662:1040: Exact VND Pricing Surface */}
-        <FigmaVndPricingHero />
-        <FigmaVndTopUpsSection />
-        <FigmaVndPricingFooter />
+        {/* Full Rich & Interactive VND Pricing Surface */}
+        <EnhancedPricingHero />
+        <EnhancedCreditTopUpsSection />
+        <EnhancedHowCreditsWorkSection />
+        <EnhancedPricingFaqSection />
+        <EnhancedPricingFinalCta />
 
         {/* Retain contract anchors and data-section attributes for legacy test suites */}
         <div className="sr-only" aria-hidden="true" data-figma-node="998:31472" data-figma-name="M03 Pricing">
