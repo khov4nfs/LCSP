@@ -86,10 +86,7 @@ export class InternalSnapshotController {
           "x-repository-tree-commit-sha",
           result.treeManifest.commitSha,
         );
-        response.setHeader(
-          "x-repository-tree-id",
-          result.treeManifest.treeId,
-        );
+        response.setHeader("x-repository-tree-id", result.treeManifest.treeId);
         response.setHeader(
           "x-repository-tree-file-count",
           String(result.treeManifest.fileCount),

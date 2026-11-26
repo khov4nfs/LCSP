@@ -395,14 +395,18 @@ function parseMetadata(value: string): SnapshotArchiveCacheMetadata | null {
         : { archiveRoot: parsed.archiveRoot }),
       ...(parsed.treeManifest === undefined
         ? {}
-        : { treeManifest: parsed.treeManifest as PinnedRepositoryTreeManifest }),
+        : {
+            treeManifest: parsed.treeManifest,
+          }),
     };
   } catch {
     return null;
   }
 }
 
-function isValidTreeManifest(value: unknown): value is PinnedRepositoryTreeManifest {
+function isValidTreeManifest(
+  value: unknown,
+): value is PinnedRepositoryTreeManifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }

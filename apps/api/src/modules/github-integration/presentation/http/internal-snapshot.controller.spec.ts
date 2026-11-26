@@ -57,8 +57,7 @@ describe("InternalSnapshotController", () => {
           repositoryFullName: "acme/example-repo",
           contentType: "application/gzip",
           archiveRoot: "trusted-wrapper",
-          archiveRootStatus:
-            ARCHIVE_ROOT_VERIFICATION_STATUSES.verifiedWrapper,
+          archiveRootStatus: ARCHIVE_ROOT_VERIFICATION_STATUSES.verifiedWrapper,
           resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
           stream: Readable.from([Buffer.from("archive")]),
           hydrationDeliveryTicketId: "hydration-ticket-1",
