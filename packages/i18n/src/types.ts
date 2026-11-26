@@ -2848,6 +2848,11 @@ export type PagesMessages = {
     previousPage: string;
     nextPage: string;
     pageLabel: string;
+    searchPlaceholder: string;
+    provisionSearchPlaceholder: string;
+    provisionsNavTitle: string;
+    showingCount: string;
+    noMatchingDocuments: string;
   };
   legalSources: {
     metadataTitle: string;
