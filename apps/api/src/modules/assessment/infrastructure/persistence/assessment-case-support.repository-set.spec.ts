@@ -91,7 +91,10 @@ const load = (client: Prisma.TransactionClient) =>
 
 const pinsNotReady = {
   response: {
-    problem: { code: ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY, status: 409 },
+    problem: {
+      code: ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+      status: 409,
+    },
   },
 };
 
@@ -113,9 +116,7 @@ describe("AssessmentCaseSupport repository set", () => {
 
   it("returns every recorded pin in ordinal order with a matching digest", async () => {
     const rows = [pinRow(), secondRow()];
-    const digest = computeRepositorySetDigest(
-      rows as Parameters<typeof computeRepositorySetDigest>[0],
-    );
+    const digest = computeRepositorySetDigest(rows);
 
     const pins = await load(
       tx({
@@ -222,9 +223,9 @@ describe("evidenceBelongsToPinnedSet", () => {
   });
 
   it("matches keyless evidence by commit and rejects commits outside the set", () => {
-    expect(evidenceBelongsToPinnedSet({ repositoryCommit: COMMIT_B }, pins)).toBe(
-      true,
-    );
+    expect(
+      evidenceBelongsToPinnedSet({ repositoryCommit: COMMIT_B }, pins),
+    ).toBe(true);
     expect(
       evidenceBelongsToPinnedSet({ repositoryCommit: "c".repeat(40) }, pins),
     ).toBe(false);

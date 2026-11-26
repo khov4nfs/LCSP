@@ -267,7 +267,9 @@ export class AssessmentCaseSupport {
         where: { id: { in: extraIds }, assessmentId: input.assessmentId },
         select: { id: true, commitSha: true, sourcePathPrefix: true },
       });
-      const byId = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+      const byId = new Map(
+        snapshots.map((snapshot) => [snapshot.id, snapshot]),
+      );
       for (const pin of rows.slice(1)) {
         const snapshot = byId.get(pin.repositorySnapshotId);
         if (

@@ -112,17 +112,17 @@ describe("AssessmentRuntimePreparation repository set mirror", () => {
     await service().pinRuntimeInputsInTx(tx, input);
 
     expect(created).toHaveLength(0);
-    expect(
-      caseUpdates.some((data) => "repositorySetDigest" in data),
-    ).toBe(false);
+    expect(caseUpdates.some((data) => "repositorySetDigest" in data)).toBe(
+      false,
+    );
   });
 
   it("rejects a different snapshot because repository pins are immutable", async () => {
     const { tx, created } = buildTx([{ repositorySnapshotId: "snap-other" }]);
 
-    await expect(service().pinRuntimeInputsInTx(tx, input)).rejects.toMatchObject(
-      { status: 409 },
-    );
+    await expect(
+      service().pinRuntimeInputsInTx(tx, input),
+    ).rejects.toMatchObject({ status: 409 });
     expect(created).toHaveLength(0);
   });
 });

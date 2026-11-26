@@ -773,10 +773,15 @@ export class AssessmentCompletionGate {
       assessmentId: string;
       repositoryCount: number;
       storedDigest: string | null;
-      primary: Parameters<AssessmentCaseSupport["loadRepositorySet"]>[1]["primary"] & {
+      primary: Parameters<
+        AssessmentCaseSupport["loadRepositorySet"]
+      >[1]["primary"] & {
         repositorySnapshotId: string;
       };
-      add: (code: AssessmentCompletionBlocker["code"], reference: string) => void;
+      add: (
+        code: AssessmentCompletionBlocker["code"],
+        reference: string,
+      ) => void;
     },
   ): Promise<PinnedRepository[] | null> {
     /**
@@ -816,18 +821,29 @@ export class AssessmentCompletionGate {
     if (additional.length === 0) return repositories;
     const [snapshots, scanJobs] = await Promise.all([
       tx.repositorySnapshot.findMany({
-        where: { id: { in: additional.map((pin) => pin.repositorySnapshotId) } },
+        where: {
+          id: { in: additional.map((pin) => pin.repositorySnapshotId) },
+        },
         select: { id: true, assessmentId: true, status: true },
       }),
       tx.repositoryScanJob.findMany({
         where: { id: { in: additional.map((pin) => pin.repositoryScanJobId) } },
-        select: { id: true, assessmentId: true, snapshotId: true, status: true },
+        select: {
+          id: true,
+          assessmentId: true,
+          snapshotId: true,
+          status: true,
+        },
       }),
     ]);
     let usable = true;
     for (const pin of additional) {
-      const snapshot = snapshots.find((row) => row.id === pin.repositorySnapshotId);
-      const scanJob = scanJobs.find((row) => row.id === pin.repositoryScanJobId);
+      const snapshot = snapshots.find(
+        (row) => row.id === pin.repositorySnapshotId,
+      );
+      const scanJob = scanJobs.find(
+        (row) => row.id === pin.repositoryScanJobId,
+      );
       if (
         !snapshot ||
         snapshot.assessmentId !== input.assessmentId ||
