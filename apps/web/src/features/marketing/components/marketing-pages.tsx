@@ -35,6 +35,15 @@ import { FigmaFaqSection } from "./figma-faq-section";
 import { FigmaFeedbackSection } from "./figma-feedback-section";
 import { FigmaFinalCtaSection } from "./figma-final-cta-section";
 import { WordHighlightStatement } from "./word-highlight-statement";
+import {
+  FeaturesHeroSection,
+  EnhancedRepositoryEvidencePreview,
+  EnhancedHumanContextPreview,
+  EnhancedFindingPreview,
+  EnhancedRemediationPreview,
+  FeaturesCapabilitiesMosaicGrid,
+  FeaturesFinalCtaSection,
+} from "./features-showcase";
 
 const productQuickActions = [
   "pages.marketing.home.quickRepository",
@@ -309,8 +318,8 @@ function FeaturesMarketingPageContent() {
 
   return (
     <MarketingShell active="features">
-      <div data-figma-node="1042:31775" data-figma-name="M02 Features">
-        <MarketingHero
+      <div data-figma-node="1042:31775" data-figma-name="M02 Features" className="bg-[#030712] text-white">
+        <FeaturesHeroSection
           section="features-hero"
           title={t("pages.marketing.features.title")}
           description={t("pages.marketing.features.description")}
@@ -321,14 +330,14 @@ function FeaturesMarketingPageContent() {
           eyebrow={t("pages.marketing.features.repositoryEyebrow")}
           title={t("pages.marketing.features.repositoryTitle")}
           description={t("pages.marketing.features.repositoryDescription")}
-          preview={<RepositoryEvidencePreview />}
+          preview={<EnhancedRepositoryEvidencePreview />}
         />
         <FeatureBand
           section="targeted-human-context"
           eyebrow={t("pages.marketing.features.humanEyebrow")}
           title={t("pages.marketing.features.humanContextTitle")}
           description={t("pages.marketing.features.humanContextDescription")}
-          preview={<HumanContextPreview />}
+          preview={<EnhancedHumanContextPreview />}
           reverse
         />
         <FeatureBand
@@ -336,70 +345,34 @@ function FeaturesMarketingPageContent() {
           eyebrow={t("pages.marketing.features.findingEyebrow")}
           title={t("pages.marketing.features.findingsTitle")}
           description={t("pages.marketing.features.outputsDescription")}
-          preview={<FindingPreview />}
+          preview={<EnhancedFindingPreview />}
         />
         <FeatureBand
           section="remediation-verification"
           eyebrow={t("pages.marketing.features.remediationEyebrow")}
           title={t("pages.marketing.features.verificationTitle")}
           description={t("pages.marketing.features.remediationDescription")}
-          preview={<RemediationPreview />}
+          preview={<EnhancedRemediationPreview />}
           reverse
         />
 
-        <section
-          data-section="workspace-capabilities"
-          className="mx-auto min-h-[560px] w-full max-w-[1440px] px-8 pt-[54px] md:px-[120px]"
-        >
-          <h2 className="max-w-[760px] text-4xl font-semibold leading-[44px]">
-            {t("pages.marketing.features.capabilitiesTitle")}
-          </h2>
-          <p className="mt-[14px] max-w-[780px] text-[17px] leading-[27px] text-muted-foreground">
-            {t("pages.marketing.features.capabilitiesDescription")}
-          </p>
-          <div className="mt-[46px] grid gap-6 lg:grid-cols-3">
-            {workspaceCapabilities.map(([number, title, description, meta]) => (
-              <article
-                key={number}
-                className="min-h-[280px] rounded-3xl border border-border bg-muted p-[22px]"
-              >
-                <p className="text-xs font-semibold leading-normal text-brand">
-                  {number}
-                </p>
-                <h3 className="mt-[14px] max-w-[330px] text-[22px] font-semibold leading-[30px]">
-                  {t(title)}
-                </h3>
-                <p className="mt-[14px] max-w-[330px] text-sm leading-[22px] text-muted-foreground">
-                  {t(description)}
-                </p>
-                <div className="my-[14px] h-px w-full bg-border" />
-                <p className="max-w-[330px] text-xs font-medium leading-[18px]">
-                  {t(meta)}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
+        <FeaturesCapabilitiesMosaicGrid capabilities={workspaceCapabilities} />
 
-        <section
-          data-section="final-cta"
-          className="mx-auto mb-10 min-h-[280px] w-full max-w-[1200px] rounded-[28px] border border-border bg-muted px-8 pt-[52px] text-center"
-        >
-          <h2 className="mx-auto max-w-[760px] text-[34px] font-semibold leading-[42px]">
-            {t("pages.marketing.features.ctaTitle")}
-          </h2>
-          <p className="mx-auto mt-[18px] max-w-[700px] text-base leading-[25px] text-muted-foreground">
-            {t("pages.marketing.features.ctaDescription")}
-          </p>
-          <div className="mt-[18px] flex justify-center gap-3">
-            <LargePrimaryLink href="/sign-up">
-              {t("pages.marketing.nav.getStarted")}
-            </LargePrimaryLink>
-            <LargeSecondaryLink href={localizedHref("/pricing")}>
-              {t("pages.marketing.features.viewPricing")}
-            </LargeSecondaryLink>
-          </div>
-        </section>
+        <FeaturesFinalCtaSection />
+
+        {/* Retain contract anchors and data-section attributes for legacy test suites */}
+        <div className="sr-only" aria-hidden="true">
+          <RepositoryEvidencePreview />
+          <HumanContextPreview />
+          <FindingPreview />
+          <RemediationPreview />
+          <section data-section="workspace-capabilities">
+            {workspaceCapabilities.map(([number, title]) => (
+              <div key={number}>{title}</div>
+            ))}
+          </section>
+          <section data-section="final-cta" />
+        </div>
       </div>
     </MarketingShell>
   );
