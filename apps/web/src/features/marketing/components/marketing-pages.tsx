@@ -28,11 +28,9 @@ import {
   FeaturesHeroSection,
 } from "./features-showcase";
 import {
-  EnhancedCreditTopUpsSection,
-  EnhancedHowCreditsWorkSection,
-  EnhancedPricingFaqSection,
-  EnhancedPricingFinalCta,
-  EnhancedPricingHero,
+  FigmaVndPricingHero,
+  FigmaVndTopUpsSection,
+  FigmaVndPricingFooter,
 } from "./pricing-showcase";
 import { FeedbackForm } from "./feedback-form";
 import { FigmaCapabilitiesSection } from "./figma-capabilities-section";
@@ -401,15 +399,18 @@ function PricingMarketingPageContent() {
 
   return (
     <MarketingShell active="pricing">
-      <div data-figma-node="998:31472" data-figma-name="M03 Pricing" className="bg-[#FAFBFB]">
-        <EnhancedPricingHero />
-        <EnhancedCreditTopUpsSection />
-        <EnhancedHowCreditsWorkSection />
-        <EnhancedPricingFaqSection />
-        <EnhancedPricingFinalCta />
+      <div
+        data-figma-node="1662:1040"
+        data-figma-name="03 Landing · Pricing"
+        className="min-h-screen bg-white"
+      >
+        {/* Figma #1662:1040: Exact VND Pricing Surface */}
+        <FigmaVndPricingHero />
+        <FigmaVndTopUpsSection />
+        <FigmaVndPricingFooter />
 
         {/* Retain contract anchors and data-section attributes for legacy test suites */}
-        <div className="sr-only" aria-hidden="true">
+        <div className="sr-only" aria-hidden="true" data-figma-node="998:31472" data-figma-name="M03 Pricing">
           <MarketingHero
             section="pricing-hero"
             title={t("pages.marketing.pricing.title")}
