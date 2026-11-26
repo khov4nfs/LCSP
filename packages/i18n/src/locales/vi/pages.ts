@@ -2321,6 +2321,13 @@ export const viPages = {
       nextActionAnswer: "Trả lời yêu cầu",
       nextActionReview: "Xem kết quả",
       nextActionProgress: "Xem tiến độ",
+      galleryView: "Thẻ",
+      listView: "Danh sách",
+      reportsSearchPlaceholder: "Tìm kiếm báo cáo…",
+      reportsCurrentMetricLabel: "Báo cáo mới nhất",
+      reportsStaleMetricLabel: "Báo cáo cũ",
+      reportsTotalMetricLabel: "Tổng báo cáo",
+      reportsOpenReport: "Mở báo cáo",
       requestsPageTitle: "Yêu cầu bổ sung thông tin",
       requestsPageSubtitle:
         "Trả lời các câu hỏi chưa được làm rõ liên quan đến nghĩa vụ pháp lý.",
