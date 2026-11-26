@@ -509,6 +509,17 @@ export function RepositorySetupStep({
     >
       <RepositorySetupLayout
         steps={stepperItems}
+        onStepSelect={
+          isStatusView
+            ? undefined
+            : (stepId) => {
+                if (stepId === "provider") {
+                  setWizardStep(WIZARD_STEPS.provider);
+                } else if (stepId === "connection") {
+                  setWizardStep(WIZARD_STEPS.connection);
+                }
+              }
+        }
         stepTitle={stepTitle}
         stepSubtitle={stepSubtitle}
         headerTone={
@@ -593,6 +604,14 @@ export function RepositorySetupStep({
                     {t("pages.assessmentFlow.retrySetupState")}
                   </Button>
                 ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmitting}
+                  onClick={() => router.push("/assessments")}
+                >
+                  {t("pages.assessmentFlow.actions.back")}
+                </Button>
               </div>
             </div>
           ) : wizardStep === WIZARD_STEPS.connection && selectedProvider ? (
@@ -690,6 +709,13 @@ export function RepositorySetupStep({
                 >
                   {t("pages.assessmentFlow.actions.continue")}
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/assessments")}
+                >
+                  {t("pages.assessmentFlow.actions.back")}
+                </Button>
                 {workingAssessmentId && !setupState && !setupQuery.isFetching ? (
                   <Button
                     type="button"
@@ -699,6 +725,14 @@ export function RepositorySetupStep({
                     {t("pages.assessmentFlow.retrySetupState")}
                   </Button>
                 ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmitting}
+                  onClick={() => router.push("/assessments")}
+                >
+                  {t("pages.assessmentFlow.actions.back")}
+                </Button>
               </div>
             </div>
           )}

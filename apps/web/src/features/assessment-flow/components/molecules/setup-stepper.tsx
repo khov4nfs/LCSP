@@ -34,9 +34,11 @@ export interface SetupStepperItem {
  */
 export function SetupStepper({
   steps,
+  onStepSelect,
   className,
 }: {
   steps: SetupStepperItem[];
+  onStepSelect?: (stepId: string) => void;
   className?: string;
 }) {
   return (
@@ -52,6 +54,7 @@ export function SetupStepper({
           const isComplete = step.state === SETUP_STEP_STATES.complete;
           const isCurrent = step.state === SETUP_STEP_STATES.current;
           const isAttention = step.state === SETUP_STEP_STATES.attention;
+          const isClickable = isComplete && Boolean(onStepSelect);
           const stateLabel = isComplete
             ? resolveAppMessage("pages.assessmentFlow.stepper.complete")
             : isCurrent
@@ -60,12 +63,8 @@ export function SetupStepper({
                 ? resolveAppMessage("pages.assessmentFlow.stepper.attention")
                 : resolveAppMessage("pages.assessmentFlow.stepper.upcoming");
 
-          return (
-            <li
-              key={step.id}
-              aria-current={isCurrent ? "step" : undefined}
-              className="flex items-center gap-3"
-            >
+          const content = (
+            <>
               <span
                 className={cn(
                   "flex size-8.5 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors",
@@ -87,7 +86,7 @@ export function SetupStepper({
                 )}
               </span>
 
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 text-left">
                 <p
                   className={cn(
                     "truncate text-sm font-medium",
@@ -100,6 +99,28 @@ export function SetupStepper({
                   {stateLabel}
                 </p>
               </div>
+            </>
+          );
+
+          return (
+            <li
+              key={step.id}
+              aria-current={isCurrent ? "step" : undefined}
+              className="flex items-center"
+            >
+              {isClickable ? (
+                <button
+                  type="button"
+                  onClick={() => onStepSelect?.(step.id)}
+                  className="flex w-full items-center gap-3 rounded-lg p-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {content}
+                </button>
+              ) : (
+                <div className="flex w-full items-center gap-3 p-1">
+                  {content}
+                </div>
+              )}
             </li>
           );
         })}

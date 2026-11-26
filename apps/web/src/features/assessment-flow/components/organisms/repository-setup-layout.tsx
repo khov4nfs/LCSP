@@ -51,6 +51,7 @@ export type SummaryStatusTone =
  */
 export function RepositorySetupLayout({
   steps,
+  onStepSelect,
   stepTitle,
   stepSubtitle,
   headerTone = SETUP_HEADER_TONES.brand,
@@ -64,6 +65,7 @@ export function RepositorySetupLayout({
   children,
 }: {
   steps: SetupStepperItem[];
+  onStepSelect?: (stepId: string) => void;
   stepTitle: string;
   stepSubtitle: string;
   headerTone?: SetupHeaderTone;
@@ -87,7 +89,7 @@ export function RepositorySetupLayout({
           : "border-status-info-border bg-status-info-bg text-status-info";
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6">
+    <div className="flex w-full flex-col gap-5 px-4 py-6 sm:px-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {resolveAppMessage("pages.assessmentFlow.setupPageTitle")}
@@ -97,7 +99,7 @@ export function RepositorySetupLayout({
         </p>
       </header>
 
-      <SetupStepper steps={steps} />
+      <SetupStepper steps={steps} onStepSelect={onStepSelect} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_408px]">
         <section
