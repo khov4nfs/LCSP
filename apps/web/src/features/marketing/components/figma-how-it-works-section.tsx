@@ -73,7 +73,7 @@ export function FigmaHowItWorksSection() {
         <div className="relative mt-12">
           {/* Connecting SVG Circuit Line for Desktop */}
           <div aria-hidden="true" className="pointer-events-none absolute top-12 left-0 right-0 hidden lg:block px-12">
-            <svg className="w-full h-2 overflow-visible" fill="none">
+            <svg className="w-full h-2 overflow-visible" fill="transparent">
               <line 
                 x1="0" 
                 y1="0" 

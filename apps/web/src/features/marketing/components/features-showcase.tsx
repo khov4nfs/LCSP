@@ -314,7 +314,7 @@ export function EnhancedHumanContextPreview() {
           : "Recorded: Manual oversight required when risk score exceeds threshold.",
     },
     {
-      id: "none",
+      id: "unreviewed",
       key: "pages.marketing.features.choiceNone",
       detail:
         locale === "vi"
