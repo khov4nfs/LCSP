@@ -66,6 +66,74 @@
   animation: pulseGlow 6s ease-in-out infinite;
 }
 
+/* Hero entrance transitions */
+@keyframes heroWordsRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-enter-title {
+  animation: heroWordsRise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-enter-sub {
+  animation: heroWordsRise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.hero-enter-actions {
+  animation: heroWordsRise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+
+.hero-enter-preview {
+  animation: heroWordsRise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+}
+
+/* design-taste-frontend: Dealt Moment cursor-spotlight */
+.mo-cs {
+  --mo-x: 70%;
+  --mo-y: 30%;
+  --mo-r: 480px;
+  position: relative;
+  isolation: isolate;
+}
+
+.mo-cs > .mo-cs__light {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+  background: radial-gradient(
+    var(--mo-r) circle at var(--mo-x) var(--mo-y),
+    rgba(49, 189, 167, 0.2) 0%,
+    rgba(13, 148, 136, 0.08) 40%,
+    transparent 72%
+  );
+}
+
+.mo-cs > .mo-cs__light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.25) 1px, transparent 1.6px);
+  background-size: 28px 28px;
+  background-position: 14px 14px;
+  mask-image: radial-gradient(calc(var(--mo-r) * 0.9) circle at var(--mo-x) var(--mo-y), #000, transparent 72%);
+  -webkit-mask-image: radial-gradient(calc(var(--mo-r) * 0.9) circle at var(--mo-x) var(--mo-y), #000, transparent 72%);
+}
+
+.mo-cs > .mo-cs__content {
+  position: relative;
+  z-index: 1;
+}
+
 /* Linear & Vercel Developer Tooling Utilities */
 .bg-grid-white {
   background-size: 32px 32px;
@@ -83,6 +151,68 @@
 
 .bg-radial-hero-glow {
   background: radial-gradient(circle at 65% 30%, rgba(49, 189, 167, 0.15) 0%, rgba(13, 148, 136, 0.05) 45%, transparent 70%);
+}
+
+/* Superdesign: Living Aurora Light Blades */
+@keyframes auroraDrift1 {
+  0%, 100% {
+    transform: translate(0px, 0px) rotate(0deg) scale(1);
+    opacity: 0.22;
+  }
+  50% {
+    transform: translate(30px, -20px) rotate(4deg) scale(1.08);
+    opacity: 0.35;
+  }
+}
+
+@keyframes auroraDrift2 {
+  0%, 100% {
+    transform: translate(0px, 0px) rotate(0deg) scale(1.05);
+    opacity: 0.18;
+  }
+  50% {
+    transform: translate(-35px, 25px) rotate(-5deg) scale(0.95);
+    opacity: 0.3;
+  }
+}
+
+.aurora-blade-1 {
+  animation: auroraDrift1 18s ease-in-out infinite;
+}
+
+.aurora-blade-2 {
+  animation: auroraDrift2 22s ease-in-out infinite;
+}
+
+/* Superdesign: Keycap-raised tactile button styles */
+.btn-keycap-primary {
+  box-shadow: 0 3px 0 0 #0d6e60, 0 8px 16px -2px rgba(49, 189, 167, 0.35);
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 140ms ease-out;
+}
+
+.btn-keycap-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 0 #0d6e60, 0 12px 20px -2px rgba(49, 189, 167, 0.45);
+}
+
+.btn-keycap-primary:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 #0d6e60, 0 2px 4px 0 rgba(49, 189, 167, 0.2);
+}
+
+.btn-keycap-secondary {
+  box-shadow: 0 3px 0 0 #94a3b8, 0 4px 10px rgba(0, 0, 0, 0.04);
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 140ms ease-out;
+}
+
+.btn-keycap-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 0 #94a3b8, 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.btn-keycap-secondary:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 #94a3b8, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 @keyframes pulseCircuit {

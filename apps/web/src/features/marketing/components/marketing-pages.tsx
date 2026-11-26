@@ -34,6 +34,7 @@ import { FigmaWhoSection } from "./figma-who-section";
 import { FigmaFaqSection } from "./figma-faq-section";
 import { FigmaFeedbackSection } from "./figma-feedback-section";
 import { FigmaFinalCtaSection } from "./figma-final-cta-section";
+import { WordHighlightStatement } from "./word-highlight-statement";
 
 const productQuickActions = [
   "pages.marketing.home.quickRepository",
@@ -234,6 +235,17 @@ function ProductMarketingPageContent() {
 
         {/* Frame 05: Who it is for + Git Provider Logos (Figma 1662:659 / 1766:13037) */}
         <FigmaWhoSection />
+
+        {/* tasteskill 2.5 Dealt Moment: Word Highlight Statement */}
+        <WordHighlightStatement 
+          lead="Evidence-Led Guarantee"
+          statement={
+            locale === "vi"
+              ? "LCSP biến các điều luật pháp lý trừu tượng thành bằng chứng AST toán học không thể làm giả và sẵn sàng kiểm toán trong từng commit."
+              : "LCSP turns ambiguous statutory articles into deterministic AST proof that is cryptographically verifiable and audit-ready across every commit."
+          }
+          sourceNote="NIST AI Risk Management Framework & EU AI Act Annex IV Compliance"
+        />
 
         {/* Frame 06: FAQ (Figma 1662:659 / 1767:12966) */}
         <FigmaFaqSection />

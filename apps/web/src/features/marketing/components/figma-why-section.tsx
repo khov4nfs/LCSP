@@ -24,11 +24,11 @@ export function FigmaWhySection() {
       </div>
 
       <div className="mt-12 grid gap-6 lg:grid-cols-2">
-        {/* Large Benefit Card (Left) */}
-        <div className="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-8 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-[#31BDA7]/50 hover:shadow-md">
+        {/* Large Benefit Card (Left) with Mosaic Blueprint Hairline & Zero Slop */}
+        <div className="group flex flex-col justify-between rounded-[16px] border border-slate-200 bg-white p-8 transition-[border-color,box-shadow] duration-200 hover:border-[#31BDA7] hover:shadow-xs">
           <div>
-            <div className="flex size-12 items-center justify-center rounded-xl bg-[#ECF5F3] text-[#31BDA7] transition-transform duration-300 group-hover:scale-110">
-              <ScaleIcon className="size-6" />
+            <div className="flex size-11 items-center justify-center rounded-[10px] border border-[#31BDA7]/20 bg-[#ECF5F3] text-[#11545B] transition-transform duration-200 group-hover:scale-105">
+              <ScaleIcon className="size-5" />
             </div>
             <h3 className="mt-6 text-2xl font-semibold text-[#101C29]">
               {t("pages.marketing.home.whyBenefit1Title")}
@@ -38,15 +38,15 @@ export function FigmaWhySection() {
             </p>
           </div>
 
-          <div className="mt-8 rounded-xl bg-slate-50 p-6">
-            <div className="grid grid-cols-3 gap-2 text-center text-xs font-medium text-[#48586A]">
-              <div className="rounded-lg bg-white p-2.5 shadow-xs transition-colors hover:text-[#101C29]">
+          <div className="mt-8 rounded-[12px] border border-slate-200 bg-slate-50/70 p-6">
+            <div className="grid grid-cols-3 gap-2.5 text-center text-xs font-medium text-[#48586A]">
+              <div className="rounded-[8px] border border-slate-200/80 bg-white p-2.5 transition-colors hover:text-[#101C29]">
                 {t("pages.marketing.home.whyBenefit1Step1")}
               </div>
-              <div className="rounded-lg bg-white p-2.5 shadow-xs transition-colors hover:text-[#101C29]">
+              <div className="rounded-[8px] border border-slate-200/80 bg-white p-2.5 transition-colors hover:text-[#101C29]">
                 {t("pages.marketing.home.whyBenefit1Step2")}
               </div>
-              <div className="rounded-lg bg-white p-2.5 shadow-xs text-[#31BDA7] font-semibold">
+              <div className="rounded-[8px] border border-[#31BDA7]/40 bg-[#ECF5F3] p-2.5 text-[#11545B] font-semibold">
                 {t("pages.marketing.home.whyBenefit1Step3")}
               </div>
             </div>
@@ -59,8 +59,8 @@ export function FigmaWhySection() {
         {/* 3 Stacked Benefit Cards (Right) */}
         <div className="space-y-4">
           {/* Card 2 */}
-          <div className="group flex items-start gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#31BDA7]/40 hover:shadow-xs">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#ECF5F3] text-[#31BDA7] transition-transform duration-200 group-hover:scale-105">
+          <div className="group flex items-start gap-4 rounded-[14px] border border-slate-200 bg-white p-6 transition-[border-color,box-shadow] duration-200 hover:border-[#31BDA7] hover:shadow-xs">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-[#31BDA7]/20 bg-[#ECF5F3] text-[#11545B] transition-transform duration-200 group-hover:scale-105">
               <LinkIcon className="size-5" />
             </div>
             <div>
@@ -74,8 +74,8 @@ export function FigmaWhySection() {
           </div>
 
           {/* Card 3 */}
-          <div className="group flex items-start gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#31BDA7]/40 hover:shadow-xs">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#ECF5F3] text-[#31BDA7] transition-transform duration-200 group-hover:scale-105">
+          <div className="group flex items-start gap-4 rounded-[14px] border border-slate-200 bg-white p-6 transition-[border-color,box-shadow] duration-200 hover:border-[#31BDA7] hover:shadow-xs">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-[#31BDA7]/20 bg-[#ECF5F3] text-[#11545B] transition-transform duration-200 group-hover:scale-105">
               <MessageSquareIcon className="size-5" />
             </div>
             <div>
@@ -89,8 +89,8 @@ export function FigmaWhySection() {
           </div>
 
           {/* Card 4 */}
-          <div className="group flex items-start gap-4 rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#31BDA7]/40 hover:shadow-xs">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#ECF5F3] text-[#31BDA7] transition-transform duration-200 group-hover:scale-105">
+          <div className="group flex items-start gap-4 rounded-[14px] border border-slate-200 bg-white p-6 transition-[border-color,box-shadow] duration-200 hover:border-[#31BDA7] hover:shadow-xs">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-[#31BDA7]/20 bg-[#ECF5F3] text-[#11545B] transition-transform duration-200 group-hover:scale-105">
               <RotateCcwIcon className="size-5" />
             </div>
             <div>
