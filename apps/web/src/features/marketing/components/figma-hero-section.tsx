@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { resolveMessage } from "@lcsp/i18n";
@@ -13,15 +13,85 @@ import {
   ShieldCheckIcon, 
   ClockIcon, 
   CheckIcon, 
-  CopyIcon 
+  CopyIcon,
+  ChevronRight,
+  GitBranch,
 } from "lucide-react";
+import { TechnicalBlueprintBackground } from "./features-showcase";
+import { cn } from "@/lib/utils";
+
+/**
+ * Network Topology Graph:
+ * An abstract SVG visualization of a design system network with a central forest node
+ * and orbiting nodes on dashed paths.
+ */
+function NetworkTopologyGraph() {
+  return (
+    <div className="relative flex items-center justify-center h-[260px] w-full max-w-[320px] mx-auto">
+      <svg
+        className="w-full h-full overflow-visible"
+        viewBox="0 0 260 260"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Dashed circular orbit 1 (r = 100px) */}
+        <circle
+          cx="130"
+          cy="130"
+          r="95"
+          fill="none"
+          stroke="#3A3A38"
+          strokeWidth="1"
+          strokeOpacity="0.25"
+          strokeDasharray="4 4"
+        />
+        {/* Dashed circular orbit 2 (r = 60px) */}
+        <circle
+          cx="130"
+          cy="130"
+          r="55"
+          fill="none"
+          stroke="#3A3A38"
+          strokeWidth="1"
+          strokeOpacity="0.2"
+          strokeDasharray="3 3"
+        />
+
+        {/* Static connection lines */}
+        <line x1="130" y1="130" x2="130" y2="35" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.2" />
+        <line x1="130" y1="130" x2="215" y2="180" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.2" />
+        <line x1="130" y1="130" x2="45" y2="180" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.2" />
+
+        {/* Central 16px solid forest green node */}
+        <circle cx="130" cy="130" r="10" fill="#1A3C2B" />
+        <circle cx="130" cy="130" r="16" fill="none" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
+
+        {/* Orbiting Node 1: Top (Mint #9EFFBF) */}
+        <g className="animate-[spin_24s_linear_infinite] origin-[130px_130px]">
+          <circle cx="130" cy="35" r="7" fill="#9EFFBF" stroke="#1A3C2B" strokeWidth="1" />
+          <text x="130" y="20" textAnchor="middle" fill="#1A3C2B" fontSize="9" fontFamily="monospace" fontWeight="bold">AST</text>
+        </g>
+
+        {/* Orbiting Node 2: Bottom-Right (Coral #FF8C69) */}
+        <g className="animate-[spin_18s_linear_infinite_reverse] origin-[130px_130px]">
+          <circle cx="215" cy="180" r="6" fill="#FF8C69" stroke="#1A3C2B" strokeWidth="1" />
+          <text x="230" y="195" textAnchor="middle" fill="#3A3A38" fontSize="8" fontFamily="monospace">LAW</text>
+        </g>
+
+        {/* Orbiting Node 3: Bottom-Left (Gold #F4D35E) */}
+        <g className="animate-[spin_30s_linear_infinite] origin-[130px_130px]">
+          <circle cx="45" cy="180" r="6" fill="#F4D35E" stroke="#1A3C2B" strokeWidth="1" />
+          <text x="35" y="195" textAnchor="middle" fill="#3A3A38" fontSize="8" fontFamily="monospace">GATE</text>
+        </g>
+      </svg>
+    </div>
+  );
+}
 
 export function FigmaHeroSection() {
   const locale = useMarketingLocale();
   const t = (key: string) => resolveMessage(locale as Locale, key as Parameters<typeof resolveMessage>[1]);
   const [activeScenarioId, setActiveScenarioId] = useState<"retention" | "injection" | "euaiact">("retention");
   const [copied, setCopied] = useState(false);
-  const heroRef = useRef<HTMLElement>(null);
 
   const handleCopyRepo = () => {
     navigator.clipboard?.writeText("acme/notice-service");
@@ -29,111 +99,60 @@ export function FigmaHeroSection() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // tasteskill 2.5: Cursor Spotlight Dealt Moment setup
-  useEffect(() => {
-    const root = heroRef.current;
-    if (!root) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    let tx = 0.72, ty = 0.28, cx = tx, cy = ty, raf = 0;
-    const set = (x: number, y: number) => {
-      root.style.setProperty("--mo-x", `${(x * 100).toFixed(2)}%`);
-      root.style.setProperty("--mo-y", `${(y * 100).toFixed(2)}%`);
-    };
-    set(tx, ty);
-
-    const tick = () => {
-      raf = 0;
-      cx += (tx - cx) * 0.14;
-      cy += (ty - cy) * 0.14;
-      set(cx, cy);
-      if (Math.abs(tx - cx) + Math.abs(ty - cy) > 0.001) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        cx = tx;
-        cy = ty;
-        set(tx, ty);
-      }
-    };
-
-    const move = (e: PointerEvent) => {
-      const r = root.getBoundingClientRect();
-      tx = (e.clientX - r.left) / r.width;
-      ty = (e.clientY - r.top) / r.height;
-      if (!raf) raf = requestAnimationFrame(tick);
-    };
-
-    const leave = () => {
-      tx = 0.72;
-      ty = 0.28;
-      if (!raf) raf = requestAnimationFrame(tick);
-    };
-
-    root.addEventListener("pointermove", move, { passive: true });
-    root.addEventListener("pointerleave", leave);
-
-    return () => {
-      root.removeEventListener("pointermove", move);
-      root.removeEventListener("pointerleave", leave);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  // Dynamically resolve scenario values using translated keys from @lcsp/i18n
   const scenarios = [
     {
       id: "retention" as const,
       label: t("pages.marketing.home.figmaHeroScenarioRetention"),
       findingTitle: t("pages.marketing.home.figmaHeroFindingTitle"),
       badge: t("pages.marketing.home.figmaHeroOutcomeNonCompliant"),
-      badgeColor: "#B91C1C",
-      badgeBg: "#FEF2F2",
+      badgeBorder: "border-[#FF8C69]",
+      badgeBg: "bg-[#FF8C69]/15",
+      badgeText: "text-[#1A3C2B]",
       icon: ShieldAlertIcon,
       reqTitle: t("pages.marketing.home.figmaHeroRequirementLabel"),
       reqValue: t("pages.marketing.home.figmaHeroRequirementValue"),
       evidence1: t("pages.marketing.home.figmaHeroEvidence1"),
       evidence2: t("pages.marketing.home.figmaHeroEvidence2"),
       conclusion: t("pages.marketing.home.figmaHeroConclusion"),
-      conclusionColor: "#84D49F",
       evalRules: t("pages.marketing.home.figmaHeroRulesEvaluated"),
       openRequests: t("pages.marketing.home.figmaHeroOpenRequests"),
-      progress: [52, 26, 12, 10],
+      accent: "border-l-[#FF8C69]",
     },
     {
       id: "injection" as const,
       label: t("pages.marketing.home.figmaHeroScenarioInjection"),
       findingTitle: t("pages.marketing.home.figmaHeroInjectionFindingTitle"),
       badge: t("pages.marketing.home.figmaHeroOutcomeCompliant"),
-      badgeColor: "#065F46",
-      badgeBg: "#ECFDF5",
+      badgeBorder: "border-[#9EFFBF]",
+      badgeBg: "bg-[#9EFFBF]/25",
+      badgeText: "text-[#1A3C2B]",
       icon: ShieldCheckIcon,
       reqTitle: t("pages.marketing.home.figmaHeroInjectionReqTitle"),
       reqValue: t("pages.marketing.home.figmaHeroInjectionReqValue"),
       evidence1: t("pages.marketing.home.figmaHeroInjectionEvidence1"),
       evidence2: t("pages.marketing.home.figmaHeroInjectionEvidence2"),
       conclusion: t("pages.marketing.home.figmaHeroInjectionConclusion"),
-      conclusionColor: "#84D49F",
       evalRules: t("pages.marketing.home.figmaHeroInjectionRulesEvaluated"),
       openRequests: t("pages.marketing.home.figmaHeroInjectionOpenRequests"),
-      progress: [85, 0, 10, 5],
+      accent: "border-l-[#9EFFBF]",
     },
     {
       id: "euaiact" as const,
       label: t("pages.marketing.home.figmaHeroScenarioEuAiAct"),
       findingTitle: t("pages.marketing.home.figmaHeroEuAiActFindingTitle"),
       badge: t("pages.marketing.home.figmaHeroOutcomeInReview"),
-      badgeColor: "#92400E",
-      badgeBg: "#FEF3C7",
+      badgeBorder: "border-[#F4D35E]",
+      badgeBg: "bg-[#F4D35E]/25",
+      badgeText: "text-[#1A3C2B]",
       icon: ClockIcon,
       reqTitle: t("pages.marketing.home.figmaHeroEuAiActReqTitle"),
       reqValue: t("pages.marketing.home.figmaHeroEuAiActReqValue"),
       evidence1: t("pages.marketing.home.figmaHeroEuAiActEvidence1"),
       evidence2: t("pages.marketing.home.figmaHeroEuAiActEvidence2"),
       conclusion: t("pages.marketing.home.figmaHeroEuAiActConclusion"),
-      conclusionColor: "#FBBF24",
       evalRules: t("pages.marketing.home.figmaHeroEuAiActRulesEvaluated"),
       openRequests: t("pages.marketing.home.figmaHeroEuAiActOpenRequests"),
-      progress: [60, 5, 25, 10],
+      accent: "border-l-[#F4D35E]",
     },
   ];
 
@@ -142,253 +161,151 @@ export function FigmaHeroSection() {
 
   return (
     <section
-      ref={heroRef}
       data-section="figma-hero"
       data-enter
-      className="mo-cs relative w-full overflow-hidden bg-gradient-to-r from-[#081C2B] to-[#174950] pt-8 pb-16 text-white"
+      className="relative w-full overflow-hidden border-b border-[#3A3A38]/20 bg-[#F7F7F5] pt-12 pb-20 text-[#3A3A38]"
     >
-      {/* tasteskill cursor-spotlight element */}
-      <div className="mo-cs__light" aria-hidden="true" />
+      <TechnicalBlueprintBackground />
 
-      {/* Superdesign: Living Aurora Light Blades (Drifting & Breathing) */}
-      <div 
-        aria-hidden="true" 
-        className="aurora-blade-1 pointer-events-none absolute -top-10 -left-10 h-[380px] w-[500px] rounded-full bg-gradient-to-tr from-[#31BDA7]/20 via-[#14535B]/10 to-transparent blur-[80px]" 
-      />
-      <div 
-        aria-hidden="true" 
-        className="aurora-blade-2 pointer-events-none absolute top-10 right-10 h-[360px] w-[460px] rounded-full bg-gradient-to-br from-[#0D9488]/15 via-[#1D6A75]/10 to-transparent blur-[80px]" 
-      />
-
-      {/* Linear Style: Technical Grid lines */}
-      <div 
-        aria-hidden="true" 
-        className="pointer-events-none absolute inset-0 bg-grid-white opacity-25 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" 
-      />
-
-      <div className="mo-cs__content relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">
+      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">
         {/* Top Header Block: 2 Columns */}
-        <div className="grid items-start gap-8 lg:grid-cols-[1fr_560px] xl:grid-cols-[1fr_610px]">
+        <div className="grid items-start gap-10 lg:grid-cols-[1fr_560px] xl:grid-cols-[1fr_600px]">
           {/* Left Text Column */}
-          <div className="max-w-[720px] pt-4">
-            {/* Eyebrow */}
-            <p className="hero-enter-title text-[13px] font-semibold tracking-wider text-[#86E8D4]">
-              {t("pages.marketing.home.figmaHeroEyebrow")}
-            </p>
+          <div className="max-w-[720px] pt-2">
+            {/* Minimalist Status Badge */}
+            <div className="inline-flex items-center gap-2.5 rounded-[2px] border border-[#1A3C2B]/30 bg-[#FAF9F6] px-3.5 py-1 text-[11px] font-mono tracking-widest text-[#1A3C2B] uppercase mb-4 shadow-none">
+              <span className="h-2 w-2 bg-[#1A3C2B]" />
+              <span>{t("pages.marketing.home.figmaHeroEyebrow")}</span>
+              <span className="text-[#3A3A38]/30">•</span>
+              <span className="text-[#1A3C2B]/80 font-bold">LCSP AUDIT ENGINE</span>
+            </div>
 
-            {/* Headline matching Figma 1757:12982 */}
-            <h1 className="hero-enter-title mt-4 text-wrap-balance text-4xl font-semibold leading-[1.1] tracking-tight text-[#F7FBFC] sm:text-5xl md:text-[58px] md:leading-[64px]">
+            {/* Space Grotesk headline: bold, tight-tracking, prestige forest green */}
+            <h1 className="mt-2 text-wrap-balance font-sans text-4xl sm:text-5xl md:text-[58px] font-bold leading-[1.08] tracking-tight text-[#1A3C2B]">
               {t("pages.marketing.home.figmaHeroTitle")}
             </h1>
 
-            {/* Subtitle matching Figma 1757:12983 */}
-            <p className="hero-enter-sub mt-5 max-w-[675px] text-wrap-pretty text-base leading-relaxed text-[#C6D9DE] sm:text-[19px]">
-              {t("pages.marketing.home.figmaHeroDescription")}
-            </p>
+            {/* Subtext with left vertical 1px hairline */}
+            <div className="mt-6 flex gap-4 text-left">
+              <div className="hidden h-14 w-[2px] bg-[#1A3C2B]/40 sm:block shrink-0" />
+              <p className="text-base sm:text-lg text-[#3A3A38] leading-relaxed font-normal">
+                {t("pages.marketing.home.figmaHeroDescription")}
+              </p>
+            </div>
 
-            {/* Action Buttons with Superdesign Keycap-raised Tactile Feedback */}
-            <div className="hero-enter-actions mt-8 flex flex-wrap items-center gap-4">
+            {/* CTA row: 0px/2px radius, flat 1px hairlines */}
+            <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/sign-up"
-                className="btn-keycap-primary inline-flex h-11 items-center justify-center rounded-[8px] bg-[#31BDA7] px-6 text-sm font-semibold text-[#082B30]"
+                className="inline-flex items-center justify-center gap-2 rounded-[2px] bg-[#1A3C2B] px-8 py-3.5 text-xs font-mono font-bold tracking-wider uppercase text-[#F7F7F5] border border-[#1A3C2B] transition-all hover:bg-[#23503a] active:translate-y-0.5"
               >
-                {t("pages.marketing.home.figmaHeroPrimaryCta")}
+                <span>{t("pages.marketing.home.figmaHeroPrimaryCta")}</span>
+                <ChevronRight className="h-4 w-4" />
               </Link>
-              <a
-                href="#workflow"
-                className="btn-keycap-secondary inline-flex h-11 items-center justify-center rounded-[8px] border border-[#B9C8D4] bg-white px-6 text-sm font-semibold text-[#101C29]"
+
+              <Link
+                href={`/${locale}/features`}
+                className="inline-flex items-center justify-center gap-2 rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] px-8 py-3.5 text-xs font-mono font-bold tracking-wider uppercase text-[#1A3C2B] transition-all hover:border-[#1A3C2B] hover:bg-white active:translate-y-0.5"
               >
-                {t("pages.marketing.home.figmaHeroSecondaryCta")}
-              </a>
+                <span>{t("pages.marketing.home.figmaHeroSecondaryCta")}</span>
+              </Link>
             </div>
-          </div>
 
-          {/* Right Image Column: Evidence Constellation */}
-          <div className="relative flex justify-center lg:justify-end">
-            <div className="w-full max-w-[480px] lg:max-w-[610px] animate-pulse-glow">
-              <Image
-                src="/brand/evidence-constellation.svg"
-                alt="LCSP Evidence Constellation signature graphic"
-                width={610}
-                height={370}
-                priority
-                className="h-auto w-full select-none object-contain drop-shadow-2xl animate-float-slow"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Product Preview Card */}
-        <div className="hero-enter-preview mt-12 overflow-hidden rounded-[20px] border border-[#D6DFE7] bg-white text-[#101C29] shadow-[0px_20px_48px_0px_rgba(10,31,46,0.16)] transition-shadow duration-200 ease-out">
-          {/* Header Bar matching Figma 1757:12989-12991 */}
-          <div className="flex flex-wrap items-center justify-between border-b border-[#D6DFE7] px-6 py-4 gap-3">
-            <div className="flex items-center gap-2">
-              <span className="size-3 rounded-full bg-slate-400/80 inline-block" />
-              <span className="size-3 rounded-full bg-slate-400/80 inline-block" />
-              <span className="size-3 rounded-full bg-slate-400/80 inline-block" />
-              <span className="ml-3 text-xs font-semibold tracking-wider text-[#48586A]">
-                {t("pages.marketing.home.figmaHeroWorkspaceBadge")}
+            {/* Technical Trust Strip */}
+            <div className="mt-12 flex flex-wrap items-center gap-6 border-t border-[#3A3A38]/20 pt-6 font-mono text-[11px] text-[#3A3A38]">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 bg-[#1A3C2B]" />
+                EU AI Act Annex IV
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 bg-[#FF8C69]" />
+                NIST AI RMF 1.0
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 bg-[#9EFFBF] border border-[#1A3C2B]" />
+                ISO/IEC 42001
               </span>
             </div>
-
-            {/* Interactive Scenario Switcher with 100% Bilingual Labels */}
-            <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-xs">
-              {scenarios.map((scenario) => {
-                const isActive = scenario.id === activeScenarioId;
-                return (
-                  <button
-                    key={scenario.id}
-                    type="button"
-                    onClick={() => setActiveScenarioId(scenario.id)}
-                    className={`rounded-md px-3 py-1 font-medium transition-[background-color,color,box-shadow] duration-180 ease-out ${
-                      isActive
-                        ? "bg-white text-[#101C29] shadow-xs font-semibold"
-                        : "text-[#48586A] hover:text-[#101C29]"
-                    }`}
-                  >
-                    {scenario.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <span className="hidden sm:inline-block text-xs text-[#48586A]">
-              {t("pages.marketing.home.figmaHeroWorkspaceSubtitle")}
-            </span>
           </div>
 
-          {/* Body: Two Cards Side by Side */}
-          <div className="grid gap-6 p-6 lg:grid-cols-[344px_1fr]">
-            {/* Scope Box */}
-            <div className="rounded-[12px] border border-[#D6DFE7] bg-white p-5 shadow-xs">
-              <h2 className="text-base font-semibold text-[#101C29]">
-                {t("pages.marketing.home.figmaHeroScopeTitle")}
-              </h2>
+          {/* Right Column: Technical Blueprint Mockup Card with L-shaped corner markers */}
+          <div className="relative rounded-[2px] border border-[#3A3A38]/30 bg-[#FAF9F6] p-6 shadow-none">
+            {/* 4 L-shaped corner markers (10px x 10px) */}
+            <span className="absolute top-0 left-0 h-2.5 w-2.5 border-t-2 border-l-2 border-[#1A3C2B]" />
+            <span className="absolute top-0 right-0 h-2.5 w-2.5 border-t-2 border-r-2 border-[#1A3C2B]" />
+            <span className="absolute bottom-0 left-0 h-2.5 w-2.5 border-b-2 border-l-2 border-[#1A3C2B]" />
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 border-b-2 border-r-2 border-[#1A3C2B]" />
 
-              <div className="mt-5 space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <DatabaseIcon className="mt-0.5 size-4 text-[#11545B]" />
-                    <div>
-                      <p className="text-[11px] text-[#48586A]">
-                        {t("pages.marketing.home.figmaHeroRepoLabel")}
-                      </p>
-                      <p className="font-mono text-xs font-semibold text-[#101C29]">
-                        {t("pages.marketing.home.figmaHeroRepoValue")}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyRepo}
-                    title="Copy repository"
-                    className="mt-1 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                  >
-                    {copied ? <CheckIcon className="size-3.5 text-emerald-600" /> : <CopyIcon className="size-3.5" />}
-                  </button>
-                </div>
-
-                <div className="h-px w-full bg-[#D6DFE7]" />
-
-                <div className="flex items-start gap-3">
-                  <FileTextIcon className="mt-0.5 size-4 text-[#11545B]" />
-                  <div>
-                    <p className="text-[11px] text-[#48586A]">
-                      {t("pages.marketing.home.figmaHeroLegalSourceLabel")}
-                    </p>
-                    <p className="text-xs font-semibold text-[#101C29]">
-                      {t("pages.marketing.home.figmaHeroLegalSourceValue")}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="h-px w-full bg-[#D6DFE7]" />
-
-                <div className="space-y-1.5 text-xs text-[#101C29]">
-                  <p className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-emerald-500" />
-                    <span>{activeScenario.evalRules}</span>
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-amber-500" />
-                    <span className="text-[#48586A]">{activeScenario.openRequests}</span>
-                  </p>
-                </div>
-
-                {/* Progress outcome segments matching Figma 1757:13011-13014 */}
-                <div className="space-y-1 pt-1">
-                  <div className="flex h-[7px] w-full gap-1 overflow-hidden transition-all duration-500">
-                    <div 
-                      style={{ width: `${activeScenario.progress[0]}%` }} 
-                      className="h-full rounded-[3px] bg-[#0D9488] transition-all duration-500" 
-                      title="Compliant" 
-                    />
-                    <div 
-                      style={{ width: `${activeScenario.progress[1]}%` }} 
-                      className="h-full rounded-[3px] bg-[#DC2626] transition-all duration-500" 
-                      title="Non-compliant" 
-                    />
-                    <div 
-                      style={{ width: `${activeScenario.progress[2]}%` }} 
-                      className="h-full rounded-[3px] bg-[#D97706] transition-all duration-500" 
-                      title="In review" 
-                    />
-                    <div 
-                      style={{ width: `${activeScenario.progress[3]}%` }} 
-                      className="h-full rounded-[3px] bg-[#94A3B8] transition-all duration-500" 
-                      title="Unresolved" 
-                    />
-                  </div>
-                </div>
+            {/* Window header */}
+            <div className="flex items-center justify-between border-b border-[#3A3A38]/20 pb-3">
+              <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-[#1A3C2B]">
+                <span className="h-2 w-2 rounded-[1px] bg-[#1A3C2B]" />
+                <span>acme/notice-service</span>
+                <span className="text-[#3A3A38]/50">@main</span>
               </div>
+              <button
+                type="button"
+                onClick={handleCopyRepo}
+                className="flex items-center gap-1 rounded-[2px] border border-[#3A3A38]/20 bg-white px-2 py-0.5 text-[10px] font-mono text-[#1A3C2B] font-semibold hover:border-[#1A3C2B]"
+              >
+                {copied ? <CheckIcon className="h-3 w-3 text-[#1A3C2B]" /> : <CopyIcon className="h-3 w-3" />}
+                <span>{copied ? "COPIED" : "COPY"}</span>
+              </button>
             </div>
 
-            {/* Finding Box matching Figma 1757:13015 */}
-            <div className="rounded-[12px] bg-[#123E46] p-6 text-white shadow-inner transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-white">
-                  {activeScenario.findingTitle}
-                </h3>
-                <span 
-                  style={{ backgroundColor: activeScenario.badgeBg, color: activeScenario.badgeColor }}
-                  className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1 text-xs font-semibold"
+            {/* Interactive Scenario Buttons */}
+            <div className="mt-4 flex gap-1.5">
+              {scenarios.map((sc) => (
+                <button
+                  type="button"
+                  key={sc.id}
+                  onClick={() => setActiveScenarioId(sc.id)}
+                  className={cn(
+                    "flex-1 rounded-[2px] border px-2 py-1.5 text-center font-mono text-[10px] uppercase font-bold tracking-wider transition-all",
+                    activeScenarioId === sc.id
+                      ? "border-[#1A3C2B] bg-[#1A3C2B] text-[#F7F7F5]"
+                      : "border-[#3A3A38]/20 bg-white text-[#3A3A38] hover:border-[#1A3C2B]"
+                  )}
                 >
-                  <ActiveIcon className="size-3.5" />
+                  {sc.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Scenario Content Card */}
+            <div className={cn("mt-4 rounded-[2px] border border-[#3A3A38]/20 border-l-4 bg-white p-4", activeScenario.accent)}>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-[#1A3C2B] flex items-center gap-1.5">
+                  <ActiveIcon className="h-4 w-4" />
+                  {activeScenario.findingTitle}
+                </span>
+                <span className={cn("rounded-[2px] border px-2 py-0.5 font-mono text-[10px] uppercase font-bold tracking-wider", activeScenario.badgeBorder, activeScenario.badgeBg, activeScenario.badgeText)}>
                   {activeScenario.badge}
                 </span>
               </div>
 
-              <div className="mt-4">
-                <p className="text-[13px] font-medium text-[#84D49F]">
-                  {activeScenario.reqTitle}
-                </p>
-                <p className="mt-1 text-base font-medium text-white">
-                  {activeScenario.reqValue}
-                </p>
-              </div>
-
-              <div className="my-4 h-px w-full bg-[#435367]" />
-
-              <div>
-                <p className="text-[12px] font-semibold tracking-wider text-[#84D49F]">
-                  {t("pages.marketing.home.figmaHeroEvidenceLabel")}
-                </p>
-                <div className="mt-2.5 space-y-2 font-mono text-xs text-slate-100">
-                  <p className="rounded-md bg-black/25 px-3 py-2 border border-white/5">
-                    {activeScenario.evidence1}
-                  </p>
-                  <p className="rounded-md bg-black/25 px-3 py-2 border border-white/5">
-                    {activeScenario.evidence2}
-                  </p>
+              {/* Requirement & Evidences */}
+              <div className="mt-3 space-y-2 border-t border-[#3A3A38]/10 pt-2 text-xs">
+                <div>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-[#3A3A38]/70 block font-semibold">
+                    {activeScenario.reqTitle}
+                  </span>
+                  <p className="font-medium text-[#1A3C2B]">{activeScenario.reqValue}</p>
+                </div>
+                <div className="font-mono text-[11px] text-[#3A3A38] bg-[#FAF9F6] p-2 rounded-[2px] border border-[#3A3A38]/10">
+                  <p>↳ {activeScenario.evidence1}</p>
+                  <p>↳ {activeScenario.evidence2}</p>
                 </div>
               </div>
+            </div>
 
-              <div 
-                style={{ color: activeScenario.conclusionColor }}
-                className="mt-5 text-sm font-medium"
-              >
-                {activeScenario.conclusion}
+            {/* Abstract Wireframe Graphic: Network Topology Graph on Paper */}
+            <div className="mt-4 rounded-[2px] border border-[#3A3A38]/20 bg-[#FAF9F6] p-2">
+              <div className="flex items-center justify-between px-2 pt-1 font-mono text-[9px] text-[#3A3A38]/60 uppercase tracking-widest">
+                <span>SYSTEM NETWORK GRAPH</span>
+                <span>SHA-256 VERIFIED</span>
               </div>
+              <NetworkTopologyGraph />
             </div>
           </div>
         </div>
