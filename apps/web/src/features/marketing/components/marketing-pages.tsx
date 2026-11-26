@@ -43,7 +43,6 @@ import {
   EnhancedRemediationPreview,
   FeaturesCapabilitiesMosaicGrid,
   FeaturesFinalCtaSection,
-  TechnicalBlueprintBackground,
 } from "./features-showcase";
 
 const productQuickActions = [
@@ -319,7 +318,7 @@ function FeaturesMarketingPageContent() {
 
   return (
     <MarketingShell active="features">
-      <div data-figma-node="1042:31775" data-figma-name="M02 Features" className="bg-[#F7F7F5] text-[#3A3A38] relative">
+      <div data-figma-node="1042:31775" data-figma-name="M02 Features" className="bg-[#fcfdfd] text-slate-900">
         <FeaturesHeroSection
           section="features-hero"
           title={t("pages.marketing.features.title")}
@@ -939,21 +938,20 @@ function FeatureBand({
   return (
     <section
       data-section={section}
-      className="relative mx-auto flex min-h-[520px] w-full max-w-[1440px] flex-col items-center gap-10 px-8 py-16 md:px-[120px] lg:flex-row lg:gap-[72px] border-b border-[#3A3A38]/10"
+      className="mx-auto flex min-h-[520px] w-full max-w-[1440px] flex-col items-center gap-10 px-8 py-16 md:px-[120px] lg:flex-row lg:gap-[72px]"
     >
       <div
         className={cn(
-          "flex w-full max-w-[480px] flex-col items-start gap-4",
+          "flex w-full max-w-[480px] flex-col items-start gap-5",
           reverse && "lg:order-2",
         )}
       >
-        {/* Status Badge: inline-flex container with 1px border (#1A3C2B/20), 8x8 solid square dot */}
-        <div className="inline-flex items-center gap-2 rounded-[2px] border border-[#1A3C2B]/30 bg-[#FAF9F6] px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold shadow-none">
-          <span className="h-2 w-2 bg-[#1A3C2B]" />
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-800 shadow-sm">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
           <span>{eyebrow}</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-bold leading-[1.18] tracking-tight text-[#1A3C2B]">{title}</h2>
-        <p className="text-[16px] leading-[26px] text-[#3A3A38]">
+        <h2 className="text-3xl sm:text-4xl font-bold leading-[1.22] tracking-tight text-slate-900">{title}</h2>
+        <p className="text-[17px] leading-[27px] text-slate-600">
           {description}
         </p>
       </div>

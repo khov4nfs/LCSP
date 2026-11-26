@@ -22,8 +22,9 @@ export function WordHighlightStatement({
     const el = containerRef.current;
     if (!el) return;
 
+    // Check prefers-reduced-motion
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      wordsRef.current.forEach((w) => w?.classList.add("text-[#1A3C2B]"));
+      wordsRef.current.forEach((w) => w?.classList.add("text-white"));
       return;
     }
 
@@ -39,12 +40,11 @@ export function WordHighlightStatement({
         if (!wordEl) return;
         const isHighlight = wordEl.dataset.highlight === "true";
         if (idx < count) {
-          wordEl.style.color = isHighlight ? "#1A3C2B" : "#1A3C2B";
-          wordEl.style.fontWeight = isHighlight ? "800" : "600";
+          wordEl.style.color = isHighlight ? "#31BDA7" : "#F7FBFC";
           wordEl.style.opacity = "1";
         } else {
-          wordEl.style.color = "#3A3A38";
-          wordEl.style.opacity = "0.35";
+          wordEl.style.color = "#94A3B8";
+          wordEl.style.opacity = "0.45";
         }
       });
     };
@@ -60,34 +60,36 @@ export function WordHighlightStatement({
   return (
     <section 
       data-section="taste-word-highlight"
-      className="relative w-full overflow-hidden border-b border-[#3A3A38]/20 bg-[#FAF9F6] py-24 text-[#3A3A38]"
+      className="relative w-full overflow-hidden bg-[#071622] py-24 text-white"
     >
+      <div 
+        aria-hidden="true" 
+        className="pointer-events-none absolute inset-0 bg-radial-hero-glow opacity-40" 
+      />
+
       <div 
         ref={containerRef}
         className="relative z-10 mx-auto max-w-[1440px] px-8 md:px-[96px]"
       >
         {lead && (
-          <div className="inline-flex items-center gap-2 rounded-[2px] border border-[#1A3C2B]/30 bg-white px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold">
-            <span className="h-1.5 w-1.5 bg-[#1A3C2B]" />
-            <span>{lead}</span>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#86E8D4]">
+            {lead}
+          </p>
         )}
 
-        <blockquote className="mt-6 max-w-[1080px] text-wrap-pretty font-sans text-2xl font-semibold leading-[1.3] tracking-tight sm:text-3xl md:text-4xl lg:text-5xl text-[#1A3C2B]">
-          {words.map((word, i) => {
-            const cleanWord = word.toLowerCase().replace(/[^a-z0-9à-ỹ]/g, "");
-            const isHighlight = highlightWords.some((hw) => 
-              cleanWord.includes(hw.toLowerCase()) || hw.toLowerCase().includes(cleanWord)
-            );
+        <blockquote className="mt-6 max-w-[1080px] text-wrap-pretty font-heading text-2xl font-medium leading-[1.3] tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
+          {words.map((word, index) => {
+            const cleanWord = word.toLowerCase().replace(/[^a-z0-9à-ỹ]/gi, "");
+            const isHighlight = highlightWords.some((hw) => cleanWord.includes(hw.toLowerCase()));
             return (
               <span
-                key={i}
+                key={`${word}-${index}`}
                 ref={(el) => {
-                  if (el) wordsRef.current[i] = el;
+                  if (el) wordsRef.current[index] = el;
                 }}
                 data-highlight={isHighlight ? "true" : "false"}
-                className="inline-block transition-colors duration-150 mr-2.5"
-                style={{ opacity: 0.35, color: "#3A3A38" }}
+                className="inline-block transition-colors duration-150 ease-out mr-[0.28em]"
+                style={{ color: "#94A3B8", opacity: 0.45 }}
               >
                 {word}
               </span>
@@ -96,9 +98,12 @@ export function WordHighlightStatement({
         </blockquote>
 
         {sourceNote && (
-          <p className="mt-8 font-mono text-[11px] uppercase tracking-wider text-[#3A3A38]/70 border-t border-[#3A3A38]/15 pt-4">
-            {sourceNote}
-          </p>
+          <div className="mt-8 flex items-center gap-3">
+            <span className="size-2 rounded-full bg-[#31BDA7] animate-pulse" />
+            <p className="font-mono text-xs text-slate-400">
+              {sourceNote}
+            </p>
+          </div>
         )}
       </div>
     </section>
