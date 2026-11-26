@@ -318,7 +318,7 @@ function FeaturesMarketingPageContent() {
 
   return (
     <MarketingShell active="features">
-      <div data-figma-node="1042:31775" data-figma-name="M02 Features" className="bg-[#030712] text-white">
+      <div data-figma-node="1042:31775" data-figma-name="M02 Features" className="bg-[#fcfdfd] text-slate-900">
         <FeaturesHeroSection
           section="features-hero"
           title={t("pages.marketing.features.title")}
@@ -946,12 +946,12 @@ function FeatureBand({
           reverse && "lg:order-2",
         )}
       >
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-1 text-xs font-semibold text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.12)]">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-800 shadow-sm">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
           <span>{eyebrow}</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-bold leading-[1.2] tracking-tight text-white">{title}</h2>
-        <p className="text-[17px] leading-[27px] text-neutral-400">
+        <h2 className="text-3xl sm:text-4xl font-bold leading-[1.22] tracking-tight text-slate-900">{title}</h2>
+        <p className="text-[17px] leading-[27px] text-slate-600">
           {description}
         </p>
       </div>
