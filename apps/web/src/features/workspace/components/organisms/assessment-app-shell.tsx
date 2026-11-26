@@ -1,10 +1,10 @@
 "use client";
 
+import { LOCALES, type Locale } from "@lcsp/contracts/shared";
 import { resolveMessage } from "@lcsp/i18n";
 import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { LOCALES, type Locale } from "@lcsp/contracts/shared";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +14,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useSignOutMutation } from "@/lib/api/auth-queries";
+import { AssessmentContextPanel } from "@/features/assessment-runtime";
 import { SettingsModal } from "@/features/settings/components/organisms/settings-modal";
 import {
   SETTINGS_SECTION_IDS,
   type SettingsSectionId,
 } from "@/features/settings/types/settings.types";
+import { useSignOutMutation } from "@/lib/api/auth-queries";
 import {
   useAssessmentsQuery,
   useWorkspaceQuery,
@@ -30,7 +31,6 @@ import {
   subscribeToAppLocale,
 } from "@/lib/locale";
 import { cn } from "@/lib/utils";
-import { AssessmentContextPanel } from "@/features/assessment-runtime";
 
 import type {
   AppShellNavigationItem,
@@ -42,14 +42,14 @@ import {
   ASSESSMENT_SHELL_SCREENS,
   type AssessmentShellState,
 } from "../../types/assessment-shell-state.types";
+import { QuickActionsDialog } from "../molecules/quick-actions-dialog";
+import { SidebarHeaderControls } from "../molecules/sidebar-header-controls";
 import { AppSidebar, SIDEBAR_RECENT_LOAD_STATES } from "./app-sidebar";
 import {
   AssessmentRightPanelSlot,
   CenterContentSlot,
   LeftSidebarSlot,
 } from "./assessment-shell-slots";
-import { QuickActionsDialog } from "../molecules/quick-actions-dialog";
-import { SidebarHeaderControls } from "../molecules/sidebar-header-controls";
 
 type AssessmentAppShellProps = {
   assessmentId?: string;
@@ -156,7 +156,8 @@ export function AssessmentAppShell({
 
   async function handleSignOut() {
     await signOutMutation.mutateAsync();
-    window.location.assign("/sign-in");
+    // Use Next.js router navigation for internal routes instead of window.location.assign.
+    router.push("/sign-in");
   }
 
   function toggleLeftSidebar() {
