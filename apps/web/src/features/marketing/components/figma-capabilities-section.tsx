@@ -177,18 +177,18 @@ export function FigmaCapabilitiesSection() {
                       <span className="font-mono text-xs font-semibold text-slate-700">PR #104: Fix data retention</span>
                     </div>
                     <span className="rounded bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                      CI Check: PASSED
+                      {locale === "vi" ? "CI Check: ĐẠT" : "CI Check: PASSED"}
                     </span>
                   </div>
 
                   <div className="mt-4 space-y-2 font-mono text-xs text-slate-600 bg-white p-3.5 rounded-md border border-slate-200">
                     <p className="flex items-center justify-between">
-                      <span>✓ Quy tắc: Thời hạn lưu trữ tài khoản</span>
-                      <span className="text-emerald-600 font-bold">100% Đạt</span>
+                      <span>{locale === "vi" ? "✓ Quy tắc: Thời hạn lưu trữ tài khoản" : "✓ Rule: Account record retention period"}</span>
+                      <span className="text-emerald-600 font-bold">{locale === "vi" ? "100% Đạt" : "100% Passed"}</span>
                     </p>
                     <p className="flex items-center justify-between">
-                      <span>✓ Thời gian rà soát: 1.2s</span>
-                      <span className="text-slate-500">Tiết kiệm 98% chi phí</span>
+                      <span>{locale === "vi" ? "✓ Thời gian rà soát: 1.2s" : "✓ Evaluation time: 1.2s"}</span>
+                      <span className="text-slate-500">{locale === "vi" ? "Tiết kiệm 98% chi phí" : "Saves 98% scan overhead"}</span>
                     </p>
                   </div>
 

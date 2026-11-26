@@ -13,22 +13,28 @@ export function FigmaWhySection() {
 
   const stepDetails = {
     1: {
-      tag: "Văn bản luật gốc",
-      title: "Luật Viễn thông & Nghị định 147/2024/NĐ-CP",
-      desc: "Trích xuất điều 24 khoản 1 mục c: Bắt buộc lưu trữ nhật ký dữ liệu người dùng ít nhất 2 năm.",
-      stateBadge: "Yêu cầu nguồn",
+      tag: locale === "vi" ? "Văn bản luật gốc" : "Statutory Article",
+      title: locale === "vi" ? "Luật Viễn thông & Nghị định 147/2024/NĐ-CP" : "Telecommunications Act & Decree 147/2024",
+      desc: locale === "vi" 
+        ? "Trích xuất điều 24 khoản 1 mục c: Bắt buộc lưu trữ nhật ký dữ liệu người dùng ít nhất 2 năm." 
+        : "Extracts Article 24 §1(c): Mandatory audit log retention for at least two statutory years.",
+      stateBadge: locale === "vi" ? "Yêu cầu nguồn" : "Legal Source",
     },
     2: {
-      tag: "Ngữ cảnh mã nguồn",
+      tag: locale === "vi" ? "Ngữ cảnh mã nguồn" : "Software Context",
       title: "Repository: acme/notice-service",
-      desc: "Phân tích Abstract Syntax Tree (AST): phát hiện `retention_days = 90` tại `config/retention.py`.",
-      stateBadge: "Trích xuất AST",
+      desc: locale === "vi" 
+        ? "Phân tích Abstract Syntax Tree (AST): phát hiện `retention_days = 90` tại `config/retention.py`." 
+        : "Abstract Syntax Tree (AST) parser detected `retention_days = 90` in `config/retention.py`.",
+      stateBadge: locale === "vi" ? "Trích xuất AST" : "AST Extracted",
     },
     3: {
-      tag: "Kết luận & Phán quyết",
-      title: "Xác thực bằng chứng: Chưa tuân thủ",
-      desc: "Thời hạn lưu trữ 90 ngày ngắn hơn mức tối thiểu 2 năm theo luật định. Tạo ngay pull request khắc phục.",
-      stateBadge: "Bằng chứng hoàn chỉnh",
+      tag: locale === "vi" ? "Kết luận & Phán quyết" : "Verdict & Conclusion",
+      title: locale === "vi" ? "Xác thực bằng chứng: Chưa tuân thủ" : "Evidence Verdict: Non-compliant",
+      desc: locale === "vi" 
+        ? "Thời hạn lưu trữ 90 ngày ngắn hơn mức tối thiểu 2 năm theo luật định. Tạo ngay pull request khắc phục." 
+        : "Retention period of 90 days fails statutory 2-year minimum requirement. Generates pull request remediation.",
+      stateBadge: locale === "vi" ? "Bằng chứng hoàn chỉnh" : "Verified Proof",
     },
   };
 
