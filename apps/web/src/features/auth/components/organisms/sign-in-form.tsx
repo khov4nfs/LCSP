@@ -10,7 +10,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import { resolvePostAuthRedirectPath } from "../../utils/post-auth-redirect";
 import { useSignInMutation } from "@/lib/api/auth-queries";
 import {
@@ -34,6 +34,7 @@ import {
   AuthSecondaryButton,
 } from "../molecules/auth-form-primitives";
 import { CredentialField } from "../molecules/credential-field";
+import type { SignInPageProps } from "../../types/sign-in.types";
 
 type SignInErrorOutcome = {
   kind: typeof API_OUTCOME_KINDS.error;
@@ -43,12 +44,16 @@ type SignInErrorOutcome = {
   retryAfterSeconds?: number;
 };
 
-export function SignInForm() {
+export function SignInForm({ oauthFailure = false }: SignInPageProps) {
+  // Subscribe to locale changes without remounting so entered credentials and API feedback stay intact.
+  const locale = useAppLocale();
   const router = useRouter();
   const signInMutation = useSignInMutation();
   const [signInError, setSignInError] = useState<SignInErrorOutcome | null>(
     null,
   );
+  // Keep callback failure feedback visible until a credential retry starts, without exposing provider/session details.
+  const [showOAuthFailure, setShowOAuthFailure] = useState(oauthFailure);
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: "", password: "" },
@@ -56,6 +61,7 @@ export function SignInForm() {
 
   async function onSubmit(values: SignInFormValues) {
     setSignInError(null);
+    setShowOAuthFailure(false);
     const outcome = await signInMutation.mutateAsync(values).catch(() => ({
       kind: API_OUTCOME_KINDS.error,
       titleKey: "pages.signIn.errors.requestFailedTitle" as const,
@@ -91,19 +97,29 @@ export function SignInForm() {
     }
   }
 
+  const oauthFailureError: SignInErrorOutcome | null = showOAuthFailure
+    ? {
+        kind: API_OUTCOME_KINDS.error,
+        titleKey: "pages.signIn.errors.oauthFailedTitle",
+        detailKey: "pages.signIn.errors.oauthFailedDetail",
+      }
+    : null;
+  const visibleError = signInError ?? oauthFailureError;
+
+  // AuthShell owns page-level placement; this form grows with its feedback and remains usable in narrow columns.
   return (
-    <AuthFormSurface className="pt-[132px]" data-figma-node="924:31258">
+    <AuthFormSurface className="w-full" data-figma-node="1662:1078">
       <AuthHeading
-        title={resolveMessage(appLocale, "pages.signIn.formTitle")}
-        description={resolveMessage(appLocale, "pages.signIn.formDescription")}
+        title={resolveMessage(locale, "pages.signIn.formTitle")}
+        description={resolveMessage(locale, "pages.signIn.formDescription")}
       />
       <FormProvider {...form}>
-        <div className="mt-[34px] flex flex-col gap-[22px]">
+        <div className="mt-8.5 flex flex-col gap-4">
           <OAuthButton provider="google" icon={<GoogleIcon />}>
-            {resolveMessage(appLocale, "pages.signIn.oauthGoogle")}
+            {resolveMessage(locale, "pages.signIn.oauthGoogle")}
           </OAuthButton>
           <AuthDivider
-            label={resolveMessage(appLocale, "pages.signIn.divider")}
+            label={resolveMessage(locale, "pages.signIn.divider")}
           />
           <form
             id="sign-in-form"
@@ -111,38 +127,38 @@ export function SignInForm() {
             noValidate
             className="flex flex-col"
           >
-            <FieldGroup className="gap-[18px]">
+            {/* The audited field cadence is 87px label-to-label once helper copy is screen-reader-only. */}
+            <FieldGroup className="gap-6.5">
               {signInFields.map((field) => (
                 <CredentialField key={field.name} field={field} />
               ))}
-              {signInError ? (
-                <Alert variant="destructive">
-                  <AlertTitle>
-                    {resolveMessage(appLocale, signInError.titleKey)}
-                  </AlertTitle>
-                  <AlertDescription>
-                    <p>{resolveMessage(appLocale, signInError.detailKey)}</p>
-                    {signInError.lockedUntil ? (
-                      <p>
-                        {resolveMessage(
-                          appLocale,
-                          "pages.signIn.errors.retryAtLabel",
-                        )}{" "}
-                        {formatRetryTime(signInError.lockedUntil)}
-                      </p>
-                    ) : null}
-                  </AlertDescription>
-                </Alert>
-              ) : null}
             </FieldGroup>
-            <AuthInlineLink
-              href={API_REDIRECT_LOCATIONS.recoveryRequest}
-              className="mt-[14px] self-end"
-            >
-              {resolveMessage(appLocale, "pages.signIn.forgotPassword")}
-            </AuthInlineLink>
+            {visibleError ? (
+              <Alert className="mt-5 rounded-md border-transparent bg-[#FEF2F2] px-3 py-4 text-[#B91C1C]" variant="destructive">
+                {visibleError.titleKey === "auth.errors.invalidCredentials.title" ? (
+                  <AlertDescription className="text-xs leading-4 text-[#B91C1C]">
+                    {resolveMessage(locale, "pages.signIn.errors.invalidCredentialsMessage")}
+                  </AlertDescription>
+                ) : (
+                  <>
+                    <AlertTitle className="text-xs">
+                      {resolveMessage(locale, visibleError.titleKey)}
+                    </AlertTitle>
+                    <AlertDescription className="text-xs leading-4 text-[#B91C1C]">
+                      <p>{resolveMessage(locale, visibleError.detailKey)}</p>
+                      {visibleError.lockedUntil ? (
+                        <p>
+                          {resolveMessage(locale, "pages.signIn.errors.retryAtLabel")}{" "}
+                          {formatRetryTime(visibleError.lockedUntil, locale)}
+                        </p>
+                      ) : null}
+                    </AlertDescription>
+                  </>
+                )}
+              </Alert>
+            ) : null}
             <AuthPrimaryButton
-              className="mt-5"
+              className={visibleError ? "mt-5" : "mt-7"}
               type="submit"
               form="sign-in-form"
               disabled={form.formState.isSubmitting}
@@ -152,17 +168,22 @@ export function SignInForm() {
                 <Spinner data-icon="inline-start" />
               ) : null}
               {form.formState.isSubmitting
-                ? resolveMessage(appLocale, "pages.signIn.submitting")
-                : resolveMessage(appLocale, "pages.signIn.submit")}
+                ? resolveMessage(locale, "pages.signIn.submitting")
+                : resolveMessage(locale, "pages.signIn.submit")}
             </AuthPrimaryButton>
+            <AuthNote className="sr-only">
+              {resolveMessage(locale, "pages.signIn.accessHelp")}
+            </AuthNote>
           </form>
-          <AuthNote className="-mt-0.5">
-            {resolveMessage(appLocale, "pages.signIn.accessHelp")}
-          </AuthNote>
-          <p className="mt-2 text-center text-[11px] leading-4 text-muted-foreground">
-            {resolveMessage(appLocale, "pages.signIn.newToLcsp")}{" "}
+          <div className="mt-2 flex justify-end">
+            <AuthInlineLink href={API_REDIRECT_LOCATIONS.recoveryRequest}>
+              {resolveMessage(locale, "pages.signIn.forgotPassword")}
+            </AuthInlineLink>
+          </div>
+          <p className="mt-2 text-left text-xs leading-4 text-muted-foreground">
+            {resolveMessage(locale, "pages.signIn.newToLcsp")}{" "}
             <AuthInlineLink href={API_REDIRECT_LOCATIONS.signUp}>
-              {resolveMessage(appLocale, "pages.signIn.createAccount")}
+              {resolveMessage(locale, "pages.signIn.createAccount")}
             </AuthInlineLink>
           </p>
         </div>
@@ -171,13 +192,14 @@ export function SignInForm() {
   );
 }
 
-function formatRetryTime(lockedUntil: string): string {
+// Use the active locale explicitly so lockout feedback does not depend on a stale module snapshot.
+function formatRetryTime(lockedUntil: string, locale: "en" | "vi"): string {
   const date = new Date(lockedUntil);
   if (Number.isNaN(date.getTime())) {
     return lockedUntil;
   }
 
-  return new Intl.DateTimeFormat(appLocale, {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

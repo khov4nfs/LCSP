@@ -31,6 +31,7 @@ export type SignUpSubmissionError =
 export type SignUpFieldDefinition = {
   name: SignUpFieldName;
   labelKey: MessageKey;
+  placeholderKey: MessageKey;
   type: SignUpFieldType;
   autoComplete: SignUpFieldAutocomplete;
   descriptionKey: MessageKey;

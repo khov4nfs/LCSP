@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import {
   useAuthSettingsProfileQuery,
   useMfaEnrollMutation,
@@ -38,6 +38,8 @@ import { MfaQrPreview } from "../molecules/mfa-qr-preview";
 import type { MfaEnrollErrorState } from "../../types/mfa-enroll.types";
 
 export function MfaEnrollForm() {
+  // Subscribe to locale changes without clearing a pending MFA challenge or generated recovery codes.
+  const locale = useAppLocale();
   const router = useRouter();
   const [reauthOpen, setReauthOpen] = useState(false);
   const profileQuery = useAuthSettingsProfileQuery({ enabled: reauthOpen });
@@ -212,26 +214,28 @@ export function MfaEnrollForm() {
     printWindow.print();
   }
 
+  // AuthShell owns page placement; content-driven height accommodates QR provisioning and recovery-code display.
   return (
     <>
       <AuthFormSurface
         className={
           totpUri
-            ? "max-w-md pt-16 pb-20 sm:pt-20"
-            : "pt-28 pb-16 sm:pt-32"
+            ? "w-full max-w-md"
+            : "w-full"
         }
+        data-figma-node={totpUri ? undefined : "1662:1187"}
       >
         <AuthHeading
-          title={resolveMessage(appLocale, "pages.mfaEnroll.formTitle")}
-          description={resolveMessage(appLocale, "pages.mfaEnroll.formDescription")}
+          title={resolveMessage(locale, "pages.mfaEnroll.formTitle")}
+          description={resolveMessage(locale, "pages.mfaEnroll.formDescription")}
         />
 
         <div className="mt-8 flex flex-col gap-6">
           {error ? (
             <Alert variant="destructive">
-              <AlertTitle>{resolveMessage(appLocale, error.titleKey)}</AlertTitle>
+              <AlertTitle>{resolveMessage(locale, error.titleKey)}</AlertTitle>
               <AlertDescription>
-                {resolveMessage(appLocale, error.detailKey)}
+                {resolveMessage(locale, error.detailKey)}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -240,10 +244,10 @@ export function MfaEnrollForm() {
             <div className="flex flex-col gap-6 rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-sm">
               <div className="text-center">
                 <h2 className="text-base font-semibold tracking-tight text-foreground">
-                  {resolveMessage(appLocale, "pages.mfaEnroll.successTitle")}
+                  {resolveMessage(locale, "pages.mfaEnroll.successTitle")}
                 </h2>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  {resolveMessage(appLocale, "pages.mfaEnroll.successDetail")}
+                  {resolveMessage(locale, "pages.mfaEnroll.successDetail")}
                 </p>
               </div>
 
@@ -261,27 +265,28 @@ export function MfaEnrollForm() {
                       </code>
                     ))}
                   </div>
+                  {/* Keep the audit-sensitive recovery actions on the shared Button while making their auth focus ring fully visible. */}
                   <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 gap-1.5 px-3 text-xs"
+                      className="h-8 gap-1.5 px-3 text-xs focus-visible:ring-ring"
                       onClick={handleCopyRecoveryCodes}
                     >
                       <ClipboardCopyIcon className="size-3.5" />
-                      {resolveMessage(appLocale, "pages.mfaEnroll.copyCodes")}
+                      {resolveMessage(locale, "pages.mfaEnroll.copyCodes")}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 gap-1.5 px-3 text-xs"
+                      className="h-8 gap-1.5 px-3 text-xs focus-visible:ring-ring"
                       onClick={handleDownloadRecoveryCodes}
                     >
                       <DownloadIcon className="size-3.5" />
                       {resolveMessage(
-                        appLocale,
+                        locale,
                         "pages.mfaEnroll.downloadCodes",
                       )}
                     </Button>
@@ -289,26 +294,39 @@ export function MfaEnrollForm() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 gap-1.5 px-3 text-xs"
+                      className="h-8 gap-1.5 px-3 text-xs focus-visible:ring-ring"
                       onClick={handlePrintRecoveryCodes}
                     >
                       <PrinterIcon className="size-3.5" />
-                      {resolveMessage(appLocale, "pages.mfaEnroll.printCodes")}
+                      {resolveMessage(locale, "pages.mfaEnroll.printCodes")}
                     </Button>
                   </div>
                 </div>
               ) : null}
 
+              {/* Preserve the shared button behavior and apply the auth-local high-contrast focus ring. */}
               <Button
                 render={<Link href={API_REDIRECT_LOCATIONS.mfaVerify} />}
-                className="w-full"
+                className="w-full focus-visible:ring-ring"
                 nativeButton={false}
               >
-                {resolveMessage(appLocale, "pages.mfaEnroll.goToVerify")}
+                {resolveMessage(locale, "pages.mfaEnroll.goToVerify")}
               </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
+              {/* These ordered setup steps match the introduction frame and do not claim that a QR code or recovery batch already exists. */}
+              <ol className="mb-3 rounded-xl bg-muted p-4 text-sm leading-5 text-foreground">
+                <li className="border-b border-border py-2 first:pt-0">
+                  1&nbsp; {resolveMessage(locale, "pages.mfaEnroll.setupSteps.generate")}
+                </li>
+                <li className="border-b border-border py-2">
+                  2&nbsp; {resolveMessage(locale, "pages.mfaEnroll.setupSteps.verify")}
+                </li>
+                <li className="py-2 last:pb-0">
+                  3&nbsp; {resolveMessage(locale, "pages.mfaEnroll.setupSteps.saveRecoveryCodes")}
+                </li>
+              </ol>
               <AuthPrimaryButton
                 type="button"
                 onClick={handleEnroll}
@@ -319,7 +337,7 @@ export function MfaEnrollForm() {
                   <Spinner data-icon="inline-start" />
                 ) : null}
                 {resolveMessage(
-                  appLocale,
+                  locale,
                   enrollMutation.isPending
                     ? "pages.mfaEnroll.submitting"
                     : "pages.mfaEnroll.submit",
@@ -327,18 +345,20 @@ export function MfaEnrollForm() {
               </AuthPrimaryButton>
               <AuthInlineLink
                 href={API_REDIRECT_LOCATIONS.mfaVerify}
-                className="mt-2 self-center"
+                className="mt-2 self-start"
               >
-                {resolveMessage(appLocale, "pages.mfaEnroll.goToVerify")}
+                {resolveMessage(locale, "pages.mfaEnroll.goToVerify")}
               </AuthInlineLink>
-              <AuthNote className="mt-4">
-                {resolveMessage(appLocale, "pages.mfaEnroll.accessHelp")}
+              <AuthNote className="mt-4 self-start text-left">
+                {resolveMessage(locale, "pages.mfaEnroll.accessHelp")}
               </AuthNote>
             </div>
           )}
         </div>
       </AuthFormSurface>
+  {/* The password re-auth dialog must scroll within the viewport when text is enlarged, keeping its title and close control reachable. */}
   <ConfirmAccessDialog
+      constrainToViewport
       open={reauthOpen}
       onOpenChange={(open) => {
         setReauthOpen(open);
