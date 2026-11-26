@@ -1,7 +1,6 @@
 import { CredentialProvider, ProviderCredentialStatus } from "@prisma/client";
 import { describe, expect, it, jest } from "@jest/globals";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
-import { CredentialResolutionError } from "./prisma-credential-authorization.resolver.js";
 import { PrismaActiveProviderCredentialResolver } from "./prisma-active-provider-credential.resolver.js";
 
 describe("PrismaActiveProviderCredentialResolver", () => {
@@ -82,7 +81,7 @@ describe("PrismaActiveProviderCredentialResolver", () => {
         provider: CredentialProvider.BITBUCKET,
         repositoryFullName: "workspace/repository",
       }),
-    ).rejects.toMatchObject<Partial<CredentialResolutionError>>({
+    ).rejects.toMatchObject({
       code: GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired,
     });
   });

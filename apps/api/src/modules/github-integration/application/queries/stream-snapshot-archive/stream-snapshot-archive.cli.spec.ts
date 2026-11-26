@@ -105,6 +105,7 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
           ? {
               stream: Readable.from([Buffer.from("cached")]),
               contentType: "application/gzip",
+              archiveRoot: null,
               resolvedUrl: "https://codeload.github.com/",
             }
           : null,

@@ -158,6 +158,7 @@ describe("PinSnapshotHandler CLI routing", () => {
       fixture.lease,
       "owner/repo",
       "refs/heads/main",
+      "repo-1",
     );
     expect(result.commit_sha).toBe("a".repeat(40));
     const snapshot = fixture.save.mock.calls[0]?.[0];

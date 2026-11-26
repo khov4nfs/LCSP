@@ -86,6 +86,12 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
     if (!Object.values(CREDENTIAL_PROVIDERS).includes(provider)) {
       this.invalid(command.correlationId);
     }
+    let providerAdapter: GitHubRepositoryProviderPort;
+    try {
+      providerAdapter = this.providerRegistry.get(provider);
+    } catch (error: unknown) {
+      mapProviderFailure(error, command.correlationId);
+    }
     if (
       provider === CREDENTIAL_PROVIDERS.bitbucket ||
       provider === CREDENTIAL_PROVIDERS.azureDevOps
@@ -95,12 +101,6 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
         command.correlationId,
         { status: HttpStatus.BAD_REQUEST },
       );
-    }
-    let providerAdapter: GitHubRepositoryProviderPort;
-    try {
-      providerAdapter = this.providerRegistry.get(provider);
-    } catch (error: unknown) {
-      mapProviderFailure(error, command.correlationId);
     }
     const repositoryFullName = parseRepositoryFullName(
       provider,
