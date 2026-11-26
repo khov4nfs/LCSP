@@ -3680,6 +3680,33 @@ export type PagesMessages = {
       emptyTitle: string;
       emptyBody: string;
     };
+    selectedAudit: {
+      title: string;
+      subtitle: string;
+      selectionOverview: string;
+      noneSelected: string;
+      runSelected: string;
+      clearSelection: string;
+      selectAllMatching: string;
+      colRule: string;
+      colReference: string;
+      colPreviousResult: string;
+      colEvidence: string;
+      progressTitle: string;
+      resultsReadySummary: string;
+      viewCurrentFindings: string;
+      simulatedBannerTitle: string;
+      activityTitle: string;
+      previousResultsRetained: string;
+      stageReadRequirement: string;
+      stageAssessEvidence: string;
+      stagePublishResult: string;
+      stageInProgress: string;
+      stagePending: string;
+      stageDone: string;
+      priorResult: string;
+      currentResult: string;
+    };
   };
 };
 

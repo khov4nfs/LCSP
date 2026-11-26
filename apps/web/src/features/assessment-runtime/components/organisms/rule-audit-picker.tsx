@@ -35,6 +35,7 @@ import {
   type RuleAuditSelection,
 } from "../../schemas/rule-audit-selection.schema";
 import { copy } from "../../utils/conversation-copy";
+import { AuditProgressPanel } from "../molecules/audit-progress-panel";
 import { RuleAuditOption } from "../molecules/rule-audit-option";
 import { RuleAuditGroup } from "../molecules/rule-audit-group";
 import { AssessmentDiscoveryOverview } from "./assessment-discovery-overview";
@@ -470,6 +471,30 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                   {copy("ruleAudit.clearAll")}
                 </Button>
               </div>
+              {latest && latest.rules.length > 0 ? (
+                <AuditProgressPanel
+                  items={latest.rules.map((item) => {
+                    const catalogRule = rules.find(
+                      (rule) => rule.assessmentRuleId === item.assessmentRuleId,
+                    );
+                    return {
+                      assessmentRuleId: item.assessmentRuleId,
+                      concept: catalogRule?.concept ?? item.assessmentRuleId,
+                      progress: item.progress,
+                      decisionId: item.decisionId,
+                    };
+                  })}
+                  retrying={retry.isPending}
+                  onViewResult={(decisionId) =>
+                    document
+                      .getElementById(`decision-${decisionId}`)
+                      ?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      })
+                  }
+                />
+              ) : null}
               <ul
                 className="max-h-72 space-y-2 overflow-y-auto rounded-xl border bg-muted/20 p-2 sm:max-h-96"
                 aria-label={copy("ruleAudit.title")}
