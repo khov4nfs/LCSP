@@ -34,7 +34,7 @@ def main():
     def claim(identity):
         result = native_claim(identity)
         captured["claim"] = {name: result.get(name) for name in
-                             ["checkpointThreadId", "threadId", "executionId", "resumeCheckpointId", "humanAnswerReviewRequired", "humanAnswerReviewCheckpointId", "humanAnswerReviewExecutionId", "recoveredExecution"]}
+                             ["checkpointThreadId", "threadId", "executionId", "resumeCheckpointId", "humanAnswerReviewRequired", "humanAnswerReviewCheckpointId", "humanAnswerReviewExecutionId", "recoveredExecution", "lifecycleState"]}
         return result
 
     def context():

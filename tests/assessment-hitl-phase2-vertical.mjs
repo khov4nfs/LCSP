@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createServer } from "node:net";
 import {
   ASSESSMENT_LIFECYCLE_STATES,
@@ -185,7 +186,9 @@ try {
   );
   eq(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
   const { hashSecret: rawHashSecret, hashSecretSync } = await import(
-    path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
+    pathToFileURL(
+      path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js"),
+    ).href
   );
   const hashSecret = hashSecretSync ?? rawHashSecret;
   const password = "CorrectHorseBatteryStaple!";
@@ -342,6 +345,12 @@ try {
     "Phase2 unknown reviewed against accepted evidence",
   );
   const first = await run(blockedId, "ask-block");
+  if (!first.sourceRoot) {
+    const runtimeState = await state(blockedId);
+    assert.fail(
+      `Root returned without hydrating its pinned source: ${JSON.stringify({ first, runtimeState })}`,
+    );
+  }
   eq(first.sourceRoot.commitSha, "c".repeat(40));
   ok(first.sourceRoot.coverage.coverageLimited);
   eq(first.sourceRoot.outsideScopeExcluded, true);
