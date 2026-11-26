@@ -12,6 +12,7 @@ import {
   type TrackingPagination as TrackingPaginationData,
 } from "@lcsp/contracts/assessment-domain";
 
+import { CoverageProgress } from "@/components/molecules/coverage-progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -188,8 +189,6 @@ export function RecentAssessments({
                       item.compliance.nonCompliantCount +
                       item.compliance.notApplicableCount;
                     const total = concluded + item.compliance.unresolvedCount;
-                    const ratio =
-                      total > 0 ? Math.min(100, (concluded / total) * 100) : 0;
                     const presentation = resolveAssessmentRowPresentation(item);
 
                     return (
@@ -206,21 +205,11 @@ export function RecentAssessments({
                           {formatTrackingDate(item.updatedAt)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <span className="min-w-12 text-xs font-medium text-muted-foreground tabular-nums">
-                              {concluded.toLocaleString(appLocale)} /{" "}
-                              {total.toLocaleString(appLocale)}
-                            </span>
-                            <div
-                              className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"
-                              aria-hidden="true"
-                            >
-                              <div
-                                className="h-full rounded-full bg-[#087f75] transition-[width] duration-300 motion-reduce:transition-none"
-                                style={{ width: `${ratio}%` }}
-                              />
-                            </div>
-                          </div>
+                          <CoverageProgress
+                            concluded={concluded}
+                            total={total}
+                            locale={appLocale}
+                          />
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -233,7 +222,7 @@ export function RecentAssessments({
                         <TableCell className="pr-4 text-right">
                           <Link
                             href={presentation.href}
-                            className="inline-flex items-center gap-1 text-sm font-medium text-[#11545b] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-emerald-300"
+                            className="inline-flex items-center gap-1 text-sm font-medium text-brand-deep hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             {presentation.nextActionLabel}
                             <ChevronRightIcon

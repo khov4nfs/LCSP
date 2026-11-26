@@ -127,25 +127,25 @@ export function TrackingCompliancePage() {
             key: TRACKING_RULE_OUTCOMES.COMPLIANT,
             label: trackingMessage("outcome.COMPLIANT"),
             count: totals.compliant,
-            color: "#087f75",
+            color: "var(--status-completed)",
           },
           {
             key: TRACKING_RULE_OUTCOMES.NON_COMPLIANT,
             label: trackingMessage("outcome.NON_COMPLIANT"),
             count: totals.nonCompliant,
-            color: "#e11d48",
+            color: "var(--status-danger)",
           },
           {
             key: TRACKING_RULE_OUTCOMES.UNRESOLVED,
             label: trackingMessage("outcome.UNRESOLVED"),
             count: totals.unresolved,
-            color: "#d97706",
+            color: "var(--status-warning)",
           },
           {
             key: TRACKING_RULE_OUTCOMES.NOT_APPLICABLE,
             label: trackingMessage("outcome.NOT_APPLICABLE"),
             count: totals.notApplicable,
-            color: "#94a3b8",
+            color: "var(--status-draft)",
           },
         ];
         return (

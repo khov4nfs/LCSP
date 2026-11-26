@@ -93,9 +93,9 @@ export function AdminUserStatusCard({
     : "—";
 
   const rows = [
-    { key: "active", label: activeLabel, count: activeCount, color: "#10b981" },
-    { key: "invited", label: invitedLabel, count: invitedCount, color: "#f59e0b" },
-    { key: "suspended", label: suspendedLabel, count: suspendedCount, color: "#f43f5e" },
+    { key: "active", label: activeLabel, count: activeCount, color: "var(--admin-status-active)" },
+    { key: "invited", label: invitedLabel, count: invitedCount, color: "var(--admin-warning)" },
+    { key: "suspended", label: suspendedLabel, count: suspendedCount, color: "var(--admin-status-suspended)" },
   ];
 
   return (

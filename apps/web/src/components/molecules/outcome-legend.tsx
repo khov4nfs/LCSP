@@ -33,7 +33,7 @@ export function OutcomeLegend({
     <ul
       className={cn(
         "flex w-full flex-col divide-y",
-        isDark ? "divide-[#365862]" : "divide-border",
+        isDark ? "divide-bento-border" : "divide-border",
         className,
       )}
       data-component="OutcomeLegend"
@@ -59,7 +59,7 @@ export function OutcomeLegend({
               <span
                 className={cn(
                   "truncate text-xs font-medium sm:text-sm",
-                  isDark ? "text-[#c9e2e6]" : "text-foreground",
+                  isDark ? "text-bento-foreground" : "text-foreground",
                 )}
               >
                 {item.label}
@@ -69,7 +69,7 @@ export function OutcomeLegend({
             <div
               className={cn(
                 "h-1.5 w-full overflow-hidden rounded-full",
-                isDark ? "bg-[#365862]" : "bg-muted",
+                isDark ? "bg-bento-border" : "bg-muted",
               )}
               aria-hidden="true"
             >
@@ -85,7 +85,7 @@ export function OutcomeLegend({
             <span
               className={cn(
                 "text-right text-xs font-semibold tabular-nums sm:text-sm",
-                isDark ? "text-[#c9e2e6]" : "text-foreground",
+                isDark ? "text-bento-foreground" : "text-foreground",
               )}
             >
               {item.count.toLocaleString(locale)}
@@ -94,7 +94,7 @@ export function OutcomeLegend({
             <span
               className={cn(
                 "text-right text-xs tabular-nums sm:text-sm",
-                isDark ? "text-[#c9e2e6]" : "text-muted-foreground",
+                isDark ? "text-bento-foreground" : "text-muted-foreground",
               )}
             >
               {pctLabel}

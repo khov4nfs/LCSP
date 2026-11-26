@@ -21,29 +21,27 @@ const VARIANT_STYLES: Record<
   }
 > = {
   [NEXT_METRIC_VARIANTS.embedded]: {
-    container: "bg-[#214752] text-white",
-    label: "text-[#c6dfe1] text-xs font-semibold",
-    value: "text-white text-3xl font-semibold tabular-nums leading-none",
-    context: "text-[#c6dfe1] text-xs",
-    arrow: "text-[#7ce0d3]",
+    container: "bg-bento-card text-white",
+    label: "text-bento-foreground text-xs font-semibold",
+    value: "text-bento-heading text-3xl font-semibold tabular-nums leading-none",
+    context: "text-bento-foreground text-xs",
+    arrow: "text-bento-accent",
   },
   [NEXT_METRIC_VARIANTS.attention]: {
-    container:
-      "bg-[#fff5e3] text-[#152736] dark:bg-amber-950/40 dark:text-amber-50",
-    label: "text-[#152736] dark:text-amber-100 text-sm font-semibold",
+    container: "bg-metric-attention-bg text-metric-attention-ink",
+    label: "text-metric-attention-ink text-sm font-semibold",
     value:
-      "text-[#92400e] dark:text-amber-300 text-2xl font-semibold tabular-nums leading-none",
-    context: "text-[#48586a] dark:text-amber-200/80 text-xs",
-    arrow: "text-[#92400e] dark:text-amber-300",
+      "text-metric-attention-value text-2xl font-semibold tabular-nums leading-none",
+    context: "text-metric-attention-muted text-xs",
+    arrow: "text-metric-attention-value",
   },
   [NEXT_METRIC_VARIANTS.ready]: {
-    container:
-      "bg-[#e8f6f2] text-[#152736] dark:bg-emerald-950/40 dark:text-emerald-50",
-    label: "text-[#152736] dark:text-emerald-100 text-sm font-semibold",
+    container: "bg-metric-ready-bg text-metric-ready-ink",
+    label: "text-metric-ready-ink text-sm font-semibold",
     value:
-      "text-[#087f75] dark:text-emerald-300 text-2xl font-semibold tabular-nums leading-none",
-    context: "text-[#48586a] dark:text-emerald-200/80 text-xs",
-    arrow: "text-[#087f75] dark:text-emerald-300",
+      "text-metric-ready-value text-2xl font-semibold tabular-nums leading-none",
+    context: "text-metric-ready-muted text-xs",
+    arrow: "text-metric-ready-value",
   },
 };
 

@@ -1366,6 +1366,8 @@ export type PagesMessages = {
       deleting: string;
       renameError: string;
       deleteError: string;
+      nameRequired: string;
+      nameTooLong: string;
       close: string;
     };
     settings: string;
@@ -2110,6 +2112,20 @@ export type PagesMessages = {
       showingRecords: string;
       complianceBreakdownTitle: string;
       complianceBreakdownSubtitle: string;
+      assessmentsListSubtitle: string;
+      searchRepoPlaceholder: string;
+      filterAllStatuses: string;
+      filterAllDates: string;
+      filterLast7Days: string;
+      filterLast30Days: string;
+      sortRecentlyUpdated: string;
+      sortNameAsc: string;
+      sortHighestCoverage: string;
+      statusDraft: string;
+      statusAll: string;
+      colAssessmentRepo: string;
+      resetFilters: string;
+      nextActionOpenReport: string;
       notAvailable: string;
       noOperationalItems: string;
       noAnomalies: string;
@@ -3159,6 +3175,12 @@ export type PagesMessages = {
     cancel: string;
     submit: string;
     submitting: string;
+    setupTitle: string;
+    setupStep1: string;
+    setupStep2: string;
+    setupStep3: string;
+    setupStep4: string;
+    setupDisclaimer: string;
   };
   admin: {
     usage: {
