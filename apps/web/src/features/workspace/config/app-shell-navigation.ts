@@ -1,9 +1,10 @@
 import {
-  LayoutDashboardIcon,
-  ListChecksIcon,
-  LibraryBigIcon,
-  ShieldCheckIcon,
   FileTextIcon,
+  LayoutDashboardIcon,
+  LibraryBigIcon,
+  ListChecksIcon,
+  ShieldCheckIcon,
+  SwatchBookIcon,
 } from "lucide-react";
 
 type NavigationDefinition = {
@@ -14,6 +15,9 @@ type NavigationDefinition = {
   disabled?: boolean;
 };
 
+/**
+ * Primary Platform navigation matching Figma LCSP Shell / Customer / Overview (1697:4893).
+ */
 export const primaryNavigation = [
   {
     href: "/workspace",
@@ -28,18 +32,23 @@ export const primaryNavigation = [
   },
   {
     href: "/workspace/compliance",
-    labelKey: "pages.workspace.tracking.navCompliance",
+    labelKey: "pages.appShell.followUpRequests",
     icon: ShieldCheckIcon,
-  },
-  {
-    href: "/workspace/reports",
-    labelKey: "pages.workspace.tracking.navReports",
-    icon: FileTextIcon,
   },
   {
     href: "/laws",
     labelKey: "pages.appShell.legalLibrary",
     icon: LibraryBigIcon,
+  },
+  {
+    href: "/workspace/reports",
+    labelKey: "pages.appShell.reports",
+    icon: FileTextIcon,
+  },
+  {
+    href: "/artifacts",
+    labelKey: "pages.appShell.artifacts",
+    icon: SwatchBookIcon,
   },
 ] as const satisfies readonly NavigationDefinition[];
 
