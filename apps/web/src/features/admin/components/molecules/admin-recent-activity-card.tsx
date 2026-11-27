@@ -1,3 +1,5 @@
+"use client";
+
 import type { MessageKey } from "@lcsp/i18n";
 import {
   ADMIN_OVERVIEW_ACTION_KEYS,
@@ -5,17 +7,15 @@ import {
 } from "@lcsp/contracts/auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { formatLocaleActivityTime } from "@/lib/date-format";
 import { resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import {
+  FigmaEventsTableRow,
+  FigmaAdminCardHeader,
+  FigmaAdminStatusBadge,
+} from "@/components/figma/admin-overview-masters";
 
 type AdminRecentActivityCardProps = {
   items?: AdminRecentActivityItem[];
@@ -38,68 +38,63 @@ export function AdminRecentActivityCard({
   const subtitle = resolveAppMessage(
     "pages.admin.overview.recentActivity.subtitle" as MessageKey,
   );
-  const tableAria = resolveAppMessage(
-    "pages.admin.overview.recentActivity.tableAria" as MessageKey,
-  );
-  const timeHeader = resolveAppMessage(
-    "pages.admin.overview.recentActivity.columns.time" as MessageKey,
-  );
-  const adminHeader = resolveAppMessage(
-    "pages.admin.overview.recentActivity.columns.admin" as MessageKey,
-  );
-  const actionHeader = resolveAppMessage(
-    "pages.admin.overview.recentActivity.columns.action" as MessageKey,
-  );
-  const targetHeader = resolveAppMessage(
-    "pages.admin.overview.recentActivity.columns.target" as MessageKey,
-  );
 
-  const systemActorText = resolveAppMessage(
-    "pages.admin.overview.recentActivity.systemActor" as MessageKey,
-  );
-
-  const resolveActionLabel = (item: AdminRecentActivityItem): string => {
+  const resolveAreaLabel = (item: AdminRecentActivityItem): string => {
     switch (item.actionKey) {
       case ADMIN_OVERVIEW_ACTION_KEYS.suspendedAccount:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.actions.suspendedAccount" as MessageKey,
-        );
       case ADMIN_OVERVIEW_ACTION_KEYS.restoredAccount:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.actions.restoredAccount" as MessageKey,
-        );
       case ADMIN_OVERVIEW_ACTION_KEYS.invitedUser:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.actions.invitedUser" as MessageKey,
-        );
+        return "User accounts";
       case ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.actions.activatedLegalSource" as MessageKey,
-        );
+        return "Legal sources";
       default:
-        return actionHeader;
+        return "Operations";
     }
   };
 
-  const resolveTargetLabel = (item: AdminRecentActivityItem): string => {
-    if (item.target) return item.target;
+  const resolveStatusVariant = (
+    item: AdminRecentActivityItem,
+  ): "success" | "warning" | "danger" | "info" => {
+    switch (item.actionKey) {
+      case ADMIN_OVERVIEW_ACTION_KEYS.suspendedAccount:
+        return "danger";
+      case ADMIN_OVERVIEW_ACTION_KEYS.restoredAccount:
+      case ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource:
+        return "success";
+      case ADMIN_OVERVIEW_ACTION_KEYS.invitedUser:
+        return "info";
+      default:
+        return "info";
+    }
+  };
 
+  const resolveStatusLabel = (item: AdminRecentActivityItem): string => {
+    switch (item.actionKey) {
+      case ADMIN_OVERVIEW_ACTION_KEYS.suspendedAccount:
+        return "Suspended";
+      case ADMIN_OVERVIEW_ACTION_KEYS.restoredAccount:
+        return "Restored";
+      case ADMIN_OVERVIEW_ACTION_KEYS.invitedUser:
+        return "Invited";
+      case ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource:
+        return "Published";
+      default:
+        return "Completed";
+    }
+  };
+
+  const resolveNextAction = (
+    item: AdminRecentActivityItem,
+  ): { label: string; href: string } => {
     switch (item.actionKey) {
       case ADMIN_OVERVIEW_ACTION_KEYS.suspendedAccount:
       case ADMIN_OVERVIEW_ACTION_KEYS.restoredAccount:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.targets.userAccount" as MessageKey,
-        );
       case ADMIN_OVERVIEW_ACTION_KEYS.invitedUser:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.targets.newUser" as MessageKey,
-        );
+        return { label: "View user", href: "/admin/users" };
       case ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.targets.legalSourceVersion" as MessageKey,
-        );
+        return { label: "View source", href: "/admin/legal-sources" };
       default:
-        return "—";
+        return { label: "View event", href: "/admin/overview" };
     }
   };
 
@@ -159,75 +154,86 @@ export function AdminRecentActivityCard({
 
   return (
     <div
+      data-figma-node="1682:1761"
+      data-figma-name="Data table / events"
       className={cn(
-        "flex min-h-72 w-full flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs",
+        "flex min-h-72 w-full flex-col justify-between rounded-xl border border-[#D6DFE7] bg-white p-5 shadow-xs",
         className,
       )}
     >
-      {/* Header */}
-      <div>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
-      </div>
+      {/* Figma CardHeader */}
+      <FigmaAdminCardHeader
+        title={title}
+        description={subtitle}
+        className="mb-3"
+      />
 
       {/* Table Container */}
-      <div className="mt-3 flex-1 overflow-hidden rounded-lg border border-border bg-background/50">
+      <div className="mt-2 flex-1 overflow-x-auto rounded-lg border border-[#D6DFE7] bg-white">
         {items.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-            <p className="text-xs font-medium text-foreground">
+          <div className="flex h-40 flex-col items-center justify-center p-6 text-center">
+            <p className="text-xs font-medium text-[#101C29]">
               {resolveAppMessage(
                 "pages.admin.overview.recentActivity.emptyTitle" as MessageKey,
               )}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-[#48586A] mt-0.5">
               {resolveAppMessage(
                 "pages.admin.overview.recentActivity.emptyDescription" as MessageKey,
               )}
             </p>
           </div>
         ) : (
-          <div className="max-h-48 overflow-y-auto">
-            <Table aria-label={tableAria}>
-              <TableHeader className="bg-muted/40 sticky top-0">
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="h-8 w-28 px-3 text-[10.5px] font-semibold text-muted-foreground uppercase">
-                    {timeHeader}
-                  </TableHead>
-                  <TableHead className="h-8 px-3 text-[10.5px] font-semibold text-muted-foreground uppercase">
-                    {adminHeader}
-                  </TableHead>
-                  <TableHead className="h-8 px-3 text-[10.5px] font-semibold text-muted-foreground uppercase">
-                    {actionHeader}
-                  </TableHead>
-                  <TableHead className="h-8 px-3 text-[10.5px] font-semibold text-muted-foreground uppercase">
-                    {targetHeader}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.slice(0, 4).map((item) => (
-                  <TableRow
+          <div>
+            {/* Table Header (#1711:9049) */}
+            <div className="flex min-h-[38px] items-center bg-[#E8EEF3] px-4 text-xs font-semibold text-[#435367]">
+              <div className="w-[280px] shrink-0">Assessment / event</div>
+              <div className="w-[180px] shrink-0">Area</div>
+              <div className="w-[160px] shrink-0">Status</div>
+              <div className="w-[170px] shrink-0">Updated</div>
+              <div className="flex-1 text-right">Next action</div>
+            </div>
+
+            {/* Table Rows (#1682:1255) */}
+            <div className="divide-y divide-[#D6DFE7]">
+              {items.slice(0, 6).map((item) => {
+                const action = resolveNextAction(item);
+                return (
+                  <FigmaEventsTableRow
                     key={item.id}
-                    className="border-border/60 hover:bg-muted/30 text-xs"
-                  >
-                    <TableCell className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">
-                      {formatLocaleActivityTime(item.occurredAt)}
-                    </TableCell>
-                    <TableCell className="px-3 py-2.5 text-muted-foreground truncate max-w-40">
-                      {item.adminEmail ?? item.adminName ?? systemActorText}
-                    </TableCell>
-                    <TableCell className="px-3 py-2.5 text-muted-foreground truncate max-w-40">
-                      {resolveActionLabel(item)}
-                    </TableCell>
-                    <TableCell className="px-3 py-2.5 text-muted-foreground truncate max-w-44">
-                      {resolveTargetLabel(item)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    c0Event={
+                      item.target
+                        ? item.target
+                        : item.eventType || "Operational event"
+                    }
+                    c1Area={resolveAreaLabel(item)}
+                    statusBadge={
+                      <FigmaAdminStatusBadge
+                        label={resolveStatusLabel(item)}
+                        variant={resolveStatusVariant(item)}
+                      />
+                    }
+                    c3Updated={formatLocaleActivityTime(item.occurredAt)}
+                    c4NextActionLabel={action.label}
+                    nextActionHref={action.href}
+                  />
+                );
+              })}
+            </div>
           </div>
         )}
+      </div>
+
+      {/* Table Footer / Pagination summary (#1711:9050) */}
+      <div className="mt-3 flex items-center justify-between text-xs text-[#48586A]">
+        <span>Showing {Math.min(items.length, 6)} recent events</span>
+        <Link
+          href="/admin/overview"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-[#11545B] hover:text-[#0b383d] transition-colors"
+        >
+          <span>View activity history</span>
+          <span aria-hidden="true">›</span>
+        </Link>
       </div>
     </div>
   );
