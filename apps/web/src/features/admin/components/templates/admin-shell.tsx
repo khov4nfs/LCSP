@@ -69,7 +69,9 @@ export function AdminShell({ children }: AdminShellProps) {
             <Sheet open={navigationOpen} onOpenChange={setNavigationOpen}>
               <SheetContent
                 side="left"
-                className="max-w-full gap-0 p-0 data-[side=left]:w-62"
+                data-figma-node="1662:4763"
+                data-figma-name="57 Admin · Mobile sidebar"
+                className="max-w-full gap-0 p-0 data-[side=left]:w-68 border-r border-[#D6DFE7] bg-white"
               >
                 <SheetHeader className="sr-only">
                   <SheetTitle>
