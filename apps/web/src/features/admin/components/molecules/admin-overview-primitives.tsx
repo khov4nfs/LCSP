@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * - updated: Updated timestamp (#1682:1259)
  * - nextActionLabel: Next action label (#1682:1260) with interactive link
  */
-export type FigmaEventsTableRowProps = {
+export type AdminEventsTableRowProps = {
   event: ReactNode;
   area: ReactNode;
   statusBadge: ReactNode;
@@ -25,7 +25,7 @@ export type FigmaEventsTableRowProps = {
   className?: string;
 };
 
-export function FigmaEventsTableRow({
+export function AdminEventsTableRow({
   event,
   area,
   statusBadge,
@@ -34,7 +34,7 @@ export function FigmaEventsTableRow({
   nextActionHref,
   onNextAction,
   className,
-}: FigmaEventsTableRowProps) {
+}: AdminEventsTableRowProps) {
   const nextActionContent = (
     <span className="inline-flex items-center gap-1 font-medium text-[#11545B] hover:text-[#0b383d] transition-colors">
       <span>{nextActionLabel}</span>
@@ -97,9 +97,9 @@ export function FigmaEventsTableRow({
 }
 
 /**
- * Figma Component: LCSP shadcn / CardHeader (#1711:8840)
+ * LCSP CardHeader molecule with title, optional description, and actionSlot
  */
-export function FigmaAdminCardHeader({
+export function AdminSectionCardHeader({
   title,
   description,
   className,
@@ -146,9 +146,9 @@ export function FigmaAdminCardHeader({
 }
 
 /**
- * Figma Component: LCSP Data / Status (#1681:1297..1303)
+ * LCSP Status Badge for administrative event logs
  */
-export function FigmaAdminStatusBadge({
+export function AdminStatusBadge({
   label,
   variant = "info",
   className,
