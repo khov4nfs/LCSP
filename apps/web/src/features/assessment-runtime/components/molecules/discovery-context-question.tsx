@@ -13,6 +13,7 @@ import { copy } from "../../utils/conversation-copy";
 
 export type DiscoveryContextQuestion = {
   useCaseId: string;
+  useCaseName: string;
   question: string;
 };
 

@@ -2,7 +2,11 @@
 import json
 from pathlib import Path
 import pytest
-from runtime_instruction_bundle import ApprovedEnglishRuntimeBundle, RuntimeInstructionBundleError
+from runtime_instruction_bundle import (
+    ApprovedEnglishRuntimeBundle,
+    RuntimeInstructionBundleError,
+    production_runtime_bundle,
+)
 
 
 def write_bundle(tmp_path, *, source="Nguồn tiếng Việt", english="English instruction", disabled=False):
@@ -45,6 +49,22 @@ def test_change_vietnamese_without_human_approval_is_allowed(tmp_path):
     path = write_bundle(tmp_path)
     (tmp_path / "source.vi.md").write_text("Nguồn tiếng Việt cập nhật", encoding="utf-8")
     assert ApprovedEnglishRuntimeBundle.load(tmp_path, path).instruction("root")
+
+
+def test_root_starts_with_product_context_before_rule_specific_external_questions():
+    # Check the actual runtime assets so edits to reference-only prompts cannot
+    # leave the startup or HITL instructions on the old operations-first path.
+    bundle = production_runtime_bundle(fresh=True)
+    startup = bundle.instruction("assessment-root.resume")
+    system = bundle.instruction("assessment-root.system")
+    guidance = bundle.instruction("assessment-tool.open_human_request.guidance")
+    assert "reuse accepted Discovery answers" in startup
+    assert system.index("## Initial product context") < system.index("## Decision transaction")
+    initial = system.split("## Initial product context", 1)[1].split("\n## ", 1)[0]
+    assert "intended users, business workflow, or use of AI output" in initial
+    assert "defer deployment, release, reports, documents and legal status" in initial
+    assert "after the initial repository pass" in guidance
+    assert "production login-log retention" not in system
 
 
 def test_rejects_missing_or_unsafe_assets_and_duplicates(tmp_path):
