@@ -2974,6 +2974,8 @@ export const viPages = {
         paymentCode: "Mã thanh toán",
         copied: "Đã sao chép",
         copyPaymentCode: "Sao chép mã",
+        checkPaymentStatus: "Kiểm tra trạng thái thanh toán",
+        checkingPaymentStatus: "Đang kiểm tra trạng thái...",
         pendingPaymentHint:
           "Đang chờ hệ thống ghi nhận chuyển khoản. Trang này kiểm tra trạng thái thanh toán authoritative.",
         pendingReconciliationTitle: "Thanh toán chờ đối soát",

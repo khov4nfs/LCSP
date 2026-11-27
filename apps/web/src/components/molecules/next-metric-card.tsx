@@ -79,7 +79,7 @@ export function NextMetricCard({
         ) : null}
       </div>
       <div className="flex items-baseline gap-3">
-        <span className={styles.value}>{value}</span>
+        <p className={styles.value}>{value}</p>
         <span className={cn("min-w-0 flex-1 truncate", styles.context)}>
           {context}
         </span>

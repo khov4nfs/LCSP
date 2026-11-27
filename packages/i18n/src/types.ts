@@ -2697,6 +2697,8 @@ export type PagesMessages = {
         paymentCode: string;
         copied: string;
         copyPaymentCode: string;
+        checkPaymentStatus: string;
+        checkingPaymentStatus: string;
         pendingPaymentHint: string;
         pendingReconciliationTitle: string;
         pendingReconciliationDescription: string;

@@ -8,22 +8,12 @@ import type { Locale } from "@lcsp/contracts/shared";
 import { resolveMessage } from "@lcsp/i18n";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
-import {
-  CheckIcon,
-  Clock3Icon,
-  CopyIcon,
-  QrCodeIcon,
-  RefreshCwIcon,
-  WalletCardsIcon,
-} from "lucide-react";
+import { RefreshCwIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   useBillingEstimateQuery,
   useBillingHistoryQuery,
@@ -38,7 +28,25 @@ import {
   billingTopUpSchema,
   type BillingTopUpFormValues,
 } from "../../schemas/billing-top-up.schema";
+import { WalletBalanceCard } from "../molecules/wallet-balance-card";
+import { PaymentOrderCard } from "./payment-order-card";
+import { TopUpForm } from "./top-up-form";
+import { TransactionHistory } from "./transaction-history";
 
+/**
+ * Business purpose: Orchestrate customer prepaid VND wallet balance, top-up order creation, active payment instructions, and transaction history.
+ * Business rules:
+ * - Preserves idempotency keys across failed retries for the same amountVnd and requires confirmation before creating a second pending order.
+ * - Never simulates payment success; wallet balance and order status reflect only authoritative server query responses.
+ * Execution flow:
+ * 1. Fetch wallet balance, paginated order history, live top-up estimate, and active order status.
+ * 2. Synchronize wallet and history caches whenever a pending order transitions to a terminal status.
+ * 3. Compose WalletBalanceCard, TopUpForm, EstimateSection, PaymentOrderCard, and TransactionHistory.
+ * Failure cases:
+ * - Loading and error states render localized feedback with an explicit retry trigger instead of partial or unverified balances.
+ * Side effects:
+ * - Submits top-up order mutations, invalidates React Query billing keys on settlement, and copies payment codes to the clipboard.
+ */
 export function BillingSettingsPanel({ locale }: { locale: Locale }) {
   const walletQuery = useBillingWalletQuery();
   const refetchWallet = walletQuery.refetch;
@@ -232,6 +240,15 @@ export function BillingSettingsPanel({ locale }: { locale: Locale }) {
     setCopiedPaymentCode(true);
   }
 
+  function refreshOrderStatus() {
+    void Promise.all([
+      orderQuery.refetch(),
+      walletQuery.refetch(),
+      historyQuery.refetch(),
+      latestHistoryQuery.refetch(),
+    ]);
+  }
+
   const hasLoadError =
     walletQuery.isError || historyQuery.isError || latestHistoryQuery.isError;
   if (
@@ -303,196 +320,57 @@ export function BillingSettingsPanel({ locale }: { locale: Locale }) {
       </header>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        <section
-          aria-labelledby="billing-balance-heading"
-          className="rounded-xl border border-border/70 bg-muted/20 p-5"
-        >
-          <div className="flex items-center gap-2">
-            <WalletCardsIcon aria-hidden="true" className="size-4" />
-            <h3 id="billing-balance-heading" className="text-sm font-medium">
-              {resolveMessage(
-                locale,
-                "pages.workspace.settingsHub.billing.balanceTitle",
-              )}
-            </h3>
-          </div>
-          <p className="mt-4 text-2xl font-semibold tabular-nums">
-            {formatVnd(walletQuery.data.availableCredits, locale)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.availableBalance",
-            )}
-          </p>
-          <p className="mt-4 text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.reservedBalance",
-            )}
-            :{" "}
-            <span className="font-medium text-foreground">
-              {formatVnd(walletQuery.data.reservedCredits, locale)}
-            </span>
-          </p>
-        </section>
+        <WalletBalanceCard
+          locale={locale}
+          formattedAvailableBalance={formatVnd(
+            walletQuery.data.availableCredits,
+            locale,
+          )}
+          formattedReservedBalance={formatVnd(
+            walletQuery.data.reservedCredits,
+            locale,
+          )}
+        />
 
-        <section
-          aria-labelledby="billing-top-up-heading"
-          className="rounded-xl border border-border/70 bg-muted/20 p-5"
-        >
-          <h3 id="billing-top-up-heading" className="text-sm font-medium">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.topUpTitle",
-            )}
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.topUpDescription",
-            )}
-          </p>
-          <form
-            className="mt-4 space-y-3"
-            onSubmit={form.handleSubmit(handleSubmit)}
-            noValidate
-          >
-            <div className="space-y-2">
-              <label htmlFor="billing-amount-vnd" className="text-sm">
-                {resolveMessage(
-                  locale,
-                  "pages.workspace.settingsHub.billing.amountLabel",
-                )}
-              </label>
-              <Input
-                id="billing-amount-vnd"
-                inputMode="numeric"
-                disabled={
-                  createOrderMutation.isPending ||
-                  additionalOrderConfirmation !== null
-                }
-                aria-invalid={
-                  form.formState.errors.amountVnd ? "true" : undefined
-                }
-                placeholder={resolveMessage(
-                  locale,
-                  "pages.workspace.settingsHub.billing.amountPlaceholder",
-                )}
-                {...form.register("amountVnd")}
-              />
-              {form.formState.errors.amountVnd ? (
-                <p role="alert" className="text-xs text-destructive">
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.amountInvalid",
-                  )}
-                </p>
-              ) : null}
-              <p className="text-xs text-muted-foreground">
-                {resolveMessage(
-                  locale,
-                  "pages.workspace.settingsHub.billing.amountHint",
-                )}
-              </p>
-            </div>
-            <Button
-              type="submit"
-              disabled={
-                createOrderMutation.isPending ||
-                additionalOrderConfirmation !== null
-              }
-            >
-              {createOrderMutation.isPending
-                ? resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.creatingOrder",
-                  )
-                : resolveMessage(
-                    locale,
-                    pendingOrders.length > 0
-                      ? "pages.workspace.settingsHub.billing.createAnotherOrder"
-                      : "pages.workspace.settingsHub.billing.createOrder",
-                  )}
-            </Button>
-            {createOrderMutation.isError ? (
-              <p role="alert" className="text-xs text-destructive">
-                {resolveMessage(
-                  locale,
-                  "pages.workspace.settingsHub.billing.createOrderError",
-                )}
-              </p>
-            ) : null}
-            {additionalOrderConfirmation ? (
-              <Alert>
-                <AlertTitle>
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.confirmAdditionalOrderTitle",
-                  )}
-                </AlertTitle>
-                <AlertDescription>
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.confirmAdditionalOrderDescription",
-                  )}
-                </AlertDescription>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={!pendingHistoryOrder}
-                    onClick={() => {
-                      if (pendingHistoryOrder)
-                        openOrder(pendingHistoryOrder.id);
-                    }}
-                  >
-                    {resolveMessage(
-                      locale,
-                      "pages.workspace.settingsHub.billing.openExistingOrder",
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={createOrderMutation.isPending}
-                    onClick={() => void confirmAdditionalOrder()}
-                  >
-                    {createOrderMutation.isPending
-                      ? resolveMessage(
-                          locale,
-                          "pages.workspace.settingsHub.billing.creatingOrder",
-                        )
-                      : resolveMessage(
-                          locale,
-                          "pages.workspace.settingsHub.billing.confirmCreateAnotherOrder",
-                        )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setAdditionalOrderConfirmation(null)}
-                  >
-                    {resolveMessage(
-                      locale,
-                      "pages.workspace.settingsHub.billing.cancelAdditionalOrder",
-                    )}
-                  </Button>
-                </div>
-              </Alert>
-            ) : null}
-          </form>
-        </section>
+        <TopUpForm
+          locale={locale}
+          form={form}
+          isSubmitting={createOrderMutation.isPending}
+          isSubmitError={createOrderMutation.isError}
+          hasPendingOrders={pendingOrders.length > 0}
+          hasPendingHistoryOrder={Boolean(pendingHistoryOrder)}
+          showAdditionalConfirmation={additionalOrderConfirmation !== null}
+          onSubmit={handleSubmit}
+          onOpenExistingOrder={() => {
+            if (pendingHistoryOrder) openOrder(pendingHistoryOrder.id);
+          }}
+          onConfirmAdditionalOrder={() => void confirmAdditionalOrder()}
+          onCancelAdditionalOrder={() => setAdditionalOrderConfirmation(null)}
+        />
       </div>
 
       <EstimateSection locale={locale} query={estimateQuery} />
 
       <div ref={paymentSectionRef}>
         {displayedOrder ? (
-          <PaymentOrderSection
+          <PaymentOrderCard
             locale={locale}
             order={displayedOrder}
             copied={copiedPaymentCode}
+            isRefreshing={orderQuery.isFetching || walletQuery.isFetching}
+            formattedAmount={formatVnd(displayedOrder.amountVnd, locale)}
+            formattedCredits={formatCredits(displayedOrder.creditUnits, locale)}
+            formattedExpiresAt={
+              displayedOrder.expiresAt
+                ? formatDate(displayedOrder.expiresAt, locale)
+                : resolveMessage(
+                    locale,
+                    "pages.workspace.settingsHub.billing.unavailable",
+                  )
+            }
+            formattedCreatedAt={formatDate(displayedOrder.createdAt, locale)}
             onCopy={() => void copyPaymentCode(displayedOrder.paymentCode)}
+            onRefreshStatus={refreshOrderStatus}
           />
         ) : (
           <section className="mt-4 rounded-xl border border-dashed border-border/70 p-5">
@@ -512,13 +390,23 @@ export function BillingSettingsPanel({ locale }: { locale: Locale }) {
         )}
       </div>
 
-      <HistorySection
+      <TransactionHistory
         locale={locale}
         orders={historyQuery.data.orders}
         page={historyQuery.data.page}
         pageSize={historyQuery.data.pageSize}
         totalCount={historyQuery.data.totalCount}
         isFetching={historyQuery.isFetching}
+        previousLabel={resolveMessage(
+          locale,
+          "pages.workspace.settingsHub.billing.previousPage",
+        )}
+        nextLabel={resolveMessage(
+          locale,
+          "pages.workspace.settingsHub.billing.nextPage",
+        )}
+        formatAmount={(value) => formatVnd(value, locale)}
+        formatDate={(value) => formatDate(value, locale)}
         onPageChange={setHistoryPage}
         onOpenOrder={openOrder}
       />
@@ -617,377 +505,13 @@ function EstimateSection({
   );
 }
 
-function PaymentOrderSection({
-  locale,
-  order,
-  copied,
-  onCopy,
-}: {
-  locale: Locale;
-  order: BillingOrderView;
-  copied: boolean;
-  onCopy: () => void;
-}) {
-  const presentation = getBillingOrderPresentation(order.status);
-  return (
-    <section
-      aria-labelledby="billing-order-heading"
-      className="mt-4 rounded-xl border border-border/70 bg-muted/20 p-5"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 id="billing-order-heading" className="text-sm font-medium">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.paymentTitle",
-            )}
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.paymentDescription",
-            )}
-          </p>
-        </div>
-        <Badge variant={presentation.badgeVariant}>
-          {resolveMessage(locale, presentation.messageKey)}
-        </Badge>
-      </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <Metric
-            label={resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.orderAmount",
-            )}
-            value={formatVnd(order.amountVnd, locale)}
-          />
-          <Metric
-            label={resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.orderCredits",
-            )}
-            value={formatCredits(order.creditUnits, locale)}
-          />
-          <Metric
-            label={resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.expiresAt",
-            )}
-            value={
-              order.expiresAt
-                ? formatDate(order.expiresAt, locale)
-                : resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.unavailable",
-                  )
-            }
-          />
-          <Metric
-            label={resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.createdAt",
-            )}
-            value={formatDate(order.createdAt, locale)}
-          />
-        </div>
-        <div className="flex items-center justify-center rounded-lg border border-border/70 bg-background p-3">
-          {order.paymentInstructions.qrCodeUrl ? (
-            <Image
-              src={order.paymentInstructions.qrCodeUrl}
-              alt={resolveMessage(
-                locale,
-                "pages.workspace.settingsHub.billing.qrAlt",
-              )}
-              width={160}
-              height={160}
-              unoptimized
-              className="size-40 rounded-md bg-white p-2"
-            />
-          ) : (
-            <QrCodeIcon
-              aria-hidden="true"
-              className="size-16 text-muted-foreground"
-            />
-          )}
-        </div>
-      </div>
-      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-        <Instruction
-          label={resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.bankName",
-          )}
-          value={order.paymentInstructions.bankName}
-        />
-        <Instruction
-          label={resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.accountNumber",
-          )}
-          value={order.paymentInstructions.bankAccountNumber}
-        />
-        <Instruction
-          label={resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.accountHolder",
-          )}
-          value={order.paymentInstructions.accountHolder}
-        />
-        <Instruction
-          label={resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.transferContent",
-          )}
-          value={order.paymentInstructions.transferContent}
-        />
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-background p-3">
-        <span className="text-xs text-muted-foreground">
-          {resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.paymentCode",
-          )}
-        </span>
-        <code className="font-mono text-sm">{order.paymentCode}</code>
-        <Button type="button" size="sm" variant="ghost" onClick={onCopy}>
-          {copied ? (
-            <CheckIcon aria-hidden="true" data-icon="inline-start" />
-          ) : (
-            <CopyIcon aria-hidden="true" data-icon="inline-start" />
-          )}
-          {resolveMessage(
-            locale,
-            copied
-              ? "pages.workspace.settingsHub.billing.copied"
-              : "pages.workspace.settingsHub.billing.copyPaymentCode",
-          )}
-        </Button>
-      </div>
-      {presentation.showPendingPaymentHint ? (
-        <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock3Icon aria-hidden="true" className="size-3.5" />
-          {resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.pendingPaymentHint",
-          )}
-        </p>
-      ) : null}
-      {presentation.showPendingReconciliationAlert ? (
-        <Alert className="mt-4">
-          <AlertTitle>
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.pendingReconciliationTitle",
-            )}
-          </AlertTitle>
-          <AlertDescription>
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.pendingReconciliationDescription",
-            )}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-    </section>
-  );
-}
-
-function HistorySection({
-  locale,
-  orders,
-  page,
-  pageSize,
-  totalCount,
-  isFetching,
-  onPageChange,
-  onOpenOrder,
-}: {
-  locale: Locale;
-  orders: BillingOrderView[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  isFetching: boolean;
-  onPageChange: (page: number) => void;
-  onOpenOrder: (orderId: string) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  return (
-    <section aria-labelledby="billing-history-heading" className="mt-4">
-      <h3 id="billing-history-heading" className="text-sm font-medium">
-        {resolveMessage(
-          locale,
-          "pages.workspace.settingsHub.billing.historyTitle",
-        )}
-      </h3>
-      {orders.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-border/70 p-5 text-xs text-muted-foreground">
-          {resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.historyEmpty",
-          )}
-        </p>
-      ) : (
-        <div className="mt-3 overflow-x-auto rounded-xl border border-border/70">
-          <table className="w-full min-w-145 text-left text-xs">
-            <caption className="sr-only">
-              {resolveMessage(
-                locale,
-                "pages.workspace.settingsHub.billing.historyTitle",
-              )}
-            </caption>
-            <thead className="bg-muted/30 text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.createdAt",
-                  )}
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.orderAmount",
-                  )}
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.paymentCode",
-                  )}
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.statusLabel",
-                  )}
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  {resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.historyActions",
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} className="border-t border-border/70">
-                  <td className="px-4 py-3">
-                    {formatDate(order.createdAt, locale)}
-                  </td>
-                  <td className="px-4 py-3 tabular-nums">
-                    {formatVnd(order.amountVnd, locale)}
-                  </td>
-                  <td className="px-4 py-3 font-mono">{order.paymentCode}</td>
-                  <td className="px-4 py-3">
-                    <Badge
-                      variant={
-                        getBillingOrderPresentation(order.status).badgeVariant
-                      }
-                    >
-                      {resolveMessage(
-                        locale,
-                        getBillingOrderPresentation(order.status).messageKey,
-                      )}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    {order.status === BILLING_ORDER_STATUSES.PENDING_PAYMENT ? (
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        aria-label={`${resolveMessage(locale, "pages.workspace.settingsHub.billing.viewPayment")} ${order.paymentCode}`}
-                        onClick={() => onOpenOrder(order.id)}
-                      >
-                        {resolveMessage(
-                          locale,
-                          "pages.workspace.settingsHub.billing.viewPayment",
-                        )}
-                      </Button>
-                    ) : order.status ===
-                      BILLING_ORDER_STATUSES.PENDING_RECONCILIATION ? (
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        aria-label={`${resolveMessage(locale, "pages.workspace.settingsHub.billing.viewOrder")} ${order.paymentCode}`}
-                        onClick={() => onOpenOrder(order.id)}
-                      >
-                        {resolveMessage(
-                          locale,
-                          "pages.workspace.settingsHub.billing.viewOrder",
-                        )}
-                      </Button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {totalCount > 0 ? (
-        <nav
-          aria-label={resolveMessage(
-            locale,
-            "pages.workspace.settingsHub.billing.historyTitle",
-          )}
-          className="mt-3 flex flex-wrap items-center justify-end gap-3"
-        >
-          <span aria-live="polite" className="text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.historyPage",
-            )}{" "}
-            {page} / {totalPages}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page <= 1 || isFetching}
-            onClick={() => onPageChange(page - 1)}
-          >
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.previousPage",
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages || isFetching}
-            onClick={() => onPageChange(page + 1)}
-          >
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.nextPage",
-            )}
-          </Button>
-        </nav>
-      ) : null}
-    </section>
-  );
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <span className="block text-xs text-muted-foreground">{label}</span>
-      <span className="mt-1 block truncate font-medium">{value}</span>
-    </div>
-  );
-}
-
-function Instruction({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border/70 bg-background p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words font-medium">{value || "—"}</p>
+      <span className="mt-1 block truncate font-medium tabular-nums">
+        {value}
+      </span>
     </div>
   );
 }
