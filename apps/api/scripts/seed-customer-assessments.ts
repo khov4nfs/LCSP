@@ -27,7 +27,9 @@ async function main() {
 
   const now = Date.now();
   for (const customer of customers) {
-    const existing = await prisma.assessment.count({ where: { ownerId: customer.id } });
+    const existing = await prisma.assessment.count({
+      where: { ownerId: customer.id },
+    });
     if (existing === 0) {
       await prisma.assessment.createMany({
         data: [

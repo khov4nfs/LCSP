@@ -22,8 +22,14 @@ async function main() {
     { email: "user.dev1@example.com", status: USER_ACCESS_STATUSES.active },
     { email: "user.dev2@example.com", status: USER_ACCESS_STATUSES.active },
     { email: "user.dev3@example.com", status: USER_ACCESS_STATUSES.active },
-    { email: "user.suspended1@example.com", status: USER_ACCESS_STATUSES.suspended },
-    { email: "user.suspended2@example.com", status: USER_ACCESS_STATUSES.suspended },
+    {
+      email: "user.suspended1@example.com",
+      status: USER_ACCESS_STATUSES.suspended,
+    },
+    {
+      email: "user.suspended2@example.com",
+      status: USER_ACCESS_STATUSES.suspended,
+    },
   ];
 
   for (const u of usersToSeed) {
@@ -149,7 +155,10 @@ async function main() {
         correlationId: randomUUID(),
         eventType: ev.eventType,
         actorId: admin?.id,
-        payload: { target: ev.target, adminEmail: admin?.email ?? "anhkn7@gmail.com" },
+        payload: {
+          target: ev.target,
+          adminEmail: admin?.email ?? "anhkn7@gmail.com",
+        },
         createdAt: new Date(Date.now() - ev.occurredMinutesAgo * 60 * 1000),
       },
     });

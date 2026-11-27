@@ -28,10 +28,16 @@ async function main() {
 
   // Current counts
   const currentTotal = await prisma.user.count();
-  const currentActive = await prisma.user.count({ where: { accessStatus: "ACTIVE" } });
-  const currentSuspended = await prisma.user.count({ where: { accessStatus: "SUSPENDED" } });
+  const currentActive = await prisma.user.count({
+    where: { accessStatus: "ACTIVE" },
+  });
+  const currentSuspended = await prisma.user.count({
+    where: { accessStatus: "SUSPENDED" },
+  });
 
-  console.log(`Current state: Total=${currentTotal}, Active=${currentActive}, Suspended=${currentSuspended}`);
+  console.log(
+    `Current state: Total=${currentTotal}, Active=${currentActive}, Suspended=${currentSuspended}`,
+  );
 
   const targetActive = 842;
   const targetSuspended = 34;
@@ -46,7 +52,9 @@ async function main() {
   // Batch insert active users in chunks
   const batchSize = 100;
   if (activeToAdd > 0) {
-    console.log(`Adding ${activeToAdd} active users in batches of ${batchSize}...`);
+    console.log(
+      `Adding ${activeToAdd} active users in batches of ${batchSize}...`,
+    );
     for (let i = 0; i < activeToAdd; i += batchSize) {
       const count = Math.min(batchSize, activeToAdd - i);
       const data = Array.from({ length: count }).map((_, idx) => {
@@ -54,8 +62,14 @@ async function main() {
         // make ~36 users within last 30 days
         const isRecent = userIndex <= 36;
         const createdAt = isRecent
-          ? new Date(now - Math.floor(Math.random() * (thirtyDaysMs - 86400000)))
-          : new Date(now - thirtyDaysMs - Math.floor(Math.random() * 180 * 24 * 3600 * 1000));
+          ? new Date(
+              now - Math.floor(Math.random() * (thirtyDaysMs - 86400000)),
+            )
+          : new Date(
+              now -
+                thirtyDaysMs -
+                Math.floor(Math.random() * 180 * 24 * 3600 * 1000),
+            );
 
         return {
           id: randomUUID(),
@@ -81,7 +95,9 @@ async function main() {
     console.log(`Adding ${suspendedToAdd} suspended users...`);
     const data = Array.from({ length: suspendedToAdd }).map((_, idx) => {
       const userIndex = currentSuspended + idx + 1;
-      const createdAt = new Date(now - Math.floor(Math.random() * 90 * 24 * 3600 * 1000));
+      const createdAt = new Date(
+        now - Math.floor(Math.random() * 90 * 24 * 3600 * 1000),
+      );
       return {
         id: randomUUID(),
         email: `user.suspended${userIndex + 10}@lcsp.vn`,
@@ -101,10 +117,16 @@ async function main() {
   }
 
   const newTotal = await prisma.user.count();
-  const newActive = await prisma.user.count({ where: { accessStatus: "ACTIVE" } });
-  const newSuspended = await prisma.user.count({ where: { accessStatus: "SUSPENDED" } });
+  const newActive = await prisma.user.count({
+    where: { accessStatus: "ACTIVE" },
+  });
+  const newSuspended = await prisma.user.count({
+    where: { accessStatus: "SUSPENDED" },
+  });
 
-  console.log(`Seeding complete: Total=${newTotal}, Active=${newActive}, Suspended=${newSuspended}`);
+  console.log(
+    `Seeding complete: Total=${newTotal}, Active=${newActive}, Suspended=${newSuspended}`,
+  );
   await prisma.$disconnect();
 }
 

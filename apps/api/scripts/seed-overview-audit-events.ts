@@ -16,7 +16,7 @@ async function main() {
   console.log("Seeding rich audit events for admin overview...");
 
   const admin = await prisma.user.findFirst({
-    where: { role: "ADMIN" }
+    where: { role: "ADMIN" },
   });
 
   if (!admin) {
@@ -36,9 +36,9 @@ async function main() {
       payload: {
         targetUserId: "user-suspended-1",
         email: "flagged.member@lcsp.local",
-        reason: "Unusual API request rate exceeded threshold"
+        reason: "Unusual API request rate exceeded threshold",
       },
-      createdAt: new Date(Date.now() - 1000 * 60 * 15) // 15 mins ago
+      createdAt: new Date(Date.now() - 1000 * 60 * 15), // 15 mins ago
     },
     {
       id: randomUUID(),
@@ -47,9 +47,9 @@ async function main() {
       actorId: admin.id,
       payload: {
         legalSourceVersionRef: "v2.5.0-2026",
-        sourceCount: 142
+        sourceCount: 142,
       },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2 hours ago
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
     },
     {
       id: randomUUID(),
@@ -58,9 +58,9 @@ async function main() {
       actorId: admin.id,
       payload: {
         email: "sarah.compliance@enterprise.com",
-        role: "AUDITOR"
+        role: "AUDITOR",
       },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5) // 5 hours ago
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
     },
     {
       id: randomUUID(),
@@ -69,9 +69,9 @@ async function main() {
       actorId: admin.id,
       payload: {
         targetUserId: "user-restored-1",
-        email: "recovered.operator@lcsp.local"
+        email: "recovered.operator@lcsp.local",
       },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 day ago
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
     },
     {
       id: randomUUID(),
@@ -80,10 +80,10 @@ async function main() {
       actorId: admin.id,
       payload: {
         email: "legal.counsel@partner-firm.vn",
-        role: "ADMIN"
+        role: "ADMIN",
       },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) // 2 days ago
-    }
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
+    },
   ];
 
   for (const event of events) {
@@ -94,8 +94,7 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
