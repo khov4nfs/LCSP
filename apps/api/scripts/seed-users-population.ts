@@ -1,8 +1,8 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient, UserAccessStatus } from "@prisma/client";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import { AUTH_USER_ROLES, USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import { hashSecretSync } from "../src/modules/auth/infrastructure/security/security.utils.ts";
 
 /**
@@ -29,10 +29,10 @@ async function main() {
   // Current counts
   const currentTotal = await prisma.user.count();
   const currentActive = await prisma.user.count({
-    where: { accessStatus: "ACTIVE" },
+    where: { accessStatus: UserAccessStatus.ACTIVE },
   });
   const currentSuspended = await prisma.user.count({
-    where: { accessStatus: "SUSPENDED" },
+    where: { accessStatus: UserAccessStatus.SUSPENDED },
   });
 
   console.log(
@@ -78,8 +78,9 @@ async function main() {
           passwordHash: defaultPasswordHash,
           emailVerified: true,
           failedLoginCount: 0,
-          role: "CUSTOMER",
-          accessStatus: "ACTIVE",
+          role: AUTH_USER_ROLES.customer,
+          // Use Prisma enum so createMany matches UserCreateManyInput without widening to string.
+          accessStatus: UserAccessStatus.ACTIVE,
           accessVersion: 1,
           createdAt,
           updatedAt: createdAt,
@@ -105,8 +106,9 @@ async function main() {
         passwordHash: defaultPasswordHash,
         emailVerified: true,
         failedLoginCount: 0,
-        role: "CUSTOMER",
-        accessStatus: "SUSPENDED",
+        role: AUTH_USER_ROLES.customer,
+        // Use Prisma enum so createMany matches UserCreateManyInput without widening to string.
+        accessStatus: UserAccessStatus.SUSPENDED,
         accessVersion: 2,
         createdAt,
         updatedAt: createdAt,
@@ -118,10 +120,10 @@ async function main() {
 
   const newTotal = await prisma.user.count();
   const newActive = await prisma.user.count({
-    where: { accessStatus: "ACTIVE" },
+    where: { accessStatus: UserAccessStatus.ACTIVE },
   });
   const newSuspended = await prisma.user.count({
-    where: { accessStatus: "SUSPENDED" },
+    where: { accessStatus: UserAccessStatus.SUSPENDED },
   });
 
   console.log(
