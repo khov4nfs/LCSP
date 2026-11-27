@@ -12,7 +12,9 @@ import {
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
+  BillingReconciliationState as PrismaBillingReconciliationState,
   CreditLedgerSource as PrismaCreditLedgerSource,
+  CustomerTariffDraftStatus as PrismaCustomerTariffDraftStatus,
   LegalSourceDocumentIngestionState as PrismaLegalSourceDocumentIngestionState,
   LegalSourceDocumentOrigin as PrismaLegalSourceDocumentOrigin,
   LegalSourceLifecycleStatus as PrismaLegalSourceLifecycleStatus,
@@ -74,18 +76,22 @@ import {
   ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
   CREDIT_LEDGER_SOURCES,
+  CUSTOMER_TARIFF_DRAFT_STATUSES,
   MODEL_PRICING_SCOPES,
   MODEL_USAGE_DEBIT_MODES,
   OUTPUT_EVALUATION_STATES,
   PROVIDER_COMPLETION_STATES,
+  RECONCILIATION_CASE_STATES,
   TOKEN_BUCKET_POLICIES,
   type AdmissionFundingPrincipal,
   type AdmissionState,
   type CreditLedgerSource,
+  type CustomerTariffDraftStatus,
   type ModelPricingScope,
   type ModelUsageDebitMode,
   type OutputEvaluationState,
   type ProviderCompletionState,
+  type ReconciliationCaseState,
   type TokenBucketPolicy,
 } from "@lcsp/contracts/billing";
 
@@ -174,6 +180,8 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.httpRoute]: PrismaAuditResourceType.HTTP_ROUTE,
   [AUDIT_RESOURCE_TYPES.complianceRuleSetVersion]:
     PrismaAuditResourceType.COMPLIANCE_RULE_SET_VERSION,
+  [AUDIT_RESOURCE_TYPES.customerModelTariff]:
+    PrismaAuditResourceType.CUSTOMER_MODEL_TARIFF,
   [AUDIT_RESOURCE_TYPES.legalRequirement]:
     PrismaAuditResourceType.LEGAL_REQUIREMENT,
   [AUDIT_RESOURCE_TYPES.legalSourceVersion]:
@@ -193,6 +201,10 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
 const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
   [OUTBOX_AGGREGATE_TYPES.billingPayment]:
     PrismaOutboxAggregateType.BILLING_PAYMENT,
+  [OUTBOX_AGGREGATE_TYPES.billingWallet]:
+    PrismaOutboxAggregateType.BILLING_WALLET,
+  [OUTBOX_AGGREGATE_TYPES.customerModelTariff]:
+    PrismaOutboxAggregateType.CUSTOMER_MODEL_TARIFF,
   [OUTBOX_AGGREGATE_TYPES.assessment]: PrismaOutboxAggregateType.ASSESSMENT,
   [OUTBOX_AGGREGATE_TYPES.authUser]: PrismaOutboxAggregateType.AUTH_USER,
   [OUTBOX_AGGREGATE_TYPES.legalSourceVersion]:
@@ -209,6 +221,10 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
 const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
   [PrismaOutboxAggregateType.BILLING_PAYMENT]:
     OUTBOX_AGGREGATE_TYPES.billingPayment,
+  [PrismaOutboxAggregateType.BILLING_WALLET]:
+    OUTBOX_AGGREGATE_TYPES.billingWallet,
+  [PrismaOutboxAggregateType.CUSTOMER_MODEL_TARIFF]:
+    OUTBOX_AGGREGATE_TYPES.customerModelTariff,
   [PrismaOutboxAggregateType.ASSESSMENT]: OUTBOX_AGGREGATE_TYPES.assessment,
   [PrismaOutboxAggregateType.AUTH_USER]: OUTBOX_AGGREGATE_TYPES.authUser,
   [PrismaOutboxAggregateType.LEGAL_SOURCE_VERSION]:
@@ -1042,5 +1058,111 @@ export function fromPrismaCreditLedgerSource(
     PRISMA_CREDIT_LEDGER_SOURCE_TO_CONTRACT,
     source,
     "Unsupported Prisma credit ledger source",
+  );
+}
+
+// Why: Isolates Prisma's CustomerTariffDraftStatus enum at the persistence boundary so
+// domain services and controllers strictly consume `@lcsp/contracts/billing` constants.
+// How: Exhaustive bidirectional maps checked with `mapEnumValue` (using `Object.hasOwn`).
+// Invariants: Rejects unknown strings and prototype keys (`toString`, `constructor`, `__proto__`).
+const CUSTOMER_TARIFF_DRAFT_STATUS_TO_PRISMA = {
+  [CUSTOMER_TARIFF_DRAFT_STATUSES.draft]: PrismaCustomerTariffDraftStatus.DRAFT,
+  [CUSTOMER_TARIFF_DRAFT_STATUSES.published]:
+    PrismaCustomerTariffDraftStatus.PUBLISHED,
+  [CUSTOMER_TARIFF_DRAFT_STATUSES.abandoned]:
+    PrismaCustomerTariffDraftStatus.ABANDONED,
+} as const satisfies Record<
+  CustomerTariffDraftStatus,
+  PrismaCustomerTariffDraftStatus
+>;
+
+const PRISMA_CUSTOMER_TARIFF_DRAFT_STATUS_TO_CONTRACT = {
+  [PrismaCustomerTariffDraftStatus.DRAFT]: CUSTOMER_TARIFF_DRAFT_STATUSES.draft,
+  [PrismaCustomerTariffDraftStatus.PUBLISHED]:
+    CUSTOMER_TARIFF_DRAFT_STATUSES.published,
+  [PrismaCustomerTariffDraftStatus.ABANDONED]:
+    CUSTOMER_TARIFF_DRAFT_STATUSES.abandoned,
+} as const satisfies Record<
+  PrismaCustomerTariffDraftStatus,
+  CustomerTariffDraftStatus
+>;
+
+/** Maps customer tariff draft status from `@lcsp/contracts/billing` to Prisma. */
+export function toPrismaCustomerTariffDraftStatus(
+  status: CustomerTariffDraftStatus,
+): PrismaCustomerTariffDraftStatus {
+  return mapEnumValue(
+    CUSTOMER_TARIFF_DRAFT_STATUS_TO_PRISMA,
+    status,
+    "Unsupported customer tariff draft status",
+  );
+}
+
+/** Maps customer tariff draft status from Prisma to `@lcsp/contracts/billing`. */
+export function fromPrismaCustomerTariffDraftStatus(
+  status: PrismaCustomerTariffDraftStatus,
+): CustomerTariffDraftStatus {
+  return mapEnumValue(
+    PRISMA_CUSTOMER_TARIFF_DRAFT_STATUS_TO_CONTRACT,
+    status,
+    "Unsupported Prisma customer tariff draft status",
+  );
+}
+
+const RECONCILIATION_STATE_TO_PRISMA = {
+  [RECONCILIATION_CASE_STATES.OPEN]: PrismaBillingReconciliationState.OPEN,
+  [RECONCILIATION_CASE_STATES.EVIDENCE_PENDING]:
+    PrismaBillingReconciliationState.EVIDENCE_PENDING,
+  [RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW]:
+    PrismaBillingReconciliationState.INTEGRITY_REVIEW,
+  [RECONCILIATION_CASE_STATES.SETTLED_WITH_USAGE]:
+    PrismaBillingReconciliationState.SETTLED_WITH_USAGE,
+  [RECONCILIATION_CASE_STATES.CONFIRMED_NO_USAGE]:
+    PrismaBillingReconciliationState.CONFIRMED_NO_USAGE,
+  [RECONCILIATION_CASE_STATES.ESCALATED]:
+    PrismaBillingReconciliationState.ESCALATED,
+  [RECONCILIATION_CASE_STATES.CLOSED]: PrismaBillingReconciliationState.CLOSED,
+} as const satisfies Record<
+  ReconciliationCaseState,
+  PrismaBillingReconciliationState
+>;
+
+const PRISMA_RECONCILIATION_STATE_TO_CONTRACT = {
+  [PrismaBillingReconciliationState.OPEN]: RECONCILIATION_CASE_STATES.OPEN,
+  [PrismaBillingReconciliationState.EVIDENCE_PENDING]:
+    RECONCILIATION_CASE_STATES.EVIDENCE_PENDING,
+  [PrismaBillingReconciliationState.INTEGRITY_REVIEW]:
+    RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+  [PrismaBillingReconciliationState.SETTLED_WITH_USAGE]:
+    RECONCILIATION_CASE_STATES.SETTLED_WITH_USAGE,
+  [PrismaBillingReconciliationState.CONFIRMED_NO_USAGE]:
+    RECONCILIATION_CASE_STATES.CONFIRMED_NO_USAGE,
+  [PrismaBillingReconciliationState.ESCALATED]:
+    RECONCILIATION_CASE_STATES.ESCALATED,
+  [PrismaBillingReconciliationState.CLOSED]: RECONCILIATION_CASE_STATES.CLOSED,
+} as const satisfies Record<
+  PrismaBillingReconciliationState,
+  ReconciliationCaseState
+>;
+
+/** Maps billing reconciliation state from `@lcsp/contracts/billing` to Prisma. */
+export function toPrismaBillingReconciliationState(
+  state: ReconciliationCaseState,
+): PrismaBillingReconciliationState {
+  return mapEnumValue(
+    RECONCILIATION_STATE_TO_PRISMA,
+    state,
+    "Unsupported billing reconciliation state",
+  );
+}
+
+/** Maps billing reconciliation state from Prisma to `@lcsp/contracts/billing`. */
+export function fromPrismaBillingReconciliationState(
+  state: PrismaBillingReconciliationState,
+): ReconciliationCaseState {
+  return mapEnumValue(
+    PRISMA_RECONCILIATION_STATE_TO_CONTRACT,
+    state,
+    "Unsupported Prisma billing reconciliation state",
   );
 }

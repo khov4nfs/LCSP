@@ -41,6 +41,8 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
         wallet: {
           findForUser: (id) =>
             tx.billingWallet.findUnique({ where: { userId: id } }),
+          findById: (walletId) =>
+            tx.billingWallet.findUnique({ where: { id: walletId } }),
           getOrCreateForUser: async (id) => {
             const found = await tx.billingWallet.findUnique({
               where: { userId: id },
@@ -126,6 +128,25 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
               orderBy: { createdAt: "asc" },
             });
             return rows.map((row) => this.mapLedgerRow(row));
+          },
+          listUnmigrated: async (batchSize = 100) => {
+            const rows = await tx.creditLedgerEntry.findMany({
+              where: { deltaMicrocredits: null },
+              take: batchSize,
+              orderBy: { createdAt: "asc" },
+            });
+            return rows.map((row) => this.mapLedgerRow(row));
+          },
+          backfillDeltaMicrocredits: async (
+            id,
+            deltaMicrocredits,
+            accountingUnitVersion = 1,
+          ) => {
+            const updated = await tx.creditLedgerEntry.updateMany({
+              where: { id, deltaMicrocredits: null },
+              data: { deltaMicrocredits, accountingUnitVersion },
+            });
+            return updated.count === 1;
           },
         },
         reservation: {
@@ -411,7 +432,13 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
     ledgerSource: PrismaCreditLedgerSource | null;
     referenceId: string | null;
     billingOrderId: string | null;
+    admissionId?: string | null;
+    originalLedgerEntryId?: string | null;
   }): LedgerRecord {
+    // Why: Preserve ledgerSource, admissionId, and originalLedgerEntryId across the Prisma boundary
+    // so downstream reconciliation and rollback parity guards can detect microcredit-only entries.
+    // How: Translate PrismaCreditLedgerSource via fromPrismaCreditLedgerSource and normalize optional link IDs to null.
+    // Invariants: Never leaks Prisma enum types outside the persistence adapter.
     return {
       id: row.id,
       walletId: row.walletId,
@@ -426,6 +453,8 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
         : null,
       referenceId: row.referenceId,
       billingOrderId: row.billingOrderId,
+      admissionId: row.admissionId ?? null,
+      originalLedgerEntryId: row.originalLedgerEntryId ?? null,
     };
   }
 

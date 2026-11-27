@@ -63,6 +63,21 @@ export type PricingAssignmentStatus =
   (typeof PRICING_ASSIGNMENT_STATUSES)[keyof typeof PRICING_ASSIGNMENT_STATUSES];
 
 /**
+ * Lifecycle states of a mutable `CustomerModelTariffDraft` before/after atomic publication.
+ * Why: Aligns contract draft status constants 1:1 with Prisma `CustomerTariffDraftStatus`.
+ * How: Defined as an `as const` object with `SCREAMING_SNAKE_CASE` values and derived union type.
+ * Invariants: Only `DRAFT` records may be edited or published; `PUBLISHED` and `ABANDONED` are terminal.
+ */
+export const CUSTOMER_TARIFF_DRAFT_STATUSES = {
+  draft: "DRAFT",
+  published: "PUBLISHED",
+  abandoned: "ABANDONED",
+} as const;
+
+export type CustomerTariffDraftStatus =
+  (typeof CUSTOMER_TARIFF_DRAFT_STATUSES)[keyof typeof CUSTOMER_TARIFF_DRAFT_STATUSES];
+
+/**
  * Explicit token-bucket billing policies preventing silent zero-rating of secondary token buckets
  * (such as reasoning tokens or cache buckets).
  */
@@ -638,4 +653,92 @@ export function resolveEffectivePricingScope(
   throw new Error(
     `No effective pricing scope available for allowlisted model "${resolvedModel}"`,
   );
+}
+
+/**
+ * Business purpose: Compute the canonical normalized scope key used by tariff drafts, immutable snapshots, assignments, and PostgreSQL overlap constraints.
+ *
+ * Business rules:
+ * - Only scopes in MODEL_PRICING_SCOPES (`GLOBAL_DEFAULT`, `PROVIDER_DEFAULT`, `EXACT_MODEL`) are accepted.
+ * - `GLOBAL_DEFAULT` requires both `provider` and `resolvedModel` to be null/undefined/blank and returns `"GLOBAL_DEFAULT"`.
+ * - `PROVIDER_DEFAULT` requires a non-empty trimmed `provider` without `":"` and empty `resolvedModel`, lowercasing `provider`.
+ * - `EXACT_MODEL` requires non-empty trimmed `provider` (without `":"`) and non-empty trimmed `resolvedModel`, lowercasing `provider` while preserving `resolvedModel` case.
+ *
+ * Execution flow:
+ * 1. Verify `scope` belongs to `MODEL_PRICING_SCOPES` and that supplied `provider` / `resolvedModel` are strings or nullish.
+ * 2. Trim `provider` and `resolvedModel`, treating whitespace-only strings as empty.
+ * 3. Enforce per-scope cardinality and delimiter invariants, then return the canonical normalized key.
+ *
+ * Failure cases:
+ * - Throws Error if `scope` is unknown, if `provider` or `resolvedModel` is a non-string non-nullish value, if `provider` contains `":"`, or if `provider`/`resolvedModel` presence violates the scope rule.
+ *
+ * Side effects:
+ * - None: pure deterministic normalization matching PostgreSQL `scope_identity_check` and `btree_gist` `EXCLUDE` partitioning.
+ */
+export function normalizeModelPricingScopeKey(
+  scope: ModelPricingScope,
+  provider?: string | null,
+  resolvedModel?: string | null,
+): string {
+  // Why: Both PostgreSQL `CustomerModelTariff*_scope_identity_check` and `CustomerModelTariffAssignment_no_overlap`
+  // partition tariff authority by `normalizedScopeKey`; any divergence between API, Web, and DB would allow
+  // duplicate or conflicting tariffs for the same model/provider.
+  // How: Validate scope membership, reject non-string inputs, trim whitespace, lowercase provider, preserve
+  // resolvedModel casing, and forbid `:` inside provider so delimiter splitting is unambiguous.
+  // Invariants: Output strictly matches `<SCOPE>` or `<SCOPE>:<lowercase_provider>[:<case_preserved_model>]`.
+  const validScopes = new Set<string>(Object.values(MODEL_PRICING_SCOPES));
+  if (typeof scope !== "string" || !validScopes.has(scope)) {
+    throw new Error(`Unknown pricing scope: ${String(scope)}`);
+  }
+
+  if (
+    provider !== undefined &&
+    provider !== null &&
+    typeof provider !== "string"
+  ) {
+    throw new Error("provider must be a string, null, or undefined");
+  }
+  if (
+    resolvedModel !== undefined &&
+    resolvedModel !== null &&
+    typeof resolvedModel !== "string"
+  ) {
+    throw new Error("resolvedModel must be a string, null, or undefined");
+  }
+
+  const trimmedProvider = provider?.trim() ?? "";
+  const trimmedModel = resolvedModel?.trim() ?? "";
+
+  if (scope === MODEL_PRICING_SCOPES.globalDefault) {
+    if (trimmedProvider.length > 0 || trimmedModel.length > 0) {
+      throw new Error(
+        "GLOBAL_DEFAULT scope must not specify provider or resolvedModel",
+      );
+    }
+    return MODEL_PRICING_SCOPES.globalDefault;
+  }
+
+  if (trimmedProvider.length === 0) {
+    throw new Error(`${scope} scope requires a non-empty provider`);
+  }
+  if (trimmedProvider.includes(":")) {
+    throw new Error("provider must not contain ':' delimiter");
+  }
+
+  const normalizedProvider = trimmedProvider.toLowerCase();
+
+  if (scope === MODEL_PRICING_SCOPES.providerDefault) {
+    if (trimmedModel.length > 0) {
+      throw new Error(
+        "PROVIDER_DEFAULT scope must not specify resolvedModel",
+      );
+    }
+    return `${MODEL_PRICING_SCOPES.providerDefault}:${normalizedProvider}`;
+  }
+
+  if (trimmedModel.length === 0) {
+    throw new Error("EXACT_MODEL scope requires a non-empty resolvedModel");
+  }
+
+  return `${MODEL_PRICING_SCOPES.exactModel}:${normalizedProvider}:${trimmedModel}`;
 }

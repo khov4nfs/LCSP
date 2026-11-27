@@ -81,11 +81,18 @@ export interface OrchestrationConfig {
   debug: boolean;
 }
 
+export interface BillingReconciliationSweeperConfig {
+  enabled: boolean;
+  intervalMs: number;
+}
+
 export interface BillingConfig {
   sePayBankName: string;
   sePayBankAccountNumber: string;
   sePayAccountHolder: string;
   sePayQrUrlTemplate: string;
+  admissionMasterKey: string;
+  reconciliationSweeper: BillingReconciliationSweeperConfig;
 }
 
 /**

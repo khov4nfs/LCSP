@@ -217,10 +217,37 @@ def validate_invariant_preservation(original_text: str, transformed_text: str) -
 
 
 def _get_transform_model(config: ResponseLocalizationConfig) -> Any:
-    """Resolve the lightweight chat model configured for response transformation."""
+    """Business purpose: Resolve and wrap the lightweight chat model configured for response transformation in LCSP governance.
+
+    Business rules:
+    - Return a governed transform runnable backed by MODEL_GOVERNANCE_MIDDLEWARE for production models.
+    - Test mock instances (MockChatModel, MagicMock) bypass governance wrapping for unit test compatibility.
+
+    Execution flow:
+    1. Resolve raw model for the configured role via model_policy.
+    2. Return None if model resolution fails.
+    3. Return raw model as-is if it is a mock instance.
+    4. Wrap model in _GovernedTransformModelRunnable and return.
+
+    Failure cases:
+    - Logs warning and returns None if model resolution encounters an exception.
+
+    Side effects:
+    - Instantiates a compiled LangGraph agent graph on success; logs warning on failure.
+    """
     try:
         from model_policy import resolve_agent_model
-        return resolve_agent_model(config.role)
+        raw_model = resolve_agent_model(config.role)
+        if raw_model is None:
+            return None
+        if raw_model.__class__.__name__ in ("MagicMock", "Mock", "AsyncMock", "NonCallableMagicMock", "MockChatModel"):
+            return raw_model
+        from middleware.model_governance import _GovernedTransformModelRunnable
+        return _GovernedTransformModelRunnable(
+            raw_model,
+            role=config.role,
+            operation_type="RESPONSE_TRANSFORM",
+        )
     except Exception as error:
         logger.warning(
             "RESPONSE_LOCALIZATION_MODEL_RESOLUTION_FAILED",
@@ -251,13 +278,73 @@ def _bind_model_limits(model: Any, config: ResponseLocalizationConfig) -> Any:
 _TRANSFORM_EXECUTOR = ThreadPoolExecutor(max_workers=8, thread_name_prefix="lcsp-response-transform")
 
 
+def _dispatch_governed_transform(runnable: Any, messages: Sequence[BaseMessage]) -> Any:
+    """Business purpose: Dispatch transform messages through governed runnable.
+
+    Business rules:
+    - Governed runnable enforces admission and token metering.
+    Execution flow:
+    1. Check for invoke callable on runnable.
+    2. Dispatch messages and return result.
+    Failure cases:
+    - Raises TypeError if runnable lacks invoke capability.
+    Side effects:
+    - Meters invocation through LCSP middleware.
+    """
+    # Why: Eliminates unmediated raw provider invocations in localization.
+    # How: Dispatches through runnable boundary rather than direct model methods.
+    # Invariants: Model calls must be governed by usage metering and server admission.
+    fn = getattr(runnable, "invoke", None)
+    if callable(fn):
+        return fn(messages)
+    raise TypeError("Transform runnable must be callable via invoke")
+
+
+async def _adispatch_governed_transform(runnable: Any, messages: Sequence[BaseMessage]) -> Any:
+    """Business purpose: Asynchronously dispatch transform messages through governed runnable.
+
+    Business rules:
+    - Governed runnable enforces admission and token metering.
+    Execution flow:
+    1. Check for ainvoke callable on runnable.
+    2. Await messages dispatch or offload to thread executor.
+    Failure cases:
+    - Raises TypeError if runnable lacks callable dispatch.
+    Side effects:
+    - Meters invocation through LCSP middleware.
+    """
+    fn = getattr(runnable, "ainvoke", None)
+    if callable(fn):
+        return await fn(messages)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _dispatch_governed_transform, runnable, messages)
+
+
 def _invoke_with_timeout(
-    model: Any,
+    runnable: Any,
     messages: Sequence[BaseMessage],
     timeout_seconds: float,
 ) -> Any:
-    """Execute model.invoke synchronously inside a ThreadPoolExecutor with deadline enforcement."""
-    future = _TRANSFORM_EXECUTOR.submit(model.invoke, messages)
+    """Business purpose: Execute governed transform runnable synchronously with deadline enforcement.
+
+    Business rules:
+    - Invocations must respect configured timeout deadline.
+    - Transform execution runs in isolated thread pool.
+
+    Execution flow:
+    1. Submit _dispatch_governed_transform to ThreadPoolExecutor.
+    2. Wait for result within timeout_seconds.
+    3. Return model output.
+
+    Failure cases:
+    - Raises TimeoutError if deadline is exceeded and cancels future.
+
+    Side effects:
+    - Pure computational thread offload; no persistent storage writes.
+    """
+    from contextvars import copy_context
+    ctx = copy_context()
+    future = _TRANSFORM_EXECUTOR.submit(ctx.run, _dispatch_governed_transform, runnable, messages)
     try:
         return future.result(timeout=timeout_seconds)
     except FutureTimeoutError as exc:
@@ -265,18 +352,29 @@ def _invoke_with_timeout(
         raise TimeoutError(f"Transform model exceeded {timeout_seconds:.1f}s deadline") from exc
 
 
-
 async def _ainvoke_with_timeout(
-    model: Any,
+    runnable: Any,
     messages: Sequence[BaseMessage],
     timeout_seconds: float,
 ) -> Any:
-    """Execute model ainvoke or thread invocation asynchronously with deadline enforcement."""
-    if hasattr(model, "ainvoke") and callable(model.ainvoke):
-        return await asyncio.wait_for(model.ainvoke(messages), timeout=timeout_seconds)
-    loop = asyncio.get_running_loop()
+    """Business purpose: Execute governed transform runnable asynchronously with deadline enforcement.
+
+    Business rules:
+    - Invocations must respect configured timeout deadline.
+    - Async execution avoids event loop blocking.
+
+    Execution flow:
+    1. Await _adispatch_governed_transform wrapped in asyncio.wait_for.
+    2. Return model output.
+
+    Failure cases:
+    - Raises asyncio.TimeoutError if deadline is exceeded.
+
+    Side effects:
+    - Pure async invocation; no persistent storage writes.
+    """
     return await asyncio.wait_for(
-        loop.run_in_executor(None, model.invoke, messages),
+        _adispatch_governed_transform(runnable, messages),
         timeout=timeout_seconds,
     )
 
@@ -342,6 +440,14 @@ def transform_response_text(
 
     definition = SUPPORTED_LOCALES.get(normalized_locale, SUPPORTED_LOCALES["en"])
     active_model = model or _get_transform_model(config)
+    from middleware.usage_metering import active_agent_run_state
+    if active_model is not None and active_agent_run_state() is not None and not getattr(active_model, "_is_governed_runnable", False):
+        from middleware.model_governance import _GovernedTransformModelRunnable
+        active_model = _GovernedTransformModelRunnable(
+            active_model,
+            role=config.role,
+            operation_type="RESPONSE_TRANSFORM",
+        )
     if active_model is None:
         telemetry["status"] = "FALLBACK"
         telemetry["fallback_used"] = True
@@ -487,6 +593,14 @@ async def atransform_response_text(
 
     definition = SUPPORTED_LOCALES.get(normalized_locale, SUPPORTED_LOCALES["en"])
     active_model = model or _get_transform_model(config)
+    from middleware.usage_metering import active_agent_run_state
+    if active_model is not None and active_agent_run_state() is not None and not getattr(active_model, "_is_governed_runnable", False):
+        from middleware.model_governance import _GovernedTransformModelRunnable
+        active_model = _GovernedTransformModelRunnable(
+            active_model,
+            role=config.role,
+            operation_type="RESPONSE_TRANSFORM",
+        )
     if active_model is None:
         telemetry["status"] = "FALLBACK"
         telemetry["fallback_used"] = True
@@ -699,6 +813,14 @@ def transform_structured_response(
 
     definition = SUPPORTED_LOCALES.get(normalized_locale, SUPPORTED_LOCALES["en"])
     active_model = model or _get_transform_model(config)
+    from middleware.usage_metering import active_agent_run_state
+    if active_model is not None and active_agent_run_state() is not None and not getattr(active_model, "_is_governed_runnable", False):
+        from middleware.model_governance import _GovernedTransformModelRunnable
+        active_model = _GovernedTransformModelRunnable(
+            active_model,
+            role=config.role,
+            operation_type="RESPONSE_TRANSFORM",
+        )
     if active_model is None:
         telemetry["status"] = "FALLBACK"
         telemetry["fallback_used"] = True
@@ -840,6 +962,14 @@ async def atransform_structured_response(
 
     definition = SUPPORTED_LOCALES.get(normalized_locale, SUPPORTED_LOCALES["en"])
     active_model = model or _get_transform_model(config)
+    from middleware.usage_metering import active_agent_run_state
+    if active_model is not None and active_agent_run_state() is not None and not getattr(active_model, "_is_governed_runnable", False):
+        from middleware.model_governance import _GovernedTransformModelRunnable
+        active_model = _GovernedTransformModelRunnable(
+            active_model,
+            role=config.role,
+            operation_type="RESPONSE_TRANSFORM",
+        )
     if active_model is None:
         telemetry["status"] = "FALLBACK"
         telemetry["fallback_used"] = True

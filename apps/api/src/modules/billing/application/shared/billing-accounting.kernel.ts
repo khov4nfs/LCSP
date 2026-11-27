@@ -70,17 +70,20 @@ export class BillingAccountingKernel {
   }
   /**
    * Business purpose: Credit a prepaid billing order inside the caller's transaction while
-   *   dual-writing WP8 shadow microcredit ledger and wallet fields (`1 credit = 1,000,000 microcredits`).
+   *   dual-writing WP8 shadow microcredit ledger and wallet fields (`1 credit = 1,000,000 microcredits`)
+   *   and preserving the wallet's current `accountingUnitVersion`.
    *
    * Business rules:
    * - Canonical source and `ledgerSource` are fixed to `CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT`.
-   * - `deltaMicrocredits` equals `creditUnits * MICROCREDITS_PER_CREDIT` with `accountingUnitVersion = 1`.
+   * - `deltaMicrocredits` equals `creditUnits * MICROCREDITS_PER_CREDIT`.
+   * - Preserves the target wallet's `accountingUnitVersion` (`2` stays `2` post-cutover; `1` stays `1` pre-cutover).
    * - Reuses the deterministic `billing-order:<orderId>:credit` idempotency key so duplicate
    *   settlement attempts replay safely or fail closed on amount conflict.
    *
    * Execution flow:
    * 1. Compute exact integer `deltaMicrocredits` from `input.creditUnits * MICROCREDITS_PER_CREDIT`.
-   * 2. Delegate to `append` using the caller-provided transaction repositories (`repos`).
+   * 2. Delegate to `append` using the caller-provided transaction repositories (`repos`) without
+   *    forcing an `accountingUnitVersion` override so `append` preserves the wallet's version.
    *
    * Failure cases:
    * - Propagates OwnershipMismatchError, BillingIdempotencyConflictError, or BillingConcurrencyError
@@ -88,7 +91,7 @@ export class BillingAccountingKernel {
    *
    * Side effects:
    * - Persists one `CreditLedgerEntry` with shadow microcredits and updates `BillingWallet`
-   *   `availableCredits` and `balanceMicrocredits` inside `repos`.
+   *   `availableCredits` and `balanceMicrocredits` inside `repos` while preserving `accountingUnitVersion`.
    */
   creditOrderInTransaction(
     repos: BillingTransactionRepositories,
@@ -99,17 +102,16 @@ export class BillingAccountingKernel {
       creditUnits: bigint;
     },
   ) {
-    // Why: WP8 Phase A/A2 dual-writes microcredits alongside legacy integer credits on every
-    // paid order top-up so wallet balances are populated ahead of direct-credit cutover.
-    // How: Convert creditUnits to microcredits using exact BigInt multiplication and stamp
-    // canonical CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT + accountingUnitVersion = 1.
-    // Invariants: 1 public credit === 1_000_000n microcredits; legacy credit columns stay in sync.
+    // Why: Top-ups can occur both before cutover (accountingUnitVersion = 1) and after cutover
+    // (accountingUnitVersion = 2); hardcoding 1 silently downgrades cutover wallets back to v1.
+    // How: Omit accountingUnitVersion here so append() resolves it from the locked wallet row,
+    // while still dual-writing deltaMicrocredits and CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT.
+    // Invariants: 1 public credit === 1_000_000n microcredits; wallet accountingUnitVersion is never downgraded on top-up.
     return this.append(repos, {
       userId: input.userId,
       walletId: input.walletId,
       deltaCredits: input.creditUnits,
       deltaMicrocredits: input.creditUnits * MICROCREDITS_PER_CREDIT,
-      accountingUnitVersion: 1,
       idempotencyKey: `billing-order:${input.orderId}:credit`,
       source: CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,
       ledgerSource: CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,
@@ -172,18 +174,22 @@ export class BillingAccountingKernel {
   }
   /**
    * Business purpose: Validate wallet ownership and idempotency, append a ledger entry, and
-   *   atomically update the wallet projection (including shadow microcredit balance when present).
+   *   atomically update the wallet projection (including shadow microcredit balance and
+   *   accounting unit version when present).
    *
    * Business rules:
    * - Reject operations targeting a wallet not owned by `i.userId`.
    * - Idempotent replays must match `userId`, `walletId`, `deltaCredits`, `source`,
    *   `referenceId`, `billingOrderId`, and supplied `deltaMicrocredits`/`ledgerSource`.
    * - Legacy `availableBalance + deltaCredits` must not drop below `0n`.
+   * - When `i.accountingUnitVersion` is omitted on a microcredit-aware append, preserve the
+   *   target wallet's `accountingUnitVersion` (defaulting to `1` if unset).
    *
    * Execution flow:
    * 1. Verify wallet ownership and check for an existing entry by `idempotencyKey`.
-   * 2. Enforce available balance sufficiency, append the ledger entry, and recompute projections.
-   * 3. Update wallet projection (and `balanceMicrocredits` when `deltaMicrocredits` is set) via CAS.
+   * 2. Resolve effective `accountingUnitVersion` from `i.accountingUnitVersion ?? w.accountingUnitVersion ?? 1`.
+   * 3. Enforce available balance sufficiency, append the ledger entry, and recompute projections.
+   * 4. Update wallet projection (and `balanceMicrocredits`/`accountingUnitVersion` when `deltaMicrocredits` is set) via CAS.
    *
    * Failure cases:
    * - Throws OwnershipMismatchError, BillingIdempotencyConflictError, InsufficientCreditError, or
@@ -235,7 +241,21 @@ export class BillingAccountingKernel {
     const before = await this.projection(r.ledger, r.reservation, i.walletId);
     if (before.availableBalance + i.deltaCredits < 0n)
       throw new InsufficientCreditError("Insufficient available credits");
-    const e = await r.ledger.append(i);
+    // Why: Microcredit-aware writes (such as order top-ups) must preserve a cutover wallet's
+    // accountingUnitVersion=2 rather than falling back to 1 and silently downgrading the wallet.
+    // How: Prefer explicit caller version, then the locked wallet's current version, then 1;
+    // stamp it on both the ledger entry (when microcredit/version fields are used) and wallet CAS.
+    // Invariants: Legacy callers without deltaMicrocredits/accountingUnitVersion remain untouched.
+    const resolvedAccountingUnitVersion =
+      i.accountingUnitVersion ?? w.accountingUnitVersion ?? 1;
+    const shouldStampAccountingUnitVersion =
+      i.deltaMicrocredits !== undefined ||
+      i.accountingUnitVersion !== undefined;
+    const e = await r.ledger.append(
+      shouldStampAccountingUnitVersion
+        ? { ...i, accountingUnitVersion: resolvedAccountingUnitVersion }
+        : i,
+    );
     const after = await this.projection(r.ledger, r.reservation, i.walletId);
     const balanceMicrocredits =
       i.deltaMicrocredits !== undefined
@@ -252,7 +272,7 @@ export class BillingAccountingKernel {
         ...(balanceMicrocredits !== undefined
           ? {
               balanceMicrocredits,
-              accountingUnitVersion: i.accountingUnitVersion ?? 1,
+              accountingUnitVersion: resolvedAccountingUnitVersion,
             }
           : {}),
       }))
@@ -281,7 +301,13 @@ export class BillingAccountingKernel {
   private calculateMicrocreditBalance(entries: LedgerRecord[]): bigint {
     let total = 0n;
     for (const entry of entries) {
-      total += entry.deltaMicrocredits ?? 0n;
+      // Why: For historical pre-microcredit rows where deltaMicrocredits is null, derive from deltaCredits * 1,000,000
+      // so microcredit balance remains in exact parity before and after backfill.
+      // How: Fall back to entry.deltaCredits * MICROCREDITS_PER_CREDIT when deltaMicrocredits is null/undefined.
+      // Invariants: 1 credit = 1_000_000 microcredits.
+      const microcredits =
+        entry.deltaMicrocredits ?? entry.deltaCredits * MICROCREDITS_PER_CREDIT;
+      total += microcredits;
     }
     return total;
   }
@@ -299,20 +325,47 @@ export class BillingAccountingKernel {
       re.map((x) => x.remainingCredits),
     );
   }
+  /**
+   * Business purpose:
+   * Synchronizes wallet balance projection (credits, reservations, and microcredits)
+   * with the immutable ledger and reservation states using optimistic concurrency control.
+   *
+   * Business rules:
+   * - Must preserve both legacy availableCredits and balanceMicrocredits projections in exact parity.
+   * - Must fail atomically if another concurrent transaction has modified the wallet projection version.
+   * - accountingUnitVersion must be maintained across projection updates without unintended downgrades.
+   *
+   * Execution flow:
+   * 1. Calculate projected available and reserved credit balances from ledger and reservation records.
+   * 2. Calculate projected total microcredits from the complete ledger history.
+   * 3. Execute compare-and-set on the wallet projection with expectedVersion.
+   * 4. If CAS returns false (version mismatch), throw BillingConcurrencyError to trigger retry or abort.
+   *
+   * Failure cases:
+   * - Throws BillingConcurrencyError when expectedVersion does not match current wallet version.
+   *
+   * Side effects:
+   * - Atomically updates the BillingWallet row's projection balances and increments version by 1.
+   */
   private async reconcile(
     w: BillingTransactionRepositories["wallet"],
     l: BillingTransactionRepositories["ledger"],
     r: BillingTransactionRepositories["reservation"],
-    account: { id: string; version: number },
+    account: { id: string; version: number; accountingUnitVersion?: number },
     expectedVersion = account.version + 1,
   ) {
     const p = await this.projection(l, r, account.id);
+    const balanceMicrocredits = this.calculateMicrocreditBalance(
+      await l.listForWallet(account.id),
+    );
     if (
       !(await w.compareAndSetProjection({
         walletId: account.id,
         expectedVersion,
         availableCredits: p.availableBalance,
         reservedCredits: p.reservedBalance,
+        balanceMicrocredits,
+        accountingUnitVersion: account.accountingUnitVersion ?? 1,
       }))
     )
       throw new BillingConcurrencyError("Wallet projection changed");

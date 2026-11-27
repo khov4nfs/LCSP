@@ -244,6 +244,7 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       then: Joi.string().trim().min(1).required(),
       otherwise: Joi.string().trim().allow("").default(""),
     }),
+    BILLING_ADMISSION_MASTER_KEY: Joi.string().trim().allow("").default(""),
     BILLING_SEPAY_BANK_ACCOUNT_NUMBER: Joi.alternatives().conditional(
       "NODE_ENV",
       {
@@ -272,6 +273,15 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       then: paymentQrTemplateSchema().min(1).required(),
       otherwise: paymentQrTemplateSchema().allow("").default(""),
     }),
+    BILLING_ADMISSION_MASTER_KEY: Joi.string().trim().allow("").default(""),
+    // Why: Dedicated background sweeper recovers abandoned in-flight model leases.
+    // How: Validate enabled boolean (default true) and positive integer interval (minimum 1000ms, default 60000ms).
+    // Invariants: Sweeper timing is fully configurable and validated during boot.
+    BILLING_RECONCILIATION_SWEEPER_ENABLED: Joi.boolean().default(true),
+    BILLING_RECONCILIATION_SWEEPER_INTERVAL_MS: Joi.number()
+      .integer()
+      .min(1000)
+      .default(60_000),
     LCSP_ARTIFACT_STORAGE_PATH: Joi.string().trim().allow("").default(""),
     LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR: Joi.string().trim().allow("").default(""),
     // Why: WP8 Phase A/A2 keeps live model-usage debiting gated OFF by default while allowing
@@ -639,6 +649,15 @@ export function config(): AppConfig {
         env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER?.trim() ?? "",
       sePayAccountHolder: env.BILLING_SEPAY_ACCOUNT_HOLDER?.trim() ?? "",
       sePayQrUrlTemplate: env.BILLING_SEPAY_QR_URL_TEMPLATE?.trim() ?? "",
+      admissionMasterKey: env.BILLING_ADMISSION_MASTER_KEY?.trim() ?? "",
+      reconciliationSweeper: {
+        enabled: parseBoolean(env.BILLING_RECONCILIATION_SWEEPER_ENABLED, true),
+        intervalMs:
+          parseInt(
+            String(env.BILLING_RECONCILIATION_SWEEPER_INTERVAL_MS ?? "60000"),
+            10,
+          ) || 60_000,
+      },
     },
     modelUsageDebit: {
       mode: parseModelUsageDebitMode(env.MODEL_USAGE_DEBIT),

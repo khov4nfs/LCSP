@@ -3,6 +3,7 @@ import {
   ActivityIcon,
   BookOpenIcon,
   LayoutDashboardIcon,
+  ScaleIcon,
   UsersIcon,
   WalletCardsIcon,
 } from "lucide-react";
@@ -32,6 +33,11 @@ export const ADMIN_NAV_ITEMS = [
     href: "/admin/billing",
     labelKey: "pages.admin.sidebar.navBilling",
     icon: WalletCardsIcon,
+  },
+  {
+    href: "/admin/pricing",
+    labelKey: "pages.admin.sidebar.navPricing",
+    icon: ScaleIcon,
   },
   {
     href: "/admin/compliance-rule-sets",

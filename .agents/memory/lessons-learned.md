@@ -182,3 +182,87 @@
 - **Root Cause**: The application deduplicated raw tokens before establishing a canonical comparison representation, so database-equivalent inputs remained distinct in memory.
 - **Resolution & Invariant**: At one application boundary, apply Unicode NFKC and locale-independent `toLowerCase()` before length filtering, stable first-occurrence deduplication and result bounding. Apply limits to canonical unique terms, while leaving pinned corpus identity and retrieval semantics unchanged.
 
+### [2026-11-27] [BILLING/SETTLEMENT] Authoritative Tariff Authority, Bounded Exposure, and Sub-Microcredit Fractional Rounding in Usage Settlement
+- **Context / Symptom**:
+  1. `SettleBillableInvocationUsageHandler` previously allowed admissions to settle to `SETTLED` with 0 microcredits and release concurrency slots when pinned tariff snapshots or platform sponsorship policies were missing or unresolvable.
+  2. Usage reported by workers exceeding the admitted `maximumExposureMicrocredits` ceiling previously settled to `SETTLED`, violating the wallet financial exposure boundary.
+  3. Rounding acceptance tests used integer-divisible rates (3 and 15 microcredits/token), yielding identical outcomes under both per-bucket integer division and single integer division, allowing rounding regressions to pass silently.
+- **Root Cause**:
+  1. Null checks on snapshot queries fell back to a default `0n` charge rather than failing closed, releasing concurrency slots without financial authority.
+  2. Handler omitted invariant validation against `maximumExposureMicrocredits` (mandated by ADR-028 Line 138).
+  3. Test fixtures lacked fractional microcredit buckets whose individual truncations expose per-bucket rounding errors.
+- **Resolution & Invariant**:
+  1. Unresolvable or missing tariff/sponsorship snapshots must fail closed: never settle, retain exposure, transition admission to `OUTCOME_UNKNOWN`, route to `BillingReconciliationCase` under `INTEGRITY_REVIEW`, and keep the concurrency slot blocked.
+  2. Provider usage exceeding `maximumExposureMicrocredits` must never settle, release slots, or expand wallet exposure; it must enter `INTEGRITY_REVIEW` with usage evidence preserved while maintaining the admitted exposure ceiling.
+  3. Acceptance tests verifying token arithmetic must configure fractional rates (e.g. 0.6 microcredits/token across multiple buckets) where separate integer division produces 0 but single integer division produces 1 microcredit, permanently locking against rounding regressions.
+
+### [2026-11-27] [BILLING/DEBIT-PHASE-D] Atomic 5-Record Settlement, Signed Balance Projection, Lost-Response Idempotency & Sweeper Exposure Invariant
+- **Context / Symptom**: In WP8 Phase D production debit, live charging requires atomic state transitions across multiple persistence boundaries while preserving financial safety. Missing transactions, double deductions on network replay, or unhandled lease expirations could lead to ledger discrepancies or exposure leakage.
+- **Root Cause**:
+  1. Multi-record operations (receipt, ledger entry, wallet projection, audit event, outbox message) without a single enclosing database transaction can leave partial state if mid-transaction failure occurs.
+  2. Concurrent retries or replayed requests with identical fingerprints could double-debit wallets if the idempotency replay check fails to short-circuit before balance deduction.
+  3. Sweeping expired `IN_FLIGHT` leases without retaining `maximumExposureMicrocredits` would release concurrency slots before provider usage can be accounted for.
+- **Resolution & Invariant**:
+  1. Live settlement (`debitMode: ON`) must atomically commit exactly 5 records within a single database transaction: `ModelUsageReceipt`, `CreditLedgerEntry` (with negative delta), `BillingWallet` update (supporting signed negative balance `balanceMicrocredits < 0n` without rollback), `AuditEvent`, and `OutboxMessage` (`aggregateType: BILLING_WALLET`).
+  2. Idempotent replays for already-settled admissions must immediately return the existing receipt charge without creating a duplicate ledger entry or mutating wallet balance.
+  3. Recovery sweeper (`POST /internal/billing/reconciliation/sweep-expired-leases`) transitions expired `IN_FLIGHT` leases to `DISPATCH_UNKNOWN` and opens a `BillingReconciliationCase` in `OPEN` state, while strictly retaining `maximumExposureMicrocredits` so that concurrency slots remain blocked until audited provider usage or verified no-usage evidence is recorded.
+
+### [2026-11-27] [BILLING/PHASE-D-FINANCIAL-SAFETY] Clock Separation, Lock Ordering, Accounting Version & Missing Wallet Fail-Closed
+- **Context / Symptom**: Review of Phase D production debit identified 4 financial discrepancies: using pre-consume TTL for in-flight sweeps, reversed row lock ordering between admission and wallet, outdated accountingUnitVersion/platform sponsorship billing charges, and settling when customer wallet is absent.
+- **Root Cause**:
+  1. Using admission TTL `expiresAt` (5 min) to sweep `IN_FLIGHT` invocations falsely swept legitimate long-running model inferences.
+  2. Locking `BillableInvocationAdmission` before `BillingWallet` violated ADR-028 Section 5 hierarchical lock ordering (wallet -> admission -> case -> outbox) and risked deadlocks with concurrent transactions; wallet version was not incremented upon debit.
+  3. Ledger entries wrote `accountingUnitVersion: 1` instead of cutover version 2; `PLATFORM_SPONSORED` invocations were assigned non-zero `chargedMicrocredits` mirroring provider cost rather than remaining strictly 0 for customer charges.
+  4. Missing customer wallet row during settlement proceeded to settle instead of failing closed.
+- **Resolution & Invariant**:
+  1. Dedicated `inFlightLeaseExpiresAt` timestamp on `BillableInvocationAdmission` populated on CAS to `IN_FLIGHT` (default 15 min); sweeper evaluates `inFlightLeaseExpiresAt <= now`. Automated background `BillingReconciliationSweeperService` dispatches sweep commands periodically.
+  2. Enforce strict lock ordering: row-lock `BillingWallet` `FOR UPDATE` (or advisory lock on platform sponsorship key) FIRST, then row-lock `BillableInvocationAdmission` SECOND. Increment `BillingWallet.version` on every balance mutation.
+  3. Set `CreditLedgerEntry.accountingUnitVersion = wallet.accountingUnitVersion ?? 2`. Enforce `debitedMicrocredits = 0n` and `chargedMicrocredits = 0n` on all `PLATFORM_SPONSORED` settlements (`calculatedMicrocredits` retains provider cost).
+  4. Missing customer wallet must fail closed: commit admission transition to `BILLING_INTEGRITY_REVIEW` and `BillingReconciliationCase` in `INTEGRITY_REVIEW` before returning HTTP 422 problem exception (never throw inside the database transaction, which causes PostgreSQL rollback of the review state).
+
+### [2026-11-27] [BILLING/LEASE-DEADLINE-AND-TRANSACTION-COMMITTED-REVIEWS] In-Flight Lease Deadline Inheriting, Heartbeat Renewal & Committed Review States
+- **Context / Symptom**: Review identified two critical gaps: 1) Throwing exceptions inside transaction for missing wallet rolled back `BILLING_INTEGRITY_REVIEW` and reconciliation cases, leaving test D9 unable to prove state persistence; 2) Fixed 15-minute lease caused false sweeps for long-running inferences and lacked heartbeat renewal, while sweeper scheduling interval was missing from `config.ts`.
+- **Root Cause**:
+  1. Throwing an exception inside Prisma `$transaction` causes PostgreSQL transaction abort and rollback. Any state intended to persist permanently for audits or recovery is discarded.
+  2. Fixed 15-minute lease ignored approved execution lease deadlines from `AssessmentRuntime.leaseExpiresAt`, falsely sweeping model calls running within an authorized longer window; workers had no authoritative heartbeat mechanism to extend leases.
+  3. Sweeper service referenced configuration paths that were not validated or declared in NestJS `config.ts` or `config.types.ts`.
+- **Resolution & Invariant**:
+  1. Controlled two-step pattern: Inside the transaction, write and commit `state: BILLING_INTEGRITY_REVIEW` and `BillingReconciliationCase` in `INTEGRITY_REVIEW`, returning a sentinel failure flag. Outside the transaction after PostgreSQL commit, throw the HTTP 422 problem exception so the review records are permanently saved.
+  2. In-flight lease deadline resolution: On CAS to `IN_FLIGHT`, inherit the approved execution deadline from `AssessmentRuntime.leaseExpiresAt` or `AssessmentDiscoveryRun.leaseExpiresAt` (floor of 15m), so inferences within authorized execution windows are protected. Provide an authoritative HMAC-verified heartbeat renewal endpoint (`POST /internal/billing/admission/heartbeat`) allowing workers to extend active in-flight leases.
+  3. Sweeper configuration: Explicitly declare `BILLING_RECONCILIATION_SWEEPER_ENABLED` (boolean, default true) and `BILLING_RECONCILIATION_SWEEPER_INTERVAL_MS` (integer >= 1000, default 60000) with Joi schema validation in `config.ts` and export typed interface in `config.types.ts`.
+
+### [2026-11-27] [BILLING/LEASE-BOUNDARIES-AND-HEARTBEAT-AUTHORITY] Runtime Authority Ceiling, Execution Lease Token Alignment & Transactional Row-Locking
+- **Context / Symptom**: Review of heartbeat and consume handlers identified two authority boundary leaks: 1) Consume defaulted to `now + 15m` even when run had only 5m remaining, violating the "never exceed approved deadline" invariant; 2) Heartbeat only inspected `assessmentId` and `leaseExpiresAt`, allowing superseded runs to renew admissions under a new execution's lease without locking against concurrent run replacements.
+- **Root Cause**:
+  1. Ternary condition in consume selected `Math.max(approvedDeadline, now + 15m)` instead of clamping to the approved run deadline.
+  2. Heartbeat did not verify that `admission.runId` and `admission.executionLeaseToken` matched the execution currently holding the runtime lease, and read `AssessmentRuntime` outside the lock boundary of `BillableInvocationAdmission`.
+  3. Throwing exceptions inside Prisma `$transaction` caused rollback of `EXPIRED` status updates on TTL expiration during consume.
+- **Resolution & Invariant**:
+  1. Consume strictly bounds `inFlightLeaseExpiresAt` by `approvedDeadline` (e.g. 5 minutes if run only has 5 minutes remaining), never defaulting to 15m when the run authority is shorter.
+  2. Heartbeat executes within a PostgreSQL transaction with row locks: locks `BillableInvocationAdmission` `FOR UPDATE` and `AssessmentRuntime` `FOR SHARE`. It verifies exact match on `runId`, `executionLeaseToken`, and unexpired `leaseExpiresAt`. Any superseded run or mismatched token fails closed with HTTP 403 Forbidden (`admissionContextMismatch`).
+  3. Heartbeat deadline renewal enforces both monotonicity (cannot shorten existing deadline) and runtime ceiling clamping (`Math.min(calculatedDeadline, runtimeCeiling)`).
+  4. Controlled commit pattern for consume: All admission validation, capability checks, `AssessmentRuntime` `FOR SHARE` row-locking, and state transitions execute within a single PostgreSQL transaction. When marking an unconsumed admission `EXPIRED` upon TTL expiry, update and commit `state: EXPIRED` to PostgreSQL via sentinel return (`{ kind: 'EXPIRED' }`), then raise HTTP 422 `admissionExpired` outside the transaction, guaranteeing both state persistence and atomic lease-verification isolation.
+
+### [2026-11-27] [BILLING/POST-LOCK-CLOCK-AND-FALLBACK-DRIFT] Multi-Lock Clock Drift, Final Lock TTL Re-Evaluation & Deterministic Lock Signals
+- **Context / Symptom**: Review of clock drift during row-lock queueing identified two timing boundary leaks in consume and heartbeat: 1) In consume, unconsumed admission TTL (`expiresAt`) was checked only before waiting on the `AssessmentRuntime` row lock; if the transaction queued behind a lock holder past the TTL mark, it still transitioned to `IN_FLIGHT`; 2) In the fallback `AssessmentDiscoveryRun` branch, both consume and heartbeat reused timestamps sampled prior to waiting on the discovery run lock, allowing expired discovery leases to pass.
+- **Root Cause**:
+  1. In PostgreSQL, `NOW()` freezes at transaction start (`transaction_timestamp()`) and does not advance during queueing for row locks. Sampling `clock_timestamp()` only after the first lock (`AssessmentRuntime`) left any subsequent lock acquisitions (`AssessmentDiscoveryRun` or `RuleSetPreparationRun`) vulnerable to uncaptured elapsed time.
+  2. Admission TTL was evaluated only once at the beginning of the transaction. Any queueing delay during runtime row-lock acquisition was not accounted for before CAS transition to `IN_FLIGHT`.
+  3. Test synchronization using arbitrary sleep delays (`setTimeout(..., 20)`) introduced potential race conditions and test flakiness.
+- **Resolution & Invariant**:
+  1. Sample `clock_timestamp()` immediately after acquiring the lock on each chosen authority row (`AssessmentRuntime`, `AssessmentDiscoveryRun`, or `RuleSetPreparationRun`).
+  2. In consume, re-evaluate unconsumed admission TTL (`admission.expiresAt <= finalUtcNow`) and approved run deadline (`approvedDeadline <= finalUtcNow`) after the final authority lock is held, immediately before the state transition. If TTL expired during the lock wait, commit `state: EXPIRED` within the transaction and return sentinel `{ kind: 'EXPIRED' }` to throw HTTP 422 `admissionExpired` outside.
+  3. In heartbeat, re-evaluate `runtimeCeiling <= dbUtcNow` after acquiring the final authority lock immediately before extending the lease, failing closed with HTTP 403 Forbidden.
+  4. Test synchronization: Use a Promise-based lock acquisition signal (resolved immediately after `SELECT ... FOR UPDATE` resolves in the background transaction) instead of arbitrary timeouts, ensuring zero-flake concurrency test execution.
+
+### [2026-11-27] [BILLING/COMPENSATION-AUTHORITY-AND-BRANCH-ISOLATION] Financial Debit Authority, Distinct Action RBAC & Granular RED Verification
+- **Context / Symptom**: Review of G-07 compensation specification and RED tests identified two financial authority contradictions and a test verification flaw: 1) Test fixtures seeded debits with `rolloutMode: "TELEMETRY_ONLY"` and `debitMode: "OFF"` while recording real ledger deductions; 2) Handler only checked role `ADMIN` without enforcing explicit `BILLING_ACTIONS.compensation`, conflating compensation with goodwill credit; 3) RED tests failed on an identical stub error (`concurrencyConflict`) rather than independently testing each domain branch.
+- **Root Cause**:
+  1. A legitimate debit can NEVER be produced under `debitMode: "OFF"`. Seeding an off-mode admission with a live debit created an illegal financial fixture that falsely taught the handler to compensate debits issued without financial authority.
+  2. Defining `BILLING_ACTIONS.compensation` in contracts is insufficient without runtime enforcement: ADR-028 Line 173-174 mandates that role alone never grants financial authority, and compensation must remain distinct from goodwill credit.
+  3. Throwing a single generic stub exception from the handler caused all tests to fail with that same error, verifying only that the stub threw, rather than independently testing each domain assertion.
+- **Resolution & Invariant**:
+  1. Financial debit authority: Eligible debit fixtures must be seeded with `rolloutMode: "DEBIT_ENABLED"`, `debitMode: "ON"`, `debitedMicrocredits` matching ledger `abs(deltaMicrocredits)`, and wallet balance reflecting the deduction. Debits linked to `OFF` admissions or mismatched receipts must be rejected with HTTP 422 `BILLING_DEBIT_NOT_ELIGIBLE`.
+  2. Explicit action RBAC: Enforce `@RequireActions(BILLING_ACTIONS.compensation)` on controller and verify `rbacContext.permissions` in handler. Admin sessions lacking this explicit authority (e.g. granted only `BILLING_ACTIONS.goodwillCredit`) receive HTTP 403 Forbidden (`AUTH_ERROR_CODES.rbacDenied`).
+  3. Granular RED verification: Structure RED tests and handlers so that each branch fails on its own distinct assertion (e.g. unpersisted ledger entry, missing wallet projection, ceiling calculation, duplicate entry detection, concurrency race, missing audit event), proving independent branch verification before full implementation.
+

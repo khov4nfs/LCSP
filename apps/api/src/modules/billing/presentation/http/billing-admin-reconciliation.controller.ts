@@ -2,8 +2,11 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
@@ -16,9 +19,11 @@ import {
   billingAdminRejectSchema,
   billingAdminResolveSchema,
   billingResourceIdSchema,
+  reconciliationNoUsageResolutionRequestSchema,
   type BillingAdminReconciliationListQuery,
   type BillingAdminRejectRequest,
   type BillingAdminResolveRequest,
+  type ReconciliationNoUsageResolutionRequest,
 } from "@lcsp/contracts/billing";
 import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
@@ -27,6 +32,7 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RejectBillingPaymentCommand } from "../../application/commands/reject-billing-payment/reject-billing-payment.command.js";
 import { ResolveBillingPaymentCommand } from "../../application/commands/resolve-billing-payment/resolve-billing-payment.command.js";
+import { ResolveBillableInvocationNoUsageCommand } from "../../application/commands/resolve-billable-invocation-no-usage/resolve-billable-invocation-no-usage.command.js";
 import { GetBillingReconciliationQuery } from "../../application/queries/get-billing-reconciliation/get-billing-reconciliation.query.js";
 import { ListBillingReconciliationQuery } from "../../application/queries/list-billing-reconciliation/list-billing-reconciliation.query.js";
 import { toBillingAdminProblem } from "./errors/billing-admin.error-mapper.js";
@@ -173,5 +179,33 @@ export class BillingAdminReconciliationController {
         request.correlationId ?? "billing-admin",
       );
     }
+  }
+
+  /**
+   * Business purpose: Admin command to resolve an unknown/disputed model invocation to CONFIRMED_NO_USAGE.
+   */
+  // Rationale ("Why"): ADR-028 Line 155 specifies that only audited provider evidence can close exposure.
+  // Mechanism ("How"): Validates request body, checks provider capability and log coverage, delegates to command.
+  // Invariants & Constraints: Protected by RbacGuard and @RequireRoles(admin).
+  @Post("resolve-no-usage")
+  @HttpCode(HttpStatus.OK)
+  async resolveNoUsage(
+    @Body(
+      new ZodValidationPipe(
+        reconciliationNoUsageResolutionRequestSchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    body: ReconciliationNoUsageResolutionRequest,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const result = await this.commandBus.execute(
+      new ResolveBillableInvocationNoUsageCommand(
+        body,
+        request.correlationId ?? "billing-admin",
+      ),
+    );
+
+    return resultEnvelope(result);
   }
 }

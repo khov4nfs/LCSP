@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import re
 import time
 from collections.abc import Iterator, Mapping
@@ -75,6 +76,31 @@ class ModelIdentityMismatch(RuntimeError):
 
     status_code = 400
     error_code = "MODEL_IDENTITY_MISMATCH"
+
+
+class InFlightAdmissionRecoveryError(RuntimeError):
+    """Business purpose: Signal that an invocation admission is already IN_FLIGHT.
+
+    Business rules:
+    - Replay of an IN_FLIGHT admission is strictly for evidence recovery or reconciliation.
+    - Zero provider bytes or provider calls may be dispatched.
+
+    Execution flow:
+    1. Worker identifies returned admission state as IN_FLIGHT.
+    2. Halt execution before provider dispatch and attach admission metadata.
+
+    Failure cases:
+    - Handled as recovery control flow rather than unmediated error.
+
+    Side effects:
+    - Zero provider invocations made.
+    """
+
+    def __init__(self, admission: dict):
+        super().__init__(
+            f"Invocation {admission.get('invocationId')} is already IN_FLIGHT; bypassing provider dispatch for evidence recovery."
+        )
+        self.admission = admission
 
 
 _active_agent_role: ContextVar[str | None] = ContextVar(
@@ -174,6 +200,7 @@ class AgentRunState:
     _attempt_times: dict[str, str] = field(default_factory=dict, init=False)
     _disabled_provider_routes: set[str] = field(default_factory=set, init=False)
     _sticky_provider_routes: set[str] = field(default_factory=set, init=False)
+    _attempt_ordinals: dict[str, int] = field(default_factory=dict, init=False)
 
     def disable_provider_route(self, provider: str, *, sticky: bool = False) -> None:
         """Skip a route for the rest of the run; ``sticky`` marks a transient failure."""
@@ -346,6 +373,62 @@ def output_token_limit(model: Any) -> int:
             declared = options.get("max_output_tokens")
     if isinstance(declared, bool) or not isinstance(declared, int) or declared <= 0:
         raise ValueError("Model route must declare a positive integer max_output_tokens")
+    return declared
+
+
+def input_token_limit(model: Any) -> int:
+    """Business purpose: Resolve the authoritative per-call input token ceiling (context window) for a model route.
+
+    Business rules:
+    - Every governed model route must declare an explicit positive integer context_window_tokens; silent numeric defaults are prohibited.
+    - Inspect model.profile first, then attached route.options, then model.options when resolving the declared ceiling.
+    - Booleans, non-integers, missing values, and non-positive integers fail closed before provider dispatch.
+
+    Execution flow:
+    1. Read context_window_tokens or max_input_tokens from model.profile as a Mapping key or object attribute.
+    2. If still None, read context_window_tokens or max_input_tokens from model_route_config(model).options when available.
+    3. If still None, read context_window_tokens or max_input_tokens from model.options when it is a Mapping.
+    4. Reject bool, non-int, or non-positive values with ValueError; otherwise return the integer limit.
+
+    Failure cases:
+    - Raises ValueError mentioning context_window_tokens when the context window is absent or invalid.
+
+    Side effects:
+    - Pure read-only metadata inspection; no model invocation or persistence occurs.
+    """
+    # Why: Fail closed when a model route omits context_window_tokens instead of silently falling back to a loose 1000 default.
+    # How: Check profile, then route.options, then model.options while declared is None, then enforce strict positive int.
+    # Invariant: Python bool subclasses int, so isinstance(declared, bool) must be rejected explicitly before dispatch.
+    profile = getattr(model, "profile", None)
+    declared = (
+        profile.get("context_window_tokens") or profile.get("max_input_tokens")
+        if isinstance(profile, Mapping)
+        else (getattr(profile, "context_window_tokens", None) or getattr(profile, "max_input_tokens", None))
+    )
+    if declared is None:
+        route = model_route_config(model)
+        if route is not None and isinstance(route.options, Mapping):
+            declared = route.options.get("context_window_tokens") or route.options.get("max_input_tokens")
+    if declared is None:
+        options = getattr(model, "options", None)
+        if isinstance(options, Mapping):
+            declared = options.get("context_window_tokens") or options.get("max_input_tokens")
+    if declared is None:
+        try:
+            from model_policy import load_model_routes
+            routes_obj = load_model_routes()
+            model_name = getattr(model, "model_name", None) or getattr(model, "model", None)
+            for cfg in routes_obj.routes.values():
+                cfg_model = cfg.get("model") if isinstance(cfg, dict) else getattr(cfg, "model", None)
+                if model_name and cfg_model == model_name:
+                    opts = cfg.get("options", {}) if isinstance(cfg, dict) else getattr(cfg, "options", {})
+                    declared = opts.get("context_window_tokens") or opts.get("max_input_tokens")
+                    if declared:
+                        break
+        except Exception:
+            pass
+    if isinstance(declared, bool) or not isinstance(declared, int) or declared <= 0:
+        raise ValueError("Model route must declare a positive integer context_window_tokens")
     return declared
 
 
@@ -674,7 +757,14 @@ def active_model_step_id() -> str | None:
 class _ModelCallTelemetry:
     """Emit safe progress around one blocking provider call."""
 
-    def __init__(self, model: Any, *, invocation_id: str | None = None) -> None:
+    def __init__(
+        self,
+        model: Any,
+        *,
+        invocation_id: str | None = None,
+        admission: dict | None = None,
+        api_client: Any | None = None,
+    ) -> None:
         self.provider, self.model_name = provider_identity(model)
         self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
@@ -684,6 +774,8 @@ class _ModelCallTelemetry:
         self.logical_invocation_id = _active_logical_invocation_id()
         self.agent_role = active_agent_role()
         self.operation_type = active_model_operation()
+        self._admission = admission
+        self._api_client = api_client
         self._started_at = time.monotonic()
         self._stop = Event()
         self._context = copy_context()
@@ -826,6 +918,27 @@ class _ModelCallTelemetry:
         self._emit(event_type, status=status, text=text, data=data)
 
     def _heartbeat(self) -> None:
+        """Business purpose: Emit live progress telemetry and extend the in-flight admission lease during model inference.
+
+        Business rules:
+        - Runs on a background thread while model inference is active.
+        - Emits safe waiting progress events at fixed intervals without logging raw prompts or keys.
+        - Calls the server admission heartbeat endpoint with capability token to prevent false lease recovery sweeps.
+        - Heartbeat failures are non-blocking and never abort an in-progress model inference.
+
+        Execution flow:
+        1. Initialize timer tracking next heartbeat interval.
+        2. Wait on stop event or cancellation context.
+        3. When interval elapses, emit MODEL_CALL_HEARTBEAT telemetry event.
+        4. If api_client and admission are present, POST heartbeat extension to internal billing API.
+        5. Reset timer and loop until execution terminates or cancellation triggers.
+
+        Failure cases:
+        - Network errors or rejected heartbeats are caught and ignored; the inference loop continues.
+
+        Side effects:
+        - Emits progress stream events and updates inFlightLeaseExpiresAt on the server.
+        """
         cancel = self._context.get(active_agent_stream_cancel)
         next_heartbeat = time.monotonic() + _MODEL_CALL_HEARTBEAT_SECONDS
         while not self._stop.wait(min(0.025, _MODEL_CALL_HEARTBEAT_SECONDS)):
@@ -839,6 +952,16 @@ class _ModelCallTelemetry:
                     text="model call waiting",
                     data=self._data(elapsed_seconds=self._elapsed_seconds()),
                 )
+                if self._api_client is not None and self._admission is not None:
+                    try:
+                        self._api_client.heartbeat_invocation_admission({
+                            "admissionId": self._admission.get("admissionId"),
+                            "invocationId": self._admission.get("invocationId"),
+                            "capabilityToken": self._admission.get("capabilityToken", ""),
+                            "extensionSeconds": 900,
+                        })
+                    except Exception:
+                        pass
                 next_heartbeat = time.monotonic() + _MODEL_CALL_HEARTBEAT_SECONDS
 
     def _elapsed_seconds(self) -> int:
@@ -1264,6 +1387,131 @@ class UsageMeteringMiddleware(AgentMiddleware):
             status = "FAILED" if type(code) is int and 400 <= code <= 599 else "OUTCOME_UNKNOWN"
             state.record_attempt(model, invocation_id, status, agent_role=active_agent_role(), error=error)
 
+    @staticmethod
+    def _execute_server_admission(request, model, invocation_id: str | None = None) -> dict:
+        """Business purpose: Acquire server-issued admission and perform atomic CAS consume before provider dispatch.
+
+        Business rules:
+        - Must contact server via WorkerApiClient to verify wallet solvency and concurrency limits.
+        - Fails closed on HTTP 402 PAYMENT_REQUIRED, 429/409 concurrency limit, or 403 context mismatch.
+        - If returned admission is already IN_FLIGHT, raises InFlightAdmissionRecoveryError to prevent duplicate dispatch.
+        - Executes atomic CAS consume before allowing provider invocation.
+
+        Execution flow:
+        1. Resolve WorkerApiClient from active run state or environment configuration.
+        2. Derive attempt ordinal and construct admission request payload.
+        3. POST to /internal/billing/admission/request.
+        4. If state == IN_FLIGHT, raise InFlightAdmissionRecoveryError.
+        5. POST to /internal/billing/admission/consume to commit capability token.
+        6. Return admitted and consumed metadata.
+
+        Failure cases:
+        - 402/429/409/422 errors propagate immediately as WorkerCallbackError, aborting provider dispatch.
+
+        Side effects:
+        - Moves admission state on the server from ADMITTED to IN_FLIGHT.
+        """
+        # Why: Enforces financial safety and single-slot concurrency boundary at the worker level.
+        # How: Sends admission request, checks for IN_FLIGHT replay, and commits capability token before provider byte dispatch.
+        # Invariants & Constraints: Provider handler is NEVER invoked if admission or consume fails.
+        state = active_agent_run_state()
+        if state is not None and getattr(state, "api_client", None) is not None:
+            client = state.api_client
+        else:
+            from tools.common.capabilities.platform import api_client as api_client_module
+            base_url = os.environ.get("LCSP_API_BASE_URL", "http://127.0.0.1:3000")
+            api_key = os.environ.get("LCSP_WORKER_API_KEY", "")
+            client = api_client_module.WorkerApiClient(base_url, api_key)
+
+        logical_op_id = active_model_step_id() or getattr(request, "logical_operation_id", None)
+        run_id = (state.run_id if state else None) or getattr(request, "run_id", None)
+        assessment_id = (state.assessment_id if state else None) or getattr(request, "assessment_id", None)
+        agent_role = active_agent_role() or (state.agent_role if state else None) or "assessment-root"
+        operation_type = active_model_operation() or "SYNTHESIS"
+        lease_token = getattr(state, "execution_lease_token", None) or getattr(request, "execution_lease_token", None)
+
+        # Why: Enforces fail-closed security boundary when execution context is missing.
+        # How: Verifies real run_id, logical_op_id, and lease_token without synthesizing dummy fallback strings.
+        # Invariants: Model provider cannot be dispatched when runtime context binding is lost or unauthenticated.
+        if not logical_op_id or not run_id or not lease_token:
+            raise PaidAdmissionError(
+                "MISSING_EXECUTION_CONTEXT",
+                run_id or "unknown",
+            )
+
+        # Why: Preserve deterministic admissionRequestId and attempt ordinal across retries and lost responses.
+        # How: Inspect if request already carries an admission_request_id; if not, initialize and pin it.
+        # Invariants: A retry of the same attempt re-sends the exact same admissionRequestId without a new random UUID.
+        admission_request_id = getattr(request, "_lcsp_admission_request_id", None) or getattr(request, "admission_request_id", None)
+        if not admission_request_id:
+            if state is not None:
+                ordinals = getattr(state, "_attempt_ordinals", None)
+                if ordinals is None:
+                    ordinals = {}
+                    setattr(state, "_attempt_ordinals", ordinals)
+                attempt_ordinal = ordinals.get(logical_op_id, 0) + 1
+                ordinals[logical_op_id] = attempt_ordinal
+            else:
+                tracker = getattr(request, "_lcsp_attempt_tracker", None)
+                if tracker is not None and isinstance(tracker, dict):
+                    tracker["ordinal"] = tracker.get("ordinal", 0) + 1
+                    attempt_ordinal = tracker["ordinal"]
+                else:
+                    attempt_ordinal = getattr(request, "_lcsp_attempt_ordinal", 0) + 1
+            try:
+                object.__setattr__(request, "_lcsp_attempt_ordinal", attempt_ordinal)
+            except Exception:
+                pass
+            admission_request_id = f"adm-req-{logical_op_id}-{attempt_ordinal}"
+            try:
+                object.__setattr__(request, "_lcsp_admission_request_id", admission_request_id)
+            except Exception:
+                pass
+        else:
+            attempt_ordinal = getattr(request, "_lcsp_attempt_ordinal", 1)
+
+        output_bound = output_token_limit(model)
+        input_bound = getattr(request, "input_tokens_upper_bound", None)
+        if input_bound is None:
+            # Why: Enforce verified hard route ceiling (context_window_tokens) instead of loose prompt byte estimation.
+            # How: Resolve input_token_limit(model); fail closed if unverified.
+            # Invariants: Provider token usage cannot exceed the admitted maximum exposure microcredits.
+            input_bound = input_token_limit(model)
+
+        admit_payload = {
+            "admissionRequestId": admission_request_id,
+            "logicalOperationId": logical_op_id,
+            "attemptOrdinal": attempt_ordinal,
+            "runId": run_id,
+            "assessmentId": assessment_id,
+            "executionLeaseToken": lease_token,
+            "agentRole": agent_role,
+            "operationType": operation_type,
+            "requestedProvider": model.provider,
+            "requestedModel": model.model_name,
+            "inputTokensUpperBound": int(input_bound),
+            "outputTokensUpperBound": int(output_bound),
+        }
+
+        admission = client.request_invocation_admission(admit_payload)
+
+        if admission.get("state") == "IN_FLIGHT":
+            raise InFlightAdmissionRecoveryError(admission)
+
+        consume_payload = {
+            "admissionId": admission["admissionId"],
+            "invocationId": admission["invocationId"],
+            "capabilityToken": admission.get("capabilityToken", ""),
+        }
+        client.consume_invocation_admission(consume_payload)
+        try:
+            delattr(request, "_lcsp_admission_request_id")
+        except Exception:
+            pass
+        if isinstance(admission, dict):
+            admission["_api_client"] = client
+        return admission
+
     def wrap_model_call(self, request, handler):
         """Business purpose: Govern one synchronous downstream provider attempt and durably record its actual response or unknown outcome.
 
@@ -1279,11 +1527,34 @@ class UsageMeteringMiddleware(AgentMiddleware):
         Side effects:
         - May dispatch a real model, persist/deliver usage, settle admission and publish telemetry; prompt/response content stays out of usage payloads.
         """
+        tracker = getattr(request, "_lcsp_attempt_tracker", None)
+        if tracker is None:
+            tracker = {"ordinal": 0}
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
         request, model = self._prepare(request)
-        # Each answered attempt must survive the API's settlement idempotency key.
-        invocation_id = str(uuid4())
+        if not hasattr(request, "_lcsp_attempt_tracker"):
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
+        # Server assigns authoritative invocationId during admission issuance.
+        # Invariants: Fail closed immediately if server does not issue invocationId; never fallback to client UUID.
+        admission = self._execute_server_admission(request, model)
+        invocation_id = admission.get("invocationId") if isinstance(admission, dict) else None
+        if not invocation_id or not isinstance(invocation_id, str):
+            run_id = getattr(request, "run_id", None) or "unknown"
+            raise PaidAdmissionError("MISSING_SERVER_INVOCATION_ID", run_id)
         request = self._admit(request, invocation_id)
-        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
+        client = admission.get("_api_client") if isinstance(admission, dict) else None
+        telemetry = _ModelCallTelemetry(
+            model,
+            invocation_id=invocation_id,
+            admission=admission if isinstance(admission, dict) else None,
+            api_client=client,
+        )
         telemetry.start()
         try:
             response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
@@ -1316,10 +1587,35 @@ class UsageMeteringMiddleware(AgentMiddleware):
         Side effects:
         - May dispatch a real model, write/deliver usage and admission records, and publish telemetry without retaining prompt contents.
         """
+        tracker = getattr(request, "_lcsp_attempt_tracker", None)
+        if tracker is None:
+            tracker = {"ordinal": 0}
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
         request, model = self._prepare(request)
-        invocation_id = str(uuid4())
+        if not hasattr(request, "_lcsp_attempt_tracker"):
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
+        # Why: ADR-028 & Root Cause 1: Worker must bind to server-issued invocationId across both sync and async paths.
+        # Mechanism: Await admission issuance on worker thread, extract server invocationId, and pass it to _admit and telemetry.
+        # Invariants: Preserves server authority; fail closed if invocationId missing, never fallback to ad-hoc client UUID.
+        admission = await physical_to_thread(self._execute_server_admission, request, model)
+        invocation_id = admission.get("invocationId") if isinstance(admission, dict) else None
+        if not invocation_id or not isinstance(invocation_id, str):
+            run_id = getattr(request, "run_id", None) or "unknown"
+            raise PaidAdmissionError("MISSING_SERVER_INVOCATION_ID", run_id)
         request = await physical_to_thread(self._admit, request, invocation_id)
-        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
+        client = admission.get("_api_client") if isinstance(admission, dict) else None
+        telemetry = _ModelCallTelemetry(
+            model,
+            invocation_id=invocation_id,
+            admission=admission if isinstance(admission, dict) else None,
+            api_client=client,
+        )
         telemetry.start()
         try:
             response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
@@ -1678,6 +1974,7 @@ __all__ = [
     "active_agent_role",
     "active_agent_run_state",
     "extract_provider_usage",
+    "input_token_limit",
     "output_cap_settings",
     "output_token_limit",
     "provider_usage_telemetry",

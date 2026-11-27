@@ -63,6 +63,23 @@ export const apiQueryKeys = {
       page: number,
       pageSize: number,
     ) => ["admin", "billing", period, status, gateway, page, pageSize] as const,
+    /**
+     * Business purpose: Isolate cached Admin model pricing overview responses by active query filters.
+     *
+     * Business rules:
+     * - Preserve the normalized filter parameters in the Admin billing model-pricing cache namespace.
+     *
+     * Execution flow:
+     * 1. Return the immutable tuple `["admin", "billing", "model-pricing", params]`.
+     *
+     * Failure cases:
+     * - Filter validation belongs to the query loader; this helper performs no network or schema checks.
+     *
+     * Side effects:
+     * - None: pure cache-key construction.
+     */
+    modelPricing: (params: Record<string, unknown>) =>
+      ["admin", "billing", "model-pricing", params] as const,
     usersRoot: () => ["admin", "users"] as const,
     usersList: (params?: Record<string, unknown>) =>
       ["admin", "users", params ?? {}] as const,

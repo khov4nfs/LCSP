@@ -255,11 +255,13 @@ describe("configValidationSchema", () => {
       expect(result.value).not.toHaveProperty(removed);
   });
 
-  it("keeps only customer-payment keys in the billing config", () => {
+  it("keeps only customer-payment and billing engine keys in the billing config", () => {
     const previous = process.env;
     process.env = { ...VALID_ENV };
     try {
       expect(Object.keys(config().billing).sort()).toEqual([
+        "admissionMasterKey",
+        "reconciliationSweeper",
         "sePayAccountHolder",
         "sePayBankAccountNumber",
         "sePayBankName",
@@ -439,6 +441,11 @@ describe("config()", () => {
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
       orchestration: { debug: false },
       billing: {
+        admissionMasterKey: "",
+        reconciliationSweeper: {
+          enabled: true,
+          intervalMs: 60000,
+        },
         sePayBankName: "Test Bank",
         sePayBankAccountNumber: "1234567890",
         sePayAccountHolder: "LCSP TEST",

@@ -74,6 +74,7 @@ export function mapSessionRecord(record: AuthRecord): Session {
       authRecordMetadataDate(record, "passwordReauthenticatedAt")?.getTime() ??
       null,
     candidateMfaEnrollment: mapCandidateMfaEnrollment(record.metadata),
+    metadata: (record.metadata as Record<string, unknown> | null) ?? null,
   });
 }
 

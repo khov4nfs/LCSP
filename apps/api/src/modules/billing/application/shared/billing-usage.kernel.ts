@@ -17,6 +17,11 @@ import {
 } from "@lcsp/contracts/billing";
 import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
 import { Inject, Injectable, Optional } from "@nestjs/common";
+import type { ConfigService } from "@nestjs/config";
+import type {
+  AppConfig,
+  ModelUsageDebitConfig,
+} from "../../../../config/config.types.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import {
   BillingDomainError,
@@ -54,6 +59,7 @@ export class BillingUsageKernel {
     @Inject(BILLING_TRANSACTION_PORT)
     private readonly transactions: BillingTransactionPort,
     @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly configService?: ConfigService<AppConfig, true>,
   ) {}
 
   async resolveAssessmentOwner(assessmentId: string): Promise<string> {
@@ -310,21 +316,30 @@ export class BillingUsageKernel {
    *   at the contract/pure-logic boundary without activating live provider dispatch or wallet holds.
    *
    * Business rules:
-   * - Spendable balance must be strictly positive (`> 0n`) when funded by `CUSTOMER_WALLET`.
+   * - Funding principal determines wallet binding requirements:
+   *   - `CUSTOMER_WALLET`: requires non-empty `walletId` (non-whitespace) and `spendableMicrocredits > 0n`.
+   *   - `PLATFORM_SPONSORED`: strictly requires `walletId === null`; customer wallet balance may be `0n`.
+   * - Token bounds must be valid: `maxOutputTokens > 0n` and `maxInputTokens >= 0n`.
+   * - In-flight concurrency slot must not be occupied (`inFlightCount < 1`).
    * - Resolved model must be in the runtime allowlist and resolve deterministically to an active
    *   pricing scope (`EXACT_MODEL -> PROVIDER_DEFAULT -> GLOBAL_DEFAULT`).
    * - Computes `maximumExposureMicrocredits` using the canonical microcredit calculator from the
    *   pinned tariff and applied input/output token hard bounds.
    *
    * Execution flow:
-   * 1. Verify wallet spendable balance (`> 0n`) and in-flight slot availability (`inFlightCount < 1`).
-   * 2. Resolve pricing scope for `(resolvedModel, provider)` against the allowlist.
-   * 3. Compute `maximumExposureMicrocredits` using `calculateMicrocreditCharge`.
-   * 4. Return the pure `ADMITTED` admission contract decision without DB writes.
+   * 1. Validate funding principal and enforce corresponding walletId and balance invariants.
+   * 2. Validate token bounds (`maxOutputTokens > 0n`, `maxInputTokens >= 0n`) and in-flight concurrency.
+   * 3. Resolve pricing scope for `(resolvedModel, provider)` against the allowlist.
+   * 4. Compute `maximumExposureMicrocredits` using `calculateMicrocreditCharge`.
+   * 5. Return the pure `ADMITTED` admission contract decision without DB writes.
    *
    * Failure cases:
-   * - Throws `BillingDomainError` when spendable balance `<= 0n`, slot is occupied, model is unlisted,
-   *   or pricing/token-bucket rates are missing.
+   * - Throws `BillingDomainError` when:
+   *   - `CUSTOMER_WALLET` has blank/whitespace `walletId` or `spendableMicrocredits <= 0n`.
+   *   - `PLATFORM_SPONSORED` binds a non-null `walletId`.
+   *   - `maxOutputTokens <= 0n` or `maxInputTokens < 0n`.
+   *   - Concurrency slot is occupied (`inFlightCount >= 1`).
+   *   - Model is unlisted or pricing resolution fails.
    *
    * Side effects:
    * - Pure/read-only contract evaluation; performs zero wallet holds, reservations, or DB writes.
@@ -346,16 +361,58 @@ export class BillingUsageKernel {
     maxCacheWriteTokens?: bigint;
     ratesMicrocreditsPerMillion: MicrocreditTariffRates;
   }) {
-    if (input.spendableMicrocredits <= 0n) {
+    // Why: Discriminate between customer-paid invocations (requiring a valid wallet with positive balance)
+    // and platform-sponsored invocations (which are funded by system and must never bind customer wallets).
+    // How: Validate fundingPrincipal against canonical ADMISSION_FUNDING_PRINCIPALS and verify walletId / balance invariants.
+    // Invariants: CUSTOMER_WALLET requires trimmed walletId.length > 0 and spendableMicrocredits > 0n;
+    // PLATFORM_SPONSORED requires walletId === null.
+    const fundingPrincipal =
+      input.fundingPrincipal ?? ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET;
+
+    if (fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET) {
+      if (!input.walletId || input.walletId.trim().length === 0) {
+        throw new BillingDomainError(
+          "CUSTOMER_WALLET admission requires a valid non-empty walletId",
+        );
+      }
+      if (input.spendableMicrocredits <= 0n) {
+        throw new BillingDomainError(
+          "Insufficient spendable microcredits for paid model invocation admission",
+        );
+      }
+    } else if (
+      fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED
+    ) {
+      if (input.walletId !== null) {
+        throw new BillingDomainError(
+          "PLATFORM_SPONSORED admission must not bind a customer walletId",
+        );
+      }
+    } else {
       throw new BillingDomainError(
-        "Insufficient spendable microcredits for paid model invocation admission",
+        `Unsupported admission funding principal: ${fundingPrincipal}`,
       );
     }
+
+    // Why: In-flight concurrency is bounded to 1 billable invocation per wallet to prevent race conditions.
+    // How: Compare inFlightCount against the single-slot threshold.
+    // Invariants: inFlightCount must be 0 for admission to proceed.
     if (input.inFlightCount >= 1) {
       throw new BillingDomainError(
         "Wallet in-flight billable invocation concurrency slot is occupied",
       );
     }
+
+    // Why: Output and input token bounds define the maximum financial exposure of the model call.
+    // How: Ensure maxOutputTokens is strictly positive and maxInputTokens is non-negative.
+    // Invariants: Exposure calculation requires strictly non-negative integer token bounds.
+    if (input.maxOutputTokens <= 0n) {
+      throw new BillingDomainError("maxOutputTokens must be strictly positive");
+    }
+    if (input.maxInputTokens < 0n) {
+      throw new BillingDomainError("maxInputTokens cannot be negative");
+    }
+
     const resolvedScope = resolveEffectivePricingScope({
       resolvedModel: input.resolvedModel,
       provider: input.provider,
@@ -374,7 +431,7 @@ export class BillingUsageKernel {
     return {
       invocationId: input.invocationId,
       walletId: input.walletId,
-      fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET,
+      fundingPrincipal,
       state: ADMISSION_STATES.ADMITTED,
       resolvedModel: input.resolvedModel,
       provider: input.provider,
@@ -389,21 +446,28 @@ export class BillingUsageKernel {
    *   physical invocation while enforcing the WP8 Phase A/A2 `MODEL_USAGE_DEBIT = OFF` gate.
    *
    * Business rules:
-   * - `MODEL_USAGE_DEBIT_MODES.ON` is blocked in WP8 Phase A/A2 until all 7 enablement gates pass.
+   * - Mode resolution rule:
+   *   - Candidate mode is resolved with explicit precedence: `input.debitMode ?? configuredMode ?? MODEL_USAGE_DEBIT_MODES.OFF`.
+   *   - Fail-closed gate: if either candidate mode OR configured mode is `MODEL_USAGE_DEBIT_MODES.ON`,
+   *     immediately throw `BillingDomainError`. Live debit is strictly blocked in WP8.
+   *   - When mode resolves to `SHADOW`, actual charge is deducted from projected wallet balance without DB writes.
+   *   - When mode resolves to `OFF`, projected wallet balance remains unchanged.
    * - Charge is computed solely from server-pinned admission tariff and provider-reported tokens
    *   via `calculateMicrocreditCharge`; callback payloads cannot override charge or authority.
    * - Resulting ledger balance and `spendableMicrocredits` / `outstandingMicrocredits` projection
    *   are derived via `projectSignedWalletBalance`.
    *
    * Execution flow:
-   * 1. Reject live `MODEL_USAGE_DEBIT_MODES.ON` while Phase A/A2 gate is active.
-   * 2. Compute `actualChargeMicrocredits` using canonical integer microcredit arithmetic.
-   * 3. Flag `exceededAdmittedExposure` if actual charge exceeds `maximumExposureMicrocredits`.
-   * 4. Compute signed wallet projection without persisting financial ledger/wallet mutations.
+   * 1. Resolve effective debitMode between input and ConfigService.
+   * 2. Reject `MODEL_USAGE_DEBIT_MODES.ON` if either input or config is ON (fail-closed).
+   * 3. Verify reported invocationId matches admitted invocationId.
+   * 4. Compute `actualChargeMicrocredits` using canonical integer microcredit arithmetic.
+   * 5. Flag `exceededAdmittedExposure` if actual charge exceeds `maximumExposureMicrocredits`.
+   * 6. Compute signed wallet projection without persisting financial ledger/wallet mutations.
    *
    * Failure cases:
-   * - Throws `BillingDomainError` if `debitMode === MODEL_USAGE_DEBIT_MODES.ON` (gate closed)
-   *   or if invocation/admission identity mismatches.
+   * - Throws `BillingDomainError` if `debitMode === MODEL_USAGE_DEBIT_MODES.ON` or configured mode is ON.
+   * - Throws `BillingDomainError` if invocation/admission identity mismatches.
    *
    * Side effects:
    * - Pure/read-only calculation; writes zero ledger debits or wallet projection updates.
@@ -412,7 +476,7 @@ export class BillingUsageKernel {
     debitMode?: ModelUsageDebitMode;
     admission: {
       invocationId: string;
-      walletId: string;
+      walletId: string | null;
       maximumExposureMicrocredits: bigint;
       ratesMicrocreditsPerMillion: {
         input: bigint;
@@ -429,8 +493,20 @@ export class BillingUsageKernel {
     };
     currentLedgerBalanceMicrocredits: bigint;
   }) {
-    const mode = input.debitMode ?? MODEL_USAGE_DEBIT_MODES.OFF;
-    if (mode === MODEL_USAGE_DEBIT_MODES.ON) {
+    // Why: Ensure configured system setting and caller-specified mode are harmonized under a safe,
+    // explicit precedence rule where live ON debit is blocked under any circumstance in WP8.
+    // How: Extract configuredMode from ConfigService, resolve candidate mode as input.debitMode ?? configuredMode ?? OFF,
+    // and fail closed if either candidateMode or configuredMode is ON.
+    // Invariants: Live debit (ON) is impossible; SHADOW correctly reflects simulated ledger deduction.
+    const configuredDebit =
+      this.configService?.get<ModelUsageDebitConfig>("modelUsageDebit");
+    const configuredMode = configuredDebit?.mode;
+    const mode =
+      input.debitMode ?? configuredMode ?? MODEL_USAGE_DEBIT_MODES.OFF;
+    if (
+      mode === MODEL_USAGE_DEBIT_MODES.ON ||
+      configuredMode === MODEL_USAGE_DEBIT_MODES.ON
+    ) {
       throw new BillingDomainError(
         "MODEL_USAGE_DEBIT is disabled (OFF) until all WP8 enablement gates are closed",
       );

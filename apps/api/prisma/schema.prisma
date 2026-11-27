@@ -713,6 +713,7 @@ enum AuditResourceType {
   AUTH_SESSION
   GITHUB_APP_INSTALL_STATE
   HTTP_ROUTE
+  CUSTOMER_MODEL_TARIFF
   LEGAL_REQUIREMENT
   COMPLIANCE_RULE_SET_VERSION
   LEGAL_SOURCE_VERSION
@@ -727,6 +728,8 @@ enum AuditResourceType {
 
 enum OutboxAggregateType {
   BILLING_PAYMENT
+  BILLING_WALLET
+  CUSTOMER_MODEL_TARIFF
   ASSESSMENT
   AUTH_USER
   LEGAL_SOURCE_VERSION
@@ -1742,6 +1745,14 @@ enum ModelUsageDebitMode {
   ON
 }
 
+enum BillingRolloutMode {
+  TELEMETRY_ONLY
+  SHADOW_PRICING
+  ADMISSION_REQUIRED
+  SHADOW_SETTLEMENT
+  DEBIT_ENABLED
+}
+
 enum AdmissionFundingPrincipal {
   CUSTOMER_WALLET
   PLATFORM_SPONSORED
@@ -1852,21 +1863,24 @@ model CustomerModelTariffSnapshot {
 /// scope key to an immutable CustomerModelTariffSnapshot. PostgreSQL btree_gist EXCLUDE
 /// constraint prevents overlapping active intervals for the same normalizedScopeKey.
 model CustomerModelTariffAssignment {
-  id                       String                        @id @default(uuid())
-  tariffSnapshotId         String
-  scope                    ModelPricingScope
-  normalizedScopeKey       String
-  effectiveFrom            DateTime                      @db.Timestamptz(3)
-  effectiveTo              DateTime?                     @db.Timestamptz(3)
-  supersededByAssignmentId String?
-  supersededBy             String?
-  supersededAt             DateTime?                     @db.Timestamptz(3)
-  cancelledAt              DateTime?                     @db.Timestamptz(3)
-  auditReason              String?
-  createdBy                String
-  createdAt                DateTime                      @default(now()) @db.Timestamptz(3)
-  tariffSnapshot           CustomerModelTariffSnapshot   @relation(fields: [tariffSnapshotId], references: [id], onDelete: Restrict)
-  admissions               BillableInvocationAdmission[]
+  id                          String                        @id @default(uuid())
+  tariffSnapshotId            String
+  scope                       ModelPricingScope
+  normalizedScopeKey          String
+  effectiveFrom               DateTime                      @db.Timestamptz(3)
+  effectiveTo                 DateTime?                     @db.Timestamptz(3)
+  supersededByAssignmentId    String?
+  supersededBy                String?
+  supersededAt                DateTime?                     @db.Timestamptz(3)
+  cancelledAt                 DateTime?                     @db.Timestamptz(3)
+  supersedeIdempotencyKey     String?                       @unique
+  supersedeRequestFingerprint String?
+  version                     Int                           @default(1)
+  auditReason                 String?
+  createdBy                   String
+  createdAt                   DateTime                      @default(now()) @db.Timestamptz(3)
+  tariffSnapshot              CustomerModelTariffSnapshot   @relation(fields: [tariffSnapshotId], references: [id], onDelete: Restrict)
+  admissions                  BillableInvocationAdmission[]
 
   @@index([normalizedScopeKey, effectiveFrom, effectiveTo])
   @@index([tariffSnapshotId])
@@ -1896,8 +1910,10 @@ model BillableInvocationAdmission {
   tariffSnapshotId            String?
   tariffAssignmentId          String?
   pricingResolution           ModelPricingScope?
+  sponsorshipPolicySnapshotId String?
   runtimePolicyVersion        String
-  rolloutMode                 ModelUsageDebitMode            @default(OFF)
+  rolloutMode                 BillingRolloutMode             @default(TELEMETRY_ONLY)
+  debitMode                   ModelUsageDebitMode            @default(OFF)
   appliedMaxOutputTokens      Int
   maximumExposureMicrocredits BigInt
   capabilityDigest            String
@@ -1905,6 +1921,7 @@ model BillableInvocationAdmission {
   version                     Int                            @default(1)
   admittedAt                  DateTime                       @default(now()) @db.Timestamptz(3)
   expiresAt                   DateTime                       @db.Timestamptz(3)
+  inFlightLeaseExpiresAt      DateTime?                      @db.Timestamptz(3)
   consumedAt                  DateTime?                      @db.Timestamptz(3)
   settledAt                   DateTime?                      @db.Timestamptz(3)
   settlementFingerprint       String?                        @unique
@@ -1912,18 +1929,43 @@ model BillableInvocationAdmission {
   correlationId               String
   createdAt                   DateTime                       @default(now()) @db.Timestamptz(3)
   updatedAt                   DateTime                       @updatedAt @db.Timestamptz(3)
-  user                        User?                          @relation(fields: [userId], references: [id], onDelete: Restrict)
-  wallet                      BillingWallet?                 @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  assessment                  Assessment?                    @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
-  tariffSnapshot              CustomerModelTariffSnapshot?   @relation(fields: [tariffSnapshotId], references: [id], onDelete: Restrict)
-  tariffAssignment            CustomerModelTariffAssignment? @relation(fields: [tariffAssignmentId], references: [id], onDelete: Restrict)
+  user                        User?                              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet                      BillingWallet?                     @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  assessment                  Assessment?                        @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  tariffSnapshot              CustomerModelTariffSnapshot?       @relation(fields: [tariffSnapshotId], references: [id], onDelete: Restrict)
+  tariffAssignment            CustomerModelTariffAssignment?     @relation(fields: [tariffAssignmentId], references: [id], onDelete: Restrict)
+  sponsorshipPolicySnapshot   PlatformSponsorshipPolicySnapshot? @relation(fields: [sponsorshipPolicySnapshotId], references: [id], onDelete: Restrict)
   usageReceipt                ModelUsageReceipt?
   outputEvaluation            ModelOutputEvaluation?
+  reconciliationCase          BillingReconciliationCase?
 
+  @@unique([logicalOperationId, attemptOrdinal])
   @@index([walletId, state])
   @@index([assessmentId, runId])
   @@index([logicalOperationId])
   @@index([state, admittedAt])
+  @@index([state, inFlightLeaseExpiresAt])
+  @@index([sponsorshipPolicySnapshotId])
+}
+
+/// Immutable authority for approved system-owned provider work such as ownerless Rule Set Preparation.
+/// It pins provider-cost/exposure policy and records usage/cost/audit/outbox without customer tariff resolution or wallet debit.
+model PlatformSponsorshipPolicySnapshot {
+  id                           String                        @id @default(uuid())
+  policyName                   String
+  policyVersion                String
+  description                  String?
+  provider                     String
+  resolvedModel                String
+  inputMicrocreditsPerMillion  BigInt
+  outputMicrocreditsPerMillion BigInt
+  effectiveFrom                DateTime                      @default(now()) @db.Timestamptz(3)
+  effectiveTo                  DateTime?                     @db.Timestamptz(3)
+  createdAt                    DateTime                      @default(now()) @db.Timestamptz(3)
+  admissions                   BillableInvocationAdmission[]
+
+  @@unique([policyName, policyVersion, provider, resolvedModel])
+  @@index([policyName, provider, resolvedModel, effectiveFrom, effectiveTo])
 }
 
 /// Immutable provider usage & settlement receipt linked 1:1 to BillableInvocationAdmission.
@@ -1952,6 +1994,9 @@ model ModelUsageReceipt {
   visibleOutputTokens      BigInt?
   reasoningTokens          BigInt?
   totalTokens              BigInt?
+  calculatedMicrocredits   BigInt                      @default(0)
+  debitedMicrocredits      BigInt                      @default(0)
+  shadowMicrocredits       BigInt?
   chargedMicrocredits      BigInt?
   settlementIdempotencyKey String?                     @unique
   settledAt                DateTime?                   @db.Timestamptz(3)
@@ -1979,6 +2024,64 @@ model ModelOutputEvaluation {
   admission               BillableInvocationAdmission? @relation(fields: [admissionId], references: [id], onDelete: Restrict)
 
   @@index([evaluationState, evaluatedAt])
+}
+
+enum BillingReconciliationState {
+  OPEN
+  EVIDENCE_PENDING
+  INTEGRITY_REVIEW
+  SETTLED_WITH_USAGE
+  CONFIRMED_NO_USAGE
+  ESCALATED
+  CLOSED
+}
+
+/// Operations aggregate for DISPATCH_UNKNOWN, OUTCOME_UNKNOWN, over-exposure, and conflicting evidence (ADR-028 Line 155).
+model BillingReconciliationCase {
+  id                       String                      @id @default(uuid())
+  caseId                   String                      @unique
+  invocationId             String                      @unique
+  admissionId              String                      @unique
+  state                    BillingReconciliationState  @default(OPEN)
+  provider                 String
+  providerCorrelationId   String
+  providerLogArtifactId   String?
+  providerLogArchiveSha256 String?
+  coverageStart            DateTime?                   @db.Timestamptz(3)
+  coverageEnd              DateTime?                   @db.Timestamptz(3)
+  resolvedAt               DateTime?                   @db.Timestamptz(3)
+  resolvedBy               String?
+  auditRationale           String?
+  conflictingPayload       Json?
+  conflictDetectedAt       DateTime?                   @db.Timestamptz(3)
+  version                  Int                         @default(1)
+  createdAt                DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                    @updatedAt @db.Timestamptz(3)
+  admission                BillableInvocationAdmission @relation(fields: [admissionId], references: [id], onDelete: Restrict)
+
+  @@index([state])
+  @@index([admissionId])
+}
+
+/// Durable, server-authenticated provider audit log artifact for independent reconciliation.
+model ProviderLogArtifact {
+  id                 String    @id @default(uuid())
+  artifactId         String    @unique
+  provider           String
+  source             String    @default("PROVIDER_EXPORT_VERIFIED")
+  signingKeyId       String?
+  providerSignature  String
+  sha256             String
+  coverageStart      DateTime  @db.Timestamptz(3)
+  coverageEnd        DateTime  @db.Timestamptz(3)
+  finalizedWatermark DateTime? @db.Timestamptz(3)
+  rawContent         String    @db.Text
+  verified           Boolean   @default(false)
+  ingestedBy         String    @default("system")
+  ingestedAt         DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([provider, coverageStart, coverageEnd])
+  @@index([sha256])
 }
 
 // ---------------------------------------------------------------------------

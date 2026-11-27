@@ -2,12 +2,15 @@ import { describe, expect, it } from "@jest/globals";
 import {
   AdmissionFundingPrincipal as PrismaAdmissionFundingPrincipal,
   AdmissionState as PrismaAdmissionState,
+  AuditResourceType as PrismaAuditResourceType,
   AuthBackupEmailPolicy as PrismaAuthBackupEmailPolicy,
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
+  BillingReconciliationState as PrismaBillingReconciliationState,
   CreditLedgerSource as PrismaCreditLedgerSource,
   CredentialProvider as PrismaCredentialProvider,
+  CustomerTariffDraftStatus as PrismaCustomerTariffDraftStatus,
   LegalSourceDocumentCorpusRole as PrismaCorpusRole,
   LegalSourceDocumentIngestionState as PrismaLegalSourceDocumentIngestionState,
   LegalSourceDocumentOrigin as PrismaLegalSourceDocumentOrigin,
@@ -39,13 +42,17 @@ import {
   ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
   CREDIT_LEDGER_SOURCES,
+  CUSTOMER_TARIFF_DRAFT_STATUSES,
   MODEL_PRICING_SCOPES,
   MODEL_USAGE_DEBIT_MODES,
   OUTPUT_EVALUATION_STATES,
   PROVIDER_COMPLETION_STATES,
+  RECONCILIATION_CASE_STATES,
   TOKEN_BUCKET_POLICIES,
   type AdmissionState,
+  type CustomerTariffDraftStatus,
   type ModelPricingScope,
+  type ReconciliationCaseState,
 } from "@lcsp/contracts/billing";
 import {
   CREDENTIAL_PROVIDERS,
@@ -73,8 +80,10 @@ import {
   fromPrismaAuthDecision,
   fromPrismaAuthPrimaryEmailAddressPolicy,
   fromPrismaAuthUserRole,
+  fromPrismaBillingReconciliationState,
   fromPrismaCreditLedgerSource,
   fromPrismaCredentialProvider,
+  fromPrismaCustomerTariffDraftStatus,
   fromPrismaLegalSourceDocumentCorpusRole,
   fromPrismaLegalSourceDocumentIngestionState,
   fromPrismaLegalSourceDocumentOrigin,
@@ -97,8 +106,10 @@ import {
   toPrismaAuthDecision,
   toPrismaAuthPrimaryEmailAddressPolicy,
   toPrismaAuthUserRole,
+  toPrismaBillingReconciliationState,
   toPrismaCreditLedgerSource,
   toPrismaCredentialProvider,
+  toPrismaCustomerTariffDraftStatus,
   toPrismaLegalSourceDocumentCorpusRole,
   toPrismaLegalSourceDocumentIngestionState,
   toPrismaLegalSourceDocumentOrigin,
@@ -527,6 +538,87 @@ describe("prisma-enum-mappers", () => {
         ).toBe(prismaSource);
       }
     });
+
+    it("round-trips BillingReconciliationState and fails closed on unknown values", () => {
+      for (const state of Object.values(RECONCILIATION_CASE_STATES)) {
+        expect(
+          fromPrismaBillingReconciliationState(
+            toPrismaBillingReconciliationState(state),
+          ),
+        ).toBe(state);
+      }
+      for (const prismaState of Object.values(
+        PrismaBillingReconciliationState,
+      )) {
+        expect(
+          toPrismaBillingReconciliationState(
+            fromPrismaBillingReconciliationState(prismaState),
+          ),
+        ).toBe(prismaState);
+      }
+      expect(() =>
+        toPrismaBillingReconciliationState(
+          "UNKNOWN_RECON_STATE" as unknown as ReconciliationCaseState,
+        ),
+      ).toThrow("Unsupported billing reconciliation state");
+      expect(() =>
+        fromPrismaBillingReconciliationState(
+          "UNKNOWN_PRISMA_RECON_STATE" as unknown as PrismaBillingReconciliationState,
+        ),
+      ).toThrow("Unsupported Prisma billing reconciliation state");
+    });
+
+    it("round-trips CustomerTariffDraftStatus and fails closed on unknown values", () => {
+      for (const status of Object.values(CUSTOMER_TARIFF_DRAFT_STATUSES)) {
+        expect(
+          fromPrismaCustomerTariffDraftStatus(
+            toPrismaCustomerTariffDraftStatus(status),
+          ),
+        ).toBe(status);
+      }
+      for (const prismaStatus of Object.values(
+        PrismaCustomerTariffDraftStatus,
+      )) {
+        expect(
+          toPrismaCustomerTariffDraftStatus(
+            fromPrismaCustomerTariffDraftStatus(prismaStatus),
+          ),
+        ).toBe(prismaStatus);
+      }
+      expect(() =>
+        toPrismaCustomerTariffDraftStatus(
+          "UNKNOWN_DRAFT_STATUS" as unknown as CustomerTariffDraftStatus,
+        ),
+      ).toThrow("Unsupported customer tariff draft status");
+      expect(() =>
+        fromPrismaCustomerTariffDraftStatus(
+          "UNKNOWN_PRISMA_DRAFT_STATUS" as unknown as PrismaCustomerTariffDraftStatus,
+        ),
+      ).toThrow("Unsupported Prisma customer tariff draft status");
+    });
+
+    it("maps AuditResourceType.CUSTOMER_MODEL_TARIFF and OutboxAggregateType.CUSTOMER_MODEL_TARIFF", () => {
+      expect(
+        toPrismaAuditResourceType(AUDIT_RESOURCE_TYPES.customerModelTariff),
+      ).toBe(PrismaAuditResourceType.CUSTOMER_MODEL_TARIFF);
+      expect(
+        toPrismaOutboxAggregateType(OUTBOX_AGGREGATE_TYPES.customerModelTariff),
+      ).toBe(PrismaOutboxAggregateType.CUSTOMER_MODEL_TARIFF);
+      expect(
+        fromPrismaOutboxAggregateType(
+          PrismaOutboxAggregateType.CUSTOMER_MODEL_TARIFF,
+        ),
+      ).toBe(OUTBOX_AGGREGATE_TYPES.customerModelTariff);
+    });
+
+    it("maps OutboxAggregateType.BILLING_WALLET", () => {
+      expect(
+        toPrismaOutboxAggregateType(OUTBOX_AGGREGATE_TYPES.billingWallet),
+      ).toBe(PrismaOutboxAggregateType.BILLING_WALLET);
+      expect(
+        fromPrismaOutboxAggregateType(PrismaOutboxAggregateType.BILLING_WALLET),
+      ).toBe(OUTBOX_AGGREGATE_TYPES.billingWallet);
+    });
   });
 
   describe("WP8 Mappers Prototype-Key Hardening (Object.hasOwn RED Test)", () => {
@@ -538,7 +630,7 @@ describe("prisma-enum-mappers", () => {
     ] as const;
 
     it.each(PROTOTYPE_KEYS)(
-      "rejects Object.prototype key %s across all 16 WP8 mappers",
+      "rejects Object.prototype key %s across all WP8 mappers",
       (protoKey) => {
         const mappers: Array<(value: never) => unknown> = [
           toPrismaModelPricingScope,
@@ -557,6 +649,10 @@ describe("prisma-enum-mappers", () => {
           fromPrismaOutputEvaluationState,
           toPrismaCreditLedgerSource,
           fromPrismaCreditLedgerSource,
+          toPrismaCustomerTariffDraftStatus,
+          fromPrismaCustomerTariffDraftStatus,
+          toPrismaBillingReconciliationState,
+          fromPrismaBillingReconciliationState,
         ];
 
         for (const mapper of mappers) {
