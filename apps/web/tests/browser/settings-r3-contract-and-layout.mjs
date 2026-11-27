@@ -148,10 +148,15 @@ try {
   await domainList.getByText("registry.npmjs.org", { exact: true }).waitFor({ state: "visible" });
   await domainList.getByText("pypi.org", { exact: true }).waitFor({ state: "visible" });
   const domainListCount = await domainList.count();
-  const domainListText = domainListCount ? await domainList.textContent() : "";
+  // Compare complete rendered list items; these labels are presentation data, not URL validation input.
+  const domainValues = domainListCount
+    ? (await domainList.locator("li").allTextContents()).map((value) => value.trim()).sort()
+    : [];
   const domainPresentation = {
-    hasAuthoritativeDomains: domainListText?.includes("registry.npmjs.org") &&
-      domainListText?.includes("pypi.org"),
+    hasAuthoritativeDomains:
+      domainValues.length === 2 &&
+      domainValues[0] === "pypi.org" &&
+      domainValues[1] === "registry.npmjs.org",
     hasEditableDomainInput: await settings.locator("#settings-domain-input").count() > 0,
     hasAddAction: await settings.getByRole("button", { name: "Add", exact: true }).count() > 0,
   };

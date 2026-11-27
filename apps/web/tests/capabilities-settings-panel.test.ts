@@ -200,8 +200,11 @@ test("CapabilitiesSettingsPanel displays contract domains without unsupported ed
     const allowedDomains = container.querySelector(
       '[data-component="AllowedPackageManagerDomains"]',
     );
-    assert.ok(allowedDomains?.textContent?.includes("registry.npmjs.org"));
-    assert.ok(allowedDomains?.textContent?.includes("pypi.org"));
+    // Verify the complete policy values as list items; they are rendered labels, not URL allowlist checks.
+    const renderedDomains = [...(allowedDomains?.querySelectorAll("li") ?? [])].map(
+      (item) => item.textContent?.trim(),
+    );
+    assert.deepEqual(renderedDomains, ["registry.npmjs.org", "pypi.org"]);
     assert.equal(container.querySelector("#settings-domain-input"), null);
     assert.equal(
       [...container.querySelectorAll("button")].some(
@@ -374,7 +377,7 @@ test("CapabilitiesSettingsPanel explains an empty authoritative allowlist withou
     const status = container.querySelector('[role="status"]');
     assert.ok(status?.textContent?.includes("No package-manager domains are currently reported by policy."));
     assert.equal(container.querySelector('[data-component="AllowedPackageManagerDomains"]'), null);
-    assert.equal(container.textContent?.includes("registry.npmjs.org"), false);
+    assert.equal(container.querySelectorAll('[data-component="AllowedPackageManagerDomains"] li').length, 0);
   } finally {
     await act(async () => root.unmount());
     queryClient.clear();
