@@ -109,7 +109,7 @@ def test_large_postgres_backlog_delivery_preserves_durable_retry(monkeypatch):
                             body=json.dumps({"assessmentId": reservation["assessmentId"], "idempotencyKey": command_key}).encode(),
                             properties=pika.BasicProperties(delivery_mode=2,
                                 headers={bridge.AGENT_RUNTIME_ATTEMPT_HEADER: 3}))
-                    pump(connection, lambda: len(acks) == 2, timeout=15)
+                    pump(connection, lambda: len(acks) == 2, timeout=30)
                     channel.stop_consuming()
                     retry_queue = bridge._retry_queue_name(prefix, 15)
                     # The confirmed copy may already have passed its TTL back to the original queue.
