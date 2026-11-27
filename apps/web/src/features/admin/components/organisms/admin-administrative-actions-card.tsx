@@ -5,6 +5,7 @@ import type { MessageKey } from "@lcsp/i18n";
 import { Button } from "@/components/ui/button";
 import { resolveAppMessage } from "@/lib/i18n";
 import type { AdminAdministrativeActionsCardProps } from "@/features/admin/types/admin.types";
+import { cn } from "@/lib/utils";
 
 export function AdminAdministrativeActionsCard({
   user,
@@ -32,20 +33,41 @@ export function AdminAdministrativeActionsCard({
   const cannotManage = user.version === undefined;
 
   return (
-    <div className="flex w-full max-w-139 flex-col gap-6 self-start rounded-xl border border-border bg-card p-6 shadow-xs">
-      <h2 className="text-[15px] font-semibold text-foreground">{cardTitle}</h2>
+    <div
+      data-figma-node="1697:4575"
+      data-figma-name="Administrative controls"
+      className="flex h-[255px] w-full flex-col justify-between rounded-[14px] border border-border bg-card p-5 shadow-xs"
+    >
+      <div>
+        <h2 className="text-[16px] font-semibold text-foreground tracking-tight">
+          {cardTitle}
+        </h2>
 
-      {/* Account Access & Suspend Row */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-col space-y-1">
-          <span className="text-[11.5px] font-semibold text-foreground">
+        {/* Account status row with inline status badge */}
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-[13px] font-medium text-muted-foreground">
             {accountAccessLabel}
           </span>
-          <span className="text-[11.5px] text-muted-foreground leading-tight max-w-70">
-            {isSuspended ? suspendedAccessCopy : activeAccessCopy}
+          <span
+            className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded-[6px] text-[12px] font-semibold border",
+              !isSuspended
+                ? "bg-primary/10 text-primary border-primary/20"
+                : "bg-destructive/10 text-destructive border-destructive/20",
+            )}
+          >
+            {!isSuspended ? "Active" : "Suspended"}
           </span>
         </div>
 
+        {/* Explanatory notice */}
+        <p className="mt-3 text-[13px] text-muted-foreground">
+          Roles and suspension require independent approval.
+        </p>
+      </div>
+
+      {/* Action button Figma 1711:8469 */}
+      <div className="border-t border-border pt-4">
         <Button
           type="button"
           variant="outline"
@@ -57,7 +79,12 @@ export function AdminAdministrativeActionsCard({
               : onOpenSuspendModal
           }
           disabled={cannotManage || isRestoring || (isSuspended && !onRestore)}
-          className="h-9.5 w-45 rounded-lg border-admin-danger-border bg-admin-danger-surface text-[12.5px] font-semibold text-admin-danger-foreground hover:bg-admin-danger-surface-hover disabled:opacity-40"
+          className={cn(
+            "h-[36px] px-4 rounded-[7px] text-[13px] font-semibold transition-colors shadow-xs disabled:opacity-40",
+            isSuspended
+              ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90"
+              : "border-destructive/30 bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          )}
         >
           {isSuspended
             ? resolveAppMessage(

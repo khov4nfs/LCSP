@@ -11,6 +11,7 @@ import { AdminUserFilters } from "@/features/admin/components/molecules/admin-us
 import { AdminUserTable } from "@/features/admin/components/organisms/admin-user-table";
 import { AdminPagination } from "@/features/admin/components/molecules/admin-pagination";
 import { useAdminUsersListQuery } from "@/lib/api/admin-users-queries";
+import { useAdminOverviewQuery } from "@/lib/api/admin-overview-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 
 export default function AdminUsersPage() {
@@ -24,6 +25,7 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  // 1. Fetch paginated filtered user list from API
   const { data, isLoading } = useAdminUsersListQuery({
     query: searchQuery,
     status: statusFilter,
@@ -31,6 +33,9 @@ export default function AdminUsersPage() {
     page,
     pageSize,
   });
+
+  // 2. Fetch authoritative overview statistics directly from backend API
+  const { data: overviewStats } = useAdminOverviewQuery("30D");
 
   const pageTitle = resolveAppMessage(
     "pages.admin.usersList.title" as MessageKey,
@@ -42,6 +47,12 @@ export default function AdminUsersPage() {
   const totalCount = data?.totalCount ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const users = data?.users ?? [];
+
+  // Live real data counts from backend overview API, falling back to current list total
+  const statsTotal = overviewStats?.summary?.totalUsers?.count ?? totalCount;
+  const statsActive = overviewStats?.accountDistribution?.activeCount ?? overviewStats?.summary?.activeUsers?.count ?? 0;
+  const statsSuspended = overviewStats?.accountDistribution?.suspendedCount ?? 0;
+  const statsNewAccounts = overviewStats?.summary?.totalUsers?.periodChange ?? 0;
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val);
@@ -71,12 +82,12 @@ export default function AdminUsersPage() {
       {/* Page Header */}
       <AdminPageHeader title={pageTitle} description={pageDescription} />
 
-      {/* Collection Insight Strip */}
+      {/* Collection Insight Strip (Figma 1712:8271) - Fed from backend API */}
       <AdminUserInsightStrip
-        totalCount={totalCount || 876}
-        activeCount={842}
-        suspendedCount={34}
-        newCount={36}
+        totalCount={statsTotal}
+        activeCount={statsActive}
+        suspendedCount={statsSuspended}
+        newCount={statsNewAccounts}
       />
 
       {/* Users Table with embedded DataTableToolbar and Pagination */}

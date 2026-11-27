@@ -11,9 +11,6 @@ export function AdminUsageSummary({ usageSummary }: AdminUsageSummaryProps) {
   const sectionTitle = resolveAppMessage(
     "pages.admin.userDetail.usageSummary.title" as MessageKey,
   );
-  const sectionDescription = resolveAppMessage(
-    "pages.admin.userDetail.usageSummary.description" as MessageKey,
-  );
   const assessments30dLabel = resolveAppMessage(
     "pages.admin.userDetail.usageSummary.metrics.assessments30d" as MessageKey,
   );
@@ -30,42 +27,77 @@ export function AdminUsageSummary({ usageSummary }: AdminUsageSummaryProps) {
   const formatAssessments =
     usageSummary?.assessments30d !== null && usageSummary?.assessments30d !== undefined
       ? String(usageSummary.assessments30d)
-      : "—";
+      : "0";
 
-  const formatLastAssessment = formatLocaleDateTime(usageSummary?.lastAssessmentAt);
+  const formatLastAssessment = usageSummary?.lastAssessmentAt
+    ? formatLocaleDateTime(usageSummary.lastAssessmentAt)
+    : "—";
 
   const formatCreditSpend =
     usageSummary?.creditSpend30d !== null && usageSummary?.creditSpend30d !== undefined
-      ? `$${usageSummary.creditSpend30d.toFixed(2)}`
-      : "—";
+      ? `₫${usageSummary.creditSpend30d.toLocaleString()}M`
+      : "₫0";
 
   const formatFindings =
     usageSummary?.openFindingsCount !== null && usageSummary?.openFindingsCount !== undefined
       ? String(usageSummary.openFindingsCount)
-      : "—";
+      : "0";
 
   const cards = [
-    { label: assessments30dLabel, value: formatAssessments, widthClass: "w-full sm:w-[260px]" },
-    { label: lastAssessmentLabel, value: formatLastAssessment, widthClass: "w-full sm:w-[260px]" },
-    { label: creditSpend30dLabel, value: formatCreditSpend, widthClass: "w-full sm:w-[260px]" },
-    { label: openFindingsLabel, value: formatFindings, widthClass: "w-full sm:w-[266px]" },
+    {
+      label: assessments30dLabel,
+      value: formatAssessments,
+      context: `${formatAssessments} completed`,
+    },
+    {
+      label: lastAssessmentLabel,
+      value: formatLastAssessment,
+      context: "Latest execution",
+    },
+    {
+      label: creditSpend30dLabel,
+      value: formatCreditSpend,
+      context: "Last 30 days usage",
+    },
+    {
+      label: openFindingsLabel,
+      value: formatFindings,
+      context: "Review assessment results",
+    },
   ];
 
   return (
-    <section className="flex flex-col space-y-4 pt-8" aria-label={sectionTitle}>
-      <div className="flex flex-col">
-        <h2 className="text-[15px] font-semibold text-foreground">{sectionTitle}</h2>
-        <p className="text-[11.5px] text-muted-foreground">{sectionDescription}</p>
-      </div>
+    <section
+      data-figma-node="1697:4584"
+      data-figma-name="Usage summary"
+      className="flex flex-col space-y-3 pt-2"
+      aria-label={sectionTitle}
+    >
+      <h2 className="text-[19px] font-semibold text-foreground tracking-tight">
+        {sectionTitle}
+      </h2>
 
-      <div className="flex flex-wrap items-center gap-[22px]">
+      {/* KPI grid / 4 columns (Figma 1712:8272) */}
+      <div
+        data-figma-node="1712:8272"
+        data-figma-name="KPI grid / 4 columns"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         {cards.map((card) => (
-          <AdminMetricCard
+          <div
             key={card.label}
-            label={card.label}
-            value={card.value}
-            widthClass={card.widthClass}
-          />
+            className="flex h-[104px] flex-col justify-between rounded-[12px] border border-border bg-card p-4 shadow-xs"
+          >
+            <span className="text-[13px] font-semibold text-foreground">
+              {card.label}
+            </span>
+            <span className="text-[26px] font-semibold leading-none text-primary tracking-tight">
+              {card.value}
+            </span>
+            <span className="text-[12px] text-muted-foreground truncate">
+              {card.context}
+            </span>
+          </div>
         ))}
       </div>
     </section>
