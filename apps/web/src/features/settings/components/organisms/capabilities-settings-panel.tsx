@@ -29,7 +29,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -49,6 +48,8 @@ export type CapabilitiesSettingsPanelProps = {
  * - Backend is the single source of truth for effective capabilities and system policies.
  * - tool_access_mode, connector_search, and artifacts are customer-configurable.
  * - cloud_code_execution, network_egress, and domain_allowlist are enforced by platform/runtime policy and remain read-only.
+ * - The current domain allowlist is displayed from the response; unsupported custom-domain editing is not offered.
+ * - Cached values remain visible as explicitly stale context after a failed refresh and cannot authorize another edit.
  * - Updates persist via /api/auth/capabilities and trigger query cache invalidation.
  *
  * Execution flow:
@@ -57,7 +58,7 @@ export type CapabilitiesSettingsPanelProps = {
  * 3. Dispatch partial updates via useUpdateCapabilitySettingsMutation on control changes and surface toast feedback.
  *
  * Failure cases:
- * - Query failure renders an error alert with a retry button.
+ * - Initial query failure renders a load alert; refetch failure labels cached values stale and disables configurable controls.
  * - Mutation failure surfaces a translated error toast and resets form values back to confirmed backend state.
  *
  * Side effects:
@@ -72,6 +73,8 @@ export function CapabilitiesSettingsPanel({
   const hydrated = useHydrated();
   const data = hydrated ? query.data : undefined;
   const isUpdating = updateMutation.isPending;
+  // A cached capability response is display context only after refresh failure, not current write authority.
+  const canEditCapabilities = !isUpdating && !query.isError;
 
   const { control, reset } = useForm<UpdateCapabilitySettingsInput>({
     resolver: zodResolver(updateCapabilitySettingsSchema),
@@ -177,19 +180,34 @@ export function CapabilitiesSettingsPanel({
       ) : null}
 
       {hydrated && query.isError ? (
-        <Alert variant="destructive" role="alert">
+        <Alert
+          variant="destructive"
+          role="alert"
+          data-settings-stale={data ? "true" : undefined}
+        >
           <AlertCircleIcon className="size-4" />
           <AlertTitle>
             {resolveMessage(
               locale,
-              "pages.workspace.settingsHub.capabilities.loadError",
+              data
+                ? "pages.workspace.settingsHub.capabilities.staleTitle"
+                : "pages.workspace.settingsHub.capabilities.loadError",
             )}
           </AlertTitle>
-          <AlertDescription className="mt-2 flex items-center gap-2">
+          <AlertDescription className="mt-2 flex flex-col items-start gap-2">
+            <p>
+              {resolveMessage(
+                locale,
+                data
+                  ? "pages.workspace.settingsHub.capabilities.staleDescription"
+                  : "pages.workspace.settingsHub.capabilities.loadErrorDetail",
+              )}
+            </p>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              disabled={query.isFetching}
               onClick={() => query.refetch()}
             >
               {resolveMessage(
@@ -252,7 +270,7 @@ export function CapabilitiesSettingsPanel({
                           id="settings-tool-access-mode"
                           type="button"
                           variant="outline"
-                          disabled={isUpdating}
+                          disabled={!canEditCapabilities}
                           className="w-full justify-between sm:w-56"
                         >
                           <span>
@@ -330,7 +348,7 @@ export function CapabilitiesSettingsPanel({
                 render={({ field }) => (
                   <Switch
                     checked={Boolean(field.value)}
-                    disabled={isUpdating}
+                    disabled={!canEditCapabilities}
                     onCheckedChange={(checked) => {
                       field.onChange(checked);
                       void applyUpdate({ connector_search: checked });
@@ -374,7 +392,7 @@ export function CapabilitiesSettingsPanel({
                 render={({ field }) => (
                   <Switch
                     checked={Boolean(field.value)}
-                    disabled={isUpdating}
+                    disabled={!canEditCapabilities}
                     onCheckedChange={(checked) => {
                       field.onChange(checked);
                       void applyUpdate({ artifacts: checked });
@@ -509,22 +527,42 @@ export function CapabilitiesSettingsPanel({
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    id="settings-domain-input"
-                    className="h-9 flex-1 text-xs"
-                    disabled
-                    placeholder={resolveMessage(
-                      locale,
-                      "pages.workspace.settingsHub.capabilities.domainInputPlaceholder",
-                    )}
-                  />
-                  <Button type="button" className="h-9 sm:w-20" disabled>
+                {/* Only show the server-returned allowlist; no custom-domain write contract exists. */}
+                <div className="space-y-2">
+                  <p
+                    id="allowed-package-manager-domains-label"
+                    className="text-xs font-medium text-foreground"
+                  >
                     {resolveMessage(
                       locale,
-                      "pages.workspace.settingsHub.capabilities.addDomain",
+                      "pages.workspace.settingsHub.capabilities.allowedPackageManagerDomains",
                     )}
-                  </Button>
+                  </p>
+                  {data.domain_allowlist.allowed_domains.length > 0 ? (
+                    <ul
+                      className="flex flex-wrap gap-2"
+                      aria-labelledby="allowed-package-manager-domains-label"
+                      data-component="AllowedPackageManagerDomains"
+                    >
+                      {data.domain_allowlist.allowed_domains.map((domain) => (
+                        <li key={domain}>
+                          <Badge variant="outline" className="break-all">
+                            {domain}
+                          </Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p
+                      role="status"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {resolveMessage(
+                        locale,
+                        "pages.workspace.settingsHub.capabilities.noAllowedPackageManagerDomains",
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

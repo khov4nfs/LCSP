@@ -11,4 +11,6 @@ export type FormTextFieldProps<T extends FieldValues> = {
   type?: HTMLInputTypeAttribute;
   inputClassName?: string;
   actions?: ReactNode;
+  /** Lets a domain screen move secondary actions below an editable field at narrow widths. */
+  wrapActions?: boolean;
 };

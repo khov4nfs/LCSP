@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { FormTextFieldProps } from "@/components/types/form-text-field.types";
+import { cn } from "@/lib/utils";
 import { appLocale } from "@/lib/locale";
 
 export function FormTextField<T extends FieldValues>({
@@ -21,6 +22,7 @@ export function FormTextField<T extends FieldValues>({
   type = "text",
   inputClassName,
   actions,
+  wrapActions = false,
 }: FormTextFieldProps<T>) {
   const { register, getFieldState, formState } = useFormContext<T>();
   const { error } = getFieldState(name, formState);
@@ -29,12 +31,23 @@ export function FormTextField<T extends FieldValues>({
       <FieldLabel htmlFor={id}>
         {resolveMessage(appLocale, labelKey)}
       </FieldLabel>
-      <div className="flex min-w-0 items-center justify-between gap-4 sm:gap-6">
+      {/* Compact profile rows wrap actions so the editable field keeps its usable minimum width. */}
+      <div
+        className={cn(
+          "flex min-w-0 items-center justify-between gap-4 sm:gap-6",
+          wrapActions &&
+            "flex-wrap items-start gap-3 sm:flex-nowrap sm:items-center sm:gap-6",
+        )}
+      >
         <Input
           {...register(name)}
           id={id}
           type={type}
-          className={inputClassName}
+          className={cn(
+            inputClassName,
+            // A CSS-pixel floor stays usable under root-font enlargement; rem-based minima grow beyond narrow viewports.
+            wrapActions && "min-w-[180px] basis-48 flex-1",
+          )}
           autoComplete={autoComplete}
           disabled={formState.isSubmitting}
           aria-invalid={!!error}
@@ -48,7 +61,14 @@ export function FormTextField<T extends FieldValues>({
           }
         />
         {actions ? (
-          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+          <div
+            className={cn(
+              "flex shrink-0 items-center gap-2",
+              wrapActions && "ml-auto max-w-full min-w-0 shrink flex-wrap justify-end",
+            )}
+          >
+            {actions}
+          </div>
         ) : null}
       </div>
       {descriptionKey ? (

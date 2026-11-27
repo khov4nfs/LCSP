@@ -2903,6 +2903,12 @@ export const enPages = {
         saveSuccess: "Privacy settings updated successfully.",
         saveError: "Failed to update privacy settings.",
         loading: "Loading privacy settings...",
+        loadError: "Unable to load privacy settings.",
+        loadErrorDetail: "The current privacy settings could not be loaded. Try again.",
+        staleTitle: "Showing the last confirmed privacy settings",
+        staleDescription:
+          "The latest refresh failed, so these values may be outdated. Changes are disabled until settings can be refreshed.",
+        retry: "Retry",
       },
       billing: {
         title: "Billing",
@@ -3081,8 +3087,15 @@ export const enPages = {
         domainAllowlistUnsupported:
           "Additional allowed domains are not configurable in the current settings contract.",
         packageManagersOnly: "Package managers only",
+        allowedPackageManagerDomains: "Allowed package-manager domains",
+        noAllowedPackageManagerDomains:
+          "No package-manager domains are currently reported by policy.",
         loading: "Loading capability settings...",
         loadError: "Unable to load capability settings.",
+        loadErrorDetail: "The current capability settings could not be loaded. Try again.",
+        staleTitle: "Showing the last confirmed capability settings",
+        staleDescription:
+          "The latest refresh failed, so these values may be outdated. Changes are disabled until settings can be refreshed.",
         retry: "Retry",
         saveSuccess: "Capability settings saved.",
         saveError: "Unable to save capability settings.",

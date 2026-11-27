@@ -29,6 +29,7 @@ export type PrivacySettingsPanelProps = {
  * Business rules:
  * - improve_models capability is enforced by system policy to disabled (false) and cannot be toggled.
  * - retain_repository_telemetry, enable_audit_export_api, restricted_assessment_sharing, and purge_agent_memory_on_completion are configurable by the user.
+ * - Cached values remain visible as explicitly stale context after a failed refresh and cannot authorize another edit.
  * - Mutations persist directly to the database and trigger reactive cache invalidation.
  *
  * Execution flow:
@@ -37,7 +38,7 @@ export type PrivacySettingsPanelProps = {
  * 3. On toggle change, invoke useUpdatePrivacySettingsMutation and display feedback toast.
  *
  * Failure cases:
- * - Query failure displays an alert with a retry action.
+ * - Initial query failure displays a load alert; refetch failure labels cached values stale and disables their controls.
  * - Mutation failure displays an error toast without corrupting local state.
  *
  * Side effects:
@@ -94,6 +95,8 @@ export function PrivacySettingsPanel({ locale }: PrivacySettingsPanelProps) {
 
   const data = hydrated ? query.data : undefined;
   const isUpdating = updateMutation.isPending;
+  // Cached query data can survive a failed refresh; it remains visible for context but cannot authorize another write.
+  const canEditPreferences = !isUpdating && !query.isError;
 
   return (
     <div
@@ -133,24 +136,39 @@ export function PrivacySettingsPanel({ locale }: PrivacySettingsPanelProps) {
       ) : null}
 
       {hydrated && query.isError ? (
-        <Alert variant="destructive" role="alert">
+        <Alert
+          variant="destructive"
+          role="alert"
+          data-settings-stale={data ? "true" : undefined}
+        >
           <AlertCircleIcon className="size-4" />
           <AlertTitle>
             {resolveMessage(
               locale,
-              "pages.workspace.settingsHub.privacy.saveError",
+              data
+                ? "pages.workspace.settingsHub.privacy.staleTitle"
+                : "pages.workspace.settingsHub.privacy.loadError",
             )}
           </AlertTitle>
-          <AlertDescription className="mt-2 flex items-center gap-2">
+          <AlertDescription className="mt-2 flex flex-col items-start gap-2">
+            <p>
+              {resolveMessage(
+                locale,
+                data
+                  ? "pages.workspace.settingsHub.privacy.staleDescription"
+                  : "pages.workspace.settingsHub.privacy.loadErrorDetail",
+              )}
+            </p>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              disabled={query.isFetching}
               onClick={() => query.refetch()}
             >
               {resolveMessage(
                 locale,
-                "pages.workspace.settingsHub.billing.retry",
+                "pages.workspace.settingsHub.privacy.retry",
               )}
             </Button>
           </AlertDescription>
@@ -211,7 +229,7 @@ export function PrivacySettingsPanel({ locale }: PrivacySettingsPanelProps) {
             </div>
             <Switch
               checked={data.retain_repository_telemetry}
-              disabled={isUpdating}
+              disabled={!canEditPreferences}
               onCheckedChange={(checked) =>
                 handleToggle({ retain_repository_telemetry: checked })
               }
@@ -240,7 +258,7 @@ export function PrivacySettingsPanel({ locale }: PrivacySettingsPanelProps) {
             </div>
             <Switch
               checked={data.enable_audit_export_api}
-              disabled={isUpdating}
+              disabled={!canEditPreferences}
               onCheckedChange={(checked) =>
                 handleToggle({ enable_audit_export_api: checked })
               }
@@ -269,7 +287,7 @@ export function PrivacySettingsPanel({ locale }: PrivacySettingsPanelProps) {
             </div>
             <Switch
               checked={data.restricted_assessment_sharing}
-              disabled={isUpdating}
+              disabled={!canEditPreferences}
               onCheckedChange={(checked) =>
                 handleToggle({ restricted_assessment_sharing: checked })
               }
@@ -298,7 +316,7 @@ export function PrivacySettingsPanel({ locale }: PrivacySettingsPanelProps) {
             </div>
             <Switch
               checked={data.purge_agent_memory_on_completion}
-              disabled={isUpdating}
+              disabled={!canEditPreferences}
               onCheckedChange={(checked) =>
                 handleToggle({ purge_agent_memory_on_completion: checked })
               }
