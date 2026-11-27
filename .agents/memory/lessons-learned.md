@@ -115,17 +115,70 @@
   2. **Graceful Shutdown**: Call `app.enableShutdownHooks()` so Nest triggers `onModuleDestroy()` across all providers (RabbitMQ channel/connection cleanup, Prisma connection pool disconnection).
   3. **NodeNext ESM Consistency**: All export and import specifiers in TypeScript source files MUST use the standard `.js` extension, never raw `.ts`.
 
-### [2026-11-23] [STACK: apps/api] Assessment Root Admission Under a Large Backlog
-- **Context / Symptom**: The fair-head reservation timed out under the global capacity lock after a burst of 10,001 pending commands. The same case could pass when run alone.
-- **Root Cause**: With pre-backlog statistics, PostgreSQL estimated one pending row and picked a nested loop that rescanned the pending-admission index for each latest command.
-- **Resolution & Invariant**: Select the latest Root command per Assessment before filtering transport status. Use a bounded lookup by the unique command ID before testing pending status, so a burst cannot multiply admission scans under the lock. Verify tail deferral and later admission in the full PostgreSQL integration spec, including broker redelivery.
+### [2026-11-22] [BACKEND/CONCURRENCY] Assessment Module Hardening: Row-Lock DoS, Zombie Run Prevention & FK Restrict
+- **Context / Symptom**: In `assessment` module:
+  1. Raw SQL row locks `SELECT 1 FROM "Assessment" WHERE "id" = ... FOR UPDATE` locked rows before tenant ownership was checked, enabling cross-tenant Row-Lock DoS (BOLA).
+  2. Expired worker leases rejected `finishExecution` calls with HTTP 403 `EXECUTION_LEASE_INVALID`, stranding runs in `RUNNING` state indefinitely ("Zombie Run").
+  3. Deleting an assessment crashed with Prisma P2003/P2014 due to `onDelete: Restrict` on `AssessmentExecutionIsolation`.
+  4. Raw database errors (e.g. CTE query timeouts) leaked in `ServiceUnavailableException` messages (CWE-209).
+  5. `open-human-request.handler.ts` duplicated ~450 lines of complex validation and event logic already present in `open-human-requests-batch.handler.ts`.
+- **Root Cause**:
+  1. Row locking in PostgreSQL acquires exclusive locks immediately upon row match. Scoping the query only by `id` allowed an attacker to hold exclusive locks on any victim's record.
+  2. Lease validation enforced expiration checks uniformly across both intermediate operations (heartbeats/evidence writes) and terminal settlement (`finishExecution`).
+  3. Cascading delete relied on Prisma default cascades without explicitly cleaning up restrictive foreign-key relations.
+  4. Exception handling passed `err.message` directly into user-facing HTTP exception messages.
+  5. Historical single vs batch handlers evolved independently without a unified delegation pattern.
+- **Resolution & Invariant**:
+  1. **Tenant-Scoped Row Locking**: Always scope `FOR UPDATE` queries with `AND "ownerId" = ${actorId}` to prevent cross-tenant row locking.
+  2. **Terminal Settlement on Expired Leases**: Permit terminal state transitions (SUCCEEDED, FAILED, PAUSED, CANCELLED) even after lease expiration as long as the worker's `leaseToken` matches and `executionState` is `RUNNING`, eliminating Zombie Runs.
+  3. **Explicit Restrict FK Cleanup**: Pre-delete records with `onDelete: Restrict` (e.g. `assessmentExecutionIsolation.deleteMany({ where: { assessmentId } })`) inside the deletion transaction before deleting the root entity.
+  4. **Error Masking (CWE-209)**: Log internal driver/query details via `Logger.error()` but return generic safe messages (`"Service is temporarily unavailable."`) to clients.
+  5. **Batch Delegation Pattern**: Single item handlers must delegate to their corresponding batch handler wrapped in a 1-item batch, eliminating duplicate logic while preserving contract and DI compatibility.
 
-### [2026-11-24] [SETTINGS] PAT Rotation and Canceled Verification
-- **Context / Symptom**: A replacement PAT could inherit an earlier token's expiry or reactivate a concurrently disconnected row. Dismissing step-up left the pending form without a cancellation outcome.
-- **Root Cause**: Rotation omitted expiry from the persisted update and matched the old version even after its row was deactivated. The web form did not observe challenge dismissal as a terminal result.
-- **Resolution & Invariant**: Persist metadata and encrypted secret together against the active owner/provider/version. Keep declared expiry when the same secret is submitted again. Treat canceled or superseded proof as terminal, and retry status reads independently of acknowledged writes.
+### [2026-11-22] [PROCESS] Mandatory PR Metadata (Assignee & Labels) on PR Creation
+- **Context / Symptom**: User requested: "gắn kèm cáci metadata như asign và lables chứ. lần sau tôi nói là tự nhớ đấy". PR was created without assignee and labels.
+- **Root Cause**: The agent executed `gh pr create` specifying only `--title` and `--body`, omitting assignee and labels.
+- **Resolution & Invariant**: Whenever creating a Pull Request via `gh pr create`, the agent MUST ALWAYS include:
+  1. Assignee: `--assignee "@me"` (or current actor login).
+  2. Labels: `--label "<module>,refactor,priority:P2"` (matching the module being refactored, e.g. `assessment`, `auth-workspace`, etc.).
 
-### [2026-11-26] [STACK: apps/web] Cross-page Selection for Prepared Rule Activation
-- **Context / Symptom**: Admins had to check prepared results one by one across the paginated catalog before activating an Assessment Rule Set.
-- **Root Cause**: The existing bulk action only selected legal rules for preparation. Activation needed the exact persisted result identity and revision for every selected legal rule.
-- **Resolution & Invariant**: Resolve the complete filtered selection against one catalog revision before replacing the Admin's checked results. Preserve the previous selection if any page changes or fails, and submit the exact result revisions in one request after explicit confirmation.
+### [2026-11-23] [BACKEND/CONCURRENCY] CAS Revisions and Durable Authorization Across External Cleanup
+- **Context / Symptom**: Assessment renames could produce the same `updatedAt` revision within one clock millisecond, transaction-scoped saves marked aggregates committed before audit completion, and deletion released its owner lock before destructive runtime/storage/billing cleanup finished.
+- **Root Cause**: Timestamp equality made compare-and-set revisions reusable; a repository participating in an outer transaction cannot know whether that transaction will commit; and a PostgreSQL row lock cannot safely span slow external services without timeout/connection-pool risk.
+- **Resolution & Invariant**: Every CAS mutation must create a strictly newer revision and be tested with a frozen clock plus stateful concurrent writers. `saveInTx` writes only; its application transaction owner calls `markPersisted()` only after the outer commit. Destructive external cleanup must run outside long database transactions under a durable owner-bound database fence with one renewable cleanup lease token; concurrent requests must never share the token. Every initial resource lookup and `FOR UPDATE` lock must include the authenticated owner scope.
+
+### [2026-11-23] [SECURITY/STREAMING] Do Not Multiplex ADMIN Operations Telemetry onto Customer SSE
+- **Context / Symptom**: Restricting the customer workspace runtime controller to CUSTOMER correctly protected assessment content, but the existing Admin Rule Set Preparation UI still subscribed to that controller and immediately regressed to HTTP 403.
+- **Root Cause**: One SSE endpoint had accumulated two unrelated security scopes: owner-bound assessment snapshots and globally administered, sanitized Preparation telemetry. Tightening one role boundary silently disabled the other consumer, while dead ADMIN branches remained unreachable behind the class guard.
+- **Resolution & Invariant**: Customer assessment SSE and ADMIN operations SSE must use separate RBAC-protected routes, schemas and client hooks. ADMIN Preparation streams bind one validated run ID, re-check the Preparation boundary after subscription, pass every event through the Preparation allowlist, and forward one `x-correlation-id` across the BFF; they never emit canonical assessments or customer runtime events. Protected route isolation must use a successfully verified canonical role and fail closed on profile errors or unknown roles. Browser verification must assert that the Admin page requests the dedicated ADMIN stream and never the customer workspace endpoint.
+
+### [2026-11-23] [BACKEND/ARTIFACTS] Durable Two-Phase Publication for Content-Addressed Reports
+- **Context / Symptom**: Final-report publication wrote immutable bytes before committing artifact authority, kept BUILDING and ACTIVE inside one database transaction, rejected same-digest retries, and classified storage/DB outages as artifact corruption. A failed commit could leave unreachable shared chunks, while a failed activation had no durable resume point.
+- **Root Cause**: Database metadata and filesystem storage were treated as one atomic unit even though they cannot share a transaction. The BUILDING row did not contain the expected hash, size, and manifest, and activation revalidation checked only a subset of pinned metadata. A catch-all error boundary also collapsed integrity, dependency, and internal failures into one status.
+- **Resolution & Invariant**: Publish immutable artifacts synchronously in three ordered phases: (1) commit a fully specified BUILDING authority row, (2) write and verify content-addressed storage outside database transactions under a bounded deadline, and (3) lock/revalidate every identity, pin, schema, digest, hash, size, and manifest field before atomically activating the artifact and completing the aggregate. Same-digest retries resume the same deterministic artifact; different digests conflict before storage. Never compensating-delete shared chunks. Preserve explicit error classes: integrity 409, allowlisted dependency outage/timeout 503, unexpected failure masked 500. Read paths must scope owner/aggregate identity in the database query and serve ACTIVE artifacts only.
+
+### [2026-11-23] [BACKEND/ARTIFACTS] Normalize Semantic Pins and Rebind Foreign Provenance on Replay
+- **Context / Symptom**: A final report could be accepted by the submission handler but rejected by the loader when the same Git SHA used different hexadecimal casing. ACTIVE replay also trusted the stored `repositoryScanJobId` without proving that the referenced job belonged to the report's Assessment and repository snapshot.
+- **Root Cause**: Integrity checks were duplicated across write/replay/read boundaries with asymmetric comparison rules, and foreign provenance identifiers were compared as scalar values instead of being rebound to their authoritative aggregate relationships.
+- **Resolution & Invariant**: Compare case-insensitive semantic identifiers such as Git hexadecimal object IDs through the same normalization rule at every boundary. On immutable artifact replay, resolve each foreign provenance pin and verify both ownership and parent identity (for scan jobs: `assessmentId` and `snapshotId`) before returning content. Treat Prisma `P2034` transaction conflicts as retryable dependency failures, and recognize P2002 string targets only when they match the exact intended unique constraint.
+
+### [2026-11-23] [BACKEND/AUDIT] Durable RBAC Evidence Must Not Depend on Broker Availability
+- **Context / Symptom**: Ordinary RBAC reads either failed whenever the primary AuditEvent store was unavailable or risked proceeding with only an in-memory failure signal. At the same time, sensitive export bytes and material assessment mutations required stronger audit guarantees than ordinary reads.
+- **Root Cause**: Authorization evidence, domain history, broker delivery, and compliance audit were treated as one undifferentiated concern. A broker-first outbox poll also prevented local recovery while RabbitMQ was down, and unauditable ALLOW outcomes could escape the authorization boundary.
+- **Resolution & Invariant**: Canonical AuditEvent remains primary. An ordinary-read ALLOW may continue only after a deterministic, idempotent authorization fallback is durably stored in the local outbox; failure of both stores rejects ALLOW, while DENY remains DENY. The outbox poller restores local audit fallbacks before connecting to RabbitMQ and retains failures through bounded retry/DLQ. Sensitive downloads release no bytes until business-audit persistence succeeds. Material AssessmentEvent, its canonical AuditEvent, and outbox intent must share one transaction while remaining separate records.
+
+### [2026-11-23] [PYTHON/TRACEABILITY] Correlation Identity Belongs to the Root Execution, Not an HTTP Attempt
+- **Context / Symptom**: One Assessment Root execution emitted a different `x-correlation-id` for context, rule-set, evidence, heartbeat, and every read retry, breaking the trace across NestJS and the Python worker.
+- **Root Cause**: `AssessmentRuntimeClient._headers()` generated a UUID for every request while `AssessmentRootBoundary.handle()` ignored the canonical correlation ID already propagated by the outbox and RabbitMQ invocation layer.
+- **Resolution & Invariant**: Bind the inbound correlation ID once when constructing the execution-scoped runtime client and reuse that immutable value for every request and retry. Direct callers may generate one UUID at client construction, but correlation state must never be global, reset at claim time, or regenerated per attempt. Problem metadata must filter active worker/lease credentials before reaching model-facing errors.
+
+### [2026-11-23] [BACKEND/IDEMPOTENCY] Unique-Race Replay Must Match the Exact Prisma Constraint
+- **Context / Symptom**: Concurrent Assessment rule-audit exports with the same request and idempotency key produced one committed row, while the losing request exposed Prisma `P2002` instead of replaying the winner.
+- **Root Cause**: The create path performed find-then-create inside one transaction without post-rollback convergence, and Prisma 7 with `@prisma/adapter-pg` reports the production unique fields under `meta.driverAdapterError.cause.constraint.fields` rather than only legacy `meta.target`.
+- **Resolution & Invariant**: Replay a uniqueness loser only when `P2002` metadata exactly identifies the intended composite constraint, supporting the installed adapter's source-derived quoted-field shape and deliberately retained compatibility shapes. Keep a faithful quoted-field regression fixture, then reload owner-scoped allowlisted winner metadata once through the root Prisma client after the losing transaction rejects. Wrong/malformed constraints and a missing winner rethrow the original error; never retry the whole transaction or return loser-generated metadata. A database-backed concurrency test remains the strongest optional evidence when a disposable PostgreSQL harness is available.
+
+### [2026-11-24] [BACKEND/SEARCH] Canonicalize Before Deduplication and Bounding
+- **Context / Symptom**: Case and Unicode compatibility variants of one legal-search term consumed separate `MAX_TERMS` slots and produced redundant case-insensitive SQL `AND` predicates.
+- **Root Cause**: The application deduplicated raw tokens before establishing a canonical comparison representation, so database-equivalent inputs remained distinct in memory.
+- **Resolution & Invariant**: At one application boundary, apply Unicode NFKC and locale-independent `toLowerCase()` before length filtering, stable first-occurrence deduplication and result bounding. Apply limits to canonical unique terms, while leaving pinned corpus identity and retrieval semantics unchanged.
+

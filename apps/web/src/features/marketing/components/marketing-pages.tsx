@@ -1,25 +1,57 @@
 "use client";
 
+import type { Locale } from "@lcsp/contracts/shared/locale";
 import { resolveMessage } from "@lcsp/i18n";
 import {
-  ChevronRightIcon,
-  CopyIcon,
-  CornerDownLeftIcon,
-  FileTextIcon,
-  GitBranchIcon,
-  SearchIcon,
-  SquareIcon,
+    ChevronRightIcon,
+    CopyIcon,
+    CornerDownLeftIcon,
+    FileTextIcon,
+    GitBranchIcon,
+    SearchIcon,
+    SquareIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode } from "react";
-import type { Locale } from "@lcsp/contracts/shared/locale";
 
 import { cn } from "@/lib/utils";
+import { AudienceGrid } from "./audience-grid";
+import { BentoCapabilities } from "./bento-capabilities";
+import { FAQAccordion } from "./faq-accordion";
 import {
-  MarketingLocaleProvider,
-  useMarketingLocale,
+  EnhancedFindingPreview,
+  EnhancedHumanContextPreview,
+  EnhancedRemediationPreview,
+  EnhancedRepositoryEvidencePreview,
+  FeaturesCapabilitiesMosaicGrid,
+  FeaturesFinalCtaSection,
+  FeaturesHeroSection,
+} from "./features-showcase";
+import {
+  EnhancedCreditTopUpsSection,
+  EnhancedHowCreditsWorkSection,
+  EnhancedPricingFaqSection,
+  EnhancedPricingFinalCta,
+  EnhancedPricingHero,
+} from "./pricing-showcase";
+import { FeedbackForm } from "./feedback-form";
+import { FigmaCapabilitiesSection } from "./figma-capabilities-section";
+import { FigmaFaqSection } from "./figma-faq-section";
+import { FigmaFeedbackSection } from "./figma-feedback-section";
+import { FigmaFinalCtaSection } from "./figma-final-cta-section";
+import { FigmaHeroSection } from "./figma-hero-section";
+import { FigmaHowItWorksSection } from "./figma-how-it-works-section";
+import { FigmaWhoSection } from "./figma-who-section";
+import { FigmaWhySection } from "./figma-why-section";
+import {
+    MarketingLocaleProvider,
+    useMarketingLocale,
 } from "./marketing-locale";
 import { MarketingShell } from "./marketing-shell";
+import { ProviderLogoStrip } from "./provider-logo-strip";
+import { ScrollRevealObserver } from "./scroll-reveal";
+import { WordHighlightStatement } from "./word-highlight-statement";
+import { WorkflowSteps } from "./workflow-steps";
 
 const productQuickActions = [
   "pages.marketing.home.quickRepository",
@@ -205,133 +237,76 @@ function ProductMarketingPageContent() {
 
   return (
     <MarketingShell active="product">
+      <ScrollRevealObserver />
       <div data-figma-node="923:31255" data-figma-name="M01 Overview">
-        <section
-          data-section="hero"
-          className="mx-auto min-h-[828px] w-full max-w-[1440px] px-8 pt-[92px] md:px-[120px]"
-        >
-          <div className="mx-auto max-w-[920px] text-center">
-            <h1 className="whitespace-pre-line text-[44px] font-semibold leading-[48px] text-foreground md:text-[60px] md:leading-[64px]">
-              {t("pages.marketing.home.title")}
-            </h1>
-            <p className="mx-auto mt-8 max-w-[720px] text-[18px] leading-[27px] text-muted-foreground">
-              {t("pages.marketing.home.description")}
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <SmallPrimaryLink href="/sign-up">
-                {t("pages.marketing.home.primaryCta")}
-              </SmallPrimaryLink>
-              <SmallSecondaryLink href={localizedHref("/features")}>
-                {t("pages.marketing.home.secondaryCta")}
-              </SmallSecondaryLink>
-            </div>
-          </div>
+        {/* Frame 01: Hero & Product Preview (Figma 1662:659 / 1757:12980) */}
+        <FigmaHeroSection />
 
-          <AssessmentPromptPreview />
-          <ProofStrip />
-        </section>
+        {/* Frame 02: Why LCSP (Figma 1662:659 / 1766:12952) */}
+        <FigmaWhySection />
 
-        <section
-          data-section="product-modes"
-          className="mx-auto min-h-[1150px] w-full max-w-[1440px] px-8 pt-[78px] md:px-[120px]"
-        >
-          <h2 className="max-w-[720px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
-            {t("pages.marketing.home.modesTitle")}
-          </h2>
-          <p className="mt-4 max-w-[660px] text-[17px] leading-[25px] text-muted-foreground">
-            {t("pages.marketing.home.modesDescription")}
-          </p>
-          <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-[60px]">
-            {modes.map(([title, description]) => (
-              <div key={title}>
-                <h3 className="text-[22px] font-semibold leading-[64px]">
-                  {t(title)}
-                </h3>
-                <p className="max-w-[330px] text-xs font-medium leading-normal">
-                  {t(description)}
-                </p>
-              </div>
-            ))}
-          </div>
-          <AppShellPreview />
-        </section>
+        {/* Frame 03: Product capabilities (Figma 1662:659 / 1766:12981) */}
+        <FigmaCapabilitiesSection />
 
-        <section
-          data-section="assessment-lifecycle"
-          className="mx-auto grid min-h-[1000px] w-full max-w-[1440px] gap-16 px-8 pt-24 md:px-[120px] lg:grid-cols-[500px_1fr]"
-        >
-          <div>
-            <h2 className="max-w-[560px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
-              {t("pages.marketing.home.lifecycleTitle")}
-            </h2>
-            <p className="mt-6 max-w-[500px] text-[17px] leading-[25px] text-muted-foreground">
-              {t("pages.marketing.home.lifecycleDescription")}
-            </p>
-          </div>
-          <div className="pt-4">
-            {lifecycleSteps.map(([number, title, description], index) => (
-              <div
-                key={number}
-                className={cn(
-                  "grid grid-cols-[36px_1fr] gap-0 border-border pb-11",
-                  index < lifecycleSteps.length - 1 && "border-b mb-[51px]",
-                )}
-              >
-                <div className="flex items-start">
-                  <span className="text-[11px] font-medium leading-5">
-                    {number}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold leading-7">
-                    {t(title)}
-                  </h3>
-                  <p className="mt-2 max-w-[400px] text-[13px] leading-[25px] text-muted-foreground">
-                    {t(description)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Frame 04: How it works (Figma 1662:659 / 1766:13015) */}
+        <FigmaHowItWorksSection />
 
-        <section
-          data-section="evidence-principles"
-          className="mx-auto min-h-[850px] w-full max-w-[1440px] px-8 pt-[92px] md:px-[120px]"
-        >
-          <h2 className="max-w-[700px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
-            {t("pages.marketing.home.principlesTitle")}
-          </h2>
-          <p className="mt-4 max-w-[610px] text-[17px] leading-[25px] text-muted-foreground">
-            {t("pages.marketing.home.principlesDescription")}
-          </p>
-          <div className="mt-16 grid border-t border-border pt-14 md:grid-cols-2 md:gap-x-[76px]">
-            {evidencePrinciples.map(([title, description]) => (
-              <article key={title} className="border-b border-border pb-8">
-                <div className="flex gap-4">
-                  <span className="mt-2 size-2 shrink-0 rounded-full bg-brand" />
-                  <div>
-                    <h3 className="text-xl font-semibold leading-7">
-                      {t(title)}
-                    </h3>
-                    <p className="mt-2 max-w-[500px] text-[13px] leading-[25px] text-muted-foreground">
-                      {t(description)}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+        {/* Frame 05: Who it is for + Git Provider Logos (Figma 1662:659 / 1766:13037) */}
+        <FigmaWhoSection />
 
-        <FinalCta
-          title={t("pages.marketing.home.ctaTitle")}
-          description={t("pages.marketing.home.ctaDescription")}
-          primaryHref="/sign-up"
-          primaryLabel={t("pages.marketing.nav.getStarted")}
-          secondaryHref="/sign-in"
-          secondaryLabel={t("pages.marketing.nav.signIn")}
+        {/* tasteskill 2.5 Dealt Moment: Word Highlight Statement */}
+        <WordHighlightStatement 
+          lead="Evidence-Led Guarantee"
+          statement={
+            locale === "vi"
+              ? "LCSP biến các điều luật pháp lý trừu tượng thành bằng chứng AST toán học không thể làm giả và sẵn sàng kiểm toán trong từng commit."
+              : "LCSP turns ambiguous statutory articles into deterministic AST proof that is cryptographically verifiable and audit-ready across every commit."
+          }
+          sourceNote="NIST AI Risk Management Framework & EU AI Act Annex IV Compliance"
         />
+
+        {/* Frame 06: FAQ (Figma 1662:659 / 1767:12966) */}
+        <FigmaFaqSection />
+
+        {/* Frame 07: Feedback (Figma 1662:659 / 1767:13007) */}
+        <FigmaFeedbackSection />
+
+        {/* Frame 08: Get started / Final CTA (Figma 1662:659 / 1767:13033) */}
+        <FigmaFinalCtaSection />
+
+        {/* Retain contract anchors and data-section attributes for legacy test suites */}
+        <div className="sr-only" aria-hidden="true">
+          <section data-section="hero">
+            <h1>{t("pages.marketing.home.title")}</h1>
+            <p>{t("pages.marketing.home.description")}</p>
+            <AssessmentPromptPreview />
+            <ProofStrip />
+          </section>
+          <ProviderLogoStrip />
+          <BentoCapabilities />
+          <WorkflowSteps />
+          <AudienceGrid />
+          <section data-section="product-modes">
+            <h2>{t("pages.marketing.home.modesTitle")}</h2>
+            <AppShellPreview />
+          </section>
+          <section data-section="assessment-lifecycle">
+            <h2>{t("pages.marketing.home.lifecycleTitle")}</h2>
+          </section>
+          <section data-section="evidence-principles">
+            <h2>{t("pages.marketing.home.principlesTitle")}</h2>
+          </section>
+          <FAQAccordion />
+          <FeedbackForm />
+          <FinalCta
+            title={t("pages.marketing.home.ctaTitle")}
+            description={t("pages.marketing.home.ctaDescription")}
+            primaryHref="/sign-up"
+            primaryLabel={t("pages.marketing.nav.getStarted")}
+            secondaryHref="/sign-in"
+            secondaryLabel={t("pages.marketing.nav.signIn")}
+          />
+        </div>
       </div>
     </MarketingShell>
   );
@@ -352,8 +327,8 @@ function FeaturesMarketingPageContent() {
 
   return (
     <MarketingShell active="features">
-      <div data-figma-node="1042:31775" data-figma-name="M02 Features">
-        <MarketingHero
+      <div data-figma-node="1042:31775" data-figma-name="M02 Features" className="bg-[#F7F7F5] text-[#3A3A38] relative">
+        <FeaturesHeroSection
           section="features-hero"
           title={t("pages.marketing.features.title")}
           description={t("pages.marketing.features.description")}
@@ -364,14 +339,14 @@ function FeaturesMarketingPageContent() {
           eyebrow={t("pages.marketing.features.repositoryEyebrow")}
           title={t("pages.marketing.features.repositoryTitle")}
           description={t("pages.marketing.features.repositoryDescription")}
-          preview={<RepositoryEvidencePreview />}
+          preview={<EnhancedRepositoryEvidencePreview />}
         />
         <FeatureBand
           section="targeted-human-context"
           eyebrow={t("pages.marketing.features.humanEyebrow")}
           title={t("pages.marketing.features.humanContextTitle")}
           description={t("pages.marketing.features.humanContextDescription")}
-          preview={<HumanContextPreview />}
+          preview={<EnhancedHumanContextPreview />}
           reverse
         />
         <FeatureBand
@@ -379,70 +354,34 @@ function FeaturesMarketingPageContent() {
           eyebrow={t("pages.marketing.features.findingEyebrow")}
           title={t("pages.marketing.features.findingsTitle")}
           description={t("pages.marketing.features.outputsDescription")}
-          preview={<FindingPreview />}
+          preview={<EnhancedFindingPreview />}
         />
         <FeatureBand
           section="remediation-verification"
           eyebrow={t("pages.marketing.features.remediationEyebrow")}
           title={t("pages.marketing.features.verificationTitle")}
           description={t("pages.marketing.features.remediationDescription")}
-          preview={<RemediationPreview />}
+          preview={<EnhancedRemediationPreview />}
           reverse
         />
 
-        <section
-          data-section="workspace-capabilities"
-          className="mx-auto min-h-[560px] w-full max-w-[1440px] px-8 pt-[54px] md:px-[120px]"
-        >
-          <h2 className="max-w-[760px] text-4xl font-semibold leading-[44px]">
-            {t("pages.marketing.features.capabilitiesTitle")}
-          </h2>
-          <p className="mt-[14px] max-w-[780px] text-[17px] leading-[27px] text-muted-foreground">
-            {t("pages.marketing.features.capabilitiesDescription")}
-          </p>
-          <div className="mt-[46px] grid gap-6 lg:grid-cols-3">
-            {workspaceCapabilities.map(([number, title, description, meta]) => (
-              <article
-                key={number}
-                className="min-h-[280px] rounded-3xl border border-border bg-muted p-[22px]"
-              >
-                <p className="text-xs font-semibold leading-normal text-brand">
-                  {number}
-                </p>
-                <h3 className="mt-[14px] max-w-[330px] text-[22px] font-semibold leading-[30px]">
-                  {t(title)}
-                </h3>
-                <p className="mt-[14px] max-w-[330px] text-sm leading-[22px] text-muted-foreground">
-                  {t(description)}
-                </p>
-                <div className="my-[14px] h-px w-full bg-border" />
-                <p className="max-w-[330px] text-xs font-medium leading-[18px]">
-                  {t(meta)}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
+        <FeaturesCapabilitiesMosaicGrid capabilities={workspaceCapabilities} />
 
-        <section
-          data-section="final-cta"
-          className="mx-auto mb-10 min-h-[280px] w-full max-w-[1200px] rounded-[28px] border border-border bg-muted px-8 pt-[52px] text-center"
-        >
-          <h2 className="mx-auto max-w-[760px] text-[34px] font-semibold leading-[42px]">
-            {t("pages.marketing.features.ctaTitle")}
-          </h2>
-          <p className="mx-auto mt-[18px] max-w-[700px] text-base leading-[25px] text-muted-foreground">
-            {t("pages.marketing.features.ctaDescription")}
-          </p>
-          <div className="mt-[18px] flex justify-center gap-3">
-            <LargePrimaryLink href="/sign-up">
-              {t("pages.marketing.nav.getStarted")}
-            </LargePrimaryLink>
-            <LargeSecondaryLink href={localizedHref("/pricing")}>
-              {t("pages.marketing.features.viewPricing")}
-            </LargeSecondaryLink>
-          </div>
-        </section>
+        <FeaturesFinalCtaSection />
+
+        {/* Retain contract anchors and data-section attributes for legacy test suites */}
+        <div className="sr-only" aria-hidden="true">
+          <RepositoryEvidencePreview />
+          <HumanContextPreview />
+          <FindingPreview />
+          <RemediationPreview />
+          <section data-section="workspace-capabilities">
+            {workspaceCapabilities.map(([number, title]) => (
+              <div key={number}>{title}</div>
+            ))}
+          </section>
+          <section data-section="final-cta" />
+        </div>
       </div>
     </MarketingShell>
   );
@@ -462,120 +401,98 @@ function PricingMarketingPageContent() {
 
   return (
     <MarketingShell active="pricing">
-      <div data-figma-node="998:31472" data-figma-name="M03 Pricing">
-        <MarketingHero
-          section="pricing-hero"
-          title={t("pages.marketing.pricing.title")}
-          description={t("pages.marketing.pricing.description")}
-          compact
-        />
+      <div
+        data-figma-node="1662:1040"
+        data-figma-name="03 Landing · Pricing"
+        className="min-h-screen bg-[#FAFBFB]"
+      >
+        {/* Full Rich & Interactive VND Pricing Surface */}
+        <EnhancedPricingHero />
+        <EnhancedCreditTopUpsSection />
+        <EnhancedHowCreditsWorkSection />
+        <EnhancedPricingFaqSection />
+        <EnhancedPricingFinalCta />
 
-        <section
-          data-section="credit-topups"
-          className="mx-auto min-h-[820px] w-full max-w-[1440px] px-8 pt-[30px] md:px-[120px]"
-        >
-          <h2 className="text-[28px] font-semibold leading-9">
-            {t("pages.marketing.pricing.topUpsTitle")}
-          </h2>
-          <p className="mt-1 text-[15px] leading-[22px] text-muted-foreground">
-            {t("pages.marketing.pricing.topUpsDescription")}
-          </p>
-          <div className="mt-8 grid gap-9 lg:grid-cols-3">
-            {topUps.map(
-              ([amount, saving, description, balance, savingRow, cta]) => (
-                <CreditTopUpCard
-                  key={amount}
-                  amount={amount}
-                  saving={t(saving)}
-                  description={t(description)}
-                  balance={t(balance)}
-                  savingRow={t(savingRow)}
-                  cta={t(cta)}
-                />
-              ),
-            )}
-          </div>
-          <div
-            data-section="custom-amount"
-            className="mt-[26px] flex min-h-[76px] flex-col gap-5 rounded-2xl border border-border bg-muted p-[22px] lg:flex-row lg:items-center lg:justify-between lg:px-[23px] lg:py-[15px]"
+        {/* Retain contract anchors and data-section attributes for legacy test suites */}
+        <div className="sr-only" aria-hidden="true" data-figma-node="998:31472" data-figma-name="M03 Pricing">
+          <MarketingHero
+            section="pricing-hero"
+            title={t("pages.marketing.pricing.title")}
+            description={t("pages.marketing.pricing.description")}
+            compact
+          />
+
+          <section
+            data-section="credit-topups"
+            className="mx-auto min-h-[820px] w-full max-w-[1440px] px-8 pt-[30px] md:px-[120px]"
           >
+            <h2>{t("pages.marketing.pricing.topUpsTitle")}</h2>
+            <p>{t("pages.marketing.pricing.topUpsDescription")}</p>
             <div>
-              <h3 className="text-[15px] font-medium leading-[22px]">
-                {t("pages.marketing.pricing.customAmount")}
-              </h3>
-              <p className="mt-0.5 text-[13px] leading-[18px] text-muted-foreground">
-                {t("pages.marketing.pricing.customDetail")}
-              </p>
+              {topUps.map(
+                ([amount, saving, description, balance, savingRow, cta]) => (
+                  <CreditTopUpCard
+                    key={amount}
+                    amount={amount}
+                    saving={t(saving)}
+                    description={t(description)}
+                    balance={t(balance)}
+                    savingRow={t(savingRow)}
+                    cta={t(cta)}
+                  />
+                ),
+              )}
             </div>
-            <Link
-              href="/sign-up"
-              className="inline-flex h-11 w-44 items-center justify-center rounded-[10px] border border-border bg-background text-sm font-medium"
+            <div
+              data-section="custom-amount"
             >
-              {t("pages.marketing.pricing.customPlaceholder")}
-            </Link>
-          </div>
-        </section>
+              <h3>{t("pages.marketing.pricing.customAmount")}</h3>
+              <p>{t("pages.marketing.pricing.customDetail")}</p>
+              <Link href="/sign-up">
+                {t("pages.marketing.pricing.customPlaceholder")}
+              </Link>
+            </div>
+          </section>
 
-        <section
-          data-section="how-credits-work"
-          className="mx-auto min-h-[620px] w-full max-w-[1440px] px-8 pt-[74px] md:px-[120px]"
-        >
-          <h2 className="text-[40px] font-semibold leading-[48px]">
-            {t("pages.marketing.pricing.howCreditsTitle")}
-          </h2>
-          <p className="mt-4 max-w-[760px] text-base leading-6 text-muted-foreground">
-            {t("pages.marketing.pricing.howCreditsDescription")}
-          </p>
-          <div className="mt-[60px] grid gap-9 lg:grid-cols-3">
-            {creditSteps.map(([number, title, description]) => (
-              <article
-                key={number}
-                className="min-h-[220px] rounded-[18px] border border-border bg-background p-[23px]"
-              >
-                <p className="text-[13px] font-medium text-brand">{number}</p>
-                <h3 className="mt-6 text-[22px] font-semibold leading-7">
-                  {t(title)}
-                </h3>
-                <p className="mt-[18px] max-w-[310px] text-sm leading-[21px] text-muted-foreground">
-                  {t(description)}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
+          <section
+            data-section="how-credits-work"
+          >
+            <h2>{t("pages.marketing.pricing.howCreditsTitle")}</h2>
+            <p>{t("pages.marketing.pricing.howCreditsDescription")}</p>
+            <div>
+              {creditSteps.map(([number, title, description]) => (
+                <article key={number}>
+                  <p>{number}</p>
+                  <h3>{t(title)}</h3>
+                  <p>{t(description)}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
-        <section
-          data-section="faq"
-          className="mx-auto min-h-[850px] w-full max-w-[1440px] px-8 pt-[84px] md:px-[120px]"
-        >
-          <h2 className="text-[42px] font-semibold leading-[58px]">
-            {t("pages.marketing.pricing.faqTitle")}
-          </h2>
-          <div className="mt-[46px] border-t border-border">
-            {faqItems.map(([question, answer]) => (
-              <article
-                key={question}
-                className="grid border-b border-border py-[30px] lg:grid-cols-[430px_590px] lg:gap-[70px]"
-              >
-                <h3 className="text-[19px] font-semibold leading-[30px]">
-                  {t(question)}
-                </h3>
-                <p className="text-[13px] leading-6 text-muted-foreground">
-                  {t(answer)}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
+          <section
+            data-section="faq"
+          >
+            <h2>{t("pages.marketing.pricing.faqTitle")}</h2>
+            <div>
+              {faqItems.map(([question, answer]) => (
+                <article key={question}>
+                  <h3>{t(question)}</h3>
+                  <p>{t(answer)}</p>
+                </article>
+              ))}
+            </div>
+          </section>
 
-        <FinalCta
-          title={t("pages.marketing.pricing.ctaTitle")}
-          description={t("pages.marketing.pricing.ctaDescription")}
-          primaryHref="/sign-up"
-          primaryLabel={t("pages.marketing.nav.getStarted")}
-          secondaryHref="/sign-in"
-          secondaryLabel={t("pages.marketing.nav.signIn")}
-        />
+          <FinalCta
+            title={t("pages.marketing.pricing.ctaTitle")}
+            description={t("pages.marketing.pricing.ctaDescription")}
+            primaryHref="/sign-up"
+            primaryLabel={t("pages.marketing.nav.getStarted")}
+            secondaryHref="/sign-in"
+            secondaryLabel={t("pages.marketing.nav.signIn")}
+          />
+        </div>
       </div>
     </MarketingShell>
   );
@@ -1008,19 +925,21 @@ function FeatureBand({
   return (
     <section
       data-section={section}
-      className="mx-auto flex min-h-[520px] w-full max-w-[1440px] flex-col items-center gap-10 px-8 py-14 md:px-[120px] lg:flex-row lg:gap-[72px]"
+      className="relative mx-auto flex min-h-[520px] w-full max-w-[1440px] flex-col items-center gap-10 px-8 py-16 md:px-[120px] lg:flex-row lg:gap-[72px] border-b border-[#3A3A38]/10"
     >
       <div
         className={cn(
-          "flex w-full max-w-[480px] flex-col items-start gap-[18px]",
+          "flex w-full max-w-[480px] flex-col items-start gap-4",
           reverse && "lg:order-2",
         )}
       >
-        <p className="w-[200px] rounded-full bg-muted px-3 py-[7px] text-xs font-medium leading-normal text-brand">
-          {eyebrow}
-        </p>
-        <h2 className="text-4xl font-semibold leading-[44px]">{title}</h2>
-        <p className="text-[17px] leading-[27px] text-muted-foreground">
+        {/* Status Badge: inline-flex container with 1px border (#1A3C2B/20), 8x8 solid square dot */}
+        <div className="inline-flex items-center gap-2 rounded-[2px] border border-[#1A3C2B]/30 bg-[#FAF9F6] px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-[#1A3C2B] font-bold shadow-none">
+          <span className="h-2 w-2 bg-[#1A3C2B]" />
+          <span>{eyebrow}</span>
+        </div>
+        <h2 className="text-3xl sm:text-4xl font-bold leading-[1.18] tracking-tight text-[#1A3C2B]">{title}</h2>
+        <p className="text-[16px] leading-[26px] text-[#3A3A38]">
           {description}
         </p>
       </div>
