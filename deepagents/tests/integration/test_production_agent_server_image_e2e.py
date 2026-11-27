@@ -232,6 +232,10 @@ class _SnapshotApi:
                     api.archive_requests += 1
                     self.send_response(200)
                     self.send_header("Content-Type", "application/gzip")
+                    # Match the rootless _fixture_archive() contract required by RepositorySnapshotClient.
+                    self.send_header(
+                        "X-Repository-Archive-Root-Status", "VERIFIED_ROOTLESS"
+                    )
                     self.end_headers()
                     self.wfile.write(api.archive)
                     return

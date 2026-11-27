@@ -15,6 +15,9 @@ from tools.common.capabilities.platform.docker_sandbox import (
     DockerSandboxBackend,
     DockerSandboxSpec,
 )
+from tools.common.capabilities.platform.repository_snapshot_client import (
+    RepositoryArchiveDownload,
+)
 
 
 @pytest.mark.integration
@@ -112,6 +115,17 @@ def test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint
             assert request.snapshot_id == "snapshot-1"
             assert request.scan_job_id == "scan-1"
             return _fixture_archive()
+
+        def download_archive_with_metadata(
+            self, request
+        ) -> RepositoryArchiveDownload:
+            return RepositoryArchiveDownload(
+                content=self.download_archive(request),
+                content_type="application/gzip",
+                archive_root=None,
+                archive_root_status="VERIFIED_ROOTLESS",
+                tree_manifest=None,
+            )
 
     monkeypatch.setattr(
         repository_sandbox,
