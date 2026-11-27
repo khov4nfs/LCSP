@@ -12,10 +12,10 @@ import { resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import {
-  FigmaEventsTableRow,
-  FigmaAdminCardHeader,
-  FigmaAdminStatusBadge,
-} from "@/components/figma/admin-overview-masters";
+  AdminEventsTableRow,
+  AdminSectionCardHeader,
+  AdminStatusBadge,
+} from "./admin-overview-primitives";
 
 type AdminRecentActivityCardProps = {
   items?: AdminRecentActivityItem[];
@@ -161,8 +161,8 @@ export function AdminRecentActivityCard({
         className,
       )}
     >
-      {/* Figma CardHeader */}
-      <FigmaAdminCardHeader
+      {/* Section CardHeader */}
+      <AdminSectionCardHeader
         title={title}
         description={subtitle}
         className="mb-3"
@@ -199,7 +199,7 @@ export function AdminRecentActivityCard({
               {items.slice(0, 6).map((item) => {
                 const action = resolveNextAction(item);
                 return (
-                  <FigmaEventsTableRow
+                  <AdminEventsTableRow
                     key={item.id}
                     event={
                       item.target
@@ -208,7 +208,7 @@ export function AdminRecentActivityCard({
                     }
                     area={resolveAreaLabel(item)}
                     statusBadge={
-                      <FigmaAdminStatusBadge
+                      <AdminStatusBadge
                         label={resolveStatusLabel(item)}
                         variant={resolveStatusVariant(item)}
                       />

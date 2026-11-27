@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertCircle, Clock, FileText, CheckCircle2, ChevronRight, ArrowUpRight } from "lucide-react";
 import { NextMetricCard } from "@/components/molecules/next-metric-card";
 import { NEXT_METRIC_VARIANTS } from "@/components/types/dashboard-primitives.types";
-import { FigmaAdminCardHeader } from "@/components/figma/admin-overview-masters";
+import { AdminSectionCardHeader } from "./admin-overview-primitives";
 import { cn } from "@/lib/utils";
 
 export type AdminPriorityQueueItem = {
@@ -67,7 +67,7 @@ export function AdminOperationalPrioritiesCard({
       <div>
         <div className="relative pl-3">
           <div className="absolute left-0 top-1 bottom-1 w-1 rounded-full bg-[#D97706]" />
-          <FigmaAdminCardHeader
+          <AdminSectionCardHeader
             title="Operational priorities"
             description="22 outstanding items across distinct queues"
             titleClassName="text-lg font-bold text-[#101C29]"
