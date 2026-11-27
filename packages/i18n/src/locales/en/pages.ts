@@ -783,13 +783,13 @@ export const enPages = {
           "All {total} candidate rules (investigative suggestions only)",
         selectCandidateRules: "Select suggested rules (review before auditing)",
         loadMore: "Load more candidate rules",
-        contextQuestions: "Operational questions that still need clarification",
+        // Pre-audit Discovery asks about intended product behavior.
+        contextQuestions: "Questions about AI features",
         contextAdvisory:
-          "These are discovery hints, not confirmed facts. Formal answers must be recorded through an authorized interview.",
-        interviewTitle:
-          "Review operational context before selecting audit rules",
+          "Describe what each feature is designed to do.",
+        interviewTitle: "Review feature context before selecting rules",
         interviewDescription:
-          "Submit a source-backed answer for review, then explicitly confirm it. Confirmed answers become customer-provided facts; they do not establish legal applicability.",
+          "Submit your answer for review, then confirm it to record it as customer-provided context.",
         interviewLoading: "Loading previously submitted answers…",
         interviewError:
           "Could not submit, review or load a context answer. Check the latest case revision and retry.",
@@ -801,7 +801,7 @@ export const enPages = {
         interviewReject: "Reject and rewrite",
         interviewRejected:
           "The earlier answer was rejected. You may submit a revised answer.",
-        answerPlaceholder: "Enter the factual operational answer (not a guess)",
+        answerPlaceholder: "Describe the intended behavior you can confirm",
         answerInvalid: "Enter a clear answer of at most 2,000 characters.",
         submitAnswer: "Submit for review",
         loadMoreHistory: "Load more answer history",

@@ -2136,13 +2136,16 @@ def scan_repository_discovery(
     - Keep classification distinct from verified reachability and record unsupported languages, skipped paths,
       unresolved calls and incomplete coverage instead of treating missing observations as evidence of absence.
     - Retain only digests and bounded metadata, never raw source excerpts.
+    - Pre-audit questions clarify the intended product workflow and software behavior for AI feature candidates.
+      Keep test, example, generated, and unclassified candidates as source findings without interview questions.
     - Ranked ranges are investigation priorities with audited expansion permitted, not an absolute allowlist.
     - Serialized discovery timestamps use the UTC `Z` form required by the strict API contract.
 
     Execution flow:
     1. Walk the pinned source scope under file, size and depth bounds.
     2. Detect provider imports, direct SDK/raw HTTP invocations and nearby data/control signals.
-    3. Group invocation ranges into candidate AI use cases and record unresolved graph/reachability questions.
+    3. Group invocation ranges into candidate AI use cases, add product context questions where relevant,
+       and record static reachability gaps separately.
     4. Bind scanner signature, cache identity, contract-compatible UTC timestamp and deterministic content digest into the result.
 
     Failure cases:
@@ -2498,10 +2501,15 @@ def scan_repository_discovery(
                             for range_id in nearby_range_ids
                             if next(item for item in source_ranges if item["rangeId"] == range_id)["signalType"] == "CONTROL"
                         ],
-                        "unresolvedQuestions": [
-                            "Is this candidate reachable in the deployed production environment?",
-                            "What operational purpose, data categories, retention and human oversight apply?",
-                        ],
+                        # The interview captures intended product behavior. Runtime reachability stays in unresolvedCalls.
+                        "unresolvedQuestions": (
+                            [
+                                "What product workflow is this AI feature designed to support?",
+                                "How should the application use the AI output in that workflow?",
+                            ]
+                            if classification == "PRODUCTION_CANDIDATE"
+                            else []
+                        ),
                     }
                 )
             if stop:
