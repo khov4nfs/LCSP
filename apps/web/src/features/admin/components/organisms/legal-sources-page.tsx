@@ -10,10 +10,9 @@ import {
   COLLECTION_METRIC_VARIANTS,
   CollectionMetricCard,
 } from "@/components/molecules/collection-metric-card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PANEL_STATES, PanelState } from "@/components/molecules/panel-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAppMessage } from "@/lib/i18n";
 import { useLegalSourceListQuery } from "@/lib/api/legal-source-queries";
 import { AdminPageHeader } from "../molecules/admin-page-header";
@@ -102,17 +101,22 @@ export function LegalSourcesPage() {
     });
   }, [activeFilter, items, searchQuery]);
 
-  if (sources.isPending) return <Skeleton className="h-72 w-full" />;
+  if (sources.isPending) {
+    return (
+      <PanelState
+        state={PANEL_STATES.loading}
+        title={t("pages.legalSources.listTitle")}
+      />
+    );
+  }
   if (sources.isError) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription className="flex items-center justify-between gap-3">
-          <span>{t("pages.legalSources.loadFailed")}</span>
-          <Button variant="outline" onClick={() => void sources.refetch()}>
-            {t("pages.legalSources.tryAgain")}
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <PanelState
+        state={PANEL_STATES.error}
+        description={t("pages.legalSources.loadFailed")}
+        actionLabel={t("pages.legalSources.tryAgain")}
+        onAction={() => void sources.refetch()}
+      />
     );
   }
 

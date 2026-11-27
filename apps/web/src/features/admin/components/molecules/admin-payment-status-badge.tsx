@@ -4,26 +4,11 @@ import {
   type BillingAdminPaymentRow,
 } from "@lcsp/contracts/billing";
 
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-
-const ADMIN_PAYMENT_TONES = {
-  success: "success",
-  warning: "warning",
-  danger: "danger",
-} as const;
-
-type AdminPaymentTone =
-  (typeof ADMIN_PAYMENT_TONES)[keyof typeof ADMIN_PAYMENT_TONES];
-
-const TONE_CLASSES: Record<AdminPaymentTone, string> = {
-  [ADMIN_PAYMENT_TONES.success]:
-    "border-status-success-border bg-status-success-bg text-status-success",
-  [ADMIN_PAYMENT_TONES.warning]:
-    "border-status-warning-border bg-status-warning-bg text-status-warning",
-  [ADMIN_PAYMENT_TONES.danger]:
-    "border-status-danger-border bg-status-danger-bg text-status-danger",
-};
+import {
+  STATUS_BADGE_TONES,
+  StatusBadge,
+  type StatusBadgeTone,
+} from "@/components/atoms/status-badge";
 
 type AdminPaymentStatusBadgeProps = {
   label: string;
@@ -38,11 +23,11 @@ type AdminPaymentStatusBadgeProps = {
 };
 
 /**
- * Business purpose: Resolve the semantic status tone for an admin payment webhook or order status badge.
+ * Business purpose: Resolve the semantic StatusBadge tone for an admin payment webhook or order status.
  * Business rules:
- * - Matched webhooks and credited orders map to success tokens; duplicates, rejections, expired, or cancelled orders map to danger tokens; pending/unmatched/review states map to warning tokens.
+ * - Matched webhooks and credited orders map to success; duplicates, rejections, expired, or cancelled orders map to danger; pending/unmatched/review states map to warning.
  * Execution flow:
- * 1. Inspect either reconciliationStatus (webhook mode) or orderStatus + duplicate block (order mode) and return the matching AdminPaymentTone.
+ * 1. Inspect either reconciliationStatus (webhook mode) or orderStatus + duplicate block (order mode) and return StatusBadgeTone.
  * Failure cases:
  * - Unrecognized or missing order statuses default safely to warning so operators inspect them.
  * Side effects:
@@ -55,44 +40,44 @@ function resolveAdminPaymentTone({
 }: Pick<
   AdminPaymentStatusBadgeProps,
   "mode" | "reconciliationStatus" | "orderStatus"
->): AdminPaymentTone {
+>): StatusBadgeTone {
   if (mode === "webhook") {
     if (reconciliationStatus === PAYMENT_RECONCILIATION_STATUSES.MATCHED) {
-      return ADMIN_PAYMENT_TONES.success;
+      return STATUS_BADGE_TONES.success;
     }
     if (
       reconciliationStatus === PAYMENT_RECONCILIATION_STATUSES.DUPLICATE ||
       reconciliationStatus === PAYMENT_RECONCILIATION_STATUSES.REJECTED
     ) {
-      return ADMIN_PAYMENT_TONES.danger;
+      return STATUS_BADGE_TONES.danger;
     }
-    return ADMIN_PAYMENT_TONES.warning;
+    return STATUS_BADGE_TONES.warning;
   }
 
   if (reconciliationStatus === PAYMENT_RECONCILIATION_STATUSES.DUPLICATE) {
-    return ADMIN_PAYMENT_TONES.danger;
+    return STATUS_BADGE_TONES.danger;
   }
   if (orderStatus === BILLING_ORDER_STATUSES.CREDITED) {
-    return ADMIN_PAYMENT_TONES.success;
+    return STATUS_BADGE_TONES.success;
   }
   if (
     orderStatus === BILLING_ORDER_STATUSES.EXPIRED ||
     orderStatus === BILLING_ORDER_STATUSES.CANCELLED
   ) {
-    return ADMIN_PAYMENT_TONES.danger;
+    return STATUS_BADGE_TONES.danger;
   }
-  return ADMIN_PAYMENT_TONES.warning;
+  return STATUS_BADGE_TONES.warning;
 }
 
 /**
- * Business purpose: Render an admin payment or webhook status badge using LCSP semantic status tokens aligned to Figma Status masters (1681:1297, 1681:1299, 1681:1301).
+ * Business purpose: Render an admin payment or webhook status badge via the canonical StatusBadge atom.
  * Business rules:
- * - Preserves localized label text supplied by the parent while applying consistent semantic success/warning/danger styling.
+ * - Preserves localized label text supplied by the parent while applying shared StatusBadge semantic tokens.
  * Execution flow:
  * 1. Compute semantic tone via resolveAdminPaymentTone.
- * 2. Render Badge with semantic status border, background, and foreground classes.
+ * 2. Delegate rendering to shared StatusBadge.
  * Failure cases:
- * - Exhaustive TONE_CLASSES mapping ensures every tone renders valid token classes.
+ * - Exhaustive StatusBadgeTone mapping ensures valid token classes.
  * Side effects:
  * - Pure presentational component.
  */
@@ -103,19 +88,15 @@ export function AdminPaymentStatusBadge({
   mode,
   className,
 }: AdminPaymentStatusBadgeProps) {
-  const tone = resolveAdminPaymentTone({
-    mode,
-    reconciliationStatus,
-    orderStatus,
-  });
-
   return (
-    <Badge
-      variant="outline"
-      className={cn("font-medium", TONE_CLASSES[tone], className)}
-      data-component="AdminPaymentStatusBadge"
-    >
-      {label}
-    </Badge>
+    <StatusBadge
+      tone={resolveAdminPaymentTone({
+        mode,
+        reconciliationStatus,
+        orderStatus,
+      })}
+      label={label}
+      className={className}
+    />
   );
 }

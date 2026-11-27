@@ -3,42 +3,28 @@ import {
   AUTHORED_LOCALIZATION_READINESS_STATES,
 } from "@lcsp/contracts/assessment-domain";
 
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import {
+  STATUS_BADGE_TONES,
+  StatusBadge,
+  type StatusBadgeTone,
+} from "@/components/atoms/status-badge";
 
-const REVIEW_TONES = {
-  success: "success",
-  warning: "warning",
-  danger: "danger",
-  info: "info",
-} as const;
-
-type ReviewTone = (typeof REVIEW_TONES)[keyof typeof REVIEW_TONES];
-
-const TONE_CLASSES: Record<ReviewTone, string> = {
-  [REVIEW_TONES.success]:
-    "border-status-success-border bg-status-success-bg text-status-success",
-  [REVIEW_TONES.warning]:
-    "border-status-warning-border bg-status-warning-bg text-status-warning",
-  [REVIEW_TONES.danger]:
-    "border-status-danger-border bg-status-danger-bg text-status-danger",
-  [REVIEW_TONES.info]:
-    "border-status-info-border bg-status-info-bg text-status-info",
-};
-
-const TONE_BY_STATE: Record<string, ReviewTone> = {
-  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.READY]: REVIEW_TONES.success,
-  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.PROVIDER_PENDING]: REVIEW_TONES.info,
-  [AUTHORED_LOCALIZATION_READINESS_STATES.PENDING]: REVIEW_TONES.warning,
-  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.UNKNOWN_SOURCE]: REVIEW_TONES.warning,
-  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.MIXED_SOURCE]: REVIEW_TONES.warning,
+const TONE_BY_STATE: Record<string, StatusBadgeTone> = {
+  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.READY]: STATUS_BADGE_TONES.success,
+  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.PROVIDER_PENDING]:
+    STATUS_BADGE_TONES.info,
+  [AUTHORED_LOCALIZATION_READINESS_STATES.PENDING]: STATUS_BADGE_TONES.warning,
+  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.UNKNOWN_SOURCE]:
+    STATUS_BADGE_TONES.warning,
+  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.MIXED_SOURCE]:
+    STATUS_BADGE_TONES.warning,
   [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.SOURCE_REVIEW_REQUIRED]:
-    REVIEW_TONES.warning,
+    STATUS_BADGE_TONES.warning,
   [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.OUTPUT_REVIEW_REQUIRED]:
-    REVIEW_TONES.warning,
+    STATUS_BADGE_TONES.warning,
   [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.PROVIDER_FAILED]:
-    REVIEW_TONES.danger,
-  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.FAILED]: REVIEW_TONES.danger,
+    STATUS_BADGE_TONES.danger,
+  [AUTHORED_LOCALIZATION_OPERATIONAL_STATES.FAILED]: STATUS_BADGE_TONES.danger,
 };
 
 type ReviewStatusBadgeProps = {
@@ -48,13 +34,13 @@ type ReviewStatusBadgeProps = {
 };
 
 /**
- * Business purpose: Render a translation review operational or readiness status badge with semantic status tokens.
+ * Business purpose: Render a translation review operational or readiness status badge via the canonical StatusBadge atom.
  * Business rules:
- * - Maps canonical AUTHORED_LOCALIZATION_OPERATIONAL_STATES and AUTHORED_LOCALIZATION_READINESS_STATES to success, info, warning, or danger tokens.
+ * - Maps canonical AUTHORED_LOCALIZATION_OPERATIONAL_STATES and AUTHORED_LOCALIZATION_READINESS_STATES to semantic tones.
  * - Never presents unreviewed or pending states as approved/ready.
  * Execution flow:
  * 1. Look up the semantic tone in TONE_BY_STATE, defaulting to warning for unknown states.
- * 2. Render Badge with semantic status classes and preserved status text.
+ * 2. Delegate rendering to shared StatusBadge.
  * Failure cases:
  * - Unknown status strings safely render with warning tokens.
  * Side effects:
@@ -65,14 +51,11 @@ export function ReviewStatusBadge({
   label,
   className,
 }: ReviewStatusBadgeProps) {
-  const tone = TONE_BY_STATE[status] ?? REVIEW_TONES.warning;
   return (
-    <Badge
-      variant="outline"
-      className={cn("font-medium", TONE_CLASSES[tone], className)}
-      data-component="ReviewStatusBadge"
-    >
-      {label ?? status}
-    </Badge>
+    <StatusBadge
+      tone={TONE_BY_STATE[status] ?? STATUS_BADGE_TONES.warning}
+      label={label ?? status}
+      className={className}
+    />
   );
 }

@@ -8,10 +8,9 @@ import {
   COLLECTION_METRIC_VARIANTS,
   CollectionMetricCard,
 } from "@/components/molecules/collection-metric-card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PANEL_STATES, PanelState } from "@/components/molecules/panel-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useLegalSourceQuery } from "@/lib/api/legal-source-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 import { AdminPageHeader } from "../molecules/admin-page-header";
@@ -37,17 +36,22 @@ const t = (key: string) => resolveAppMessage(key as MessageKey);
  */
 export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
   const sourceQuery = useLegalSourceQuery(sourceId);
-  if (sourceQuery.isPending) return <Skeleton className="h-72 w-full" />;
+  if (sourceQuery.isPending) {
+    return (
+      <PanelState
+        state={PANEL_STATES.loading}
+        title={t("pages.legalSources.sourceLabel")}
+      />
+    );
+  }
   if (sourceQuery.isError) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription className="flex items-center justify-between gap-3">
-          <span>{t("pages.legalSources.loadFailed")}</span>
-          <Button variant="outline" onClick={() => void sourceQuery.refetch()}>
-            {t("pages.legalSources.tryAgain")}
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <PanelState
+        state={PANEL_STATES.error}
+        description={t("pages.legalSources.loadFailed")}
+        actionLabel={t("pages.legalSources.tryAgain")}
+        onAction={() => void sourceQuery.refetch()}
+      />
     );
   }
 
