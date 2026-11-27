@@ -14,8 +14,6 @@ import { AdminPeriodSelector } from "../molecules/admin-period-selector";
 import { AdminAssessmentActivityCard } from "../molecules/admin-assessment-activity-card";
 import { AdminOperationalPrioritiesCard } from "../molecules/admin-operational-priorities-card";
 import { AdminRecentActivityCard } from "../molecules/admin-recent-activity-card";
-import { AdminUserStatusCard } from "../molecules/admin-user-status-card";
-import { AdminLegalSourceStatusCard } from "../molecules/admin-legal-source-status-card";
 import { useAdminOverviewQuery } from "@/lib/api/admin-overview-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 
@@ -213,22 +211,6 @@ export function AdminOverviewPage() {
           isError={isError}
           onRetry={() => void refetch()}
         />
-      </div>
-
-      {/* Row 4: Account Distribution & LegalSource Status */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <AdminUserStatusCard
-            distribution={data?.accountDistribution}
-            isLoading={isLoading}
-          />
-        </div>
-        <div className="lg:col-span-5">
-          <AdminLegalSourceStatusCard
-            legalSourceStatus={data?.legalSourceStatus}
-            isLoading={isLoading}
-          />
-        </div>
       </div>
     </div>
   );

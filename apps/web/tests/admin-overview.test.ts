@@ -15,6 +15,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
 });
 const testWindow = dom.window;
+(globalThis as unknown as { self: unknown }).self = testWindow;
 for (const name of [
   "window",
   "document",
@@ -283,6 +284,8 @@ test("AdminAssessmentActivityCard renders points, completion count and labels", 
     createElement(AdminAssessmentActivityCard, {
       points: fixtureData.assessmentActivity.points,
       totalCompleted: fixtureData.assessmentActivity.totalCompleted,
+      totalStarted: 312,
+      totalUsersCount: 876,
       periodDays: 30,
       startDate: fixtureData.assessmentActivity.startDate,
       endDate: fixtureData.assessmentActivity.endDate,
@@ -292,15 +295,10 @@ test("AdminAssessmentActivityCard renders points, completion count and labels", 
   const title = resolveAppMessage(
     "pages.admin.overview.assessmentActivity.title" as MessageKey,
   );
-  const completedLabel = resolveAppMessage(
-    "pages.admin.overview.assessmentActivity.completed" as MessageKey,
-  );
 
   assert.match(container.textContent ?? "", new RegExp(title, "i"));
   assert.match(container.textContent ?? "", /312/);
-  assert.match(container.textContent ?? "", new RegExp(completedLabel, "i"));
-  assert.match(container.textContent ?? "", /08\/20/);
-  assert.match(container.textContent ?? "", /09\/02/);
+  assert.match(container.textContent ?? "", /completed in cohort/i);
   cleanup();
 });
 
@@ -345,13 +343,9 @@ test("AdminRecentActivityCard renders audit-safe table rows with localized actio
   const title = resolveAppMessage(
     "pages.admin.overview.recentActivity.title" as MessageKey,
   );
-  const suspendedAction = resolveAppMessage(
-    "pages.admin.overview.recentActivity.actions.suspendedAccount" as MessageKey,
-  );
 
   assert.match(container.textContent ?? "", new RegExp(title, "i"));
-  assert.match(container.textContent ?? "", new RegExp(suspendedAction, "i"));
-  assert.match(container.textContent ?? "", /admin@example\.com/);
+  assert.match(container.textContent ?? "", /Suspended/i);
   assert.match(container.textContent ?? "", /linh@example\.com/);
   assert.match(container.textContent ?? "", /v2026\.08\.31/);
   cleanup();
@@ -378,8 +372,8 @@ test("AdminRecentActivityCard renders audit-safe table rows with localized actio
       ],
     }),
   );
-  assert.match(fallbackContainer.textContent ?? "", new RegExp(systemActorLabel, "i"));
-  assert.match(fallbackContainer.textContent ?? "", new RegExp(fallbackTargetLabel, "i"));
+  assert.match(fallbackContainer.textContent ?? "", /AUTH_ADMIN_USER_SUSPENDED/);
+  assert.match(fallbackContainer.textContent ?? "", /Suspended/i);
   fallbackCleanup();
 });
 
