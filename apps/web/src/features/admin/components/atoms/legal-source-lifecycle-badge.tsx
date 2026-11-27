@@ -7,15 +7,28 @@ import { LEGAL_SOURCE_STATUS_MESSAGE_KEYS } from "../../config/legal-source-disp
 
 const toneByStatus: Record<string, string> = {
   [LEGAL_SOURCE_LIFECYCLE_STATUSES.draft]:
-    "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200",
+    "border-status-warning-border bg-status-warning-bg text-status-warning",
   [LEGAL_SOURCE_LIFECYCLE_STATUSES.active]:
-    "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+    "border-status-success-border bg-status-success-bg text-status-success",
   [LEGAL_SOURCE_LIFECYCLE_STATUSES.superseded]:
     "border-border bg-muted text-muted-foreground",
   [LEGAL_SOURCE_LIFECYCLE_STATUSES.invalid]:
-    "border-destructive/30 bg-destructive/10 text-destructive",
+    "border-status-danger-border bg-status-danger-bg text-status-danger",
 };
 
+/**
+ * Business purpose: Render a legal source version's lifecycle status badge using semantic status tokens.
+ * Business rules:
+ * - Maps canonical LEGAL_SOURCE_LIFECYCLE_STATUSES values to semantic warning, success, muted, or danger tokens.
+ * - Unknown status strings fall back to INVALID.
+ * Execution flow:
+ * 1. Resolve status against LEGAL_SOURCE_LIFECYCLE_STATUSES.
+ * 2. Render localized pill badge with semantic border, background, and text tokens.
+ * Failure cases:
+ * - Unrecognized status safely renders the invalid badge without throwing.
+ * Side effects:
+ * - Pure presentational component.
+ */
 export function LegalSourceLifecycleBadge({ status }: { status: string }) {
   const knownStatus =
     Object.values(LEGAL_SOURCE_LIFECYCLE_STATUSES).find(
@@ -24,6 +37,7 @@ export function LegalSourceLifecycleBadge({ status }: { status: string }) {
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${toneByStatus[knownStatus]}`}
+      data-component="LegalSourceLifecycleBadge"
     >
       {resolveAppMessage(
         LEGAL_SOURCE_STATUS_MESSAGE_KEYS[knownStatus] as MessageKey,
