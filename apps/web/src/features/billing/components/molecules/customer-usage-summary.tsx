@@ -1,5 +1,7 @@
 import { resolveMessage } from "@lcsp/i18n";
 
+import { NextMetricCard } from "@/components/molecules/next-metric-card";
+import { NEXT_METRIC_VARIANTS } from "@/components/types/dashboard-primitives.types";
 import { Card, CardContent } from "@/components/ui/card";
 
 import {
@@ -10,6 +12,19 @@ import {
 import type { CustomerUsageSummaryProps } from "../../types/customer-usage.types";
 import { formatUsageCount } from "../../utils/customer-usage";
 
+/**
+ * Business purpose: Summarize customer AI usage calls, failed attempts, token totals, and estimated pricing in the Usage settings view.
+ * Business rules:
+ * - Primary KPI cards (calls, failed attempts) use the shared NextMetricCard embedded variant matching Figma Financial & usage (1837:14045).
+ * - Preserves unknown-token invocation counts and selling-price notice without fabricating missing provider telemetry.
+ * Execution flow:
+ * 1. Render primary usage KPIs with NextMetricCard.
+ * 2. Render token breakdown cards and estimated selling price/cost summary cards.
+ * Failure cases:
+ * - Unknown token counts and partial costs fall back to localized unknown/partial labels.
+ * Side effects:
+ * - Pure presentational component; no mutations or network calls.
+ */
 export function CustomerUsageSummary({
   summary,
   sellingPrice,
@@ -19,18 +34,16 @@ export function CustomerUsageSummary({
     <div className="space-y-4" data-component="CustomerUsageSummary">
       <div className="grid gap-3 sm:grid-cols-2">
         {CUSTOMER_USAGE_SUMMARY_FIELDS.map((field) => (
-          <Card key={field} className="min-w-0">
-            <CardContent>
-              <dl>
-                <dt className="text-sm text-muted-foreground">
-                  {resolveMessage(locale, CUSTOMER_USAGE_LABELS[field])}
-                </dt>
-                <dd className="wrap-anywhere text-xl font-semibold tabular-nums">
-                  {formatUsageCount(summary[field], locale)}
-                </dd>
-              </dl>
-            </CardContent>
-          </Card>
+          <NextMetricCard
+            key={field}
+            variant={NEXT_METRIC_VARIANTS.embedded}
+            label={resolveMessage(locale, CUSTOMER_USAGE_LABELS[field])}
+            value={formatUsageCount(summary[field], locale)}
+            context={resolveMessage(
+              locale,
+              "pages.workspace.settingsHub.usage.title",
+            )}
+          />
         ))}
       </div>
       <div className="grid gap-3 sm:grid-cols-3">

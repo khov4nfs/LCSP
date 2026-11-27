@@ -2962,6 +2962,8 @@ export const enPages = {
         paymentCode: "Payment code",
         copied: "Copied",
         copyPaymentCode: "Copy code",
+        checkPaymentStatus: "Check payment status",
+        checkingPaymentStatus: "Checking payment status...",
         pendingPaymentHint:
           "Waiting for the transfer to be detected. This page checks the authoritative payment state.",
         pendingReconciliationTitle: "Payment pending reconciliation",
