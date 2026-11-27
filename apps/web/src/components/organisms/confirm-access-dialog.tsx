@@ -42,6 +42,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { appLocale } from "@/lib/locale";
+import { cn } from "@/lib/utils";
 
 export function ConfirmAccessDialog({
   open,
@@ -79,6 +80,7 @@ function ConfirmAccessDialogContent({
   confirmingLabelKey,
   closeLabelKey,
   constrainToViewport,
+  className,
   errorTitleKey,
   errorKey,
   mfa,
@@ -167,9 +169,7 @@ function ConfirmAccessDialogContent({
   // The opt-in bound lets the dialog header stay visible while long form content scrolls inside the popup.
   return (
     <DialogContent
-      className={
-        constrainToViewport ? "max-h-dvh" : undefined
-      }
+      className={cn(constrainToViewport && "max-h-dvh", className)}
       closeLabel={resolveMessage(appLocale, closeLabelKey)}
     >
         <DialogHeader>

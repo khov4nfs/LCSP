@@ -85,6 +85,8 @@ export type ConfirmAccessDialogProps = {
   confirmLabelKey: MessageKey;
   confirmingLabelKey: MessageKey;
   closeLabelKey: MessageKey;
+  /** Optional presentation override; omitted consumers keep the shared Dialog width. */
+  className?: string;
   /** Keeps long confirmation content within the viewport while leaving the header fixed. */
   constrainToViewport?: boolean;
   errorTitleKey?: MessageKey;

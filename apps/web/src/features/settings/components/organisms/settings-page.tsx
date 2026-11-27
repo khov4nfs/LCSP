@@ -319,6 +319,7 @@ export function SettingsPage({
         />
         <section className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <div className="h-full min-h-0">
+            {/* Frame 39 is 480px wide at the base text size; keep this canonical max-width local to Settings. */}
             {profile ? (
               <ConfirmAccessDialog
                 initialMethod={
@@ -350,6 +351,9 @@ export function SettingsPage({
                 confirmLabelKey="pages.workspace.settingsHub.reauth.confirm"
                 confirmingLabelKey="pages.workspace.settingsHub.reauth.confirming"
                 closeLabelKey="pages.workspace.settingsHub.reauth.close"
+                // Bound this Settings dialog so enlarged text keeps its header and actions reachable.
+                constrainToViewport
+                className="max-w-120"
                 errorTitleKey={confirmAccessPasswordError?.titleKey}
                 errorKey={confirmAccessPasswordError?.detailKey ?? null}
                 mfa={{

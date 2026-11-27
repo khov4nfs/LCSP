@@ -1,0 +1,286 @@
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { AUTH_ERROR_CODES, REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
+
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../../",
+);
+const { chromium } = createRequire(path.join(repositoryRoot, "package.json"))(
+  "@playwright/test",
+);
+const baseUrl = process.env.LCSP_R4_BASE_URL ?? "http://127.0.0.1:3138";
+const screenshotDirectory = process.env.LCSP_R4_SCREENSHOTS;
+const locale = process.env.LCSP_R4_LOCALE ?? "en";
+const theme = process.env.LCSP_R4_THEME ?? "light";
+const reducedMotion = process.env.LCSP_R4_REDUCED_MOTION === "true";
+const profile = {
+  user_id: "m12-r4-security-fixture",
+  email: "security@example.test",
+  email_verified: true,
+  display_name: "Security Fixture",
+  recovery_email: null,
+  primary_email_address_policy: "ACCOUNT_EMAIL",
+  backup_recovery_email_policy: "RECOVERY_EMAIL",
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+  role: "CUSTOMER",
+  mfa_enrolled: true,
+  mfa_enrolled_at: "2026-01-01T00:00:00.000Z",
+  mfa_verified: true,
+  mfa_verified_at: "2026-01-01T00:00:00.000Z",
+  current_session_id: "m12-r4-current-session",
+  current_session_created_at: "2026-01-01T00:00:00.000Z",
+  current_session_updated_at: "2026-01-01T00:00:00.000Z",
+  current_session_expires_at: "2027-01-01T00:00:00.000Z",
+};
+let releaseLateProof;
+let signalLateProofStarted;
+const lateProofStarted = new Promise((resolve) => {
+  signalLateProofStarted = resolve;
+});
+const releaseLateProofPromise = new Promise((resolve) => {
+  releaseLateProof = resolve;
+});
+let mfaDeleteCount = 0;
+let passwordProofCount = 0;
+
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 900 },
+  colorScheme: theme,
+  reducedMotion: reducedMotion ? "reduce" : "no-preference",
+});
+await context.addCookies([
+  { name: "lcsp_session", value: "mock-session:customer", url: baseUrl },
+  { name: "lcsp_locale", value: locale, url: baseUrl },
+]);
+await context.addInitScript((initialTheme) => localStorage.setItem("theme", initialTheme), theme);
+const page = await context.newPage();
+assert.equal(
+  await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches),
+  reducedMotion,
+  "The browser context must expose its configured motion preference.",
+);
+
+// The test models only the documented challenge and confirmation envelopes; it never sends proof to a real service.
+await page.route("**/api/**", async (route) => {
+  const request = route.request();
+  const pathname = new URL(request.url()).pathname;
+  if (request.method() === "DELETE" && pathname === "/api/auth/mfa") {
+    mfaDeleteCount += 1;
+    await route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: false,
+        problem: {
+          type: "auth/reauth-required",
+          status: 403,
+          code: AUTH_ERROR_CODES.reauthRequired,
+          titleKey: "auth.errors.reauthRequired.title",
+          detailKey: "auth.errors.reauthRequired.detail",
+          requiredAction: REQUIRED_ACTIONS.reauthenticate,
+          correlationId: "m12-r4-fixture",
+        },
+      }),
+    });
+    return;
+  }
+  if (request.method() === "POST" && pathname === "/api/auth/re-auth/password") {
+    passwordProofCount += 1;
+    if (passwordProofCount === 1) {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: false,
+          problem: {
+            type: "auth/invalid-credentials",
+            status: 401,
+            code: AUTH_ERROR_CODES.invalidCredentials,
+            titleKey: "auth.errors.invalidCredentials.title",
+            detailKey: "auth.errors.invalidCredentials.detail",
+            requiredAction: REQUIRED_ACTIONS.none,
+            correlationId: "m12-r4-fixture",
+          },
+        }),
+      });
+      return;
+    }
+    signalLateProofStarted();
+    await releaseLateProofPromise;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, data: { verified: true } }),
+    });
+    return;
+  }
+
+  const dataByPath = new Map([
+    ["/api/workspace", { user: { id: profile.user_id, display_name: profile.display_name, role: "CUSTOMER" } }],
+    ["/api/assessments", { assessments: [] }],
+    ["/api/auth/profile", profile],
+    ["/api/auth/sessions", { sessions: [
+      {
+        id: "m12-r4-current-session",
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+        expires_at: "2027-01-01T00:00:00.000Z",
+        revoked_at: null,
+        mfa_verified_at: "2026-01-01T00:00:00.000Z",
+        is_current: true,
+      },
+      {
+        id: "m12-r4-other-session",
+        created_at: "2026-01-02T00:00:00.000Z",
+        updated_at: "2026-01-02T00:00:00.000Z",
+        expires_at: "2027-01-02T00:00:00.000Z",
+        revoked_at: null,
+        mfa_verified_at: null,
+        is_current: false,
+      },
+    ] }],
+    ["/api/auth/oauth/identities", { identities: [] }],
+  ]);
+  const data = dataByPath.get(pathname);
+  if (request.method() === "GET" && data) {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, data }),
+    });
+    return;
+  }
+  await route.fulfill({
+    status: 404,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: false, problem: { code: "FIXTURE_NOT_FOUND" } }),
+  });
+});
+
+try {
+  await page.goto(`${baseUrl}/workspace`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: /settings|cài đặt/i }).first().click();
+  const settings = page.getByRole("dialog").first();
+  await settings.waitFor({ state: "visible" });
+  await settings.locator('[data-settings-tab="account"]').click();
+  const account = settings.locator('[data-component="AccountSettingsPanel"]');
+  await account.waitFor({ state: "visible" });
+
+  const sessionRows = account.locator("ul > li");
+  await sessionRows.first().waitFor({ state: "visible" });
+  if (screenshotDirectory) {
+    const fs = await import("node:fs/promises");
+    await fs.mkdir(screenshotDirectory, { recursive: true });
+    // Hide only Next's development badge so evidence shows the app surface without browser tooling.
+    await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+    await page.screenshot({
+      path: path.join(screenshotDirectory, `frame-30-account-sessions-${locale}-${theme}.png`),
+      fullPage: true,
+    });
+  }
+  assert.equal(await sessionRows.count(), 2, "Only contract-returned sessions are rendered.");
+  if (screenshotDirectory) {
+    await sessionRows.first().scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: path.join(screenshotDirectory, `frame-30-session-list-${locale}-${theme}.png`),
+    });
+  }
+  assert.equal(await sessionRows.nth(0).getByRole("button").count(), 0, "The current session has no revoke action.");
+  assert.equal(await sessionRows.nth(1).getByRole("button", { name: /revoke|thu hồi/i }).count(), 1, "The other session has its supported revoke action.");
+
+  const mfaSection = account.locator('section[aria-labelledby="settings-mfa-heading"]');
+  const disableButton = mfaSection.getByRole("button").nth(1);
+  await disableButton.scrollIntoViewIfNeeded();
+  await disableButton.click();
+  await page.getByRole("button", { name: /^(confirm|xác nhận)$/i }).last().click();
+  const accessDialog = page.locator('[role="dialog"]').last();
+  await accessDialog.waitFor({ state: "visible" });
+  await accessDialog.locator("#confirm-access-password").waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+  await accessDialog.locator("#confirm-access-password").evaluate((input) => input.blur());
+  const dialogBox = await accessDialog.boundingBox();
+  const dialogStyle = await accessDialog.evaluate((element) => ({
+    className: element.className,
+    maxWidth: getComputedStyle(element).maxWidth,
+    rootFontSize: getComputedStyle(document.documentElement).fontSize,
+  }));
+  assert.ok(dialogBox && Math.abs(dialogBox.width - 480) < 2, `Frame 39 desktop dialog width should be 480px: ${JSON.stringify({ dialogBox, dialogStyle })}`);
+
+  if (screenshotDirectory) {
+    const fs = await import("node:fs/promises");
+    await fs.mkdir(screenshotDirectory, { recursive: true });
+    // Hide only Next's development badge so evidence shows the app surface without browser tooling.
+    await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+    await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-password-${locale}-${theme}.png`) });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => { document.documentElement.style.fontSize = "125%"; });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-password-mobile-${locale}-${theme}-root125.png`) });
+    const mobileBox = await accessDialog.boundingBox();
+    assert.ok(mobileBox && mobileBox.x >= 0 && mobileBox.x + mobileBox.width <= 390, `Confirm Access must fit the mobile viewport: ${JSON.stringify(mobileBox)}`);
+    // The narrow text-enlargement check ensures the dialog remains operable without relying on browser zoom.
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.waitForTimeout(200);
+    const narrowDialog = await accessDialog.boundingBox();
+    const narrowClose = await accessDialog.locator('[data-slot="dialog-close"]').boundingBox();
+    const narrowTitle = await accessDialog.locator('[data-slot="dialog-title"]').boundingBox();
+    const dialogBody = accessDialog.locator('[data-slot="dialog-body"]');
+    const bodyOverflowY = await dialogBody.evaluate((element) => getComputedStyle(element).overflowY);
+    assert.ok(narrowDialog && narrowDialog.x >= 0 && narrowDialog.x + narrowDialog.width <= 320, `Confirm Access must fit the narrow viewport: ${JSON.stringify(narrowDialog)}`);
+    assert.ok(narrowClose && narrowClose.x >= 0 && narrowClose.x + narrowClose.width <= 320 && narrowClose.y >= 0, `The dialog close control must remain visible at 320px: ${JSON.stringify(narrowClose)}`);
+    assert.ok(narrowTitle && narrowTitle.y >= 0, `The dialog title must remain visible at 320px: ${JSON.stringify(narrowTitle)}`);
+    assert.equal(bodyOverflowY, "auto", "The dialog body retains its existing scroll behavior for enlarged content.");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "The narrow dialog must not introduce horizontal document overflow.");
+    const submit = accessDialog.locator('button[type="submit"]');
+    await submit.scrollIntoViewIfNeeded();
+    const submitBox = await submit.boundingBox();
+    assert.ok(submitBox && submitBox.y >= 0 && submitBox.y + submitBox.height <= 740, `The dialog action must remain reachable at 320px: ${JSON.stringify(submitBox)}`);
+    await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-mobile-320-${locale}-${theme}-root125.png`) });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
+  }
+
+  await accessDialog.getByRole("button", { name: /authenticator|ứng dụng xác thực/i }).click();
+  await accessDialog.locator("#confirm-access-otp").waitFor({ state: "visible" });
+  if (screenshotDirectory) {
+    await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-mfa-${locale}-${theme}.png`) });
+  }
+  await accessDialog.getByRole("button", { name: /password|mật khẩu/i }).click();
+  await accessDialog.locator("#confirm-access-password").waitFor({ state: "visible" });
+
+  await accessDialog.locator("#confirm-access-password").fill("synthetic-invalid-proof");
+  await accessDialog.getByRole("button", { name: /^(confirm|xác nhận)$/i }).click();
+  await accessDialog.getByRole("alert").waitFor({ state: "visible" });
+  assert.equal(mfaDeleteCount, 1, "Invalid proof cannot resume the protected action.");
+
+  await accessDialog.locator("#confirm-access-password").fill("synthetic-pending-proof");
+  await accessDialog.getByRole("button", { name: /^(confirm|xác nhận)$/i }).click();
+  await lateProofStarted;
+  await accessDialog.locator('[data-slot="dialog-close"]').click();
+  await page.locator("#confirm-access-password").waitFor({ state: "detached" });
+  assert.equal(await page.getByRole("dialog").count(), 1, "Dismissing Confirm Access keeps the parent Settings modal open.");
+  releaseLateProof();
+  await page.waitForTimeout(400);
+
+  assert.equal(mfaDeleteCount, 1, "A late verification response after dismissal must not resume the protected action.");
+  assert.equal(passwordProofCount, 2, "Both proofs were synthetic and isolated to this browser fixture.");
+  console.log(JSON.stringify({
+    evidence: "FIXTURE_BFF_VERIFIED",
+    locale,
+    theme,
+    reducedMotion,
+    sessions: { returned: await sessionRows.count(), currentSessionRevocable: false, otherSessionRevokeAction: true },
+    confirmAccess: { passwordAndOtpModesReachable: true, invalidProofDidNotResume: true, dismissedLateProofDidNotResume: true },
+    calls: { mfaDisable: mfaDeleteCount, passwordProof: passwordProofCount },
+  }, null, 2));
+} finally {
+  releaseLateProof();
+  await context.close();
+  await browser.close();
+}
