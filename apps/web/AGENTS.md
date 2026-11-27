@@ -116,3 +116,4 @@ export async function requestUpstreamApi(path: string, options: RequestInit) {
 - [ ] Verify explanatory comments are added on all changed code, especially BFF proxies, server actions, and core form state logic.
 - [ ] Verify all display text uses `@lcsp/i18n` translation keys.
 - [ ] For PAT dialog changes, verify dismissal during step-up prevents a later write and a failed post-save read retries only the status read.
+- [ ] For nested Settings confirmation dialogs at narrow or enlarged text sizes, verify child content remains readable inside the scroll body and Escape restores focus to a mounted parent control.

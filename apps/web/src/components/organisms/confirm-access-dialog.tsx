@@ -81,6 +81,10 @@ function ConfirmAccessDialogContent({
   closeLabelKey,
   constrainToViewport,
   className,
+  finalFocus,
+  headerClassName,
+  iconClassName,
+  titleClassName,
   errorTitleKey,
   errorKey,
   mfa,
@@ -169,15 +173,16 @@ function ConfirmAccessDialogContent({
   // The opt-in bound lets the dialog header stay visible while long form content scrolls inside the popup.
   return (
     <DialogContent
-      className={cn(constrainToViewport && "max-h-dvh", className)}
+      className={cn(constrainToViewport ? "max-h-dvh" : undefined, className)}
+      finalFocus={finalFocus}
       closeLabel={resolveMessage(appLocale, closeLabelKey)}
     >
-        <DialogHeader>
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
+        <DialogHeader className={headerClassName}>
+          <div className={cn("flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary", iconClassName)}>
             <LockIcon className="size-5" />
           </div>
           <div className="space-y-1">
-            <DialogTitle>{resolveMessage(appLocale, titleKey)}</DialogTitle>
+            <DialogTitle className={titleClassName}>{resolveMessage(appLocale, titleKey)}</DialogTitle>
             {descriptionKey ? (
               <DialogDescription>
                 {resolveMessage(appLocale, descriptionKey)}

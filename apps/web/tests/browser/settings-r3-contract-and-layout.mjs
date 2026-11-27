@@ -144,6 +144,9 @@ try {
   }
   await settings.locator('[data-settings-tab="capabilities"]').click();
   const domainList = settings.locator('[data-component="AllowedPackageManagerDomains"]');
+  // The capabilities query resolves after tab activation; wait for the intercepted contract values before asserting their presentation.
+  await domainList.getByText("registry.npmjs.org", { exact: true }).waitFor({ state: "visible" });
+  await domainList.getByText("pypi.org", { exact: true }).waitFor({ state: "visible" });
   const domainListCount = await domainList.count();
   const domainListText = domainListCount ? await domainList.textContent() : "";
   const domainPresentation = {

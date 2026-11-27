@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { mock, test } from "node:test";
 import { JSDOM } from "jsdom";
 import React, { act, createElement } from "react";
 import { setAppLocale } from "../src/lib/locale.ts";
@@ -102,6 +102,17 @@ Object.defineProperty(testWindow, "EventSource", {
 const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } =
   await import("@tanstack/react-query");
+
+// The locale test does not exercise linked accounts; isolate Next's SVG asset transform from the Node test loader.
+mock.module(
+  "../src/features/settings/components/organisms/account-oauth-section",
+  {
+    namedExports: {
+      AccountOAuthSection: () => null,
+    },
+  },
+);
+
 const { AppShell } =
   await import("../src/features/workspace/components/organisms/app-shell.tsx");
 const { AssessmentTranscript } =

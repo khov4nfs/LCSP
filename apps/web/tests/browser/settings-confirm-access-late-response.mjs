@@ -198,11 +198,43 @@ try {
   const disableButton = mfaSection.getByRole("button").nth(1);
   await disableButton.scrollIntoViewIfNeeded();
   await disableButton.click();
-  await page.getByRole("button", { name: /^(confirm|xác nhận)$/i }).last().click();
+  await page.getByRole("dialog").last().locator("button").nth(-2).click();
   const accessDialog = page.locator('[role="dialog"]').last();
   await accessDialog.waitFor({ state: "visible" });
+  // Wait for the shared popup's entry scale to settle before comparing its desktop frame width.
+  await page.waitForFunction((element) => !element.hasAttribute("data-starting-style"), await accessDialog.elementHandle());
   await accessDialog.locator("#confirm-access-password").waitFor({ state: "visible" });
   await page.waitForTimeout(300);
+  assert.ok(
+    await accessDialog.evaluate((dialog) => dialog.contains(document.activeElement)),
+    "Opening Confirm Access must move focus into the topmost dialog.",
+  );
+  for (let tabIndex = 0; tabIndex < 16; tabIndex += 1) {
+    await page.keyboard.press("Tab");
+    // Base UI redirects its hidden focus sentinel on the next animation frame; observe the settled focus target.
+    await page.waitForTimeout(50);
+    const focusState = await accessDialog.evaluate((dialog) => ({
+      contained: dialog.contains(document.activeElement),
+      activeTag: document.activeElement?.tagName,
+      activeId: document.activeElement?.id,
+      activeName: document.activeElement?.getAttribute("aria-label"),
+      activeText: document.activeElement?.textContent?.trim().slice(0, 50),
+    }));
+    assert.ok(focusState.contained, `Tab navigation must remain contained by Confirm Access: ${JSON.stringify(focusState)}`);
+  }
+  await page.keyboard.press("Shift+Tab");
+  await page.waitForTimeout(50);
+  assert.ok(
+    await accessDialog.evaluate((dialog) => dialog.contains(document.activeElement)),
+    "Reverse tab navigation must remain contained by Confirm Access.",
+  );
+  const passwordInput = accessDialog.locator("#confirm-access-password");
+  const passwordToggle = passwordInput.locator("xpath=..").locator("button");
+  await passwordToggle.focus();
+  await page.keyboard.press("Space");
+  assert.equal(await passwordInput.getAttribute("type"), "text", "The password visibility control must be keyboard operable.");
+  await page.keyboard.press("Space");
+  assert.equal(await passwordInput.getAttribute("type"), "password", "Keyboard activation must restore masked password entry.");
   await accessDialog.locator("#confirm-access-password").evaluate((input) => input.blur());
   const dialogBox = await accessDialog.boundingBox();
   const dialogStyle = await accessDialog.evaluate((element) => ({
@@ -211,6 +243,131 @@ try {
     rootFontSize: getComputedStyle(document.documentElement).fontSize,
   }));
   assert.ok(dialogBox && Math.abs(dialogBox.width - 480) < 2, `Frame 39 desktop dialog width should be 480px: ${JSON.stringify({ dialogBox, dialogStyle })}`);
+
+  // The nested step-up popup replaces an unmounted confirmation button, so focus returns to the selected Settings tab.
+  await page.keyboard.press("Escape");
+  await passwordInput.waitFor({ state: "detached" });
+  assert.equal(await page.getByRole("dialog").count(), 1, "Escape dismisses Confirm Access while preserving Settings.");
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.getAttribute("data-settings-tab")),
+    "account",
+    "Closing Confirm Access must restore focus to the active Account tab when the initiating confirmation is unmounted.",
+  );
+  await disableButton.click();
+  await page.getByRole("dialog").last().locator("button").nth(-2).click();
+  await accessDialog.waitFor({ state: "visible" });
+  await page.waitForFunction((element) => !element.hasAttribute("data-starting-style"), await accessDialog.elementHandle());
+  await passwordInput.waitFor({ state: "visible" });
+
+  const responsiveProfiles = [
+    { width: 390, height: 844, fontSize: "100%", name: "390-normal" },
+    { width: 390, height: 844, fontSize: "125%", name: "390-root125" },
+    { width: 320, height: 740, fontSize: "100%", name: "320-normal" },
+    { width: 320, height: 740, fontSize: "125%", name: "320-root125" },
+    { width: 320, height: 740, fontSize: "200%", name: "320-root200" },
+  ];
+  const dialogBody = accessDialog.locator('[data-slot="dialog-body"]');
+  const identityCard = accessDialog.locator('[data-slot="card"]').first();
+  const identityHandle = identityCard.locator("p").nth(1);
+  const supportCard = accessDialog.locator('[data-slot="card"]').nth(1);
+  const submit = accessDialog.locator('button[type="submit"]');
+  if (screenshotDirectory) {
+    const fs = await import("node:fs/promises");
+    await fs.mkdir(screenshotDirectory, { recursive: true });
+    // Hide only Next's development badge so evidence shows the current Settings UI.
+    await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+    await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-password-${locale}-${theme}.png`) });
+  }
+  for (const responsiveProfile of responsiveProfiles) {
+    await page.setViewportSize({ width: responsiveProfile.width, height: responsiveProfile.height });
+    await page.evaluate((fontSize) => { document.documentElement.style.fontSize = fontSize; }, responsiveProfile.fontSize);
+    await page.waitForTimeout(150);
+    await dialogBody.evaluate((element) => { element.scrollTop = 0; });
+    const bounds = await accessDialog.boundingBox();
+    const closeBounds = await accessDialog.locator('[data-slot="dialog-close"]').boundingBox();
+    const titleBounds = await accessDialog.locator('[data-slot="dialog-title"]').boundingBox();
+    const metrics = await accessDialog.evaluate((dialog) => {
+      const header = dialog.querySelector('[data-slot="dialog-header"]');
+      const title = dialog.querySelector('[data-slot="dialog-title"]');
+      const range = document.createRange();
+      if (title) range.selectNodeContents(title);
+      return {
+        titleLines: range.getClientRects().length,
+        headerHeight: header?.getBoundingClientRect().height,
+        cards: [...dialog.querySelectorAll('[data-slot="card"]')].map((card) => ({
+          height: card.getBoundingClientRect().height,
+          contentHeight: card.querySelector('[data-slot="card-content"]')?.getBoundingClientRect().height,
+        })),
+        bodyOverflowY: getComputedStyle(dialog.querySelector('[data-slot="dialog-body"]')).overflowY,
+      };
+    });
+    assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= responsiveProfile.width, `Dialog fits ${responsiveProfile.name}: ${JSON.stringify(bounds)}`);
+    assert.ok(bounds && bounds.y >= 0 && bounds.y + bounds.height <= responsiveProfile.height + 1, `Dialog fits the short viewport ${responsiveProfile.name}: ${JSON.stringify(bounds)}`);
+    assert.ok(closeBounds && closeBounds.x >= 0 && closeBounds.x + closeBounds.width <= responsiveProfile.width && closeBounds.y >= 0, `Close remains visible at ${responsiveProfile.name}: ${JSON.stringify(closeBounds)}`);
+    assert.ok(titleBounds && titleBounds.y >= 0, `Title remains visible at ${responsiveProfile.name}: ${JSON.stringify(titleBounds)}`);
+    assert.ok(metrics.cards.every((card) => card.height >= (card.contentHeight ?? 0)), `Cards retain their content height at ${responsiveProfile.name}: ${JSON.stringify(metrics)}`);
+    assert.equal(metrics.bodyOverflowY, "auto", `Content remains scrollable at ${responsiveProfile.name}.`);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `No horizontal overflow at ${responsiveProfile.name}.`);
+    if (responsiveProfile.width === 320 && responsiveProfile.fontSize !== "100%") {
+      assert.ok(metrics.titleLines <= 3, `Narrow Vietnamese title reflows at ${responsiveProfile.name}: ${JSON.stringify(metrics)}`);
+    }
+    if (screenshotDirectory && ["390-root125", "320-root125", "320-root200"].includes(responsiveProfile.name)) {
+      await page.screenshot({
+        path: path.join(screenshotDirectory, `frame-39-confirm-access-${responsiveProfile.name}-${locale}-${theme}.png`),
+      });
+    }
+    await identityHandle.scrollIntoViewIfNeeded();
+    const handleBounds = await identityHandle.boundingBox();
+    const bodyBounds = await dialogBody.boundingBox();
+    assert.ok(handleBounds && bodyBounds && handleBounds.y < bodyBounds.y + bodyBounds.height && handleBounds.y + handleBounds.height > bodyBounds.y, `Identity is reachable in the dialog scroll area at ${responsiveProfile.name}: ${JSON.stringify({ handleBounds, bodyBounds, metrics })}`);
+    // At extreme root-text enlargement, the identity must not collapse to a narrow side column beside the avatar.
+    if (responsiveProfile.name === "320-root200") {
+      assert.ok(handleBounds && handleBounds.width >= 120, `The account identifier needs a usable reading width at ${responsiveProfile.name}: ${JSON.stringify(handleBounds)}`);
+      const identityLayout = await identityCard.evaluate((card) => {
+        const content = card.querySelector('[data-slot="card-content"]');
+        const handle = card.querySelectorAll("p")[1];
+        const contentBounds = content?.getBoundingClientRect();
+        const handleBounds = handle?.getBoundingClientRect();
+        return {
+          contentRight: contentBounds?.right,
+          handleLeft: handleBounds?.left,
+          handleRight: handleBounds?.right,
+          handleWidth: handleBounds?.width,
+          scrollWidth: handle?.scrollWidth,
+          clientWidth: handle?.clientWidth,
+        };
+      });
+      assert.ok(
+        identityLayout.handleLeft !== undefined && identityLayout.contentRight !== undefined &&
+        identityLayout.handleRight !== undefined && identityLayout.handleLeft >= 0 &&
+        identityLayout.handleRight <= identityLayout.contentRight + 1 &&
+        (identityLayout.scrollWidth ?? 0) <= (identityLayout.clientWidth ?? 0) + 1,
+        `The enlarged account identifier must wrap inside its card rather than overflow horizontally: ${JSON.stringify(identityLayout)}`,
+      );
+    }
+    // Capture the identity after scrolling so the 200% stress evidence shows content that starts below the enlarged header.
+    if (screenshotDirectory && responsiveProfile.name === "320-root200") {
+      await page.screenshot({
+        path: path.join(screenshotDirectory, `frame-39-confirm-access-${responsiveProfile.name}-identity-scroll-${locale}-${theme}.png`),
+      });
+    }
+    await supportCard.locator("a, button").last().scrollIntoViewIfNeeded();
+    const supportActionBounds = await supportCard.locator("a, button").last().boundingBox();
+    const scrolledBodyBounds = await dialogBody.boundingBox();
+    assert.ok(supportActionBounds && scrolledBodyBounds && supportActionBounds.y >= scrolledBodyBounds.y - 1 && supportActionBounds.y + supportActionBounds.height <= scrolledBodyBounds.y + scrolledBodyBounds.height + 1, `Support action is reachable at ${responsiveProfile.name}.`);
+    // Capture the scrolled support actions separately to demonstrate they remain reachable without shrinking the card.
+    if (screenshotDirectory && responsiveProfile.name === "320-root200") {
+      await page.screenshot({
+        path: path.join(screenshotDirectory, `frame-39-confirm-access-${responsiveProfile.name}-support-scroll-${locale}-${theme}.png`),
+      });
+    }
+    await submit.scrollIntoViewIfNeeded();
+    const submitBounds = await submit.boundingBox();
+    assert.ok(submitBounds && submitBounds.y >= 0 && submitBounds.y + submitBounds.height <= responsiveProfile.height, `Submit is reachable at ${responsiveProfile.name}.`);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
+  await page.waitForTimeout(150);
 
   if (screenshotDirectory) {
     const fs = await import("node:fs/promises");
@@ -241,6 +398,52 @@ try {
     await submit.scrollIntoViewIfNeeded();
     const submitBox = await submit.boundingBox();
     assert.ok(submitBox && submitBox.y >= 0 && submitBox.y + submitBox.height <= 740, `The dialog action must remain reachable at 320px: ${JSON.stringify(submitBox)}`);
+    // The signed-in identity card must scroll as a whole instead of shrinking its contents inside the dialog body.
+    const identityCard = accessDialog.locator('[data-slot="card"]').first();
+    const identityContent = identityCard.locator('[data-slot="card-content"]');
+    const identityHandle = identityCard.locator("p").nth(1);
+    const identityMetrics = await identityContent.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    const handleStyle = await identityHandle.evaluate((element) => ({
+      textContent: element.textContent,
+      whiteSpace: getComputedStyle(element).whiteSpace,
+      overflowWrap: getComputedStyle(element).overflowWrap,
+    }));
+    const headerMetrics = await accessDialog.evaluate((dialog) => {
+      const header = dialog.querySelector('[data-slot="dialog-header"]');
+      const title = dialog.querySelector('[data-slot="dialog-title"]');
+      const range = document.createRange();
+      if (title) range.selectNodeContents(title);
+      return {
+        headerHeight: header?.getBoundingClientRect().height,
+        titleLineFragments: range.getClientRects().length,
+        cards: [...dialog.querySelectorAll('[data-slot="card"]')].map((card) => ({
+          height: card.getBoundingClientRect().height,
+          contentHeight: card.querySelector('[data-slot="card-content"]')?.getBoundingClientRect().height,
+        })),
+        bodyScrollHeight: dialog.querySelector('[data-slot="dialog-body"]')?.scrollHeight,
+      };
+    });
+    console.log(JSON.stringify({ narrowLayout: headerMetrics, identityContent: identityMetrics }));
+    assert.ok(
+      headerMetrics.cards.every((card) => card.height >= (card.contentHeight ?? 0)),
+      `Confirm Access cards must not shrink below their content height: ${JSON.stringify(headerMetrics)}`,
+    );
+    assert.deepEqual(handleStyle, {
+      textContent: "security@example.test",
+      whiteSpace: "normal",
+      overflowWrap: "break-word",
+    }, "The signed-in identity must remain readable when the narrow card cannot fit its email on one line.");
+    assert.ok(
+      headerMetrics.titleLineFragments <= 3,
+      `The mobile header should reflow before the Vietnamese title consumes four lines: ${JSON.stringify(headerMetrics)}`,
+    );
+    assert.ok(
+      identityMetrics.scrollHeight <= identityMetrics.clientHeight + 1,
+      `Identity content must not be clipped within its card: ${JSON.stringify(identityMetrics)}`,
+    );
     await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-mobile-320-${locale}-${theme}-root125.png`) });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
@@ -251,13 +454,14 @@ try {
   if (screenshotDirectory) {
     await page.screenshot({ path: path.join(screenshotDirectory, `frame-39-confirm-access-mfa-${locale}-${theme}.png`) });
   }
+  const protectedActionRequestCount = mfaDeleteCount;
   await accessDialog.getByRole("button", { name: /password|mật khẩu/i }).click();
   await accessDialog.locator("#confirm-access-password").waitFor({ state: "visible" });
 
   await accessDialog.locator("#confirm-access-password").fill("synthetic-invalid-proof");
   await accessDialog.getByRole("button", { name: /^(confirm|xác nhận)$/i }).click();
   await accessDialog.getByRole("alert").waitFor({ state: "visible" });
-  assert.equal(mfaDeleteCount, 1, "Invalid proof cannot resume the protected action.");
+  assert.equal(mfaDeleteCount, protectedActionRequestCount, "Invalid proof cannot resume the protected action.");
 
   await accessDialog.locator("#confirm-access-password").fill("synthetic-pending-proof");
   await accessDialog.getByRole("button", { name: /^(confirm|xác nhận)$/i }).click();
@@ -268,7 +472,7 @@ try {
   releaseLateProof();
   await page.waitForTimeout(400);
 
-  assert.equal(mfaDeleteCount, 1, "A late verification response after dismissal must not resume the protected action.");
+  assert.equal(mfaDeleteCount, protectedActionRequestCount, "A late verification response after dismissal must not resume the protected action.");
   assert.equal(passwordProofCount, 2, "Both proofs were synthetic and isolated to this browser fixture.");
   console.log(JSON.stringify({
     evidence: "FIXTURE_BFF_VERIFIED",

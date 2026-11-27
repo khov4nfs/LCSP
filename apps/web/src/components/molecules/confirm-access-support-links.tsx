@@ -14,8 +14,9 @@ export function ConfirmAccessSupportLinks({
     return null;
   }
 
+  // The parent confirmation body scrolls on short viewports; preserve the support card so its actions do not collapse.
   return (
-    <Card className="py-0">
+    <Card className="shrink-0 py-0">
       <CardContent className="space-y-3 px-5 py-5">
         <h3 className="text-lg font-semibold">
           {resolveMessage(appLocale, titleKey)}
