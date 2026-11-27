@@ -85,6 +85,8 @@ export type ConfirmAccessDialogProps = {
   confirmLabelKey: MessageKey;
   confirmingLabelKey: MessageKey;
   closeLabelKey: MessageKey;
+  /** Keeps long confirmation content within the viewport while leaving the header fixed. */
+  constrainToViewport?: boolean;
   errorTitleKey?: MessageKey;
   errorKey?: MessageKey | null;
   mfa?: ConfirmAccessDialogMfaOptions;

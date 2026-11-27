@@ -21,7 +21,6 @@ import {
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Spinner } from "@/components/ui/spinner";
@@ -37,7 +36,7 @@ import type {
   MfaVerifyError,
   MfaVerifyOutcome,
 } from "@/lib/api/types/mfa-verify.types";
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import { resolvePostAuthRedirectPath } from "../../utils/post-auth-redirect";
 
 import {
@@ -64,6 +63,8 @@ export function MfaVerifyForm({
 }: {
   initialMethod?: MfaVerifyMethod;
 }) {
+  // Subscribe to the shared locale while leaving the active MFA challenge and selected verification method mounted.
+  const locale = useAppLocale();
   const router = useRouter();
   const mfaVerifyMutation = useMfaVerifyMutation();
   const recoveryCodeVerifyMutation = useMfaRecoveryCodeVerifyMutation();
@@ -156,20 +157,21 @@ export function MfaVerifyForm({
     setError(outcome);
   }
 
+  // AuthShell provides page alignment; natural content height keeps OTP and recovery-code states from clipping.
   return (
     <AuthFormSurface
-      className="pt-28 pb-16 sm:pt-32"
-      data-figma-node={isRecoveryCode ? "926:31359" : "925:31355"}
+      className="w-full"
+      data-figma-node={isRecoveryCode ? "926:31359" : "1662:1166"}
     >
       <AuthHeading
         title={resolveMessage(
-          appLocale,
+          locale,
           isRecoveryCode
             ? "pages.mfaVerify.recoveryCodeTitle"
             : "pages.mfaVerify.formTitle",
         )}
         description={resolveMessage(
-          appLocale,
+          locale,
           isRecoveryCode
             ? "pages.mfaVerify.recoveryCodeDescription"
             : "pages.mfaVerify.formDescription",
@@ -223,25 +225,27 @@ function OtpForm({
   onSubmit: () => void;
   onSwitchMethod: () => void;
 }) {
+  // Localize OTP labels and feedback without replacing the current challenge or RHF state.
+  const locale = useAppLocale();
   return (
     <>
       <form
         id="mfa-verify-form"
         onSubmit={onSubmit}
         noValidate
-        className="mt-8 flex flex-col"
+        className="mt-11 flex flex-col"
       >
         <FieldGroup className="gap-5">
           <Field
             data-invalid={Boolean(otpError) || undefined}
             data-disabled={isSubmitting || isLocked || undefined}
-            className="items-center gap-3"
+            className="items-start gap-2.5"
           >
             <FieldLabel
               htmlFor="otp"
-              className="block w-full text-center text-xs font-semibold tracking-wide text-foreground uppercase"
+              className="block w-full text-xs font-medium text-foreground"
             >
-              {resolveMessage(appLocale, "pages.mfaVerify.otpLabel")}
+              {resolveMessage(locale, "pages.mfaVerify.otpLabel")}
             </FieldLabel>
             <Controller
               control={control}
@@ -252,18 +256,16 @@ function OtpForm({
                   maxLength={6}
                   pattern={REGEXP_ONLY_DIGITS}
                   autoComplete="one-time-code"
-                  containerClassName="justify-center gap-2 sm:gap-2.5"
+                  containerClassName="justify-start gap-2 sm:gap-2.5 xl:gap-3"
                   disabled={isSubmitting || isLocked}
                   aria-invalid={Boolean(otpError)}
                   {...field}
                 >
-                  <InputOTPGroup className="gap-2 rounded-none">
+                  {/* One six-slot group mirrors the Figma OTP row while preserving the existing InputOTP paste and keyboard behavior. */}
+                  <InputOTPGroup className="gap-2 rounded-none xl:gap-3">
                     <AuthOtpSlot index={0} invalid={Boolean(otpError)} />
                     <AuthOtpSlot index={1} invalid={Boolean(otpError)} />
                     <AuthOtpSlot index={2} invalid={Boolean(otpError)} />
-                  </InputOTPGroup>
-                  <InputOTPSeparator className="text-muted-foreground [&_svg]:size-3" />
-                  <InputOTPGroup className="gap-2 rounded-none">
                     <AuthOtpSlot index={3} invalid={Boolean(otpError)} />
                     <AuthOtpSlot index={4} invalid={Boolean(otpError)} />
                     <AuthOtpSlot index={5} invalid={Boolean(otpError)} />
@@ -274,20 +276,21 @@ function OtpForm({
             {otpError ? (
               <FieldError className="text-center text-xs leading-normal">
                 {resolveMessage(
-                  appLocale,
+                  locale,
                   otpError as Parameters<typeof resolveMessage>[1],
                 )}
               </FieldError>
             ) : (
-              <FieldDescription className="text-center text-xs leading-normal text-muted-foreground">
-                {resolveMessage(appLocale, "pages.mfaVerify.otpDescription")}
+              <FieldDescription className="sr-only">
+                {resolveMessage(locale, "pages.mfaVerify.otpDescription")}
               </FieldDescription>
             )}
           </Field>
           <MfaErrorAlert error={error} />
         </FieldGroup>
+        {/* Keep the OTP action at the reference frame's generous distance from the six-slot control row. */}
         <AuthPrimaryButton
-          className="mt-6"
+          className="mt-9"
           type="submit"
           form="mfa-verify-form"
           disabled={isSubmitting || isLocked}
@@ -295,7 +298,7 @@ function OtpForm({
         >
           {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
           {resolveMessage(
-            appLocale,
+            locale,
             isSubmitting
               ? "pages.mfaVerify.submitting"
               : "pages.mfaVerify.submit",
@@ -308,12 +311,12 @@ function OtpForm({
           event.preventDefault();
           onSwitchMethod();
         }}
-        className="mt-6 self-center"
+        className="mt-6 self-start"
       >
-        {resolveMessage(appLocale, "pages.mfaVerify.moreOptions")}
+        {resolveMessage(locale, "pages.mfaVerify.moreOptions")}
       </AuthInlineLink>
-      <AuthNote className="mt-6">
-        {resolveMessage(appLocale, "pages.mfaVerify.accessHelp")}
+      <AuthNote className="mt-6 self-start text-left">
+        {resolveMessage(locale, "pages.mfaVerify.accessHelp")}
       </AuthNote>
     </>
   );
@@ -336,6 +339,8 @@ function RecoveryCodeForm({
   control: Control<MfaRecoveryCodeVerifyFormValues>;
   onSwitchMethod: () => void;
 }) {
+  // Keep recovery-code copy reactive while preserving the current recovery-code challenge.
+  const locale = useAppLocale();
   return (
     <>
       <form
@@ -356,21 +361,21 @@ function RecoveryCodeForm({
                 inputMode="text"
                 disabled={isSubmitting || isLocked}
                 label={resolveMessage(
-                  appLocale,
+                  locale,
                   "pages.mfaVerify.recoveryCodeLabel",
                 )}
                 description={resolveMessage(
-                  appLocale,
+                  locale,
                   "pages.mfaVerify.recoveryCodeHelp",
                 )}
                 placeholder={resolveMessage(
-                  appLocale,
+                  locale,
                   "pages.mfaVerify.recoveryCodePlaceholder",
                 )}
                 error={
                   recoveryCodeError
                     ? resolveMessage(
-                        appLocale,
+                        locale,
                         recoveryCodeError as Parameters<
                           typeof resolveMessage
                         >[1],
@@ -395,7 +400,7 @@ function RecoveryCodeForm({
         >
           {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
           {resolveMessage(
-            appLocale,
+            locale,
             isSubmitting
               ? "pages.mfaVerify.submitting"
               : "pages.mfaVerify.recoveryCodeSubmit",
@@ -410,14 +415,14 @@ function RecoveryCodeForm({
         }}
         className="mt-6 self-center"
       >
-        {resolveMessage(appLocale, "pages.mfaVerify.useAuthenticator")}
+        {resolveMessage(locale, "pages.mfaVerify.useAuthenticator")}
       </AuthInlineLink>
       <AuthNote className="mt-6 flex flex-col gap-1 text-center">
         <span>
-          {resolveMessage(appLocale, "pages.mfaVerify.recoveryCodeAccessHelp")}
+          {resolveMessage(locale, "pages.mfaVerify.recoveryCodeAccessHelp")}
         </span>
         <span className="text-muted-foreground/80">
-          {resolveMessage(appLocale, "pages.mfaVerify.lostBothFactorsHelp")}
+          {resolveMessage(locale, "pages.mfaVerify.lostBothFactorsHelp")}
         </span>
       </AuthNote>
     </>
@@ -425,16 +430,19 @@ function RecoveryCodeForm({
 }
 
 function AuthOtpSlot({ index, invalid }: { index: number; invalid: boolean }) {
+  // Match auth field boundary and focus contrast; the original Figma border and shared low-opacity focus halo were below 3:1 on white.
   return (
     <InputOTPSlot
       index={index}
       aria-invalid={invalid}
-      className="h-12 w-11 rounded-lg border border-border bg-muted text-base font-medium text-foreground first:rounded-lg first:border last:rounded-lg data-[active=true]:border-ring data-[active=true]:ring-2 data-[active=true]:ring-ring/20"
+      className="h-12 w-10 rounded-md border border-[#7B8A98] bg-white text-xl font-medium text-foreground sm:h-14 sm:w-12 xl:h-16 xl:w-16 data-[active=true]:border-ring data-[active=true]:ring-2 data-[active=true]:ring-ring"
     />
   );
 }
 
 function MfaErrorAlert({ error }: { error?: MfaVerifyError }) {
+  // Resolve challenge failures in the active locale while retaining their current outcomes and retry actions.
+  const locale = useAppLocale();
   if (!error) {
     return null;
   }
@@ -444,16 +452,16 @@ function MfaErrorAlert({ error }: { error?: MfaVerifyError }) {
 
   return (
     <Alert variant="destructive">
-      <AlertTitle>{resolveMessage(appLocale, error.titleKey)}</AlertTitle>
+      <AlertTitle>{resolveMessage(locale, error.titleKey)}</AlertTitle>
       <AlertDescription className="space-y-2">
-        <p>{resolveMessage(appLocale, error.detailKey)}</p>
+        <p>{resolveMessage(locale, error.detailKey)}</p>
         {isRestartEnrollment ? (
           <div className="pt-1">
             <Link
               href={API_REDIRECT_LOCATIONS.mfaEnroll}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              {resolveMessage(appLocale, "pages.mfaVerify.restartEnrollment")}
+              {resolveMessage(locale, "pages.mfaVerify.restartEnrollment")}
             </Link>
           </div>
         ) : null}

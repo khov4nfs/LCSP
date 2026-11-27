@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { resolveMessage } from "@lcsp/i18n";
 
 import { SignUpPage as AuthSignUpPage } from "@/features/auth/components/organisms/sign-up-page";
-import { appLocale } from "@/lib/locale";
+import { getAuthPageMetadata } from "@/features/auth/utils/get-auth-page-metadata";
 
-export const metadata: Metadata = {
-  title: resolveMessage(appLocale, "pages.signUp.metadataTitle"),
-  description: resolveMessage(appLocale, "pages.signUp.metadataDescription"),
-};
+// Resolve metadata per request so parallel English and Vietnamese visits stay isolated.
+export async function generateMetadata(): Promise<Metadata> {
+  return getAuthPageMetadata(
+    "pages.signUp.metadataTitle",
+    "pages.signUp.metadataDescription",
+  );
+}
 
 export default function SignUpPage() {
   return <AuthSignUpPage />;

@@ -197,10 +197,12 @@ test("recovery request schema trims email according to shared contract", () => {
 });
 
 test("recovery confirm schema enforces canonical password rules", () => {
+  // The UI now requires a matching confirmation while the request payload remains token + new_password only.
   assert.equal(
     recoveryConfirmSchema.safeParse({
       token: "valid-token",
       new_password: "short",
+      confirm_new_password: "short",
     }).success,
     false,
   );
@@ -208,8 +210,17 @@ test("recovery confirm schema enforces canonical password rules", () => {
     recoveryConfirmSchema.safeParse({
       token: "valid-token",
       new_password: "twelve-chars-valid",
+      confirm_new_password: "twelve-chars-valid",
     }).success,
     true,
+  );
+  assert.equal(
+    recoveryConfirmSchema.safeParse({
+      token: "valid-token",
+      new_password: "twelve-chars-valid",
+      confirm_new_password: "different-password",
+    }).success,
+    false,
   );
 });
 

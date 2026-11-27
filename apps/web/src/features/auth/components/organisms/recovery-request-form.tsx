@@ -7,7 +7,7 @@ import { FormProvider, useForm } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import { useRequestRecoveryMutation } from "@/lib/api/auth-queries";
 import {
   API_OUTCOME_KINDS,
@@ -28,6 +28,8 @@ import {
 } from "../molecules/auth-form-primitives";
 
 export function RecoveryRequestForm() {
+  // Keep request copy reactive without resetting the email or the enumeration-safe confirmation state.
+  const locale = useAppLocale();
   const requestMutation = useRequestRecoveryMutation();
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<{
@@ -58,40 +60,47 @@ export function RecoveryRequestForm() {
 
   const emailError = form.formState.errors.email?.message;
 
+  // AuthShell owns page placement; natural height keeps confirmation and error feedback from clipping.
   return (
-    <AuthFormSurface className="pt-[168px]" data-figma-node="925:31314">
+    <AuthFormSurface className="w-full" data-figma-node="1662:1195">
       <AuthHeading
-        title={resolveMessage(appLocale, "pages.recoveryRequest.formTitle")}
+        title={resolveMessage(locale, "pages.recoveryRequest.formTitle")}
         description={resolveMessage(
-          appLocale,
+          locale,
           "pages.recoveryRequest.formDescription",
         )}
       />
       <FormProvider {...form}>
+        {/* The reference places the email row below the heading while retaining the current request and feedback states. */}
         <form
           id="recovery-request-form"
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
-          className="mt-[38px] flex flex-col"
+          className="mt-11.5 flex flex-col"
         >
-          <FieldGroup className="gap-[18px]">
+          <FieldGroup className="gap-4.5">
             <AuthTextField
               id="email"
               type="email"
               autoComplete="email"
               disabled={form.formState.isSubmitting}
               label={resolveMessage(
-                appLocale,
+                locale,
                 "pages.recoveryRequest.emailLabel",
               )}
+              placeholder={resolveMessage(
+                locale,
+                "pages.recoveryRequest.emailPlaceholder",
+              )}
               description={resolveMessage(
-                appLocale,
+                locale,
                 "pages.recoveryRequest.emailDescription",
               )}
+              descriptionClassName="sr-only"
               error={
                 emailError
                   ? resolveMessage(
-                      appLocale,
+                      locale,
                       emailError as Parameters<typeof resolveMessage>[1],
                     )
                   : undefined
@@ -102,13 +111,13 @@ export function RecoveryRequestForm() {
               <Alert>
                 <AlertTitle>
                   {resolveMessage(
-                    appLocale,
+                    locale,
                     "pages.recoveryRequest.successTitle",
                   )}
                 </AlertTitle>
                 <AlertDescription>
                   {resolveMessage(
-                    appLocale,
+                    locale,
                     "pages.recoveryRequest.successDetail",
                   )}
                 </AlertDescription>
@@ -117,23 +126,23 @@ export function RecoveryRequestForm() {
             {error ? (
               <Alert variant="destructive">
                 <AlertTitle>
-                  {resolveMessage(appLocale, error.titleKey)}
+                  {resolveMessage(locale, error.titleKey)}
                 </AlertTitle>
                 <AlertDescription>
-                  {resolveMessage(appLocale, error.detailKey)}
+                  {resolveMessage(locale, error.detailKey)}
                 </AlertDescription>
               </Alert>
             ) : null}
           </FieldGroup>
           <AuthPrimaryButton
-            className="mt-6"
+            className="mt-8"
             type="submit"
             form="recovery-request-form"
             disabled={form.formState.isSubmitting}
             aria-busy={form.formState.isSubmitting}
           >
             {resolveMessage(
-              appLocale,
+              locale,
               form.formState.isSubmitting
                 ? "pages.recoveryRequest.submitting"
                 : "pages.recoveryRequest.submit",
@@ -142,12 +151,12 @@ export function RecoveryRequestForm() {
         </form>
         <AuthInlineLink
           href={API_REDIRECT_LOCATIONS.signIn}
-          className="mt-[22px] self-start"
+          className="mt-6 self-start"
         >
-          {resolveMessage(appLocale, "pages.recoveryRequest.backToSignIn")}
+          {resolveMessage(locale, "pages.recoveryRequest.backToSignIn")}
         </AuthInlineLink>
-        <AuthNote className="mt-[34px]">
-          {resolveMessage(appLocale, "pages.recoveryRequest.accessHelp")}
+        <AuthNote className="mt-8 self-start text-left">
+          {resolveMessage(locale, "pages.recoveryRequest.accessHelp")}
         </AuthNote>
       </FormProvider>
     </AuthFormSurface>

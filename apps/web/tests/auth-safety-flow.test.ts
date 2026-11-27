@@ -199,10 +199,12 @@ test("recovery request schema requires a valid work email", () => {
 });
 
 test("recovery confirm schema requires token and a 12-char password", () => {
+  // The screen now requires a matching confirmation field but still submits only the API contract values.
   assert.equal(
     recoveryConfirmSchema.safeParse({
       token: "token-123",
       new_password: "123456789012",
+      confirm_new_password: "123456789012",
     }).success,
     true,
   );
