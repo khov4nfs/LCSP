@@ -43,7 +43,7 @@ import { TransactionHistory } from "./transaction-history";
  * 2. Synchronize wallet and history caches whenever a pending order transitions to a terminal status.
  * 3. Compose WalletBalanceCard, TopUpForm, EstimateSection, PaymentOrderCard, and TransactionHistory.
  * Failure cases:
- * - Loading and error states render localized feedback with an explicit retry trigger instead of partial or fabricated balances.
+ * - Loading and error states render localized feedback with an explicit retry trigger instead of partial or unverified balances.
  * Side effects:
  * - Submits top-up order mutations, invalidates React Query billing keys on settlement, and copies payment codes to the clipboard.
  */

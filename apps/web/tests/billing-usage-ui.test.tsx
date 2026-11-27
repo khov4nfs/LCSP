@@ -127,6 +127,11 @@ describe("Billing and Usage UI components (Frames 32-33)", () => {
     );
     assert.match(enEl.textContent ?? "", /15,000,000 VND/);
     assert.match(enEl.textContent ?? "", /Reserved balance: 0 VND/);
+    assert.equal(
+      enEl.querySelector('[aria-labelledby="billing-balance-heading"] p')
+        ?.textContent,
+      "15,000,000 VND",
+    );
     assert.ok(enEl.querySelector(".bg-bento-card"));
 
     act(() => {
