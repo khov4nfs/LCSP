@@ -21,6 +21,21 @@ For each selected rule, determine the regulated actor, normative action, phase o
 A selected rule that genuinely requires facts about who performs an activity, how the system is used, or what occurs outside the repository must use accepted customer facts or the native human-fact path. A source-defined operational or external duty cannot be transformed into a new coding requirement. Preserve unresolved material facts and report only API-accepted outcomes; source-scoping decisions remain with Rule Set Preparation and server validation, not the Assessment Root.
 
 
+## Initial product context
+
+After rule selection, reload accepted facts, including Discovery answers, via
+`get_assessment_context_page`. Start a bounded repository pass through the relevant
+AI feature's entrypoint, caller and input-to-output flow. When an unresolved detail
+changes what you need to investigate, ask one rule-anchored question about the
+intended users, business workflow, or use of AI output. For example, ask what a
+reviewer is expected to do with an AI suggestion. If accepted context or source
+already answers it, continue directly with the code.
+
+For this initial pass, defer deployment, release, reports, documents and legal status
+questions about actual operations or compliance evidence. Ask for an external fact only after examining the relevant code and the
+specific pinned rule, checking existing answers and evidence, and identifying the
+condition or criterion that still depends on that fact. Ask in product language.
+
 ## Decision transaction — before ANY selected-rule verdict
 
 Use the same bounded sequence for every rule, including after context compaction:
@@ -205,8 +220,8 @@ Preserve authority separation across checkpoint resumes and compaction.
       condition is NOT_ESTABLISHED. It is NEVER `REFUTED` simply because the repository is silent or lacks indicators.
       Never relabel `NOT_ESTABLISHED` as `REFUTED` to force a `NOT_APPLICABLE` decision.
    6. Mandatory Human Resolution for Material Unknown Operational Facts:
-      When rule applicability depends on an unknown operator identity, regulatory order, or external governance document,
-      and no accepted fact settles it, the Root MUST pause and call `open_human_request` to obtain the operational fact.
+      After the initial repository pass, call `open_human_request` if an exact external fact needed for
+      the selected rule's applicability remains unresolved by accepted evidence.
    7. Explicit Affirmative Factual Basis for REFUTED Findings:
       A condition or qualifier can be marked `REFUTED` ONLY when supported by affirmative evidence (such as a confirmed
       `HUMAN_PROVIDED` customer fact or contradictory source code behavior). The rationale must cite that affirmative
@@ -280,10 +295,9 @@ before you rely on them. Give it one self-contained question; do not delegate a 
 
 ## Asking the customer
 
-Only for a material fact that the repository, the legal text and accepted facts cannot establish
-(policies, approvals, people, off-repository systems, how the service is actually offered or operated).
-Investigate first. Use `open_human_request` with customer-safe wording: no file paths, hashes, rule IDs or
-code names.
+Follow Initial product context. Ask only for a material fact that the repository, pinned rule and
+accepted facts cannot establish. Use `open_human_request` with customer-safe wording and omit
+internal paths, hashes, rule IDs and code names.
 
 Prioritize factual customer questions by how much answers would change a
 selected rule's scope, operative date, exception, human oversight, or criterion.
@@ -296,10 +310,9 @@ older multi-question batch guidance: a new model turn that tries to open more th
 returns `HUMAN_REQUEST_INVALID` / `ONE_CUSTOMER_QUESTION_PER_TURN` before any tool in that turn executes.
 - Choose the highest-impact missing fact for the current selected scope. State what the customer
   needs to confirm and why it changes a specific condition or criterion; omit background questionnaires.
-- Group related details only when they describe the same operational fact, actor, workflow and time
-  period and can be answered coherently. Do not hide several independent questions in one paragraph,
-  numbered checklist or oversized text field. For example, ask for the production login-log retention
-  period once; do not combine it with an unrelated question about the privacy contact.
+- Keep related details in one question only when they describe one fact about the same actor,
+  workflow and time period. Ask who reviews an AI recommendation in the intended workflow as a
+  separate fact from what action they take on it.
 - When that same fact supports several rules or criteria, use one request with `dependencies` and
   the matching `fact_need` or `source_request_id`; do not ask one copy per rule. Reuse accepted facts
   and exact existing request identities across wording changes or languages.

@@ -186,4 +186,5 @@
 - **Context / Symptom**: Every AI candidate produced the same production and operations questions, including test-only code.
 - **Root Cause**: The discovery scanner used one fixed list for product context and unresolved runtime reachability.
 - **Resolution & Invariant**: Ask about a product candidate's intended workflow and use of AI output. Preserve static reachability gaps for source investigation and keep test/example findings without interview prompts. The SDK/HTTP and test-only scanner regressions verify both paths.
+- **After rule selection**: The registered Assessment Root startup and question guidance must reuse accepted Discovery answers, start from the relevant product workflow and pinned code, and defer external questions until a selected rule still depends on a missing fact. Verify the loaded runtime assets because reference prompt edits alone do not reach the agent.
 
