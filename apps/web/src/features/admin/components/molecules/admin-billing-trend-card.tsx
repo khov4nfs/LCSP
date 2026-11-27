@@ -6,6 +6,19 @@ type AdminBillingTrendCardProps = {
   trend: BillingAdminSummary["settledTopUpTrend"];
 };
 
+/**
+ * Business purpose: Render the settled top-up daily volume bar chart for admin billing revenue monitoring.
+ * Business rules:
+ * - Scales bar heights proportionally against the maximum BigInt VND amount in the window, keeping zero-amount days visible at baseline height.
+ * - Uses UTC weekday labels and localized aria-labels for screen reader accessibility.
+ * Execution flow:
+ * 1. Compute maxAmount across all trend buckets.
+ * 2. Render accessible bar columns with proportional heights and UTC weekday labels.
+ * Failure cases:
+ * - All-zero trend buckets render minimal baseline bars without division-by-zero errors.
+ * Side effects:
+ * - Pure presentational component.
+ */
 export function AdminBillingTrendCard({ trend }: AdminBillingTrendCardProps) {
   const maxAmount = trend.reduce(
     (max, item) =>
@@ -15,7 +28,10 @@ export function AdminBillingTrendCard({ trend }: AdminBillingTrendCardProps) {
   const locale = getAppLocaleSnapshot();
 
   return (
-    <section className="min-h-60 rounded-xl border border-border bg-card p-5 shadow-xs">
+    <section
+      className="min-h-60 rounded-xl border border-border bg-card p-5 shadow-xs"
+      data-component="AdminBillingTrendCard"
+    >
       <h2 className="text-lg font-semibold text-foreground">
         {resolveAppMessage("pages.admin.billing.trend.title")}
       </h2>

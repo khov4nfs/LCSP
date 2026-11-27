@@ -17,17 +17,11 @@ import type {
 import type { MessageKey } from "@lcsp/i18n";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { AdminPagination } from "../molecules/admin-pagination";
 import { AdminBillingMetricCard } from "../molecules/admin-billing-metric-card";
 import { AdminBillingTrendCard } from "../molecules/admin-billing-trend-card";
+import { AdminPaymentTable } from "./admin-payment-table";
+import { PaymentInvestigationDialog } from "./payment-investigation-dialog";
 import {
   BILLING_ADMIN_FILTER_OPTIONS,
   BILLING_ADMIN_GATEWAY_OPTIONS,
@@ -49,6 +43,19 @@ const NEEDS_REVIEW_STATUSES = [
   PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
 ] as const;
 
+/**
+ * Business purpose: Orchestrate the admin billing and revenue dashboard, filters, CSV export, payment table, and investigation dialog.
+ * Business rules:
+ * - Preserves period, status, and gateway filter state, resetting pagination to page 1 whenever any filter changes.
+ * - Exports only server-authorized CSV rows and displays real API loading, error, and empty states without unverified metrics.
+ * Execution flow:
+ * 1. Query admin billing summary and paginated payments via useAdminBillingQuery.
+ * 2. Render filter controls, export button, KPI cards, trend chart, AdminPaymentTable, AdminPagination, and PaymentInvestigationDialog.
+ * Failure cases:
+ * - Query or export failures show localized error alerts with retry or dismissal without mutating ledger state.
+ * Side effects:
+ * - Fetches admin billing queries and triggers client-side CSV file download on export.
+ */
 export function AdminBillingPage() {
   const [period, setPeriod] = useState<BillingAdminPeriod>(
     BILLING_ADMIN_PERIODS.mtd,
@@ -295,100 +302,29 @@ export function AdminBillingPage() {
         ) : null}
 
         {dashboard && dashboard.items.length > 0 ? (
-          <div className="overflow-x-auto px-3 pt-2">
-            <table
-              aria-label={message("pages.admin.billing.tableAria")}
-              className="w-full min-w-190 table-fixed text-left text-sm"
-            >
-              <colgroup>
-                <col style={{ width: "14.92%" }} />
-                <col style={{ width: "14%" }} />
-                <col style={{ width: "11.14%" }} />
-                <col style={{ width: "11.4%" }} />
-                <col style={{ width: "13.02%" }} />
-                <col style={{ width: "14.32%" }} />
-                <col style={{ width: "11.72%" }} />
-                <col style={{ width: "9.48%" }} />
-              </colgroup>
-              <thead className="border-b border-border text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.order")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.customer")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.amount")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.credits")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.gateway")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.webhook")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.status")}
-                  </th>
-                  <th className="px-2 py-3 font-medium">
-                    {message("pages.admin.billing.columns.action")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {dashboard.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="whitespace-nowrap px-2 py-4">
-                      <div className="font-medium text-foreground">
-                        {item.order?.paymentCode ??
-                          message("pages.admin.billing.unknownOrder")}
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-4 text-muted-foreground">
-                      {item.account?.email ??
-                        message("pages.admin.billing.unknownAccount")}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-4 text-muted-foreground">
-                      {formatVnd(item.amountVnd)}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-4 text-muted-foreground">
-                      {item.order?.creditUnits
-                        ? formatVnd(item.order.creditUnits)
-                        : "\u2014"}
-                    </td>
-                    <td className="px-2 py-4 text-muted-foreground">
-                      {item.provider === BILLING_ADMIN_GATEWAYS.sepay
-                        ? message("pages.admin.billing.gateways.sepayName")
-                        : item.provider}
-                    </td>
-                    <td className="px-2 py-4 text-muted-foreground">
-                      {webhookStatusLabel(item, message)}
-                    </td>
-                    <td className="px-2 py-4 text-muted-foreground">
-                      {orderStatusLabel(item, message)}
-                    </td>
-                    <td className="px-2 py-4">
-                      <Button
-                        className="h-auto px-0 text-muted-foreground hover:text-foreground"
-                        variant="link"
-                        size="sm"
-                        onClick={() => setSelectedPayment(item)}
-                      >
-                        {NEEDS_REVIEW_STATUSES.includes(
-                          item.reconciliationStatus as (typeof NEEDS_REVIEW_STATUSES)[number],
-                        )
-                          ? message("pages.admin.billing.actions.review")
-                          : message("pages.admin.billing.actions.view")}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AdminPaymentTable
+            items={dashboard.items}
+            tableAriaLabel={message("pages.admin.billing.tableAria")}
+            columns={{
+              order: message("pages.admin.billing.columns.order"),
+              customer: message("pages.admin.billing.columns.customer"),
+              amount: message("pages.admin.billing.columns.amount"),
+              credits: message("pages.admin.billing.columns.credits"),
+              gateway: message("pages.admin.billing.columns.gateway"),
+              webhook: message("pages.admin.billing.columns.webhook"),
+              status: message("pages.admin.billing.columns.status"),
+              action: message("pages.admin.billing.columns.action"),
+            }}
+            unknownOrderLabel={message("pages.admin.billing.unknownOrder")}
+            unknownAccountLabel={message("pages.admin.billing.unknownAccount")}
+            sepayNameLabel={message("pages.admin.billing.gateways.sepayName")}
+            viewActionLabel={message("pages.admin.billing.actions.view")}
+            reviewActionLabel={message("pages.admin.billing.actions.review")}
+            formatVnd={formatVnd}
+            getWebhookStatusLabel={(item) => webhookStatusLabel(item, message)}
+            getOrderStatusLabel={(item) => orderStatusLabel(item, message)}
+            onSelectPayment={setSelectedPayment}
+          />
         ) : null}
 
         {isLoading ? (
@@ -419,69 +355,25 @@ export function AdminBillingPage() {
         </div>
       ) : null}
 
-      <Dialog
-        open={selectedPayment !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedPayment(null);
+      <PaymentInvestigationDialog
+        payment={selectedPayment}
+        closeLabel={message("pages.admin.billing.actions.close")}
+        description={message("pages.admin.billing.tableAria")}
+        labels={{
+          customer: message("pages.admin.billing.columns.customer"),
+          amount: message("pages.admin.billing.columns.amount"),
+          credits: message("pages.admin.billing.columns.credits"),
+          webhook: message("pages.admin.billing.columns.webhook"),
+          status: message("pages.admin.billing.columns.status"),
+          gateway: message("pages.admin.billing.columns.gateway"),
         }}
-      >
-        <DialogContent
-          closeLabel={message("pages.admin.billing.actions.close")}
-        >
-          {selectedPayment ? (
-            <>
-              <DialogHeader>
-                <div className="space-y-2">
-                  <DialogTitle>
-                    {selectedPayment.order?.paymentCode ??
-                      selectedPayment.providerTransactionId}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {message("pages.admin.billing.tableAria")}
-                  </DialogDescription>
-                </div>
-              </DialogHeader>
-              <DialogBody className="grid grid-cols-2 gap-4 text-sm">
-                <PaymentDetail
-                  label={message("pages.admin.billing.columns.customer")}
-                  value={
-                    selectedPayment.account?.email ??
-                    message("pages.admin.billing.unknownAccount")
-                  }
-                />
-                <PaymentDetail
-                  label={message("pages.admin.billing.columns.amount")}
-                  value={formatVnd(selectedPayment.amountVnd)}
-                />
-                <PaymentDetail
-                  label={message("pages.admin.billing.columns.credits")}
-                  value={
-                    selectedPayment.order?.creditUnits
-                      ? formatVnd(selectedPayment.order.creditUnits)
-                      : "\u2014"
-                  }
-                />
-                <PaymentDetail
-                  label={message("pages.admin.billing.columns.webhook")}
-                  value={webhookStatusLabel(selectedPayment, message)}
-                />
-                <PaymentDetail
-                  label={message("pages.admin.billing.columns.status")}
-                  value={orderStatusLabel(selectedPayment, message)}
-                />
-                <PaymentDetail
-                  label={message("pages.admin.billing.columns.gateway")}
-                  value={
-                    selectedPayment.provider === BILLING_ADMIN_GATEWAYS.sepay
-                      ? message("pages.admin.billing.gateways.sepayName")
-                      : selectedPayment.provider
-                  }
-                />
-              </DialogBody>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+        unknownAccountLabel={message("pages.admin.billing.unknownAccount")}
+        sepayNameLabel={message("pages.admin.billing.gateways.sepayName")}
+        formatVnd={formatVnd}
+        getWebhookStatusLabel={(item) => webhookStatusLabel(item, message)}
+        getOrderStatusLabel={(item) => orderStatusLabel(item, message)}
+        onClose={() => setSelectedPayment(null)}
+      />
     </div>
   );
 }
@@ -526,15 +418,6 @@ function orderStatusLabel(
     default:
       return message("pages.admin.billing.orderStatus.pending");
   }
-}
-
-function PaymentDetail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 space-y-1">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="break-words font-medium text-foreground">{value}</div>
-    </div>
-  );
 }
 
 function escapeCsvValue(value: string) {
