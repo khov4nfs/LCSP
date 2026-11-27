@@ -13,6 +13,7 @@ import { AdminPageHeader } from "../molecules/admin-page-header";
 import { AdminPeriodSelector } from "../molecules/admin-period-selector";
 import { AdminAssessmentActivityCard } from "../molecules/admin-assessment-activity-card";
 import { AdminOperationalPrioritiesCard } from "../molecules/admin-operational-priorities-card";
+import { AdminQuickActionsDialog } from "../molecules/admin-quick-actions-dialog";
 import { AdminRecentActivityCard } from "../molecules/admin-recent-activity-card";
 import { useAdminOverviewQuery } from "@/lib/api/admin-overview-queries";
 import { resolveAppMessage } from "@/lib/i18n";
@@ -116,6 +117,7 @@ export function AdminOverviewPage() {
               onSelectPeriod={setSelectedPeriod}
               disabled={isLoading}
             />
+            <AdminQuickActionsDialog />
           </div>
         }
       />

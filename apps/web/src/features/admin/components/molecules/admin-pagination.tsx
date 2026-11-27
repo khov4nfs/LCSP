@@ -27,7 +27,11 @@ export function AdminPagination({
   const canNext = page < totalPages && !disabled;
 
   return (
-    <div className="flex w-full max-w-[1112px] items-center justify-between pt-4">
+    <div
+      data-figma-node="1701:6622"
+      data-figma-name="LCSP Data / Pagination / First page"
+      className="flex w-full max-w-[1112px] items-center justify-between pt-4"
+    >
       {/* Left: Page Status */}
       <span className="text-[11.5px] text-muted-foreground">
         {pageOfTemplate

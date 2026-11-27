@@ -59,7 +59,11 @@ export function AdminSuspendModal({
         }
       }}
     >
-      <DialogContent className="max-w-130 rounded-xl p-0 border border-border shadow-2xl">
+      <DialogContent
+        data-figma-node="1728:9730"
+        data-figma-name="Prototype overlay / Request account suspension"
+        className="max-w-130 rounded-xl p-0 border border-border shadow-2xl"
+      >
         <DialogHeader className="flex flex-col space-y-1.5 border-b-0 pb-0 bg-transparent px-6 pt-6">
           <div className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">
             <ShieldAlertIcon className="size-3.5 text-admin-warning-foreground" />
