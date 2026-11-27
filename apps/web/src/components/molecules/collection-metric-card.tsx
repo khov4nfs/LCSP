@@ -11,6 +11,7 @@ export const COLLECTION_METRIC_TONES = {
   primary: "primary",
   success: "success",
   warning: "warning",
+  danger: "danger",
   muted: "muted",
 } as const;
 
@@ -42,6 +43,7 @@ const TONE_VALUE_CLASSES: Record<CollectionMetricTone, string> = {
   [COLLECTION_METRIC_TONES.primary]: "text-primary",
   [COLLECTION_METRIC_TONES.success]: "text-status-success",
   [COLLECTION_METRIC_TONES.warning]: "text-status-warning",
+  [COLLECTION_METRIC_TONES.danger]: "text-status-danger",
   [COLLECTION_METRIC_TONES.muted]: "text-muted-foreground",
 };
 
