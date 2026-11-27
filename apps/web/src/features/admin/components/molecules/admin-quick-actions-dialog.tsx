@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   Compass,
   Users,
@@ -10,9 +9,10 @@ import {
   Languages,
   Cpu,
   Receipt,
-  ArrowRight,
   Sparkles,
 } from "lucide-react";
+
+import { QuickActionRow } from "@/components/molecules/quick-action-row";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +75,19 @@ const QUICK_ACTIONS = [
   },
 ];
 
+/**
+ * Business purpose: Provide keyboard-accessible quick navigation across Admin console destinations aligned to Figma overlay 1828:13667.
+ * Business rules:
+ * - Exposes only admin-authorized routes and closes the overlay immediately when any destination is selected.
+ * - Reuses shared QuickActionRow (1828:13593) and semantic globals.css tokens.
+ * Execution flow:
+ * 1. Render trigger button for Quick actions.
+ * 2. Render Dialog with accessible QuickActionRow links.
+ * Failure cases:
+ * - Controlled open state prevents orphaned modal overlays.
+ * Side effects:
+ * - Local open state toggle and Next.js route navigation.
+ */
 export function AdminQuickActionsDialog({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
 
@@ -88,11 +100,11 @@ export function AdminQuickActionsDialog({ className }: { className?: string }) {
         data-figma-node="1828:13707"
         data-figma-name="Action / Quick actions"
         className={cn(
-          "h-8 gap-1.5 rounded-lg border-[#D6DFE7] bg-white px-3 text-xs font-semibold text-[#101C29] shadow-xs hover:bg-slate-50 cursor-pointer",
+          "h-8 cursor-pointer gap-1.5 rounded-lg border-border bg-background px-3 text-xs font-semibold text-foreground shadow-xs hover:bg-muted",
           className,
         )}
       >
-        <Sparkles className="size-3.5 text-[#11545B]" />
+        <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
         <span>Quick actions</span>
       </Button>
 
@@ -100,45 +112,36 @@ export function AdminQuickActionsDialog({ className }: { className?: string }) {
         <DialogContent
           data-figma-node="1828:13667"
           data-figma-name="Prototype overlay / Next quick actions · Admin"
-          className="max-w-[584px] rounded-2xl border-[#D6DFE7] bg-white p-6 shadow-2xl"
+          data-component="AdminQuickActionsDialog"
+          className="max-w-146 rounded-2xl border-border bg-background p-6 shadow-2xl"
         >
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-xl font-bold tracking-tight text-[#101C29]">
+            <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
               Quick actions
             </DialogTitle>
-            <DialogDescription className="text-sm text-[#48586A]">
+            <DialogDescription className="text-sm text-muted-foreground">
               Jump to a workspace destination.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 grid grid-cols-1 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+          <nav
+            aria-label="Quick actions"
+            className="mt-4 grid max-h-95 grid-cols-1 gap-2.5 overflow-y-auto pr-1"
+          >
             {QUICK_ACTIONS.map((action) => {
               const Icon = action.icon;
               return (
-                <Link
+                <QuickActionRow
                   key={action.id}
                   href={action.href}
+                  label={action.label}
+                  description={action.description}
+                  icon={<Icon className="size-4" aria-hidden="true" />}
                   onClick={() => setOpen(false)}
-                  className="group flex items-center justify-between rounded-xl border border-[#E5EDF2] bg-[#F7FAFC] p-3 transition-colors hover:border-[#11545B]/40 hover:bg-[#EEF7F8]"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white border border-[#D6DFE7] text-[#11545B] shadow-2xs group-hover:bg-[#11545B] group-hover:text-white transition-colors">
-                      <Icon className="size-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#101C29] truncate">
-                        {action.label}
-                      </p>
-                      <p className="text-xs text-[#48586A] truncate">
-                        {action.description}
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="size-4 shrink-0 text-[#718498] group-hover:text-[#11545B] group-hover:translate-x-0.5 transition-all" />
-                </Link>
+                />
               );
             })}
-          </div>
+          </nav>
         </DialogContent>
       </Dialog>
     </>

@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronRightIcon } from "lucide-react";
-
+import { QuickActionRow } from "@/components/molecules/quick-action-row";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -114,48 +112,25 @@ export function QuickActionsDialog({
           className="flex flex-col gap-2 pt-1"
         >
           {destinations.map((item) => (
-            <Link
+            <QuickActionRow
               key={item.key}
               href={item.href}
+              label={item.label}
+              description={item.description}
               onClick={() => onOpenChange(false)}
-              className="group flex items-center justify-between gap-3 rounded-lg bg-muted/60 px-4 py-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">
-                  {item.label}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {item.description}
-                </span>
-              </span>
-              <ChevronRightIcon
-                className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
-                aria-hidden="true"
-              />
-            </Link>
+            />
           ))}
 
-          <button
-            type="button"
+          <QuickActionRow
+            label={resolveAppMessage("pages.appShell.settings")}
+            description={resolveAppMessage(
+              "pages.appShell.quickActionSettingsDesc",
+            )}
             onClick={() => {
               onOpenChange(false);
               onOpenSettings();
             }}
-            className="group flex w-full items-center justify-between gap-3 rounded-lg bg-muted/60 px-4 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">
-                {resolveAppMessage("pages.appShell.settings")}
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                {resolveAppMessage("pages.appShell.quickActionSettingsDesc")}
-              </span>
-            </span>
-            <ChevronRightIcon
-              className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
-              aria-hidden="true"
-            />
-          </button>
+          />
         </nav>
       </DialogContent>
     </Dialog>
