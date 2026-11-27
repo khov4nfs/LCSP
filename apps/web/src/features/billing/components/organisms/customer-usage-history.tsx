@@ -15,6 +15,7 @@ export function CustomerUsageHistory({
   const pages = Math.max(1, Math.ceil(report.totalCount / report.pageSize));
   return (
     <section
+      data-figma-node="1682:1267"
       className="space-y-3"
       aria-labelledby="customer-usage-history-heading"
     >

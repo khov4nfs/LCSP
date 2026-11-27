@@ -1,6 +1,7 @@
 import { resolveMessage } from "@lcsp/i18n";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { FigmaFinancialMetricCard } from "@/components/figma/billing-usage-masters";
 
 import {
   CUSTOMER_USAGE_LABELS,
@@ -19,49 +20,39 @@ export function CustomerUsageSummary({
     <div className="space-y-4" data-component="CustomerUsageSummary">
       <div className="grid gap-3 sm:grid-cols-2">
         {CUSTOMER_USAGE_SUMMARY_FIELDS.map((field) => (
-          <Card key={field} className="min-w-0">
-            <CardContent>
-              <dl>
-                <dt className="text-sm text-muted-foreground">
-                  {resolveMessage(locale, CUSTOMER_USAGE_LABELS[field])}
-                </dt>
-                <dd className="wrap-anywhere text-xl font-semibold tabular-nums">
-                  {formatUsageCount(summary[field], locale)}
-                </dd>
-              </dl>
-            </CardContent>
-          </Card>
+          <FigmaFinancialMetricCard
+            key={field}
+            label={resolveMessage(locale, CUSTOMER_USAGE_LABELS[field])}
+            value={formatUsageCount(summary[field], locale)}
+          />
         ))}
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {CUSTOMER_USAGE_VISIBLE_TOKENS.map((field) => {
           const metric = summary.tokens[field];
           return (
-            <Card key={field} className="min-w-0">
-              <CardContent>
-                <dl>
-                  <dt className="text-sm text-muted-foreground">
-                    {resolveMessage(locale, CUSTOMER_USAGE_LABELS[field])}
-                  </dt>
-                  <dd className="wrap-anywhere text-lg font-semibold tabular-nums">
-                    {metric.unknownInvocations === summary.calls &&
-                    summary.calls > 0
-                      ? resolveMessage(
-                          locale,
-                          "pages.workspace.settingsHub.usage.unknown",
-                        )
-                      : formatUsageCount(metric.known, locale)}
-                  </dd>
-                  <dd className="mt-1 text-xs text-muted-foreground">
-                    {resolveMessage(
+            <FigmaFinancialMetricCard
+              key={field}
+              label={resolveMessage(locale, CUSTOMER_USAGE_LABELS[field])}
+              value={
+                metric.unknownInvocations === summary.calls &&
+                summary.calls > 0
+                  ? resolveMessage(
                       locale,
-                      "pages.workspace.settingsHub.usage.unknownInvocations",
-                    )}
-                    : {formatUsageCount(metric.unknownInvocations, locale)}
-                  </dd>
-                </dl>
-              </CardContent>
-            </Card>
+                      "pages.workspace.settingsHub.usage.unknown",
+                    )
+                  : formatUsageCount(metric.known, locale)
+              }
+              context={
+                <span>
+                  {resolveMessage(
+                    locale,
+                    "pages.workspace.settingsHub.usage.unknownInvocations",
+                  )}
+                  : {formatUsageCount(metric.unknownInvocations, locale)}
+                </span>
+              }
+            />
           );
         })}
       </div>

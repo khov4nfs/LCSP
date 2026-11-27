@@ -25,6 +25,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  FigmaPaymentTableRow,
+  FigmaFinancialMetricCard,
+  FigmaStatusBadge,
+} from "@/components/figma/billing-usage-masters";
+import {
+  FigmaPaymentOrderDetailOverlay,
+  FigmaAdditionalOrderOverlay,
+  FigmaPaymentRefreshOverlay,
+  FigmaPaymentConfirmedOverlay,
+  FigmaPaymentExpiredOverlay,
+  FigmaReferenceCopiedFeedback,
+  FigmaWalletGuideOverlay,
+} from "@/components/figma/billing-usage-overlays";
+import {
   useBillingEstimateQuery,
   useBillingHistoryQuery,
   useBillingOrderQuery,
@@ -303,42 +317,47 @@ export function BillingSettingsPanel({ locale }: { locale: Locale }) {
       </header>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        <section
-          aria-labelledby="billing-balance-heading"
-          className="rounded-xl border border-border/70 bg-muted/20 p-5"
-        >
-          <div className="flex items-center gap-2">
-            <WalletCardsIcon aria-hidden="true" className="size-4" />
-            <h3 id="billing-balance-heading" className="text-sm font-medium">
-              {resolveMessage(
-                locale,
-                "pages.workspace.settingsHub.billing.balanceTitle",
-              )}
-            </h3>
-          </div>
-          <p className="mt-4 text-2xl font-semibold tabular-nums">
-            {formatVnd(walletQuery.data.availableCredits, locale)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.availableBalance",
-            )}
-          </p>
-          <p className="mt-4 text-xs text-muted-foreground">
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.reservedBalance",
-            )}
-            :{" "}
-            <span className="font-medium text-foreground">
-              {formatVnd(walletQuery.data.reservedCredits, locale)}
-            </span>
-          </p>
-        </section>
+        <div data-figma-node="1687:3310" className="h-full">
+          <FigmaFinancialMetricCard
+            label={
+              <div className="flex items-center gap-2">
+                <WalletCardsIcon aria-hidden="true" className="size-4 text-[#31BDA7]" />
+                <span>
+                  {resolveMessage(
+                    locale,
+                    "pages.workspace.settingsHub.billing.balanceTitle",
+                  )}
+                </span>
+              </div>
+            }
+            value={formatVnd(walletQuery.data.availableCredits, locale)}
+            context={
+              <div className="space-y-1">
+                <div>
+                  {resolveMessage(
+                    locale,
+                    "pages.workspace.settingsHub.billing.availableBalance",
+                  )}
+                </div>
+                <div className="text-white/80">
+                  {resolveMessage(
+                    locale,
+                    "pages.workspace.settingsHub.billing.reservedBalance",
+                  )}
+                  :{" "}
+                  <span className="font-semibold text-white">
+                    {formatVnd(walletQuery.data.reservedCredits, locale)}
+                  </span>
+                </div>
+              </div>
+            }
+            className="h-full min-h-[160px] justify-between border-0 shadow-md"
+          />
+        </div>
 
         <section
           aria-labelledby="billing-top-up-heading"
+          data-figma-node="1687:3315"
           className="rounded-xl border border-border/70 bg-muted/20 p-5"
         >
           <h3 id="billing-top-up-heading" className="text-sm font-medium">
@@ -522,6 +541,27 @@ export function BillingSettingsPanel({ locale }: { locale: Locale }) {
         onPageChange={setHistoryPage}
         onOpenOrder={openOrder}
       />
+
+      {displayedOrder && (
+        <FigmaPaymentOrderDetailOverlay
+          open={Boolean(selectedOrderId && displayedOrder)}
+          onOpenChange={(open) => {
+            if (!open) setSelectedOrderId(null);
+          }}
+          order={displayedOrder}
+          locale={locale}
+          onRefreshStatus={() => {
+            void orderQuery.refetch();
+            void walletQuery.refetch();
+          }}
+          onCopyReference={() => void copyPaymentCode(displayedOrder.paymentCode)}
+          hasCopied={copiedPaymentCode}
+          qrCodeUrl={displayedOrder.paymentInstructions.qrCodeUrl}
+          accountNumber={displayedOrder.paymentInstructions.bankAccountNumber}
+          bankName={displayedOrder.paymentInstructions.bankName}
+          isRefreshing={orderQuery.isFetching}
+        />
+      )}
     </PanelShell>
   );
 }
@@ -814,7 +854,7 @@ function HistorySection({
 }) {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   return (
-    <section aria-labelledby="billing-history-heading" className="mt-4">
+    <section aria-labelledby="billing-history-heading" data-figma-node="1687:3338" className="mt-4">
       <h3 id="billing-history-heading" className="text-sm font-medium">
         {resolveMessage(
           locale,
@@ -837,33 +877,33 @@ function HistorySection({
                 "pages.workspace.settingsHub.billing.historyTitle",
               )}
             </caption>
-            <thead className="bg-muted/30 text-muted-foreground">
+            <thead className="bg-[#EAF1F4] text-[#48586A]">
               <tr>
-                <th className="px-4 py-3 font-medium">
+                <th className="px-4 py-3 font-semibold text-[#101C29]">
                   {resolveMessage(
                     locale,
                     "pages.workspace.settingsHub.billing.createdAt",
                   )}
                 </th>
-                <th className="px-4 py-3 font-medium">
+                <th className="px-4 py-3 font-semibold text-[#101C29]">
                   {resolveMessage(
                     locale,
                     "pages.workspace.settingsHub.billing.orderAmount",
                   )}
                 </th>
-                <th className="px-4 py-3 font-medium">
+                <th className="px-4 py-3 font-semibold text-[#101C29]">
                   {resolveMessage(
                     locale,
                     "pages.workspace.settingsHub.billing.paymentCode",
                   )}
                 </th>
-                <th className="px-4 py-3 font-medium">
+                <th className="px-4 py-3 font-semibold text-[#101C29]">
                   {resolveMessage(
                     locale,
                     "pages.workspace.settingsHub.billing.statusLabel",
                   )}
                 </th>
-                <th className="px-4 py-3 font-medium">
+                <th className="px-4 py-3 font-semibold text-[#101C29]">
                   {resolveMessage(
                     locale,
                     "pages.workspace.settingsHub.billing.historyActions",
@@ -873,25 +913,33 @@ function HistorySection({
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order.id} className="border-t border-border/70">
-                  <td className="px-4 py-3">
+                <tr
+                  key={order.id}
+                  data-figma-node="1682:1261"
+                  className="border-t border-[#D6DFE7] transition-colors hover:bg-slate-50/60"
+                >
+                  <td className="px-4 py-3 font-medium text-[#101C29]">
                     {formatDate(order.createdAt, locale)}
                   </td>
-                  <td className="px-4 py-3 tabular-nums">
+                  <td className="px-4 py-3 font-mono font-semibold tabular-nums text-[#101C29]">
                     {formatVnd(order.amountVnd, locale)}
                   </td>
-                  <td className="px-4 py-3 font-mono">{order.paymentCode}</td>
+                  <td className="px-4 py-3 font-mono text-[#48586A]">{order.paymentCode}</td>
                   <td className="px-4 py-3">
-                    <Badge
-                      variant={
-                        getBillingOrderPresentation(order.status).badgeVariant
-                      }
-                    >
-                      {resolveMessage(
+                    <FigmaStatusBadge
+                      label={resolveMessage(
                         locale,
                         getBillingOrderPresentation(order.status).messageKey,
                       )}
-                    </Badge>
+                      variant={
+                        order.status === BILLING_ORDER_STATUSES.CREDITED
+                          ? "success"
+                          : order.status === BILLING_ORDER_STATUSES.PENDING_PAYMENT ||
+                              order.status === BILLING_ORDER_STATUSES.PENDING_RECONCILIATION
+                            ? "warning"
+                            : "danger"
+                      }
+                    />
                   </td>
                   <td className="px-4 py-3">
                     {order.status === BILLING_ORDER_STATUSES.PENDING_PAYMENT ? (
