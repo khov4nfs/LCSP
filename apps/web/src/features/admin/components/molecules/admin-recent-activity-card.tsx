@@ -201,20 +201,20 @@ export function AdminRecentActivityCard({
                 return (
                   <FigmaEventsTableRow
                     key={item.id}
-                    c0Event={
+                    event={
                       item.target
                         ? item.target
                         : item.eventType || "Operational event"
                     }
-                    c1Area={resolveAreaLabel(item)}
+                    area={resolveAreaLabel(item)}
                     statusBadge={
                       <FigmaAdminStatusBadge
                         label={resolveStatusLabel(item)}
                         variant={resolveStatusVariant(item)}
                       />
                     }
-                    c3Updated={formatLocaleActivityTime(item.occurredAt)}
-                    c4NextActionLabel={action.label}
+                    updated={formatLocaleActivityTime(item.occurredAt)}
+                    nextActionLabel={action.label}
                     nextActionHref={action.href}
                   />
                 );

@@ -8,36 +8,36 @@ import { cn } from "@/lib/utils";
 /**
  * Figma Component: LCSP Data / Table row / events (#1682:1255)
  * 5 columns:
- * - C0: Assessment / event (#1682:1257)
- * - C1: Area (#1682:1258)
- * - Status: Figma Status Badge (#1681:1297..1303)
- * - C3: Updated (#1682:1259)
- * - C4: Next action (#1682:1260) with interactive link
+ * - event: Assessment / event (#1682:1257)
+ * - area: Area (#1682:1258)
+ * - statusBadge: Figma Status Badge (#1681:1297..1303)
+ * - updated: Updated timestamp (#1682:1259)
+ * - nextActionLabel: Next action label (#1682:1260) with interactive link
  */
 export type FigmaEventsTableRowProps = {
-  c0Event: ReactNode;
-  c1Area: ReactNode;
+  event: ReactNode;
+  area: ReactNode;
   statusBadge: ReactNode;
-  c3Updated: ReactNode;
-  c4NextActionLabel: string;
+  updated: ReactNode;
+  nextActionLabel: string;
   nextActionHref?: string;
   onNextAction?: () => void;
   className?: string;
 };
 
 export function FigmaEventsTableRow({
-  c0Event,
-  c1Area,
+  event,
+  area,
   statusBadge,
-  c3Updated,
-  c4NextActionLabel,
+  updated,
+  nextActionLabel,
   nextActionHref,
   onNextAction,
   className,
 }: FigmaEventsTableRowProps) {
   const nextActionContent = (
     <span className="inline-flex items-center gap-1 font-medium text-[#11545B] hover:text-[#0b383d] transition-colors">
-      <span>{c4NextActionLabel}</span>
+      <span>{nextActionLabel}</span>
       <span aria-hidden="true">›</span>
     </span>
   );
@@ -51,14 +51,14 @@ export function FigmaEventsTableRow({
         className
       )}
     >
-      {/* C0: Assessment / event */}
+      {/* Assessment / event */}
       <div className="w-[280px] shrink-0 font-semibold text-[#101C29] truncate">
-        {c0Event}
+        {event}
       </div>
 
-      {/* C1: Area */}
+      {/* Area */}
       <div className="w-[180px] shrink-0 text-[#48586A] truncate">
-        {c1Area}
+        {area}
       </div>
 
       {/* Status */}
@@ -66,12 +66,12 @@ export function FigmaEventsTableRow({
         {statusBadge}
       </div>
 
-      {/* C3: Updated */}
+      {/* Updated */}
       <div className="w-[170px] shrink-0 text-[#48586A]">
-        {c3Updated}
+        {updated}
       </div>
 
-      {/* C4: Next action */}
+      {/* Next action */}
       <div className="flex-1 text-right">
         {nextActionHref ? (
           <Link

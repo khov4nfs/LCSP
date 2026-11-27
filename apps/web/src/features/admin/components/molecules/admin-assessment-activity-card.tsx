@@ -98,9 +98,9 @@ export function AdminAssessmentActivityCard({
     );
   }
 
-  // Derive points or default cohorts for visualization
-  const maxVal = Math.max(
-    ...points.map((p) => Math.max(p.startedCount, p.completedCount)),
+  // Derive max count across started and completed for proportional bar height
+  const maxActivityCount = Math.max(
+    ...points.map((point) => Math.max(point.startedCount, point.completedCount)),
     100,
   );
 
@@ -148,18 +148,18 @@ export function AdminAssessmentActivityCard({
                 { date: "Nov 10–16", startedCount: 100, completedCount: 85 },
                 { date: "Nov 17–24", startedCount: 119, completedCount: 103 },
               ]
-          ).map((item, idx) => {
+          ).map((item, index) => {
             const startedHeight = Math.min(
               100,
-              Math.max(15, (item.startedCount / maxVal) * 100),
+              Math.max(15, (item.startedCount / maxActivityCount) * 100),
             );
             const completedHeight = Math.min(
               100,
-              Math.max(15, (item.completedCount / maxVal) * 100),
+              Math.max(15, (item.completedCount / maxActivityCount) * 100),
             );
             return (
               <div
-                key={idx}
+                key={index}
                 className="flex flex-1 flex-col items-center justify-end h-full gap-1.5"
               >
                 <div className="flex items-end gap-1.5 w-full justify-center h-full">
