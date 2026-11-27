@@ -77,7 +77,11 @@ export function AdminUserTable({
   }
 
   return (
-    <div className="w-full max-w-278 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+    <div
+      data-figma-node="1684:2658"
+      data-figma-name="Management table"
+      className="w-full max-w-278 overflow-hidden rounded-xl border border-border bg-card shadow-xs"
+    >
       <div className="overflow-x-auto">
         <table
           className="w-full text-left border-collapse"
@@ -134,6 +138,8 @@ export function AdminUserTable({
               return (
                 <tr
                   key={user.id}
+                  data-figma-node="1684:2607"
+                  data-figma-name="LCSP Data / Management row / 45"
                   className="h-17 transition-colors hover:bg-muted/30"
                 >
                   {/* User (Name + Email) */}

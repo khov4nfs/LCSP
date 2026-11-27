@@ -65,7 +65,11 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12">
+    <div
+      data-figma-node="1662:3013"
+      data-figma-name="45 Admin · User accounts"
+      className="flex flex-col space-y-6 pb-12"
+    >
       {/* Page Header */}
       <AdminPageHeader title={pageTitle} description={pageDescription} />
 
