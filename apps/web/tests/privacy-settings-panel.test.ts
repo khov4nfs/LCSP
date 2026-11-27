@@ -69,6 +69,8 @@ test("PrivacySettingsPanel renders 5 rows with improve_models policy-enforced", 
       queries: {
         retry: false,
         gcTime: Infinity,
+        // Keep this seeded response authoritative; the stale-query error paths are covered separately below.
+        staleTime: Infinity,
       },
     },
   });
