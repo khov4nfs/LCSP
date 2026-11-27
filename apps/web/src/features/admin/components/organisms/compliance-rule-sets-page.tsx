@@ -2,6 +2,11 @@
 import { Suspense } from "react";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import type { MessageKey } from "@lcsp/i18n";
+import {
+  COLLECTION_METRIC_TONES,
+  COLLECTION_METRIC_VARIANTS,
+  CollectionMetricCard,
+} from "@/components/molecules/collection-metric-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,12 +52,64 @@ export function ComplianceRuleSetsPage() {
   const active = history.data.ruleSets.find(
     (item) => item.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
   );
+  const activeCount = history.data.ruleSets.filter(
+    (item) => item.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+  ).length;
+  const supersededCount = Math.max(0, history.data.ruleSets.length - activeCount);
+
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div
+      className="flex flex-col gap-6 pb-12"
+      data-component="ComplianceRuleSetsPage"
+    >
       <AdminPageHeader
         title={t("pages.complianceRuleSets.title")}
         description={t("pages.complianceRuleSets.description")}
       />
+      <section
+        aria-label={t("pages.complianceRuleSets.history")}
+        className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+      >
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.spotlight}
+          label={t("pages.complianceRuleSets.title")}
+          value={history.data.ruleSets.length}
+          context={t("pages.complianceRuleSets.history")}
+          segments={[
+            {
+              key: "active",
+              count: activeCount,
+              toneClassName: "bg-bento-accent",
+            },
+            {
+              key: "superseded",
+              count: supersededCount,
+              toneClassName: "bg-muted-foreground/50",
+            },
+          ]}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.success}
+          label={t("pages.complianceRuleSets.states.ACTIVE")}
+          value={active ? active.version : "—"}
+          context={`${active?.assessmentRuleCount ?? 0} ${t("pages.complianceRuleSets.assessmentRules")}`}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.primary}
+          label={t("pages.complianceRuleSets.requirements")}
+          value={active?.legalRequirementCount ?? 0}
+          context={history.data.preparation.legalSourceVersion ?? "—"}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.warning}
+          label={t("pages.complianceRuleSets.preparations")}
+          value={history.data.preparations.length}
+          context={t("pages.complianceRuleSets.sourceVersion")}
+        />
+      </section>
       <Suspense fallback={<Skeleton className="h-72 w-full" />}>
         <LegalRuleCatalogWorkflow
           sourceId={history.data.preparation.legalSourceVersionId}

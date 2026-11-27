@@ -3,12 +3,13 @@
 import { resolveMessage } from "@lcsp/i18n";
 import { useFormContext } from "react-hook-form";
 
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import type { SignInFormValues } from "../../schemas/sign-in.schema";
 import type { CredentialFieldProps } from "../../types/sign-in.types";
 import { AuthTextField } from "./auth-form-primitives";
 
 export function CredentialField({ field }: CredentialFieldProps) {
+  const locale = useAppLocale();
   const { formState, register } = useFormContext<SignInFormValues>();
   const error = formState.errors[field.name]?.message;
 
@@ -18,12 +19,15 @@ export function CredentialField({ field }: CredentialFieldProps) {
       type={field.type}
       autoComplete={field.autoComplete}
       disabled={formState.isSubmitting}
-      label={resolveMessage(appLocale, field.labelKey)}
-      description={resolveMessage(appLocale, field.descriptionKey)}
+      label={resolveMessage(locale, field.labelKey)}
+      placeholder={resolveMessage(locale, field.placeholderKey)}
+      description={resolveMessage(locale, field.descriptionKey)}
+      descriptionClassName="sr-only"
       error={
         error
           ? resolveMessage(
-              appLocale,
+              // Keep validation feedback reactive with the label and helper text.
+              locale,
               error as Parameters<typeof resolveMessage>[1],
             )
           : undefined

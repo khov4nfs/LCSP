@@ -12,11 +12,11 @@ import { accountMutationErrorKey } from "@/features/admin/config/account-mutatio
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminPageHeader } from "@/features/admin/components/molecules/admin-page-header";
-import { AdminStatusBadge } from "@/features/admin/components/atoms/admin-status-badge";
+import { AdminUserIdentityHero } from "@/features/admin/components/molecules/admin-user-identity-hero";
 import { AdminAccountDetailsCard } from "@/features/admin/components/organisms/admin-account-details-card";
 import { AdminAdministrativeActionsCard } from "@/features/admin/components/organisms/admin-administrative-actions-card";
 import { AdminUsageSummary } from "@/features/admin/components/organisms/admin-usage-summary";
+import { AdminRecentAssessmentCard } from "@/features/admin/components/molecules/admin-recent-assessment-card";
 import { AdminSuspendModal } from "@/features/admin/components/organisms/admin-suspend-modal";
 import {
   useAdminSuspendUserMutation,
@@ -50,12 +50,6 @@ export default function AdminUserDetailPage({
   const suspendUserMutation = useAdminSuspendUserMutation(id);
   const restoreUserMutation = useAdminRestoreUserMutation(id);
 
-  const pageTitle = resolveAppMessage(
-    "pages.admin.userDetail.title" as MessageKey,
-  );
-  const pageDescription = resolveAppMessage(
-    "pages.admin.userDetail.description" as MessageKey,
-  );
   const backToUsersLabel = resolveAppMessage(
     "pages.admin.userDetail.backToUsers" as MessageKey,
   );
@@ -137,44 +131,50 @@ export default function AdminUserDetailPage({
   }
 
   return (
-    <div className="flex flex-col space-y-6 pb-12">
-      {/* Page Header */}
-      <AdminPageHeader title={pageTitle} description={pageDescription} />
+    <div
+      data-figma-node="1662:3090"
+      data-figma-name="46 Admin · User account detail"
+      className="flex flex-col space-y-6 pb-12"
+    >
+      {/* Page Header with Right-Aligned Back to users */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-[30px] font-semibold text-foreground tracking-tight leading-tight">
+            User account
+          </h1>
+          <p className="text-[14px] text-muted-foreground mt-1">
+            Review account details and administrative changes.
+          </p>
+        </div>
 
-      {/* Back Button */}
-      <div>
         <Button
           type="button"
           variant="outline"
           onClick={() => router.push("/admin/users")}
-          className="h-9.5 w-auto px-3.5 rounded-lg border-border bg-secondary text-[12.5px] font-semibold text-secondary-foreground hover:bg-secondary/80 shadow-xs"
+          data-figma-node="1711:8467"
+          data-figma-name="Action / Back to users"
+          className="h-[36px] px-4 rounded-[7px] border-border bg-card text-[13px] font-semibold text-foreground hover:bg-muted shadow-xs shrink-0 self-start"
         >
           <ArrowLeftIcon className="size-4 mr-1.5" />
           {backToUsersLabel}
         </Button>
       </div>
 
-      {/* User Identity Header + Status Pill */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-6 shadow-xs">
-        <div className="flex flex-col space-y-1">
-          <h2 className="text-2xl font-semibold text-foreground tracking-tight">
-            {user.fullName}
-          </h2>
-          <span className="text-[12.5px] text-muted-foreground">
-            {user.email}
-          </span>
-        </div>
-
-        {/* Status Pill */}
-        <AdminStatusBadge status={user.status} size="md" />
-      </div>
+      {/* User Identity Hero Banner */}
+      <AdminUserIdentityHero
+        fullName={user.fullName}
+        email={user.email}
+        role={user.role}
+        status={user.status}
+      />
 
       {actionError && (
-        <p role="alert" className="text-destructive">
+        <p role="alert" className="text-destructive text-sm font-medium">
           {resolveAppMessage(actionError)}
         </p>
       )}
-      {/* Two Details / Actions Cards */}
+
+      {/* Two Details and Actions Cards */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <AdminAccountDetailsCard user={user} />
         <AdminAdministrativeActionsCard
@@ -188,6 +188,14 @@ export default function AdminUserDetailPage({
 
       {/* Usage Summary */}
       <AdminUsageSummary usageSummary={user.usageSummary} />
+
+      {/* Recent Assessment Activity Card */}
+      <AdminRecentAssessmentCard
+        assessmentName="Authentication gateway"
+        timestamp="Nov 24, 11:20"
+        status="Running"
+        onViewAssessment={() => router.push("/admin/operations")}
+      />
 
       {/* Suspend Confirmation Modal */}
       <AdminSuspendModal

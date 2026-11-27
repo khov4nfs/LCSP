@@ -17,6 +17,29 @@ import {
 } from "./features/marketing/config/marketing-routing";
 import { APP_LOCALE_COOKIE } from "./lib/locale";
 
+const AUTH_LOCALE_ROUTE_PATHS = [
+  "/sign-in",
+  "/sign-up",
+  "/mfa/verify",
+  "/mfa/enroll",
+  "/recovery/request",
+  "/recovery/confirm",
+] as const;
+
+/**
+ * Business purpose: Forward the selected UI locale so server-rendered auth screens agree with the persisted browser choice.
+ * Business rules:
+ * - Supported locale path prefixes take precedence; otherwise the auth locale cookie selects Vietnamese and all other values fall back to English.
+ * - Public auth pages must bypass workspace/admin session gates and profile verification exactly as they did before locale forwarding.
+ * Execution flow:
+ * 1. Resolve the locale from a supported path prefix or the locale cookie and attach it to request headers.
+ * 2. Pass public auth page requests through with that header without invoking session checks or upstream profile requests.
+ * 3. Continue all other matched routes through the existing workspace and admin guards.
+ * Failure cases:
+ * - Missing or unsupported locale cookies use English; existing protected-route redirects and session failures keep their current outcomes.
+ * Side effects:
+ * - Adds an internal request header only; it does not change auth cookies, sessions, authorization or backend state.
+ */
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const publicPath =
@@ -38,6 +61,11 @@ export async function proxy(request: NextRequest) {
     const cookieLocale = request.cookies.get(APP_LOCALE_COOKIE)?.value;
     const resolvedLocale = cookieLocale === "vi" ? "vi" : "en";
     requestHeaders.set("x-lcsp-locale", resolvedLocale);
+  }
+
+  // Auth paths use Proxy only for locale forwarding; keep them outside the existing workspace/admin guard flow.
+  if (AUTH_LOCALE_ROUTE_PATHS.includes(pathname as (typeof AUTH_LOCALE_ROUTE_PATHS)[number])) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   return continueProxy(request, requestHeaders);
@@ -131,6 +159,13 @@ export const config = {
     "/",
     "/features",
     "/pricing",
+    // Next statically analyzes matcher entries, so keep public auth paths literal instead of spreading the runtime route list.
+    "/sign-in",
+    "/sign-up",
+    "/mfa/verify",
+    "/mfa/enroll",
+    "/recovery/request",
+    "/recovery/confirm",
     "/en/:path*",
     "/vi/:path*",
     "/preview-compliance",

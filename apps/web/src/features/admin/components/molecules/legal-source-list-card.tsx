@@ -57,7 +57,7 @@ export function LegalSourceListCard({
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             {source.activeVersion ? (
-              <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+              <span className="rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-1 text-sm font-medium text-status-success">
                 {formatVersionMessage(
                   "pages.legalSources.activeVersion",
                   source.activeVersion.version,

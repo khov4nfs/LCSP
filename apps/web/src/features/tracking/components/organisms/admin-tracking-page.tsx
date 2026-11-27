@@ -4,7 +4,10 @@ import { useState } from "react";
 import type { TrackingUntrustedReason } from "@lcsp/contracts/assessment-domain";
 import type { MessageKey } from "@lcsp/i18n";
 import { CheckCircle2Icon, ChevronDownIcon } from "lucide-react";
+import { NextMetricCard } from "@/components/molecules/next-metric-card";
+import { NEXT_METRIC_VARIANTS } from "@/components/types/dashboard-primitives.types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsiblePanel,
@@ -14,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TrackingSection } from "../molecules/tracking-section";
 import { TrackingEmptyState } from "../molecules/tracking-empty-state";
 import { TrackingFact } from "../molecules/tracking-fact";
-import { TrackingMetric } from "../molecules/tracking-metric";
 import { appLocale } from "@/lib/locale";
 import { useAdminTrackingOperationalQuery } from "@/lib/api/tracking-queries";
 import { resolveAppMessage } from "@/lib/i18n";
@@ -24,13 +26,32 @@ import {
   type ModelUsageSummary,
 } from "../../utils/tracking-display";
 import { TrackingError } from "../molecules/tracking-error";
+import {
+  OperationsEventDetailDialog,
+  type OperationsEventDetailItem,
+} from "./operations-event-detail-dialog";
 import { cn } from "@/lib/utils";
 
+/**
+ * Business purpose: Render the admin operations monitoring dashboard with semantic KPI cards, impacted assessments, usage reconciliation, execution anomalies, and event detail inspection.
+ * Business rules:
+ * - Displays only authoritative operational telemetry from useAdminTrackingOperationalQuery without synthetic audit events.
+ * - Uses NextMetricCard (embedded, attention, ready) aligned to Figma Operations monitoring (Frames 55, 85).
+ * Execution flow:
+ * 1. Fetch operational health, impacted assessments, unreconciled usage, anomalies, and untrusted projections.
+ * 2. Render KPI strip, sectioned queues, and OperationsEventDetailDialog when an operator inspects an item.
+ * Failure cases:
+ * - Error state renders TrackingError with explicit retry; empty queues render localized normal/empty states.
+ * Side effects:
+ * - Executes read-only operational query.
+ */
 export function AdminTrackingPage() {
   const query = useAdminTrackingOperationalQuery();
+  const [selectedEvent, setSelectedEvent] =
+    useState<OperationsEventDetailItem | null>(null);
   const data = query.data;
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-component="AdminTrackingPage">
       <header className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold">
           {resolveAppMessage(
@@ -56,35 +77,81 @@ export function AdminTrackingPage() {
       {data ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <TrackingMetric
+            <NextMetricCard
+              variant={
+                data.platformHealth.totalFailedAssessments > 0
+                  ? NEXT_METRIC_VARIANTS.attention
+                  : NEXT_METRIC_VARIANTS.ready
+              }
               label={resolveAppMessage(
                 "pages.workspace.tracking.failedAssessments" as MessageKey,
               )}
-              value={data.platformHealth.totalFailedAssessments}
+              value={data.platformHealth.totalFailedAssessments.toLocaleString(
+                appLocale,
+              )}
+              context={resolveAppMessage(
+                "pages.workspace.tracking.adminTitle" as MessageKey,
+              )}
             />
-            <TrackingMetric
+            <NextMetricCard
+              variant={
+                data.platformHealth.totalBlockedAssessments > 0
+                  ? NEXT_METRIC_VARIANTS.attention
+                  : NEXT_METRIC_VARIANTS.ready
+              }
               label={resolveAppMessage(
                 "pages.workspace.tracking.blockedAssessments" as MessageKey,
               )}
-              value={data.platformHealth.totalBlockedAssessments}
+              value={data.platformHealth.totalBlockedAssessments.toLocaleString(
+                appLocale,
+              )}
+              context={resolveAppMessage(
+                "pages.workspace.tracking.adminTitle" as MessageKey,
+              )}
             />
-            <TrackingMetric
+            <NextMetricCard
+              variant={
+                data.platformHealth.totalExecutionAnomalies > 0
+                  ? NEXT_METRIC_VARIANTS.attention
+                  : NEXT_METRIC_VARIANTS.ready
+              }
               label={resolveAppMessage(
                 "pages.workspace.tracking.executions" as MessageKey,
               )}
-              value={data.platformHealth.totalExecutionAnomalies}
+              value={data.platformHealth.totalExecutionAnomalies.toLocaleString(
+                appLocale,
+              )}
+              context={resolveAppMessage(
+                "pages.workspace.tracking.adminTitle" as MessageKey,
+              )}
             />
-            <TrackingMetric
+            <NextMetricCard
+              variant={NEXT_METRIC_VARIANTS.embedded}
               label={resolveAppMessage(
                 "pages.workspace.tracking.usage" as MessageKey,
               )}
-              value={data.platformHealth.totalUnreconciledUsageEvents}
+              value={data.platformHealth.totalUnreconciledUsageEvents.toLocaleString(
+                appLocale,
+              )}
+              context={resolveAppMessage(
+                "pages.workspace.tracking.adminTitle" as MessageKey,
+              )}
             />
-            <TrackingMetric
+            <NextMetricCard
+              variant={
+                data.platformHealth.totalUntrustedProjections > 0
+                  ? NEXT_METRIC_VARIANTS.attention
+                  : NEXT_METRIC_VARIANTS.ready
+              }
               label={resolveAppMessage(
                 "pages.workspace.tracking.untrusted" as MessageKey,
               )}
-              value={data.platformHealth.totalUntrustedProjections}
+              value={data.platformHealth.totalUntrustedProjections.toLocaleString(
+                appLocale,
+              )}
+              context={resolveAppMessage(
+                "pages.workspace.tracking.adminTitle" as MessageKey,
+              )}
             />
           </div>
           <p className="text-xs text-muted-foreground">
@@ -108,13 +175,38 @@ export function AdminTrackingPage() {
                     key={item.assessmentId}
                     className="rounded-lg border p-3"
                   >
-                    <p className="font-medium">{item.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {resolveAppMessage(
-                        "pages.workspace.tracking.affectedCustomer" as MessageKey,
-                      )}
-                      : {item.ownerId}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {resolveAppMessage(
+                            "pages.workspace.tracking.affectedCustomer" as MessageKey,
+                          )}
+                          : {item.ownerId}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setSelectedEvent({
+                            title: item.name,
+                            area: item.impactReason,
+                            statusLabel:
+                              item.executionState ?? item.lifecycleState ?? "",
+                            statusVariant: "warning",
+                            timestamp: formatTrackingDate(item.lastActivityAt),
+                            actorOrTarget: item.ownerId,
+                            summary: item.blockerReason ?? item.impactReason,
+                          })
+                        }
+                      >
+                        {resolveAppMessage(
+                          "pages.workspace.tracking.detail" as MessageKey,
+                        )}
+                      </Button>
+                    </div>
                     <Collapsible className="mt-2 text-sm">
                       <CollapsibleTrigger className="w-full justify-between">
                         {resolveAppMessage(
@@ -176,7 +268,7 @@ export function AdminTrackingPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed px-4 py-8 text-center">
-                <CheckCircle2Icon className="size-8 text-emerald-500" />
+                <CheckCircle2Icon className="size-8 text-status-success" />
                 <p className="mt-2 text-sm font-medium text-foreground">
                   {resolveAppMessage(
                     "pages.workspace.tracking.noOperationalItems" as MessageKey,
@@ -247,7 +339,7 @@ export function AdminTrackingPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed px-4 py-8 text-center">
-                <CheckCircle2Icon className="size-8 text-emerald-500" />
+                <CheckCircle2Icon className="size-8 text-status-success" />
                 <p className="mt-2 text-sm font-medium text-foreground">
                   {resolveAppMessage(
                     "pages.workspace.tracking.noAnomalies" as MessageKey,
@@ -318,6 +410,18 @@ export function AdminTrackingPage() {
           </TrackingSection>
         </>
       ) : null}
+      <OperationsEventDetailDialog
+        event={selectedEvent}
+        closeLabel={resolveAppMessage("pages.admin.billing.actions.close" as MessageKey)}
+        labels={{
+          area: resolveAppMessage("pages.workspace.tracking.anomaly" as MessageKey),
+          status: resolveAppMessage("pages.workspace.tracking.executionState" as MessageKey),
+          timestamp: resolveAppMessage("pages.workspace.tracking.updatedAt" as MessageKey),
+          target: resolveAppMessage("pages.workspace.tracking.affectedCustomer" as MessageKey),
+          summary: resolveAppMessage("pages.workspace.tracking.detail" as MessageKey),
+        }}
+        onClose={() => setSelectedEvent(null)}
+      />
     </div>
   );
 }

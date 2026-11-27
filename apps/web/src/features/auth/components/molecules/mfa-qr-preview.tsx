@@ -5,10 +5,12 @@ import Image from "next/image";
 import { resolveMessage } from "@lcsp/i18n";
 import { toDataURL } from "qrcode";
 
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import type { MfaQrPreviewProps } from "../../types/mfa-enroll.types";
 
 export function MfaQrPreview({ totpUri }: MfaQrPreviewProps) {
+  // Keep QR instructions and accessible image text reactive while retaining the server-issued provisioning URI.
+  const locale = useAppLocale();
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function MfaQrPreview({ totpUri }: MfaQrPreviewProps) {
   if (!qrCodeDataUrl) {
     return (
       <p className="text-center text-sm text-muted-foreground">
-        {resolveMessage(appLocale, "pages.mfaEnroll.qrLoading")}
+        {resolveMessage(locale, "pages.mfaEnroll.qrLoading")}
       </p>
     );
   }
@@ -40,12 +42,12 @@ export function MfaQrPreview({ totpUri }: MfaQrPreviewProps) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <p className="text-xs font-semibold tracking-wide text-foreground uppercase">
-        {resolveMessage(appLocale, "pages.mfaEnroll.qrTitle")}
+        {resolveMessage(locale, "pages.mfaEnroll.qrTitle")}
       </p>
       <div className="inline-flex rounded-2xl border border-border/80 bg-white p-4 sm:p-5 shadow-xs">
         <Image
           src={qrCodeDataUrl}
-          alt={resolveMessage(appLocale, "pages.mfaEnroll.qrAlt")}
+          alt={resolveMessage(locale, "pages.mfaEnroll.qrAlt")}
           className="size-44 max-w-full sm:size-48"
           width={192}
           height={192}
@@ -53,7 +55,7 @@ export function MfaQrPreview({ totpUri }: MfaQrPreviewProps) {
         />
       </div>
       <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
-        {resolveMessage(appLocale, "pages.mfaEnroll.qrHint")}
+        {resolveMessage(locale, "pages.mfaEnroll.qrHint")}
       </p>
     </div>
   );

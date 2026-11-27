@@ -5,7 +5,6 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { resolveAppMessage } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/date-format";
 import type { AdminAccountDetailsCardProps } from "@/features/admin/types/admin.types";
-import { AdminDetailRow } from "@/features/admin/components/atoms/admin-detail-row";
 
 export function AdminAccountDetailsCard({ user }: AdminAccountDetailsCardProps) {
   const cardTitle = resolveAppMessage(
@@ -23,6 +22,7 @@ export function AdminAccountDetailsCard({ user }: AdminAccountDetailsCardProps) 
   const createdLabel = resolveAppMessage(
     "pages.admin.userDetail.accountDetailsCard.created" as MessageKey,
   );
+
   const lastActiveLabel = resolveAppMessage(
     "pages.admin.userDetail.accountDetailsCard.lastActive" as MessageKey,
   );
@@ -33,25 +33,35 @@ export function AdminAccountDetailsCard({ user }: AdminAccountDetailsCardProps) 
       : resolveAppMessage("pages.admin.usersList.roles.CUSTOMER" as MessageKey);
 
   const rows = [
-    { label: fullNameLabel, value: user.fullName },
+    { label: fullNameLabel, value: user.fullName || "—" },
     { label: emailLabel, value: user.email },
     { label: roleLabel, value: roleDisplay },
     { label: createdLabel, value: formatLocaleDate(user.createdAt) },
-    { label: lastActiveLabel, value: formatLocaleDate(user.lastActiveAt) },
+    {
+      label: lastActiveLabel,
+      value: user.lastActiveAt ? formatLocaleDate(user.lastActiveAt) : "—",
+    },
   ];
 
   return (
-    <div className="flex h-[252px] w-full max-w-[536px] flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-xs">
-      <h2 className="text-[15px] font-semibold text-foreground">{cardTitle}</h2>
+    <div
+      data-figma-node="1697:4561"
+      data-figma-name="Account details"
+      className="flex h-[255px] w-full flex-col justify-between rounded-[12px] border border-border bg-card p-5 shadow-xs"
+    >
+      <h2 className="text-[16px] font-semibold text-foreground tracking-tight">
+        {cardTitle}
+      </h2>
 
-      <div className="flex flex-col space-y-1 pt-2">
+      <div className="flex flex-col divide-y divide-border">
         {rows.map((row) => (
-          <AdminDetailRow
+          <div
             key={row.label}
-            label={row.label}
-            value={row.value}
-            className="border-none py-1.5"
-          />
+            className="flex items-center justify-between py-2 text-[13px]"
+          >
+            <span className="text-muted-foreground">{row.label}</span>
+            <span className="font-medium text-foreground">{row.value}</span>
+          </div>
         ))}
       </div>
     </div>

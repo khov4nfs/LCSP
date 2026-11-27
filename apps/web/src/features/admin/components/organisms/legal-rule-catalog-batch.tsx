@@ -5,6 +5,11 @@ import {
   preparationRuleBatchSchema,
   preparationRuleClaimSchema,
 } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  COLLECTION_METRIC_TONES,
+  COLLECTION_METRIC_VARIANTS,
+  CollectionMetricCard,
+} from "@/components/molecules/collection-metric-card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -58,21 +63,40 @@ export function LegalRuleCatalogBatch({
     >
       <h3 className="text-lg font-semibold">{t("batch")}</h3>
       <p role="status">{batch.complete ? t("complete") : t("partial")}</p>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          ["selectedCount", batch.selected],
-          ["preparedCount", batch.prepared],
-          ["failedCount", batch.failed],
-          ["skippedCount", batch.skipped],
-        ].map(([label, count]) => (
-          <div key={label}>
-            <dt className="text-sm text-muted-foreground">
-              {t(String(label))}
-            </dt>
-            <dd className="font-semibold">{count}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.primary}
+          label={t("selectedCount")}
+          value={batch.selected}
+          context={t("batch")}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.success}
+          label={t("preparedCount")}
+          value={batch.prepared}
+          context={t("batch")}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={
+            batch.failed > 0
+              ? COLLECTION_METRIC_TONES.danger
+              : COLLECTION_METRIC_TONES.muted
+          }
+          label={t("failedCount")}
+          value={batch.failed}
+          context={t("batch")}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.muted}
+          label={t("skippedCount")}
+          value={batch.skipped}
+          context={t("batch")}
+        />
+      </div>
       <p className="text-sm text-muted-foreground">{t("outcomeNotice")}</p>
       <ul className="divide-y">
         {batch.items.map((item) => (

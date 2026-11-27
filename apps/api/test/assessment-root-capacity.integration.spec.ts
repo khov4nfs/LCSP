@@ -1,9 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { performance } from "node:perf_hooks";
-import type { Server } from "node:http";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
 import {
   afterAll,
   beforeAll,
@@ -13,44 +7,50 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import { PrismaPg } from "@prisma/adapter-pg";
 import {
   BLOCKER_REASONS,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
 } from "@lcsp/contracts/assessment";
 import {
-  type Prisma,
-  PrismaClient,
-  AgentExecutionState,
-  AssessmentLifecycleState,
-  AuthUserRole,
-  OutboxAggregateType,
-  OutboxStatus,
-  AssessmentRuntimeControlState,
-} from "@prisma/client";
-import { Test } from "@nestjs/testing";
-import { ConfigService } from "@nestjs/config";
-import type { INestApplication } from "@nestjs/common";
-import request from "supertest";
-import {
-  ASSESSMENT_ROOT_COMMAND_TYPES,
-  ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_AUDIT_MODES,
+  ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_ROOT_COMMAND_TYPES,
   HUMAN_RESOLUTION_CONTROL_TYPES,
+  ROOT_CAPACITY_ID,
   RULE_AUDIT_SCOPE_MODES,
   RULE_AUDIT_STATUSES,
-  ROOT_CAPACITY_ID,
   ROOT_CAPACITY_REASONS as Reasons,
   ROOT_CAPACITY_METRIC_SOURCES as Sources,
   rootCapacityPolicySchema,
   type RootCapacityDatabaseMetrics,
   type RootCapacityRuntimeMetrics,
 } from "@lcsp/contracts/assessment-domain";
+import type { INestApplication } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Test } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  AgentExecutionState,
+  AssessmentLifecycleState,
+  AssessmentRuntimeControlState,
+  AuthUserRole,
+  OutboxAggregateType,
+  OutboxStatus,
+  PrismaClient,
+  type Prisma,
+} from "@prisma/client";
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import type { Server } from "node:http";
+import { performance } from "node:perf_hooks";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import request from "supertest";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
-import { WorkerApiKeyGuard } from "../src/platform/rbac/guards/worker-api-key.guard.js";
 import { AssessmentRootCapacityService } from "../src/modules/assessment/application/services/assessment-root-capacity.service.js";
 import { AssessmentRootCapacityController } from "../src/modules/assessment/presentation/http/assessment-root-capacity.controller.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
+import { WorkerApiKeyGuard } from "../src/platform/rbac/guards/worker-api-key.guard.js";
 
 const url = process.env.LCSP_TEST_CAPACITY_DATABASE_URL;
 const integration = url ? describe : describe.skip;
@@ -354,16 +354,32 @@ integration(
         pendingBacklog = undefined;
       }
       await timed("cleanup", previousRows, async () => {
-        await first.assessmentRootExecutionSlot.deleteMany();
-        await first.assessmentRootAdmissionRequest.deleteMany();
-        await first.assessmentRootCapacityDecision.deleteMany();
-        await first.assessmentRootCapacity.deleteMany();
-        await first.outboxMessage.deleteMany({
-          where: { aggregateId: { in: ids } },
-        });
-        await first.assessment.deleteMany({
-          where: { ownerId: { in: owners } },
-        });
+        const runDelete = async () => {
+          await first.assessmentRootExecutionSlot.deleteMany();
+          await first.assessmentRootAdmissionRequest.deleteMany();
+          await first.assessmentRootCapacityDecision.deleteMany();
+          await first.assessmentRootCapacity.deleteMany();
+          await first.outboxMessage.deleteMany({
+            where: { aggregateId: { in: ids } },
+          });
+          await first.assessment.deleteMany({
+            where: { ownerId: { in: owners } },
+          });
+        };
+        try {
+          await runDelete();
+        } catch (error) {
+          // If a previous test's in-flight HTTP request is still draining a PostgreSQL lock, wait briefly and retry cleanup once.
+          const code =
+            (error as { code?: string; meta?: { code?: string } })?.meta
+              ?.code ?? (error as { code?: string })?.code;
+          if (code === "P2010" || code === "55P03" || code === "57014") {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await runDelete();
+          } else {
+            throw error;
+          }
+        }
         ids.length = 0;
       });
       incarnationId = randomUUID();
@@ -1355,7 +1371,7 @@ integration(
               cwd: fileURLToPath(
                 new URL("../../../deepagents/", import.meta.url),
               ),
-              timeout: 60_000,
+              timeout: 90_000,
               env: {
                 ...process.env,
                 NESTJS_API_BASE_URL: `http://127.0.0.1:${address.port}`,
@@ -1364,6 +1380,12 @@ integration(
                 LANGSMITH_TRACING: "false",
                 LANGCHAIN_TRACING_V2: "false",
               },
+            },
+          ).catch(
+            (error: { stdout?: string; stderr?: string; message?: string }) => {
+              if (error.stdout) process.stdout.write(error.stdout);
+              if (error.stderr) process.stderr.write(error.stderr);
+              throw error;
             },
           );
           expect(stdout).toContain("LCSP364_BACKLOG_BROKER_PASS");

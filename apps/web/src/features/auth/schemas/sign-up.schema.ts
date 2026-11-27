@@ -3,14 +3,22 @@ import { z } from "zod";
 
 export const signUpSchema = baseSignUpSchema
   .extend({
-    display_name: baseSignUpSchema.shape.display_name.min(
-      1,
-      "pages.signUp.errors.displayNameRequired",
-    ),
-    email: baseSignUpSchema.shape.email
+    // Keep contract limits and normalization while replacing Zod defaults with locale-aware user feedback.
+    display_name: z
+      .string()
+      .trim()
+      .min(1, "pages.signUp.errors.displayNameRequired")
+      .max(
+        baseSignUpSchema.shape.display_name.maxLength ?? 100,
+        "pages.signUp.errors.displayNameTooLong",
+      ),
+    email: z
+      .string()
+      .trim()
       .min(1, "pages.signUp.errors.emailRequired")
       .email("pages.signUp.errors.emailInvalid"),
-    password: baseSignUpSchema.shape.password
+    password: z
+      .string()
       .min(1, "pages.signUp.errors.passwordRequired")
       .min(
         baseSignUpSchema.shape.password.minLength ?? 12,

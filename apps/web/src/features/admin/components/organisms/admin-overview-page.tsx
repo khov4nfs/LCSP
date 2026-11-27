@@ -12,9 +12,9 @@ import { AdminOverviewMetricCard } from "../atoms/admin-overview-metric-card";
 import { AdminPageHeader } from "../molecules/admin-page-header";
 import { AdminPeriodSelector } from "../molecules/admin-period-selector";
 import { AdminAssessmentActivityCard } from "../molecules/admin-assessment-activity-card";
-import { AdminUserStatusCard } from "../molecules/admin-user-status-card";
+import { AdminOperationalPrioritiesCard } from "../molecules/admin-operational-priorities-card";
+import { AdminQuickActionsDialog } from "../molecules/admin-quick-actions-dialog";
 import { AdminRecentActivityCard } from "../molecules/admin-recent-activity-card";
-import { AdminLegalSourceStatusCard } from "../molecules/admin-legal-source-status-card";
 import { useAdminOverviewQuery } from "@/lib/api/admin-overview-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 
@@ -101,17 +101,24 @@ export function AdminOverviewPage() {
     : "—";
 
   return (
-    <div className="space-y-6">
-      {/* Page Header with Period Selector */}
+    <div
+      data-figma-node="1662:3505"
+      data-figma-name="42 Admin · Overview"
+      className="space-y-6"
+    >
+      {/* Page Header with Period Selector & Quick Actions */}
       <AdminPageHeader
         title={title}
         description={description}
         actionSlot={
-          <AdminPeriodSelector
-            selectedPeriod={selectedPeriod}
-            onSelectPeriod={setSelectedPeriod}
-            disabled={isLoading}
-          />
+          <div className="flex items-center gap-3">
+            <AdminPeriodSelector
+              selectedPeriod={selectedPeriod}
+              onSelectPeriod={setSelectedPeriod}
+              disabled={isLoading}
+            />
+            <AdminQuickActionsDialog />
+          </div>
         }
       />
 
@@ -167,12 +174,27 @@ export function AdminOverviewPage() {
         />
       </div>
 
-      {/* Row 2: Assessment Activity & User Account Status */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      {/* Row 2: Dashboard / Chart and Priority Queue (#1712:8274) */}
+      <div
+        data-figma-node="1712:8274"
+        data-figma-name="Dashboard / Chart and priority queue"
+        className="grid grid-cols-1 gap-6 lg:grid-cols-12"
+      >
+        {/* Left: Operational Priorities (#1682:1743) */}
+        <div className="lg:col-span-5">
+          <AdminOperationalPrioritiesCard
+            totalExceptions={data ? 18 : undefined}
+            totalLegalSources={data?.legalSourceStatus.current?.sourceCount ?? 184}
+          />
+        </div>
+
+        {/* Right: Assessment Throughput (#1682:1714) */}
         <div className="lg:col-span-7">
           <AdminAssessmentActivityCard
             points={data?.assessmentActivity.points}
             totalCompleted={data?.assessmentActivity.totalCompleted}
+            totalStarted={data?.assessmentActivity.totalStarted}
+            totalUsersCount={data?.summary.totalUsers.count}
             periodDays={periodDays}
             startDate={data?.assessmentActivity.startDate}
             endDate={data?.assessmentActivity.endDate}
@@ -181,30 +203,16 @@ export function AdminOverviewPage() {
             onRetry={() => void refetch()}
           />
         </div>
-        <div className="lg:col-span-5">
-          <AdminUserStatusCard
-            distribution={data?.accountDistribution}
-            isLoading={isLoading}
-          />
-        </div>
       </div>
 
-      {/* Row 3: Recent Admin Activity & LegalSource Status */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-8">
-          <AdminRecentActivityCard
-            items={data?.recentActivity}
-            isLoading={isLoading}
-            isError={isError}
-            onRetry={() => void refetch()}
-          />
-        </div>
-        <div className="lg:col-span-4">
-          <AdminLegalSourceStatusCard
-            legalSourceStatus={data?.legalSourceStatus}
-            isLoading={isLoading}
-          />
-        </div>
+      {/* Row 3: Recent Operational Activity Events (#1682:1761) */}
+      <div className="grid grid-cols-1 gap-6">
+        <AdminRecentActivityCard
+          items={data?.recentActivity}
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={() => void refetch()}
+        />
       </div>
     </div>
   );

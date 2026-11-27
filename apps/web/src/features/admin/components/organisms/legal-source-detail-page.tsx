@@ -3,10 +3,14 @@
 import Link from "next/link";
 import type { MessageKey } from "@lcsp/i18n";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  COLLECTION_METRIC_TONES,
+  COLLECTION_METRIC_VARIANTS,
+  CollectionMetricCard,
+} from "@/components/molecules/collection-metric-card";
+import { PANEL_STATES, PanelState } from "@/components/molecules/panel-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useLegalSourceQuery } from "@/lib/api/legal-source-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 import { AdminPageHeader } from "../molecules/admin-page-header";
@@ -17,19 +21,37 @@ import { LegalSourceVersionsTable } from "./legal-source-versions-table";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
+/**
+ * Business purpose: Display a legal source's metadata, lifecycle indicators, edit/delete controls, and version history.
+ * Business rules:
+ * - Displays authoritative active and draft version counts via CollectionMetricCard indicators.
+ * - Preserves authorized draft creation vs existing draft navigation and source deletion rules.
+ * Execution flow:
+ * 1. Load source detail and version summaries via useLegalSourceQuery(sourceId).
+ * 2. Render header, version summary indicators, metadata edit/delete card, and LegalSourceVersionsTable.
+ * Failure cases:
+ * - Loading and error states render skeleton or destructive alert with retry without fabricating versions.
+ * Side effects:
+ * - Executes read query and delegates mutations to child edit, start-version, and delete dialogs.
+ */
 export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
   const sourceQuery = useLegalSourceQuery(sourceId);
-  if (sourceQuery.isPending) return <Skeleton className="h-72 w-full" />;
+  if (sourceQuery.isPending) {
+    return (
+      <PanelState
+        state={PANEL_STATES.loading}
+        title={t("pages.legalSources.sourceLabel")}
+      />
+    );
+  }
   if (sourceQuery.isError) {
     return (
-      <Alert variant="destructive">
-        <AlertDescription className="flex items-center justify-between gap-3">
-          <span>{t("pages.legalSources.loadFailed")}</span>
-          <Button variant="outline" onClick={() => void sourceQuery.refetch()}>
-            {t("pages.legalSources.tryAgain")}
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <PanelState
+        state={PANEL_STATES.error}
+        description={t("pages.legalSources.loadFailed")}
+        actionLabel={t("pages.legalSources.tryAgain")}
+        onAction={() => void sourceQuery.refetch()}
+      />
     );
   }
 
@@ -39,9 +61,13 @@ export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
         (version) => version.id === source.openDraftVersionId,
       )
     : undefined;
+  const activeVersion = source.activeVersion;
 
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div
+      className="flex flex-col gap-6 pb-12"
+      data-component="LegalSourceDetailPage"
+    >
       <Link
         href="/admin/legal-sources"
         className="w-fit text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
@@ -52,6 +78,36 @@ export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
         title={source.name}
         description={source.description ?? source.slug}
       />
+      <section
+        aria-label={t("pages.legalSources.versionsTitle")}
+        className="grid gap-3 sm:grid-cols-3"
+      >
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.primary}
+          label={t("pages.legalSources.versionsTitle")}
+          value={source.versions.length}
+          context={source.slug}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={COLLECTION_METRIC_TONES.success}
+          label={t("pages.legalSources.statuses.ACTIVE")}
+          value={activeVersion ? `v${activeVersion.version}` : "—"}
+          context={t("pages.legalSources.activeVersionLabel")}
+        />
+        <CollectionMetricCard
+          variant={COLLECTION_METRIC_VARIANTS.indicator}
+          tone={
+            openDraft
+              ? COLLECTION_METRIC_TONES.warning
+              : COLLECTION_METRIC_TONES.muted
+          }
+          label={t("pages.legalSources.statuses.DRAFT")}
+          value={openDraft ? `v${openDraft.version}` : "—"}
+          context={t("pages.legalSources.openDraftVersion")}
+        />
+      </section>
       <Card>
         <CardHeader>
           <CardTitle>{t("pages.legalSources.sourceLabel")}</CardTitle>
