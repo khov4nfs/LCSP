@@ -36,7 +36,7 @@ export function AdminEventsTableRow({
   className,
 }: AdminEventsTableRowProps) {
   const nextActionContent = (
-    <span className="inline-flex items-center gap-1 font-medium text-[#11545B] hover:text-[#0b383d] transition-colors">
+    <span className="inline-flex items-center gap-1 font-medium text-primary transition-colors hover:text-primary/80">
       <span>{nextActionLabel}</span>
       <span aria-hidden="true">›</span>
     </span>
@@ -47,27 +47,27 @@ export function AdminEventsTableRow({
       data-figma-node="1682:1255"
       data-figma-name="LCSP Data / Table row / events"
       className={cn(
-        "group relative flex min-h-[44px] items-center border-b border-[#D6DFE7] bg-white px-4 py-2.5 text-sm transition-colors hover:bg-slate-50/60",
+        "group relative flex min-h-11 items-center border-b border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-muted/40",
         className
       )}
     >
       {/* Assessment / event */}
-      <div className="w-[280px] shrink-0 font-semibold text-[#101C29] truncate">
+      <div className="w-70 shrink-0 truncate font-semibold text-foreground">
         {event}
       </div>
 
       {/* Area */}
-      <div className="w-[180px] shrink-0 text-[#48586A] truncate">
+      <div className="w-45 shrink-0 truncate text-muted-foreground">
         {area}
       </div>
 
       {/* Status */}
-      <div className="w-[160px] shrink-0">
+      <div className="w-40 shrink-0">
         {statusBadge}
       </div>
 
       {/* Updated */}
-      <div className="w-[170px] shrink-0 text-[#48586A]">
+      <div className="w-42.5 shrink-0 text-muted-foreground">
         {updated}
       </div>
 
@@ -76,7 +76,7 @@ export function AdminEventsTableRow({
         {nextActionHref ? (
           <Link
             href={nextActionHref}
-            className="focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#11545B] rounded-xs"
+            className="rounded-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
             {nextActionContent}
           </Link>
@@ -84,7 +84,7 @@ export function AdminEventsTableRow({
           <button
             type="button"
             onClick={onNextAction}
-            className="cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#11545B] rounded-xs"
+            className="cursor-pointer rounded-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           >
             {nextActionContent}
           </button>
@@ -158,10 +158,13 @@ export function AdminStatusBadge({
   className?: string;
 }) {
   const variantStyles = {
-    success: "bg-[#F0FDF4] text-[#166534] border-[#BBF7D0]",
-    warning: "bg-[#FFFBEB] text-[#92400E] border-[#FDE68A]",
-    danger: "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]",
-    info: "bg-[#EEF2FF] text-[#4338CA] border-[#C7D2FE]",
+    success:
+      "border-status-success-border bg-status-success-bg text-status-success",
+    warning:
+      "border-status-warning-border bg-status-warning-bg text-status-warning",
+    danger:
+      "border-status-danger-border bg-status-danger-bg text-status-danger",
+    info: "border-status-info-border bg-status-info-bg text-status-info",
   };
 
   return (
