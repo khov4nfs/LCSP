@@ -18,9 +18,10 @@ export type CancelAdmissionExecutionResult = {
 
 @Injectable()
 @CommandHandler(CancelBillableInvocationAdmissionCommand)
-export class CancelBillableInvocationAdmissionHandler
-  implements ICommandHandler<CancelBillableInvocationAdmissionCommand, CancelAdmissionExecutionResult>
-{
+export class CancelBillableInvocationAdmissionHandler implements ICommandHandler<
+  CancelBillableInvocationAdmissionCommand,
+  CancelAdmissionExecutionResult
+> {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -71,7 +72,9 @@ export class CancelBillableInvocationAdmissionHandler
       );
     }
 
-    const expectedDigest = deriveAdmissionCapabilityDigest(payload.capabilityToken);
+    const expectedDigest = deriveAdmissionCapabilityDigest(
+      payload.capabilityToken,
+    );
     if (admission.capabilityDigest !== expectedDigest) {
       throw problemException(
         BILLING_ERROR_CODES.admissionCapabilityMismatch,
@@ -82,7 +85,9 @@ export class CancelBillableInvocationAdmissionHandler
 
     return await this.prisma.$transaction(async (tx) => {
       // Row lock on admission
-      const [locked] = await tx.$queryRaw<Array<{ id: string; state: string; version: number }>>`
+      const [locked] = await tx.$queryRaw<
+        Array<{ id: string; state: string; version: number }>
+      >`
         SELECT id, state, version
         FROM "BillableInvocationAdmission"
         WHERE id = ${admission.id}

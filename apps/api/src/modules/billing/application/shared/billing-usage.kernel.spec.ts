@@ -518,7 +518,9 @@ describe("BillingUsageKernel direct-credit admission & settlement (MODEL_USAGE_D
           fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
           walletId: "wallet-1",
         }),
-      ).toThrow("PLATFORM_SPONSORED admission must not bind a customer walletId");
+      ).toThrow(
+        "PLATFORM_SPONSORED admission must not bind a customer walletId",
+      );
 
       const sponsored = kernel.issueModelUsageAdmission({
         ...baseAdmissionInput,

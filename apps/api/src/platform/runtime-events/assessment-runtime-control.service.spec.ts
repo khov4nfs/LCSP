@@ -559,7 +559,8 @@ describe("runtime control registration", () => {
       update: {},
       create: expect.objectContaining({
         id: expectedAuditId,
-        eventType: ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES.BUDGET_OVERRIDE_AUTHORIZED,
+        eventType:
+          ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES.BUDGET_OVERRIDE_AUTHORIZED,
         actorId: "admin-user",
         resourceType: AUDIT_RESOURCE_TYPES.assessment,
         resourceId: "assessment",
@@ -894,9 +895,6 @@ describe("runtime control registration", () => {
         additionalModelCalls: 30,
         auditReason: "Second extension",
       },
-    } as Parameters<typeof controls.request>[0] & {
-      idempotencyKey: string;
-      expectedVersion: number;
     });
 
     expect(result.state).toBe(States.resumeRequested);
@@ -935,15 +933,19 @@ describe("runtime control registration", () => {
     let currentTurnState: string = States.stopped;
     let currentTurnRequestId: string | null = "stop-request";
 
-    const updateAssessment = jest.fn(async (args: { data: { blockerReference: Record<string, unknown> } }) => {
-      storedBlockerReference = args.data.blockerReference;
-      return {};
-    });
-    const updateManyTurns = jest.fn(async (args: { data: { state: string; requestId: string } }) => {
-      currentTurnState = args.data.state;
-      currentTurnRequestId = args.data.requestId;
-      return { count: 1 };
-    });
+    const updateAssessment = jest.fn(
+      async (args: { data: { blockerReference: Record<string, unknown> } }) => {
+        storedBlockerReference = args.data.blockerReference;
+        return {};
+      },
+    );
+    const updateManyTurns = jest.fn(
+      async (args: { data: { state: string; requestId: string } }) => {
+        currentTurnState = args.data.state;
+        currentTurnRequestId = args.data.requestId;
+        return { count: 1 };
+      },
+    );
     const enqueue = jest.fn(async () => ({ id: "outbox-1" }));
     const writeInTx = jest.fn(async (_payload?: any, _tx?: any) => undefined);
     const auditWriterMock = { writeInTx } as unknown as AuditWriterService;
@@ -1039,7 +1041,8 @@ describe("runtime control registration", () => {
     expect(writeInTx).toHaveBeenCalledWith(
       expect.objectContaining({
         idempotencyKey: "budget-override:assessment:idem-replay-key",
-        eventType: ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES.BUDGET_OVERRIDE_AUTHORIZED,
+        eventType:
+          ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES.BUDGET_OVERRIDE_AUTHORIZED,
         actorId: "admin-user",
         actor: { id: "admin-user", type: AUDIT_ACTOR_TYPES.user },
         assessmentId: "assessment",
@@ -1133,10 +1136,14 @@ describe("runtime control registration", () => {
             ruleSet: { lifecycleState: "ACTIVE" },
           },
         })),
-        update: jest.fn(async (args: { data: { blockerReference: Record<string, unknown> } }) => {
-          storedBlockerReference = args.data.blockerReference;
-          return {};
-        }),
+        update: jest.fn(
+          async (args: {
+            data: { blockerReference: Record<string, unknown> };
+          }) => {
+            storedBlockerReference = args.data.blockerReference;
+            return {};
+          },
+        ),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -1172,7 +1179,7 @@ describe("runtime control registration", () => {
         additionalModelCalls: 25,
         auditReason: "Initial extension",
       },
-    } as Parameters<typeof controls.request>[0] & { idempotencyKey: string });
+    });
 
     // Reuse same idempotencyKey with a mutated auditReason / quota
     await expect(
@@ -1188,7 +1195,7 @@ describe("runtime control registration", () => {
           additionalModelCalls: 100,
           auditReason: "Mutated extension attempt",
         },
-      } as Parameters<typeof controls.request>[0] & { idempotencyKey: string }),
+      }),
     ).rejects.toMatchObject({
       status: 409,
       response: expect.objectContaining({
@@ -1300,9 +1307,6 @@ describe("runtime control registration", () => {
           additionalModelCalls: 30,
           auditReason: "Stale expectedVersion",
         },
-      } as Parameters<typeof controls.request>[0] & {
-        idempotencyKey: string;
-        expectedVersion: number;
       }),
     ).rejects.toMatchObject({ status: 409 });
 

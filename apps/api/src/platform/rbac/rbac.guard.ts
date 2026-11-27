@@ -149,7 +149,8 @@ export class RbacGuard implements CanActivate {
         resourceId,
         correlationId,
       });
-      const sessionMetadata = session.metadata as Record<string, unknown> | null | undefined;
+      const sessionMetadata = session.metadata as
+        Record<string, unknown> | null | undefined;
       const sessionPermissions = sessionMetadata?.permissions;
       const permissions: readonly string[] = Array.isArray(sessionPermissions)
         ? (sessionPermissions as string[])
@@ -192,7 +193,8 @@ export class RbacGuard implements CanActivate {
     }
 
     // Resolve caller action permissions (ADR-028 Line 173-174)
-    const sessionMetadata = session.metadata as Record<string, unknown> | null | undefined;
+    const sessionMetadata = session.metadata as
+      Record<string, unknown> | null | undefined;
     const sessionPermissions = sessionMetadata?.permissions;
     const permissions: readonly string[] = Array.isArray(sessionPermissions)
       ? (sessionPermissions as string[])
@@ -201,12 +203,13 @@ export class RbacGuard implements CanActivate {
         : [];
 
     // Enforce action-level permissions if declared via @RequireActions decorator
-    const requiredActions = this.reflector.getAllAndOverride<readonly string[] | undefined>(
-      RBAC_ACTIONS_METADATA_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredActions = this.reflector.getAllAndOverride<
+      readonly string[] | undefined
+    >(RBAC_ACTIONS_METADATA_KEY, [context.getHandler(), context.getClass()]);
     if (requiredActions && requiredActions.length > 0) {
-      const hasAllActions = requiredActions.every((action) => permissions.includes(action));
+      const hasAllActions = requiredActions.every((action) =>
+        permissions.includes(action),
+      );
       if (!hasAllActions) {
         await this.recordDecision({
           actorId: session.userId,

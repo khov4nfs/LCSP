@@ -19,7 +19,9 @@ import { SweepExpiredInvocationLeasesCommand } from "../../application/commands/
 export class BillingReconciliationSweeperService
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(BillingReconciliationSweeperService.name);
+  private readonly logger = new Logger(
+    BillingReconciliationSweeperService.name,
+  );
   private timer: NodeJS.Timeout | null = null;
   private running = false;
 
@@ -55,7 +57,9 @@ export class BillingReconciliationSweeperService
     );
 
     if (!enabled) {
-      this.logger.log("Billing reconciliation sweeper is disabled by configuration");
+      this.logger.log(
+        "Billing reconciliation sweeper is disabled by configuration",
+      );
       return;
     }
 
@@ -138,7 +142,10 @@ export class BillingReconciliationSweeperService
 
       return result;
     } catch (err) {
-      this.logger.error("Error occurred during automated reconciliation sweep", err);
+      this.logger.error(
+        "Error occurred during automated reconciliation sweep",
+        err,
+      );
       return null;
     } finally {
       this.running = false;

@@ -18,9 +18,7 @@ const UUID_REGEX =
  */
 @Injectable()
 @CommandHandler(HeartbeatBillableInvocationAdmissionCommand)
-export class HeartbeatBillableInvocationAdmissionHandler
-  implements ICommandHandler<HeartbeatBillableInvocationAdmissionCommand>
-{
+export class HeartbeatBillableInvocationAdmissionHandler implements ICommandHandler<HeartbeatBillableInvocationAdmissionCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -64,9 +62,7 @@ export class HeartbeatBillableInvocationAdmissionHandler
   // Rationale ("Why"): Allows long-running model calls to remain active without false recovery sweeps while strictly respecting server authority limits and preventing dead runs from piggybacking on replaced executions even after lock waits.
   // Mechanism ("How"): Within a single transaction, row-locks admission FOR UPDATE, locks AssessmentRuntime / AssessmentDiscoveryRun / RuleSetPreparationRun FOR SHARE, queries clock_timestamp() after acquiring each respective lock to capture true elapsed time, validates capability token and exact runId/leaseToken alignment, enforces monotonic extension, clamps to runtime ceiling, and commits atomic update.
   // Invariants & Constraints: Only works on IN_FLIGHT admissions; rejects replaced or superseded executions with 403 Forbidden; uses clock_timestamp() after lock acquisition to prevent stale NOW() evaluation; re-verifies runtime ceiling immediately before extending deadline; never shortens deadline; never exceeds runtime authority ceiling.
-  async execute(
-    command: HeartbeatBillableInvocationAdmissionCommand,
-  ): Promise<{
+  async execute(command: HeartbeatBillableInvocationAdmissionCommand): Promise<{
     admissionId: string;
     invocationId: string;
     state: string;
@@ -204,7 +200,9 @@ export class HeartbeatBillableInvocationAdmissionHandler
             // Capture actual DB wall-clock time after acquiring AssessmentDiscoveryRun lock
             // Why: If heartbeat had to wait for a concurrent lock on AssessmentDiscoveryRun, time advanced during this second wait.
             // How: Sample clock_timestamp() immediately after acquiring the discovery run lock.
-            const [postDiscoveryLockTime] = await tx.$queryRaw<Array<{ now: Date }>>`
+            const [postDiscoveryLockTime] = await tx.$queryRaw<
+              Array<{ now: Date }>
+            >`
               SELECT clock_timestamp() as now;
             `;
             dbUtcNow = postDiscoveryLockTime?.now ?? dbUtcNow;
@@ -279,7 +277,10 @@ export class HeartbeatBillableInvocationAdmissionHandler
       const currentDeadlineMs = admission.inFlightLeaseExpiresAt
         ? admission.inFlightLeaseExpiresAt.getTime()
         : dbUtcNow.getTime();
-      let calculatedDeadlineMs = Math.max(currentDeadlineMs, requestedDeadlineMs);
+      let calculatedDeadlineMs = Math.max(
+        currentDeadlineMs,
+        requestedDeadlineMs,
+      );
 
       // Invariant: Heartbeat cannot extend beyond the server-approved runtime execution deadline!
       if (runtimeCeiling && calculatedDeadlineMs > runtimeCeiling.getTime()) {

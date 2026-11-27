@@ -115,8 +115,14 @@ export class ReconciliationArtifactService {
     isAudited: boolean = false,
   ): { publicKeyPem: string; privateKeyPem: string; keyId: string } {
     const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");
-    const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }) as string;
-    const privateKeyPem = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+    const publicKeyPem = publicKey.export({
+      type: "spki",
+      format: "pem",
+    }) as string;
+    const privateKeyPem = privateKey.export({
+      type: "pkcs8",
+      format: "pem",
+    }) as string;
 
     this.registerTrustedProviderKey(provider, keyId, publicKeyPem, isAudited);
     return { publicKeyPem, privateKeyPem, keyId };
@@ -175,7 +181,11 @@ export class ReconciliationArtifactService {
   // Invariants & Constraints: Requires valid private key.
   signArtifactStatement(statement: string, privateKeyPem: string): string {
     const privateKey = crypto.createPrivateKey(privateKeyPem);
-    const signature = crypto.sign(null, Buffer.from(statement, "utf-8"), privateKey);
+    const signature = crypto.sign(
+      null,
+      Buffer.from(statement, "utf-8"),
+      privateKey,
+    );
     return signature.toString("base64");
   }
 
@@ -208,7 +218,9 @@ export class ReconciliationArtifactService {
     signatureBase64: string,
     keyId?: string | null,
   ): { valid: boolean; isAudited: boolean } {
-    const lookupKey = keyId ? `${provider.toLowerCase()}:${keyId}` : provider.toLowerCase();
+    const lookupKey = keyId
+      ? `${provider.toLowerCase()}:${keyId}`
+      : provider.toLowerCase();
     let record = this.trustedProviderKeys.get(lookupKey);
     if (!record && keyId) {
       record = this.trustedProviderKeys.get(provider.toLowerCase());
@@ -218,7 +230,12 @@ export class ReconciliationArtifactService {
     }
     try {
       const sigBuffer = Buffer.from(signatureBase64, "base64");
-      const valid = crypto.verify(null, Buffer.from(statement, "utf-8"), record.keyObject, sigBuffer);
+      const valid = crypto.verify(
+        null,
+        Buffer.from(statement, "utf-8"),
+        record.keyObject,
+        sigBuffer,
+      );
       return { valid, isAudited: record.isAudited };
     } catch {
       return { valid: false, isAudited: false };
@@ -283,10 +300,7 @@ export class ReconciliationArtifactService {
     }
 
     const rawContent = JSON.stringify(params.entries);
-    const sha256 = crypto
-      .createHash("sha256")
-      .update(rawContent)
-      .digest("hex");
+    const sha256 = crypto.createHash("sha256").update(rawContent).digest("hex");
 
     const source = params.source ?? "PROVIDER_EXPORT_VERIFIED";
     const finalizedWatermark = params.finalizedWatermark ?? params.coverageEnd;
@@ -412,7 +426,9 @@ export class ReconciliationArtifactService {
     }
 
     // Verify provider binding
-    if (artifact.provider.toLowerCase() !== params.expectedProvider.toLowerCase()) {
+    if (
+      artifact.provider.toLowerCase() !== params.expectedProvider.toLowerCase()
+    ) {
       return { verified: false, error: "provider_mismatch" };
     }
 

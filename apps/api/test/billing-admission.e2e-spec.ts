@@ -942,7 +942,10 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
   it("rejects PLATFORM_SPONSORED call with HTTP 403 when no approved PlatformSponsorshipPolicySnapshot exists (fail closed)", async () => {
     // 1. Seed a RuleSetPreparationRun with requestedBy: "SYSTEM"
     const source = await prisma.legalSourceVersion.create({
-      data: { version: `sys-src-failclosed-${randomUUID()}`, sourceManifest: {} },
+      data: {
+        version: `sys-src-failclosed-${randomUUID()}`,
+        sourceManifest: {},
+      },
     });
     const prepRunId = `prep-sys-failclosed-${randomUUID()}`;
     await prisma.ruleSetPreparationRun.create({
@@ -999,7 +1002,8 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
           policyVersion: "1.0",
           provider: "anthropic",
           resolvedModel: "claude-sonnet-4-6",
-          description: "Authoritative platform sponsorship policy for system rule preparation",
+          description:
+            "Authoritative platform sponsorship policy for system rule preparation",
           inputMicrocreditsPerMillion: 15_000_000n,
           outputMicrocreditsPerMillion: 45_000_000n,
           effectiveFrom: new Date(Date.now() - 3600_000),

@@ -52,7 +52,7 @@ function createInMemoryAccountingHarness() {
           balanceMicrocredits?: bigint;
           accountingUnitVersion?: number;
         }) => {
-          compareAndSetCalls.push(input as unknown as Record<string, unknown>);
+          compareAndSetCalls.push(input);
           const wallet = [...wallets.values()].find(
             (w) => w.id === input.walletId,
           );
@@ -91,7 +91,7 @@ function createInMemoryAccountingHarness() {
           referenceId?: string;
           billingOrderId?: string;
         }) => {
-          appendCalls.push(input as unknown as Record<string, unknown>);
+          appendCalls.push(input);
           const created: LedgerRecord = {
             id: `ledger-${ledgerEntries.length + 1}`,
             userId: input.userId,
@@ -101,7 +101,8 @@ function createInMemoryAccountingHarness() {
             accountingUnitVersion: input.accountingUnitVersion ?? 1,
             idempotencyKey: input.idempotencyKey,
             source: input.source,
-            ledgerSource: (input.ledgerSource as LedgerRecord["ledgerSource"]) ?? null,
+            ledgerSource:
+              (input.ledgerSource as LedgerRecord["ledgerSource"]) ?? null,
             referenceId: input.referenceId ?? null,
             billingOrderId: input.billingOrderId ?? null,
           };

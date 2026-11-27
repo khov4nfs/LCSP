@@ -8,11 +8,9 @@ describe("ASM-BUDGET-02..04: Shared Prepaid Wallet & Actual-Usage Settlement RED
     expect(contracts.MICROCREDITS_PER_CREDIT).toBe(1_000_000n);
 
     const formatMicrocredits = contracts.formatMicrocreditsToDecimal as
-      | ((microcredits: bigint) => string)
-      | undefined;
+      ((microcredits: bigint) => string) | undefined;
     const parseDecimalToMicrocredits = contracts.parseDecimalToMicrocredits as
-      | ((decimal: string) => bigint)
-      | undefined;
+      ((decimal: string) => bigint) | undefined;
 
     expect(typeof formatMicrocredits).toBe("function");
     expect(typeof parseDecimalToMicrocredits).toBe("function");

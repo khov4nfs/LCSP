@@ -21,9 +21,10 @@ import { CompensateBillingDebitCommand } from "./compensate-billing-debit.comman
 
 @Injectable()
 @CommandHandler(CompensateBillingDebitCommand)
-export class CompensateBillingDebitHandler
-  implements ICommandHandler<CompensateBillingDebitCommand, CompensateBillingDebitResponse>
-{
+export class CompensateBillingDebitHandler implements ICommandHandler<
+  CompensateBillingDebitCommand,
+  CompensateBillingDebitResponse
+> {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -66,11 +67,9 @@ export class CompensateBillingDebitHandler
       rbacContext.role !== AUTH_USER_ROLES.admin ||
       !rbacContext.permissions?.includes(BILLING_ACTIONS.compensation)
     ) {
-      throw problemException(
-        AUTH_ERROR_CODES.rbacDenied,
-        correlationId,
-        { status: HttpStatus.FORBIDDEN },
-      );
+      throw problemException(AUTH_ERROR_CODES.rbacDenied, correlationId, {
+        status: HttpStatus.FORBIDDEN,
+      });
     }
 
     const requestedAmountMicrocredits = BigInt(payload.amountMicrocredits);
@@ -87,11 +86,9 @@ export class CompensateBillingDebitHandler
     });
 
     if (!debit) {
-      throw problemException(
-        BILLING_ERROR_CODES.debitNotFound,
-        correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
+      throw problemException(BILLING_ERROR_CODES.debitNotFound, correlationId, {
+        status: HttpStatus.NOT_FOUND,
+      });
     }
 
     // Rationale ("Why"): Only legitimate historical model usage debits issued under valid financial authority are eligible.

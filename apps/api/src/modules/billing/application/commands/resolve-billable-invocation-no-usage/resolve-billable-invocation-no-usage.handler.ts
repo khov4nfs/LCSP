@@ -22,9 +22,10 @@ const PROVIDERS_SUPPORTING_CORRELATION = new Set(["anthropic", "openai"]);
 
 @Injectable()
 @CommandHandler(ResolveBillableInvocationNoUsageCommand)
-export class ResolveBillableInvocationNoUsageHandler
-  implements ICommandHandler<ResolveBillableInvocationNoUsageCommand, ResolveNoUsageExecutionResult>
-{
+export class ResolveBillableInvocationNoUsageHandler implements ICommandHandler<
+  ResolveBillableInvocationNoUsageCommand,
+  ResolveNoUsageExecutionResult
+> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly artifactService: ReconciliationArtifactService,

@@ -1,10 +1,7 @@
 import * as crypto from "node:crypto";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
-  AUDIT_DECISIONS,
-  AUDIT_RESOURCE_TYPES,
-} from "@lcsp/contracts/audit";
+import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
@@ -83,7 +80,8 @@ function computeSettlementFingerprint(
     payload.totalTokens !== undefined && payload.totalTokens !== null
       ? payload.totalTokens
       : "",
-    payload.cachedInputTokens !== undefined && payload.cachedInputTokens !== null
+    payload.cachedInputTokens !== undefined &&
+    payload.cachedInputTokens !== null
       ? payload.cachedInputTokens
       : "",
     payload.cacheWriteTokens !== undefined && payload.cacheWriteTokens !== null
@@ -104,9 +102,10 @@ function computeSettlementFingerprint(
 
 @Injectable()
 @CommandHandler(SettleBillableInvocationUsageCommand)
-export class SettleBillableInvocationUsageHandler
-  implements ICommandHandler<SettleBillableInvocationUsageCommand, SettleUsageExecutionResult>
-{
+export class SettleBillableInvocationUsageHandler implements ICommandHandler<
+  SettleBillableInvocationUsageCommand,
+  SettleUsageExecutionResult
+> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly modelPricingCalculator: ModelPricingCalculatorService,
@@ -185,7 +184,9 @@ export class SettleBillableInvocationUsageHandler
       );
     }
 
-    const expectedDigest = deriveAdmissionCapabilityDigest(payload.capabilityToken);
+    const expectedDigest = deriveAdmissionCapabilityDigest(
+      payload.capabilityToken,
+    );
     if (admission.capabilityDigest !== expectedDigest) {
       throw problemException(
         BILLING_ERROR_CODES.admissionCapabilityMismatch,
@@ -273,7 +274,10 @@ export class SettleBillableInvocationUsageHandler
         version: number;
       } | null = null;
 
-      if (admission.fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET) {
+      if (
+        admission.fundingPrincipal ===
+        ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET
+      ) {
         if (!admission.walletId) {
           // Fail closed: customer admission lacking walletId cannot settle; route to integrity review
           // Rationale: We commit the transition to BILLING_INTEGRITY_REVIEW and reconciliation case,
@@ -281,7 +285,9 @@ export class SettleBillableInvocationUsageHandler
           await tx.billableInvocationAdmission.update({
             where: { id: admission.id },
             data: {
-              state: toPrismaAdmissionState(ADMISSION_STATES.BILLING_INTEGRITY_REVIEW),
+              state: toPrismaAdmissionState(
+                ADMISSION_STATES.BILLING_INTEGRITY_REVIEW,
+              ),
               version: { increment: 1 },
             },
           });
@@ -292,19 +298,26 @@ export class SettleBillableInvocationUsageHandler
               caseId: `recon-${admission.invocationId}`,
               invocationId: admission.invocationId,
               admissionId: admission.id,
-              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW),
+              state: toPrismaBillingReconciliationState(
+                RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+              ),
               provider: admission.resolvedProvider,
               providerCorrelationId: admission.invocationId,
-              auditRationale: "Customer admission lacking walletId during settlement; routed to integrity review",
+              auditRationale:
+                "Customer admission lacking walletId during settlement; routed to integrity review",
             },
             update: {
-              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW),
-              auditRationale: "Customer admission lacking walletId during settlement; routed to integrity review",
+              state: toPrismaBillingReconciliationState(
+                RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+              ),
+              auditRationale:
+                "Customer admission lacking walletId during settlement; routed to integrity review",
             },
           });
           return {
             failClosedIntegrityReview: true,
-            reason: "Customer admission lacking walletId during settlement; routed to integrity review",
+            reason:
+              "Customer admission lacking walletId during settlement; routed to integrity review",
           };
         }
 
@@ -329,7 +342,9 @@ export class SettleBillableInvocationUsageHandler
           await tx.billableInvocationAdmission.update({
             where: { id: admission.id },
             data: {
-              state: toPrismaAdmissionState(ADMISSION_STATES.BILLING_INTEGRITY_REVIEW),
+              state: toPrismaAdmissionState(
+                ADMISSION_STATES.BILLING_INTEGRITY_REVIEW,
+              ),
               version: { increment: 1 },
             },
           });
@@ -340,24 +355,34 @@ export class SettleBillableInvocationUsageHandler
               caseId: `recon-${admission.invocationId}`,
               invocationId: admission.invocationId,
               admissionId: admission.id,
-              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW),
+              state: toPrismaBillingReconciliationState(
+                RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+              ),
               provider: admission.resolvedProvider,
               providerCorrelationId: admission.invocationId,
-              auditRationale: "Customer wallet not found under FOR UPDATE lock during settlement; routed to integrity review",
+              auditRationale:
+                "Customer wallet not found under FOR UPDATE lock during settlement; routed to integrity review",
             },
             update: {
-              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW),
-              auditRationale: "Customer wallet not found under FOR UPDATE lock during settlement; routed to integrity review",
+              state: toPrismaBillingReconciliationState(
+                RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+              ),
+              auditRationale:
+                "Customer wallet not found under FOR UPDATE lock during settlement; routed to integrity review",
             },
           });
           return {
             failClosedIntegrityReview: true,
-            reason: "Customer wallet not found under FOR UPDATE lock during settlement; routed to integrity review",
+            reason:
+              "Customer wallet not found under FOR UPDATE lock during settlement; routed to integrity review",
           };
         }
 
         lockedWallet = foundWallet;
-      } else if (admission.fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED) {
+      } else if (
+        admission.fundingPrincipal ===
+        ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED
+      ) {
         // Platform sponsorship aggregate lock
         await tx.$executeRaw`
           SELECT pg_advisory_xact_lock(hashtext('lcsp:platform-sponsorship'), hashtext(${admission.logicalOperationId}));
@@ -397,14 +422,18 @@ export class SettleBillableInvocationUsageHandler
 
         if (existingReceipt) {
           // Idempotent retry: matching settlement fingerprint returns previous result
-          if (existingReceipt.settlementIdempotencyKey === settlementFingerprint) {
+          if (
+            existingReceipt.settlementIdempotencyKey === settlementFingerprint
+          ) {
             return {
               settled: true,
               state: ADMISSION_STATES.SETTLED,
               rolloutMode: admission.rolloutMode,
               debitMode,
-              calculatedMicrocredits: existingReceipt.calculatedMicrocredits.toString(),
-              debitedMicrocredits: existingReceipt.debitedMicrocredits.toString(),
+              calculatedMicrocredits:
+                existingReceipt.calculatedMicrocredits.toString(),
+              debitedMicrocredits:
+                existingReceipt.debitedMicrocredits.toString(),
               shadowMicrocredits: existingReceipt.shadowMicrocredits
                 ? existingReceipt.shadowMicrocredits.toString()
                 : null,
@@ -428,7 +457,9 @@ export class SettleBillableInvocationUsageHandler
       }
 
       // Branch A: COMPLETED -> Confirmed usage settlement
-      if (payload.providerCompletionState === PROVIDER_COMPLETION_STATES.COMPLETED) {
+      if (
+        payload.providerCompletionState === PROVIDER_COMPLETION_STATES.COMPLETED
+      ) {
         // Invariant: Mandatory usage evidence check.
         // A COMPLETED claim without explicit inputTokens and outputTokens cannot be accepted as confirmed usage.
         // Missing token evidence must NOT transition to SETTLED or release the concurrency slot.
@@ -489,14 +520,17 @@ export class SettleBillableInvocationUsageHandler
             rates = {
               input: tariff.inputMicrocreditsPerMillion,
               output: tariff.outputMicrocreditsPerMillion,
-              reasoningPolicy: tariff.reasoningPolicy as TokenBucketPolicy,
+              reasoningPolicy: tariff.reasoningPolicy,
               reasoning: tariff.reasoningMicrocreditsPerMillion ?? undefined,
-              cachedInputPolicy: tariff.cachedInputPolicy as TokenBucketPolicy,
-              cachedInput: tariff.cachedInputMicrocreditsPerMillion ?? undefined,
-              cacheWritePolicy: tariff.cacheWritePolicy as TokenBucketPolicy,
+              cachedInputPolicy: tariff.cachedInputPolicy,
+              cachedInput:
+                tariff.cachedInputMicrocreditsPerMillion ?? undefined,
+              cacheWritePolicy: tariff.cacheWritePolicy,
               cacheWrite: tariff.cacheWriteMicrocreditsPerMillion ?? undefined,
-              cacheWrite5m: tariff.cacheWrite5mMicrocreditsPerMillion ?? undefined,
-              cacheWrite1h: tariff.cacheWrite1hMicrocreditsPerMillion ?? undefined,
+              cacheWrite5m:
+                tariff.cacheWrite5mMicrocreditsPerMillion ?? undefined,
+              cacheWrite1h:
+                tariff.cacheWrite1hMicrocreditsPerMillion ?? undefined,
             };
           }
         } else if (admission.sponsorshipPolicySnapshotId) {
@@ -579,15 +613,18 @@ export class SettleBillableInvocationUsageHandler
           inputTokens: BigInt(payload.inputTokens!),
           outputTokens: BigInt(payload.outputTokens!),
           cachedInputTokens:
-            payload.cachedInputTokens !== undefined && payload.cachedInputTokens !== null
+            payload.cachedInputTokens !== undefined &&
+            payload.cachedInputTokens !== null
               ? BigInt(payload.cachedInputTokens)
               : undefined,
           cacheWriteTokens:
-            payload.cacheWriteTokens !== undefined && payload.cacheWriteTokens !== null
+            payload.cacheWriteTokens !== undefined &&
+            payload.cacheWriteTokens !== null
               ? BigInt(payload.cacheWriteTokens)
               : undefined,
           reasoningTokens:
-            payload.reasoningTokens !== undefined && payload.reasoningTokens !== null
+            payload.reasoningTokens !== undefined &&
+            payload.reasoningTokens !== null
               ? BigInt(payload.reasoningTokens)
               : undefined,
         };
@@ -621,7 +658,8 @@ export class SettleBillableInvocationUsageHandler
               conflictingPayload: {
                 reason: "EXCESSIVE_USAGE_BEYOND_ADMITTED_EXPOSURE",
                 calculatedMicrocredits: calculatedMicrocredits.toString(),
-                maximumExposureMicrocredits: admission.maximumExposureMicrocredits.toString(),
+                maximumExposureMicrocredits:
+                  admission.maximumExposureMicrocredits.toString(),
                 reportedAttemptOrdinal: payload.attemptOrdinal,
                 providerCompletionState: payload.providerCompletionState,
                 inputTokens: payload.inputTokens,
@@ -640,7 +678,8 @@ export class SettleBillableInvocationUsageHandler
               conflictingPayload: {
                 reason: "EXCESSIVE_USAGE_BEYOND_ADMITTED_EXPOSURE",
                 calculatedMicrocredits: calculatedMicrocredits.toString(),
-                maximumExposureMicrocredits: admission.maximumExposureMicrocredits.toString(),
+                maximumExposureMicrocredits:
+                  admission.maximumExposureMicrocredits.toString(),
                 reportedAttemptOrdinal: payload.attemptOrdinal,
                 providerCompletionState: payload.providerCompletionState,
                 inputTokens: payload.inputTokens,
@@ -674,7 +713,10 @@ export class SettleBillableInvocationUsageHandler
         let chargedMicrocredits = 0n;
         let shadowMicrocredits: bigint | null = null;
 
-        if (admission.fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED) {
+        if (
+          admission.fundingPrincipal ===
+          ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED
+        ) {
           // ADR-028 Line 140: Platform sponsored calls are never debited to customer wallets.
           // chargedMicrocredits reflects the actual customer debit (0), while calculatedMicrocredits reflects rate computation.
           debitedMicrocredits = 0n;
@@ -770,12 +812,24 @@ export class SettleBillableInvocationUsageHandler
             runtimePolicyVersion: admission.runtimePolicyVersion,
             durationMs: payload.durationMs ?? null,
             providerResponseId: payload.providerResponseId ?? null,
-            inputTokens: payload.inputTokens ? BigInt(payload.inputTokens) : null,
-            cachedInputTokens: payload.cachedInputTokens ? BigInt(payload.cachedInputTokens) : null,
-            cacheWriteTokens: payload.cacheWriteTokens ? BigInt(payload.cacheWriteTokens) : null,
-            outputTokens: payload.outputTokens ? BigInt(payload.outputTokens) : null,
-            reasoningTokens: payload.reasoningTokens ? BigInt(payload.reasoningTokens) : null,
-            totalTokens: payload.totalTokens ? BigInt(payload.totalTokens) : null,
+            inputTokens: payload.inputTokens
+              ? BigInt(payload.inputTokens)
+              : null,
+            cachedInputTokens: payload.cachedInputTokens
+              ? BigInt(payload.cachedInputTokens)
+              : null,
+            cacheWriteTokens: payload.cacheWriteTokens
+              ? BigInt(payload.cacheWriteTokens)
+              : null,
+            outputTokens: payload.outputTokens
+              ? BigInt(payload.outputTokens)
+              : null,
+            reasoningTokens: payload.reasoningTokens
+              ? BigInt(payload.reasoningTokens)
+              : null,
+            totalTokens: payload.totalTokens
+              ? BigInt(payload.totalTokens)
+              : null,
             calculatedMicrocredits,
             debitedMicrocredits,
             shadowMicrocredits,
@@ -814,7 +868,9 @@ export class SettleBillableInvocationUsageHandler
             eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled,
             actorId: admission.userId ?? null,
             correlationId,
-            resourceType: toPrismaAuditResourceType(AUDIT_RESOURCE_TYPES.httpRoute),
+            resourceType: toPrismaAuditResourceType(
+              AUDIT_RESOURCE_TYPES.httpRoute,
+            ),
             resourceId: admission.id,
             decision: toPrismaAuthDecision(AUDIT_DECISIONS.allow),
             payload: {
@@ -845,9 +901,7 @@ export class SettleBillableInvocationUsageHandler
           calculatedMicrocredits: calculatedMicrocredits.toString(),
           debitedMicrocredits: debitedMicrocredits.toString(),
           shadowMicrocredits:
-            shadowMicrocredits !== null
-              ? shadowMicrocredits.toString()
-              : null,
+            shadowMicrocredits !== null ? shadowMicrocredits.toString() : null,
           chargedMicrocredits: chargedMicrocredits.toString(),
           slotReleased: true,
           settledAt: now.toISOString(),
@@ -855,7 +909,9 @@ export class SettleBillableInvocationUsageHandler
       }
 
       // Branch B: FAILED / Worker abort claim
-      if (payload.providerCompletionState === PROVIDER_COMPLETION_STATES.FAILED) {
+      if (
+        payload.providerCompletionState === PROVIDER_COMPLETION_STATES.FAILED
+      ) {
         await tx.billableInvocationAdmission.update({
           where: { id: admission.id },
           data: {
@@ -937,12 +993,13 @@ export class SettleBillableInvocationUsageHandler
 
     // Why: When customer wallet is missing, the transition to BILLING_INTEGRITY_REVIEW and reconciliation case
     // are committed in the database transaction above. Now we reject the HTTP call with 422 Unprocessable Entity.
-    if ("failClosedIntegrityReview" in result && result.failClosedIntegrityReview) {
-      throw problemException(
-        BILLING_ERROR_CODES.notFound,
-        correlationId,
-        { status: HttpStatus.UNPROCESSABLE_ENTITY },
-      );
+    if (
+      "failClosedIntegrityReview" in result &&
+      result.failClosedIntegrityReview
+    ) {
+      throw problemException(BILLING_ERROR_CODES.notFound, correlationId, {
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+      });
     }
 
     if ("raceConflict" in result && result.raceConflict) {

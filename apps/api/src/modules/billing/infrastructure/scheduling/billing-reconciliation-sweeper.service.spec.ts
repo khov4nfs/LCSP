@@ -10,11 +10,13 @@ describe("BillingReconciliationSweeperService", () => {
       execute: jest.fn<CommandBus["execute"]>().mockResolvedValue({
         sweptCount: 0,
         reconciliationCasesOpened: 0,
-      } as never),
+      }),
     } as unknown as CommandBus;
 
     const mockConfigService = {
-      get: jest.fn<(key: string, defaultValue?: unknown) => unknown>((key, def) => def),
+      get: jest.fn<(key: string, defaultValue?: unknown) => unknown>(
+        (key, def) => def,
+      ),
     } as unknown as ConfigService;
 
     const setIntervalSpy = jest.spyOn(globalThis, "setInterval");
@@ -37,11 +39,13 @@ describe("BillingReconciliationSweeperService", () => {
       execute: jest.fn<CommandBus["execute"]>().mockResolvedValue({
         sweptCount: 2,
         reconciliationCasesOpened: 2,
-      } as never),
+      }),
     } as unknown as CommandBus;
 
     const mockConfigService = {
-      get: jest.fn<(key: string, defaultValue?: unknown) => unknown>((key, def) => def),
+      get: jest.fn<(key: string, defaultValue?: unknown) => unknown>(
+        (key, def) => def,
+      ),
     } as unknown as ConfigService;
 
     const service = new BillingReconciliationSweeperService(

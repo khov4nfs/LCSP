@@ -6,24 +6,21 @@ describe("ASM-PRICING-01..04: Direct-Credit Model Pricing RED Contracts", () => 
     const contracts = billingContracts as Record<string, unknown>;
 
     const scopes = contracts.MODEL_PRICING_SCOPES as
-      | Record<string, string>
-      | undefined;
+      Record<string, string> | undefined;
     expect(scopes).toBeDefined();
     expect(scopes?.exactModel).toBe("EXACT_MODEL");
     expect(scopes?.providerDefault).toBe("PROVIDER_DEFAULT");
     expect(scopes?.globalDefault).toBe("GLOBAL_DEFAULT");
 
     const assignmentStatuses = contracts.PRICING_ASSIGNMENT_STATUSES as
-      | Record<string, string>
-      | undefined;
+      Record<string, string> | undefined;
     expect(assignmentStatuses).toBeDefined();
     expect(assignmentStatuses?.scheduled).toBe("SCHEDULED");
     expect(assignmentStatuses?.active).toBe("ACTIVE");
     expect(assignmentStatuses?.superseded).toBe("SUPERSEDED");
 
     const bucketPolicies = contracts.TOKEN_BUCKET_POLICIES as
-      | Record<string, string>
-      | undefined;
+      Record<string, string> | undefined;
     expect(bucketPolicies).toBeDefined();
     expect(bucketPolicies?.separateRate).toBe("SEPARATE_RATE");
     expect(bucketPolicies?.useOutputRate).toBe("USE_OUTPUT_RATE");
@@ -35,7 +32,11 @@ describe("ASM-PRICING-01..04: Direct-Credit Model Pricing RED Contracts", () => 
     const contracts = billingContracts as Record<string, unknown>;
     const calculateMicrocreditCharge = contracts.calculateMicrocreditCharge as
       | ((input: {
-          usage: { inputTokens: bigint; outputTokens: bigint; reasoningTokens?: bigint };
+          usage: {
+            inputTokens: bigint;
+            outputTokens: bigint;
+            reasoningTokens?: bigint;
+          };
           ratesMicrocreditsPerMillion: {
             input: bigint;
             output: bigint;
@@ -76,14 +77,15 @@ describe("ASM-PRICING-01..04: Direct-Credit Model Pricing RED Contracts", () => 
 
   it("ASM-PRICING-02 & ASM-PRICING-04: pricing resolution selects EXACT_MODEL -> PROVIDER_DEFAULT -> GLOBAL_DEFAULT and rejects non-allowlisted models", () => {
     const contracts = billingContracts as Record<string, unknown>;
-    const resolveEffectivePricingScope = contracts.resolveEffectivePricingScope as
-      | ((input: {
-          resolvedModel: string;
-          provider: string;
-          allowlistedModels: readonly string[];
-          availableScopes: readonly string[];
-        }) => { scope: string })
-      | undefined;
+    const resolveEffectivePricingScope =
+      contracts.resolveEffectivePricingScope as
+        | ((input: {
+            resolvedModel: string;
+            provider: string;
+            allowlistedModels: readonly string[];
+            availableScopes: readonly string[];
+          }) => { scope: string })
+        | undefined;
 
     expect(typeof resolveEffectivePricingScope).toBe("function");
 

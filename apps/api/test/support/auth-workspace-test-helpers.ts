@@ -63,7 +63,9 @@ export function assertDedicatedTestDatabaseUrl(urlStr: string): string {
     parsed = new URL(urlStr);
   } catch {
     // Rationale ("Why"): Never interpolate urlStr into the error message to avoid leaking database passwords or credentials to logs.
-    throw new Error("Invalid DATABASE_URL provided for test execution (URL parse error)");
+    throw new Error(
+      "Invalid DATABASE_URL provided for test execution (URL parse error)",
+    );
   }
 
   const hostname = parsed.hostname.toLowerCase();

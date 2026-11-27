@@ -26,9 +26,10 @@ const UUID_REGEX =
 
 @Injectable()
 @CommandHandler(ConsumeBillableInvocationAdmissionCommand)
-export class ConsumeBillableInvocationAdmissionHandler
-  implements ICommandHandler<ConsumeBillableInvocationAdmissionCommand, ConsumeAdmissionExecutionResult>
-{
+export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandler<
+  ConsumeBillableInvocationAdmissionCommand,
+  ConsumeAdmissionExecutionResult
+> {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(MODEL_PRICING_REPOSITORY)
@@ -255,7 +256,9 @@ export class ConsumeBillableInvocationAdmissionHandler
             // Capture actual DB wall-clock time after acquiring AssessmentDiscoveryRun lock
             // Why: If consume had to wait for a concurrent lock on AssessmentDiscoveryRun, time advanced during this second wait.
             // How: Sample clock_timestamp() immediately after acquiring the discovery run lock.
-            const [postDiscoveryLockTime] = await tx.$queryRaw<Array<{ now: Date }>>`
+            const [postDiscoveryLockTime] = await tx.$queryRaw<
+              Array<{ now: Date }>
+            >`
               SELECT clock_timestamp() as now;
             `;
             finalUtcNow = postDiscoveryLockTime?.now ?? finalUtcNow;
@@ -330,7 +333,10 @@ export class ConsumeBillableInvocationAdmissionHandler
 
       // Re-verify approved execution lease deadline against finalUtcNow immediately before state transition
       // Why: Ensure lease has not expired by the millisecond preceding the state transition.
-      if (approvedDeadline && approvedDeadline.getTime() <= finalUtcNow.getTime()) {
+      if (
+        approvedDeadline &&
+        approvedDeadline.getTime() <= finalUtcNow.getTime()
+      ) {
         throw problemException(
           BILLING_ERROR_CODES.admissionContextMismatch,
           correlationId,
@@ -375,6 +381,6 @@ export class ConsumeBillableInvocationAdmissionHandler
       );
     }
 
-    return result.data!;
+    return result.data;
   }
 }

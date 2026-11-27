@@ -31,14 +31,18 @@ describe("assertDedicatedTestDatabaseUrl Guard", () => {
         assertDedicatedTestDatabaseUrl(
           "postgresql://postgres:postgres@127.0.0.1:5432/lcsp_local",
         ),
-      ).toThrow(/Safety guard: (Database name.*targets a local\/development\/production database|LCSP_TEST_POSTGRES_DB=.*cannot target local\/dev\/prod databases)/);
+      ).toThrow(
+        /Safety guard: (Database name.*targets a local\/development\/production database|LCSP_TEST_POSTGRES_DB=.*cannot target local\/dev\/prod databases)/,
+      );
 
       // Even with LCSP_TEST_POSTGRES_DB set to a forbidden name, other forbidden DBs fail
       expect(() =>
         assertDedicatedTestDatabaseUrl(
           "postgresql://postgres:postgres@127.0.0.1:5432/lcsp_dev",
         ),
-      ).toThrow(/Safety guard: (Database name.*targets a local\/development\/production database|LCSP_TEST_POSTGRES_DB=.*cannot target local\/dev\/prod databases)/);
+      ).toThrow(
+        /Safety guard: (Database name.*targets a local\/development\/production database|LCSP_TEST_POSTGRES_DB=.*cannot target local\/dev\/prod databases)/,
+      );
     } finally {
       if (originalEnv === undefined) {
         delete process.env.LCSP_TEST_POSTGRES_DB;
@@ -56,7 +60,9 @@ describe("assertDedicatedTestDatabaseUrl Guard", () => {
         assertDedicatedTestDatabaseUrl(
           "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public",
         ),
-      ).toThrow(/LCSP_TEST_POSTGRES_DB.*is invalid.*must end with '_test' or '_e2e'/);
+      ).toThrow(
+        /LCSP_TEST_POSTGRES_DB.*is invalid.*must end with '_test' or '_e2e'/,
+      );
     } finally {
       if (originalEnv === undefined) {
         delete process.env.LCSP_TEST_POSTGRES_DB;
@@ -85,19 +91,25 @@ describe("assertDedicatedTestDatabaseUrl Guard", () => {
       assertDedicatedTestDatabaseUrl(
         "postgresql://postgres:postgres@127.0.0.1:5432/somedb",
       ),
-    ).toThrow(/Safety guard: Test database name must end with '_test' or '_e2e'/);
+    ).toThrow(
+      /Safety guard: Test database name must end with '_test' or '_e2e'/,
+    );
 
     expect(() =>
       assertDedicatedTestDatabaseUrl(
         "postgresql://postgres:postgres@localhost:5432/analytics_warehouse",
       ),
-    ).toThrow(/Safety guard: Test database name must end with '_test' or '_e2e'/);
+    ).toThrow(
+      /Safety guard: Test database name must end with '_test' or '_e2e'/,
+    );
   });
 
   it("rejects malformed database URLs without leaking credentials in error message", () => {
     let thrownError: Error | null = null;
     try {
-      assertDedicatedTestDatabaseUrl("postgresql://user:super_secret_password@malformed-url:9999999");
+      assertDedicatedTestDatabaseUrl(
+        "postgresql://user:super_secret_password@malformed-url:9999999",
+      );
     } catch (err) {
       thrownError = err as Error;
     }

@@ -34,10 +34,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import {
-  AUTH_ERROR_CODES,
-  AUTH_USER_ROLES,
-} from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ADMISSION_STATES,
   BILLING_ACTIONS,
@@ -48,9 +45,7 @@ import {
   type CompensateBillingDebitRequest,
   type CompensateBillingDebitResponse,
 } from "@lcsp/contracts/billing";
-import {
-  OUTBOX_AGGREGATE_TYPES,
-} from "@lcsp/contracts/outbox";
+import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 
 import { AppModule } from "../src/app.module.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
@@ -173,7 +168,8 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       email: "manager@acme.test",
       password: "CorrectHorseBatteryStaple!",
     });
-    customerToken = successBody<SignInSuccess>(customerSignIn).session_token ?? "";
+    customerToken =
+      successBody<SignInSuccess>(customerSignIn).session_token ?? "";
 
     // Create wallet with initial 100,000,000 microcredits (100 credits)
     const wallet = await prisma.billingWallet.create({
@@ -275,7 +271,8 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       where: { id: customerWalletId },
       data: {
         balanceMicrocredits: updatedBalance,
-        availableCredits: updatedBalance > 0n ? updatedBalance / 1_000_000n : 0n,
+        availableCredits:
+          updatedBalance > 0n ? updatedBalance / 1_000_000n : 0n,
         version: 2,
       },
     });
@@ -302,7 +299,11 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       .set("Authorization", `Bearer ${adminToken}`)
       .send(maliciousPayload);
 
-    assert.equal(res.status, 400, "Must reject unknown client-injected fields with 400 Bad Request");
+    assert.equal(
+      res.status,
+      400,
+      "Must reject unknown client-injected fields with 400 Bad Request",
+    );
     assert.equal(problemBody(res).code, BILLING_ERROR_CODES.validationFailed);
   });
 
@@ -321,7 +322,11 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       .post("/admin/billing/compensate")
       .set("Authorization", `Bearer ${customerToken}`)
       .send(payload);
-    assert.equal(customerRes.status, 403, "Customer user must receive 403 Forbidden");
+    assert.equal(
+      customerRes.status,
+      403,
+      "Customer user must receive 403 Forbidden",
+    );
 
     // Worker internal key alone -> 401 Unauthorized (or 403 Forbidden if paired with non-admin session)
     const workerRes = await httpRequest(app)
@@ -339,7 +344,11 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       .set("Authorization", `Bearer ${customerToken}`)
       .set("x-worker-key", WORKER_TEST_API_KEY)
       .send(payload);
-    assert.equal(workerWithCustomerRes.status, 403, "Worker key with customer session must receive 403 Forbidden");
+    assert.equal(
+      workerWithCustomerRes.status,
+      403,
+      "Worker key with customer session must receive 403 Forbidden",
+    );
 
     // Admin without compensation action permission (holds goodwill credit only) -> 403 Forbidden
     // Rationale ("Why"): ADR-028 Line 173-174 mandates explicit compensation action permission;
@@ -363,13 +372,20 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       403,
       "Admin holding only goodwill credit permission must receive 403 Forbidden",
     );
-    assert.equal(problemBody(goodwillOnlyRes).code, AUTH_ERROR_CODES.rbacDenied);
+    assert.equal(
+      problemBody(goodwillOnlyRes).code,
+      AUTH_ERROR_CODES.rbacDenied,
+    );
 
     // Unauthenticated -> 401 Unauthorized
     const unauthRes = await httpRequest(app)
       .post("/admin/billing/compensate")
       .send(payload);
-    assert.equal(unauthRes.status, 401, "Unauthenticated request must receive 401 Unauthorized");
+    assert.equal(
+      unauthRes.status,
+      401,
+      "Unauthenticated request must receive 401 Unauthorized",
+    );
   });
 
   it("G07-RED-03: Rejects debit not eligible: missing admission, missing receipt, or user/wallet mismatch", async () => {
@@ -383,8 +399,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Compensation for ghost entry",
         idempotencyKey: "comp-idem-notfound",
       });
-    assert.equal(nonExistentRes.status, 404, "Must return 404 Not Found for non-existent debit");
-    assert.equal(problemBody(nonExistentRes).code, BILLING_ERROR_CODES.debitNotFound);
+    assert.equal(
+      nonExistentRes.status,
+      404,
+      "Must return 404 Not Found for non-existent debit",
+    );
+    assert.equal(
+      problemBody(nonExistentRes).code,
+      BILLING_ERROR_CODES.debitNotFound,
+    );
 
     // Subcase B: Referenced entry is BILLING_ORDER_CREDIT, not a debit
     const topupEntry = await prisma.creditLedgerEntry.create({
@@ -408,8 +431,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Invalid attempt to compensate a credit top-up",
         idempotencyKey: "comp-idem-nondebit",
       });
-    assert.equal(nonDebitRes.status, 422, "Must return 422 for non-debit entry");
-    assert.equal(problemBody(nonDebitRes).code, BILLING_ERROR_CODES.debitNotEligible);
+    assert.equal(
+      nonDebitRes.status,
+      422,
+      "Must return 422 for non-debit entry",
+    );
+    assert.equal(
+      problemBody(nonDebitRes).code,
+      BILLING_ERROR_CODES.debitNotEligible,
+    );
 
     // Subcase C: Debit has admissionId: null (orphaned debit without admission linkage)
     const orphanedDebit = await prisma.creditLedgerEntry.create({
@@ -434,40 +464,48 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Compensating orphaned debit",
         idempotencyKey: "comp-idem-orphaned",
       });
-    assert.equal(orphanedRes.status, 422, "Must return 422 for debit missing admission linkage");
-    assert.equal(problemBody(orphanedRes).code, BILLING_ERROR_CODES.debitNotEligible);
+    assert.equal(
+      orphanedRes.status,
+      422,
+      "Must return 422 for debit missing admission linkage",
+    );
+    assert.equal(
+      problemBody(orphanedRes).code,
+      BILLING_ERROR_CODES.debitNotEligible,
+    );
 
     // Subcase D: Debit has admissionId, but NO ModelUsageReceipt exists
-    const unreceiptedAdmission = await prisma.billableInvocationAdmission.create({
-      data: {
-        admissionRequestId: `req-${randomUUID()}`,
-        invocationId: `inv-unreceipted-${randomUUID()}`,
-        requestFingerprint: "b".repeat(64),
-        logicalOperationId: "op-comp-unreceipted",
-        attemptOrdinal: 1,
-        fundingPrincipal: "CUSTOMER_WALLET",
-        userId: customerUserId,
-        walletId: customerWalletId,
-        assessmentId,
-        runId: "run-comp-unreceipted",
-        agentRole: "assessment-root",
-        operationType: "SYNTHESIS",
-        requestedModel: "claude-3-5-sonnet",
-        resolvedProvider: "anthropic",
-        resolvedModel: "claude-3-5-sonnet",
-        runtimePolicyVersion: "v1",
-        rolloutMode: "DEBIT_ENABLED",
-        debitMode: "ON",
-        appliedMaxOutputTokens: 4096,
-        maximumExposureMicrocredits: 5_000_000n,
-        capabilityDigest: "c".repeat(64),
-        state: ADMISSION_STATES.ADMITTED,
-        admittedAt: new Date(Date.now() - 60_000),
-        expiresAt: new Date(Date.now() + 3600_000),
-        correlationId: `corr-unreceipted`,
-        version: 1,
-      },
-    });
+    const unreceiptedAdmission =
+      await prisma.billableInvocationAdmission.create({
+        data: {
+          admissionRequestId: `req-${randomUUID()}`,
+          invocationId: `inv-unreceipted-${randomUUID()}`,
+          requestFingerprint: "b".repeat(64),
+          logicalOperationId: "op-comp-unreceipted",
+          attemptOrdinal: 1,
+          fundingPrincipal: "CUSTOMER_WALLET",
+          userId: customerUserId,
+          walletId: customerWalletId,
+          assessmentId,
+          runId: "run-comp-unreceipted",
+          agentRole: "assessment-root",
+          operationType: "SYNTHESIS",
+          requestedModel: "claude-3-5-sonnet",
+          resolvedProvider: "anthropic",
+          resolvedModel: "claude-3-5-sonnet",
+          runtimePolicyVersion: "v1",
+          rolloutMode: "DEBIT_ENABLED",
+          debitMode: "ON",
+          appliedMaxOutputTokens: 4096,
+          maximumExposureMicrocredits: 5_000_000n,
+          capabilityDigest: "c".repeat(64),
+          state: ADMISSION_STATES.ADMITTED,
+          admittedAt: new Date(Date.now() - 60_000),
+          expiresAt: new Date(Date.now() + 3600_000),
+          correlationId: `corr-unreceipted`,
+          version: 1,
+        },
+      });
     const unreceiptedDebit = await prisma.creditLedgerEntry.create({
       data: {
         userId: customerUserId,
@@ -490,8 +528,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Compensating debit with missing usage receipt",
         idempotencyKey: "comp-idem-unreceipted",
       });
-    assert.equal(unreceiptedRes.status, 422, "Must return 422 for debit with missing ModelUsageReceipt");
-    assert.equal(problemBody(unreceiptedRes).code, BILLING_ERROR_CODES.debitNotEligible);
+    assert.equal(
+      unreceiptedRes.status,
+      422,
+      "Must return 422 for debit with missing ModelUsageReceipt",
+    );
+    assert.equal(
+      problemBody(unreceiptedRes).code,
+      BILLING_ERROR_CODES.debitNotEligible,
+    );
 
     // Subcase E: Debit linked to admission with debitMode: "OFF" (invalid debit authority)
     // Rationale ("Why"): A debit labeled MODEL_USAGE_DEBIT but associated with an admission
@@ -565,8 +610,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Compensating debit with admission debitMode OFF",
         idempotencyKey: "comp-idem-off",
       });
-    assert.equal(offRes.status, 422, "Must return 422 for debit with admission debitMode OFF");
-    assert.equal(problemBody(offRes).code, BILLING_ERROR_CODES.debitNotEligible);
+    assert.equal(
+      offRes.status,
+      422,
+      "Must return 422 for debit with admission debitMode OFF",
+    );
+    assert.equal(
+      problemBody(offRes).code,
+      BILLING_ERROR_CODES.debitNotEligible,
+    );
 
     // Subcase F: ModelUsageReceipt debitedMicrocredits does not match ledger deltaMicrocredits
     // Rationale ("Why"): Prevents compensating unverified or tampered debits where ledger and receipt diverge.
@@ -639,8 +691,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Compensating debit with receipt amount mismatch",
         idempotencyKey: "comp-idem-mismatch",
       });
-    assert.equal(mismatchRes.status, 422, "Must return 422 for debit with receipt amount mismatch");
-    assert.equal(problemBody(mismatchRes).code, BILLING_ERROR_CODES.debitNotEligible);
+    assert.equal(
+      mismatchRes.status,
+      422,
+      "Must return 422 for debit with receipt amount mismatch",
+    );
+    assert.equal(
+      problemBody(mismatchRes).code,
+      BILLING_ERROR_CODES.debitNotEligible,
+    );
   });
 
   it("G07-RED-04: Links compensation to eligible debit, updates wallet, and increments version", async () => {
@@ -668,7 +727,11 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
       .set("Authorization", `Bearer ${adminToken}`)
       .send(compensationRequest);
 
-    assert.equal(res.status, 200, `Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
+    assert.equal(
+      res.status,
+      200,
+      `Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`,
+    );
     const data = successBody<CompensateBillingDebitResponse>(res);
 
     assert.equal(data.compensated, true);
@@ -686,7 +749,10 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
     });
     assert.ok(persistedEntry, "Compensation ledger entry must exist in DB");
     assert.equal(persistedEntry.source, CREDIT_LEDGER_SOURCES.COMPENSATION);
-    assert.equal(persistedEntry.ledgerSource, CREDIT_LEDGER_SOURCES.COMPENSATION as any);
+    assert.equal(
+      persistedEntry.ledgerSource,
+      CREDIT_LEDGER_SOURCES.COMPENSATION as any,
+    );
     assert.equal(persistedEntry.originalLedgerEntryId, debitEntry.id);
     assert.equal(persistedEntry.deltaMicrocredits, 4_000_000n);
     assert.equal(persistedEntry.deltaCredits, 4n);
@@ -771,8 +837,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         reason: "Excessive compensation attempt",
         idempotencyKey: "comp-bounds-excess",
       });
-    assert.equal(step2Res.status, 422, "Must reject compensation exceeding remaining balance");
-    assert.equal(problemBody(step2Res).code, BILLING_ERROR_CODES.compensationLimitExceeded);
+    assert.equal(
+      step2Res.status,
+      422,
+      "Must reject compensation exceeding remaining balance",
+    );
+    assert.equal(
+      problemBody(step2Res).code,
+      BILLING_ERROR_CODES.compensationLimitExceeded,
+    );
 
     // Step 3: Compensate exact remaining 3,000,000 microcredits (succeeds, remaining = 0)
     const step3Res = await httpRequest(app)
@@ -800,7 +873,10 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         idempotencyKey: "comp-bounds-post",
       });
     assert.equal(step4Res.status, 422);
-    assert.equal(problemBody(step4Res).code, BILLING_ERROR_CODES.compensationLimitExceeded);
+    assert.equal(
+      problemBody(step4Res).code,
+      BILLING_ERROR_CODES.compensationLimitExceeded,
+    );
   });
 
   it("G07-RED-07: Idempotent replay returns existing result; conflicting replay returns 409", async () => {
@@ -829,7 +905,10 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
     assert.equal(replayRes.status, 200);
     const replayData = successBody<CompensateBillingDebitResponse>(replayRes);
     assert.equal(replayData.ledgerEntryId, firstData.ledgerEntryId);
-    assert.equal(replayData.walletBalanceMicrocredits, firstData.walletBalanceMicrocredits);
+    assert.equal(
+      replayData.walletBalanceMicrocredits,
+      firstData.walletBalanceMicrocredits,
+    );
 
     // Verify DB contains exactly 1 compensation entry (no duplicate credit)
     const count = await prisma.creditLedgerEntry.count({
@@ -838,7 +917,11 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         source: CREDIT_LEDGER_SOURCES.COMPENSATION,
       },
     });
-    assert.equal(count, 1, "Must not create duplicate ledger entries on idempotent replay");
+    assert.equal(
+      count,
+      1,
+      "Must not create duplicate ledger entries on idempotent replay",
+    );
 
     // Conflicting replay with same idempotencyKey but different amount
     const conflictRes = await httpRequest(app)
@@ -848,8 +931,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         ...payload,
         amountMicrocredits: "2000000", // changed amount
       });
-    assert.equal(conflictRes.status, 409, "Must return 409 Conflict when idempotency payload conflicts");
-    assert.equal(problemBody(conflictRes).code, BILLING_ERROR_CODES.idempotencyConflict);
+    assert.equal(
+      conflictRes.status,
+      409,
+      "Must return 409 Conflict when idempotency payload conflicts",
+    );
+    assert.equal(
+      problemBody(conflictRes).code,
+      BILLING_ERROR_CODES.idempotencyConflict,
+    );
   });
 
   it("G07-RED-08: Concurrency serialization prevents two simultaneous requests from exceeding bounds", async () => {
@@ -901,7 +991,10 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
     );
 
     const failedRes = resA.status === 422 ? resA : resB;
-    assert.equal(problemBody(failedRes).code, BILLING_ERROR_CODES.compensationLimitExceeded);
+    assert.equal(
+      problemBody(failedRes).code,
+      BILLING_ERROR_CODES.compensationLimitExceeded,
+    );
 
     // Verify DB cumulative sum equals exactly 5,000,000 (prior) + 4,000,000 (winner) = 9,000,000 <= 10,000,000
     const compensations = await prisma.creditLedgerEntry.findMany({
@@ -910,8 +1003,15 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         source: CREDIT_LEDGER_SOURCES.COMPENSATION,
       },
     });
-    const totalCompensated = compensations.reduce((sum, e) => sum + (e.deltaMicrocredits ?? 0n), 0n);
-    assert.equal(totalCompensated, 9_000_000n, "Cumulative compensation must never exceed original debit");
+    const totalCompensated = compensations.reduce(
+      (sum, e) => sum + (e.deltaMicrocredits ?? 0n),
+      0n,
+    );
+    assert.equal(
+      totalCompensated,
+      9_000_000n,
+      "Cumulative compensation must never exceed original debit",
+    );
   });
 
   it("G07-RED-09: Atomic 4-record commit (Ledger, Wallet, Audit, Outbox) and midway rollback", async () => {
@@ -949,7 +1049,10 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         eventType: BILLING_AUDIT_EVENT_TYPES.compensationIssued,
       },
     });
-    assert.ok(outboxMessage, "OutboxMessage must be created in the same transaction");
+    assert.ok(
+      outboxMessage,
+      "OutboxMessage must be created in the same transaction",
+    );
 
     // 2. Simulated failure midway via correlationId: 'fail-atomic-compensation'
     const walletBeforeFail = await prisma.billingWallet.findUniqueOrThrow({
@@ -968,13 +1071,20 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         idempotencyKey: "comp-atomic-failure",
       });
 
-    assert.notEqual(failedRes.status, 200, "Midway failure must not return 200 OK");
+    assert.notEqual(
+      failedRes.status,
+      200,
+      "Midway failure must not return 200 OK",
+    );
 
     // Verify wallet was NOT mutated
     const walletAfterFail = await prisma.billingWallet.findUniqueOrThrow({
       where: { id: customerWalletId },
     });
-    assert.equal(walletAfterFail.balanceMicrocredits, walletBeforeFail.balanceMicrocredits);
+    assert.equal(
+      walletAfterFail.balanceMicrocredits,
+      walletBeforeFail.balanceMicrocredits,
+    );
     assert.equal(walletAfterFail.version, walletBeforeFail.version);
 
     // Verify NO new CreditLedgerEntry was created
@@ -983,7 +1093,11 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
   });
 
   it("G07-RED-10: Operates with MODEL_USAGE_DEBIT=OFF and PROVIDER_RECONCILIATION_AUTOMATED_RELEASE=OFF", () => {
-    assert.equal(process.env.MODEL_USAGE_DEBIT, "OFF", "MODEL_USAGE_DEBIT must remain OFF");
+    assert.equal(
+      process.env.MODEL_USAGE_DEBIT,
+      "OFF",
+      "MODEL_USAGE_DEBIT must remain OFF",
+    );
     assert.equal(
       process.env.PROVIDER_RECONCILIATION_AUTOMATED_RELEASE,
       "OFF",

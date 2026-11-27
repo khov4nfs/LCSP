@@ -423,7 +423,8 @@ export class AssessmentRuntimeControlService {
       const requestId = randomUUID();
 
       if (!stop) {
-        const assessment = preloadedAssessment ?? (await loadAssessmentWithPins());
+        const assessment =
+          preloadedAssessment ?? (await loadAssessmentWithPins());
         const pins = assessment.domainCase;
         const snapshot = pins?.repositorySnapshotId
           ? await tx.repositorySnapshot.findUnique({

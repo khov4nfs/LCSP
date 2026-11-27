@@ -47,7 +47,8 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
 
   it("ASM-BUDGET-05: shared contracts expose ASSESSMENT_BUDGET_EXTENSION_SOURCES with ADMIN_OVERRIDE and SYSTEM_COMPENSATION only (no PAYMENT)", () => {
     const sources = (evidenceContracts as Record<string, unknown>)
-      .ASSESSMENT_BUDGET_EXTENSION_SOURCES as Record<string, string> | undefined;
+      .ASSESSMENT_BUDGET_EXTENSION_SOURCES as
+      Record<string, string> | undefined;
 
     expect(sources).toBeDefined();
     expect(sources?.adminOverride).toBe("ADMIN_OVERRIDE");
@@ -138,8 +139,8 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
     };
 
     const prismaMock = {
-      $transaction: jest.fn(async (cb: (tx: typeof txMock) => Promise<unknown>) =>
-        cb(txMock),
+      $transaction: jest.fn(
+        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
       ),
     };
 
@@ -215,9 +216,7 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
     ) as Array<{ name: string; value: string }> | undefined;
     expect(headersMeta).toBeDefined();
     expect(
-      headersMeta?.some(
-        (h) => h.name === "Deprecation" && h.value === "true",
-      ),
+      headersMeta?.some((h) => h.name === "Deprecation" && h.value === "true"),
     ).toBe(true);
   });
 });

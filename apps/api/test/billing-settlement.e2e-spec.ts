@@ -266,12 +266,18 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(payload);
 
-    assert.equal(res.status, 201, `Failed to request admission: ${JSON.stringify(res.body)}`);
+    assert.equal(
+      res.status,
+      201,
+      `Failed to request admission: ${JSON.stringify(res.body)}`,
+    );
     return successBody<BillableInvocationAdmissionResponse>(res);
   }
 
   // Helper to consume ADMITTED invocation to IN_FLIGHT
-  async function consumeAdmissionHelper(admission: BillableInvocationAdmissionResponse): Promise<void> {
+  async function consumeAdmissionHelper(
+    admission: BillableInvocationAdmissionResponse,
+  ): Promise<void> {
     const consumePayload: BillableInvocationAdmissionConsume = {
       admissionId: admission.admissionId,
       invocationId: admission.invocationId,
@@ -283,14 +289,20 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(consumePayload);
 
-    assert.equal(res.status, 200, `Failed to consume admission: ${JSON.stringify(res.body)}`);
+    assert.equal(
+      res.status,
+      200,
+      `Failed to consume admission: ${JSON.stringify(res.body)}`,
+    );
   }
 
   // -------------------------------------------------------------------------
   // RED Test 1: Schema & Field Isolation on ModelUsageReceipt
   // -------------------------------------------------------------------------
   it("RED Test 1: enforces ModelUsageReceipt financial field isolation (calculated, debited=0, shadow, charged=0)", async () => {
-    const admission = await requestAdmissionHelper("req-settle-field-isolation");
+    const admission = await requestAdmissionHelper(
+      "req-settle-field-isolation",
+    );
     await consumeAdmissionHelper(admission);
 
     // 10,000 input tokens * 3 = 30,000 microcredits
@@ -314,7 +326,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(settlePayload);
 
-    assert.equal(res.status, 200, `Expected 200 from settlement, got ${res.status}`);
+    assert.equal(
+      res.status,
+      200,
+      `Expected 200 from settlement, got ${res.status}`,
+    );
     const body = successBody<BillableInvocationSettlementResponse>(res);
 
     assert.equal(body.settled, true);
@@ -341,7 +357,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         admissionId: admission.admissionId,
       },
     });
-    assert.equal(ledgerDebits, 0, "No financial debit ledger entries must be created in SHADOW mode");
+    assert.equal(
+      ledgerDebits,
+      0,
+      "No financial debit ledger entries must be created in SHADOW mode",
+    );
 
     // Verify customer wallet balance is 100% untouched
     const wallet = await prisma.billingWallet.findUnique({
@@ -374,7 +394,8 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .send(settlePayload);
 
     assert.equal(settleRes.status, 200);
-    const settleData = successBody<BillableInvocationSettlementResponse>(settleRes);
+    const settleData =
+      successBody<BillableInvocationSettlementResponse>(settleRes);
     assert.equal(settleData.state, ADMISSION_STATES.SETTLED);
     assert.equal(settleData.slotReleased, true);
 
@@ -385,12 +406,17 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled,
       },
     });
-    assert.ok(audit, "AuditEvent for usage settlement must be persisted in database");
+    assert.ok(
+      audit,
+      "AuditEvent for usage settlement must be persisted in database",
+    );
     assert.equal(audit.eventType, BILLING_AUDIT_EVENT_TYPES.usageSettled);
     assert.equal((audit.payload as any).calculatedMicrocredits, "22500");
 
     // Concurrency slot must now be FREE: next request on same wallet must succeed
-    const nextAdmission = await requestAdmissionHelper("req-settle-next-slot-available");
+    const nextAdmission = await requestAdmissionHelper(
+      "req-settle-next-slot-available",
+    );
     assert.equal(nextAdmission.state, ADMISSION_STATES.ADMITTED);
   });
 
@@ -464,7 +490,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     // Numerator = 10,000 * 3M + 2,000 * 15M + 4,000 * 0.6M + 500 * 15M
     //           = 30,000M + 30,000M + 2,400M + 7,500M = 69,900,000,000
     // Total = 69,900 microcredits
-    const admission = await requestAdmissionHelper("req-settle-reasoning-pricing");
+    const admission = await requestAdmissionHelper(
+      "req-settle-reasoning-pricing",
+    );
     await consumeAdmissionHelper(admission);
 
     const settlePayload: BillableInvocationSettlementRequest = {
@@ -500,7 +528,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     // Single integer division (sum all bucket numerators first):
     //   floor((600,000 + 600,000) / 1,000,000) = floor(1,200,000 / 1,000,000) = 1 microcredit!
     // This strictly discriminates against separate bucket division.
-    const roundingAdmission = await requestAdmissionHelper("req-settle-rounding-pricing");
+    const roundingAdmission = await requestAdmissionHelper(
+      "req-settle-rounding-pricing",
+    );
     await consumeAdmissionHelper(roundingAdmission);
 
     const roundingSettleRes = await httpRequest(app)
@@ -520,7 +550,8 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       });
 
     assert.equal(roundingSettleRes.status, 200);
-    const roundingBody = successBody<BillableInvocationSettlementResponse>(roundingSettleRes);
+    const roundingBody =
+      successBody<BillableInvocationSettlementResponse>(roundingSettleRes);
     assert.equal(roundingBody.settled, true);
     assert.equal(roundingBody.calculatedMicrocredits, "1");
   });
@@ -529,7 +560,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
   // RED Test 2E: Missing Pinned Tariff Snapshot Routes to INTEGRITY_REVIEW
   // -------------------------------------------------------------------------
   it("RED Test 2E: missing pinned tariff snapshot transitions to OUTCOME_UNKNOWN, routes to INTEGRITY_REVIEW, and holds slot", async () => {
-    const admission = await requestAdmissionHelper("req-settle-missing-tariff-snapshot");
+    const admission = await requestAdmissionHelper(
+      "req-settle-missing-tariff-snapshot",
+    );
     await consumeAdmissionHelper(admission);
 
     // Corrupt or remove pinned snapshot reference in DB to simulate unresolvable tariff authority
@@ -566,7 +599,10 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     });
     assert.ok(reconCase, "BillingReconciliationCase must be created");
     assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
-    assert.equal((reconCase.conflictingPayload as any).reason, "MISSING_PINNED_TARIFF_SNAPSHOT");
+    assert.equal(
+      (reconCase.conflictingPayload as any).reason,
+      "MISSING_PINNED_TARIFF_SNAPSHOT",
+    );
 
     // Concurrency slot must remain BLOCKED: next request fails with 429/409
     const blockedRes = await httpRequest(app)
@@ -596,7 +632,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     const receipt = await prisma.modelUsageReceipt.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(receipt, null, "Must not persist ModelUsageReceipt when tariff snapshot is missing");
+    assert.equal(
+      receipt,
+      null,
+      "Must not persist ModelUsageReceipt when tariff snapshot is missing",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -605,10 +645,13 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
   it("RED Test 2F: usage exceeding admitted maximum exposure routes to INTEGRITY_REVIEW, retains exposure, and keeps slot blocked (ADR-028 Line 138)", async () => {
     // Request admission with small token bounds: 100 input, 100 output
     // Maximum exposure = 100 * 3 + 100 * 15 = 1,800 microcredits
-    const admission = await requestAdmissionHelper("req-settle-excessive-usage", {
-      inputTokensUpperBound: 100,
-      outputTokensUpperBound: 100,
-    });
+    const admission = await requestAdmissionHelper(
+      "req-settle-excessive-usage",
+      {
+        inputTokensUpperBound: 100,
+        outputTokensUpperBound: 100,
+      },
+    );
     await consumeAdmissionHelper(admission);
 
     const initialAdm = await prisma.billableInvocationAdmission.findUnique({
@@ -646,9 +689,18 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     });
     assert.ok(reconCase, "BillingReconciliationCase must be created");
     assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
-    assert.equal((reconCase.conflictingPayload as any).reason, "EXCESSIVE_USAGE_BEYOND_ADMITTED_EXPOSURE");
-    assert.equal((reconCase.conflictingPayload as any).calculatedMicrocredits, "30000");
-    assert.equal((reconCase.conflictingPayload as any).maximumExposureMicrocredits, "1800");
+    assert.equal(
+      (reconCase.conflictingPayload as any).reason,
+      "EXCESSIVE_USAGE_BEYOND_ADMITTED_EXPOSURE",
+    );
+    assert.equal(
+      (reconCase.conflictingPayload as any).calculatedMicrocredits,
+      "30000",
+    );
+    assert.equal(
+      (reconCase.conflictingPayload as any).maximumExposureMicrocredits,
+      "1800",
+    );
 
     // Concurrency slot must remain BLOCKED: next request fails with 429/409
     const blockedRes = await httpRequest(app)
@@ -684,7 +736,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     const receipt = await prisma.modelUsageReceipt.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(receipt, null, "Must not persist ModelUsageReceipt when usage exceeds admitted exposure");
+    assert.equal(
+      receipt,
+      null,
+      "Must not persist ModelUsageReceipt when usage exceeds admitted exposure",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -714,7 +770,8 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .send(originalPayload);
 
     assert.equal(firstRes.status, 200);
-    const firstBody = successBody<BillableInvocationSettlementResponse>(firstRes);
+    const firstBody =
+      successBody<BillableInvocationSettlementResponse>(firstRes);
     assert.equal(firstBody.settled, true);
     assert.equal(firstBody.calculatedMicrocredits, "42000"); // 8000*3 + 1200*15 = 24000 + 18000 = 42000
 
@@ -724,8 +781,13 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(originalPayload);
 
-    assert.equal(retryRes.status, 200, "Lost-response retry must return HTTP 200 idempotently");
-    const retryBody = successBody<BillableInvocationSettlementResponse>(retryRes);
+    assert.equal(
+      retryRes.status,
+      200,
+      "Lost-response retry must return HTTP 200 idempotently",
+    );
+    const retryBody =
+      successBody<BillableInvocationSettlementResponse>(retryRes);
     assert.equal(retryBody.settled, true);
     assert.equal(retryBody.calculatedMicrocredits, "42000");
     assert.equal(retryBody.slotReleased, true);
@@ -734,7 +796,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     const receiptCount = await prisma.modelUsageReceipt.count({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(receiptCount, 1, "Idempotent retry must not duplicate ModelUsageReceipt");
+    assert.equal(
+      receiptCount,
+      1,
+      "Idempotent retry must not duplicate ModelUsageReceipt",
+    );
 
     // Conflicting replay with different token count on already settled invocation
     const conflictingPayload: BillableInvocationSettlementRequest = {
@@ -747,7 +813,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(conflictingPayload);
 
-    assert.equal(conflictRes.status, 409, "Conflicting payload on settled invocation must be rejected with 409");
+    assert.equal(
+      conflictRes.status,
+      409,
+      "Conflicting payload on settled invocation must be rejected with 409",
+    );
     const problem = problemBody(conflictRes);
     assert.equal(problem.code, BILLING_ERROR_CODES.admissionAlreadySettled);
   });
@@ -756,7 +826,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
   // RED Test 3A: Worker reports abort without durable proof -> DISPATCH_UNKNOWN
   // -------------------------------------------------------------------------
   it("RED Test 3A: transitions unverified abort to DISPATCH_UNKNOWN, retains exposure, and keeps slot blocked", async () => {
-    const admission = await requestAdmissionHelper("req-settle-unverified-abort");
+    const admission = await requestAdmissionHelper(
+      "req-settle-unverified-abort",
+    );
     await consumeAdmissionHelper(admission);
 
     // Worker reports failure / abort without independent proof
@@ -803,14 +875,19 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       .send(blockedPayload);
 
     assert.ok(blockedRes.status === 429 || blockedRes.status === 409);
-    assert.equal(problemBody(blockedRes).code, BILLING_ERROR_CODES.walletConcurrencyLimitExceeded);
+    assert.equal(
+      problemBody(blockedRes).code,
+      BILLING_ERROR_CODES.walletConcurrencyLimitExceeded,
+    );
   });
 
   // -------------------------------------------------------------------------
   // RED Test 3B: Worker-Signed HMAC is INSUFFICIENT for IN_FLIGHT -> DISPATCH_UNKNOWN
   // -------------------------------------------------------------------------
   it("RED Test 3B: refuses to close IN_FLIGHT on worker-signed HMAC claim, forces DISPATCH_UNKNOWN, and blocks slot", async () => {
-    const admission = await requestAdmissionHelper("req-settle-worker-hmac-insufficient");
+    const admission = await requestAdmissionHelper(
+      "req-settle-worker-hmac-insufficient",
+    );
     await consumeAdmissionHelper(admission);
 
     // Worker attempts to claim LOCAL_PRE_SOCKET_REJECTION with mathematically valid HMAC
@@ -875,7 +952,10 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       });
 
     assert.ok(blockedRes.status === 429 || blockedRes.status === 409);
-    assert.equal(problemBody(blockedRes).code, BILLING_ERROR_CODES.walletConcurrencyLimitExceeded);
+    assert.equal(
+      problemBody(blockedRes).code,
+      BILLING_ERROR_CODES.walletConcurrencyLimitExceeded,
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -949,11 +1029,12 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       const finalizedWatermark = new Date(nowMs - 1000); // Sealed 1s ago (<= now and >= potentialDispatchEnd)
 
       // Register authentic provider Ed25519 keypair for Anthropic with AUDITED authority
-      const anthropicKeypair = artifactService.generateAndRegisterProviderKeyPair(
-        "anthropic",
-        "key-anthropic-prod-v1",
-        true, // isAudited = true
-      );
+      const anthropicKeypair =
+        artifactService.generateAndRegisterProviderKeyPair(
+          "anthropic",
+          "key-anthropic-prod-v1",
+          true, // isAudited = true
+        );
 
       const makeSignedArtifactParams = (params: {
         artifactId: string;
@@ -969,7 +1050,10 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         const provider = params.provider ?? "anthropic";
         const entries = params.entries ?? [];
         const rawContent = JSON.stringify(entries);
-        const sha256 = crypto.createHash("sha256").update(rawContent).digest("hex");
+        const sha256 = crypto
+          .createHash("sha256")
+          .update(rawContent)
+          .digest("hex");
         const watermark = params.finalizedWatermark ?? params.coverageEnd;
         const statement = artifactService.computeCanonicalStatement({
           provider,
@@ -1017,8 +1101,13 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           },
         ],
       });
-      const validArtifact = await artifactService.ingestVerifiedProviderLog(validArtifactParams);
-      assert.equal(validArtifact.verified, true, "Validly signed provider artifact must be verified");
+      const validArtifact =
+        await artifactService.ingestVerifiedProviderLog(validArtifactParams);
+      assert.equal(
+        validArtifact.verified,
+        true,
+        "Validly signed provider artifact must be verified",
+      );
 
       const baseReconPayload = {
         caseId: `case-${admission.invocationId}`,
@@ -1029,14 +1118,19 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         providerLogArchiveSha256: validArtifact.sha256,
         providerLogCoverageStart: coverageStart.toISOString(),
         providerLogCoverageEnd: coverageEnd.toISOString(),
-        auditRationale: "Audited Anthropic access logs archive: zero requests matched correlationId in temporal window",
+        auditRationale:
+          "Audited Anthropic access logs archive: zero requests matched correlationId in temporal window",
       };
 
       // Subcase 3C.1: Admin RBAC enforcement (401 unauthenticated, 403 non-admin, 403 worker key)
       const unauthRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
         .send(baseReconPayload);
-      assert.equal(unauthRes.status, 401, "Reconciliation endpoint must reject unauthenticated requests with 401");
+      assert.equal(
+        unauthRes.status,
+        401,
+        "Reconciliation endpoint must reject unauthenticated requests with 401",
+      );
 
       const workerAuthRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
@@ -1051,7 +1145,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         .post("/admin/billing/reconciliation/resolve-no-usage")
         .set("Authorization", `Bearer ${customerToken}`)
         .send(baseReconPayload);
-      assert.equal(customerAuthRes.status, 403, "Reconciliation endpoint must reject non-admin users with 403");
+      assert.equal(
+        customerAuthRes.status,
+        403,
+        "Reconciliation endpoint must reject non-admin users with 403",
+      );
 
       // Subcase 3C.2: Authority check - provider does NOT support client-side correlation IDs
       const unsupportedProviderRes = await httpRequest(app)
@@ -1061,8 +1159,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           ...baseReconPayload,
           provider: "mock-unsupported-provider",
         });
-      assert.equal(unsupportedProviderRes.status, 422, "Must reject resolution for providers without correlation logging");
-      assert.equal(problemBody(unsupportedProviderRes).code, BILLING_ERROR_CODES.providerCorrelationUnsupported);
+      assert.equal(
+        unsupportedProviderRes.status,
+        422,
+        "Must reject resolution for providers without correlation logging",
+      );
+      assert.equal(
+        problemBody(unsupportedProviderRes).code,
+        BILLING_ERROR_CODES.providerCorrelationUnsupported,
+      );
 
       // Subcase 3C.3a: Fake artifact ID (not found in trusted store)
       const fakeArtifactRes = await httpRequest(app)
@@ -1072,15 +1177,23 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           ...baseReconPayload,
           providerLogArtifactId: "art-completely-fake-nonexistent",
         });
-      assert.equal(fakeArtifactRes.status, 422, "Must reject fake/unregistered artifact IDs");
-      assert.equal(problemBody(fakeArtifactRes).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+      assert.equal(
+        fakeArtifactRes.status,
+        422,
+        "Must reject fake/unregistered artifact IDs",
+      );
+      assert.equal(
+        problemBody(fakeArtifactRes).code,
+        BILLING_ERROR_CODES.invalidReconciliationEvidence,
+      );
 
       // Subcase 3C.3a1: Test key without audited authority produces verified=false and fails
-      const unauditedKeypair = artifactService.generateAndRegisterProviderKeyPair(
-        "anthropic",
-        "key-unaudited-fixture",
-        false, // isAudited = false
-      );
+      const unauditedKeypair =
+        artifactService.generateAndRegisterProviderKeyPair(
+          "anthropic",
+          "key-unaudited-fixture",
+          false, // isAudited = false
+        );
       const unauditedArtifact = await artifactService.ingestVerifiedProviderLog(
         makeSignedArtifactParams({
           artifactId: `art-anthropic-unaudited-${admission.invocationId}`,
@@ -1091,7 +1204,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           keyId: unauditedKeypair.keyId,
         }),
       );
-      assert.equal(unauditedArtifact.verified, false, "Unaudited keypair must produce verified=false");
+      assert.equal(
+        unauditedArtifact.verified,
+        false,
+        "Unaudited keypair must produce verified=false",
+      );
       const unauditedRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
         .set("Authorization", `Bearer ${adminToken}`)
@@ -1100,20 +1217,34 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogArtifactId: unauditedArtifact.artifactId,
           providerLogArchiveSha256: unauditedArtifact.sha256,
         });
-      assert.equal(unauditedRes.status, 422, "Must reject resolution for artifact signed with unaudited key");
-      assert.equal(problemBody(unauditedRes).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+      assert.equal(
+        unauditedRes.status,
+        422,
+        "Must reject resolution for artifact signed with unaudited key",
+      );
+      assert.equal(
+        problemBody(unauditedRes).code,
+        BILLING_ERROR_CODES.invalidReconciliationEvidence,
+      );
 
       // Subcase 3C.3a2: Non-empty but cryptographically invalid signature (fails closed)
-      const invalidSigArtifact = await artifactService.ingestVerifiedProviderLog(
-        makeSignedArtifactParams({
-          artifactId: `art-anthropic-invalid-sig-${admission.invocationId}`,
-          coverageStart,
-          coverageEnd,
-          finalizedWatermark,
-          tamperSignature: Buffer.from("non-empty-bogus-signature-bytes-not-valid-ed25519").toString("base64"),
-        }),
+      const invalidSigArtifact =
+        await artifactService.ingestVerifiedProviderLog(
+          makeSignedArtifactParams({
+            artifactId: `art-anthropic-invalid-sig-${admission.invocationId}`,
+            coverageStart,
+            coverageEnd,
+            finalizedWatermark,
+            tamperSignature: Buffer.from(
+              "non-empty-bogus-signature-bytes-not-valid-ed25519",
+            ).toString("base64"),
+          }),
+        );
+      assert.equal(
+        invalidSigArtifact.verified,
+        false,
+        "Non-empty but cryptographically invalid signature must fail to verified=false",
       );
-      assert.equal(invalidSigArtifact.verified, false, "Non-empty but cryptographically invalid signature must fail to verified=false");
       const invalidSigRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
         .set("Authorization", `Bearer ${adminToken}`)
@@ -1122,8 +1253,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogArtifactId: invalidSigArtifact.artifactId,
           providerLogArchiveSha256: invalidSigArtifact.sha256,
         });
-      assert.equal(invalidSigRes.status, 422, "Must reject unverified artifacts with cryptographically invalid signatures");
-      assert.equal(problemBody(invalidSigRes).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+      assert.equal(
+        invalidSigRes.status,
+        422,
+        "Must reject unverified artifacts with cryptographically invalid signatures",
+      );
+      assert.equal(
+        problemBody(invalidSigRes).code,
+        BILLING_ERROR_CODES.invalidReconciliationEvidence,
+      );
 
       // Subcase 3C.3a3: Ingest caller attempting to self-assert verified: true (server ignores and verifies crypto)
       const selfAssertedParams = {
@@ -1132,12 +1270,19 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           coverageStart,
           coverageEnd,
           finalizedWatermark,
-          tamperSignature: Buffer.from("forged-signature-with-self-asserted-flag").toString("base64"),
+          tamperSignature: Buffer.from(
+            "forged-signature-with-self-asserted-flag",
+          ).toString("base64"),
         }),
         verified: true, // Caller attempts to forge verified flag!
       };
-      const selfAssertedArtifact = await artifactService.ingestVerifiedProviderLog(selfAssertedParams);
-      assert.equal(selfAssertedArtifact.verified, false, "Server MUST ignore caller self-asserted verified=true");
+      const selfAssertedArtifact =
+        await artifactService.ingestVerifiedProviderLog(selfAssertedParams);
+      assert.equal(
+        selfAssertedArtifact.verified,
+        false,
+        "Server MUST ignore caller self-asserted verified=true",
+      );
       const selfAssertedRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
         .set("Authorization", `Bearer ${adminToken}`)
@@ -1146,8 +1291,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogArtifactId: selfAssertedArtifact.artifactId,
           providerLogArchiveSha256: selfAssertedArtifact.sha256,
         });
-      assert.equal(selfAssertedRes.status, 422, "Must reject self-asserted unverified artifact");
-      assert.equal(problemBody(selfAssertedRes).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+      assert.equal(
+        selfAssertedRes.status,
+        422,
+        "Must reject self-asserted unverified artifact",
+      );
+      assert.equal(
+        problemBody(selfAssertedRes).code,
+        BILLING_ERROR_CODES.invalidReconciliationEvidence,
+      );
 
       // Subcase 3C.3a4: Attempt to overwrite an existing verified artifact (Immutability enforcement)
       await assert.rejects(
@@ -1166,26 +1318,34 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           ...baseReconPayload,
           providerLogArchiveSha256: "0".repeat(64),
         });
-      assert.equal(fakeHashRes.status, 422, "Must reject mismatched SHA-256 artifact hashes");
-      assert.equal(problemBody(fakeHashRes).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+      assert.equal(
+        fakeHashRes.status,
+        422,
+        "Must reject mismatched SHA-256 artifact hashes",
+      );
+      assert.equal(
+        problemBody(fakeHashRes).code,
+        BILLING_ERROR_CODES.invalidReconciliationEvidence,
+      );
 
       // Subcase 3C.3c: Artifact containing a dispatched request matching admission.correlationId
-      const dispatchedArtifact = await artifactService.ingestVerifiedProviderLog(
-        makeSignedArtifactParams({
-          artifactId: `art-anthropic-dispatched-${admission.invocationId}`,
-          provider: "anthropic",
-          coverageStart,
-          coverageEnd,
-          finalizedWatermark,
-          entries: [
-            {
-              requestId: "req-prov-dispatched-1",
-              timestamp: new Date(nowMs - 3500_000).toISOString(),
-              correlationId: dbAdmBefore?.correlationId, // Request actually reached provider!
-            },
-          ],
-        }),
-      );
+      const dispatchedArtifact =
+        await artifactService.ingestVerifiedProviderLog(
+          makeSignedArtifactParams({
+            artifactId: `art-anthropic-dispatched-${admission.invocationId}`,
+            provider: "anthropic",
+            coverageStart,
+            coverageEnd,
+            finalizedWatermark,
+            entries: [
+              {
+                requestId: "req-prov-dispatched-1",
+                timestamp: new Date(nowMs - 3500_000).toISOString(),
+                correlationId: dbAdmBefore?.correlationId, // Request actually reached provider!
+              },
+            ],
+          }),
+        );
       assert.equal(dispatchedArtifact.verified, true);
       const dispatchedRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
@@ -1195,8 +1355,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogArtifactId: dispatchedArtifact.artifactId,
           providerLogArchiveSha256: dispatchedArtifact.sha256,
         });
-      assert.equal(dispatchedRes.status, 422, "Must reject no-usage claim if provider logs prove request was dispatched");
-      assert.equal(problemBody(dispatchedRes).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+      assert.equal(
+        dispatchedRes.status,
+        422,
+        "Must reject no-usage claim if provider logs prove request was dispatched",
+      );
+      assert.equal(
+        problemBody(dispatchedRes).code,
+        BILLING_ERROR_CODES.invalidReconciliationEvidence,
+      );
 
       // Subcase 3C.4a: Coverage window incomplete (coverageEnd is before potentialDispatchEnd)
       const truncatedWindowRes = await httpRequest(app)
@@ -1207,18 +1374,26 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogCoverageStart: new Date(nowMs - 4000_000).toISOString(),
           providerLogCoverageEnd: new Date(nowMs - 3400_000).toISOString(), // Ended before potentialDispatchEnd (-3200_000)!
         });
-      assert.equal(truncatedWindowRes.status, 422, "Must reject resolution when provider log coverage window is incomplete");
-      assert.equal(problemBody(truncatedWindowRes).code, BILLING_ERROR_CODES.incompleteReconciliationWindow);
+      assert.equal(
+        truncatedWindowRes.status,
+        422,
+        "Must reject resolution when provider log coverage window is incomplete",
+      );
+      assert.equal(
+        problemBody(truncatedWindowRes).code,
+        BILLING_ERROR_CODES.incompleteReconciliationWindow,
+      );
 
       // Subcase 3C.4b: Log finalized watermark ends before potential dispatch timeout (watermark only at -3400s, dispatch requires -3200s)
-      const incompleteWatermarkArtifact = await artifactService.ingestVerifiedProviderLog(
-        makeSignedArtifactParams({
-          artifactId: `art-anthropic-incomplete-watermark-${admission.invocationId}`,
-          coverageStart,
-          coverageEnd,
-          finalizedWatermark: new Date(nowMs - 3400_000), // Watermark seals only up to -3400s!
-        }),
-      );
+      const incompleteWatermarkArtifact =
+        await artifactService.ingestVerifiedProviderLog(
+          makeSignedArtifactParams({
+            artifactId: `art-anthropic-incomplete-watermark-${admission.invocationId}`,
+            coverageStart,
+            coverageEnd,
+            finalizedWatermark: new Date(nowMs - 3400_000), // Watermark seals only up to -3400s!
+          }),
+        );
       assert.equal(incompleteWatermarkArtifact.verified, true);
       const incompleteWatermarkRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
@@ -1228,18 +1403,26 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogArtifactId: incompleteWatermarkArtifact.artifactId,
           providerLogArchiveSha256: incompleteWatermarkArtifact.sha256,
         });
-      assert.equal(incompleteWatermarkRes.status, 422, "Must reject resolution when provider log watermark has not sealed past potential dispatch timeout");
-      assert.equal(problemBody(incompleteWatermarkRes).code, BILLING_ERROR_CODES.incompleteReconciliationWindow);
+      assert.equal(
+        incompleteWatermarkRes.status,
+        422,
+        "Must reject resolution when provider log watermark has not sealed past potential dispatch timeout",
+      );
+      assert.equal(
+        problemBody(incompleteWatermarkRes).code,
+        BILLING_ERROR_CODES.incompleteReconciliationWindow,
+      );
 
       // Subcase 3C.4c: Future watermark (> current time) is strictly rejected
-      const futureWatermarkArtifact = await artifactService.ingestVerifiedProviderLog(
-        makeSignedArtifactParams({
-          artifactId: `art-anthropic-future-watermark-${admission.invocationId}`,
-          coverageStart,
-          coverageEnd: new Date(nowMs + 3600_000),
-          finalizedWatermark: new Date(nowMs + 3600_000), // In the future!
-        }),
-      );
+      const futureWatermarkArtifact =
+        await artifactService.ingestVerifiedProviderLog(
+          makeSignedArtifactParams({
+            artifactId: `art-anthropic-future-watermark-${admission.invocationId}`,
+            coverageStart,
+            coverageEnd: new Date(nowMs + 3600_000),
+            finalizedWatermark: new Date(nowMs + 3600_000), // In the future!
+          }),
+        );
       assert.equal(futureWatermarkArtifact.verified, true);
       const futureWatermarkRes = await httpRequest(app)
         .post("/admin/billing/reconciliation/resolve-no-usage")
@@ -1250,8 +1433,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           providerLogArchiveSha256: futureWatermarkArtifact.sha256,
           providerLogCoverageEnd: new Date(nowMs + 3600_000).toISOString(),
         });
-      assert.equal(futureWatermarkRes.status, 422, "Must reject resolution when provider log watermark is in the future");
-      assert.equal(problemBody(futureWatermarkRes).code, BILLING_ERROR_CODES.incompleteReconciliationWindow);
+      assert.equal(
+        futureWatermarkRes.status,
+        422,
+        "Must reject resolution when provider log watermark is in the future",
+      );
+      assert.equal(
+        problemBody(futureWatermarkRes).code,
+        BILLING_ERROR_CODES.incompleteReconciliationWindow,
+      );
 
       // Subcase 3C.5: Valid comprehensive provider log verification succeeds with Admin authorization
       const validRes = await httpRequest(app)
@@ -1313,12 +1503,16 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         409,
         "Late settlement must be rejected with 409 when reconciliation already closed as CONFIRMED_NO_USAGE",
       );
-      assert.equal(problemBody(lateSettleAttempt).code, BILLING_ERROR_CODES.reconciliationAlreadyResolved);
+      assert.equal(
+        problemBody(lateSettleAttempt).code,
+        BILLING_ERROR_CODES.reconciliationAlreadyResolved,
+      );
 
       // ADR-028 Line 157: Terminal precedence preserves CONFIRMED_NO_USAGE
-      const dbAdmPreserved = await prisma.billableInvocationAdmission.findUnique({
-        where: { invocationId: admission.invocationId },
-      });
+      const dbAdmPreserved =
+        await prisma.billableInvocationAdmission.findUnique({
+          where: { invocationId: admission.invocationId },
+        });
       assert.equal(dbAdmPreserved?.state, ADMISSION_STATES.CONFIRMED_NO_USAGE);
       assert.equal(dbAdmPreserved?.maximumExposureMicrocredits, 0n);
 
@@ -1326,11 +1520,23 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       const dbCaseReview = await prisma.billingReconciliationCase.findUnique({
         where: { invocationId: admission.invocationId },
       });
-      assert.ok(dbCaseReview, "BillingReconciliationCase record must exist in DB");
+      assert.ok(
+        dbCaseReview,
+        "BillingReconciliationCase record must exist in DB",
+      );
       assert.equal(dbCaseReview.state, "INTEGRITY_REVIEW");
-      assert.ok(dbCaseReview.conflictDetectedAt !== null, "conflictDetectedAt must be recorded");
-      assert.ok(dbCaseReview.conflictingPayload !== null, "conflictingPayload must be recorded");
-      const recordedConflict = dbCaseReview.conflictingPayload as Record<string, unknown>;
+      assert.ok(
+        dbCaseReview.conflictDetectedAt !== null,
+        "conflictDetectedAt must be recorded",
+      );
+      assert.ok(
+        dbCaseReview.conflictingPayload !== null,
+        "conflictingPayload must be recorded",
+      );
+      const recordedConflict = dbCaseReview.conflictingPayload as Record<
+        string,
+        unknown
+      >;
       assert.equal(recordedConflict.inputTokens, 500);
       assert.equal(recordedConflict.outputTokens, 50);
 
@@ -1342,7 +1548,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
 
       // Scenario 2: Late settlement arrives BEFORE reconciliation decision
       // Create new invocation, move to DISPATCH_UNKNOWN, then settle it
-      const lateSettledAdmission = await requestAdmissionHelper("req-late-settle-first");
+      const lateSettledAdmission = await requestAdmissionHelper(
+        "req-late-settle-first",
+      );
       await consumeAdmissionHelper(lateSettledAdmission);
 
       // Move to DISPATCH_UNKNOWN
@@ -1415,7 +1623,10 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         409,
         "Reconciliation resolve-no-usage must fail closed with 409 when admission was already SETTLED",
       );
-      assert.equal(problemBody(lateReconRes).code, BILLING_ERROR_CODES.admissionAlreadySettled);
+      assert.equal(
+        problemBody(lateReconRes).code,
+        BILLING_ERROR_CODES.admissionAlreadySettled,
+      );
 
       // Verify admission state remains SETTLED and was not overwritten
       const dbAdmSettled = await prisma.billableInvocationAdmission.findUnique({
@@ -1432,7 +1643,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
   // -------------------------------------------------------------------------
   it("RED Test 3D: allows atomic pre-consume cancel, fails closed if already IN_FLIGHT, and serializes concurrent race", async () => {
     // Subcase 3D.1: Cancel before consume succeeds
-    const admissionA = await requestAdmissionHelper("req-cancel-pre-consume-success");
+    const admissionA = await requestAdmissionHelper(
+      "req-cancel-pre-consume-success",
+    );
     const cancelPayloadA: BillableInvocationCancelRequest = {
       admissionId: admissionA.admissionId,
       invocationId: admissionA.invocationId,
@@ -1470,8 +1683,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         cancellationReason: "late_abort_after_consume",
       });
 
-    assert.equal(cancelResB.status, 409, "Cancel must be rejected with 409 when admission is already IN_FLIGHT");
-    assert.equal(problemBody(cancelResB).code, BILLING_ERROR_CODES.admissionAlreadyInFlight);
+    assert.equal(
+      cancelResB.status,
+      409,
+      "Cancel must be rejected with 409 when admission is already IN_FLIGHT",
+    );
+    assert.equal(
+      problemBody(cancelResB).code,
+      BILLING_ERROR_CODES.admissionAlreadyInFlight,
+    );
 
     // Concurrency slot must remain held
     const dbAdmB = await prisma.billableInvocationAdmission.findUnique({
@@ -1495,7 +1715,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
         totalTokens: 110,
       });
 
-    const admissionRace = await requestAdmissionHelper("req-cancel-consume-race");
+    const admissionRace = await requestAdmissionHelper(
+      "req-cancel-consume-race",
+    );
     const [cancelRaceRes, consumeRaceRes] = await Promise.all([
       httpRequest(app)
         .post("/internal/billing/admission/cancel")
@@ -1518,7 +1740,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
 
     // Exactly one operation must succeed (200), the other must fail (409 Conflict)
     const statuses = [cancelRaceRes.status, consumeRaceRes.status].sort();
-    assert.deepEqual(statuses, [200, 409], "Exactly one of cancel or consume must win with 200, and loser gets 409");
+    assert.deepEqual(
+      statuses,
+      [200, 409],
+      "Exactly one of cancel or consume must win with 200, and loser gets 409",
+    );
 
     const dbAdmRace = await prisma.billableInvocationAdmission.findUnique({
       where: { invocationId: admissionRace.invocationId },
@@ -1544,11 +1770,15 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
           inputTokensUpperBound: 1000,
           outputTokensUpperBound: 1000,
         });
-      assert.ok(blockedRaceAttempt.status === 429 || blockedRaceAttempt.status === 409);
+      assert.ok(
+        blockedRaceAttempt.status === 429 || blockedRaceAttempt.status === 409,
+      );
     } else {
       // Cancel won: state must be CONFIRMED_NO_USAGE and concurrency slot is freed
       assert.equal(dbAdmRace?.state, ADMISSION_STATES.CONFIRMED_NO_USAGE);
-      const freeRaceAttempt = await requestAdmissionHelper("req-freed-by-cancel-race-win");
+      const freeRaceAttempt = await requestAdmissionHelper(
+        "req-freed-by-cancel-race-win",
+      );
       assert.equal(freeRaceAttempt.state, ADMISSION_STATES.ADMITTED);
     }
   });
@@ -1600,6 +1830,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       });
 
     assert.ok(blockedRes.status === 429 || blockedRes.status === 409);
-    assert.equal(problemBody(blockedRes).code, BILLING_ERROR_CODES.walletConcurrencyLimitExceeded);
+    assert.equal(
+      problemBody(blockedRes).code,
+      BILLING_ERROR_CODES.walletConcurrencyLimitExceeded,
+    );
   });
 });
