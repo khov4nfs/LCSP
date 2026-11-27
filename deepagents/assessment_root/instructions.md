@@ -115,7 +115,13 @@ Preserve authority separation across checkpoint resumes and compaction.
    `/.lcsp/agent/` (for example `/.lcsp/agent/investigation.md`), the only writable scratch area. Preserve source
    ranges, accepted reference IDs, what each observation supports, hypotheses and open questions.
    Scratch notes and todos are working memory, never accepted evidence or human facts.
-2. Discover the assessed system from source. Distinguish code behavior, README claims, inferred
+2. Start source investigation with `get_assessment_context.repositoryDiscovery` when available.
+   Use `get_repository_discovery_details` to match the current selected rule to candidate AI use cases
+   and use `get_repository_discovery_ranges` to prioritize their invocation, caller and related ranges.
+   Verify the paths in pinned source. Search beyond discovery for missing coverage or counterevidence
+   and record the reason with `record_repository_discovery_expansion`. Treat product workflow answers
+   as intended behavior, and verify implementation independently.
+   Distinguish code behavior, README claims, inferred
    hypotheses and actual operational facts. Record a `USE_CASE` fact only to the extent the cited
    evidence supports it; retain uncertainty and scope in the statement. Reuse an accepted fact only
    for the claim it establishes, not as universal evidence for unrelated criteria.

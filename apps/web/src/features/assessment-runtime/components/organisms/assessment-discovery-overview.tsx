@@ -95,6 +95,8 @@ export function AssessmentDiscoveryOverview({
         .flatMap((useCase) =>
           useCase.unresolvedQuestions.map((question) => ({
             useCaseId: useCase.useCaseId,
+            // Identical prompts may refer to different AI features.
+            useCaseName: useCase.name,
             question,
           })),
         )

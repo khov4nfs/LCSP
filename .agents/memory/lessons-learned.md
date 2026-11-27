@@ -182,3 +182,8 @@
 - **Root Cause**: The application deduplicated raw tokens before establishing a canonical comparison representation, so database-equivalent inputs remained distinct in memory.
 - **Resolution & Invariant**: At one application boundary, apply Unicode NFKC and locale-independent `toLowerCase()` before length filtering, stable first-occurrence deduplication and result bounding. Apply limits to canonical unique terms, while leaving pinned corpus identity and retrieval semantics unchanged.
 
+### [2026-11-27] [STACK: deepagents] Pre-audit questions describe intended AI feature behavior
+- **Context / Symptom**: Every AI candidate produced the same production and operations questions, including test-only code.
+- **Root Cause**: The discovery scanner used one fixed list for product context and unresolved runtime reachability.
+- **Resolution & Invariant**: Ask about a product candidate's intended workflow and use of AI output. Preserve static reachability gaps for source investigation and keep test/example findings without interview prompts. The SDK/HTTP and test-only scanner regressions verify both paths.
+

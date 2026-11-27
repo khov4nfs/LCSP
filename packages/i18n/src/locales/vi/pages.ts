@@ -788,12 +788,13 @@ export const viPages = {
         selectCandidateRules:
           "Chọn các quy tắc gợi ý (kiểm tra lại trước khi đánh giá)",
         loadMore: "Xem thêm quy tắc gợi ý",
-        contextQuestions: "Các thông tin vận hành cần làm rõ",
+        // Câu hỏi Discovery làm rõ hành vi được thiết kế cho tính năng.
+        contextQuestions: "Câu hỏi về tính năng AI",
         contextAdvisory:
-          "Đây là gợi ý từ Discovery, chưa phải thông tin đã xác nhận. Câu trả lời chính thức phải qua luồng phỏng vấn được cấp quyền.",
-        interviewTitle: "Xác nhận thông tin vận hành trước khi chọn quy tắc",
+          "Mô tả mục đích và cách hoạt động dự kiến của từng tính năng.",
+        interviewTitle: "Xác nhận thông tin tính năng trước khi chọn quy tắc",
         interviewDescription:
-          "Gửi câu trả lời để kiểm tra, rồi xác nhận riêng. Câu trả lời được xác nhận là thông tin do khách hàng cung cấp, chưa phải kết luận áp dụng pháp luật.",
+          "Gửi câu trả lời để xem lại, rồi xác nhận để lưu thông tin bạn cung cấp.",
         interviewLoading: "Đang tải lịch sử câu trả lời…",
         interviewError:
           "Không thể gửi, duyệt hoặc tải câu trả lời. Kiểm tra phiên bản dữ kiện và thử lại.",
@@ -805,8 +806,7 @@ export const viPages = {
         interviewReject: "Từ chối và trả lời lại",
         interviewRejected:
           "Câu trả lời trước đã bị từ chối. Bạn có thể gửi câu trả lời mới.",
-        answerPlaceholder:
-          "Nhập thông tin vận hành đã biết rõ (không phỏng đoán)",
+        answerPlaceholder: "Mô tả hành vi dự kiến mà bạn có thể xác nhận",
         answerInvalid: "Cần nhập câu trả lời rõ ràng, tối đa 2.000 ký tự.",
         submitAnswer: "Gửi để xác nhận",
         loadMoreHistory: "Xem thêm lịch sử câu trả lời",

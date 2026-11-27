@@ -482,6 +482,14 @@ def test_discovery_finds_direct_sdk_raw_http_and_nearby_controls(tmp_path: Path)
     signal_types = {item["signalType"] for item in discovery["sourceRanges"]}
     assert {"AI_SDK_CALL", "RAW_AI_HTTP_CALL", "CONTROL", "DATA_FLOW"} <= signal_types
     assert len(discovery["aiUseCases"]) == 2
+    # A pre-audit answer should clarify the intended feature, while static
+    # reachability remains a search gap for the investigator.
+    for use_case in discovery["aiUseCases"]:
+        assert use_case["unresolvedQuestions"] == [
+            "What product workflow is this AI feature designed to support?",
+            "How should the application use the AI output in that workflow?",
+        ]
+    assert discovery["unresolvedCalls"]
     assert discovery["ruleCandidates"] == []
     assert discovery["graphIndexVersion"] == "sha256:" + "1" * 64
     assert discovery["contentDigest"] == compute_discovery_digest(discovery)
@@ -867,6 +875,7 @@ def test_discovery_distinguishes_test_only_source_and_ai_free_repository(tmp_pat
     assert {
         item["sourceClassification"] for item in discovery["sourceRanges"]
     } == {"TEST_ONLY"}
+    assert all(not use_case["unresolvedQuestions"] for use_case in discovery["aiUseCases"])
 
     (tests_dir / "model.test.ts").unlink()
     ai_free = scan_repository_discovery(

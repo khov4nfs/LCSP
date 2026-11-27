@@ -129,6 +129,8 @@ export function AssessmentDiscoveryInterview({
               key={`${entry.useCaseId}::${entry.question}`}
               className="space-y-2 rounded-lg border p-3"
             >
+              {/* Keep the visible feature separate from the exact question submitted to the API. */}
+              <p className="text-sm text-muted-foreground">{entry.useCaseName}</p>
               <p className="font-medium">{entry.question}</p>
               {existing?.status ===
               DISCOVERY_INTERVIEW_PROPOSAL_STATUSES.accepted ? (
