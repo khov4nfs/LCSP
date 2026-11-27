@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { MessageKey } from "@lcsp/i18n";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { resolveAppMessage } from "@/lib/i18n";

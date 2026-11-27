@@ -41,21 +41,21 @@ export function AdminUserFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Search Input (420px x 42px) */}
-      <div className="relative w-105 max-w-full">
-        <SearchIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      {/* Search Input (320px x 34px - Figma 1709:7998) */}
+      <div className="relative w-80 max-w-full">
+        <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
           type="search"
           value={filters.searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
           aria-label={searchAriaLabel}
-          className="h-10.5 w-full rounded-lg border-border bg-card pl-10 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary shadow-xs"
+          className="h-[34px] w-full rounded-[6px] border-border bg-card pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary shadow-xs"
         />
       </div>
 
-      {/* Status Filter (160px x 42px) */}
-      <div className="w-40">
+      {/* Status Filter (170px x 34px - Figma 1709:8003) */}
+      <div className="w-[170px]">
         <Select
           value={filters.statusFilter}
           onValueChange={(val) =>
@@ -63,7 +63,7 @@ export function AdminUserFilters({
           }
         >
           <SelectTrigger
-            className="!h-10.5 data-[size=default]:!h-10.5 w-full rounded-lg border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
+            className="!h-[34px] data-[size=default]:!h-[34px] w-full rounded-[6px] border-border bg-card text-[13px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
             aria-label={resolveAppMessage(
               "pages.admin.usersList.statusFilterLabel" as MessageKey,
             )}
@@ -83,12 +83,12 @@ export function AdminUserFilters({
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="border-border bg-card text-foreground">
-            <SelectItem value="ALL" className="text-[12.5px]">
+            <SelectItem value="ALL" className="text-[13px]">
               {statusFilterAll}
             </SelectItem>
             <SelectItem
               value={USER_ACCESS_STATUSES.active}
-              className="text-[12.5px]"
+              className="text-[13px]"
             >
               {resolveAppMessage(
                 "pages.admin.usersList.statuses.ACTIVE" as MessageKey,
@@ -96,7 +96,7 @@ export function AdminUserFilters({
             </SelectItem>
             <SelectItem
               value={USER_ACCESS_STATUSES.suspended}
-              className="text-[12.5px]"
+              className="text-[13px]"
             >
               {resolveAppMessage(
                 "pages.admin.usersList.statuses.SUSPENDED" as MessageKey,
@@ -106,14 +106,14 @@ export function AdminUserFilters({
         </Select>
       </div>
 
-      {/* Role Filter (150px x 42px) */}
-      <div className="w-37.5">
+      {/* Role Filter (180px x 34px - Figma 1709:8007) */}
+      <div className="w-[180px]">
         <Select
           value={filters.roleFilter}
           onValueChange={(val) => onRoleChange(val as AuthUserRole | "ALL")}
         >
           <SelectTrigger
-            className="!h-10.5 data-[size=default]:!h-10.5 w-full rounded-lg border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
+            className="!h-[34px] data-[size=default]:!h-[34px] w-full rounded-[6px] border-border bg-card text-[13px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
             aria-label={resolveAppMessage(
               "pages.admin.usersList.roleFilterLabel" as MessageKey,
             )}
@@ -121,32 +121,29 @@ export function AdminUserFilters({
             <SelectValue placeholder={roleFilterAll}>
               {filters.roleFilter === "ALL"
                 ? roleFilterAll
-                : filters.roleFilter === AUTH_USER_ROLES.admin
+                : filters.roleFilter === AUTH_USER_ROLES.customer
                   ? resolveAppMessage(
-                      "pages.admin.usersList.roles.ADMIN" as MessageKey,
+                      "pages.admin.usersList.roles.CUSTOMER" as MessageKey,
                     )
-                  : filters.roleFilter === AUTH_USER_ROLES.customer
+                  : filters.roleFilter === AUTH_USER_ROLES.admin
                     ? resolveAppMessage(
-                        "pages.admin.usersList.roles.CUSTOMER" as MessageKey,
+                        "pages.admin.usersList.roles.ADMIN" as MessageKey,
                       )
                     : roleFilterAll}
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="border-border bg-card text-foreground">
-            <SelectItem value="ALL" className="text-[12.5px]">
+            <SelectItem value="ALL" className="text-[13px]">
               {roleFilterAll}
             </SelectItem>
-            <SelectItem value={AUTH_USER_ROLES.admin} className="text-[12.5px]">
-              {resolveAppMessage(
-                "pages.admin.usersList.roles.ADMIN" as MessageKey,
-              )}
-            </SelectItem>
-            <SelectItem
-              value={AUTH_USER_ROLES.customer}
-              className="text-[12.5px]"
-            >
+            <SelectItem value={AUTH_USER_ROLES.customer} className="text-[13px]">
               {resolveAppMessage(
                 "pages.admin.usersList.roles.CUSTOMER" as MessageKey,
+              )}
+            </SelectItem>
+            <SelectItem value={AUTH_USER_ROLES.admin} className="text-[13px]">
+              {resolveAppMessage(
+                "pages.admin.usersList.roles.ADMIN" as MessageKey,
               )}
             </SelectItem>
           </SelectContent>

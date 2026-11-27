@@ -71,7 +71,7 @@ export function AdminShell({ children }: AdminShellProps) {
                 side="left"
                 data-figma-node="1662:4763"
                 data-figma-name="57 Admin · Mobile sidebar"
-                className="max-w-full gap-0 p-0 data-[side=left]:w-68 border-r border-[#D6DFE7] bg-white"
+                className="max-w-full gap-0 p-0 data-[side=left]:w-68 border-r border-border bg-card"
               >
                 <SheetHeader className="sr-only">
                   <SheetTitle>

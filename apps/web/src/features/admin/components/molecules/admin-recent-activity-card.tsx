@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { MessageKey } from "@lcsp/i18n";
 import {
   ADMIN_OVERVIEW_ACTION_KEYS,

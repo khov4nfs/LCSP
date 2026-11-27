@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { MessageKey } from "@lcsp/i18n";
 import { resolveAppMessage } from "@/lib/i18n";
 import { formatLocaleDateTime } from "@/lib/date-format";

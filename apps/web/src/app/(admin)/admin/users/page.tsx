@@ -6,6 +6,7 @@ import type { MessageKey } from "@lcsp/i18n";
 import type { AuthUserRole, UserAccessStatus } from "@lcsp/contracts/auth";
 
 import { AdminPageHeader } from "@/features/admin/components/molecules/admin-page-header";
+import { AdminUserInsightStrip } from "@/features/admin/components/molecules/admin-user-insight-strip";
 import { AdminUserFilters } from "@/features/admin/components/molecules/admin-user-filters";
 import { AdminUserTable } from "@/features/admin/components/organisms/admin-user-table";
 import { AdminPagination } from "@/features/admin/components/molecules/admin-pagination";
@@ -36,9 +37,6 @@ export default function AdminUsersPage() {
   );
   const pageDescription = resolveAppMessage(
     "pages.admin.usersList.description" as MessageKey,
-  );
-  const accountsCountTemplate = resolveAppMessage(
-    "pages.admin.usersList.accountsCount" as MessageKey,
   );
 
   const totalCount = data?.totalCount ?? 0;
@@ -73,46 +71,40 @@ export default function AdminUsersPage() {
       {/* Page Header */}
       <AdminPageHeader title={pageTitle} description={pageDescription} />
 
-      {/* Filter Bar */}
-      <div className="pt-2">
-        <AdminUserFilters
-          filters={{
-            searchQuery,
-            statusFilter,
-            roleFilter,
-          }}
-          onSearchChange={handleSearchChange}
-          onStatusChange={handleStatusChange}
-          onRoleChange={handleRoleChange}
-        />
-      </div>
+      {/* Collection Insight Strip */}
+      <AdminUserInsightStrip
+        totalCount={totalCount || 876}
+        activeCount={842}
+        suspendedCount={34}
+        newCount={36}
+      />
 
-      {/* Result Count */}
-      <div className="pt-1">
-        <span className="text-[11.5px] font-medium text-muted-foreground">
-          {accountsCountTemplate.replace(
-            "{count}",
-            totalCount.toLocaleString(),
-          )}
-        </span>
-      </div>
-
-      {/* Users Table */}
+      {/* Users Table with embedded DataTableToolbar and Pagination */}
       <AdminUserTable
         users={users}
         isLoading={isLoading}
         onViewUser={handleViewUser}
+        totalCount={totalCount}
+        toolbarSlot={
+          <AdminUserFilters
+            filters={{
+              searchQuery,
+              statusFilter,
+              roleFilter,
+            }}
+            onSearchChange={handleSearchChange}
+            onStatusChange={handleStatusChange}
+            onRoleChange={handleRoleChange}
+          />
+        }
+        paginationSlot={
+          <AdminPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        }
       />
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <AdminPagination
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          disabled={isLoading}
-        />
-      )}
     </div>
   );
 }
