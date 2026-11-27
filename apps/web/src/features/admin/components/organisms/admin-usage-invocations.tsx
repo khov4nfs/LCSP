@@ -20,19 +20,34 @@ import {
   USAGE_INVOCATION_COLUMNS,
   USAGE_INVOCATION_DETAILS,
 } from "../../config/admin-usage.config";
+/**
+ * Business purpose: Display the paginated admin AI invocation log table and per-invocation detail modal.
+ * Business rules:
+ * - Preserves exact backend invocation telemetry, attempt status, and reference cost without extrapolating missing values.
+ * Execution flow:
+ * 1. Render tabular invocation rows with action button to open the detail Dialog.
+ * 2. Display selected invocation details when opened.
+ * Failure cases:
+ * - Empty invocation list displays the localized empty message.
+ * Side effects:
+ * - Local UI dialog selection state only.
+ */
 export function AdminUsageInvocations({ items }: UsageInvocationsProps) {
   const [selected, select] = useState<UsageInvocation | null>(null);
   const m = (key: string) =>
     resolveAppMessage(`pages.admin.usage.${key}` as MessageKey);
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border">
+      <div
+        className="overflow-x-auto rounded-xl border border-border bg-card"
+        data-component="AdminUsageInvocations"
+      >
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{m("invocations")}</caption>
-          <thead>
+          <thead className="bg-muted/30 text-xs text-muted-foreground">
             <tr>
               {USAGE_INVOCATION_COLUMNS.map((k) => (
-                <th key={k} className="p-3">
+                <th key={k} className="p-3 font-medium">
                   {m(k)}
                 </th>
               ))}
