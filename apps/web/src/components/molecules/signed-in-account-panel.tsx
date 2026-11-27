@@ -11,9 +11,11 @@ export function SignedInAccountPanel({
   avatarImageSrc,
   avatarFallback,
 }: SignedInAccountPanelProps) {
+  // The confirmation body becomes a scroll container on short viewports; preserve the identity card's intrinsic height.
   return (
-    <Card className="py-0">
-      <CardContent className="flex items-center gap-4 px-5 py-5">
+    <Card className="shrink-0 py-0">
+      {/* Stack the identity at narrow widths so enlarged text keeps a usable line measure beside the fixed avatar. */}
+      <CardContent className="flex items-center gap-4 px-5 py-5 max-sm:flex-col max-sm:items-stretch max-sm:gap-3 max-sm:px-2 max-sm:py-3">
         <Avatar size="lg">
           {avatarImageSrc ? <AvatarImage src={avatarImageSrc} alt="" /> : null}
           <AvatarFallback>{avatarFallback}</AvatarFallback>
@@ -22,7 +24,8 @@ export function SignedInAccountPanel({
           <p className="text-sm text-muted-foreground">
             {resolveMessage(appLocale, accountLabelKey)}
           </p>
-          <p className="truncate text-2xl font-medium tracking-tight">
+          {/* Keep the full account identifier readable on narrow screens instead of replacing it with an ellipsis. */}
+          <p className="break-words text-xl font-medium tracking-tight sm:text-2xl">
             {accountHandle}
           </p>
         </div>

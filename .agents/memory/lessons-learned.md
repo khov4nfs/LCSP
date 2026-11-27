@@ -188,3 +188,8 @@
 - **Resolution & Invariant**: Ask about a product candidate's intended workflow and use of AI output. Preserve static reachability gaps for source investigation and keep test/example findings without interview prompts. The SDK/HTTP and test-only scanner regressions verify both paths.
 - **After rule selection**: The registered Assessment Root startup and question guidance must reuse accepted Discovery answers, start from the relevant product workflow and pinned code, and defer external questions until a selected rule still depends on a missing fact. Verify the loaded runtime assets because reference prompt edits alone do not reach the agent.
 
+### [2026-11-27] [STACK: apps/web] Nested Settings dialogs preserve scroll content and mounted focus targets
+- **Context / Symptom**: At a 320px viewport with enlarged Vietnamese text, the Confirm Access heading consumed most of the dialog and identity/support cards shrank below their content. Dismissing step-up also left focus on an unmounted intermediate confirmation control.
+- **Root Cause**: A constrained flex scroll body allowed child cards to shrink, and the nested dialog's default focus return target no longer existed after the parent action prompt unmounted.
+- **Resolution & Invariant**: Keep content cards at intrinsic height and scroll the dialog body; wrap account identifiers instead of truncating them. Consumer-specific header sizing must remain opt-in. When a controlled nested dialog can outlive its trigger, provide a stable mounted focus target and verify Tab, Shift+Tab, Escape, reopen, and restoration without changing authorization or proof handling.
+

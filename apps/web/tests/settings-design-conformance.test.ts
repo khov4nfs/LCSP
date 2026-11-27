@@ -28,6 +28,20 @@ test("modal shell preserves Figma desktop geometry", async () => {
   assert.match(tab, /text-\[13px\]/);
 });
 
+// Keep the selected navigation state tied to the existing Figma-mapped sidebar tokens and rail.
+test("selected Settings tab uses the shared sidebar accent and indicator", async () => {
+  const tab = await read(
+    "../src/features/settings/components/molecules/settings-tab.tsx",
+  );
+
+  assert.match(
+    tab,
+    /bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/,
+  );
+  assert.match(tab, /data-component="SettingsTabSelectionIndicator"/);
+  assert.match(tab, /bg-brand/);
+});
+
 test("General settings composes the profile form with responsive preferences", async () => {
   const [settings, theme] = await Promise.all([
     read("../src/features/settings/components/organisms/settings-page.tsx"),
@@ -105,6 +119,16 @@ test("Settings language select matches Figma trigger and option selected state",
     settings,
     /Japanese|Korean|Chinese \(Simplified\)|French|German/,
   );
+});
+
+// Keep locale changes from remounting the workspace shell that owns the open Settings dialog.
+test("workspace shell preserves interaction state when its localized navigation updates", async () => {
+  const shell = await read(
+    "../src/features/workspace/components/organisms/app-shell.tsx",
+  );
+
+  assert.match(shell, /key=\{assessmentId \?\? getAppShellKey\(pathname\)\}/);
+  assert.match(shell, /items: localizeNavigation\(primaryNavigation, locale\)/);
 });
 
 test("Account settings composes a responsive, actionable session section", async () => {

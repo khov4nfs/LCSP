@@ -1,4 +1,5 @@
 import type { MessageKey } from "@lcsp/i18n";
+import type { DialogPopupProps } from "@base-ui/react/dialog";
 import type {
   ConfirmAccessOtpValues,
   ConfirmAccessPasswordValues,
@@ -85,6 +86,16 @@ export type ConfirmAccessDialogProps = {
   confirmLabelKey: MessageKey;
   confirmingLabelKey: MessageKey;
   closeLabelKey: MessageKey;
+  /** Optional presentation override; omitted consumers keep the shared Dialog width. */
+  className?: string;
+  /** Optional stable focus target for controlled consumers whose opening control may unmount. */
+  finalFocus?: DialogPopupProps["finalFocus"];
+  /** Optional responsive header styling; omitted consumers retain the shared Dialog layout. */
+  headerClassName?: string;
+  /** Optional title typography adjustment for a consumer-specific narrow layout. */
+  titleClassName?: string;
+  /** Optional decorative lock icon sizing for layouts where the header must reflow. */
+  iconClassName?: string;
   /** Keeps long confirmation content within the viewport while leaving the header fixed. */
   constrainToViewport?: boolean;
   errorTitleKey?: MessageKey;

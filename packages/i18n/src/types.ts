@@ -2647,6 +2647,11 @@ export type PagesMessages = {
         saveSuccess: string;
         saveError: string;
         loading: string;
+        loadError: string;
+        loadErrorDetail: string;
+        staleTitle: string;
+        staleDescription: string;
+        retry: string;
       };
       billing: {
         title: string;
@@ -2801,8 +2806,13 @@ export type PagesMessages = {
         domainAllowlist: string;
         domainAllowlistUnsupported: string;
         packageManagersOnly: string;
+        allowedPackageManagerDomains: string;
+        noAllowedPackageManagerDomains: string;
         loading: string;
         loadError: string;
+        loadErrorDetail: string;
+        staleTitle: string;
+        staleDescription: string;
         retry: string;
         saveSuccess: string;
         saveError: string;

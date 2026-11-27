@@ -107,6 +107,8 @@ export function SettingsPage({
   const oauthLinkParam = searchParams.get("oauth_link");
 
   const [confirmAccessOpen, setConfirmAccessOpen] = useState(false);
+  // Keep a stable parent focus target because the confirmation button may unmount when step-up opens.
+  const settingsPageRef = useRef<HTMLElement | null>(null);
   const [pendingSensitiveAction, setPendingSensitiveAction] =
     useState<SettingsSensitiveAction | null>(null);
   // Observe dismissal synchronously when an already-submitted proof resolves later.
@@ -295,8 +297,18 @@ export function SettingsPage({
     }
   }
 
+  /**
+   * Return keyboard focus to the selected Settings tab when an API challenge replaces an unmounted confirmation dialog.
+   */
+  function getConfirmAccessFocusReturnTarget() {
+    return settingsPageRef.current?.querySelector<HTMLElement>(
+      '[data-component="SettingsTab"][aria-current="page"]',
+    ) ?? false;
+  }
+
   return (
     <main
+      ref={settingsPageRef}
       className={
         presentation === SETTINGS_PRESENTATIONS.modal
           ? "flex h-full min-h-0 flex-col overflow-hidden text-foreground md:flex-row"
@@ -319,6 +331,7 @@ export function SettingsPage({
         />
         <section className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <div className="h-full min-h-0">
+            {/* Frame 39 is 480px wide at the base text size; keep this canonical max-width local to Settings. */}
             {profile ? (
               <ConfirmAccessDialog
                 initialMethod={
@@ -329,6 +342,7 @@ export function SettingsPage({
                     : CONFIRM_ACCESS_METHODS.password
                 }
                 open={confirmAccessOpen}
+                finalFocus={getConfirmAccessFocusReturnTarget}
                 onOpenChange={(open) => {
                   if (open) {
                     setConfirmAccessOpen(true);
@@ -350,6 +364,13 @@ export function SettingsPage({
                 confirmLabelKey="pages.workspace.settingsHub.reauth.confirm"
                 confirmingLabelKey="pages.workspace.settingsHub.reauth.confirming"
                 closeLabelKey="pages.workspace.settingsHub.reauth.close"
+                // Bound this Settings dialog so enlarged text keeps its header and actions reachable.
+                constrainToViewport
+                className="max-w-120"
+                // Stack the Settings confirmation heading on narrow screens so translated text does not consume the scroll viewport.
+                headerClassName="max-sm:flex-col max-sm:gap-1 max-sm:px-2 max-sm:py-2 max-sm:pr-11"
+                iconClassName="max-sm:size-6"
+                titleClassName="max-sm:text-lg"
                 errorTitleKey={confirmAccessPasswordError?.titleKey}
                 errorKey={confirmAccessPasswordError?.detailKey ?? null}
                 mfa={{

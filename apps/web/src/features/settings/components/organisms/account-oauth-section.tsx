@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { OAUTH_LINK_QUERY_RESULTS } from "@lcsp/contracts/auth";
 import type { Locale } from "@lcsp/contracts/shared";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
+// Reuse the bundled Google mark used by sign-in; the former public URL was not served by this Next.js app.
+import googleIcon from "@/public/assets/icons/google.svg";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +20,6 @@ import type { AuthSettingsProfile } from "@/lib/api/auth-client";
 import { useLinkedOAuthIdentitiesQuery } from "@/lib/api/auth-queries";
 import { apiQueryKeys } from "@/lib/api/query-keys";
 import { formatLocaleDate } from "@/lib/date-format";
-
-const GOOGLE_ICON_SRC = "/assets/icons/google.svg";
 
 export type AccountOAuthSectionProps = {
   profile: AuthSettingsProfile;
@@ -282,7 +282,7 @@ export function AccountOAuthSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src={GOOGLE_ICON_SRC}
+              src={googleIcon}
               alt=""
               width={20}
               height={20}

@@ -2896,9 +2896,9 @@ export const viPages = {
         title: "Quyền riêng tư",
         description:
           "Quản lý tùy chọn quyền riêng tư và chính sách quản trị dữ liệu cho workspace và tài khoản của bạn.",
-        repositoryMetadata: "Metadata repository",
+        repositoryMetadata: "Siêu dữ liệu kho mã nguồn",
         repositoryMetadataDescription:
-          "Lưu giữ telemetry cấu trúc file repository và cache chỉ mục để tăng tốc độ quét tiếp theo.",
+          "Lưu giữ dữ liệu đo lường về cấu trúc tệp của kho mã nguồn và bộ nhớ đệm chỉ mục để tăng tốc các lần quét tiếp theo.",
         improveModels: "Cải thiện model bằng dữ liệu workspace",
         improveModelsDescription:
           "Nghiêm cấm tuyệt đối việc sử dụng code của khách hàng để huấn luyện các model AI bên ngoài hoặc model nền tảng.",
@@ -2915,6 +2915,12 @@ export const viPages = {
         saveSuccess: "Cập nhật cài đặt quyền riêng tư thành công.",
         saveError: "Không thể cập nhật cài đặt quyền riêng tư.",
         loading: "Đang tải cài đặt quyền riêng tư...",
+        loadError: "Không thể tải cài đặt quyền riêng tư.",
+        loadErrorDetail: "Không tải được cài đặt quyền riêng tư hiện tại. Vui lòng thử lại.",
+        staleTitle: "Đang hiển thị cài đặt quyền riêng tư được xác nhận lần gần nhất",
+        staleDescription:
+          "Lần tải mới nhất không thành công nên các giá trị này có thể đã cũ. Tạm thời không thể thay đổi cho đến khi tải lại cài đặt thành công.",
+        retry: "Thử lại",
       },
       billing: {
         title: "Thanh toán",
@@ -3094,8 +3100,15 @@ export const viPages = {
         domainAllowlistUnsupported:
           "Chưa thể cấu hình domain bổ sung trong settings contract hiện tại.",
         packageManagersOnly: "Chỉ package manager",
+        allowedPackageManagerDomains: "Các domain package manager được phép",
+        noAllowedPackageManagerDomains:
+          "Chính sách hiện không trả về domain package manager nào được phép.",
         loading: "Đang tải cài đặt khả năng...",
         loadError: "Không thể tải cài đặt khả năng.",
+        loadErrorDetail: "Không tải được cài đặt khả năng hiện tại. Vui lòng thử lại.",
+        staleTitle: "Đang hiển thị cài đặt khả năng được xác nhận lần gần nhất",
+        staleDescription:
+          "Lần tải mới nhất không thành công nên các giá trị này có thể đã cũ. Tạm thời không thể thay đổi cho đến khi tải lại cài đặt thành công.",
         retry: "Thử lại",
         saveSuccess: "Đã lưu cài đặt khả năng.",
         saveError: "Không thể lưu cài đặt khả năng.",

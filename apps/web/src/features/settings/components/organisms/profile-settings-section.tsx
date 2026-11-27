@@ -142,11 +142,13 @@ function ProfileSettingsEditor({
         className="space-y-4"
         aria-busy={isSubmitting}
       >
+        {/* Keep this profile draft usable at narrow widths without changing shared-field defaults. */}
         <FormTextField<ProfileSettingsValues>
           name="display_name"
           id="settings-full-name"
           autoComplete="name"
           inputClassName="max-w-64"
+          wrapActions
           labelKey="pages.workspace.settingsHub.labels.displayName"
           descriptionKey="pages.workspace.settingsHub.profile.nameHelp"
           actions={

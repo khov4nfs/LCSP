@@ -55,10 +55,11 @@ export function AppShell({ children }: AppShellProps) {
     pathname === "/laws" ||
     pathname.startsWith("/laws/")
   ) {
+    // Locale changes update the localized sections below; keeping the route-based key avoids discarding open Settings and other workspace interaction state.
     return (
       <WorkspaceRuntimeProvider>
         <AssessmentAppShell
-          key={`${assessmentId ?? getAppShellKey(pathname)}:${locale}`}
+          key={assessmentId ?? getAppShellKey(pathname)}
           sections={sections}
           assessmentId={assessmentId}
         >
