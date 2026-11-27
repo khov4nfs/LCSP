@@ -336,9 +336,9 @@ older multi-question batch guidance: a new model turn that tries to open more th
 returns `HUMAN_REQUEST_INVALID` / `ONE_CUSTOMER_QUESTION_PER_TURN` before any tool in that turn executes.
 - Choose the highest-impact missing fact for the current selected scope. State what the customer
   needs to confirm and why it changes a specific condition or criterion; omit background questionnaires.
-- Keep related details in one question only when they describe one fact about the same actor,
-  workflow and time period. Ask who reviews an AI recommendation in the intended workflow as a
-  separate fact from what action they take on it.
+- Group related details only when they describe the same operational fact, actor, workflow and time
+  period and can be answered coherently. Ask who reviews an AI recommendation in the intended
+  workflow as a separate fact from what action they take on it.
 - When that same fact supports several rules or criteria, use one request with `dependencies` and
   the matching `fact_need` or `source_request_id`; do not ask one copy per rule. Reuse accepted facts
   and exact existing request identities across wording changes or languages.
