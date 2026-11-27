@@ -9,7 +9,7 @@ import { FormProvider, useForm, useFormContext } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { appLocale } from "@/lib/locale";
+import { useAppLocale } from "@/components/providers/locale-provider";
 import { useSignUpMutation } from "@/lib/api/auth-queries";
 import {
   API_OUTCOME_KINDS,
@@ -36,6 +36,8 @@ import {
 } from "../molecules/auth-form-primitives";
 
 function RegularSignUpForm() {
+  // Subscribe to locale changes without remounting so validation state and entered credentials remain intact.
+  const locale = useAppLocale();
   const router = useRouter();
   const signUpMutation = useSignUpMutation();
   const [submissionError, setSubmissionError] =
@@ -82,20 +84,22 @@ function RegularSignUpForm() {
     );
   }
 
+  // AuthShell owns page alignment; let field feedback and longer translated copy determine the form height.
   return (
-    <AuthFormSurface className="pt-[104px]" data-figma-node="925:31277">
+    <AuthFormSurface className="w-full" data-figma-node="1662:1128">
       <AuthHeading
-        title={resolveMessage(appLocale, "pages.signUp.formTitle")}
-        description={resolveMessage(appLocale, "pages.signUp.formDescription")}
+        title={resolveMessage(locale, "pages.signUp.formTitle")}
+        description={resolveMessage(locale, "pages.signUp.formDescription")}
       />
       <FormProvider {...form}>
+        {/* The post-heading offset aligns the first field row with the audited sign-up frame. */}
         <form
           id="sign-up-form"
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
-          className="mt-[30px] flex flex-col"
+          className="mt-10.5 flex flex-col"
         >
-          <FieldGroup className="gap-3">
+          <FieldGroup className="gap-6.5">
             {submissionError ? (
               <SignUpErrorAlert submissionError={submissionError} />
             ) : null}
@@ -104,7 +108,7 @@ function RegularSignUpForm() {
             ))}
           </FieldGroup>
           <AuthPrimaryButton
-            className="mt-5"
+            className="mt-7"
             type="submit"
             form="sign-up-form"
             disabled={form.formState.isSubmitting}
@@ -114,21 +118,21 @@ function RegularSignUpForm() {
               <Spinner data-icon="inline-start" />
             ) : null}
             {resolveMessage(
-              appLocale,
+              locale,
               form.formState.isSubmitting
                 ? "pages.signUp.submitting"
                 : "pages.signUp.submit",
             )}
           </AuthPrimaryButton>
         </form>
-        <p className="mt-[18px] text-center text-[11px] leading-4 text-muted-foreground">
-          {resolveMessage(appLocale, "pages.signUp.alreadyHaveAccount")}{" "}
+        <p className="mt-6 text-left text-xs leading-4 text-muted-foreground">
+          {resolveMessage(locale, "pages.signUp.alreadyHaveAccount")}{" "}
           <AuthInlineLink href={API_REDIRECT_LOCATIONS.signIn}>
-            {resolveMessage(appLocale, "pages.signUp.signInInstead")}
+            {resolveMessage(locale, "pages.signUp.signInInstead")}
           </AuthInlineLink>
         </p>
-        <AuthNote className="mt-[18px]">
-          {resolveMessage(appLocale, "pages.signUp.accessHelp")}
+        <AuthNote className="sr-only">
+          {resolveMessage(locale, "pages.signUp.accessHelp")}
         </AuthNote>
       </FormProvider>
     </AuthFormSurface>
@@ -136,6 +140,8 @@ function RegularSignUpForm() {
 }
 
 function SignUpField({ field }: SignUpFieldProps) {
+  // Resolve field labels and validation messages from the active locale while preserving the RHF registration.
+  const locale = useAppLocale();
   const { formState, register } = useFormContext<SignUpFormValues>();
   const error = formState.errors[field.name]?.message;
 
@@ -145,17 +151,19 @@ function SignUpField({ field }: SignUpFieldProps) {
       type={field.type}
       autoComplete={field.autoComplete}
       disabled={formState.isSubmitting}
-      label={resolveMessage(appLocale, field.labelKey)}
-      description={resolveMessage(appLocale, field.descriptionKey)}
+      label={resolveMessage(locale, field.labelKey)}
+      placeholder={resolveMessage(locale, field.placeholderKey)}
+      description={resolveMessage(locale, field.descriptionKey)}
+      descriptionClassName="sr-only"
       trailing={
         field.name === "password"
-          ? resolveMessage(appLocale, "pages.signUp.passwordMinHint")
+          ? resolveMessage(locale, "pages.signUp.passwordMinHint")
           : undefined
       }
       error={
         error
           ? resolveMessage(
-              appLocale,
+              locale,
               error as Parameters<typeof resolveMessage>[1],
             )
           : undefined
@@ -170,16 +178,18 @@ function SignUpErrorAlert({
 }: {
   submissionError: Exclude<SignUpSubmissionError, null>;
 }) {
+  // Keep API outcome copy reactive to locale changes without altering the existing submission outcome mapping.
+  const locale = useAppLocale();
   if (submissionError === SIGN_UP_SUBMISSION_ERRORS.emailAlreadyExists) {
     return (
       <Alert variant="destructive">
         <AlertTitle>
-          {resolveMessage(appLocale, "pages.signUp.errors.emailExistsTitle")}
+          {resolveMessage(locale, "pages.signUp.errors.emailExistsTitle")}
         </AlertTitle>
         <AlertDescription>
-          {resolveMessage(appLocale, "pages.signUp.errors.emailExistsDetail")}{" "}
+          {resolveMessage(locale, "pages.signUp.errors.emailExistsDetail")}{" "}
           <AuthInlineLink href={API_REDIRECT_LOCATIONS.signIn}>
-            {resolveMessage(appLocale, "pages.signUp.signInInstead")}
+            {resolveMessage(locale, "pages.signUp.signInInstead")}
           </AuthInlineLink>
         </AlertDescription>
       </Alert>
@@ -190,11 +200,11 @@ function SignUpErrorAlert({
     return (
       <Alert variant="destructive">
         <AlertTitle>
-          {resolveMessage(appLocale, "pages.signUp.errors.invalidRequestTitle")}
+          {resolveMessage(locale, "pages.signUp.errors.invalidRequestTitle")}
         </AlertTitle>
         <AlertDescription>
           {resolveMessage(
-            appLocale,
+            locale,
             "pages.signUp.errors.invalidRequestDetail",
           )}
         </AlertDescription>
@@ -205,10 +215,10 @@ function SignUpErrorAlert({
   return (
     <Alert variant="destructive">
       <AlertTitle>
-        {resolveMessage(appLocale, "pages.signUp.errors.requestFailedTitle")}
+        {resolveMessage(locale, "pages.signUp.errors.requestFailedTitle")}
       </AlertTitle>
       <AlertDescription>
-        {resolveMessage(appLocale, "pages.signUp.errors.requestFailedDetail")}
+        {resolveMessage(locale, "pages.signUp.errors.requestFailedDetail")}
       </AlertDescription>
     </Alert>
   );

@@ -20,6 +20,7 @@ type CredentialFieldAutocomplete =
 export type CredentialFieldDefinition = {
   name: CredentialFieldName;
   labelKey: MessageKey;
+  placeholderKey: MessageKey;
   type: CredentialFieldType;
   autoComplete: CredentialFieldAutocomplete;
   descriptionKey: MessageKey;
@@ -27,4 +28,8 @@ export type CredentialFieldDefinition = {
 
 export type CredentialFieldProps = {
   field: CredentialFieldDefinition;
+};
+
+export type SignInPageProps = {
+  oauthFailure?: boolean;
 };

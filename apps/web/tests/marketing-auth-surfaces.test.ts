@@ -128,27 +128,33 @@ test("Pricing implements the full M03 prepaid-credit model", async () => {
   );
 });
 
-test("auth uses the Figma centered surface instead of the old split visual", async () => {
+test("auth uses the Figma asymmetric panel layout and shared form scale", async () => {
   const shellSource = await readFile(authShell, "utf8");
   const primitiveSource = await readFile(authPrimitives, "utf8");
 
-  assert.match(shellSource, /bg-background text-foreground/);
+  // R2 replaces the old centered form with the audited Figma panel + responsive form grid.
+  assert.match(shellSource, /AuthBrandPanel/);
+  assert.match(shellSource, /xl:grid-cols-/);
+  assert.match(shellSource, /footerLabel/);
+  assert.match(shellSource, /languageLabel/);
   assert.match(shellSource, /backToWebsite/);
+  assert.match(shellSource, /backToWebsiteShort/);
+  assert.match(shellSource, /aria-label=\{t\("pages\.appShell\.backToWebsite"\)\}/);
   assert.match(shellSource, /href="\/"/);
   assert.doesNotMatch(
     shellSource,
-    /lg:grid-cols-2|auth-visual|backdrop-blur-sm/,
+    /auth-visual|backdrop-blur-sm/,
   );
-  assert.match(primitiveSource, /max-w-\[360px\]/);
-  assert.match(primitiveSource, /h-10 rounded-lg/);
-  assert.match(primitiveSource, /h-9 w-full/);
+  assert.match(primitiveSource, /max-w-\[450px\]/);
+  assert.match(primitiveSource, /h-9 rounded-sm/);
+  assert.match(primitiveSource, /h-10 w-full/);
   assert.match(primitiveSource, /text-muted-foreground/);
   assert.doesNotMatch(shellSource, /FormCard/);
 });
 
 test("login keeps Google first and auth navigation routes alive", async () => {
   const source = await readFile(signInForm, "utf8");
-  assert.match(source, /data-figma-node="924:31258"/);
+  assert.match(source, /data-figma-node="1662:1078"/);
   assert.ok(source.indexOf("<OAuthButton") < source.indexOf("<AuthDivider"));
   assert.ok(source.indexOf("<AuthDivider") < source.indexOf("<form"));
   assert.match(source, /API_REDIRECT_LOCATIONS\.recoveryRequest/);
@@ -160,10 +166,10 @@ test("MFA exposes authenticator and recovery-code Figma states", async () => {
   const source = await readFile(mfaVerifyForm, "utf8");
   assert.match(
     source,
-    /data-figma-node=\{isRecoveryCode \? "926:31359" : "925:31355"\}/,
+    /data-figma-node=\{isRecoveryCode \? "926:31359" : "1662:1166"\}/,
   );
   assert.match(source, /API_REDIRECT_LOCATIONS\.mfaRecoveryCode/);
   assert.match(source, /InputOTPSlot/);
-  assert.match(source, /InputOTPSeparator/);
+  assert.doesNotMatch(source, /InputOTPSeparator/);
   assert.match(source, /pages\.mfaVerify\.recoveryCodeAccessHelp/);
 });

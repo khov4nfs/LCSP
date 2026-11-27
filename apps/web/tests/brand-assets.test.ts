@@ -99,7 +99,8 @@ test("auth and workspace selection reuse the shared lockup component", async () 
 
   assert.match(authSource, /import \{ LCSPLogo \}/);
   assert.match(authSource, /<LCSPLogo variant="lockup" size="md" \/>/);
-  assert.match(authSource, /aria-label=\{homeLabel\}/);
+  // AuthShell resolves the accessible logo name through the active locale rather than a raw prop value.
+  assert.match(authSource, /aria-label=\{t\(homeLabelKey\)\}/);
   assert.doesNotMatch(authSource, /pages\.appShell\.productName\}\s*<\/Link>/);
   assert.match(workspaceSource, /import \{ LCSPLogo \}/);
   assert.match(workspaceSource, /variant="lockup"/);

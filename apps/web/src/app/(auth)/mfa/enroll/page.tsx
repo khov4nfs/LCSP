@@ -1,19 +1,22 @@
-import { resolveMessage } from "@lcsp/i18n";
 import type { Metadata } from "next";
 
 import { AuthShell } from "@/features/auth/components/organisms/auth-shell";
 import { MfaEnrollForm } from "@/features/auth/components/organisms/mfa-enroll-form";
-import { appLocale } from "@/lib/locale";
+import { getAuthPageMetadata } from "@/features/auth/utils/get-auth-page-metadata";
 
-export const metadata: Metadata = {
-  title: resolveMessage(appLocale, "pages.mfaEnroll.metadataTitle"),
-  description: resolveMessage(appLocale, "pages.mfaEnroll.metadataDescription"),
-};
+// Derive title and description from the locale selected for this request.
+export async function generateMetadata(): Promise<Metadata> {
+  return getAuthPageMetadata(
+    "pages.mfaEnroll.metadataTitle",
+    "pages.mfaEnroll.metadataDescription",
+  );
+}
 
 export default function MfaEnrollPage() {
+  // Keep the shared logo's accessible name resolved by the reactive shell locale.
   return (
     <AuthShell
-      homeLabel={resolveMessage(appLocale, "pages.mfaEnroll.homeAriaLabel")}
+      homeLabelKey="pages.mfaEnroll.homeAriaLabel"
     >
       <MfaEnrollForm />
     </AuthShell>

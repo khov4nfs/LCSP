@@ -1763,6 +1763,29 @@ export type PagesMessages = {
       ctaDescription: string;
     };
   };
+  // Shared auth navigation and product-panel copy are locale-complete for live language switching.
+  authShell: {
+    navigationLabel: string;
+    languageLabel: string;
+    backToWebsiteShort: string;
+    english: string;
+    vietnamese: string;
+    brandPanelLabel: string;
+    brandEyebrow: string;
+    brandHeadline: string;
+    brandDescription: string;
+    workflowLabel: string;
+    legalSource: string;
+    legalSourceDescription: string;
+    repository: string;
+    repositoryDescription: string;
+    finding: string;
+    findingDescription: string;
+    evidenceLinked: string;
+    reasoning: string;
+    brandFooter: string;
+    footerLabel: string;
+  };
   signIn: {
     metadataTitle: string;
     metadataDescription: string;
@@ -1771,8 +1794,10 @@ export type PagesMessages = {
     formTitle: string;
     formDescription: string;
     emailLabel: string;
+    emailPlaceholder: string;
     emailDescription: string;
     passwordLabel: string;
+    passwordPlaceholder: string;
     passwordDescription: string;
     submit: string;
     submitting: string;
@@ -1785,9 +1810,12 @@ export type PagesMessages = {
     showPassword: string;
     hidePassword: string;
     errors: {
+      oauthFailedTitle: string;
+      oauthFailedDetail: string;
       emailRequired: string;
       emailInvalid: string;
       passwordRequired: string;
+      invalidCredentialsMessage: string;
       requestFailedTitle: string;
       requestFailedDetail: string;
       retryAtLabel: string;
@@ -1800,12 +1828,16 @@ export type PagesMessages = {
     formTitle: string;
     formDescription: string;
     displayNameLabel: string;
+    displayNamePlaceholder: string;
     displayNameDescription: string;
     emailLabel: string;
+    emailPlaceholder: string;
     emailDescription: string;
     passwordLabel: string;
+    passwordPlaceholder: string;
     passwordDescription: string;
     confirmPasswordLabel: string;
+    confirmPasswordPlaceholder: string;
     confirmPasswordDescription: string;
     submit: string;
     submitting: string;
@@ -1815,6 +1847,7 @@ export type PagesMessages = {
     passwordMinHint: string;
     errors: {
       displayNameRequired: string;
+      displayNameTooLong: string;
       emailRequired: string;
       emailInvalid: string;
       passwordRequired: string;
@@ -1873,6 +1906,11 @@ export type PagesMessages = {
     formEyebrow: string;
     formTitle: string;
     formDescription: string;
+    setupSteps: {
+      generate: string;
+      verify: string;
+      saveRecoveryCodes: string;
+    };
     submit: string;
     submitting: string;
     goToVerify: string;
@@ -1900,6 +1938,7 @@ export type PagesMessages = {
     formTitle: string;
     formDescription: string;
     emailLabel: string;
+    emailPlaceholder: string;
     emailDescription: string;
     submit: string;
     submitting: string;
@@ -1924,8 +1963,13 @@ export type PagesMessages = {
     tokenLabel: string;
     tokenDescription: string;
     passwordLabel: string;
+    passwordPlaceholder: string;
     passwordDescription: string;
     passwordMinHint: string;
+    confirmPasswordLabel: string;
+    confirmPasswordPlaceholder: string;
+    confirmPasswordDescription: string;
+    passwordRequirementsTitle: string;
     submit: string;
     submitting: string;
     requestAnother: string;
@@ -1933,6 +1977,8 @@ export type PagesMessages = {
     errors: {
       tokenRequired: string;
       passwordTooShort: string;
+      confirmPasswordRequired: string;
+      passwordMismatch: string;
       requestFailedTitle: string;
       requestFailedDetail: string;
     };

@@ -78,6 +78,7 @@ function ConfirmAccessDialogContent({
   confirmLabelKey,
   confirmingLabelKey,
   closeLabelKey,
+  constrainToViewport,
   errorTitleKey,
   errorKey,
   mfa,
@@ -163,8 +164,14 @@ function ConfirmAccessDialogContent({
       onSelect: handleSelectPassword,
     });
   }
+  // The opt-in bound lets the dialog header stay visible while long form content scrolls inside the popup.
   return (
-    <DialogContent closeLabel={resolveMessage(appLocale, closeLabelKey)}>
+    <DialogContent
+      className={
+        constrainToViewport ? "max-h-dvh" : undefined
+      }
+      closeLabel={resolveMessage(appLocale, closeLabelKey)}
+    >
         <DialogHeader>
           <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
             <LockIcon className="size-5" />
@@ -179,7 +186,13 @@ function ConfirmAccessDialogContent({
           </div>
         </DialogHeader>
 
-        <DialogBody>
+        <DialogBody
+          className={
+            constrainToViewport
+              ? "min-h-0 flex-1 overflow-y-auto"
+              : undefined
+          }
+        >
           <SignedInAccountPanel
             accountLabelKey={accountLabelKey}
             accountHandle={accountHandle}

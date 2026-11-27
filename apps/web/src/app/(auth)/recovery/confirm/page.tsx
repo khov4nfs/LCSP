@@ -1,17 +1,16 @@
-import { resolveMessage } from "@lcsp/i18n";
 import type { Metadata } from "next";
 
 import { AuthShell } from "@/features/auth/components/organisms/auth-shell";
 import { RecoveryConfirmForm } from "@/features/auth/components/organisms/recovery-confirm-form";
-import { appLocale } from "@/lib/locale";
+import { getAuthPageMetadata } from "@/features/auth/utils/get-auth-page-metadata";
 
-export const metadata: Metadata = {
-  title: resolveMessage(appLocale, "pages.recoveryConfirm.metadataTitle"),
-  description: resolveMessage(
-    appLocale,
+// Derive title and description from the locale selected for this request.
+export async function generateMetadata(): Promise<Metadata> {
+  return getAuthPageMetadata(
+    "pages.recoveryConfirm.metadataTitle",
     "pages.recoveryConfirm.metadataDescription",
-  ),
-};
+  );
+}
 
 export default async function RecoveryConfirmPage({
   searchParams,
@@ -20,12 +19,10 @@ export default async function RecoveryConfirmPage({
 }) {
   const params = await searchParams;
 
+  // Pass a message key so the client shell can resolve its accessible name after a locale switch.
   return (
     <AuthShell
-      homeLabel={resolveMessage(
-        appLocale,
-        "pages.recoveryConfirm.homeAriaLabel",
-      )}
+      homeLabelKey="pages.recoveryConfirm.homeAriaLabel"
     >
       <RecoveryConfirmForm token={params.token ?? ""} />
     </AuthShell>
