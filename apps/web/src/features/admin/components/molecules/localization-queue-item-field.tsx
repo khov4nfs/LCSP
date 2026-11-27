@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { resolveAppMessage } from "@/lib/i18n";
 import type { LocalizationReviewForm } from "../../schemas/localization-review.schema";
 import type { LocalizationQueueItemFieldProps } from "../../types/localization-review.types";
+import { ReviewStatusBadge } from "../atoms/review-status-badge";
+import { LegalTextComparison } from "./legal-text-comparison";
 
 /**
  * Business purpose: Render one authored localization field request with exact provenance and review controls.
@@ -51,7 +53,7 @@ export function LocalizationQueueItemField({
             {...register(`items.${index}.selected`)}
             aria-label={`${item.fieldPath} (${item.locale})`}
           />
-          <span>{item.operationalState}</span>
+          <ReviewStatusBadge status={item.operationalState} />
         </label>
         <span>
           {t("canonicalRevision")}: {item.canonicalRevision}
@@ -60,14 +62,12 @@ export function LocalizationQueueItemField({
           {t("originSha256")}: {item.originSha256}
         </span>
       </div>
-      <p className="text-sm">
-        <strong>{t("originalContent")}:</strong> {item.originalContent}
-      </p>
-      {currentOutput ? (
-        <p className="text-sm">
-          <strong>{t("candidateContent")}:</strong> {currentOutput}
-        </p>
-      ) : null}
+      <LegalTextComparison
+        originalLabel={t("originalContent")}
+        originalText={item.originalContent}
+        candidateLabel={t("candidateContent")}
+        candidateText={currentOutput}
+      />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           <span>{t("sourceLanguage")}</span>
