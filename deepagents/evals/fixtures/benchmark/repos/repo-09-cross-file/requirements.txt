@@ -1,0 +1,2 @@
+# The fixture records the provider dependency without installing it.
+openai==1.76.0

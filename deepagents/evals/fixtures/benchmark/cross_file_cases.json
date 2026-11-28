@@ -1,0 +1,504 @@
+{
+  "fixture": "repo-09-cross-file",
+  "fixtureSha256": "6eb19750cac17af528a5b0516dc9a3f137e8bc40da1d9c536adf1f88821be866",
+  "cases": [
+    {
+      "id": "direct",
+      "symbols": [
+        "summarize_document"
+      ],
+      "query": "Resolve the model and direct provider invocation from the summary entrypoint.",
+      "category": "DIRECT",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 8,
+          "end": 8,
+          "anchor": "direct_request(text, CLOUD_MODEL)",
+          "kind": "CALL"
+        },
+        {
+          "path": "service.py",
+          "start": 9,
+          "end": 9,
+          "anchor": "OpenAI().responses.create",
+          "kind": "INVOCATION"
+        },
+        {
+          "path": "config.py",
+          "start": 3,
+          "end": 3,
+          "anchor": "CLOUD_MODEL = \"fixture-model\"",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "indirect",
+      "symbols": [
+        "translate_document"
+      ],
+      "query": "Trace the translation entrypoint through its adapter and transport.",
+      "category": "INDIRECT",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 12,
+          "end": 12,
+          "anchor": "via_adapter(text, CLOUD_MODEL)",
+          "kind": "CALL"
+        },
+        {
+          "path": "service.py",
+          "start": 13,
+          "end": 13,
+          "anchor": "return forward_request(",
+          "kind": "CALL"
+        },
+        {
+          "path": "transport.py",
+          "start": 8,
+          "end": 8,
+          "anchor": "client.responses.create",
+          "kind": "INVOCATION"
+        },
+        {
+          "path": "config.py",
+          "start": 3,
+          "end": 3,
+          "anchor": "CLOUD_MODEL = \"fixture-model\"",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "bypass-default",
+      "symbols": [
+        "review_document"
+      ],
+      "query": "Explain the branch taken under the checked-in default.",
+      "category": "BYPASS",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 16,
+          "end": 17,
+          "anchor": "return normalize(text)",
+          "kind": "BRANCH"
+        },
+        {
+          "path": "config.py",
+          "start": 4,
+          "end": 4,
+          "anchor": "ENABLE_CLOUD = False",
+          "kind": "SOURCE"
+        },
+        {
+          "path": "service.py",
+          "start": 21,
+          "end": 21,
+          "anchor": "return text.strip()",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "bypass-conditional-cloud",
+      "symbols": [
+        "review_document",
+        "cloud_request"
+      ],
+      "query": "Trace the conditional cloud branch and identify its source guard.",
+      "category": "CONDITIONAL",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 16,
+          "end": 18,
+          "anchor": "return cloud_request(",
+          "kind": "BRANCH"
+        },
+        {
+          "path": "service.py",
+          "start": 17,
+          "end": 17,
+          "anchor": "return direct_request(",
+          "kind": "CALL"
+        },
+        {
+          "path": "service.py",
+          "start": 9,
+          "end": 9,
+          "anchor": "OpenAI().responses.create",
+          "kind": "INVOCATION"
+        },
+        {
+          "path": "config.py",
+          "start": 4,
+          "end": 4,
+          "anchor": "ENABLE_CLOUD = False",
+          "kind": "SOURCE"
+        },
+        {
+          "path": "config.py",
+          "start": 3,
+          "end": 3,
+          "anchor": "CLOUD_MODEL = \"fixture-model\"",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "local-only",
+      "symbols": [
+        "normalize_document"
+      ],
+      "query": "Trace local normalization and determine what the called function does.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 22,
+          "end": 22,
+          "anchor": "return normalize(",
+          "kind": "CALL"
+        },
+        {
+          "path": "service.py",
+          "start": 21,
+          "end": 21,
+          "anchor": "return text.strip()",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "dead-statement",
+      "symbols": [
+        "preview_document"
+      ],
+      "query": "Check whether the provider reference is reachable after the first return.",
+      "category": "DEAD_CODE",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 27,
+          "end": 28,
+          "anchor": "return cloud_request(",
+          "kind": "UNREACHABLE"
+        },
+        {
+          "path": "service.py",
+          "start": 21,
+          "end": 21,
+          "anchor": "return text.strip()",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "unused-definition",
+      "symbols": [
+        "unused_provider"
+      ],
+      "query": "Find the unused provider definition in this fixture; distinguish definition from entrypoint use.",
+      "category": "DEAD_CODE",
+      "gold": [
+        {
+          "path": "service.py",
+          "start": 24,
+          "end": 25,
+          "anchor": "model=\"unused\"",
+          "kind": "DORMANT_INVOCATION"
+        }
+      ]
+    },
+    {
+      "id": "demo",
+      "symbols": [
+        "demo_document"
+      ],
+      "query": "Trace the example's call and distinguish its model from the application default.",
+      "category": "EXAMPLE_ONLY",
+      "gold": [
+        {
+          "path": "examples/demo.py",
+          "start": 7,
+          "end": 7,
+          "anchor": "\"demo-model\"",
+          "kind": "CALL"
+        },
+        {
+          "path": "service.py",
+          "start": 9,
+          "end": 9,
+          "anchor": "OpenAI().responses.create",
+          "kind": "INVOCATION"
+        }
+      ]
+    },
+    {
+      "id": "test-double",
+      "symbols": [
+        "test_preview_double",
+        "LocalResponses"
+      ],
+      "query": "Determine what the AI-like create call actually invokes.",
+      "category": "TEST_ONLY",
+      "gold": [
+        {
+          "path": "tests/test_preview.py",
+          "start": 10,
+          "end": 10,
+          "anchor": "LocalResponses().create",
+          "kind": "CALL"
+        },
+        {
+          "path": "tests/test_preview.py",
+          "start": 5,
+          "end": 6,
+          "anchor": "\"echo\": input",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "symbols": [
+        "cloud_request"
+      ],
+      "query": "Trace the cloud service delegation to the SDK call and its dependency declaration.",
+      "category": "SERVICE",
+      "gold": [
+        {
+          "path": "service.py",
+          "start": 17,
+          "end": 17,
+          "anchor": "return direct_request(",
+          "kind": "CALL"
+        },
+        {
+          "path": "service.py",
+          "start": 9,
+          "end": 9,
+          "anchor": "OpenAI().responses.create",
+          "kind": "INVOCATION"
+        },
+        {
+          "path": "requirements.txt",
+          "start": 2,
+          "end": 2,
+          "anchor": "openai==",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "config",
+      "symbols": [
+        "summarize_document",
+        "CLOUD_MODEL"
+      ],
+      "query": "Follow the configured model value into the summary route and SDK boundary.",
+      "category": "CONFIGURATION",
+      "gold": [
+        {
+          "path": "app.py",
+          "start": 3,
+          "end": 3,
+          "anchor": "from config import CLOUD_MODEL",
+          "kind": "IMPORT"
+        },
+        {
+          "path": "app.py",
+          "start": 8,
+          "end": 8,
+          "anchor": "direct_request(text, CLOUD_MODEL)",
+          "kind": "CALL"
+        },
+        {
+          "path": "config.py",
+          "start": 3,
+          "end": 3,
+          "anchor": "CLOUD_MODEL = \"fixture-model\"",
+          "kind": "SOURCE"
+        },
+        {
+          "path": "service.py",
+          "start": 9,
+          "end": 9,
+          "anchor": "OpenAI().responses.create",
+          "kind": "INVOCATION"
+        }
+      ]
+    },
+    {
+      "id": "transport",
+      "symbols": [
+        "forward_request"
+      ],
+      "query": "Identify the SDK construction and invocation at the transport boundary.",
+      "category": "TRANSPORT",
+      "gold": [
+        {
+          "path": "transport.py",
+          "start": 7,
+          "end": 7,
+          "anchor": "client = OpenAI()",
+          "kind": "SOURCE"
+        },
+        {
+          "path": "transport.py",
+          "start": 8,
+          "end": 8,
+          "anchor": "client.responses.create",
+          "kind": "INVOCATION"
+        }
+      ]
+    },
+    {
+      "id": "p14-21",
+      "pilotCaseId": "CASE-21",
+      "symbols": [
+        "collect_user_consent"
+      ],
+      "query": "Inspect collect_user_consent for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/consent.py",
+          "start": 4,
+          "end": 8,
+          "anchor": "CONSENT_GRANTED",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-22",
+      "pilotCaseId": "CASE-22",
+      "symbols": [
+        "transfer_to_region"
+      ],
+      "query": "Inspect transfer_to_region for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/transfer.py",
+          "start": 4,
+          "end": 6,
+          "anchor": "tia_verified",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-23",
+      "pilotCaseId": "CASE-23",
+      "symbols": [
+        "notify_incident"
+      ],
+      "query": "Inspect notify_incident for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/breach.py",
+          "start": 4,
+          "end": 7,
+          "anchor": "hours_elapsed <= 72",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-24",
+      "pilotCaseId": "CASE-24",
+      "symbols": [
+        "write_access_log"
+      ],
+      "query": "Inspect write_access_log for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/audit_log.py",
+          "start": 4,
+          "end": 6,
+          "anchor": "actor_id}:{action",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-25",
+      "pilotCaseId": "CASE-25",
+      "symbols": [
+        "format_local_config"
+      ],
+      "query": "Inspect format_local_config for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/cli.py",
+          "start": 4,
+          "end": 6,
+          "anchor": "formatted:{path}",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-26",
+      "pilotCaseId": "CASE-26",
+      "symbols": [
+        "test_mock_encryption_helper"
+      ],
+      "query": "Inspect test_mock_encryption_helper for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "tests/test_crypto.py",
+          "start": 4,
+          "end": 6,
+          "anchor": "return True",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-27",
+      "pilotCaseId": "CASE-27",
+      "symbols": [
+        "export_profile"
+      ],
+      "query": "Inspect export_profile for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/exporter.py",
+          "start": 5,
+          "end": 7,
+          "anchor": "return",
+          "kind": "SOURCE"
+        }
+      ]
+    },
+    {
+      "id": "p14-28",
+      "pilotCaseId": "CASE-28",
+      "symbols": [
+        "RETENTION_DAYS"
+      ],
+      "query": "Inspect RETENTION_DAYS for an external model invocation and cite the source of its actual behavior.",
+      "category": "HARD_NEGATIVE",
+      "gold": [
+        {
+          "path": "src/retention.py",
+          "start": 2,
+          "end": 3,
+          "anchor": "RETENTION_DAYS = 365",
+          "kind": "SOURCE"
+        }
+      ]
+    }
+  ]
+}
