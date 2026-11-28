@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcsp.example/evals/legal-reasoning/review-overlay.schema.v1.json",
+  "title": "LCSP-400 review overlay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["overlayVersion", "candidateDatasetSha256", "caseReviews"],
+  "properties": {
+    "overlayVersion": { "const": "LCSP-400-REVIEW-OVERLAY-V1" },
+    "candidateDatasetSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "caseReviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "caseId",
+          "candidateRecordSha256",
+          "reviewStatus",
+          "reviewers",
+          "reviewerDisagreements",
+          "adjudication",
+          "uncertaintyReason",
+          "exclusionReason",
+          "expectedOverrides"
+        ],
+        "properties": {
+          "caseId": { "type": "string", "minLength": 1 },
+          "candidateRecordSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "reviewStatus": {
+            "enum": [
+              "INDEPENDENT_REVIEW",
+              "REVIEWED",
+              "ADJUDICATED",
+              "PROVISIONAL",
+              "UNCERTAIN",
+              "EXCLUDED"
+            ]
+          },
+          "reviewers": { "type": "array", "items": { "type": "object" } },
+          "reviewerDisagreements": {
+            "type": "array",
+            "items": { "type": "object" }
+          },
+          "adjudication": { "type": ["object", "null"] },
+          "uncertaintyReason": { "type": ["string", "null"] },
+          "exclusionReason": { "type": ["string", "null"] },
+          "expectedOverrides": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "applicability": { "$ref": "#/$defs/expectation" },
+              "compliance": { "$ref": "#/$defs/expectation" },
+              "actor": { "$ref": "#/$defs/expectation" },
+              "conditions": { "$ref": "#/$defs/expectation" },
+              "exceptions": { "$ref": "#/$defs/expectation" },
+              "evidenceSufficiency": { "$ref": "#/$defs/expectation" },
+              "unsupportedConclusion": { "$ref": "#/$defs/expectation" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "details"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "details": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -9,6 +9,8 @@
   "datasetCanonicalSha256": "f21ee0a6ed28ad6685ca00dc4096b7f2b81fb2813bb2e819a1cb36f291c854c8",
   "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
   "excludedAnnotationCount": 0,
+  "historicalArtifact": true,
+  "historicalArtifactNote": "Original R1 snapshot. R2 target semantics, review-overlay lifecycle, and P14 integration are not reflected in this report.",
   "humanReviewedAnnotationCount": 0,
   "humanReviewedSemanticEvaluation": {
     "eligibleReviewedCases": 0,

@@ -5,50 +5,115 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "caseId", "datasetVersion", "rubricVersion", "stage", "primaryDimension",
-    "caseDescription", "legalSource", "scenarioFacts", "claimUnderReview", "expected",
-    "annotationRationale", "evidenceReferences", "reviewStatus", "reviewers",
-    "reviewerDisagreements", "adjudication", "uncertaintyReason", "exclusionReason",
+    "caseId",
+    "datasetVersion",
+    "rubricVersion",
+    "stage",
+    "evaluationTarget",
+    "primaryDimension",
+    "caseDescription",
+    "legalSource",
+    "scenarioFacts",
+    "claimUnderReview",
+    "fixedOutputDiagnostic",
+    "expected",
+    "annotationRationale",
+    "evidenceReferences",
+    "reviewStatus",
+    "reviewers",
+    "reviewerDisagreements",
+    "adjudication",
+    "uncertaintyReason",
+    "exclusionReason",
     "counterfactualPair"
   ],
   "properties": {
-    "caseId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
-    "datasetVersion": {"const": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1"},
-    "rubricVersion": {"const": "LCSP-400-LEGAL-REASONING-RUBRIC-V1"},
-    "stage": {"enum": ["RULE_SET_PREPARATION", "ASSESSMENT_ROOT"]},
-    "primaryDimension": {
-      "enum": ["APPLICABILITY", "COMPLIANCE", "ACTOR", "CONDITIONS", "EXCEPTIONS", "EVIDENCE_SUFFICIENCY", "UNSUPPORTED_CONCLUSION"]
+    "caseId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$" },
+    "datasetVersion": { "const": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1" },
+    "rubricVersion": { "const": "LCSP-400-LEGAL-REASONING-RUBRIC-V1" },
+    "stage": { "enum": ["RULE_SET_PREPARATION", "ASSESSMENT_ROOT"] },
+    "evaluationTarget": {
+      "enum": [
+        "ACTUAL_ASSESSMENT_OUTPUT",
+        "RULE_SET_PREPARATION_OUTPUT",
+        "FIXED_CLAIM_DIAGNOSTIC",
+        "SYNTHETIC_SCORER_VERIFICATION"
+      ]
     },
-    "caseDescription": {"type": "string", "minLength": 20},
+    "primaryDimension": {
+      "enum": [
+        "APPLICABILITY",
+        "COMPLIANCE",
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ]
+    },
+    "caseDescription": { "type": "string", "minLength": 20 },
     "legalSource": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sourceId", "sourceVersion", "sourceUrl", "citations", "provisionRefs"],
+      "required": [
+        "sourceId",
+        "sourceVersion",
+        "sourceUrl",
+        "citations",
+        "provisionRefs"
+      ],
       "properties": {
-        "sourceId": {"type": "string", "minLength": 1},
-        "sourceVersion": {"type": "string", "minLength": 1},
-        "sourceUrl": {"type": "string", "format": "uri"},
-        "citations": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "provisionRefs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+        "sourceId": { "type": "string", "minLength": 1 },
+        "sourceVersion": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "citations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "provisionRefs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
       }
     },
-    "scenarioFacts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-    "claimUnderReview": {"type": ["string", "null"]},
+    "scenarioFacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "claimUnderReview": { "type": ["string", "null"] },
+    "fixedOutputDiagnostic": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["diagnosticKind", "expectedJudgments"],
+          "properties": {
+            "diagnosticKind": { "const": "PREDEFINED_CLAIM_ONLY" },
+            "expectedJudgments": { "$ref": "#/$defs/expectedDimensions" }
+          }
+        }
+      ]
+    },
     "expected": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "applicability": {"$ref": "#/$defs/expectation"},
-        "compliance": {"$ref": "#/$defs/expectation"},
-        "actor": {"$ref": "#/$defs/expectation"},
-        "conditions": {"$ref": "#/$defs/expectation"},
-        "exceptions": {"$ref": "#/$defs/expectation"},
-        "evidenceSufficiency": {"$ref": "#/$defs/expectation"},
-        "unsupportedConclusion": {"$ref": "#/$defs/expectation"}
-      },
-      "minProperties": 1
+        "applicability": { "$ref": "#/$defs/expectation" },
+        "compliance": { "$ref": "#/$defs/expectation" },
+        "actor": { "$ref": "#/$defs/expectation" },
+        "conditions": { "$ref": "#/$defs/expectation" },
+        "exceptions": { "$ref": "#/$defs/expectation" },
+        "evidenceSufficiency": { "$ref": "#/$defs/expectation" },
+        "unsupportedConclusion": { "$ref": "#/$defs/expectation" }
+      }
     },
-    "annotationRationale": {"type": "string", "minLength": 20},
+    "annotationRationale": { "type": "string", "minLength": 20 },
     "evidenceReferences": {
       "type": "array",
       "items": {
@@ -56,40 +121,81 @@
         "additionalProperties": false,
         "required": ["referenceId", "kind", "description"],
         "properties": {
-          "referenceId": {"type": "string", "minLength": 1},
-          "kind": {"enum": ["PUBLIC_LEGAL_SOURCE", "SYNTHETIC_SCENARIO_FACT", "SYNTHETIC_REPOSITORY_EVIDENCE"]},
-          "description": {"type": "string", "minLength": 1}
+          "referenceId": { "type": "string", "minLength": 1 },
+          "kind": {
+            "enum": [
+              "PUBLIC_LEGAL_SOURCE",
+              "SYNTHETIC_SCENARIO_FACT",
+              "SYNTHETIC_REPOSITORY_EVIDENCE"
+            ]
+          },
+          "description": { "type": "string", "minLength": 1 }
         }
       }
     },
-    "reviewStatus": {"enum": ["CANDIDATE", "INDEPENDENT_REVIEW", "REVIEWED", "ADJUDICATED", "PROVISIONAL", "UNCERTAIN", "EXCLUDED"]},
+    "reviewStatus": {
+      "enum": [
+        "CANDIDATE",
+        "INDEPENDENT_REVIEW",
+        "REVIEWED",
+        "ADJUDICATED",
+        "PROVISIONAL",
+        "UNCERTAIN",
+        "EXCLUDED"
+      ]
+    },
     "reviewers": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["reviewerType", "reviewerId", "identityVerificationRef", "reviewedAt", "decision", "dimensionsReviewed", "dimensionJudgments"],
+        "required": [
+          "reviewerType",
+          "reviewerId",
+          "identityVerificationRef",
+          "reviewedAt",
+          "decision",
+          "dimensionsReviewed",
+          "dimensionJudgments"
+        ],
         "properties": {
-          "reviewerType": {"const": "HUMAN"},
-          "reviewerId": {"type": "string", "minLength": 1},
-          "identityVerificationRef": {"type": "string", "minLength": 1},
-          "reviewedAt": {"type": "string", "format": "date-time"},
-          "decision": {"enum": ["CONFIRM", "REVISE", "UNSURE"]},
-          "dimensionsReviewed": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "reviewerType": { "const": "HUMAN" },
+          "reviewerId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{1,127}$"
+          },
+          "identityVerificationRef": {
+            "type": "string",
+            "pattern": "^(?:https://[^\\s]+|urn:lcsp-review:[A-Za-z0-9._:/-]+|synthetic-fixture-only://[A-Za-z0-9._:/-]+)$"
+          },
+          "reviewedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "(?:Z|\\+00:00)$"
+          },
+          "decision": { "enum": ["CONFIRM", "REVISE", "UNSURE"] },
+          "dimensionsReviewed": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
           "dimensionJudgments": {
             "type": "array",
+            "minItems": 1,
             "items": {
               "type": "object",
               "additionalProperties": false,
               "required": ["dimension", "label", "rationale"],
               "properties": {
-                "dimension": {"type": "string", "minLength": 1},
-                "label": {"type": "string", "minLength": 1},
-                "rationale": {"type": "string", "minLength": 1}
+                "dimension": { "type": "string", "minLength": 1 },
+                "label": { "type": "string", "minLength": 1 },
+                "rationale": { "type": "string", "minLength": 1 },
+                "priorLabel": { "type": "string", "minLength": 1 }
               }
             }
           },
-          "notes": {"type": "string"}
+          "notes": { "type": "string" }
         }
       }
     },
@@ -100,9 +206,14 @@
         "additionalProperties": false,
         "required": ["dimension", "reviewerIds", "issue", "proposedLabels"],
         "properties": {
-          "dimension": {"type": "string", "minLength": 1},
-          "reviewerIds": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string"}},
-          "issue": {"type": "string", "minLength": 1},
+          "dimension": { "type": "string", "minLength": 1 },
+          "reviewerIds": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": { "type": "string" }
+          },
+          "issue": { "type": "string", "minLength": 1 },
           "proposedLabels": {
             "type": "array",
             "minItems": 2,
@@ -110,7 +221,10 @@
               "type": "object",
               "additionalProperties": false,
               "required": ["reviewerId", "label"],
-              "properties": {"reviewerId": {"type": "string"}, "label": {"type": "string"}}
+              "properties": {
+                "reviewerId": { "type": "string" },
+                "label": { "type": "string" }
+              }
             }
           }
         }
@@ -118,19 +232,43 @@
     },
     "adjudication": {
       "anyOf": [
-        {"type": "null"},
+        { "type": "null" },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["reviewerType", "reviewerId", "identityVerificationRef", "reviewEvidenceRef", "outcome", "rationale", "adjudicatedAt", "resolvedLabels"],
+          "required": [
+            "reviewerType",
+            "reviewerId",
+            "identityVerificationRef",
+            "reviewEvidenceRef",
+            "outcome",
+            "rationale",
+            "adjudicatedAt",
+            "resolvedLabels"
+          ],
           "properties": {
-            "reviewerType": {"const": "HUMAN"},
-            "reviewerId": {"type": "string", "minLength": 1},
-            "identityVerificationRef": {"type": "string", "minLength": 1},
-            "reviewEvidenceRef": {"type": "string", "minLength": 1},
-            "outcome": {"enum": ["CONFIRM", "REVISE", "EXCLUDE", "REMAIN_UNCERTAIN"]},
-            "rationale": {"type": "string", "minLength": 1},
-            "adjudicatedAt": {"type": "string", "format": "date-time"},
+            "reviewerType": { "const": "HUMAN" },
+            "reviewerId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{1,127}$"
+            },
+            "identityVerificationRef": {
+              "type": "string",
+              "pattern": "^(?:https://[^\\s]+|urn:lcsp-review:[A-Za-z0-9._:/-]+|synthetic-fixture-only://[A-Za-z0-9._:/-]+)$"
+            },
+            "reviewEvidenceRef": {
+              "type": "string",
+              "pattern": "^(?:https://[^\\s]+|urn:lcsp-review:[A-Za-z0-9._:/-]+|synthetic-fixture-only://[A-Za-z0-9._:/-]+)$"
+            },
+            "outcome": {
+              "enum": ["CONFIRM", "REVISE", "EXCLUDE", "REMAIN_UNCERTAIN"]
+            },
+            "rationale": { "type": "string", "minLength": 1 },
+            "adjudicatedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(?:Z|\\+00:00)$"
+            },
             "resolvedLabels": {
               "type": "array",
               "items": {
@@ -138,9 +276,10 @@
                 "additionalProperties": false,
                 "required": ["dimension", "label", "rationale"],
                 "properties": {
-                  "dimension": {"type": "string", "minLength": 1},
-                  "label": {"type": "string", "minLength": 1},
-                  "rationale": {"type": "string", "minLength": 1}
+                  "dimension": { "type": "string", "minLength": 1 },
+                  "label": { "type": "string", "minLength": 1 },
+                  "rationale": { "type": "string", "minLength": 1 },
+                  "priorLabel": { "type": "string", "minLength": 1 }
                 }
               }
             }
@@ -148,36 +287,50 @@
         }
       ]
     },
-    "uncertaintyReason": {"type": ["string", "null"]},
-    "exclusionReason": {"type": ["string", "null"]},
+    "uncertaintyReason": { "type": ["string", "null"] },
+    "exclusionReason": { "type": ["string", "null"] },
     "counterfactualPair": {
       "anyOf": [
-        {"type": "null"},
+        { "type": "null" },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["pairId", "counterpartCaseId", "changedMaterialFact"],
           "properties": {
-            "pairId": {"type": "string", "minLength": 1},
-            "counterpartCaseId": {"type": "string", "minLength": 1},
-            "changedMaterialFact": {"type": "string", "minLength": 1}
+            "pairId": { "type": "string", "minLength": 1 },
+            "counterpartCaseId": { "type": "string", "minLength": 1 },
+            "changedMaterialFact": { "type": "string", "minLength": 1 }
           }
         }
       ]
     }
   },
   "$defs": {
+    "expectedDimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "applicability": { "$ref": "#/$defs/expectation" },
+        "compliance": { "$ref": "#/$defs/expectation" },
+        "actor": { "$ref": "#/$defs/expectation" },
+        "conditions": { "$ref": "#/$defs/expectation" },
+        "exceptions": { "$ref": "#/$defs/expectation" },
+        "evidenceSufficiency": { "$ref": "#/$defs/expectation" },
+        "unsupportedConclusion": { "$ref": "#/$defs/expectation" }
+      },
+      "minProperties": 1
+    },
     "expectation": {
       "anyOf": [
-        {"type": "null"},
+        { "type": "null" },
         {
           "type": "object",
           "additionalProperties": false,
           "required": ["label", "details"],
           "properties": {
-            "label": {"type": "string", "minLength": 1},
-            "details": {"type": "array", "items": {"type": "string"}},
-            "confidence": {"enum": ["CANDIDATE", "UNCERTAIN"]}
+            "label": { "type": "string", "minLength": 1 },
+            "details": { "type": "array", "items": { "type": "string" } },
+            "confidence": { "enum": ["CANDIDATE", "UNCERTAIN"] }
           }
         }
       ]

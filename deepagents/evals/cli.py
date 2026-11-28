@@ -4,6 +4,7 @@ Usage (from deepagents/):
   uv run python -m evals.cli manifest --cases evals/fixtures/benchmark/cases.json --output evals/reports/manifest.json
   uv run python -m evals.cli run --cases evals/fixtures/benchmark/cases.json --mode OFFLINE_FIXTURE --trials 5 --k 1 3 5 --output-dir evals/reports
   uv run python -m evals.cli score --trials evals/reports/<run_id>/trials.jsonl --manifest evals/reports/<run_id>/manifest.json --output-dir evals/reports/<run_id>
+  uv run python -m evals.cli legal-score --manifest evals/reports/<run_id>/manifest.json --trials evals/reports/<run_id>/trials.jsonl --output evals/reports/<run_id>/legal-reasoning.json
 """
 from __future__ import annotations
 
@@ -37,7 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     - Persists immutable manifests, all trial outcomes (including failures), and JSON/CSV reports.
 
     Execution flow:
-    1. Parse subcommand (manifest | run | score).
+    1. Parse subcommand (manifest | run | score | rag-b1 | legal-score).
     2. Load validated cases/reviews or trials.jsonl and verify integrity.
     3. Execute requested action and print bounded JSON summary.
 
@@ -93,7 +94,69 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_b1.add_argument("--allow-live", action="store_true")
     p_b1.add_argument("--output-dir", type=Path, required=True)
 
+    eval_root = Path(__file__).resolve().parent
+    p_legal_score = sub.add_parser(
+        "legal-score",
+        help="Validate saved P14 artifacts and run the LCSP-400 legal rubric scorer",
+    )
+    p_legal_score.add_argument("--manifest", type=Path, required=True)
+    p_legal_score.add_argument("--trials", type=Path, required=True)
+    p_legal_score.add_argument(
+        "--p14-cases", type=Path, default=eval_root / "fixtures" / "benchmark" / "cases.json"
+    )
+    p_legal_score.add_argument(
+        "--candidate-cases", type=Path, default=eval_root / "legal_reasoning" / "candidate-cases.v1.jsonl"
+    )
+    p_legal_score.add_argument(
+        "--case-map", type=Path, default=eval_root / "legal_reasoning" / "p14-case-map.v1.json"
+    )
+    p_legal_score.add_argument(
+        "--reviews", type=Path, default=None,
+        help="Optional P14 binary review artifact; never treated as LCSP-400 dimension gold",
+    )
+    p_legal_score.add_argument(
+        "--dimension-reviews", type=Path, default=None,
+        help="Optional separately authored LCSP-400 human judgments bound to P14 output traces",
+    )
+    p_legal_score.add_argument(
+        "--review-overlay", type=Path,
+        default=eval_root / "legal_reasoning" / "review-overlay.v1.json",
+        help="Versioned human review state and legal-gold overrides pinned to candidate snapshot",
+    )
+    p_legal_score.add_argument("--output", type=Path, required=True)
+
     args = parser.parse_args(argv)
+
+    if args.command == "legal-score":
+        from evals.legal_reasoning.p14_adapter import integrate_p14_artifacts
+
+        report = integrate_p14_artifacts(
+            manifest_path=args.manifest,
+            trials_path=args.trials,
+            p14_cases_path=args.p14_cases,
+            candidate_cases_path=args.candidate_cases,
+            case_mapping_path=args.case_map,
+            reviews_path=args.reviews,
+            dimension_reviews_path=args.dimension_reviews,
+            review_overlay_path=args.review_overlay,
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(
+            json.dumps(
+                {
+                    "runId": report["runMetadata"]["runId"],
+                    "artifactValidationStatus": report["artifactValidationStatus"],
+                    "scoringStatus": report["scoringStatus"],
+                    "mappedCaseCount": report["caseMapping"]["mappedCaseCount"],
+                    "output": str(args.output),
+                }
+            )
+        )
+        return 0
 
     if args.command == "manifest":
         config = RunConfig(

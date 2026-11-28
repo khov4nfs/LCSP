@@ -64,7 +64,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-rsp-condition",
@@ -128,7 +130,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-applicable",
@@ -192,7 +196,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-not-applicable",
@@ -256,7 +262,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-unresolved",
@@ -320,7 +328,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-compliance",
@@ -384,7 +394,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-evidence-partial",
@@ -448,7 +460,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-evidence-missing",
@@ -512,7 +526,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     },
     {
       "caseId": "synthetic-ar-unsupported",
@@ -576,7 +592,9 @@
       "adjudication": null,
       "uncertaintyReason": null,
       "exclusionReason": null,
-      "counterfactualPair": null
+      "counterfactualPair": null,
+      "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+      "fixedOutputDiagnostic": null
     }
   ],
   "predictions": {
@@ -598,11 +616,25 @@
                 "reviewerType": "HUMAN",
                 "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
                 "identityVerificationRef": "synthetic-fixture-only://judge-a",
-                "reviewedAt": "2026-11-28T00:00:00Z"
+                "reviewedAt": "2026-11-28T00:00:00Z",
+                "decision": "CONFIRM",
+                "dimensionsReviewed": [
+                  "ACTOR"
+                ],
+                "dimensionJudgments": [
+                  {
+                    "dimension": "ACTOR",
+                    "label": "CORRECT",
+                    "rationale": "Synthetic fixture judgment."
+                  }
+                ]
               }
-            ]
+            ],
+            "targetBinding": null
           }
-        }
+        },
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-rsp-condition",
@@ -618,11 +650,25 @@
                 "reviewerType": "HUMAN",
                 "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
                 "identityVerificationRef": "synthetic-fixture-only://judge-a",
-                "reviewedAt": "2026-11-28T00:00:00Z"
+                "reviewedAt": "2026-11-28T00:00:00Z",
+                "decision": "CONFIRM",
+                "dimensionsReviewed": [
+                  "CONDITIONS"
+                ],
+                "dimensionJudgments": [
+                  {
+                    "dimension": "CONDITIONS",
+                    "label": "PARTIAL",
+                    "rationale": "Synthetic fixture judgment."
+                  }
+                ]
               }
-            ]
+            ],
+            "targetBinding": null
           }
-        }
+        },
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-applicable",
@@ -630,7 +676,9 @@
         "dimensionPredictions": {
           "applicability": "APPLICABLE"
         },
-        "humanJudgments": {}
+        "humanJudgments": {},
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-not-applicable",
@@ -638,7 +686,9 @@
         "dimensionPredictions": {
           "applicability": "APPLICABLE"
         },
-        "humanJudgments": {}
+        "humanJudgments": {},
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-unresolved",
@@ -654,11 +704,25 @@
                 "reviewerType": "HUMAN",
                 "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
                 "identityVerificationRef": "synthetic-fixture-only://judge-a",
-                "reviewedAt": "2026-11-28T00:00:00Z"
+                "reviewedAt": "2026-11-28T00:00:00Z",
+                "decision": "CONFIRM",
+                "dimensionsReviewed": [
+                  "APPLICABILITY"
+                ],
+                "dimensionJudgments": [
+                  {
+                    "dimension": "APPLICABILITY",
+                    "label": "UNRESOLVED",
+                    "rationale": "Synthetic fixture judgment."
+                  }
+                ]
               }
-            ]
+            ],
+            "targetBinding": null
           }
-        }
+        },
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-compliance",
@@ -666,7 +730,9 @@
         "dimensionPredictions": {
           "compliance": "COMPLIANT"
         },
-        "humanJudgments": {}
+        "humanJudgments": {},
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-evidence-partial",
@@ -682,17 +748,33 @@
                 "reviewerType": "HUMAN",
                 "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
                 "identityVerificationRef": "synthetic-fixture-only://judge-a",
-                "reviewedAt": "2026-11-28T00:00:00Z"
+                "reviewedAt": "2026-11-28T00:00:00Z",
+                "decision": "CONFIRM",
+                "dimensionsReviewed": [
+                  "EVIDENCE_SUFFICIENCY"
+                ],
+                "dimensionJudgments": [
+                  {
+                    "dimension": "EVIDENCE_SUFFICIENCY",
+                    "label": "PARTIAL",
+                    "rationale": "Synthetic fixture judgment."
+                  }
+                ]
               }
-            ]
+            ],
+            "targetBinding": null
           }
-        }
+        },
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-evidence-missing",
         "stage": "ASSESSMENT_ROOT",
         "dimensionPredictions": {},
-        "humanJudgments": {}
+        "humanJudgments": {},
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       },
       {
         "caseId": "synthetic-ar-unsupported",
@@ -708,12 +790,27 @@
                 "reviewerType": "HUMAN",
                 "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
                 "identityVerificationRef": "synthetic-fixture-only://judge-a",
-                "reviewedAt": "2026-11-28T00:00:00Z"
+                "reviewedAt": "2026-11-28T00:00:00Z",
+                "decision": "CONFIRM",
+                "dimensionsReviewed": [
+                  "UNSUPPORTED_CONCLUSION"
+                ],
+                "dimensionJudgments": [
+                  {
+                    "dimension": "UNSUPPORTED_CONCLUSION",
+                    "label": "UNKNOWN_TEST_LABEL",
+                    "rationale": "Synthetic fixture judgment."
+                  }
+                ]
               }
-            ]
+            ],
+            "targetBinding": null
           }
-        }
+        },
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL"
       }
-    ]
+    ],
+    "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION"
   }
 }

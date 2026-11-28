@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from evals.legal_reasoning.reporting import build_r1_reports
 from evals.legal_reasoning.scorer import score_dataset
+from evals.legal_reasoning.review_overlay import merge_review_overlay
 from evals.legal_reasoning.validation import load_dataset, validate_dataset
 
 DEEPAGENTS = Path(__file__).resolve().parents[1]
@@ -36,6 +37,16 @@ def fixture_report(fixture=None):
     fixture = fixture or inputs()[0]
     _, rubric, pins = inputs()
     return score_dataset(fixture["annotations"], fixture["predictions"], rubric, pins)
+
+
+def synthetic_predictions(fixture, rows):
+    return {
+        "predictionVersion": fixture["predictions"]["predictionVersion"],
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "sourceKind": "SYNTHETIC_TEST_FIXTURE",
+        "syntheticOnly": True,
+        "casePredictions": rows,
+    }
 
 
 def test_candidate_dataset_schema_labels_and_inventory_are_valid():
@@ -130,17 +141,17 @@ def test_review_states_require_real_review_metadata_and_reason_codes():
     reviewed = deepcopy(fixture["annotations"][:1])
     reviewed[0]["reviewers"][0].pop("identityVerificationRef")
     with pytest.raises(ValueError, match="ANNOTATION_SCHEMA_INVALID"):
-        validate_dataset(reviewed, rubric, pins)
+        validate_dataset(reviewed, rubric, pins, allow_synthetic_reviews=True)
 
     excluded = deepcopy(fixture["annotations"][:1])
     excluded[0]["reviewStatus"] = "EXCLUDED"
     with pytest.raises(ValueError, match="EXCLUSION_REASON_REQUIRED"):
-        validate_dataset(excluded, rubric, pins)
+        validate_dataset(excluded, rubric, pins, allow_synthetic_reviews=True)
 
     uncertain = deepcopy(fixture["annotations"][:1])
     uncertain[0]["reviewStatus"] = "UNCERTAIN"
     with pytest.raises(ValueError, match="UNCERTAINTY_REASON_REQUIRED"):
-        validate_dataset(uncertain, rubric, pins)
+        validate_dataset(uncertain, rubric, pins, allow_synthetic_reviews=True)
 
 
 def test_unresolved_reviewer_disagreement_remains_provisional_and_unscored():
@@ -155,6 +166,7 @@ def test_unresolved_reviewer_disagreement_remains_provisional_and_unscored():
         {
             "dimension": "ACTOR",
             "label": "INCORRECT",
+            "priorLabel": "CORRECT",
             "rationale": "Synthetic disagreement only.",
         }
     ]
@@ -173,10 +185,7 @@ def test_unresolved_reviewer_disagreement_remains_provisional_and_unscored():
             ],
         }
     ]
-    predictions = {
-        "predictionVersion": fixture["predictions"]["predictionVersion"],
-        "casePredictions": fixture["predictions"]["casePredictions"][:1],
-    }
+    predictions = synthetic_predictions(fixture, fixture["predictions"]["casePredictions"][:1])
     result = score_dataset([row], predictions, rubric, pins)
 
     assert result["scoringStatus"] == "NOT_SCORED"
@@ -199,6 +208,7 @@ def test_adjudicated_disagreement_is_eligible_only_with_resolution_metadata():
         {
             "dimension": "ACTOR",
             "label": "INCORRECT",
+            "priorLabel": "CORRECT",
             "rationale": "Synthetic disagreement only.",
         }
     ]
@@ -235,15 +245,13 @@ def test_adjudicated_disagreement_is_eligible_only_with_resolution_metadata():
     }
     result = score_dataset(
         [row],
-        {
-            "predictionVersion": fixture["predictions"]["predictionVersion"],
-            "casePredictions": fixture["predictions"]["casePredictions"][:1],
-        },
+        synthetic_predictions(fixture, fixture["predictions"]["casePredictions"][:1]),
         rubric,
         pins,
     )
 
-    assert result["coverage"]["humanReviewedAnnotationCount"] == 1
+    assert result["coverage"]["humanReviewedAnnotationCount"] == 0
+    assert result["coverage"]["syntheticFixtureAnnotationCount"] == 1
     assert result["coverage"]["unresolvedDisagreementCount"] == 0
     assert result["perDimension"]["ACTOR"]["denominator"] == 1
 
@@ -253,8 +261,8 @@ def test_fixture_confusion_matrix_f1_precision_recall_fp_fn_are_manual_values():
     applicability = result["perDimension"]["APPLICABILITY"]
     cm = applicability["confusionMatrix"]["cells"]
 
-    assert applicability["confusionMatrix"]["rows"] == "GOLD"
-    assert applicability["confusionMatrix"]["columns"] == "PREDICTION"
+    assert applicability["confusionMatrix"]["rows"] == "OBSERVED_GOLD_RUBRIC_LABELS"
+    assert applicability["confusionMatrix"]["columns"] == "RUBRIC_LABELS_AND_MISSING_UNKNOWN_ERRORS"
     assert cm["APPLICABLE"]["APPLICABLE"] == 1
     assert cm["NOT_APPLICABLE"]["APPLICABLE"] == 1
     assert cm["UNRESOLVED"]["UNRESOLVED"] == 1
@@ -294,16 +302,24 @@ def test_missing_and_unknown_predictions_stay_in_denominator_and_are_counted():
     assert evidence["missingPredictionCount"] == 1
     assert evidence["scoringCoverage"] == 0.5
     assert evidence["falseNegatives"] == 1
-    assert "__MISSING__" in evidence["confusionMatrix"]["labels"]
+    assert "__MISSING__" in evidence["confusionMatrix"]["columnLabels"]
+    assert "__MISSING__" not in evidence["macroF1Labels"]
     assert unsupported["invalidPredictionCount"] == 1
     assert unsupported["unknownPredictionCount"] == 1
-    assert "__UNKNOWN__" in unsupported["confusionMatrix"]["labels"]
+    assert "__UNKNOWN__" in unsupported["confusionMatrix"]["columnLabels"]
+    assert "__UNKNOWN__" not in unsupported["macroF1Labels"]
 
 
 def test_empty_reviewed_dataset_returns_not_scored_with_null_quality_metrics():
     candidate = candidate_records()
     fixture = inputs()[0]
-    result = score_dataset(candidate, fixture["predictions"], inputs()[1], inputs()[2])
+    predictions = {
+        "predictionVersion": fixture["predictions"]["predictionVersion"],
+        "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+        "sourceKind": "EMPTY_CONTROL",
+        "casePredictions": [],
+    }
+    result = score_dataset(candidate, predictions, inputs()[1], inputs()[2])
 
     assert result["scoringStatus"] == "NOT_SCORED"
     assert result["coverage"]["candidateAnnotationCount"] == 30
@@ -335,15 +351,14 @@ def test_assessment_contract_normalization_handles_not_applicable_null_complianc
     prediction = {
         "caseId": annotation["caseId"],
         "stage": "ASSESSMENT_ROOT",
+        "evaluationTarget": "SYNTHETIC_SCORER_VERIFICATION",
+        "observationKind": "SYNTHETIC_FIXTURE_CONTROL",
         "dimensionPredictions": {"applicability": "NOT_APPLICABLE", "compliance": None},
         "humanJudgments": {},
     }
     report = score_dataset(
         [annotation],
-        {
-            "predictionVersion": fixture["predictions"]["predictionVersion"],
-            "casePredictions": [prediction],
-        },
+        synthetic_predictions(fixture, [prediction]),
         rubric,
         pins,
     )
@@ -404,10 +419,14 @@ def test_candidate_and_synthetic_review_records_are_physically_separate():
 
 
 def test_r1_reports_are_reproducible_and_keep_provenance_separate(tmp_path):
+    historical_paths = [
+        PACKAGE / "reports" / "candidate-diagnostics.v1.json",
+        PACKAGE / "reports" / "scorer-verification.v1.json",
+    ]
+    historical_before = [path.read_bytes() for path in historical_paths]
     generated = build_r1_reports(tmp_path)
-    checked_in = build_r1_reports()
 
-    assert generated == checked_in
+    assert [path.read_bytes() for path in historical_paths] == historical_before
     assert generated["candidateDiagnostics"]["candidateAnnotationCount"] == 30
     assert generated["candidateDiagnostics"]["humanReviewedAnnotationCount"] == 0
     assert (
@@ -415,3 +434,92 @@ def test_r1_reports_are_reproducible_and_keep_provenance_separate(tmp_path):
         == "SYNTHETIC_SCORER_VERIFICATION_ONLY"
     )
     assert generated["syntheticScorerVerification"]["candidateDatasetUsed"] is False
+
+
+def test_review_overlay_progression_keeps_candidate_snapshot_and_updates_workflow(tmp_path):
+    candidates = candidate_records()
+    rubric, pins = inputs()[1:]
+    candidate_path = PACKAGE / "candidate-cases.v1.jsonl"
+    base_bytes = candidate_path.read_bytes()
+    row = candidates[0]
+    expected = row["expected"]
+    dimension_names = {
+        "applicability": "APPLICABILITY",
+        "compliance": "COMPLIANCE",
+        "actor": "ACTOR",
+        "conditions": "CONDITIONS",
+        "exceptions": "EXCEPTIONS",
+        "evidenceSufficiency": "EVIDENCE_SUFFICIENCY",
+        "unsupportedConclusion": "UNSUPPORTED_CONCLUSION",
+    }
+    judgments = [
+        {
+            "dimension": dimension_names[field],
+            "label": value["label"],
+            "rationale": "Temporary workflow progression fixture only.",
+        }
+        for field, value in expected.items()
+        if value is not None
+    ]
+    reviewer = {
+        "reviewerType": "HUMAN",
+        "reviewerId": "test-reviewer",
+        "identityVerificationRef": "https://reviews.acme.com/test-only",
+        "reviewedAt": "2026-12-01T10:00:00Z",
+        "decision": "CONFIRM",
+        "dimensionsReviewed": [item["dimension"] for item in judgments],
+        "dimensionJudgments": judgments,
+    }
+    digest = lambda value: __import__("hashlib").sha256(
+        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    overlay = {
+        "overlayVersion": "LCSP-400-REVIEW-OVERLAY-V1",
+        "candidateDatasetSha256": digest(candidates),
+        "caseReviews": [
+            {
+                "caseId": row["caseId"],
+                "candidateRecordSha256": digest(row),
+                "reviewStatus": "REVIEWED",
+                "reviewers": [reviewer],
+                "reviewerDisagreements": [],
+                "adjudication": None,
+                "uncertaintyReason": None,
+                "exclusionReason": None,
+                "expectedOverrides": {},
+            }
+        ],
+    }
+    overlay_path = tmp_path / "review-overlay.json"
+    overlay_path.write_text(json.dumps(overlay), encoding="utf-8")
+    effective = merge_review_overlay(candidates, overlay_path, rubric, pins)
+    assert effective[0]["reviewStatus"] == "REVIEWED"
+    assert all("confidence" not in value for value in effective[0]["expected"].values() if value)
+
+    report = score_dataset(
+        effective,
+        {
+            "predictionVersion": "LCSP-400-NORMALIZED-PREDICTIONS-V1",
+            "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+            "sourceKind": "REVIEW_LIFECYCLE_UNIT_FIXTURE",
+            "casePredictions": [
+                {
+                    "caseId": row["caseId"],
+                    "stage": row["stage"],
+                    "evaluationTarget": row["evaluationTarget"],
+                    "observationKind": "GENERATED_LCSP_OUTPUT",
+                    "dimensionPredictions": {"applicability": "APPLICABLE"},
+                    "humanJudgments": {},
+                }
+            ],
+        },
+        rubric,
+        pins,
+    )
+    diagnostics = build_r1_reports(tmp_path / "reports", review_overlay_path=overlay_path)[
+        "candidateDiagnostics"
+    ]
+    assert report["perDimension"]["APPLICABILITY"]["denominator"] == 1
+    assert diagnostics["humanReviewedAnnotationCount"] == 1
+    assert diagnostics["humanReviewedSemanticEvaluation"]["authenticityStatus"] == "NOT_AUTHENTICATED_BY_TOOL"
+    assert candidate_path.read_bytes() == base_bytes

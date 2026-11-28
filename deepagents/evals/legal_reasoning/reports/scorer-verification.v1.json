@@ -110,6 +110,8 @@
     "note": "Evidence sufficiency is scored separately from semantic conclusions."
   },
   "fixtureWarning": "All review identities and labels below are synthetic test controls. This file is not human-reviewed gold and is never part of candidate-cases.v1.jsonl.",
+  "historicalArtifact": true,
+  "historicalArtifactNote": "Original R1 snapshot. R2 target semantics, review-overlay lifecycle, and P14 integration are not reflected in this report.",
   "humanReviewedSemanticEvaluation": {
     "eligibleReviewedCases": 0,
     "status": "NOT_STARTED"

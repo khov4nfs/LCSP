@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from evals.legal_reasoning.scorer import score_dataset
+from evals.legal_reasoning.review_overlay import merge_review_overlay
 from evals.legal_reasoning.validation import (
     PACKAGE_ROOT,
     load_dataset,
@@ -23,19 +24,24 @@ SYNTHETIC_FIXTURE_PATH = (
     / "legal_reasoning"
     / "synthetic-scorer-fixture.v1.json"
 )
+REVIEW_OVERLAY_PATH = PACKAGE_ROOT / "review-overlay.v1.json"
 
 
-def build_r1_reports(output_directory: str | Path | None = None) -> dict[str, Any]:
-    """Business purpose: Reproduce R1 diagnostics without describing fixtures as model results.
+def build_r1_reports(
+    output_directory: str | Path | None = None,
+    *,
+    review_overlay_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Business purpose: Reproduce candidate review lifecycle diagnostics without describing fixtures as model results.
 
     Business rules:
-    - Candidate diagnostics summarize only the canonical candidate annotations and cannot score them.
+    - The canonical candidate JSONL remains an immutable R1 snapshot; reviewer progression is read from one versioned overlay.
     - The synthetic scorer report uses a physically separate, explicitly synthetic test fixture.
     - Neither report is an actual LCSP execution baseline or a claim of human-reviewed legal truth.
 
     Execution flow:
-    1. Load and validate the canonical candidate dataset, rubric, and public source pins.
-    2. Build the candidate-only inventory and its reproducible content digest.
+    1. Load the canonical candidate dataset and merge the pinned review overlay in memory.
+    2. Validate the effective annotations and build dynamic lifecycle counts and content digest.
     3. Score the isolated synthetic fixture through the production scorer interface.
     4. Write both versioned reports to the caller-selected directory and return them.
 
@@ -44,14 +50,20 @@ def build_r1_reports(output_directory: str | Path | None = None) -> dict[str, An
       produce a partial or misleading report.
 
     Side effects:
-    - Reads local evaluation files and writes two JSON reports to the explicit report directory.
+    - Reads local evaluation files and writes two JSON reports to the explicit report directory. The default is reports/r2 so historical R1 reports are not overwritten.
     """
     destination = (
-        Path(output_directory) if output_directory else PACKAGE_ROOT / "reports"
+        Path(output_directory) if output_directory else PACKAGE_ROOT / "reports" / "r2"
     )
-    records = load_dataset(PACKAGE_ROOT / "candidate-cases.v1.jsonl")
+    candidates = load_dataset(PACKAGE_ROOT / "candidate-cases.v1.jsonl")
     rubric = _read_json(PACKAGE_ROOT / "rubric.v1.json")
     source_pins = _read_json(PACKAGE_ROOT / "source-pins.v1.json")
+    records = merge_review_overlay(
+        candidates,
+        review_overlay_path or REVIEW_OVERLAY_PATH,
+        rubric,
+        source_pins,
+    )
     inventory = validate_dataset(records, rubric, source_pins)
     source = source_pins["sources"][0]
     citations = sorted(
@@ -60,9 +72,21 @@ def build_r1_reports(output_directory: str | Path | None = None) -> dict[str, An
     candidate_bytes = json.dumps(
         records, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
+    status_counts = inventory["reviewStatusCounts"]
+    human_reviewed_count = status_counts["REVIEWED"] + status_counts["ADJUDICATED"]
+    provisional_count = (
+        status_counts["INDEPENDENT_REVIEW"]
+        + status_counts["PROVISIONAL"]
+        + status_counts["UNCERTAIN"]
+        + sum(
+            1
+            for row in records
+            if row["reviewerDisagreements"] and row["reviewStatus"] != "ADJUDICATED"
+        )
+    )
     candidate_report = {
-        "reportVersion": "LCSP-400-CANDIDATE-ANNOTATION-DIAGNOSTICS-V1",
-        "reportClassification": "CANDIDATE_ANNOTATION_DIAGNOSTICS_ONLY",
+        "reportVersion": "LCSP-400-CANDIDATE-REVIEW-LIFECYCLE-DIAGNOSTICS-V2",
+        "reportClassification": "CANDIDATE_AND_REVIEW_LIFECYCLE_DIAGNOSTICS",
         "datasetVersion": rubric["datasetVersion"],
         "rubricVersion": rubric["rubricVersion"],
         "datasetCanonicalSha256": sha256(candidate_bytes).hexdigest(),
@@ -79,15 +103,21 @@ def build_r1_reports(output_directory: str | Path | None = None) -> dict[str, An
         },
         "verifiedCitationReferences": citations,
         "verifiedCitationReferenceCount": len(citations),
-        "reviewStatusCounts": inventory["reviewStatusCounts"],
-        "candidateAnnotationCount": inventory["reviewStatusCounts"]["CANDIDATE"],
-        "humanReviewedAnnotationCount": 0,
-        "provisionalAnnotationCount": 0,
-        "excludedAnnotationCount": 0,
-        "unresolvedDisagreementCount": 0,
+        "reviewStatusCounts": status_counts,
+        "candidateAnnotationCount": status_counts["CANDIDATE"],
+        "humanReviewedAnnotationCount": human_reviewed_count,
+        "provisionalAnnotationCount": provisional_count,
+        "excludedAnnotationCount": status_counts["EXCLUDED"],
+        "unresolvedDisagreementCount": inventory.get("unresolvedDisagreementCount", sum(
+            1 for row in records if row["reviewerDisagreements"] and row["reviewStatus"] != "ADJUDICATED"
+        )),
+        "reviewOverlaySha256": sha256(
+            Path(review_overlay_path or REVIEW_OVERLAY_PATH).read_bytes()
+        ).hexdigest(),
         "humanReviewedSemanticEvaluation": {
-            "status": "NOT_STARTED",
-            "eligibleReviewedCases": 0,
+            "status": "NOT_STARTED" if human_reviewed_count == 0 else "STRUCTURALLY_ELIGIBLE_REVIEW_PRESENT",
+            "eligibleReviewedCases": human_reviewed_count,
+            "authenticityStatus": "NOT_AUTHENTICATED_BY_TOOL",
         },
         "qualityMetrics": None,
         "actualExecutionBaseline": {
@@ -177,9 +207,10 @@ def main() -> int:
     - Writes two deterministic JSON reports to the requested output directory.
     """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=PACKAGE_ROOT / "reports")
+    parser.add_argument("--output-dir", type=Path, default=PACKAGE_ROOT / "reports" / "r2")
+    parser.add_argument("--review-overlay", type=Path, default=REVIEW_OVERLAY_PATH)
     args = parser.parse_args()
-    reports = build_r1_reports(args.output_dir)
+    reports = build_r1_reports(args.output_dir, review_overlay_path=args.review_overlay)
     print(
         "candidate diagnostics: "
         + reports["candidateDiagnostics"]["reportClassification"]

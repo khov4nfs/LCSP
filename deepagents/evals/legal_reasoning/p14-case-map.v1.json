@@ -1,0 +1,11 @@
+{
+  "mappingVersion": "LCSP-400-P14-CASE-MAP-V1",
+  "mappingPolicy": "EXACT_ID_SOURCE_RULE_STAGE_AND_SNAPSHOT_ONLY",
+  "pinnedInputs": {
+    "candidateDatasetSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
+    "sourcePinsSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14",
+    "p14CasesDatasetSha256": "1142ee2190b52341c91e76e692b0e740634ea189f75d1f5b286d912e3a4416c2"
+  },
+  "caseMappings": [],
+  "mappingNote": "No current candidate has an exact verified P14 source/rule/repository crosswalk. The P14 fixture corpus is a synthetic Vietnam personal-data corpus; the LCSP-400 candidates pin GDPR provisions. Rule Set Preparation is not an execution stage in P14. Add only manually verified exact mappings; never map by topic or similar wording."
+}
