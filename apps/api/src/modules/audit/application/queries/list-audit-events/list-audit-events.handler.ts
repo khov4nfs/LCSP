@@ -16,6 +16,7 @@ import { ListAuditEventsQuery } from "./list-audit-events.query.js";
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+const MAX_AUDIT_OFFSET = 100_000;
 const MAX_DATE_RANGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 /**
@@ -35,11 +36,16 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
   ) {}
 
   /**
-   * Validates filter inputs, retrieves a page of audit events, and redacts each payload.
-   *
-   * @param query - Filters, pagination, and correlation context for the audit list request.
-   * @returns Paginated audit event summaries with sanitized payloads.
-   * @throws When pagination, date syntax, or date-range constraints are invalid.
+   * Business purpose: Give an Admin a stable page of redacted audit history.
+   * Business rules:
+   * - Date scope, page size and database offset are bounded; timestamp ties use event ID.
+   * Execution flow:
+   * 1. Validate filters and pagination bounds.
+   * 2. Count and load the stable page, then redact each payload before returning it.
+   * Failure cases:
+   * - Invalid dates or pagination return an audit query problem.
+   * Side effects:
+   * - Read-only database transaction.
    */
   async execute(query: ListAuditEventsQuery): Promise<AuditEventListDto> {
     const page = this.positiveInteger(
@@ -53,6 +59,14 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
       query.correlationId,
     );
     const pageSize = Math.min(requestedPageSize, MAX_PAGE_SIZE);
+    // Deep offsets grow query work without adding useful audit navigation.
+    if ((page - 1) * pageSize > MAX_AUDIT_OFFSET) {
+      this.badRequest(
+        AUDIT_ERROR_CODES.invalidQuery,
+        query.correlationId,
+        "page",
+      );
+    }
     const fromDate = this.parseDate(
       query.fromDate,
       "from_date",
@@ -93,7 +107,8 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
       this.prisma.auditEvent.count({ where }),
       this.prisma.auditEvent.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        // ID breaks timestamp ties so adjacent pages have deterministic order.
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
         select: {

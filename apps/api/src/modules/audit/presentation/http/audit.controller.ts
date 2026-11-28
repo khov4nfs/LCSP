@@ -27,11 +27,10 @@ import { GetAuditExportArtifactQuery } from "../../application/queries/get-audit
 import { GetAuditExportQuery } from "../../application/queries/get-audit-export/get-audit-export.query.js";
 import { ListAuditEventsQuery } from "../../application/queries/list-audit-events/list-audit-events.query.js";
 import { AuditExportStorageService } from "../../infrastructure/storage/audit-export-storage.service.js";
-
-interface AuditExportBody {
-  from_date: string;
-  to_date: string;
-}
+import {
+  auditExportBodySchema,
+  type AuditExportBody,
+} from "../schemas/audit-export-body.schema.js";
 
 /**
  * Exposes audit browsing, export generation/status, and signed artifact download endpoints.
@@ -109,13 +108,20 @@ export class AuditController {
       typeof request.correlationId === "string"
         ? request.correlationId
         : crypto.randomUUID();
+    // Validate direct invocations as well as HTTP requests before creating an export command.
+    const parsed = auditExportBodySchema.safeParse(body);
+    if (!parsed.success) {
+      throw problemException(AUDIT_ERROR_CODES.invalidQuery, correlationId, {
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
 
     return resultEnvelope(
       await this.commandBus.execute(
         new ExportAuditTrailCommand(
           request.rbacContext.userId,
-          body.from_date,
-          body.to_date,
+          parsed.data.from_date,
+          parsed.data.to_date,
           correlationId,
         ),
       ),
@@ -183,7 +189,7 @@ export class AuditController {
     }
 
     const artifact: AuditExportArtifact = await this.queryBus.execute(
-      new GetAuditExportArtifactQuery(exportRequestId, crypto.randomUUID()),
+      new GetAuditExportArtifactQuery(exportRequestId, correlationId),
     );
 
     response.setHeader("Content-Type", "application/json; charset=utf-8");

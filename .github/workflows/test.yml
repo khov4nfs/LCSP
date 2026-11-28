@@ -298,6 +298,13 @@ jobs:
       - name: Test API
         run: pnpm --filter @lcsp/api test
 
+      # Audit export version allocation and rollback require the migrated disposable PostgreSQL service.
+      - name: Test Audit export PostgreSQL integrity
+        env:
+          LCSP_AUDIT_POSTGRES_TEST: "1"
+          NODE_OPTIONS: --experimental-vm-modules
+        run: pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --runInBand --runTestsByPath src/modules/audit/application/commands/export-audit-trail/export-audit-trail.postgres.spec.ts
+
   root-capacity-integration:
     name: Adaptive Root global admission PostgreSQL integration
     needs: changes

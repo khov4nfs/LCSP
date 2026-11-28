@@ -1,4 +1,7 @@
 process.env.NODE_ENV = "test";
+// Audit download tests use an explicit test-only signing key; production has no fallback.
+process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET ??=
+  "test-only-audit-export-signing-key-32-bytes";
 process.env.RABBITMQ_URL ??= "amqp://guest:guest@127.0.0.1:5672";
 process.env.RABBITMQ_EXCHANGE ??= "lcsp.events.test";
 process.env.OUTBOX_POLL_INTERVAL_MS ??= "60000";
