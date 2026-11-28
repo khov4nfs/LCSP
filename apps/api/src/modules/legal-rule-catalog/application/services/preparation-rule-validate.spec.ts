@@ -8,6 +8,7 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   LEGAL_RULE_CATALOG_ERRORS,
+  LEGAL_RULE_VALIDATION_ISSUES,
   preparationRuleOutputSchema,
   type PreparationRuleValidate,
   type PreparationRuleComplete,
@@ -257,7 +258,7 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
         problem: expect.objectContaining({
           code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
           meta: expect.objectContaining({
-            issues: "output.contextRelations.0",
+            issueCode: LEGAL_RULE_VALIDATION_ISSUES.OUTPUT_INVALID,
           }),
         }),
       }),
@@ -318,7 +319,7 @@ describe("PreparationRuleService.validate", () => {
         problem: {
           code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
           status: 422,
-          meta: { issues: "output" },
+          meta: { issueCode: LEGAL_RULE_VALIDATION_ISSUES.OUTPUT_INVALID },
         },
       },
     });

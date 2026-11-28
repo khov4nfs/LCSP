@@ -35,6 +35,16 @@ export const LEGAL_RULE_CATALOG_ERRORS = {
   RESULT_INVALID: "LEGAL_RULE_RESULT_INVALID",
   SCOPE_REVIEW_REQUIRED: "LEGAL_RULE_SCOPE_REVIEW_REQUIRED",
 } as const;
+// Why: Public validation diagnostics must not expose the nested authoring schema or item indexes.
+// How: API responses use this bounded category set while keeping exact paths server-side.
+// Invariant: These stable codes are safe to localize without reflecting submitted values.
+export const LEGAL_RULE_VALIDATION_ISSUES = {
+  OUTPUT_INVALID: "OUTPUT_INVALID",
+  SOURCE_REFERENCE_INVALID: "SOURCE_REFERENCE_INVALID",
+  REQUIREMENT_LINK_INVALID: "REQUIREMENT_LINK_INVALID",
+  IDENTITY_INVALID: "IDENTITY_INVALID",
+  APPLICABILITY_INVALID: "APPLICABILITY_INVALID",
+} as const;
 export const LEGAL_RULE_CATALOG_EVENTS = {
   SAVED: "event.legal-rule-catalog.saved.v1",
   SELECTED: "event.legal-rule-catalog.selected.v1",
@@ -60,6 +70,10 @@ export const LEGAL_RULE_LIMITS = {
   catalogRules: 10000,
   pageSize: 50,
   preparedArtifacts: 256,
+  // Why: Interactive import validates and locks each selected rule inside one transaction.
+  // How: Cap one request below the general prepared-artifact ceiling to bound pool occupancy.
+  // Invariant: Dry-run and write payloads share the same transport limit.
+  importBatchItems: 100,
 } as const;
 export const LEGAL_RULE_SOURCE_PROVISION_LEVELS = {
   ARTICLE: "ARTICLE",
@@ -426,7 +440,7 @@ export const assessmentRuleImportRequestSchema = z
     dryRun: z.boolean().default(false),
     items: z
       .array(assessmentRuleImportItemSchema)
-      .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+      .max(LEGAL_RULE_LIMITS.importBatchItems),
     excludedItems: z
       .array(assessmentRuleImportExcludedItemSchema)
       .max(LEGAL_RULE_LIMITS.catalogRules)

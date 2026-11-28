@@ -27,6 +27,14 @@ import { PreparationRuleService } from "../../application/services/preparation-r
 
 const body = (schema: z.ZodType) =>
   new ZodValidationPipe(schema, C.LEGAL_RULE_CATALOG_ERRORS.INVALID);
+// Why: Large import documents must fail before the command can reserve a DB connection.
+// How: The dedicated body pipe returns the catalog's canonical 422 problem.
+// Invariant: Invalid import payloads never expose Zod paths or reach the transaction.
+export const importAssessmentRulesBody = new ZodValidationPipe(
+  C.assessmentRuleImportRequestSchema,
+  C.LEGAL_RULE_CATALOG_ERRORS.INVALID,
+  HttpStatus.UNPROCESSABLE_ENTITY,
+);
 const uuid = () => new ParseUUIDPipe();
 const correlation = (req: AuthenticatedRequest) =>
   req.correlationId || req.get("x-correlation-id")?.trim() || randomUUID();
@@ -178,7 +186,7 @@ export class LegalRuleCatalogController {
   @HttpCode(200)
   async importAssessmentRules(
     @Param("catalogId", uuid()) catalogId: string,
-    @Body(body(C.assessmentRuleImportRequestSchema))
+    @Body(importAssessmentRulesBody)
     request: C.AssessmentRuleImportRequest,
     @Req() req: AuthenticatedRequest,
   ) {

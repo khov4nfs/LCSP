@@ -16,6 +16,7 @@ import {
   ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_CATALOG_EVENTS,
+  LEGAL_RULE_VALIDATION_ISSUES,
   assessmentRuleImportRequestSchema,
   preparationRuleOutputSchema,
   type AssessmentRuleImportRequest,
@@ -232,12 +233,18 @@ function setup(
     record: resolves(undefined),
   };
   const enqueue = jest.fn<Call>();
-  const prisma = {
-    $transaction: (callback: (client: unknown) => unknown) =>
-      Promise.resolve(callback(tx)),
-  } as unknown as PrismaService;
+  const transaction = jest
+    .fn<
+      (
+        callback: (client: unknown) => Promise<unknown>,
+        options?: unknown,
+      ) => Promise<unknown>
+    >()
+    .mockImplementation((callback) => callback(tx));
+  const prisma = { $transaction: transaction } as unknown as PrismaService;
   return {
     tx,
+    transaction,
     catalogs,
     enqueue,
     subject: new PreparationRuleService(
@@ -339,7 +346,7 @@ describe("PreparationRuleService.importAssessmentRules", () => {
   });
 
   it("records a SUCCEEDED prepared revision without dispatching any agent work", async () => {
-    const { subject, tx, catalogs, enqueue } = setup();
+    const { subject, tx, catalogs, enqueue, transaction } = setup();
     const result = await subject.importAssessmentRules(
       catalogId,
       request(),
@@ -376,6 +383,9 @@ describe("PreparationRuleService.importAssessmentRules", () => {
       expect.objectContaining({ revision: 1 }),
     );
     expect(enqueue).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), {
+      timeout: 20000,
+    });
   });
 
   it("acknowledges an identical current result as a replay without writing", async () => {
@@ -462,10 +472,16 @@ describe("PreparationRuleService.importAssessmentRules", () => {
         problem: {
           code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
           status: 422,
-          meta: { issues: "output.assessmentRules.0.sourceRefs" },
+          meta: {
+            issueCode: LEGAL_RULE_VALIDATION_ISSUES.SOURCE_REFERENCE_INVALID,
+          },
         },
       },
     });
+    expect(
+      (error as { response: { problem: { meta: object } } }).response.problem
+        .meta,
+    ).not.toHaveProperty("issues");
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
     expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
   });

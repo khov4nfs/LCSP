@@ -304,7 +304,10 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
           excludedItems: request.excludedItems,
         };
       },
-      { timeout: 60000 },
+      // Why: Interactive imports should not monopolize a connection for a full minute.
+      // How: The shared 100-item contract bounds work; a 20-second transaction ceiling releases the pool on slow imports.
+      // Invariant: Timeout rolls back every import revision and audit write together.
+      { timeout: 20000 },
     );
   }
 }
