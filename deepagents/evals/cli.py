@@ -81,6 +81,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_score.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_score.add_argument("--output-dir", type=Path, required=True)
 
+    p_b1 = sub.add_parser("rag-b1", help="Run single-pass RAG baseline (B1) integrated with P14")
+    p_b1.add_argument("--cases", type=Path, required=True)
+    p_b1.add_argument("--run-id", default=None)
+    p_b1.add_argument("--mode", choices=["OFFLINE_FIXTURE", "SCRIPTED", "LIVE"], default="SCRIPTED")
+    p_b1.add_argument("--split", choices=["DEV", "HOLDOUT", "ALL"], default="ALL")
+    p_b1.add_argument("--trials", type=int, default=3)
+    p_b1.add_argument("--k", type=int, nargs="+", default=[1, 3])
+    p_b1.add_argument("--locale", choices=["en", "vi"], default="en")
+    p_b1.add_argument("--allow-live", action="store_true")
+    p_b1.add_argument("--output-dir", type=Path, required=True)
+
     args = parser.parse_args(argv)
 
     if args.command == "manifest":
@@ -147,6 +158,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         export_report_json(args.output_dir / "report.json", report)
         export_report_csv(args.output_dir / "report.csv", outcomes, tuple(args.k))
         print(json.dumps({"runId": report["runId"], "semanticOverall": report["semanticReliability"]["overall"]["passPowK"]}))
+        return 0
+
+    if args.command == "rag-b1":
+        from evals.rag_baseline import run_b1_baseline
+
+        config = RunConfig(
+            mode=args.mode,
+            split=args.split,
+            trials_per_case=args.trials,
+            k_values=tuple(args.k),
+            locale=args.locale,
+            model_route="rag-b1-single-pass",
+            allow_live=args.allow_live,
+        )
+        cases = load_benchmark_cases(args.cases, split=args.split, include_fault_injection=False)
+        report = run_b1_baseline(
+            cases=cases,
+            config=config,
+            output_dir=args.output_dir,
+            run_id=args.run_id,
+        )
+        print(json.dumps({
+            "runId": report["runId"],
+            "manifestSha256": report["manifestSha256"],
+            "semanticOverall": report["semanticReliability"]["overall"]["passPowK"],
+        }))
         return 0
 
     return 1

@@ -1,0 +1,19 @@
+{
+  "caseId": "CASE-04",
+  "mode": "SCRIPTED",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": false
+  },
+  "promptSha256": "8e04bf6d4837530929ea09b0beff09141dd30d6e5eaae923ae796fe94bd1bc7a",
+  "retrievalStatus": "RETRIEVED",
+  "retrievedEvidenceIds": [
+    "b1-law-case-04",
+    "b1-repo-case-04-1"
+  ],
+  "runId": "pilot-b1-v1",
+  "stage": "INITIAL",
+  "threadId": "aafe80e2-86d9-4286-aa45-ef8a52588f8b",
+  "trialIndex": 0
+}

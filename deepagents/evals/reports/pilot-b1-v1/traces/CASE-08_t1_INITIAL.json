@@ -1,0 +1,19 @@
+{
+  "caseId": "CASE-08",
+  "mode": "SCRIPTED",
+  "outcomeBinding": {
+    "actualVerdict": "UNRESOLVED",
+    "lifecycleState": "PAUSED",
+    "passed": true
+  },
+  "promptSha256": "8442af36dbbe59af128e23daf5082e165c6f9631da31f5365cf2ce792a5ae9f0",
+  "retrievalStatus": "RETRIEVED",
+  "retrievedEvidenceIds": [
+    "b1-law-case-08",
+    "b1-repo-case-08-1"
+  ],
+  "runId": "pilot-b1-v1",
+  "stage": "INITIAL",
+  "threadId": "396a3cf5-a905-4e59-b4cd-d70c9a5ffc55",
+  "trialIndex": 1
+}

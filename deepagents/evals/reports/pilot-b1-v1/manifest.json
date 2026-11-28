@@ -1,0 +1,798 @@
+{
+  "availableSkillsSha256": {
+    "assessment-automated-outcomes": "6db9ab0245df225bfd9ac7ba9008dc99b5fe82f0206a735ffafb626f2de5e9c9",
+    "assessment-controls-and-claims": "79b6202858b1be01345229b420c709b21d934ad281e25fb3f2db1a0f28950b99",
+    "assessment-data-lifecycle": "0ef374de4c49f0cd964feb64b8f795d9034f47e77c74beae2e9ab199f8895525",
+    "assessment-model-integrity": "0cbdc4608cf729c681cf05a7918d8ffa4c6acd2e0ca1242fc514f3ea7b3a0aa5",
+    "assessment-system-boundaries": "97746345f2484fd0d0422d27138dd7c562c870a73e311ee9011891039ec7c6a5"
+  },
+  "component": "assessment-benchmark",
+  "expectedTrialInventory": [
+    {
+      "caseId": "CASE-01",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "SCRIPTED",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "SCRIPTED",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "SCRIPTED",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    }
+  ],
+  "goldReviewerRevision": "gold-pilot-r1",
+  "instructionBundle": {
+    "approvalIdentity": "NOT_REQUIRED",
+    "approvalRevision": "NOT_REQUIRED",
+    "enRuntimeBundleDigest": "",
+    "id": "lcsp-fact-need-provenance-r4-2026-11-16",
+    "viSourceInventoryDigest": "",
+    "viSourceRevisions": {
+      "assessment-root.continuation": "lcsp-347-draft-r1",
+      "assessment-root.resume": "lcsp-347-draft-r1",
+      "assessment-root.system": "lcsp-347-draft-r1",
+      "assessment-tool.accept_case_fact.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.cite_repository_source.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_assessment_context.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_assessment_rule.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_pinned_rule_set.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_repository_architecture.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_repository_discovery_details.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_repository_discovery_ranges.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_rule_decision.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.list_assessment_skills.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.load_assessment_skill.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.open_human_request.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.read_legal_source.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.record_repository_discovery_expansion.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.record_search_coverage.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.report_human_fact_unresolvable.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.request_finalization.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.search_code_graph.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.search_code_text.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.search_legal_source.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.start_rule_investigation.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.submit_final_report.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.submit_rule_decision.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.trace_call_path.guidance": "lcsp-347-draft-r1",
+      "assessment-tools.descriptions": "lcsp-347-draft-r1",
+      "assessment-tools.upstream": "r3-source-repair-2026-11-15",
+      "claim-author.system": "lcsp-347-draft-r1",
+      "framework.file-deletion": "r3-source-repair-2026-11-15",
+      "framework.injected-policy": "lcsp-347-draft-r1",
+      "preparation-tools.descriptions": "lcsp-347-draft-r1",
+      "preparation.authoring": "lcsp-347-draft-r1",
+      "preparation.authoring-state": "lcsp-347-draft-r1",
+      "preparation.common": "lcsp-347-draft-r1",
+      "preparation.continuation": "lcsp-347-draft-r1",
+      "preparation.development-overlay": "lcsp-540-oversight-scope-draft-r2",
+      "preparation.direct": "lcsp-347-draft-r1",
+      "preparation.discovery": "lcsp-347-draft-r1",
+      "preparation.history": "lcsp-347-draft-r1",
+      "preparation.history-counts": "lcsp-347-draft-r1",
+      "preparation.materialized-source-guidance": "lcsp-347-draft-r1",
+      "preparation.observation-errors": "lcsp-347-draft-r1",
+      "preparation.presentation": "lcsp-347-draft-r1",
+      "preparation.selected": "lcsp-540-oversight-scope-draft-r2",
+      "repository-researcher.system": "lcsp-347-draft-r1",
+      "runtime.budget-finalization": "lcsp-347-draft-r1",
+      "runtime.context-identifiers": "lcsp-347-draft-r1",
+      "runtime.response-language": "lcsp-347-draft-r1",
+      "runtime.response-transform": "r3-source-repair-2026-11-15",
+      "runtime.skill-catalogs": "lcsp-347-draft-r1",
+      "runtime.structured-transform": "r3-source-repair-2026-11-15",
+      "skill.assessment-automated-outcomes": "lcsp-347-draft-r1",
+      "skill.assessment-controls-and-claims": "lcsp-347-draft-r1",
+      "skill.assessment-data-lifecycle": "lcsp-347-draft-r1",
+      "skill.assessment-model-integrity": "lcsp-347-draft-r1",
+      "skill.assessment-system-boundaries": "lcsp-347-draft-r1",
+      "skill.rule-preparation-actor-stage": "lcsp-540-oversight-scope-draft-r2",
+      "skill.rule-preparation-material-context": "lcsp-347-draft-r1",
+      "skill.rule-preparation-mixed-claims": "lcsp-347-draft-r1",
+      "skill.rule-preparation-scope-quality": "lcsp-540-oversight-scope-draft-r2",
+      "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
+    }
+  },
+  "manifestSha256": "0e0486debb97037ebc183de686a2bc6a67824aff81ee5d904cd613d88504a69c",
+  "model": {
+    "adapterClass": "SimpleNamespace",
+    "configuredModelId": "rag-b1-single-pass"
+  },
+  "promptsSha256": {
+    "assessment-root": "0a4357b9be60039711c2e08da14d77a4aa7ab33722e4e9278f9356ced37b6f5f"
+  },
+  "responseLanguage": "en",
+  "runId": "pilot-b1-v1",
+  "schemaVersion": "LCSP_MODEL_FACING_MANIFEST_V1",
+  "selectedSkillsSha256": {},
+  "semanticAcceptance": "NOT_ESTABLISHED_BY_FINGERPRINT",
+  "sourcePins": {
+    "casesDatasetSha256": "31377fcd82a23ae51ccb37b5811c373e5e5f3783531008f4989bfe94551609d5",
+    "corpusPinsSha256": "06fadf0494cd7f14688ba9ad9dd237c8e2e83845e8e72911859e051d26db8fab",
+    "expectedInventorySha256": "d7e969323bf6993c911076f09bb29985a9be17a9006d024226998eaf6d2ddc81",
+    "goldRubricSha256": "8f9927fda356a8d672170504a6df0cc4a999cfb4605e3d6529ecfaad3b8d79c1",
+    "governanceMode": "OFFLINE_TEST_BYPASS",
+    "hitlFixtureSha256": "c453abfe15f03c104d52b47ed43e233bb450f8609ef69dbe41ba64871aefab5e",
+    "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "repoPinsSha256": "38450cde2d2230d38d5362361e81a1010ca963fe2bde4bc74f84fc62e82e0913",
+    "ruleSetPinsSha256": "f03e0b9ab2636ce9d36790fc123961950a61e64ef8662834e34771ea23f5e2ba",
+    "runConfigSha256": "df0c2ac28b1e4f269415c30e62ff0839a1603e979e4a8e441707628763bc6d84"
+  },
+  "toolDescriptionsSha256": {
+    "accept_case_fact": "f9eb98f924ea644f4161c53e0484863442a2e0d2fd01c854823d3d6c9329c50f",
+    "cite_repository_source": "98d31398f02d0a343e0aacb60d1db017c61e402a173a383df69c0c243eb487bd",
+    "get_assessment_context": "ef4157a5557a1fd8f999aa023e6634f5ba46ac5b5f0d50d981bea04c9ae0fbef",
+    "get_assessment_context_detail": "abadce1897c582d9c4a865d026f8876c9f8bd295685b0f354da02bbbd1e9c460",
+    "get_assessment_context_page": "2e5d0c2ba5220da808df866a7fcf9368d3a037cf6e1687ebb7b924be42e80a3f",
+    "get_assessment_coverage": "a2e83ee811e2cb8653637d8c7b7019412bf0b1f7a85d38e2a0a34e1022f12a7c",
+    "get_assessment_rule": "c14d9a4f9c3837cafd1709bde3376026a6540d96f5743a86ef5b658917dddb30",
+    "get_assessment_rule_detail": "bb633842374d3d9dc4163be0c4001bdd44de6c46bd50cb2381afb39b3bf52f4a",
+    "get_human_request_resume_page": "2911bbb3322d99e17ac0bcede094986bc25435970971ada46aae7d7d38d290f1",
+    "get_pinned_rule_set": "6e24e2a7de2a87dc5b34f045046d6a8280297adaa9b6d800873e61b11f8a9a32",
+    "get_repository_discovery_details": "53a4a60062ec6a35f91bcc4cb846893812a1186ff944fb4279277f5f952ddf59",
+    "get_repository_discovery_ranges": "73d476c043769172a0db7238bbc0a0633d0b85e5cae4d3f5c3778565db172013",
+    "get_rule_decision": "44a0b8478088f48d4fd9eae29b5a61e3fab8bba346f06b550759132ccb7ab857",
+    "list_assessment_skills": "ed0e9f9032abe31c7edd22a5a4a00c9c03f94eeafa06c6be604755db8776a792",
+    "load_assessment_skill": "18c0739476c6ca20c09aee081b1f6f5a4e4f61ce6c7cb517c1276f7e27f24c36",
+    "open_human_request": "8df3888be8dcac9735622f38c1647cc6621916d18d8c7315c07c634e32f4dde4",
+    "open_human_requests_batch": "0c185e29b030672fe22c668e6fa42b32933f361e47ea182415ed3ed9a7b2c111",
+    "read_legal_source": "8cad4152432d284025f7c83eaf01cd3cc575f03e232f0859bb9f2674fa1c99e0",
+    "record_repository_discovery_expansion": "48583631427e9a3b568d6b3764ca5a38d551f853b970918dc9cb03437722b98d",
+    "record_search_coverage": "9679b75557f823df1ab7f202c64e65290164a92a861a6b66da04b4110052121e",
+    "report_existing_human_fact_unresolvable": "1d889874df6de6b53182382496bf92dec020cf5ba0e6ca944b81e87238aa406d",
+    "report_human_fact_unresolvable": "4b4a955bfba0c4a9a9bf68b93272caa5651fccaac8a60a44d5542636f729fd99",
+    "request_finalization": "bf43342830e363a231ea5deb56d6875d280c994c2914412aa494af835cee1902",
+    "retrieve_shared_heuristics": "111e3f8f0ffa7196d127f378e6fc38b35a052d2323cc1b4c9b6afa66c7d94c3b",
+    "search_legal_source": "73f69d0557590b0650e2dd124ffc78762b7a196e1eb84d5346f4b5ac4f2770a8",
+    "start_rule_investigation": "a9ea273db1f6e5cc5103b949a7ed61a4e8783d02bdfdad58938d6874693bc2c2",
+    "submit_final_report": "96e86d8a803d471488ce7955372f36baad7054b241df5e3f02c8e30608c22e3a",
+    "submit_rule_decision": "3858810640e5a3544676498e08a599d5ebd511adb1d0f71af06ddb93106aabaf",
+    "wait_for_human_requests": "6473c6513ccf9b8051d6f26c004f393628534292f151475fabaa04ceef5d8726"
+  },
+  "usage": {
+    "cachedInputTokens": null,
+    "costCurrency": null,
+    "failedAttempts": null,
+    "inputTokens": null,
+    "outputTokens": null,
+    "physicalAttempts": null,
+    "providerCost": null
+  }
+}

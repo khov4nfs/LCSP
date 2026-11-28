@@ -1,0 +1,19 @@
+{
+  "caseId": "CASE-15",
+  "mode": "SCRIPTED",
+  "outcomeBinding": {
+    "actualVerdict": "UNRESOLVED",
+    "lifecycleState": "PAUSED",
+    "passed": false
+  },
+  "promptSha256": "3ac06f0e58c368d8a342aab39addb6894d13a90fd8c12f34ceb4f3e4beeb198e",
+  "retrievalStatus": "RETRIEVED",
+  "retrievedEvidenceIds": [
+    "b1-law-case-15",
+    "b1-repo-case-15-1"
+  ],
+  "runId": "pilot-b1-v1",
+  "stage": "WAITING_FOR_HUMAN",
+  "threadId": "92e8a4c6-aacd-4071-9afb-79e1c07e5c8a",
+  "trialIndex": 2
+}
