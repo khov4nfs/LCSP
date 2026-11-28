@@ -16,6 +16,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Req,
@@ -97,13 +98,22 @@ export class AdminUsersController {
   }
 
   /**
-   * Retrieves detailed profile and usage metrics for a specific user.
+   * Business purpose: Show one user's administrative profile and usage summary.
+   * Business rules:
+   * - Only an authenticated Admin may read a user identified by a valid UUID.
+   * Execution flow:
+   * 1. Validate the target ID at the HTTP boundary.
+   * 2. Dispatch the detail query with the request correlation ID.
+   * Failure cases:
+   * - Invalid IDs fail with HTTP 400; missing users fail with the typed not-found problem.
+   * Side effects:
+   * - Read-only query.
    */
   @Get(":id")
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.admin)
   async getUserDetail(
-    @Param("id") targetUserId: string,
+    @Param("id", new ParseUUIDPipe()) targetUserId: string,
     @Req() request: AuthenticatedRequest,
   ): Promise<AdminUserDetail> {
     return this.queryBus.execute<GetAdminUserDetailQuery, AdminUserDetail>(
@@ -112,14 +122,23 @@ export class AdminUsersController {
   }
 
   /**
-   * Suspends a user account idempotently.
+   * Business purpose: Suspend a selected user account through the Admin workflow.
+   * Business rules:
+   * - Only an authenticated Admin may target a valid user UUID with a validated action and idempotency key.
+   * Execution flow:
+   * 1. Validate the target ID and action body.
+   * 2. Build the authenticated actor and dispatch the suspend command.
+   * Failure cases:
+   * - Invalid input fails before command dispatch; the handler enforces lifecycle and concurrency conflicts.
+   * Side effects:
+   * - The command may suspend the account, revoke sessions and persist an audit receipt.
    */
   @Post(":id/suspend")
   @HttpCode(HttpStatus.OK)
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.admin)
   async suspendUser(
-    @Param("id") targetUserId: string,
+    @Param("id", new ParseUUIDPipe()) targetUserId: string,
     @Body(
       new ZodValidationPipe(
         adminUserActionSchema,
@@ -140,14 +159,23 @@ export class AdminUsersController {
   }
 
   /**
-   * Restores a suspended user account idempotently.
+   * Business purpose: Restore a suspended user account through the Admin workflow.
+   * Business rules:
+   * - Only an authenticated Admin may target a valid user UUID with a validated action and idempotency key.
+   * Execution flow:
+   * 1. Validate the target ID and action body.
+   * 2. Build the authenticated actor and dispatch the restore command.
+   * Failure cases:
+   * - Invalid input fails before command dispatch; the handler enforces lifecycle and concurrency conflicts.
+   * Side effects:
+   * - The command may restore access and persist an audit receipt.
    */
   @Post(":id/restore")
   @HttpCode(HttpStatus.OK)
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.admin)
   async restoreUser(
-    @Param("id") targetUserId: string,
+    @Param("id", new ParseUUIDPipe()) targetUserId: string,
     @Body(
       new ZodValidationPipe(
         adminUserActionSchema,

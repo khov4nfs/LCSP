@@ -7,12 +7,10 @@ import {
   type AdminLegalSourceStatusSummary,
   type AdminOverviewAccountDistribution,
   type AdminOverviewActionKey,
-  type AdminOverviewActivityPoint,
   type AdminOverviewPeriod,
   type AdminOverviewStats,
   type AdminRecentActivityItem,
 } from "@lcsp/contracts/auth";
-import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   LEGAL_SOURCE_EVENT_TYPES,
   LEGAL_SOURCE_LIFECYCLE_STATUSES,
@@ -21,6 +19,7 @@ import {
 import { isRecord } from "@lcsp/contracts/shared";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { readAdminOverviewActivity } from "../../../infrastructure/persistence/admin-overview-activity.read-model.js";
 import { GetAdminOverviewQuery } from "./get-admin-overview.query.js";
 
 /**
@@ -45,6 +44,19 @@ const ADMIN_AUDIT_EVENT_TYPES_LIST = [
 export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Business purpose: Show Admin account, assessment and legal-source totals for a selected period.
+   * Business rules:
+   * - Completion counts follow durable COMPLETE transitions; activity projection remains bounded to fourteen buckets.
+   * Execution flow:
+   * 1. Normalize the period.
+   * 2. Read summary counters and activity aggregates.
+   * 3. Sanitize audit activity and return the dashboard projection.
+   * Failure cases:
+   * - A failed database read fails the whole request through the global problem filter.
+   * Side effects:
+   * - Read-only database access.
+   */
   async execute(
     query: GetAdminOverviewQuery,
     currentTime: Date = new Date(),
@@ -67,10 +79,9 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
       suspendedUsersCount,
       periodNewUsersCount,
       totalAssessmentsCount,
-      periodCompletedAssessmentsCount,
+      activityData,
       activatedLegalSource,
       draftLegalSource,
-      periodAssessments,
       recentAuditEvents,
     ] = await Promise.all([
       this.prisma.user.count({
@@ -83,12 +94,15 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
         where: { createdAt: { gte: windowStart, lte: currentTime } },
       }),
       this.prisma.assessment.count(),
-      this.prisma.assessment.count({
-        where: {
-          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-          updatedAt: { gte: windowStart, lte: currentTime },
-        },
-      }),
+      // Why: Updated Assessment rows are not evidence of a completion transition.
+      // How: Read bounded PostgreSQL aggregates from lifecycle events instead.
+      // Invariant: The same event-derived total feeds both summary and chart.
+      readAdminOverviewActivity(
+        this.prisma,
+        windowStart,
+        currentTime,
+        periodDays,
+      ),
       this.prisma.legalSourceVersion.findFirst({
         where: {
           status: toPrismaLegalSourceLifecycleStatus(
@@ -107,23 +121,6 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
         include: { _count: { select: { documents: true } } },
         orderBy: { createdAt: "desc" },
       }),
-      this.prisma.assessment.findMany({
-        where: {
-          OR: [
-            { createdAt: { gte: windowStart, lte: currentTime } },
-            {
-              lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-              updatedAt: { gte: windowStart, lte: currentTime },
-            },
-          ],
-        },
-        select: {
-          createdAt: true,
-          lifecycleState: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "asc" },
-      }),
       this.prisma.auditEvent.findMany({
         where: {
           eventType: { in: ADMIN_AUDIT_EVENT_TYPES_LIST },
@@ -139,14 +136,6 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
       totalUsersCount > 0
         ? Math.round((activeUsersCount / totalUsersCount) * 1000) / 10
         : 0;
-
-    // Build timeline buckets for assessment activity
-    const activityData = this.buildActivityData(
-      periodDays,
-      windowStart,
-      currentTime,
-      periodAssessments,
-    );
 
     // Sanitize recent audit events with admin actor metadata
     const recentActivity = await this.sanitizeRecentActivity(recentAuditEvents);
@@ -194,7 +183,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
         },
         assessments: {
           totalCount: totalAssessmentsCount,
-          periodCompletedCount: periodCompletedAssessmentsCount,
+          periodCompletedCount: activityData.totalCompleted,
         },
         currentLegalSource: {
           version: activatedLegalSource?.version ?? null,
@@ -215,79 +204,6 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
     if (rawPeriod === ADMIN_OVERVIEW_PERIODS.p90d)
       return ADMIN_OVERVIEW_PERIODS.p90d;
     return ADMIN_OVERVIEW_PERIODS.p30d;
-  }
-
-  /**
-   * Generates time-bucketed activity data points (up to 14 bars) for the assessment graph.
-   */
-  private buildActivityData(
-    periodDays: number,
-    windowStart: Date,
-    currentTime: Date,
-    assessments: Array<{
-      createdAt: Date;
-      lifecycleState: string | null;
-      updatedAt: Date;
-    }>,
-  ) {
-    const barCount = periodDays <= 14 ? periodDays : 14;
-    const intervalMs =
-      (currentTime.getTime() - windowStart.getTime()) / barCount;
-
-    const points: AdminOverviewActivityPoint[] = [];
-
-    for (let i = 0; i < barCount; i++) {
-      const bucketStart = new Date(windowStart.getTime() + i * intervalMs);
-      const bucketEnd = new Date(windowStart.getTime() + (i + 1) * intervalMs);
-      const dateKey = bucketStart.toISOString().slice(0, 10);
-
-      let startedCount = 0;
-      let completedCount = 0;
-
-      for (const assessment of assessments) {
-        if (
-          assessment.createdAt >= bucketStart &&
-          assessment.createdAt < bucketEnd
-        ) {
-          startedCount++;
-        }
-        if (
-          assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
-          assessment.updatedAt >= bucketStart &&
-          assessment.updatedAt < bucketEnd
-        ) {
-          completedCount++;
-        }
-      }
-
-      points.push({
-        date: dateKey,
-        timestamp: bucketStart.toISOString(),
-        startedCount,
-        completedCount,
-      });
-    }
-
-    const totalStarted = assessments.filter(
-      (assessment) =>
-        assessment.createdAt >= windowStart &&
-        assessment.createdAt <= currentTime,
-    ).length;
-
-    const totalCompleted = assessments.filter(
-      (assessment) =>
-        assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
-        assessment.updatedAt >= windowStart &&
-        assessment.updatedAt <= currentTime,
-    ).length;
-
-    return {
-      points,
-      totalStarted,
-      totalCompleted,
-      startDate: windowStart.toISOString(),
-      endDate: currentTime.toISOString(),
-    };
   }
 
   /**
