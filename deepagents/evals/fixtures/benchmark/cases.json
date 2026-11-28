@@ -582,7 +582,7 @@
     },
     {
       "case_id": "CASE-05",
-      "title": "Planner rejects unpinned EngineeringRule addition",
+      "title": "Planner rejects unpinned AssessmentRule addition",
       "task_category": "planner_unpinned_rule_guard",
       "split": "DEV",
       "is_negative_control": true,
@@ -689,7 +689,7 @@
           "rule_id": "ER-DEMO-05",
           "concept": "planner_unpinned_rule_guard",
           "legal_requirement_id": "LR-CASE-05",
-          "requirement_title": "Consent before personal data processing — Planner rejects unpinned EngineeringRule addition",
+          "requirement_title": "Consent before personal data processing — Planner rejects unpinned AssessmentRule addition",
           "requirement_proposition": "[CASE-05] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
           "applicability_conditions": [
             "Processes personal data of natural persons",

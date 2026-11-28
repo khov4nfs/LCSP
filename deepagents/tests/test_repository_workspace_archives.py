@@ -7,14 +7,14 @@ import tarfile
 import zipfile
 
 import pytest
-
+from tests.integration.test_docker_sandbox_e2e import _fixture_archive
 from tools.common.capabilities.platform import repository_sandbox
+from tools.common.capabilities.platform.repository_snapshot_client import (
+    RepositoryTreePathManifest,
+)
 from tools.common.capabilities.platform.repository_workspace import (
     ArchiveMaterializationError,
     RepositoryWorkspace,
-)
-from tools.common.capabilities.platform.repository_snapshot_client import (
-    RepositoryTreePathManifest,
 )
 
 
@@ -316,3 +316,24 @@ def test_archive_wrapper_is_preserved_unless_exact_root_is_supplied(archive_buil
 
     assert default_files == {"provider-wrapper/main.py": b"source"}
     assert explicit_files == {"main.py": b"source"}
+
+
+def test_shared_rootless_docker_fixture_materializes_repository_relative_source():
+    # The fixture declares a verified rootless archive, so hydration must preserve
+    # every path segment and deliver src/app.py directly at the repository root.
+    sanitized, coverage = repository_sandbox._sanitize_archive(
+        _fixture_archive(), snapshot_id="snapshot-1", archive_root=None,
+    )
+    with tarfile.open(fileobj=io.BytesIO(sanitized), mode="r:gz") as archive:
+        files = {
+            member.name: archive.extractfile(member).read()
+            for member in archive.getmembers()
+            if member.isfile()
+        }
+
+    assert files == {"src/app.py": b"print('hydrated')\n"}
+    assert any(
+        entry["path"] == ".lcsp/repository.json"
+        and entry["reason"] == "RESERVED_RUNTIME_PATH"
+        for entry in coverage["skippedEntries"]
+    )
