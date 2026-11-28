@@ -38,7 +38,6 @@ const t = (key: string, values: Record<string, string | number> = {}) => {
 };
 
 const EXCLUSIVE_CHOICE_VALUES = new Set([
-  "none",
   "none_of_these",
   "none_of_the_above",
 ]);
@@ -52,6 +51,7 @@ function isExclusiveChoice(choice: StructuredAnswerChoice): boolean {
   const normalizedValue = choice.value.trim().toLowerCase();
   const normalizedLabel = choice.label.trim().toLowerCase();
   return (
+    /^none$/i.test(normalizedValue) ||
     EXCLUSIVE_CHOICE_VALUES.has(normalizedValue) ||
     EXCLUSIVE_CHOICE_LABELS.has(normalizedLabel)
   );
