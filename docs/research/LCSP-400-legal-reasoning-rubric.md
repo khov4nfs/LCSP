@@ -109,3 +109,34 @@ No authorization for LIVE was given in this round.
 - **PM07:** standalone `score_dataset()` is diagnostic/unverified. Verified execution reporting requires the P14 adapter to validate actual manifest, trace, output, and outcome bytes. Artifact integrity does not authenticate reviewer identity or establish live quality.
 
 The earlier GDPR and three-case synthetic engineering reports remain historical. Do not combine them with the official VN cohort into one score. No reviewed accuracy, semantic improvement, or actual live baseline is claimed in this round.
+
+## Split-aware scoring and remaining PM findings
+
+PM re-review `6099431318` reviewed head `e25c53af`. The runner filters before manifest construction. The canonical mapping still pins all 30 cases; the execution digest now validates the exact frozen subset (ALL 30, DEV 22, HOLDOUT 8) in canonical order. New manifests retain `runConfig` bytes with their digest. The adapter verifies config, split, subset dataset/legal/rule/repository/HITL/gold pins and exact case/stage/trial inventory. Wrong membership or changed content fails closed. Historical manifests lacking config are allowed only for a full canonical ALL execution; partial legacy runs must be rerun.
+
+Mappings outside the requested subset are excluded from execution coverage, rather than counted as missing. `rubricReportsBySplitTargetAndTrial` reports separate DEV/HOLDOUT denominators and metrics per trial. Zero reviewed denominator remains NOT_SCORED; combined ALL diagnostics are not independent holdout results.
+
+Run from `deepagents/` with a fresh output directory:
+
+```powershell
+$base = "evals/legal_reasoning"
+$work = Join-Path $env:TEMP "lcsp400-split-verification"
+$commit = git rev-parse HEAD
+foreach ($split in @("ALL", "DEV", "HOLDOUT")) {
+  $runId = "lcsp400-split-$split"
+  uv run python -m evals.cli run --cases "$base/p14-cases.vn-ai.v1.json" --mode SCRIPTED --split $split --trials 1 --k 1 --run-id $runId --git-commit-sha $commit --output-dir $work --evaluation-split-manifest "$base/evaluation-splits.vn-ai.v2.json"
+  uv run python -m evals.cli legal-score --manifest "$work/$runId/manifest.json" --trials "$work/$runId/trials.jsonl" --output "$work/$runId/legal-reasoning.json"
+}
+```
+
+Artifact validation, execution mode, structurally eligible labels, reviewer authenticity and metric arithmetic are distinct. `verifiedSemanticMetrics` and nested `verifiedExecutionMetrics` remain false because the tool does not authenticate reviewers. `labelComparisonScored` and `metricReviewStatus` identify arithmetic using structurally eligible labels. LIVE alone does not establish human review. Current gold denominator remains zero.
+
+| Remaining PM finding | Status and required evidence |
+|---|---|
+| Frozen Preparation output | OPEN: no frozen actual LCSP-402 Preparation output/manifest was found in checked-in evaluation assets. Target binding exists; actual artifact import with separate target gold and metrics remains required. No fixture is presented as an actual Preparation output. |
+| Candidate quality | OPEN: documentary fixture defaults remain provisional suggestions. Provision-grounded annotation revisions and greater semantic/counterfactual diversity remain implementation work; three groups, including one holdout group, cannot support generalization claims. |
+| Actor and temporal provenance | PARTIAL: source bytes and scenario identity are verified; independent actor correspondence and legal effectivity/as-of interpretation are not confirmed. Hash equality does not prove them. Source-grounded annotations and human review remain required. |
+| HITL | PARTIAL: existing P14 SCRIPTED engineering tests exercise request/resume mechanics under synthetic law. The official VN cohort has no actual request/resolution transition; a source-bound clarification/resume case with evidence gaps remains necessary. A WAITING_FOR_HUMAN label alone does not satisfy it. |
+| Metric provenance | Corrected as above; authentic human review and an authorized actual baseline remain external dependencies. |
+
+AC1–AC3 remain partial. Keep LCSP-400 In Progress and request no blanket closure of these findings. The split fix does not complete the remaining implementation or research requirements. No live or paid model call or genuine human review was performed.

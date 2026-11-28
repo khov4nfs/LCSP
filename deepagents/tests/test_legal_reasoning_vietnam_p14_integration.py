@@ -354,6 +354,20 @@ def test_bound_review_fixture_reaches_score_dataset_without_claiming_human_quali
     )
 
     assert report["scoringStatus"] == "SCORED"
+    assert report["verifiedSemanticMetrics"] is False
+    assert (
+        report["metricReviewStatus"]
+        == "STRUCTURALLY_ELIGIBLE_LABELS_ONLY_AUTHENTICITY_NOT_VERIFIED"
+    )
+    assert (
+        sum(
+            metric["denominator"]
+            for row in report["rubricReportsBySplitTargetAndTrial"]
+            for metric in row["perDimension"].values()
+        )
+        == report["reviewedGoldDenominator"]
+    )
+
     assert report["reviewedGoldDenominator"] > 0
     assert report["reviewAuthenticityStatus"] == "NOT_AUTHENTICATED_BY_TOOL"
     assert report["actualExecutionStatus"] == "SCRIPTED_EXECUTED"
@@ -365,3 +379,83 @@ def test_bound_review_fixture_reaches_score_dataset_without_claiming_human_quali
     )
     assert scored["reportClassification"] == "P14_VERIFIED_SCRIPTED_DIAGNOSTIC"
     assert scored["qualityClaimStatus"] == "SCRIPTED_DIAGNOSTIC_ONLY"
+
+
+@pytest.mark.parametrize("split_name,expected_count", [("DEV", 22), ("HOLDOUT", 8)])
+def test_real_scripted_split_subset_and_negative_membership(
+    tmp_path, split_name, expected_count
+):
+    """Run each frozen split through the real runner and adapter without model calls."""
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=DEEPAGENTS, text=True
+    ).strip()
+    run_id = f"split-{split_name.lower()}"
+    assert (
+        p14_cli_main(
+            [
+                "run",
+                "--cases",
+                str(P14_CASES),
+                "--mode",
+                "SCRIPTED",
+                "--split",
+                split_name,
+                "--trials",
+                "1",
+                "--k",
+                "1",
+                "--run-id",
+                run_id,
+                "--git-commit-sha",
+                commit,
+                "--output-dir",
+                str(tmp_path),
+                "--evaluation-split-manifest",
+                str(SPLITS),
+            ]
+        )
+        == 0
+    )
+    run = tmp_path / run_id
+    report = integrate_p14_artifacts(**_run_args(run))
+    assert report["executionCohort"]["executedCaseCount"] == expected_count
+    assert report["executionCohort"]["notExecutedCaseCount"] == 0
+    assert report["splitInventory"]["executionCaseCounts"] == {
+        split_name: expected_count
+    }
+    assert report["reviewedGoldDenominator"] == 0
+    assert report["scoringStatus"] == "NOT_SCORED"
+    assert report["verifiedSemanticMetrics"] is False
+    assert (
+        report["splitInventory"]["canonicalDatasetSha256"]
+        != report["splitInventory"]["executionDatasetSha256"]
+    )
+    for row in report["rubricReportsBySplitTargetAndTrial"]:
+        expected_stage_count = sum(
+            case.split == row["split"]
+            and any(
+                stage.stage == row["lifecycleStage"]
+                for stage in case.gold_rubric.stages
+            )
+            for case in load_benchmark_cases(P14_CASES, split=split_name)
+        )
+        assert row["executionCaseCount"] == expected_stage_count
+        assert row["scoringStatus"] == "NOT_SCORED"
+    from evals.legal_reasoning.p14_adapter import _execution_subset
+    from evals.run_manifest import stable_hash
+
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    cases = load_benchmark_cases(P14_CASES)
+    wrong_split = deepcopy(manifest)
+    wrong_split["runConfig"]["split"] = "HOLDOUT" if split_name == "DEV" else "DEV"
+    wrong_split["sourcePins"]["runConfigSha256"] = stable_hash(wrong_split["runConfig"])
+    with pytest.raises(ValueError, match="P14_MANIFEST_CASE_SNAPSHOT_MISMATCH"):
+        _execution_subset(cases, wrong_split)
+    wrong_digest = deepcopy(manifest)
+    wrong_digest["sourcePins"]["casesDatasetSha256"] = "0" * 64
+    with pytest.raises(ValueError, match="P14_MANIFEST_CASE_SNAPSHOT_MISMATCH"):
+        _execution_subset(cases, wrong_digest)
+    wrong_member = deepcopy(manifest)
+    wrong_member["expectedTrialInventory"][0]["caseId"] = "unrelated"
+    with pytest.raises(ValueError, match="P14_EXECUTION_SUBSET_INVENTORY_MISMATCH"):
+        _execution_subset(cases, wrong_member)

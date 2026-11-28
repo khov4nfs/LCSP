@@ -146,6 +146,7 @@ def build_benchmark_manifest(
       fingerprints come from the single authoritative production helper.
     - Hashes actual repository fixture file trees, legal provisions, rule definitions,
       full case payloads, manual reviews, and expected trial inventory.
+    - Retains runConfig bytes and its digest for downstream split and trial verification.
     - In LIVE mode, resolves the actual configured model identity for the manifest.
 
     Execution flow:
@@ -242,6 +243,7 @@ def build_benchmark_manifest(
     )
     payload = {k: v for k, v in base_manifest.items() if k != "manifestSha256"}
     payload["expectedTrialInventory"] = expected_inventory
+    payload["runConfig"] = config.model_dump()
     if config.git_commit_sha is not None:
         payload["gitCommitSha"] = config.git_commit_sha
     return {**payload, "manifestSha256": stable_hash(payload)}

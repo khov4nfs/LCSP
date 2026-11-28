@@ -177,6 +177,8 @@ def integrate_p14_artifacts(
         shared_cohort=shared_cohort,
         split_manifest=split_manifest,
     )
+    execution_cases = _execution_subset(p14_cases, manifest)
+    execution_ids = {case.case_id for case in execution_cases}
     split_membership = validate_split_membership(
         split_manifest,
         candidate_cases,
@@ -211,6 +213,8 @@ def integrate_p14_artifacts(
         )
     cohort_by_id = {row["cohortCaseId"]: row for row in shared_cohort["cases"]}
     for entry in mapping["caseMappings"]:
+        if entry["p14CaseId"] not in execution_ids:
+            continue
         cohort_case = cohort_by_id[entry["cohortCaseId"]]
         p14_case = p14_case_by_id[entry["p14CaseId"]]
         matching_outcomes = outcomes_by_case_stage.get(
@@ -388,7 +392,11 @@ def integrate_p14_artifacts(
     if dimension_review_by_key:
         raise ValueError("P14_DIMENSION_REVIEW_TARGET_NOT_FOUND")
 
-    mapped_case_ids = {row["cohortCaseId"] for row in mapping["caseMappings"]}
+    mapped_case_ids = {
+        row["cohortCaseId"]
+        for row in mapping["caseMappings"]
+        if row["p14CaseId"] in execution_ids
+    }
     executed_case_ids = {
         row["cohortCaseId"]
         for row in execution_records
@@ -451,6 +459,7 @@ def integrate_p14_artifacts(
     )
 
     rubric_reports = []
+    split_reports = []
     for trial_key in sorted(normalized_by_trial):
         target, lifecycle, trial_index = trial_key
         prediction_rows = sorted(
@@ -493,12 +502,14 @@ def integrate_p14_artifacts(
         scored["executionProvenanceStatus"] = (
             "VALIDATED_P14_MANIFEST_TRACE_OUTPUT_AND_OUTCOME_BINDING"
         )
-        scored["verifiedExecutionMetrics"] = scored["scoringStatus"] == "SCORED"
+        scored["labelComparisonScored"] = scored["scoringStatus"] == "SCORED"
+        scored["verifiedExecutionMetrics"] = False
+        scored["reviewAuthenticityStatus"] = "NOT_AUTHENTICATED_BY_TOOL"
         scored["qualityClaimStatus"] = (
             "SCRIPTED_DIAGNOSTIC_ONLY"
             if p14_mode == "SCRIPTED"
-            else "LIVE_QUALITY_METRICS"
-            if p14_mode == "LIVE" and scored["verifiedExecutionMetrics"]
+            else "LIVE_ARTIFACT_LABEL_COMPARISON_REVIEW_AUTHENTICITY_UNVERIFIED"
+            if p14_mode == "LIVE" and scored["labelComparisonScored"]
             else "NOT_SCORED"
         )
         scored["lifecycleStage"] = lifecycle
@@ -506,6 +517,35 @@ def integrate_p14_artifacts(
         scored["executionCaseCount"] = len(trial_prediction_case_ids)
         scored["scoringCohortCaseCount"] = len(trial_scoring_case_ids)
         rubric_reports.append(scored)
+        for split_name in ("DEV", "HOLDOUT"):
+            split_ids = {
+                entry.get("candidateCaseId", entry["cohortCaseId"])
+                for entry in mapping["caseMappings"]
+                if p14_case_by_id[entry["p14CaseId"]].split == split_name
+            } & trial_scoring_case_ids
+            split_input = dict(
+                normalized_input,
+                casePredictions=[
+                    row for row in prediction_rows if row["caseId"] in split_ids
+                ],
+            )
+            split_scored = score_dataset(
+                effective_candidate_cases,
+                split_input,
+                rubric,
+                source_pins,
+                scoring_case_ids=split_ids,
+            )
+            split_scored.update(
+                {
+                    "split": split_name,
+                    "lifecycleStage": lifecycle,
+                    "trialIndex": trial_index,
+                    "executionCaseCount": len(split_ids),
+                    "qualityClaimStatus": scored["qualityClaimStatus"],
+                }
+            )
+            split_reports.append(split_scored)
 
     scored_reports = [row for row in rubric_reports if row["scoringStatus"] == "SCORED"]
     reviewed_gold_denominator = sum(
@@ -533,7 +573,10 @@ def integrate_p14_artifacts(
         if not missing_inventory
         else "VALIDATED_P14_ARTIFACT_BYTES_WITH_INCOMPLETE_EXECUTION",
         "verifiedArtifactReport": True,
-        "verifiedSemanticMetrics": bool(scored_reports and p14_mode == "LIVE"),
+        "verifiedSemanticMetrics": False,
+        "metricReviewStatus": "STRUCTURALLY_ELIGIBLE_LABELS_ONLY_AUTHENTICITY_NOT_VERIFIED"
+        if scored_reports
+        else "NOT_SCORED",
         "artifactClassification": {
             "OFFLINE_FIXTURE": "P14_OFFLINE_FIXTURE_ARTIFACTS",
             "SCRIPTED": "P14_SCRIPTED_EXECUTION_ARTIFACTS",
@@ -605,6 +648,12 @@ def integrate_p14_artifacts(
             )
         ],
         "splitInventory": {
+            "executionSplit": manifest.get("runConfig", {}).get("split", "ALL"),
+            "canonicalDatasetSha256": mapping["pinnedInputs"]["p14CasesDatasetSha256"],
+            "executionDatasetSha256": manifest["sourcePins"]["casesDatasetSha256"],
+            "executionCaseCounts": dict(
+                sorted(Counter(case.split for case in execution_cases).items())
+            ),
             "splitDigest": split_manifest["splitDigest"],
             "caseCounts": split_manifest["splitCaseCounts"],
             "groupCounts": split_manifest["splitGroupCounts"],
@@ -657,6 +706,7 @@ def integrate_p14_artifacts(
             "note": "P14's binary verdict review fields do not constitute LCSP-400 dimension judgments. The separate dimension-review contract checks structure and trace binding, not reviewer authenticity.",
         },
         "rubricReportsByTargetAndTrial": rubric_reports,
+        "rubricReportsBySplitTargetAndTrial": split_reports,
         "scoringStatus": scoring_status,
         "humanReviewedQualityMetrics": (
             "NOT_SCORED"
@@ -682,7 +732,7 @@ def integrate_p14_artifacts(
         if structurally_reviewed_ids
         else "NO_REVIEWED_GOLD",
         "reviewAuthenticityStatus": "NOT_AUTHENTICATED_BY_TOOL",
-        "liveQualityMetricStatus": "SCORED"
+        "liveQualityMetricStatus": "LABEL_COMPARISON_ONLY_REVIEW_AUTHENTICITY_UNVERIFIED"
         if p14_mode == "LIVE" and scored_reports
         else "NOT_SCORED",
         "actualExecutionBaseline": (
@@ -750,8 +800,7 @@ def validate_case_mapping(
         raise ValueError("P14_CASE_MAPPING_P14_SNAPSHOT_STALE")
     if expected_pins.get("sourcePinsSha256") != source_digest:
         raise ValueError("P14_CASE_MAPPING_SOURCE_PINS_STALE")
-    if manifest.get("sourcePins", {}).get("casesDatasetSha256") != p14_digest:
-        raise ValueError("P14_MANIFEST_CASE_SNAPSHOT_MISMATCH")
+    _execution_subset(p14_case_list, manifest)
     if expected_pins.get("sharedCohortSha256") != cohort_digest(shared_cohort):
         raise ValueError("P14_CASE_MAPPING_COHORT_SNAPSHOT_STALE")
     if expected_pins.get("splitManifestSha256") != split_manifest.get("splitDigest"):
@@ -858,7 +907,8 @@ def validate_case_mapping(
             "HOLDOUT",
         }:
             raise ValueError(f"P14_CASE_MAPPING_SPLIT_MISMATCH:{cohort_id}")
-    for p14_case in p14_case_list:
+    repo_tree_pins = {}
+    for p14_case in _execution_subset(p14_case_list, manifest):
         repo = p14_case.repo_pin
         repo_tree_pins[repo.repo_id] = {
             "snapshotKind": repo.snapshot_kind,
@@ -1809,3 +1859,94 @@ def _read_json(path: Path) -> Any:
     - Read-only access to one selected local file.
     """
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _execution_subset(
+    canonical_cases: Sequence[BenchmarkCase], manifest: dict[str, Any]
+) -> list[BenchmarkCase]:
+    """Business purpose: Bind a P14 execution to an exact frozen canonical split subset.
+
+    Business rules:
+    - Canonical mapping identity remains the full dataset; execution identity covers only the requested split.
+    - Inventory must contain every selected case/stage/trial exactly once; unrelated cases are rejected.
+    - This validates structural membership and bytes, without making a legal or review-authenticity judgment.
+
+    Execution flow:
+    1. Select canonical cases by the declared split and fault-injection filter.
+    2. Recompute dataset, legal source, rule, HITL and gold digests for that subset.
+    3. Require exact expected inventory, including lifecycle stage and repeat identity.
+
+    Failure cases:
+    - A split outside DEV/HOLDOUT/ALL, changed content, or missing/extra inventory members raises ValueError.
+
+    Side effects:
+    - None: validates supplied evaluation records only.
+    """
+    config = manifest.get("runConfig")
+    if config is None:
+        # Historical manifests did not retain config bytes: permit full canonical ALL only.
+        inventory = manifest.get("expectedTrialInventory", [])
+        config = {
+            "split": "ALL",
+            "mode": inventory[0]["mode"] if inventory else None,
+            "trials_per_case": max((r["trialIndex"] for r in inventory), default=-1)
+            + 1,
+        }
+    elif manifest.get("sourcePins", {}).get("runConfigSha256") != stable_hash(config):
+        raise ValueError("P14_EXECUTION_CONFIG_DIGEST_MISMATCH")
+    split = config.get("split", "ALL")
+    if split not in {"ALL", "DEV", "HOLDOUT"}:
+        raise ValueError("P14_EXECUTION_SPLIT_INVALID")
+    selected = [
+        case
+        for case in canonical_cases
+        if (split == "ALL" or case.split == split)
+        and (config.get("include_fault_injection", True) or not case.is_fault_injection)
+    ]
+    pins = manifest.get("sourcePins", {})
+    if pins.get("casesDatasetSha256") != stable_hash(
+        [c.model_dump() for c in selected]
+    ):
+        raise ValueError("P14_MANIFEST_CASE_SNAPSHOT_MISMATCH")
+    expected_pins = {
+        "repoPinsSha256": {
+            c.repo_pin.repo_id: {
+                "snapshotKind": c.repo_pin.snapshot_kind,
+                "commitSha": c.repo_pin.commit_sha,
+                "treeSha256": _hash_repo_fixture_tree(
+                    (DEEPAGENTS_ROOT / c.repo_pin.fixture_dir).resolve()
+                ),
+            }
+            for c in selected
+        },
+        "corpusPinsSha256": {
+            c.case_id: [p.model_dump() for p in c.legal_provisions] for c in selected
+        },
+        "ruleSetPinsSha256": {
+            c.case_id: [r.model_dump() for r in c.rule_definitions] for c in selected
+        },
+        "hitlFixtureSha256": [
+            {"caseId": c.case_id, "hitl": [h.model_dump() for h in c.hitl_answers]}
+            for c in selected
+        ],
+        "goldRubricSha256": [
+            {"caseId": c.case_id, "gold": c.gold_rubric.model_dump()} for c in selected
+        ],
+    }
+    for key, value in expected_pins.items():
+        if pins.get(key) != stable_hash(value):
+            raise ValueError(f"P14_EXECUTION_SUBSET_PIN_MISMATCH:{key}")
+    expected = [
+        {
+            "caseId": c.case_id,
+            "stage": stage.stage,
+            "trialIndex": trial,
+            "mode": config.get("mode"),
+        }
+        for c in selected
+        for trial in range(config.get("trials_per_case", 3))
+        for stage in c.gold_rubric.stages
+    ]
+    if manifest.get("expectedTrialInventory") != expected:
+        raise ValueError("P14_EXECUTION_SUBSET_INVENTORY_MISMATCH")
+    return selected
