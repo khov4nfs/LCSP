@@ -264,7 +264,10 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             !(await hasValidSelectedActivationManifest(
               tx,
               target.selectedPreparationResults,
-              { legalSourceVersionId: target.legalSourceVersionId },
+              {
+                legalSourceVersionId: target.legalSourceVersionId,
+                expectedRuleSetDigest: target.ruleSetDigest,
+              },
             ))
           ) {
             throw conflict(Errors.TARGET_NOT_ELIGIBLE);

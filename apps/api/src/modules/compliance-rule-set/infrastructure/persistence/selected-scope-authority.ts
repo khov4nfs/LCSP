@@ -1,4 +1,5 @@
 import {
+  complianceRuleSetPacketSchema,
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
@@ -518,7 +519,8 @@ const selectedManifestEntrySchema = z.object({
  * Execution flow:
  * 1. Parse the manifest array and verify uniqueness of ruleId and scopeAuthorizationKey.
  * 2. Recompute the persisted input fingerprint, output digest and material key; verify legacy keys against their exact approved output.
- * 3. Check SelectedRuleScopeAuthorization for any REJECTED or DRAFT rows matching the manifest keys.
+ * 3. Rebuild the normalized published packet when an expected Rule Set digest is supplied.
+ * 4. Check SelectedRuleScopeAuthorization for any REJECTED or DRAFT rows matching the manifest keys.
  *
  * Failure cases:
  * - Malformed, empty, duplicate, or revoked/draft manifests return false (fail closed).
@@ -532,7 +534,6 @@ export async function hasValidSelectedActivationManifest(
   context?: {
     legalSourceVersionId?: string;
     expectedRuleSetDigest?: string;
-    actualRuleSetDigest?: string;
   },
 ): Promise<boolean> {
   const parsed = z
@@ -550,13 +551,7 @@ export async function hasValidSelectedActivationManifest(
   ) {
     return false;
   }
-  if (
-    context?.expectedRuleSetDigest &&
-    context?.actualRuleSetDigest &&
-    context.expectedRuleSetDigest !== context.actualRuleSetDigest
-  ) {
-    return false;
-  }
+  const outputs: PreparationRuleOutput[] = [];
   // Why: Manifest shape alone cannot prove the manifest corresponds to persisted,
   // succeeded PreparationRuleResult rows or their immutable output digests.
   // How: When preparationRuleResult is available on tx, verify every entry's resultId,
@@ -581,7 +576,8 @@ export async function hasValidSelectedActivationManifest(
       },
     });
     const byId = new Map(rows.map((r) => [r.id, r]));
-    for (const entry of parsed.data) {
+    // Publication orders selections by rule ID; reproduce that exact packet order.
+    for (const entry of [...parsed.data].sort((a, b) => a.ruleId.localeCompare(b.ruleId))) {
       const row = byId.get(entry.resultId);
       if (
         !row ||
@@ -609,6 +605,7 @@ export async function hasValidSelectedActivationManifest(
       ) {
         return false;
       }
+      outputs.push(parsedOutput.data);
       // A syntactically valid but substituted authorization key must not hide a
       // revoked approval. V1 keys are accepted only with the original exact review.
       const materialKey = selectedScopeKey(parsedInput.data, parsedOutput.data);
@@ -633,6 +630,19 @@ export async function hasValidSelectedActivationManifest(
         ) return false;
       }
     }
+  }
+  // Rebuild the normalized packet that ActivatePreparedRulesHandler hashes.
+  // Matching individual results cannot authorize a different published Rule Set.
+  if (context?.expectedRuleSetDigest !== undefined) {
+    const packet = complianceRuleSetPacketSchema.safeParse({
+      legalRequirements: outputs.flatMap((output) => output.legalRequirements),
+      assessmentRules: outputs.flatMap((output) => output.assessmentRules),
+      contextRelations: outputs.flatMap((output) => output.contextRelations),
+    });
+    if (
+      !packet.success ||
+      sha256Hex(canonicalJson(packet.data)) !== context.expectedRuleSetDigest
+    ) return false;
   }
   if (!tx.selectedRuleScopeAuthorization?.count) return false;
   {

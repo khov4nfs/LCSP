@@ -97,6 +97,7 @@ export class AssessmentRuntimePreparation {
         id: true,
         legalSourceVersionId: true,
         selectedPreparationResults: true,
+        ruleSetDigest: true,
       },
     });
     if (
@@ -113,7 +114,10 @@ export class AssessmentRuntimePreparation {
       !(await hasValidSelectedActivationManifest(
         tx,
         candidate.selectedPreparationResults,
-        { legalSourceVersionId: candidate.legalSourceVersionId },
+        {
+          legalSourceVersionId: candidate.legalSourceVersionId,
+          expectedRuleSetDigest: candidate.ruleSetDigest,
+        },
       ))
     ) {
       return null;

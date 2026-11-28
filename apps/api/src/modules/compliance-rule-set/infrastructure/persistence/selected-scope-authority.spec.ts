@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  complianceRuleSetPacketSchema,
   LEGAL_REQUIREMENT_COVERAGE_STATES as coverage,
   LEGAL_OPERATIVE_MODALITIES as modality,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -400,6 +401,21 @@ describe("Reusable selected semantic scope evidence", () => {
     await expect(hasValidSelectedActivationManifest(tx, [
       { ...entry, scopeAuthorizationKey: "f".repeat(64) },
     ])).resolves.toBe(false);
+    const packet = complianceRuleSetPacketSchema.parse({
+      legalRequirements: output.legalRequirements,
+      assessmentRules: output.assessmentRules,
+      contextRelations: output.contextRelations,
+    });
+    const expectedRuleSetDigest = sha256Hex(canonicalJson(packet));
+    // Correct results cannot authorize a different published packet digest.
+    await expect(
+      hasValidSelectedActivationManifest(tx, [entry], { expectedRuleSetDigest }),
+    ).resolves.toBe(true);
+    await expect(
+      hasValidSelectedActivationManifest(tx, [entry], {
+        expectedRuleSetDigest: "0".repeat(64),
+      }),
+    ).resolves.toBe(false);
     findMany.mockResolvedValueOnce([
       { ...row, inputSnapshot: { ...input, catalogRevision: 2 } },
     ]);
