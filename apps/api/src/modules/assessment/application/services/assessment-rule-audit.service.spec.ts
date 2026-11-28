@@ -104,6 +104,10 @@ function submitFixture() {
     assessmentRule: {
       findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue(rules),
     },
+    // An admitted catalog has approved membership for every exact rule version.
+    ruleCatalogGroupMembership: {
+      findMany: jest.fn<() => Promise<unknown>>().mockResolvedValue(rules),
+    },
     assessmentRuntime: {
       findUniqueOrThrow: jest.fn<() => Promise<unknown>>().mockResolvedValue({
         leaseToken: null,

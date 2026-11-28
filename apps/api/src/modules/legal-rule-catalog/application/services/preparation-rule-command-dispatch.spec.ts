@@ -20,6 +20,8 @@ describe("PreparationRuleService command dispatch", () => {
       {} as never,
       {} as never,
       {} as never,
+      // Mirror the production Nest injection of both command handlers.
+      {} as never,
     );
     const activationRequest = { results: [] } as never;
     const importRequest = { items: [] } as never;

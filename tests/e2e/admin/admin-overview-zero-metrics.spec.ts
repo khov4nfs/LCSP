@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   authenticateBillingE2e,
   BILLING_E2E_TOKENS,
-} from "../fixtures/billing-auth";
+} from "../fixtures/billing-auth.js";
 
 test("Admin overview renders a real zero cohort without sample metrics", async ({
   page,

@@ -53,8 +53,8 @@ export async function collectPreparationPreflight(
     Array<{ table_name: string; column_name: string }>
   >`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND table_name IN ('ComplianceRuleSetVersion','RuleSetPreparationRun')`;
   const required = [
-    ["ComplianceRuleSetVersion", "targetActivityScope"],
-    ["RuleSetPreparationRun", "targetActivityScope"],
+    // The unified preparation migration retired both activity-scope columns.
+    ["ComplianceRuleSetVersion", "ruleSetDigest"],
     ["RuleSetPreparationRun", "executionContract"],
     ["RuleSetPreparationRun", "claimPhase"],
     ["RuleSetPreparationRun", "claimInventoryRevision"],

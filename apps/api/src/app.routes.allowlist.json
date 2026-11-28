@@ -148,6 +148,7 @@
   "POST /admin/legal-rule-catalog/:catalogId/assessment-rules/import",
   "POST /admin/legal-rule-catalog/:catalogId/rules",
   "POST /admin/legal-rule-catalog/:catalogId/scope-authorizations/approve",
+  "POST /admin/legal-rule-catalog/:catalogId/scope-authorizations/revoke",
   "POST /admin/legal-rule-catalog/:catalogId/scope-authorizations/submit",
   "POST /admin/legal-rule-catalog/:catalogId/source-provisions/import",
   "POST /admin/legal-rule-catalog/preparations",
