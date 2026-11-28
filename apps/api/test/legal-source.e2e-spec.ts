@@ -422,8 +422,24 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         });
       assert.equal(firstApproval.status, 200);
 
-      // Same idempotency key replays prior terminal result
+      // Why: A retry may replay the terminal result only when all activation authority fields are unchanged.
+      // How: Repeat the original request byte-for-byte in its business fields.
+      // Invariant: No second activation or audit is authorized for an exact retry.
       const secondApproval = await httpRequest(app)
+        .post(`/internal/legal-sources/${draft.id}/activate-validated`)
+        .set("x-worker-api-key", WORKER_KEY)
+        .send({
+          integrityManifestRef: "integrity-manifest:approved-v1",
+          retrievalValidationRef: "retrieval-validation:approved-v1",
+          idempotencyKey: "33333333-3333-4333-8333-333333333333",
+          scopeDescription: "Initial activation",
+        });
+      assert.equal(secondApproval.status, 200);
+
+      // Why: A reused key with a new scope would otherwise inherit the first approval silently.
+      // How: Change only the scope and require the replay-conflict response.
+      // Invariant: One key cannot authorize two different activation decisions.
+      const changedScope = await httpRequest(app)
         .post(`/internal/legal-sources/${draft.id}/activate-validated`)
         .set("x-worker-api-key", WORKER_KEY)
         .send({
@@ -432,7 +448,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
           idempotencyKey: "33333333-3333-4333-8333-333333333333",
           scopeDescription: "Duplicate activation attempt",
         });
-      assert.equal(secondApproval.status, 200);
+      assert.equal(changedScope.status, 409);
 
       const conflictingApproval = await httpRequest(app)
         .post(`/internal/legal-sources/${draft.id}/activate-validated`)

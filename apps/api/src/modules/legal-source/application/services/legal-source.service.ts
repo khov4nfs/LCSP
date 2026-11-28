@@ -159,6 +159,19 @@ export class LegalSourceService {
     });
   }
 
+  /**
+   * Business purpose: Activate a validated Legal Source Version as the current source for downstream legal retrieval.
+   * Business rules:
+   * - Only a DRAFT with a nonempty document corpus and a matching validated retrieval index may become ACTIVE; replay must match the persisted version, manifests, scope and comments.
+   * Execution flow:
+   * 1. Validate request and replay.
+   * 2. Lock the lifecycle and target version, then reload and validate corpus and index.
+   * 3. Activate, supersede the previous version, and persist audit/outbox records atomically.
+   * Failure cases:
+   * - Missing, non-draft, empty or invalid authority rejects activation; a mismatched replay returns 409; transaction failure rolls back all mutations.
+   * Side effects:
+   * - Updates lifecycle rows and writes activation, audit and outbox records in one serializable transaction.
+   */
   async activateValidatedLegalSourceVersion(input: {
     legalSourceVersionId: string;
     integrityManifestRef: string;
@@ -176,7 +189,16 @@ export class LegalSourceService {
       include: { legalSourceVersion: true },
     });
     if (replay) {
-      if (replay.legalSourceVersionId !== input.legalSourceVersionId) {
+      // Why: An idempotency key identifies one activation decision, including its pinned evidence and scope.
+      // How: Compare every persisted authority field before returning the original response.
+      // Invariant: A replay cannot silently authorize a changed manifest or scope without a new audit/outbox event.
+      if (
+        replay.legalSourceVersionId !== input.legalSourceVersionId ||
+        replay.integrityManifestRef !== input.integrityManifestRef ||
+        replay.retrievalValidationRef !== input.retrievalValidationRef ||
+        replay.scopeDescription !== input.scopeDescription ||
+        replay.comments !== input.comments
+      ) {
         throw problemException(
           LEGAL_SOURCE_ERROR_CODES.legalSourceVersionAlreadyActivated,
           input.correlationId,
@@ -198,7 +220,10 @@ export class LegalSourceService {
       );
     }
 
-    const legalSource = await this.prisma.legalSourceVersion.findUnique({
+    // Why: Preserve the existing 404/422 response for a draft that is already invalid on entry.
+    // How: Check the initial authority, then recheck it under the version lock before any activation write.
+    // Invariant: A corpus or index removed between these reads is a 409 conflict, never an activation success.
+    const initialVersion = await this.prisma.legalSourceVersion.findUnique({
       where: { id: input.legalSourceVersionId },
       include: {
         documents: { include: { chunks: true } },
@@ -207,76 +232,36 @@ export class LegalSourceService {
         },
       },
     });
-    if (!legalSource) {
-      throw problemException(
-        LEGAL_SOURCE_ERROR_CODES.legalSourceVersionNotFound,
-        input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
-    if (
-      legalSource.status !==
-      toPrismaLegalSourceLifecycleStatus(LEGAL_SOURCE_LIFECYCLE_STATUSES.draft)
-    ) {
-      throw problemException(
-        LEGAL_SOURCE_ERROR_CODES.legalSourceVersionAlreadyActivated,
-        input.correlationId,
-        {
-          status: HttpStatus.CONFLICT,
-          meta: {
-            reason:
-              ACTIVATE_VALIDATED_LEGAL_SOURCE_VERSION_LIMITATION_CODES.legalSourceVersionNotDraft,
-          },
-        },
-      );
-    }
-    if (
-      legalSource.documents.length === 0 ||
-      legalSource.documents.some((document) => document.chunks.length === 0)
-    ) {
-      throw problemException(
-        LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
-        input.correlationId,
-        { status: HttpStatus.UNPROCESSABLE_ENTITY },
-      );
-    }
-
-    const retrievalIndex = legalSource.retrievalIndexes.find(
-      (index) => index.validationManifestRef === input.retrievalValidationRef,
-    );
-    if (!retrievalIndex) {
-      throw problemException(
-        LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
-        input.correlationId,
-        {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          meta: {
-            reason:
-              ACTIVATE_VALIDATED_LEGAL_SOURCE_VERSION_LIMITATION_CODES.retrievalValidationMissing,
-          },
-        },
-      );
-    }
-    if (retrievalIndex.status !== "VALID" || !retrievalIndex.validatedAt) {
-      throw problemException(
-        LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
-        input.correlationId,
-        {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          meta: {
-            reason:
-              ACTIVATE_VALIDATED_LEGAL_SOURCE_VERSION_LIMITATION_CODES.retrievalIndexNotValid,
-          },
-        },
-      );
-    }
+    this.validateActivationAuthority(initialVersion, input, false);
 
     const activatedAt = new Date();
+    let activatedVersion = "";
     let activationRecordId = "";
     let outboxEventId = "";
     await this.prisma.$transaction(
       async (tx) => {
         await acquireLegalSourceLifecycleLock(tx);
+        // Why: Document mutations serialize on the version row, not the global lifecycle advisory lock.
+        // How: Lock that row before reading its corpus and index inside this transaction.
+        // Invariant: The activation decision cannot rely on a snapshot loaded before a competing document mutation.
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id FROM "LegalSourceVersion" WHERE id = ${input.legalSourceVersionId} FOR UPDATE`,
+        );
+        const lockedVersion = await tx.legalSourceVersion.findUnique({
+          where: { id: input.legalSourceVersionId },
+          include: {
+            documents: { include: { chunks: true } },
+            retrievalIndexes: {
+              orderBy: [{ validatedAt: "desc" }, { createdAt: "desc" }],
+            },
+          },
+        });
+        const legalSource = this.validateActivationAuthority(
+          lockedVersion,
+          input,
+          true,
+        );
+        activatedVersion = legalSource.version;
         const claimed = await tx.legalSourceVersion.updateMany({
           where: {
             id: legalSource.id,
@@ -429,18 +414,34 @@ export class LegalSourceService {
           );
         }
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      // Why: Serializable fixes its snapshot at the advisory-lock query, before a blocked version lock is acquired.
+      // How: ReadCommitted gives the post-lock corpus/index query the latest committed view.
+      // Invariant: The lifecycle advisory lock and version row lock still serialize competing activations and document mutations.
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
     );
 
     return this.toActivationResponse(
-      legalSource.id,
-      legalSource.version,
+      input.legalSourceVersionId,
+      activatedVersion,
       input.correlationId,
       activationRecordId,
       outboxEventId,
     );
   }
 
+  /**
+   * Business purpose: Register a validated retrieval index for a specific Legal Source version.
+   * Business rules:
+   * - A version key identifies one immutable source, validation manifest, configuration hash and content hash.
+   * - An explicit validation timestamp must match on replay; an omitted timestamp does not constrain the original server timestamp.
+   * Execution flow:
+   * 1. Validate the request and source version.
+   * 2. Return an exact existing registration or create a new VALID index.
+   * Failure cases:
+   * - Missing source returns 404; changed replay fields return 409; database writes propagate failure.
+   * Side effects:
+   * - Creates one retrieval index for a new version key; exact replay is read-only.
+   */
   async registerValidatedRetrievalIndex(input: {
     legalSourceVersionId: string;
     version: string;
@@ -472,12 +473,24 @@ export class LegalSourceService {
         version: true,
         status: true,
         validationManifestRef: true,
+        configHash: true,
+        contentHash: true,
+        validatedAt: true,
       },
     });
     if (existing) {
+      // Why: A VALID index for different bytes or configuration cannot authorize the current request.
+      // How: Compare the stored immutable fields and any caller-supplied validation time.
+      // Invariant: Replaying the key never changes indexed content or its provenance.
       if (
         existing.legalSourceVersionId !== input.legalSourceVersionId ||
-        existing.validationManifestRef !== input.validationManifestRef
+        existing.validationManifestRef !== input.validationManifestRef ||
+        existing.configHash !== input.configHash ||
+        existing.contentHash !== input.contentHash ||
+        (input.validatedAt !== undefined &&
+          input.validatedAt !== null &&
+          existing.validatedAt?.toISOString() !==
+            new Date(input.validatedAt).toISOString())
       ) {
         throw problemException(
           LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
@@ -516,6 +529,102 @@ export class LegalSourceService {
       status: index.status,
       validationManifestRef: index.validationManifestRef,
     };
+  }
+
+  /**
+   * Business purpose: Decide whether one stored Legal Source Version has sufficient authority to activate.
+   * Business rules:
+   * - The version must be DRAFT, every document must have chunks, and the requested validated index must exist.
+   * Execution flow:
+   * 1. Check existence and lifecycle.
+   * 2. Check corpus and the matching validated retrieval index.
+   * Failure cases:
+   * - Reject missing/non-draft authority; invalid initial input returns the existing 404/422 contract, while a changed locked authority returns 409.
+   * Side effects:
+   * - Pure validation; the caller controls transaction and persistence.
+   */
+  private validateActivationAuthority<
+    T extends {
+      id: string;
+      version: string;
+      status: string;
+      documents: readonly { chunks: readonly unknown[] }[];
+      retrievalIndexes: readonly {
+        validationManifestRef: string | null;
+        status: string;
+        validatedAt: Date | null;
+      }[];
+    },
+  >(
+    version: T | null,
+    input: { retrievalValidationRef: string; correlationId: string },
+    stale: boolean,
+  ): T {
+    if (!version) {
+      throw problemException(
+        LEGAL_SOURCE_ERROR_CODES.legalSourceVersionNotFound,
+        input.correlationId,
+        { status: stale ? HttpStatus.CONFLICT : HttpStatus.NOT_FOUND },
+      );
+    }
+    if (
+      version.status !==
+      toPrismaLegalSourceLifecycleStatus(LEGAL_SOURCE_LIFECYCLE_STATUSES.draft)
+    ) {
+      throw problemException(
+        LEGAL_SOURCE_ERROR_CODES.legalSourceVersionAlreadyActivated,
+        input.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: {
+            reason:
+              ACTIVATE_VALIDATED_LEGAL_SOURCE_VERSION_LIMITATION_CODES.legalSourceVersionNotDraft,
+          },
+        },
+      );
+    }
+    if (
+      version.documents.length === 0 ||
+      version.documents.some((document) => document.chunks.length === 0)
+    ) {
+      throw problemException(
+        LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
+        input.correlationId,
+        {
+          status: stale ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_ENTITY,
+        },
+      );
+    }
+    const retrievalIndex = version.retrievalIndexes.find(
+      (index) => index.validationManifestRef === input.retrievalValidationRef,
+    );
+    if (!retrievalIndex) {
+      throw problemException(
+        LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
+        input.correlationId,
+        {
+          status: stale ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_ENTITY,
+          meta: {
+            reason:
+              ACTIVATE_VALIDATED_LEGAL_SOURCE_VERSION_LIMITATION_CODES.retrievalValidationMissing,
+          },
+        },
+      );
+    }
+    if (retrievalIndex.status !== "VALID" || !retrievalIndex.validatedAt) {
+      throw problemException(
+        LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
+        input.correlationId,
+        {
+          status: stale ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_ENTITY,
+          meta: {
+            reason:
+              ACTIVATE_VALIDATED_LEGAL_SOURCE_VERSION_LIMITATION_CODES.retrievalIndexNotValid,
+          },
+        },
+      );
+    }
+    return version;
   }
 
   private validateActivationInput(input: {

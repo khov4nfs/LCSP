@@ -50,3 +50,28 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 - Discovery questions describe intended AI use; reuse accepted answers and pinned code after rule selection. [STACK: deepagents]
 - Nested mobile dialogs preserve intrinsic card height and return focus to a mounted target; verify keyboard flows. [STACK: apps/web]
 
+### [2026-11-28] [LEGAL-SOURCE/DELETION-CANCEL-PENDING] Native Cancellation Remains Unresolved
+- **Context / Symptom**: Legal Source deletion impact reported an eligible source while an owned Rule Set Preparation run had `CANCEL_REQUESTED`; deleting then could remove source data before native worker termination was confirmed.
+- **Root Cause**: The deletion service maintained its own four-state nonterminal list and omitted `CANCEL_REQUESTED`, while other preparation guards used the canonical unresolved-state contract.
+- **Resolution & Invariant**: Derive deletion impact and transaction-time delete blocking from `RULE_SET_PREPARATION_UNRESOLVED_STATES`. A cancellation request is not terminal; keep source-owned data until a confirmed terminal native outcome. Preserve a PostgreSQL integration reproducer for this state.
+
+### [2026-11-28] [LEGAL-SOURCE/ACTIVATION-INGEST-STALE-READ] Version Locks Require a Post-Lock Authority Read
+- **Context / Symptom**: A Legal Source draft could activate after its validated document disappeared, and an ingestion worker could claim an older attempt after a retry incremented the persisted attempt while it waited for a lock.
+- **Root Cause**: Both decisions used document/index rows loaded before acquiring the version lock. The lifecycle CAS checked only the version status, not the current corpus or attempt.
+- **Resolution & Invariant**: Reload corpus, retrieval index, and ingestion attempt after the version lock and before mutation. An activation transaction at `Serializable` can still read a stale snapshot because its advisory-lock query comes before the row lock; use `ReadCommitted` under the existing lifecycle advisory lock plus version row lock so the post-lock query sees a newly committed document change. Preserve the initial invalid-input API response separately from a stale locked-state conflict. PostgreSQL interleaving tests must assert both the 409 race path and normal activation success.
+
+### [2026-11-28] [LEGAL-SOURCE/SNAPSHOT-AUDIT-UNIQUE-RACE] Snapshot Registration Shares Audit Commit and Exact Race Recovery
+- **Context / Symptom**: A failed audit left an immutable official-source snapshot committed; simultaneous identical registrations could surface Prisma P2002 instead of returning the existing snapshot.
+- **Root Cause**: Snapshot creation and audit used separate writes, and replay only checked before insertion. Prisma 7's PostgreSQL adapter puts the violated index in `meta.driverAdapterError.cause.constraint.index`, not always `meta.target`.
+- **Resolution & Invariant**: Create snapshot and audit in one transaction. After rollback on the exact `LegalSourceSnapshot_snapshotRef_key` unique race, reload the committed winner and compare every immutable field; mismatched payload returns 409, unrelated constraints propagate. Keep both rollback and concurrent PostgreSQL tests.
+
+### [2026-11-28] [LEGAL-SOURCE/CATALOG-AUDIT-ATOMICITY] Catalog Mutations And Audit Must Share A Transaction
+- **Context / Symptom**: A creation audit failure left a LegalSource committed, while metadata updates had no audit; a broad P2002 handler could misclassify an AuditEvent conflict as a slug collision.
+- **Root Cause**: Creation wrote the source and audit through separate Prisma clients, update omitted audit, and the retry classifier checked only the P2002 code.
+- **Resolution & Invariant**: Create or update a source and write the actor/correlation-attributed AuditEvent in one transaction. Retry only an exact LegalSource.slug unique violation, including the Prisma adapter's index metadata; all other failures roll back and propagate. Preserve both scoped RED/GREEN tests and a dedicated PostgreSQL transaction test.
+
+### [2026-11-28] [LEGAL-SOURCE/REPLAY-AND-WORKER-INPUT] Type Annotations Do Not Protect Runtime Replay Or Provenance
+- **Context / Symptom**: A reused activation or index key accepted changed evidence; official-source worker payloads accepted malformed URLs or missing boolean identity; malformed URL escapes emitted raw URIError.
+- **Root Cause**: Replay compared only a subset of immutable fields, worker request TypeScript types vanished at runtime, and filename decoding lacked a typed rejection path.
+- **Resolution & Invariant**: Compare every persisted business-authority field on replay; validate required provenance URL and boolean at the service boundary before persistence; translate malformed URL decoding into the established import rejection. Preserve exact replay success plus mismatched replay and malformed input regression tests.
+

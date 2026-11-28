@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
-  DISCOVERY_INTERVIEW_PROPOSAL_STATUSES,
   DISCOVERY_INTERVIEW_REVIEW_ACTIONS,
+  type AssessmentDiscoveryRunView,
+  type DiscoveryInterviewProposal,
 } from "@lcsp/contracts/assessment-domain";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,19 @@ import {
   useReviewDiscoveryInterviewAnswer,
   useSubmitDiscoveryInterviewAnswer,
 } from "@/lib/api/assessment-discovery-interview-queries";
-import {
-  DiscoveryContextQuestionForm,
-  type DiscoveryContextQuestion,
-} from "../molecules/discovery-context-question";
+import { resolveEvidenceProvenance } from "../../utils/discovery-interaction";
 import { copy } from "../../utils/conversation-copy";
+import { ContextQuestionCard } from "../molecules/context-question-card";
+import type { DiscoveryContextQuestion } from "../molecules/discovery-context-question";
+
+type PreviewRange = Extract<
+  AssessmentDiscoveryRunView["discovery"],
+  { available: true }
+>["discovery"]["preview"]["ranges"][number];
+
+export type DiscoveryContextQuestionWithRange = DiscoveryContextQuestion & {
+  rangeIds?: readonly string[];
+};
 
 /**
  * Business purpose: Turn source-generated missing-context questions into owner-reviewed operational facts before audit selection.
@@ -26,8 +35,8 @@ import { copy } from "../../utils/conversation-copy";
  * - A partial proposal ledger is never taken as proof that a question has not already been answered.
  * Execution flow:
  * 1. Load the full bounded proposal inventory and match exact use-case/question identities.
- * 2. Show draft entry, pending confirmation/rejection, or accepted status for each question.
- * 3. Revalidate current case revision and refresh candidate recommendations after confirmation.
+ * 2. Render each question inside a `ContextQuestionCard` with source evidence provenance and explicit confirm/reject/correct controls.
+ * 3. Report authoritative review state upward so continuation is gated on confirmed system state.
  * Failure cases:
  * - Authorization, stale revision, pagination or ambiguous answer failures render errors without optimistic success.
  * Side effects:
@@ -37,17 +46,27 @@ export function AssessmentDiscoveryInterview({
   assessmentId,
   runId,
   questions,
+  previewRanges,
   canEdit,
+  onInterviewStateChange,
 }: {
   assessmentId: string;
   runId: string;
-  questions: DiscoveryContextQuestion[];
+  questions: DiscoveryContextQuestionWithRange[];
+  previewRanges?: PreviewRange[];
   canEdit: boolean;
+  onInterviewStateChange?: (state: {
+    latestByQuestion: Map<string, DiscoveryInterviewProposal>;
+    reviewComplete: boolean;
+  }) => void;
 }) {
   const history = useDiscoveryInterviewPageQuery(assessmentId, runId, true);
   const submit = useSubmitDiscoveryInterviewAnswer(assessmentId, runId);
   const review = useReviewDiscoveryInterviewAnswer(assessmentId, runId);
-  const records = history.data?.pages.flatMap((page) => page.items) ?? [];
+  const records = useMemo(
+    () => history.data?.pages.flatMap((page) => page.items) ?? [],
+    [history.data],
+  );
   const reviewComplete = history.isSuccess && !history.hasNextPage;
   const caseRevision = history.data?.pages[0]?.caseRevision;
 
@@ -58,6 +77,10 @@ export function AssessmentDiscoveryInterview({
     }
     return latest;
   }, [records]);
+
+  useEffect(() => {
+    onInterviewStateChange?.({ latestByQuestion, reviewComplete });
+  }, [latestByQuestion, reviewComplete, onInterviewStateChange]);
 
   /**
    * Business purpose: Apply a customer's explicit review action without treating a pending answer as an accepted fact.
@@ -124,92 +147,37 @@ export function AssessmentDiscoveryInterview({
           const existing = latestByQuestion.get(
             `${entry.useCaseId}::${entry.question}`,
           );
+          const provenance = resolveEvidenceProvenance(
+            entry.rangeIds ?? [],
+            previewRanges,
+          );
           return (
-            <li
-              key={`${entry.useCaseId}::${entry.question}`}
-              className="space-y-2 rounded-lg border p-3"
-            >
-              {/* Keep the visible feature separate from the exact question submitted to the API. */}
-              <p className="text-sm text-muted-foreground">{entry.useCaseName}</p>
-              <p className="font-medium">{entry.question}</p>
-              {existing?.status ===
-              DISCOVERY_INTERVIEW_PROPOSAL_STATUSES.accepted ? (
-                <p role="status" className="text-sm text-muted-foreground">
-                  {copy("ruleAudit.discovery.interviewAccepted")}{" "}
-                  {existing.answer}
-                </p>
-              ) : null}
-              {existing?.status ===
-              DISCOVERY_INTERVIEW_PROPOSAL_STATUSES.pendingReview ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {copy("ruleAudit.discovery.interviewPending")}{" "}
-                    {existing.answer}
-                  </p>
-                  {existing.guardFailure ? (
-                    <p role="alert" className="text-sm text-destructive">
-                      {copy("ruleAudit.discovery.interviewAmbiguous")}
-                    </p>
-                  ) : null}
-                  {canEdit && reviewComplete ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={
-                          review.isPending ||
-                          Boolean(existing.guardFailure) ||
-                          caseRevision === undefined
-                        }
-                        onClick={() =>
-                          void reviewProposal(
-                            existing.proposalId,
-                            DISCOVERY_INTERVIEW_REVIEW_ACTIONS.accept,
-                          )
-                        }
-                      >
-                        {copy("ruleAudit.discovery.interviewConfirm")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={
-                          review.isPending || caseRevision === undefined
-                        }
-                        onClick={() =>
-                          void reviewProposal(
-                            existing.proposalId,
-                            DISCOVERY_INTERVIEW_REVIEW_ACTIONS.reject,
-                          )
-                        }
-                      >
-                        {copy("ruleAudit.discovery.interviewReject")}
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              {existing?.status ===
-              DISCOVERY_INTERVIEW_PROPOSAL_STATUSES.rejected ? (
-                <p role="status" className="text-sm text-muted-foreground">
-                  {copy("ruleAudit.discovery.interviewRejected")}
-                </p>
-              ) : null}
-              {canEdit &&
-              reviewComplete &&
-              (!existing ||
-                existing.status ===
-                  DISCOVERY_INTERVIEW_PROPOSAL_STATUSES.rejected) ? (
-                <DiscoveryContextQuestionForm
-                  entry={entry}
-                  disabled={!reviewComplete}
-                  isPending={submit.isPending}
-                  onSubmitAnswer={async (answer) => {
-                    await submit.mutateAsync(answer);
-                  }}
-                />
-              ) : null}
+            <li key={`${entry.useCaseId}::${entry.question}`}>
+              <ContextQuestionCard
+                entry={entry}
+                existing={existing}
+                provenance={provenance}
+                canEdit={canEdit}
+                reviewComplete={reviewComplete}
+                caseRevision={caseRevision}
+                isSubmitPending={submit.isPending}
+                isReviewPending={review.isPending}
+                onSubmitAnswer={async (answer) => {
+                  await submit.mutateAsync(answer);
+                }}
+                onConfirm={(proposalId) =>
+                  void reviewProposal(
+                    proposalId,
+                    DISCOVERY_INTERVIEW_REVIEW_ACTIONS.accept,
+                  )
+                }
+                onReject={(proposalId) =>
+                  void reviewProposal(
+                    proposalId,
+                    DISCOVERY_INTERVIEW_REVIEW_ACTIONS.reject,
+                  )
+                }
+              />
             </li>
           );
         })}
