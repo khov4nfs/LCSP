@@ -15,6 +15,7 @@ test.describe("Admin Billing & Revenue release gate", () => {
   test("shows account-backed domain metrics, filters, pagination, and Figma 1320:2 viewport", async ({
     page,
   }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
     await authenticateBillingE2e(page, BILLING_E2E_TOKENS.admin);
     await page.setViewportSize({ width: 1626, height: 1017 });
     await page.goto("/admin/billing");
