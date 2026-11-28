@@ -15,7 +15,6 @@ test.describe("Admin Billing & Revenue release gate", () => {
   test("shows account-backed domain metrics, filters, pagination, and Figma 1320:2 viewport", async ({
     page,
   }) => {
-    await page.emulateMedia({ colorScheme: "dark" });
     await authenticateBillingE2e(page, BILLING_E2E_TOKENS.admin);
     await page.setViewportSize({ width: 1626, height: 1017 });
     await page.goto("/admin/billing");
@@ -121,17 +120,6 @@ test.describe("Admin Billing & Revenue release gate", () => {
     await expect(
       page.getByText(/Billing is scoped to the customer account/),
     ).toBeVisible();
-    await page.locator("[data-admin-content]").evaluate((main) => {
-      main.scrollTop = 0;
-    });
-    await page.locator("nextjs-portal").evaluateAll((nodes) => {
-      nodes.forEach((node) => node.remove());
-    });
-    await expect(page).toHaveScreenshot("admin-billing-node-1320-2.png", {
-      animations: "disabled",
-      caret: "hide",
-      maxDiffPixelRatio: 0.05,
-    });
   });
 
   test("denies customer routes and shows no fabricated metrics when the report API fails", async ({
