@@ -1,8 +1,7 @@
 import { ResumeRuleSetPreparationHandler } from "./application/commands/resume-rule-set-preparation/resume-rule-set-preparation.handler.js";
-import {
-  SourceReviewHandler,
-  StartClaimDiscoveryDiagnosticHandler,
-} from "./application/commands/source-review/source-review.handler.js";
+import { SourceReviewHandler } from "./application/commands/source-review/source-review.handler.js";
+// Diagnostic startup is a separate command lifecycle from source review mutations.
+import { StartClaimDiscoveryDiagnosticHandler } from "./application/commands/source-review/start-claim-discovery-diagnostic.handler.js";
 import { Module } from "@nestjs/common";
 import { AuthoredLocalizationModule } from "../../platform/localization/localization.module.js";
 import { ClaimInventoryHandler } from "./application/commands/claim-inventory/claim-inventory.handler.js";

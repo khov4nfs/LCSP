@@ -19,10 +19,9 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import { LegalDocumentGraphService } from "../../src/modules/legal-source/application/services/legal-document-graph.service.js";
-import {
-  SourceReviewHandler,
-  StartClaimDiscoveryDiagnosticHandler,
-} from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+import { SourceReviewHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+// Discovery evaluation starts its diagnostic session through the dedicated command handler.
+import { StartClaimDiscoveryDiagnosticHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/start-claim-discovery-diagnostic.handler.js";
 import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,

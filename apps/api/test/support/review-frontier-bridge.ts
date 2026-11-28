@@ -9,10 +9,9 @@ import {
   sourceReviewOperationSchema,
   claimInventoryOperationSchema,
 } from "@lcsp/contracts/compliance-rule-set";
-import {
-  SourceReviewHandler,
-  StartClaimDiscoveryDiagnosticHandler,
-} from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+import { SourceReviewHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+// The provider-free bridge invokes the independently registered diagnostic command.
+import { StartClaimDiscoveryDiagnosticHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/start-claim-discovery-diagnostic.handler.js";
 import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,
