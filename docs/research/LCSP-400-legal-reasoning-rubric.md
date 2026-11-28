@@ -186,7 +186,7 @@ uv run python -m evals.cli legal-score `
   --output "$work/legal-reasoning.json"
 ```
 
-The reproducible checked-in report is [`reports/r3/p14-scripted-integration.v1.json`](../../deepagents/evals/legal_reasoning/reports/r3/p14-scripted-integration.v1.json). It records three mapped/executed cases, six mapped trials (two trials per exact mapped lifecycle target), output and trace digests, `NOT_SCORED`, zero reviewed-gold denominator, and `actualExecutionBaseline: NOT_RUN`. The complete SCRIPTED run artifacts used to produce it are retained next to the report under `reports/r3/p14-scripted-run/`. The legacy R2 zero-mapping report remains historical and is not the current integration evidence.
+The reproducible checked-in report is [`reports/r3/p14-scripted-integration.v1.json`](../../deepagents/evals/legal_reasoning/reports/r3/p14-scripted-integration.v1.json). It records three mapped/executed cases, six mapped target trials (two trials per exact mapped lifecycle target), eight P14 lifecycle outcome rows (the HITL case has WAITING_FOR_HUMAN and RESUME_FINAL for each trial), output and trace digests, the execution code commit in the P14 manifest, `NOT_SCORED`, zero reviewed-gold denominator, and `actualExecutionBaseline: NOT_RUN`. The complete SCRIPTED run artifacts used to produce it are retained next to the report under `reports/r3/p14-scripted-run/`. The legacy R2 zero-mapping report remains historical and is not the current integration evidence.
 
 ### Negative controls and scoring commands
 
@@ -194,6 +194,8 @@ The integration tests retain the zero-mapping case (including a test-only simula
 
 ```powershell
 uv run pytest tests/test_legal_reasoning_p14_integration.py -q
+uv run pytest tests/test_legal_reasoning_p14_integration.py::test_zero_and_partial_mapping_cohorts_do_not_become_missing_or_scored -q
+uv run pytest tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_r2_hardening.py tests/test_legal_reasoning_rubric.py -q
 ```
 
 The deterministic scorer remains usable for standalone arithmetic and diagnostic checks. Such output is always marked `STANDALONE_DIAGNOSTIC_UNVERIFIED`, even if a caller supplies plausible hashes or a `P14_RUN_ARTIFACT` label. Only `legal-score` validates P14 artifact bytes; that validation still does not authenticate human reviewers or produce legal accuracy without reviewed gold. Reproduce the standalone fabricated-provenance negative control and the R1 synthetic scorer verification with:

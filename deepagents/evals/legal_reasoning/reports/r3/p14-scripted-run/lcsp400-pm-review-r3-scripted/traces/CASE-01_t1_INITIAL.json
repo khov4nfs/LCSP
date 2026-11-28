@@ -1,0 +1,297 @@
+{
+  "assessmentId": "ba5d7358-f7c9-42f2-99cb-d93b23d55aea",
+  "authorityViolations": [],
+  "caseId": "CASE-01",
+  "checkpointId": null,
+  "clientCalls": [
+    "claim",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "context",
+    "rule_set",
+    "context",
+    "context",
+    "context",
+    "legal_text",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "decision",
+    "context",
+    "context",
+    "context",
+    "finalization",
+    "context",
+    "context",
+    "context",
+    "final_report",
+    "context",
+    "context",
+    "finish"
+  ],
+  "injectedFaultObserved": false,
+  "mode": "SCRIPTED",
+  "observedOutput": {
+    "actualAssessmentDecision": {
+      "decision": {
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "ER-DEMO-01",
+        "assessmentRuleVersion": "v1",
+        "caseRevision": 0,
+        "compliance": "COMPLIANT",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "outcome": "MET",
+            "rationale": "Verified.",
+            "references": [
+              {
+                "evidenceId": "ev-case-01-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ]
+          }
+        ],
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-CASE-01"
+          }
+        ],
+        "rationale": "Verified in pinned repository source.",
+        "references": [
+          {
+            "evidenceId": "ev-case-01-1",
+            "type": "ASSESSMENT_EVIDENCE"
+          }
+        ],
+        "repositoryCommit": "synthetic-16e21ad3807f",
+        "repositorySnapshotId": "snap-repo-01-consent-app",
+        "ruleSetVersionId": "rs-demo-v1",
+        "scopeId": "ASSESSMENT"
+      },
+      "expectedDecisionRevision": 0,
+      "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+    },
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "assessmentDecisions": [
+      {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-01",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-01-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-01"
+            }
+          ],
+          "rationale": "Verified in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-01-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "synthetic-16e21ad3807f",
+          "repositorySnapshotId": "snap-repo-01-consent-app",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+      }
+    ],
+    "assessmentId": "ba5d7358-f7c9-42f2-99cb-d93b23d55aea",
+    "authorityViolations": [],
+    "caseId": "CASE-01",
+    "corpusPin": {
+      "corpus_id": "vn-pdpl-2025",
+      "digest_sha256": "e6edef2476d0fea459c3f13eb7f175e1b50037aff9ce9a11b8e11983618ca67f",
+      "version": "2025.1"
+    },
+    "evaluationStage": "ASSESSMENT_ROOT",
+    "evidenceRecords": {
+      "ev-case-01-1": {
+        "commitSha": "synthetic-16e21ad3807f",
+        "contentSha256": "b87fc8e367b3eccbea04bef1e8647d1e58ea407657778db27164197b45667121",
+        "end_line": 8,
+        "evidenceId": "ev-case-01-1",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/consent.py",
+        "payload": {
+          "contentSha256": "b87fc8e367b3eccbea04bef1e8647d1e58ea407657778db27164197b45667121",
+          "endLine": 8,
+          "path": "src/consent.py",
+          "startLine": 1
+        },
+        "repositoryId": "repo-01-consent-app",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      }
+    },
+    "evidenceReferences": [
+      "ev-case-01-1"
+    ],
+    "facts": [],
+    "finalReport": {
+      "findings": [
+        {
+          "assessmentRuleId": "ER-DEMO-01",
+          "recommendations": [],
+          "summary": "Compliant."
+        }
+      ],
+      "kind": "FINAL_REPORT",
+      "summary": "Compliant."
+    },
+    "hitl": {
+      "openRequestIds": [],
+      "requests": [],
+      "resolvedRequests": [],
+      "state": "NONE"
+    },
+    "legalProvisions": [
+      {
+        "content": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+        "content_sha256": "949304d5bbefc4018e957f1d21efe66e6bacdc90333db21f9eeb98fdd2e0b352",
+        "document_id": "vn-pdpl-2025",
+        "locator": "art-11",
+        "source_kind": "SYNTHETIC_PINNED_LAW",
+        "title": "Consent before personal data processing (CASE-01)"
+      }
+    ],
+    "lifecycleHistory": [],
+    "lifecycleStage": "INITIAL",
+    "lifecycleState": "COMPLETE",
+    "outcomeBinding": {
+      "actualVerdict": "APPLICABLE_COMPLIANT",
+      "caseId": "CASE-01",
+      "lifecycleState": "COMPLETE",
+      "passed": true,
+      "runId": "lcsp400-pm-review-r3-scripted",
+      "stage": "INITIAL",
+      "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+      "trialIndex": 1
+    },
+    "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+    "repositorySnapshot": {
+      "commit_sha": "synthetic-16e21ad3807f",
+      "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
+      "repo_id": "repo-01-consent-app",
+      "snapshot_kind": "SYNTHETIC_FIXTURE",
+      "untrusted_code_execution_allowed": false
+    },
+    "ruleDefinitions": [
+      {
+        "applicability_conditions": [
+          "Processes personal data of natural persons",
+          "Not an internal-only developer utility"
+        ],
+        "concept": "context_wizard_ready",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Consent capture enforces non-empty purpose and explicit opt-in status."
+          }
+        ],
+        "exceptions": [
+          "Statutory emergency exemption"
+        ],
+        "legal_requirement_id": "LR-CASE-01",
+        "requirement_proposition": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+        "requirement_title": "Consent before personal data processing — Context wizard READY with pinned artifacts",
+        "rule_id": "ER-DEMO-01"
+      }
+    ],
+    "ruleSetVersionId": "rs-demo-v1",
+    "runId": "lcsp400-pm-review-r3-scripted",
+    "runResult": {
+      "checkpointId": null,
+      "errorType": null,
+      "executionId": "92d1d9bc-a786-4bf0-9abc-932b9ffc630d",
+      "promptManifestSha256": "f43549e2dcf8e947eff5ce2dad8bea2d78ff7b8b157c98e614194973a4c59867",
+      "state": "SUCCEEDED",
+      "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1"
+    },
+    "targetRuleIds": [
+      "ER-DEMO-01"
+    ],
+    "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+    "trialIndex": 1
+  },
+  "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "recoveryObserved": false,
+  "runId": "lcsp400-pm-review-r3-scripted",
+  "runResult": {
+    "checkpointId": null,
+    "errorType": null,
+    "executionId": "92d1d9bc-a786-4bf0-9abc-932b9ffc630d",
+    "promptManifestSha256": "f43549e2dcf8e947eff5ce2dad8bea2d78ff7b8b157c98e614194973a4c59867",
+    "state": "SUCCEEDED",
+    "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1"
+  },
+  "stage": "INITIAL",
+  "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+  "toolCalls": [
+    {
+      "input": "{}",
+      "tool": "get_assessment_context"
+    },
+    {
+      "input": "{}",
+      "tool": "get_pinned_rule_set"
+    },
+    {
+      "input": "{'document_id': 'vn-pdpl-2025', 'locator': 'art-11'}",
+      "tool": "read_legal_source"
+    },
+    {
+      "input": "{'path': 'src\\\\consent.py', 'start_line': 1, 'end_line': 8}",
+      "tool": "cite_repository_source"
+    },
+    {
+      "input": "{'assessment_rule_id': 'ER-DEMO-01', 'applicability': 'APPLICABLE', 'rationale': 'Verified in pinned repository source.', 'legal_context_ids': ['LR-CASE-01'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-case-01-1'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'MET', 'rationale': 'Verified.', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-case-01-1'}]}], 'compliance': 'COMPLIANT'}",
+      "tool": "submit_rule_decision"
+    },
+    {
+      "input": "{}",
+      "tool": "request_finalization"
+    },
+    {
+      "input": "{'summary': 'Compliant.', 'findings': [{'assessment_rule_id': 'ER-DEMO-01', 'summary': 'Compliant.'}]}",
+      "tool": "submit_final_report"
+    }
+  ],
+  "trialIndex": 1
+}

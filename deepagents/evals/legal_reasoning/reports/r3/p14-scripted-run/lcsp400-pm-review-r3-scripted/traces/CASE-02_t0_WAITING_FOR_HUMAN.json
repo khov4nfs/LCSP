@@ -1,0 +1,201 @@
+{
+  "assessmentId": "ec058467-d270-4fdf-88f1-5e9d6d918d65",
+  "authorityViolations": [],
+  "caseId": "CASE-02",
+  "checkpointId": "1f1eb167-945e-67b7-8023-c3ec59c6d2c9",
+  "clientCalls": [
+    "claim",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "context",
+    "rule_set",
+    "context",
+    "context",
+    "context",
+    "legal_text",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "human",
+    "context",
+    "finish"
+  ],
+  "injectedFaultObserved": false,
+  "mode": "SCRIPTED",
+  "observedOutput": {
+    "actualAssessmentDecision": null,
+    "actualVerdict": "WAITING_FOR_HUMAN",
+    "assessmentDecisions": [],
+    "assessmentId": "ec058467-d270-4fdf-88f1-5e9d6d918d65",
+    "authorityViolations": [],
+    "caseId": "CASE-02",
+    "corpusPin": {
+      "corpus_id": "vn-pdpl-2025",
+      "digest_sha256": "82c98cfaa9f2366a24a3d0b253e507ccaddea781e6fa64b1cf63fafc10005bff",
+      "version": "2025.1"
+    },
+    "evaluationStage": "ASSESSMENT_ROOT",
+    "evidenceRecords": {
+      "ev-case-02-1": {
+        "commitSha": "synthetic-de4b5964d365",
+        "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+        "end_line": 3,
+        "evidenceId": "ev-case-02-1",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/retention.py",
+        "payload": {
+          "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+          "endLine": 3,
+          "path": "src/retention.py",
+          "startLine": 1
+        },
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      }
+    },
+    "evidenceReferences": [
+      "ev-case-02-1"
+    ],
+    "facts": [],
+    "finalReport": null,
+    "hitl": {
+      "openRequestIds": [
+        "hr-case-02-1"
+      ],
+      "requests": [
+        {
+          "assessmentRuleId": "ER-DEMO-02",
+          "question": "Who owns the notification_owner duty for context_wizard_needs_input?",
+          "requestId": "hr-case-02-1",
+          "requestRevision": 0,
+          "resolvedFactId": null,
+          "status": "OPEN",
+          "unresolvedFact": "notification_owner"
+        }
+      ],
+      "resolvedRequests": [],
+      "state": "OPEN"
+    },
+    "legalProvisions": [
+      {
+        "content": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+        "content_sha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+        "document_id": "vn-pdpl-2025",
+        "locator": "art-28",
+        "source_kind": "SYNTHETIC_PINNED_LAW",
+        "title": "Organizational ownership and retention accountability (CASE-02)"
+      }
+    ],
+    "lifecycleHistory": [],
+    "lifecycleStage": "WAITING_FOR_HUMAN",
+    "lifecycleState": "WAITING_FOR_HUMAN",
+    "outcomeBinding": {
+      "actualVerdict": "WAITING_FOR_HUMAN",
+      "caseId": "CASE-02",
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "passed": true,
+      "runId": "lcsp400-pm-review-r3-scripted",
+      "stage": "WAITING_FOR_HUMAN",
+      "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+      "trialIndex": 0
+    },
+    "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+    "repositorySnapshot": {
+      "commit_sha": "synthetic-de4b5964d365",
+      "fixture_dir": "evals/fixtures/benchmark/repos/repo-04-hitl-retention",
+      "repo_id": "repo-04-hitl-retention",
+      "snapshot_kind": "SYNTHETIC_FIXTURE",
+      "untrusted_code_execution_allowed": false
+    },
+    "ruleDefinitions": [
+      {
+        "applicability_conditions": [
+          "Operates personal data retention workflow"
+        ],
+        "concept": "context_wizard_needs_input",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Confirm designated organizational owner and retention period."
+          }
+        ],
+        "exceptions": [
+          "Exempted archival records"
+        ],
+        "legal_requirement_id": "LR-CASE-02",
+        "requirement_proposition": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+        "requirement_title": "Organizational ownership and retention accountability — Context wizard NEEDS_INPUT on missing business fact",
+        "rule_id": "ER-DEMO-02"
+      }
+    ],
+    "ruleSetVersionId": "rs-demo-v1",
+    "runId": "lcsp400-pm-review-r3-scripted",
+    "runResult": {
+      "checkpointId": "1f1eb167-945e-67b7-8023-c3ec59c6d2c9",
+      "errorType": null,
+      "executionId": "6e6f6f55-6278-4718-aaa9-4dc09e3f3e53",
+      "promptManifestSha256": "1524d06ef8b9692025bf4c7b66aba1ca77e955451c0fe1b7ecb2de960e6d1dff",
+      "state": "INTERRUPTED",
+      "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250"
+    },
+    "targetRuleIds": [
+      "ER-DEMO-02"
+    ],
+    "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+    "trialIndex": 0
+  },
+  "observedOutputSha256": "77e7dca8de419be51c9a410c8703e4ad5ccb452719fec1cf595a0dbf2e5896fc",
+  "outcomeBinding": {
+    "actualVerdict": "WAITING_FOR_HUMAN",
+    "lifecycleState": "WAITING_FOR_HUMAN",
+    "passed": true
+  },
+  "recoveryObserved": false,
+  "runId": "lcsp400-pm-review-r3-scripted",
+  "runResult": {
+    "checkpointId": "1f1eb167-945e-67b7-8023-c3ec59c6d2c9",
+    "errorType": null,
+    "executionId": "6e6f6f55-6278-4718-aaa9-4dc09e3f3e53",
+    "promptManifestSha256": "1524d06ef8b9692025bf4c7b66aba1ca77e955451c0fe1b7ecb2de960e6d1dff",
+    "state": "INTERRUPTED",
+    "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250"
+  },
+  "stage": "WAITING_FOR_HUMAN",
+  "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+  "toolCalls": [
+    {
+      "input": "{}",
+      "tool": "get_assessment_context"
+    },
+    {
+      "input": "{}",
+      "tool": "get_pinned_rule_set"
+    },
+    {
+      "input": "{'document_id': 'vn-pdpl-2025', 'locator': 'art-28'}",
+      "tool": "read_legal_source"
+    },
+    {
+      "input": "{'path': 'src\\\\retention.py', 'start_line': 1, 'end_line': 3}",
+      "tool": "cite_repository_source"
+    },
+    {
+      "input": "{'assessment_rule_id': 'ER-DEMO-02', 'criterion_ids': ['C-1'], 'question': 'Who owns the notification_owner duty for context_wizard_needs_input?', 'unresolved_fact': 'notification_owner', 'decision_impact': ['Determines operational duty.'], 'resolution_attempts': ['Checked pinned repository source.'], 'control_type': 'FREE_TEXT', 'choices': []}",
+      "tool": "open_human_request"
+    }
+  ],
+  "trialIndex": 0
+}

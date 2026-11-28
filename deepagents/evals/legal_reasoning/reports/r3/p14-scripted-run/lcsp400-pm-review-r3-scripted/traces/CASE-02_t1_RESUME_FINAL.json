@@ -1,0 +1,403 @@
+{
+  "assessmentId": "830f3b51-6c94-4296-ba24-eeebc7662b66",
+  "authorityViolations": [],
+  "caseId": "CASE-02",
+  "checkpointId": null,
+  "clientCalls": [
+    "claim",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "context",
+    "rule_set",
+    "context",
+    "context",
+    "context",
+    "legal_text",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "human",
+    "context",
+    "finish",
+    "claim",
+    "context",
+    "human",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "decision",
+    "context",
+    "context",
+    "context",
+    "finalization",
+    "context",
+    "context",
+    "context",
+    "final_report",
+    "context",
+    "context",
+    "finish"
+  ],
+  "injectedFaultObserved": false,
+  "mode": "SCRIPTED",
+  "observedOutput": {
+    "actualAssessmentDecision": {
+      "decision": {
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "ER-DEMO-02",
+        "assessmentRuleVersion": "v1",
+        "caseRevision": 1,
+        "compliance": "COMPLIANT",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "outcome": "MET",
+            "rationale": "Verified.",
+            "references": [
+              {
+                "evidenceId": "ev-case-02-2",
+                "type": "ASSESSMENT_EVIDENCE"
+              },
+              {
+                "caseRevision": 1,
+                "factId": "fact-case-02-1",
+                "type": "CONFIRMED_FACT"
+              }
+            ]
+          }
+        ],
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-CASE-02"
+          }
+        ],
+        "rationale": "Confirmed via HITL answer and cited source.",
+        "references": [
+          {
+            "evidenceId": "ev-case-02-2",
+            "type": "ASSESSMENT_EVIDENCE"
+          },
+          {
+            "caseRevision": 1,
+            "factId": "fact-case-02-1",
+            "type": "CONFIRMED_FACT"
+          }
+        ],
+        "repositoryCommit": "synthetic-de4b5964d365",
+        "repositorySnapshotId": "snap-repo-04-hitl-retention",
+        "ruleSetVersionId": "rs-demo-v1",
+        "scopeId": "ASSESSMENT"
+      },
+      "expectedDecisionRevision": 0,
+      "idempotencyKey": "decision:f00aea1e-2891-455a-a55c-d40c7989f621:0c2c30f6c71bda05dffe27ef"
+    },
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "assessmentDecisions": [
+      {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-02",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 1,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-02-2",
+                  "type": "ASSESSMENT_EVIDENCE"
+                },
+                {
+                  "caseRevision": 1,
+                  "factId": "fact-case-02-1",
+                  "type": "CONFIRMED_FACT"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-02"
+            }
+          ],
+          "rationale": "Confirmed via HITL answer and cited source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-02-2",
+              "type": "ASSESSMENT_EVIDENCE"
+            },
+            {
+              "caseRevision": 1,
+              "factId": "fact-case-02-1",
+              "type": "CONFIRMED_FACT"
+            }
+          ],
+          "repositoryCommit": "synthetic-de4b5964d365",
+          "repositorySnapshotId": "snap-repo-04-hitl-retention",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:f00aea1e-2891-455a-a55c-d40c7989f621:0c2c30f6c71bda05dffe27ef"
+      }
+    ],
+    "assessmentId": "830f3b51-6c94-4296-ba24-eeebc7662b66",
+    "authorityViolations": [],
+    "caseId": "CASE-02",
+    "corpusPin": {
+      "corpus_id": "vn-pdpl-2025",
+      "digest_sha256": "82c98cfaa9f2366a24a3d0b253e507ccaddea781e6fa64b1cf63fafc10005bff",
+      "version": "2025.1"
+    },
+    "evaluationStage": "ASSESSMENT_ROOT",
+    "evidenceRecords": {
+      "ev-case-02-1": {
+        "commitSha": "synthetic-de4b5964d365",
+        "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+        "end_line": 3,
+        "evidenceId": "ev-case-02-1",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/retention.py",
+        "payload": {
+          "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+          "endLine": 3,
+          "path": "src/retention.py",
+          "startLine": 1
+        },
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      },
+      "ev-case-02-2": {
+        "commitSha": "synthetic-de4b5964d365",
+        "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+        "end_line": 3,
+        "evidenceId": "ev-case-02-2",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/retention.py",
+        "payload": {
+          "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+          "endLine": 3,
+          "path": "src/retention.py",
+          "startLine": 1
+        },
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      },
+      "fact-case-02-1": {
+        "answer": "Data Protection Office owns retention and notification.",
+        "authority": "HUMAN_CONFIRMED",
+        "caseRevision": 1,
+        "evidenceIds": [],
+        "evidenceType": "HUMAN_CONFIRMED_FACT",
+        "factId": "fact-case-02-1",
+        "kind": "HUMAN_ANSWER",
+        "requestId": "hr-case-02-1",
+        "state": "ACCEPTED",
+        "statement": "Data Protection Office owns retention and notification.",
+        "status": "RESOLVED"
+      }
+    },
+    "evidenceReferences": [
+      "ev-case-02-1",
+      "ev-case-02-2",
+      "fact-case-02-1"
+    ],
+    "facts": [
+      {
+        "answer": "Data Protection Office owns retention and notification.",
+        "authority": "HUMAN_CONFIRMED",
+        "caseRevision": 1,
+        "evidenceIds": [],
+        "evidenceType": "HUMAN_CONFIRMED_FACT",
+        "factId": "fact-case-02-1",
+        "kind": "HUMAN_ANSWER",
+        "requestId": "hr-case-02-1",
+        "state": "ACCEPTED",
+        "statement": "Data Protection Office owns retention and notification.",
+        "status": "RESOLVED"
+      }
+    ],
+    "finalReport": {
+      "findings": [
+        {
+          "assessmentRuleId": "ER-DEMO-02",
+          "recommendations": [],
+          "summary": "Compliant after HITL."
+        }
+      ],
+      "kind": "FINAL_REPORT",
+      "summary": "Resumed report."
+    },
+    "hitl": {
+      "openRequestIds": [],
+      "requests": [
+        {
+          "assessmentRuleId": "ER-DEMO-02",
+          "question": "Who owns the notification_owner duty for context_wizard_needs_input?",
+          "requestId": "hr-case-02-1",
+          "requestRevision": 1,
+          "resolvedFactId": "fact-case-02-1",
+          "status": "RESOLVED",
+          "unresolvedFact": "notification_owner"
+        }
+      ],
+      "resolvedRequests": [
+        {
+          "answer": "Data Protection Office owns retention and notification.",
+          "factId": "fact-case-02-1",
+          "requestId": "hr-case-02-1",
+          "resolvesFact": true
+        }
+      ],
+      "state": "RESOLVED"
+    },
+    "legalProvisions": [
+      {
+        "content": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+        "content_sha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+        "document_id": "vn-pdpl-2025",
+        "locator": "art-28",
+        "source_kind": "SYNTHETIC_PINNED_LAW",
+        "title": "Organizational ownership and retention accountability (CASE-02)"
+      }
+    ],
+    "lifecycleHistory": [
+      {
+        "actualVerdict": "WAITING_FOR_HUMAN",
+        "lifecycleState": "WAITING_FOR_HUMAN",
+        "stage": "WAITING_FOR_HUMAN",
+        "traceSha256": "3233972d5a6e3319aba001c0475aa204e27c4a236e2bfaa79ebaac0fa19676b2"
+      }
+    ],
+    "lifecycleStage": "RESUME_FINAL",
+    "lifecycleState": "COMPLETE",
+    "outcomeBinding": {
+      "actualVerdict": "APPLICABLE_COMPLIANT",
+      "caseId": "CASE-02",
+      "lifecycleState": "COMPLETE",
+      "passed": true,
+      "runId": "lcsp400-pm-review-r3-scripted",
+      "stage": "RESUME_FINAL",
+      "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+      "trialIndex": 1
+    },
+    "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+    "repositorySnapshot": {
+      "commit_sha": "synthetic-de4b5964d365",
+      "fixture_dir": "evals/fixtures/benchmark/repos/repo-04-hitl-retention",
+      "repo_id": "repo-04-hitl-retention",
+      "snapshot_kind": "SYNTHETIC_FIXTURE",
+      "untrusted_code_execution_allowed": false
+    },
+    "ruleDefinitions": [
+      {
+        "applicability_conditions": [
+          "Operates personal data retention workflow"
+        ],
+        "concept": "context_wizard_needs_input",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Confirm designated organizational owner and retention period."
+          }
+        ],
+        "exceptions": [
+          "Exempted archival records"
+        ],
+        "legal_requirement_id": "LR-CASE-02",
+        "requirement_proposition": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+        "requirement_title": "Organizational ownership and retention accountability — Context wizard NEEDS_INPUT on missing business fact",
+        "rule_id": "ER-DEMO-02"
+      }
+    ],
+    "ruleSetVersionId": "rs-demo-v1",
+    "runId": "lcsp400-pm-review-r3-scripted",
+    "runResult": {
+      "checkpointId": null,
+      "errorType": null,
+      "executionId": "0b479da5-a80b-485f-90fd-99111818f1e5",
+      "promptManifestSha256": "c653289020e3a644b12cb225d5cd39101ab3bf159d9be68974e6b590a73853a0",
+      "state": "SUCCEEDED",
+      "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621"
+    },
+    "targetRuleIds": [
+      "ER-DEMO-02"
+    ],
+    "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+    "trialIndex": 1
+  },
+  "observedOutputSha256": "121022917340bd752233c46381b89a31d671d6259afc474bf8179c733b883cb9",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "recoveryObserved": false,
+  "runId": "lcsp400-pm-review-r3-scripted",
+  "runResult": {
+    "checkpointId": null,
+    "errorType": null,
+    "executionId": "0b479da5-a80b-485f-90fd-99111818f1e5",
+    "promptManifestSha256": "c653289020e3a644b12cb225d5cd39101ab3bf159d9be68974e6b590a73853a0",
+    "state": "SUCCEEDED",
+    "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621"
+  },
+  "stage": "RESUME_FINAL",
+  "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+  "toolCalls": [
+    {
+      "input": "{'assessment_rule_id': 'ER-DEMO-02', 'criterion_ids': ['C-1'], 'question': 'Who owns the notification_owner duty for context_wizard_needs_input?', 'unresolved_fact': 'notification_owner', 'decision_impact': ['Determines operational duty.'], 'resolution_attempts': ['Checked pinned repository source.'], 'control_type': 'FREE_TEXT', 'choices': []}",
+      "tool": "open_human_request"
+    },
+    {
+      "input": "{}",
+      "tool": "get_assessment_context"
+    },
+    {
+      "input": "{'path': 'src\\\\retention.py', 'start_line': 1, 'end_line': 3}",
+      "tool": "cite_repository_source"
+    },
+    {
+      "input": "{'assessment_rule_id': 'ER-DEMO-02', 'applicability': 'APPLICABLE', 'rationale': 'Confirmed via HITL answer and cited source.', 'legal_context_ids': ['LR-CASE-02'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-case-02-2'}, {'type': 'CONFIRMED_FACT', 'id': 'fact-case-02-1'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'MET', 'rationale': 'Verified.', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-case-02-2'}, {'type': 'CONFIRMED_FACT', 'id': 'fact-case-02-1'}]}], 'compliance': 'COMPLIANT'}",
+      "tool": "submit_rule_decision"
+    },
+    {
+      "input": "{}",
+      "tool": "request_finalization"
+    },
+    {
+      "input": "{'summary': 'Resumed report.', 'findings': [{'assessment_rule_id': 'ER-DEMO-02', 'summary': 'Compliant after HITL.'}]}",
+      "tool": "submit_final_report"
+    }
+  ],
+  "trialIndex": 1
+}
