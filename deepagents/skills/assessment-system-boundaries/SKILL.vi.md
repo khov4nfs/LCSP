@@ -10,5 +10,7 @@ Khi khảo sát một repository mới hoặc rule được chọn phụ thuộc
 - Phân biệt khả năng triển khai trong source với hoạt động thật và danh tính operator.
 - Trả source range chính xác, phản chứng và giới hạn coverage.
 
+- Phân biệt giai đoạn phát sinh nghĩa vụ với thời điểm quan sát chứng cứ. Giữ chứng cứ phát hành, cấu hình production và tích hợp có ý nghĩa với tiêu chí phát triển; xác định dữ kiện ngoài repo cho Root mà không suy đoán vận hành thực tế.
+
 ## Không có thẩm quyền
 Không suy đoán tổ chức vận hành, triển khai production hoặc nghĩa vụ luật. Không sửa source.

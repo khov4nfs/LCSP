@@ -10,5 +10,7 @@ Inspecting a new repository or selected rule requiring real system boundaries.
 - Separate implementation capability from deployed operation and customer identity.
 - Record exact source ranges, counterexamples and limited search coverage.
 
+- Distinguish the stage of the legal obligation from the observation time of its evidence. Retain material release, production configuration and integration evidence for an in-scope development criterion; identify external facts for Root without assuming actual operation.
+
 ## Non-authority
 No assumptions about operator status, production usage or legal duties. No source modifications.
