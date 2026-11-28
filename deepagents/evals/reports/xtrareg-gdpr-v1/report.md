@@ -10,4 +10,4 @@ For V1 readers, `requirementsToRulesRate` and `expectedAssessableRules` retain t
 
 Run the diagnostic from `deepagents/` with `python -m rule_set_preparation.eval_cli --xtrareg-gold GOLD.json --xtrareg-source SOURCE.json --xtrareg-candidate PREPARATION.json --xtrareg-direct-draft DIRECT_DRAFT.json`. The report records SHA-256 digests of the bytes scored. Exit code 2 and `reviewedEvidenceGate.status=BLOCKED` indicate that release acceptance is unavailable.
 
-Semantic quality and gain remain unevaluated. Acceptance requires a pinned verbatim legal source, independently reviewed gold, and frozen outputs and paired execution manifests from both workflows on the same holdout.
+Semantic quality and gain remain unevaluated. The [Vietnamese Công báo corpus](../../corpora/lcsp-402-vn-cong-bao-v1/README.md) records the pinned source PDFs and offline parser verification for LCSP-402. Research acceptance requires independently reviewed gold and frozen outputs and paired execution manifests from both workflows on the same holdout.
