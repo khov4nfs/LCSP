@@ -8,13 +8,22 @@ must be independently reviewed before a report can support acceptance.
 from __future__ import annotations
 
 import argparse
-from hashlib import sha256
 import json
-from pathlib import Path
+from hashlib import sha256
 from math import isfinite
+from pathlib import Path
 
 from rule_set_preparation.eval_semantics import evaluate_preparation_semantics
-from rule_set_preparation.reviewed_eval_gate import reviewed_eval_preflight, reviewed_case_package_preflight, paired_eval_preflight, reviewed_cases_in_aggregate_gold
+from rule_set_preparation.reviewed_eval_gate import (
+    paired_eval_preflight,
+    reviewed_case_package_preflight,
+    reviewed_cases_in_aggregate_gold,
+    reviewed_eval_preflight,
+)
+from rule_set_preparation.xtrareg_eval import (
+    compare_direct_draft_vs_preparation,
+    evaluate_xtrareg_chain,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,7 +57,40 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", type=Path, help="Frozen baseline output scored with the same gold and holdout")
     parser.add_argument("--baseline-run-manifest", type=Path)
     parser.add_argument("--billing-evidence-dir", type=Path, help="Immutable provider usage/billing JSON receipts named by their actual SHA-256")
+    parser.add_argument("--xtrareg-gold", type=Path, help="XTRAREG gold annotation JSON (>= 30 atomic obligations)")
+    parser.add_argument("--xtrareg-source", type=Path, help="XTRAREG pinned legal source JSON")
+    parser.add_argument("--xtrareg-candidate", type=Path, help="Frozen Preparation output for XTRAREG chain scoring")
+    parser.add_argument("--xtrareg-direct-draft", type=Path, help="Optional Direct Draft output for paired comparison")
     args = parser.parse_args(argv)
+    if any(path is not None for path in (args.xtrareg_gold, args.xtrareg_source, args.xtrareg_candidate, args.xtrareg_direct_draft)):
+        if args.xtrareg_gold is None or args.xtrareg_source is None or args.xtrareg_candidate is None:
+            parser.error("--xtrareg-gold, --xtrareg-source, and --xtrareg-candidate are all required together")
+        # Hash and decode the same immutable bytes. The standard Preparation
+        # preflight applies to a different gold schema and cannot authorize this branch.
+        inputs = {
+            "gold": args.xtrareg_gold.read_bytes(),
+            "source": args.xtrareg_source.read_bytes(),
+            "candidate": args.xtrareg_candidate.read_bytes(),
+        }
+        if args.xtrareg_direct_draft is not None:
+            inputs["directDraft"] = args.xtrareg_direct_draft.read_bytes()
+        artifacts = {name: json.loads(raw) for name, raw in inputs.items()}
+        if "directDraft" in artifacts:
+            x_report = compare_direct_draft_vs_preparation(
+                artifacts["gold"], artifacts["source"], artifacts["directDraft"], artifacts["candidate"],
+            )
+        else:
+            x_report = evaluate_xtrareg_chain(artifacts["gold"], artifacts["source"], artifacts["candidate"])
+
+        x_report["inputProvenance"] = {name + "Sha256": sha256(raw).hexdigest() for name, raw in inputs.items()}
+        x_report["reviewedEvidenceGate"] = {
+            "status": "BLOCKED",
+            "blockingReasons": ["XTRAREG_REVIEWED_EVIDENCE_REQUIRED"],
+            "legalMeaningVerified": False,
+            "liveModelReliabilityProven": False,
+        }
+        print(json.dumps(x_report, indent=2, ensure_ascii=False))
+        return 2
     review_package = None
     package_errors = []
     if args.review_package is not None:

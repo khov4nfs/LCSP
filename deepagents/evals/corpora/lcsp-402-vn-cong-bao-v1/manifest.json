@@ -1,0 +1,105 @@
+{
+  "source": "Công báo điện tử nước Cộng hòa xã hội chủ nghĩa Việt Nam",
+  "retrievedAt": "2026-11-28T08:30:59+00:00",
+  "documents": [
+    {
+      "number": "134-2025-QH15",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694/61695.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/1/26/l134signed-176941401701024378539.pdf",
+      "sourceFileName": "2026_40_134/2025/QH15.pdf",
+      "file": "01-134-2025-QH15.pdf",
+      "pages": 20,
+      "bytes": 502586,
+      "sha256": "181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "71-2025-QH15",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/luat-so-71-2025-qh15-45555.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/CongBaoCP/VanBan/2025/6/45555/57751-1-2025965-96671-2025-qh15.pdf",
+      "sourceFileName": "2025_965 + 966_71-2025-QH15.pdf",
+      "file": "02-71-2025-QH15.pdf",
+      "pages": 31,
+      "bytes": 538673,
+      "sha256": "d65911c89cedad9cb0948824d742363776b9a39428969200951af089ea217468",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "142-2026-ND-CP",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-142-2026-nd-cp-469480.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/5/18/469480-1778814202_v1_1779067280_signed.pdf",
+      "sourceFileName": "2026_278_142/2026/NĐ-CP.pdf",
+      "file": "03-142-2026-ND-CP.pdf",
+      "pages": 97,
+      "bytes": 1827087,
+      "sha256": "b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "33-2026-QD-TTg",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/quyet-dinh-so-33-2026-qd-ttg-469951.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/7/14/469951-1784024086_v1_1784024564_signed.pdf",
+      "sourceFileName": "2026_395_33/2026/QĐ-TTg.pdf",
+      "file": "04-33-2026-QD-TTg.pdf",
+      "pages": 16,
+      "bytes": 689240,
+      "sha256": "62287ada1add99bef29c41fa171743a78e352912449305fa9e554ec3d138d00e",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "05-2026-TT-BKHCN",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/thong-tu-so-05-2026-tt-bkhcn-469079/63291.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/3/24/469079-1774341042_v1_1774343649_signed.pdf",
+      "sourceFileName": "2026_159_05/2026/TT-BKHCN.pdf",
+      "file": "05-05-2026-TT-BKHCN.pdf",
+      "pages": 9,
+      "bytes": 625239,
+      "sha256": "b7e83e1924fafc2d94d008f20167ca9b5f8e6238ee7c274aa3bf6bd9c5cb4800",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "1671-QD-TTg",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/quyet-dinh-so-1671-qd-ttg-470384.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/9/11/470384-1788862278_v1_1789121403_signed.pdf",
+      "sourceFileName": "2026_507_1671/QĐ-TTg.pdf",
+      "file": "06-1671-QD-TTg.pdf",
+      "pages": 64,
+      "bytes": 2491716,
+      "sha256": "8d0000fbb2617f639ba81a3269278e07224f29ba0d4c1be95b1fa0c3033d10dd",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "91-2025-QH15",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/luat-so-91-2025-qh15-45578.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/CongBaoCP/VanBan/2025/6/45578/57730-1-2025971-97291-2025-qh15.pdf",
+      "sourceFileName": "2025_971 + 972_91-2025-QH15.pdf",
+      "file": "07-91-2025-QH15.pdf",
+      "pages": 25,
+      "bytes": 357221,
+      "sha256": "226dd6da66a6eea348e04db0f8c496d884021b730298991c6f6683720a0dfa2e",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "356-2025-ND-CP",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-356-2025-nd-cp-468371.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/1/17/356signed-1768638052103952849513.pdf",
+      "sourceFileName": "2026_18_356/2025/NĐ-CP.pdf",
+      "file": "08-356-2025-ND-CP.pdf",
+      "pages": 70,
+      "bytes": 2035364,
+      "sha256": "f24747bf3c374b04901e66704423ea1e1a60460376c4d052d649ecc8a2a2f1eb",
+      "firstPageTextExtractable": true
+    },
+    {
+      "number": "116-2025-QH15",
+      "sourcePage": "https://congbao.chinhphu.vn/van-ban/luat-so-116-2025-qh15-468678/61574.htm",
+      "downloadUrl": "https://congbaocdn.chinhphu.vn/180507251028987904/2026/1/23/116signed-1769163678477753319408.pdf",
+      "sourceFileName": "2026_35_116/2025/QH15.pdf",
+      "file": "09-116-2025-QH15.pdf",
+      "pages": 37,
+      "bytes": 1498163,
+      "sha256": "8e19e14fd57666baec8f16b7ca2832cbf7f24030a5e6ee0c574e15d0d48ad971",
+      "firstPageTextExtractable": true
+    }
+  ]
+}
