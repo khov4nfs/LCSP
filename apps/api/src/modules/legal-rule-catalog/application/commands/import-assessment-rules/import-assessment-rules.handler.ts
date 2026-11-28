@@ -7,6 +7,7 @@ import {
   PreparationExecutionContract,
 } from "@prisma/client";
 import {
+  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS as E,
   LEGAL_RULE_CATALOG_EVENTS as EVENTS,
   LEGAL_RULE_SELECTION_MODES,
@@ -19,10 +20,13 @@ import {
   sha256Hex,
 } from "../../../../assessment/domain/domain-ids.js";
 import { LegalRuleCatalogService } from "../../services/legal-rule-catalog.service.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
+import { requireSelectedScopeAuthorization } from "../../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 import { ImportAssessmentRulesCommand } from "./import-assessment-rules.command.js";
 import {
   isIdenticalCurrentResult,
   normalizeImportItem,
+  rejectSelectedOutput,
   validateSelectedOutput,
 } from "../../services/selected-output-validation.js";
 import {
@@ -42,6 +46,7 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalogs: LegalRuleCatalogService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
   /**
    * Business purpose: Let an Admin load externally authored Assessment Rules for catalog Legal Rules as prepared results, without running the Preparation agent.
@@ -49,7 +54,8 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
    * Business rules:
    * - Only Admin callers reach this path; the document must name this catalog, its current revision and its pinned Legal Source Version.
    * - Every item must target an eligible catalog Legal Rule and pass the same selected-output validation as agent output: identities carry the rule prefix, and every citation exactly matches the pinned source (document, locator, content hash).
-   * - An imported result is only a prepared revision; it becomes ACTIVE solely through the explicit activation step, and excluded items are validated against the catalog but never stored.
+   * - An imported result is only a prepared revision; it becomes ACTIVE solely through the explicit activation step, and declared exclusions receive a source-pinned audit receipt.
+   * - Exact semantic approval is required for every import item, including dry runs. Unresolved or contradictory exclusions reject.
    * - A rule with a queued or running Preparation run cannot be replaced; an identical prepared result is acknowledged as a replay without a new revision.
    *
    * Execution flow:
@@ -91,6 +97,39 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
         const entries = new Map(items.map((entry) => [entry.id, entry]));
         if (request.excludedItems.some((item) => !entries.has(item.ruleId)))
           catalogFailure(E.INVALID, cid, 422);
+        // An acknowledged unresolved proposition cannot be silently excluded to make a document pass.
+        // This rejects known ambiguity only; it is not positive semantic scope authorization.
+        const reviewRequiredIndex = request.excludedItems.findIndex(
+          (item) =>
+            item.reasonCode ===
+            ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
+        );
+        if (reviewRequiredIndex !== -1)
+          rejectSelectedOutput(
+            cid,
+            `excludedItems.${reviewRequiredIndex}.reasonCode`,
+            E.SCOPE_REVIEW_REQUIRED,
+          );
+        // An exclusion cannot contradict an imported item or another decision.
+        const importedIds = new Set(request.items.map((item) => item.ruleId));
+        const excludedIds = new Set(
+          request.excludedItems.map((item) => item.ruleId),
+        );
+        if (
+          excludedIds.size !== request.excludedItems.length ||
+          request.excludedItems.some((item) => importedIds.has(item.ruleId))
+        )
+          catalogFailure(E.INVALID, cid, 422);
+        // Bind every exclusion to the same eligible, content-verified source
+        // snapshot as an included rule. The client reason is not legal approval.
+        const excludedInputs = request.excludedItems.map((item) => {
+          const input = entries.get(item.ruleId)?.input;
+          if (!input) catalogFailure(E.INELIGIBLE, cid);
+          return input;
+        });
+        const hydratedExclusions = excludedInputs.length
+          ? await this.catalogs.hydrate(tx, excludedInputs, cid)
+          : [];
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
           if (!entry) catalogFailure(E.NOT_FOUND, cid, 404);
@@ -110,6 +149,10 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
           validateSelectedOutput(hydrated[index], output, cid);
           return { input: hydrated[index], output };
         });
+
+        // Validate semantic approval before the first write in both dry run and import.
+        for (const { input, output } of prepared)
+          await requireSelectedScopeAuthorization(tx, input, output, cid, this.authority);
 
         if (request.dryRun) {
           // Preview only: report what an import would record, using reads alone.
@@ -295,6 +338,49 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
                 })),
             },
           });
+        // Keep an idempotent receipt even for exclusion-only or replay-only
+        // imports. Do not manufacture a prepared revision or dispatch a model.
+        if (hydratedExclusions.length) {
+          const exclusions = request.excludedItems.map((item, index) => {
+            const input = hydratedExclusions[index];
+            return {
+              ...item,
+              legalRuleId: input.legalRuleId,
+              inputFingerprint: preparationInputFingerprint(input),
+              indexId: input.indexId,
+              indexContentDigest: input.indexContentHash,
+              citations: input.citations.map(
+                ({ chunkId, documentId, locator, contentSha256 }) => ({
+                  chunkId,
+                  documentId,
+                  locator,
+                  contentSha256,
+                }),
+              ),
+            };
+          });
+          const receipt = {
+            catalogVersionId: catalog.id,
+            catalogRevision: catalog.revision,
+            legalSourceVersionId: catalog.legalSourceVersionId,
+            exclusions,
+            imported: imported.map(({ ruleId, resultId, revision }) => ({
+              ruleId,
+              resultId,
+              revision,
+            })),
+          };
+          const receiptDigest = sha256Hex(canonicalJson(receipt));
+          await this.catalogs.record(
+            tx,
+            EVENTS.IMPORT_EXCLUSIONS_RECORDED,
+            catalog.id,
+            actor,
+            cid,
+            { ...receipt, receiptDigest },
+            `${EVENTS.IMPORT_EXCLUSIONS_RECORDED}:${actor}:${receiptDigest}`,
+          );
+        }
         return {
           catalogVersionId: catalog.id,
           catalogRevision: catalog.revision,
