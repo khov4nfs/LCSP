@@ -33,6 +33,7 @@ import { AUDIT_RESOURCE_TYPES, AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 import { attachLegalRuleReferenceContext } from "./legal-rule-reference-context.js";
 import {
@@ -612,6 +613,7 @@ export class LegalRuleCatalogService {
     private readonly audit: AuditWriterService,
     // The versioned graph owns reference resolution for the picker.
     private readonly documentGraph: LegalDocumentGraphService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -1404,8 +1406,9 @@ export class LegalRuleCatalogService {
    * Business purpose: Pin exact source bytes for selected rule execution.
    * Business rules:
    * - Every chunk/hash must still match; content is loaded only for selected inputs and never synthesized.
+   * - New selected preparation, regeneration, model-free import and publication use admitted official originals.
    * Execution flow:
-   * 1. Read selected chunks
+   * 1. Require source admission, then read selected chunks
    * 2. Verify stored and computed hashes
    * 3. Validate complete snapshots.
    * Failure cases:
@@ -1418,6 +1421,13 @@ export class LegalRuleCatalogService {
     inputs: PreparationRuleInput[],
     cid: string,
   ) {
+    // All selected authoring paths enter here before writing results or dispatching agents.
+    // Keep historical browsing independent of admission for new work.
+    for (const versionId of new Set(
+      inputs.map((input) => input.legalSourceVersionId),
+    )) {
+      await this.authority.requireVersion(tx, versionId, cid);
+    }
     const indexes = await tx.legalRetrievalIndex.findMany({
       where: {
         id: { in: [...new Set(inputs.map((input) => input.indexId))] },

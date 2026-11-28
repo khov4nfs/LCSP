@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 import { randomUUID } from "node:crypto";
 import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
@@ -90,16 +91,21 @@ function buildRuleSetUseCases(
     prisma,
     new LegalDocumentGraphService(prisma),
   );
-  const start = new StartRuleSetPreparationHandler(prisma, outbox);
+  const start = new StartRuleSetPreparationHandler(
+    prisma,
+    outbox,
+    fixtureSourceAuthority,
+  );
   const claim = new ClaimRuleSetPreparationHandler(
     prisma,
     new LegalDocumentGraphService(prisma),
+    fixtureSourceAuthority,
   );
   const fail = new FailRuleSetPreparationHandler(prisma);
   const submit = new SubmitComplianceRuleSetHandler(
     prisma,
     legalSource,
-    new ComplianceRuleSetActivation(outbox, audit),
+    new ComplianceRuleSetActivation(outbox, audit, fixtureSourceAuthority),
   );
   const validate = new ValidateComplianceRuleSetHandler(prisma, legalSource);
   const active = new GetActiveComplianceRuleSetHandler(

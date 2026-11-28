@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -58,16 +59,26 @@ describeDatabase(
     const db = prisma as unknown as PrismaService;
     const audit = new AuditWriterService(db);
     const outbox = new OutboxRepository(db);
-    const handler = new ReactivateComplianceRuleSetHandler(db, audit, outbox);
-    const start = new StartRuleSetPreparationHandler(db, outbox);
+    const handler = new ReactivateComplianceRuleSetHandler(
+      db,
+      audit,
+      outbox,
+      fixtureSourceAuthority,
+    );
+    const start = new StartRuleSetPreparationHandler(
+      db,
+      outbox,
+      fixtureSourceAuthority,
+    );
     const claim = new ClaimRuleSetPreparationHandler(
       db,
       new LegalDocumentGraphService(db),
+      fixtureSourceAuthority,
     );
     const submit = new SubmitComplianceRuleSetHandler(
       db,
       new LegalSourceSnapshotLoader(db, new LegalDocumentGraphService(db)),
-      new ComplianceRuleSetActivation(outbox, audit),
+      new ComplianceRuleSetActivation(outbox, audit, fixtureSourceAuthority),
     );
     const source = legalSourceFactory(prisma, randomUUID());
     let admin: string;

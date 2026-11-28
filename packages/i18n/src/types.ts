@@ -3325,6 +3325,7 @@ export type PagesMessages = {
       DOCUMENT_NOT_READY: string;
       VERSION_NOT_DRAFT: string;
       INDEX_NOT_VALID: string;
+      OFFICIAL_CORPUS_REQUIRED: string;
     };
     failureCodes: {
       UNSUPPORTED_MEDIA_TYPE: string;

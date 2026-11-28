@@ -1,4 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
+import { fixtureSourceAuthority } from "../../../../../../test/support/fixture-source-authority.js";
 import { AgentExecutionState as State, Prisma } from "@prisma/client";
 import { RULE_SET_PREPARATION_FAILURE_REASONS as R } from "@lcsp/contracts/compliance-rule-set";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -7,7 +10,11 @@ import { ResumeRuleSetPreparationCommand } from "./resume-rule-set-preparation.c
 import { ResumeRuleSetPreparationHandler } from "./resume-rule-set-preparation.handler.js";
 
 const id = "31e042e8-6b91-4bfd-8853-108bb4436efd";
-function build(executionState: State, failureReason: string | null) {
+function build(
+  executionState: State,
+  failureReason: string | null,
+  authority = fixtureSourceAuthority,
+) {
   const row = {
     id,
     legalSourceVersionId: "5ae8f595-1ae6-44a4-b7c1-ef9d4da37598",
@@ -37,6 +44,7 @@ function build(executionState: State, failureReason: string | null) {
           : [{ id }],
       ),
     ),
+    legalSourceDocument: { findMany: jest.fn(() => Promise.resolve([])) },
     ruleSetPreparationRun: {
       findUnique: jest.fn(() => Promise.resolve(row)),
       update: jest.fn(({ data }: { data: object }) =>
@@ -55,6 +63,7 @@ function build(executionState: State, failureReason: string | null) {
     handler: new ResumeRuleSetPreparationHandler(
       prisma as unknown as PrismaService,
       outbox as unknown as OutboxRepository,
+      authority,
     ),
   };
 }
@@ -62,6 +71,23 @@ const command = () =>
   new ResumeRuleSetPreparationCommand(id, "admin-actor", "resume-correlation");
 
 describe("explicit preparation recovery", () => {
+  it("preserves an unadmitted historical pause and refuses a new dispatch", async () => {
+    const { handler, row, tx, outbox } = build(
+      State.PAUSED,
+      R.AGENT_BUDGET_REACHED,
+      new LegalSourceAuthorityService(),
+    );
+    await expect(handler.execute(command())).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid },
+      },
+    });
+    expect(row.executionState).toBe(State.PAUSED);
+    expect(row.claimInventoryRevision).toBe(3);
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+    expect(tx.ruleSetPreparationRun.update).not.toHaveBeenCalled();
+  });
+
   it.each([
     [State.PAUSED, R.AGENT_BUDGET_REACHED],
     [State.FAILED, R.MODEL_ERROR],

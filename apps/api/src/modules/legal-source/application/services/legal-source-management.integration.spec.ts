@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { LegalDocumentGraphService } from "./legal-document-graph.service.js";
@@ -14,6 +15,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import {
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
+  LEGAL_SOURCE_ERROR_CODES,
   LEGAL_SOURCE_INGESTION_OUTCOMES as Outcomes,
   LEGAL_SOURCE_DOCUMENT_INGESTION_STATES as States,
   LEGAL_SOURCE_IMPORT_REJECTION_REASONS as Reasons,
@@ -103,7 +105,7 @@ database("Legal Source management on PostgreSQL", () => {
       service,
       audit,
       documents,
-      new LegalSourceService(service, outbox, audit),
+      new LegalSourceService(service, outbox, audit, fixtureSourceAuthority),
     );
   });
 
@@ -565,8 +567,8 @@ database("Legal Source management on PostgreSQL", () => {
         extraction: expect.objectContaining({ tool: "test-extractor" }),
       });
       expect(detail.index?.status).toBe("VALID");
-      expect(detail.blockers).toEqual([]);
-      expect(detail.canActivate).toBe(true);
+      expect(detail.blockers).toEqual([Blockers.OFFICIAL_CORPUS_REQUIRED]);
+      expect(detail.canActivate).toBe(false);
 
       const chunks = await prisma.legalDocumentChunk.findMany({
         where: { legalSourceVersionId: draft.id },
@@ -853,6 +855,105 @@ database("Legal Source management on PostgreSQL", () => {
   });
 
   describe("activation, immutability and new versions", () => {
+    it("enforces official-original admission at the real activation boundary without superseding the previous source", async () => {
+      const service = prisma as unknown as PrismaService;
+      const audit = new AuditWriterService(service);
+      const strictManagement = new LegalSourceManagementService(
+        service,
+        audit,
+        documents,
+        new LegalSourceService(service, new OutboxRepository(service), audit),
+      );
+
+      // The approved original bytes are real; the structural callback is a
+      // deliberately small fixture because this test proves admission, not extraction quality.
+      const source = await newSource();
+      const draft = await newDraft(source.id);
+      const official = OFFICIAL_LEGAL_CORPUS[0];
+      const original = readFileSync(
+        new URL(
+          "../../../../../../../deepagents/evals/corpora/lcsp-402-vn-cong-bao-v1/01-134-2025-QH15.pdf",
+          import.meta.url,
+        ),
+      );
+      const document = await documents.addUpload({
+        versionId: draft.id,
+        actorId: ADMIN,
+        correlationId: correlation(),
+        bytes: original,
+        declaredType: "application/pdf",
+        metadata: {
+          fileName: "official-original.pdf",
+          structureProfile: Profiles.AUTO,
+        },
+      });
+      await ingest(document.id, 1, ["p-1", "p-2"]);
+      await expect(
+        strictManagement.activate({
+          versionId: draft.id,
+          actorId: ADMIN,
+          correlationId: correlation(),
+        }),
+      ).resolves.toMatchObject({ status: Lifecycle.active });
+      expect(
+        await prisma.legalSourceDocument.findUniqueOrThrow({
+          where: { id: document.id },
+        }),
+      ).toMatchObject({ blobSha256: official.sha256 });
+
+      const foreign = await readyDraft(source.id, "foreign");
+      const mixed = await newDraft(source.id, draft.id);
+      const extra = await upload(
+        mixed.id,
+        "foreign.txt",
+        "Unapproved foreign authority",
+      );
+      await ingest(extra.id, 1, ["p-1", "p-2"]);
+
+      for (const versionId of [foreign.versionId, mixed.id]) {
+        const preview = await management.getVersion(versionId, correlation());
+        expect(preview.index?.status).toBe("VALID");
+        expect(preview.canActivate).toBe(false);
+        expect(preview.blockers).toEqual([Blockers.OFFICIAL_CORPUS_REQUIRED]);
+        await expect(
+          strictManagement.activate({
+            versionId,
+            actorId: ADMIN,
+            correlationId: correlation(),
+          }),
+        ).rejects.toMatchObject({
+          response: {
+            problem: {
+              code: LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
+            },
+          },
+        });
+        expect(
+          await prisma.legalSourceVersion.findUniqueOrThrow({
+            where: { id: versionId },
+          }),
+        ).toMatchObject({ status: "DRAFT" });
+        expect(
+          await prisma.legalSourceActivationRecord.count({
+            where: { legalSourceVersionId: versionId },
+          }),
+        ).toBe(0);
+        expect(
+          await prisma.outboxMessage.count({
+            where: {
+              aggregateId: versionId,
+              eventType: "event.legal-source.activated.v1",
+            },
+          }),
+        ).toBe(0);
+      }
+      expect(
+        await prisma.legalSourceVersion.findUniqueOrThrow({
+          where: { id: draft.id },
+        }),
+      ).toMatchObject({ status: "ACTIVE" });
+    });
+
     it("activates a validated draft, supersedes the previous active version, and freezes it", async () => {
       const source = await newSource();
       const first = await readyDraft(source.id, "first");
@@ -965,7 +1066,8 @@ database("Legal Source management on PostgreSQL", () => {
         chunkCount: 2,
         hasOriginal: true,
       });
-      expect(next.canActivate).toBe(true);
+      expect(next.canActivate).toBe(false);
+      expect(next.blockers).toEqual([Blockers.OFFICIAL_CORPUS_REQUIRED]);
       expect(next.index?.status).toBe("VALID");
 
       const baseChunks = await prisma.legalDocumentChunk.findMany({

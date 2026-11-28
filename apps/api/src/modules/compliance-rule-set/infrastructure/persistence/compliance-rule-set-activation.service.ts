@@ -43,6 +43,7 @@ import {
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
 import { writeSemanticGraph } from "./semantic-graph.persistence.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
@@ -99,6 +100,7 @@ export class ComplianceRuleSetActivation {
   constructor(
     private readonly outboxRepository: OutboxRepository,
     private readonly auditWriter: AuditWriterService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   async findReplay(
@@ -154,6 +156,7 @@ export class ComplianceRuleSetActivation {
    * - The Preparation row lock serializes submission with cancellation, inventory reopening, and other publication attempts.
    * - A matching activation record is replayed; the same idempotency key with different run/request digest conflicts.
    * - A clean packet must still match the frozen inventory, persisted direct draft, and SUBMISSION_READY phase after locking.
+   * - New passing publications must bind the product-approved official original corpus.
    * - A failed packet is recorded as INVALID and cannot supersede the current ACTIVE version; a passing packet becomes ACTIVE and supersedes the prior version.
    *
    * Execution flow:
@@ -251,6 +254,14 @@ export class ComplianceRuleSetActivation {
       ctx.packet,
     );
 
+    // Source admission is independent of the activity-scope proof; never publish a new version from a foreign corpus.
+    if (ctx.failures.length === 0) {
+      await this.authority.requireVersion(
+        tx,
+        ctx.legalSource.id,
+        ctx.correlationId,
+      );
+    }
     // Cancel and publication serialize on the preparation row; only one can become terminal.
     await acquireComplianceRuleSetActivationLock(tx);
 
@@ -423,6 +434,7 @@ export class ComplianceRuleSetActivation {
    *
    * Business rules:
    * - The caller must validate current successful result revisions, source pins, and the combined packet in the same transaction before calling this method.
+   * - New selected publications also require the approved official original corpus, even if a caller already validated the packet.
    * - The selected-result manifest is immutable provenance; the shared advisory lock and partial unique index preserve one ACTIVE Rule Set.
    * - Publication and replacement of the prior ACTIVE version, child rows, audit, and outbox commit atomically.
    *
@@ -459,6 +471,12 @@ export class ComplianceRuleSetActivation {
     );
     if (lockedReplay) return lockedReplay;
 
+    // Recheck admission after acquiring the publication lock; a historical replay is unchanged.
+    await this.authority.requireVersion(
+      tx,
+      ctx.legalSource.id,
+      ctx.correlationId,
+    );
     const previousActive = await tx.complianceRuleSetVersion.findFirst({
       where: { lifecycleState: PrismaArtifactLifecycleState.ACTIVE },
       select: { id: true },

@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -85,6 +86,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const start = new StartRuleSetPreparationHandler(
       service,
       new OutboxRepository(service),
+      fixtureSourceAuthority,
     );
     const bus = {
       execute: (command: StartRuleSetPreparationCommand) =>
@@ -113,6 +115,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     claim = new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
+      fixtureSourceAuthority,
     );
     fail = new FailRuleSetPreparationHandler(service);
     const outbox = new OutboxRepository(service);
@@ -122,7 +125,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         service,
         new LegalDocumentGraphService(service),
       ),
-      new ComplianceRuleSetActivation(outbox, new AuditWriterService(service)),
+      new ComplianceRuleSetActivation(
+        outbox,
+        new AuditWriterService(service),
+        fixtureSourceAuthority,
+      ),
     );
   });
   beforeEach(async () => {

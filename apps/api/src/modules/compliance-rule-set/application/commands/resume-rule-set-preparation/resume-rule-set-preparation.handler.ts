@@ -24,6 +24,7 @@ import { OutboxRepository } from "../../../../../platform/outbox/outbox.reposito
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { toRun } from "../../../infrastructure/persistence/compliance-rule-set.mappers.js";
 import { ResumeRuleSetPreparationCommand } from "./resume-rule-set-preparation.command.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 
 /** Explicitly resume an interrupted run without discarding its pinned source reviews or draft. */
@@ -32,6 +33,7 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxRepository,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -42,6 +44,7 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
    * - Only a budget-paused run (by AGENT_BUDGET_REACHED or specific quota reason), a paused run with eligible scope review, or a FAILED run caused by a model/runtime error may resume.
    * - Resuming a budget-paused run preserves open scope-review requests without approving them.
    * - Published or otherwise terminal runs cannot be resumed through this command.
+   * - A new delivery must use the admitted official original corpus; historical review and draft pins are never rewritten.
    *
    * Execution flow:
    * 1. Lock and load the run and its published Rule Set link.
@@ -93,6 +96,12 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
         throw problemException(E.preparationRunConflict, input.correlationId, {
           status: HttpStatus.CONFLICT,
         });
+      // Resume is a new dispatch, not a historical read: refuse an unadmitted source before enqueuing work.
+      await this.authority.requireVersion(
+        tx,
+        run.legalSourceVersionId,
+        input.correlationId,
+      );
       const outboxEventId = await this.outbox.enqueue(
         buildOutboxMessageInput({
           aggregateType: OUTBOX_AGGREGATE_TYPES.legalSourceVersion,

@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { sha256Ref } from "./legal-source-structure.js";
 import request from "supertest";
 import { Test } from "@nestjs/testing";
@@ -66,7 +67,7 @@ database("reference-only document mutation on disposable PostgreSQL", () => {
       prisma,
       audit,
       documents,
-      new LegalSourceService(prisma, outbox, audit),
+      new LegalSourceService(prisma, outbox, audit, fixtureSourceAuthority),
     );
   });
   afterAll(async () => {

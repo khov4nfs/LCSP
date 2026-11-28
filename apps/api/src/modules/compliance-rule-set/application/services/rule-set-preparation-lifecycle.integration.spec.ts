@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
 import { randomUUID } from "node:crypto";
@@ -95,10 +96,15 @@ describeDatabase(
       createLegalSource = legalSourceFactory(prisma, RUN);
       const service = prisma as unknown as PrismaService;
       const outbox = new OutboxRepository(service);
-      start = new StartRuleSetPreparationHandler(service, outbox);
+      start = new StartRuleSetPreparationHandler(
+        service,
+        outbox,
+        fixtureSourceAuthority,
+      );
       claim = new ClaimRuleSetPreparationHandler(
         service,
         new LegalDocumentGraphService(service),
+        fixtureSourceAuthority,
       );
       fail = new FailRuleSetPreparationHandler(service);
       submit = new SubmitComplianceRuleSetHandler(
@@ -110,6 +116,7 @@ describeDatabase(
         new ComplianceRuleSetActivation(
           outbox,
           new AuditWriterService(service),
+          fixtureSourceAuthority,
         ),
       );
       history = new ComplianceRuleSetHistoryLoader(service);

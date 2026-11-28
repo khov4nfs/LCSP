@@ -13,6 +13,7 @@ import { LegalSourceDocumentService } from "./application/services/legal-source-
 import { LegalSourceManagementService } from "./application/services/legal-source-management.service.js";
 import { LegalSourceDeletionService } from "./application/services/legal-source-deletion.service.js";
 import { LegalSourceService } from "./application/services/legal-source.service.js";
+import { LegalSourceAuthorityService } from "./application/services/legal-source-authority.service.js";
 import { OfficialSourceSnapshotService } from "./application/services/official-source-snapshot.service.js";
 import {
   NodeSafeFetchTransport,
@@ -36,6 +37,7 @@ const Handlers = [GetActiveLegalSourceHandler];
     ...Handlers,
     CitationLocatorValidatorService,
     LegalSourceService,
+    LegalSourceAuthorityService,
     LegalSourceDocumentService,
     LegalSourceManagementService,
     LegalSourceDeletionService,
@@ -43,6 +45,7 @@ const Handlers = [GetActiveLegalSourceHandler];
     OfficialSourceSnapshotService,
     SafeUrlFetcherService,
   ],
-  exports: [LegalDocumentGraphService],
+  // All rule authoring paths share the same official-original admission provider.
+  exports: [LegalDocumentGraphService, LegalSourceAuthorityService],
 })
 export class LegalSourceModule {}

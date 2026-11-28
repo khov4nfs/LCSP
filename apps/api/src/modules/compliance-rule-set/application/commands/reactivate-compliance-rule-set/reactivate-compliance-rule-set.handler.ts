@@ -42,6 +42,7 @@ import {
   reactivationTargetInclude,
   storedRuleSetIntegrityValid,
 } from "../../../infrastructure/persistence/stored-rule-set-integrity.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import { ReactivateComplianceRuleSetCommand } from "./reactivate-compliance-rule-set.command.js";
 
 @CommandHandler(ReactivateComplianceRuleSetCommand)
@@ -50,6 +51,7 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
     private readonly prisma: PrismaService,
     private readonly audit: AuditWriterService,
     private readonly outbox: OutboxRepository,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -60,6 +62,7 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
    * - Reactivation is refused during Preparation, for an already-active target, or for a target that is not a valid previously activated and superseded version.
    * - The target's successful validation, successful Preparation, source lifecycle, activation record, run/source pins, stored digest, and relational integrity must still agree.
    * - A prior semantic-authority-containment rejection permanently excludes the target from this path.
+   * - Historical artifacts remain readable, but reactivation requires the current official original corpus admission policy.
    *
    * Execution flow:
    * 1. Hash the request and enter a transaction; verify the active admin and acquire the global activation lock.
@@ -234,6 +237,12 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             !storedRuleSetIntegrityValid(target, chunks)
           )
             throw conflict(Errors.INTEGRITY_INVALID);
+          // Re-publication is a new active pointer decision; historical read access is not admission.
+          await this.authority.requireVersion(
+            tx,
+            target.legalSourceVersionId,
+            correlationId,
+          );
           const id = randomUUID();
           const now = new Date();
           await tx.complianceRuleSetVersion.update({

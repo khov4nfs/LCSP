@@ -23,6 +23,7 @@ import {
 } from "@prisma/client";
 
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
@@ -47,6 +48,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
   constructor(
     private readonly prisma: PrismaService,
     private readonly outboxRepository: OutboxRepository,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -54,12 +56,12 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
    *
    * Business rules:
    * - A start key can create only one run and may be replayed only for the same source version.
-   * - Only an ACTIVE Legal Source Version may produce a shared Rule Set.
+   * - Only an ACTIVE Legal Source Version with admitted official originals may produce a new shared Rule Set.
    * - Run creation and its outbox request are one transaction, preventing an unqueued or duplicate preparation.
    *
    * Execution flow:
    * 1. Open a SERIALIZABLE transaction, acquire the global source lifecycle lock, and reload the idempotency record.
-   * 2. If no run exists, read the source lifecycle and reject missing or non-ACTIVE versions.
+   * 2. If no run exists, read the source lifecycle and reject missing, non-ACTIVE or unadmitted versions.
    * 3. Create the run and its outbox event atomically, then return the persisted run identity.
    * 4. On a unique-key race, replay the matching winner; on P2034/40001, back off and retry the entire transaction.
    *
@@ -125,6 +127,12 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 },
               );
             }
+            // Replays above retain historical pins; new model work cannot use an unadmitted source.
+            await this.authority.requireVersion(
+              tx,
+              source.id,
+              input.correlationId,
+            );
             const run = await tx.ruleSetPreparationRun.create({
               data: {
                 idempotencyKey,

@@ -1392,6 +1392,8 @@ export class PreparationRuleService {
         {
           preparationRunId: request.preparationRunId,
           outcome: request.executionState,
+          // Preserve the typed terminal reason without copying the legal draft into audit.
+          ...(request.failureCode ? { failureCode: request.failureCode } : {}),
           revision: result.revision,
         },
       );
@@ -1536,12 +1538,15 @@ function isIdenticalCurrentResult(
  */
 export function validateSelectedOutput(
   input: PreparationRuleInput,
-  output: z.infer<typeof preparationRuleOutputSchema>,
+  rawOutput: z.infer<typeof preparationRuleOutputSchema>,
   cid: string,
   retainUnresolvedDraft = false,
 ): void {
-  const parsed = preparationRuleOutputSchema.safeParse(output);
+  const parsed = preparationRuleOutputSchema.safeParse(rawOutput);
   if (!parsed.success) rejectSelectedOutput(cid, "output");
+  // The schema trims coverage reasons; all guards must inspect the same canonical
+  // values, including callers that invoke this validator without a parsed DTO.
+  const output = parsed.data;
   // Check ambiguity before other structural defects can route the draft into repair.
   const unresolvedIndex = output.legalRequirements.findIndex((rule) =>
     rule.coverage.nonAssessableReason?.startsWith(

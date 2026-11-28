@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { createHash, randomUUID } from "node:crypto";
 
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -16,10 +17,13 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   LEGAL_RULE_SELECTION_MODES,
+  ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+  assessmentRuleImportRequestSchema,
   preparationRuleInputSchema,
   preparationRuleOutputSchema,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
 
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 import { AssessmentRuntimePreparation } from "../../../assessment/application/services/assessment-runtime-preparation.service.js";
@@ -76,8 +80,17 @@ describeDatabase(
     const outbox = new OutboxRepository(db);
     const graph = new LegalDocumentGraphService(db);
     // Catalog browsing and preparation share the same derived source authority.
-    const catalogs = new LegalRuleCatalogService(db, audit, graph);
-    const activation = new ComplianceRuleSetActivation(outbox, audit);
+    const catalogs = new LegalRuleCatalogService(
+      db,
+      audit,
+      graph,
+      fixtureSourceAuthority,
+    );
+    const activation = new ComplianceRuleSetActivation(
+      outbox,
+      audit,
+      fixtureSourceAuthority,
+    );
     const sourceSnapshot = new LegalSourceSnapshotLoader(db, graph);
     const preparation = new PreparationRuleService(
       db,
@@ -341,6 +354,110 @@ describeDatabase(
     afterAll(async () => {
       jest.restoreAllMocks();
       await prisma.$disconnect();
+    });
+
+    it("rejects new selected preparation, model-free import and publication on a historical unadmitted source", async () => {
+      const strictCatalogs = new LegalRuleCatalogService(db, audit, graph);
+      const strictPreparation = new PreparationRuleService(
+        db,
+        strictCatalogs,
+        outbox,
+        {} as never,
+        sourceSnapshot,
+        new ComplianceRuleSetActivation(outbox, audit),
+      );
+      const selection = await catalogs.select(
+        {
+          catalogVersionId: catalogId,
+          expectedRevision: 1,
+          mode: LEGAL_RULE_SELECTION_MODES.EXPLICIT,
+          filters: { search: "" },
+          ruleIds: [positiveThree.legalRule.id],
+        },
+        actorId,
+        correlationId,
+      );
+      const output = preparationRuleOutputSchema.parse(
+        (
+          await prisma.preparationRuleResult.findUniqueOrThrow({
+            where: { id: positiveThree.result.id },
+          })
+        ).output,
+      );
+      const document = assessmentRuleImportRequestSchema.parse({
+        schemaVersion: ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+        catalogVersionId: catalogId,
+        expectedCatalogRevision: 1,
+        legalSourceVersionId: sourceVersionId,
+        items: [
+          {
+            ruleId: positiveThree.legalRule.id,
+            analysis: output.analysis,
+            legalRequirements: output.legalRequirements,
+            contextRelations: output.contextRelations,
+            assessmentRules: output.assessmentRules.map((rule) => ({
+              assessmentRuleId: rule.assessmentRuleId,
+              legalRequirementIds: rule.legalRequirementIds,
+              concept: rule.concept,
+              criteria: rule.criteria.map((criterion) => ({
+                criterionId: criterion.criterionId,
+                legalRequirementIds: criterion.legalRequirementIds,
+                investigationFocus: criterion.investigationFocus,
+              })),
+              requiredEvidence: rule.requiredEvidence,
+              sourceRefs: rule.sourceRefs,
+            })),
+          },
+        ],
+      });
+      const expectedProblem = {
+        response: {
+          problem: { code: LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid },
+        },
+      };
+      const before = {
+        batches: await prisma.preparationRuleBatch.count(),
+        runs: await prisma.ruleSetPreparationRun.count(),
+        results: await prisma.preparationRuleResult.count(),
+        outbox: await prisma.outboxMessage.count(),
+        active: await prisma.complianceRuleSetVersion.findMany({
+          where: { lifecycleState: "ACTIVE" },
+        }),
+      };
+      await expect(
+        strictPreparation.submit(
+          { selectionId: selection.selectionId, idempotencyKey: randomUUID() },
+          actorId,
+          correlationId,
+        ),
+      ).rejects.toMatchObject(expectedProblem);
+      for (const dryRun of [true, false]) {
+        await expect(
+          strictPreparation.importAssessmentRules(
+            catalogId,
+            { ...document, dryRun },
+            actorId,
+            correlationId,
+          ),
+        ).rejects.toMatchObject(expectedProblem);
+      }
+      await expect(
+        strictPreparation.activate(
+          catalogId,
+          activationRequest(positiveThree),
+          actorId,
+          correlationId,
+        ),
+      ).rejects.toMatchObject(expectedProblem);
+      expect({
+        batches: await prisma.preparationRuleBatch.count(),
+        runs: await prisma.ruleSetPreparationRun.count(),
+        results: await prisma.preparationRuleResult.count(),
+        outbox: await prisma.outboxMessage.count(),
+        active: await prisma.complianceRuleSetVersion.findMany({
+          where: { lifecycleState: "ACTIVE" },
+        }),
+      }).toEqual(before);
     });
 
     it("filters exact persisted results, atomically replaces ACTIVE, and serves pinned Assessments", async () => {

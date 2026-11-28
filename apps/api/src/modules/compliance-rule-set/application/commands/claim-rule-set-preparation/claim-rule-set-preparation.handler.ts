@@ -20,6 +20,7 @@ import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.com
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 
 /**
@@ -33,6 +34,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
   constructor(
     private readonly prisma: PrismaService,
     private readonly graph: LegalDocumentGraphService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -42,6 +44,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
    * - The worker must support the run's execution contract; a published run cannot be claimed.
    * - QUEUED runs transition to RUNNING once, while RUNNING runs can be taken over only after the claim lease expires.
    * - Compare-and-set state checks prevent concurrent deliveries from claiming the same live run.
+   * - A queued or expired historical delivery cannot spend tokens against an unadmitted legal source.
    * - Reuse the materialization pinned by an existing inventory frontier when available; otherwise materialize the source graph.
    * - Aggregate durable LLM usage events and report authoritative measured usage alongside unmeasured attempt count, without fabricating arbitrary token estimates.
    *
@@ -91,6 +94,12 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
             meta: { reason: "WORKER_EXECUTION_CONTRACT_UNSUPPORTED" },
           },
         );
+      // Recheck source identity at the worker boundary, including previously queued deliveries.
+      await this.authority.requireVersion(
+        tx,
+        run.legalSourceVersionId,
+        input.correlationId,
+      );
       // Verify the approved, pinned source BEFORE claiming and spending tokens.
       const approvedScope = await requireApprovedDevelopmentScope(
         tx,

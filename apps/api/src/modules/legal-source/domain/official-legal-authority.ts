@@ -118,3 +118,39 @@ export function identifyOfficialLegalDocument(
   const sha256 = digest.replace(/^sha256:/u, "");
   return OFFICIAL_LEGAL_CORPUS.find((entry) => entry.sha256 === sha256);
 }
+
+/**
+ * Business purpose: Determine whether the complete corpus binds to product-approved managed originals.
+ * Business rules:
+ * - Every stored original digest and source digest must identify the same approved document.
+ * - The URL of another configured publication cannot be paired with a different original; legacy uploads of the same approved bytes remain eligible.
+ * Execution flow:
+ * 1. Resolve both stored digests and any known publication URL for each document.
+ * 2. Require a nonempty collection and consistent original identities for every document.
+ * Failure cases:
+ * - Empty collections, missing original digests, substituted bytes or conflicting publication identities return false and block normative admission.
+ * Side effects:
+ * - Pure calculation from persisted document identity metadata; no retrieval, model or approval step.
+ */
+export function isOfficialCorpusAdmitted(
+  documents: ReadonlyArray<{
+    sourceUrl: string;
+    sourceSha256: string;
+    blobSha256: string | null;
+  }>,
+): boolean {
+  return (
+    documents.length > 0 &&
+    documents.every((document) => {
+      const original = identifyOfficialLegalDocument(document.blobSha256 ?? "");
+      const claimedPublication = resolveOfficialLegalDocument(
+        document.sourceUrl,
+      );
+      return Boolean(
+        original &&
+        identifyOfficialLegalDocument(document.sourceSha256) === original &&
+        (claimedPublication === undefined || claimedPublication === original),
+      );
+    })
+  );
+}

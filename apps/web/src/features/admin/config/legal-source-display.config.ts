@@ -64,6 +64,8 @@ export const LEGAL_SOURCE_BLOCKER_MESSAGE_KEYS: Record<
     "pages.legalSources.blockers.VERSION_NOT_DRAFT",
   [LEGAL_SOURCE_VERSION_BLOCKERS.INDEX_NOT_VALID]:
     "pages.legalSources.blockers.INDEX_NOT_VALID",
+  [LEGAL_SOURCE_VERSION_BLOCKERS.OFFICIAL_CORPUS_REQUIRED]:
+    "pages.legalSources.blockers.OFFICIAL_CORPUS_REQUIRED",
 };
 
 export const LEGAL_SOURCE_FAILURE_MESSAGE_KEYS: Record<

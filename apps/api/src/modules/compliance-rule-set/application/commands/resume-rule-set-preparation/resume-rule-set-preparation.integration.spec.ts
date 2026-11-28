@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../../test/support/fixture-source-authority.js";
 import "reflect-metadata";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
@@ -39,10 +40,12 @@ database("preparation budget PAUSED / resume PostgreSQL", () => {
     resume = new ResumeRuleSetPreparationHandler(
       service,
       new OutboxRepository(service),
+      fixtureSourceAuthority,
     );
     claim = new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
+      fixtureSourceAuthority,
     );
   });
   afterAll(async () => {

@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "./support/fixture-source-authority.js";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -7,6 +8,7 @@ import { createHash } from "node:crypto";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
+import { LegalSourceAuthorityService } from "../src/modules/legal-source/application/services/legal-source-authority.service.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -36,7 +38,10 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(LegalSourceAuthorityService)
+      .useValue(fixtureSourceAuthority)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();

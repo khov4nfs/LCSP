@@ -50,6 +50,8 @@ import type {
   LegalSourceDocumentInput,
 } from "../contracts/legal-source.contract.js";
 
+import { LegalSourceAuthorityService } from "./legal-source-authority.service.js";
+
 const SAFE_MANIFEST_REF = /^[a-z][a-z0-9-]{0,63}:[A-Za-z0-9._:-]{1,180}$/;
 const LEGAL_SOURCE_ACTIVATION_SERVICE = "legal-source-activation-service";
 const LEGAL_SOURCE_CHANGE_MODES = {
@@ -64,6 +66,7 @@ export class LegalSourceService {
     private readonly prisma: PrismaService,
     private readonly outboxRepository: OutboxRepository,
     private readonly auditWriter: AuditWriterService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   async ingestDraft(input: IngestLegalSourceRequest) {
@@ -159,6 +162,20 @@ export class LegalSourceService {
     });
   }
 
+  /**
+   * Business purpose: Activate only a validated and product-authorized official legal corpus.
+   * Business rules:
+   * - Existing committed activation replays remain historical; a new activation requires a DRAFT with complete chunks and a valid pinned retrieval index.
+   * - Every document in the new version must bind to a product-approved managed original, not a claimed URL or a client-supplied hash.
+   * Execution flow:
+   * 1. Validate request and replay identity, then read the DRAFT and its retrieval validation.
+   * 2. Acquire the lifecycle lock, fence the DRAFT with the conditional update, and verify the current original corpus under that fence.
+   * 3. Supersede the previous source and persist the activation record, audit and outbox event atomically.
+   * Failure cases:
+   * - Missing, stale, structurally invalid or non-authorized source fails with a typed problem; a concurrent or failed transaction retains the prior active version.
+   * Side effects:
+   * - Writes source lifecycle state, activation evidence and the existing governed outbox only after source admission.
+   */
   async activateValidatedLegalSourceVersion(input: {
     legalSourceVersionId: string;
     integrityManifestRef: string;
@@ -302,6 +319,13 @@ export class LegalSourceService {
             },
           );
         }
+        // The claimed version row is now fenced against draft document changes.
+        // Failure rolls back the status update and never supersedes the active corpus.
+        await this.authority.requireVersion(
+          tx,
+          legalSource.id,
+          input.correlationId,
+        );
         const previousActive =
           typeof tx.legalSourceVersion.findFirst === "function"
             ? await tx.legalSourceVersion.findFirst({
