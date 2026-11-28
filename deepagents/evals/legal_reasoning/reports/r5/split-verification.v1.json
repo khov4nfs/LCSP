@@ -1,0 +1,1429 @@
+{
+  "artifactRetention": "Compact verification receipt with manifest, trial-file and per-output/trace digests; full run bytes retained locally in the verification directory. Recreate bytes with the documented SCRIPTED commands; this receipt is not a substitute for adapter artifact validation.",
+  "classification": "SCRIPTED_ENGINEERING_VERIFICATION",
+  "humanReviewedGold": 0,
+  "implementationCommit": "22c26edfbbd63cdbe18ae21f692bc8962ea29f2a",
+  "liveBaseline": "NOT_RUN",
+  "remainingFindings": {
+    "actorTemporalLegalProvenance": "PARTIAL_HUMAN_INTERPRETATION_NOT_CONFIRMED",
+    "candidateQuality": "OPEN_PROVISION_GROUNDED_REVISION_REQUIRED",
+    "officialVnHitlTransition": "OPEN",
+    "preparationActualOutput": "OPEN_NO_FROZEN_ARTIFACT",
+    "reviewAuthenticity": "NOT_AUTHENTICATED_BY_TOOL"
+  },
+  "reportVersion": "LCSP-400-SPLIT-VERIFICATION-V1",
+  "runs": [
+    {
+      "artifactValidationStatus": "VALIDATED",
+      "executionCohort": {
+        "executedCaseCount": 30,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 30,
+        "expectedTrialCount": 30,
+        "mappedCaseCount": 30,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 30,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "manifestSha256": "31eaee1dd69c0aa49a37aecb2ec9abcd79c7083a568a17e1253397df6632dce8",
+      "metricSummariesBySplitAndTrial": [
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 21,
+          "lifecycleStage": "INITIAL",
+          "scoringStatus": "NOT_SCORED",
+          "split": "DEV",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 8,
+          "lifecycleStage": "INITIAL",
+          "scoringStatus": "NOT_SCORED",
+          "split": "HOLDOUT",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 1,
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "scoringStatus": "NOT_SCORED",
+          "split": "DEV",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 0,
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "scoringStatus": "NOT_SCORED",
+          "split": "HOLDOUT",
+          "trialIndex": 0
+        }
+      ],
+      "reviewAuthenticityStatus": "NOT_AUTHENTICATED_BY_TOOL",
+      "reviewedGoldDenominator": 0,
+      "scoringStatus": "NOT_SCORED",
+      "split": "ALL",
+      "splitInventory": {
+        "canonicalDatasetSha256": "b2581daee6a82a222fd1baf543b7d80d888ac52103a938f7e6700fc32e117685",
+        "caseCounts": {
+          "DEV": 44,
+          "HOLDOUT": 16
+        },
+        "currentP14CaseMembership": {
+          "archive-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "archive-VN-AI-MEDIA-MARK": "DEV",
+          "archive-VN-AI-RISK-VERSION": "DEV",
+          "assist-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "assist-VN-AI-MEDIA-MARK": "DEV",
+          "assist-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "assist-VN-AI-RISK-VERSION": "DEV",
+          "bulletin-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "bulletin-VN-AI-MEDIA-MARK": "DEV",
+          "bulletin-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "bulletin-VN-AI-RISK-VERSION": "DEV",
+          "capture-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "capture-VN-AI-MEDIA-MARK": "DEV",
+          "capture-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "capture-VN-AI-RISK-VERSION": "DEV",
+          "lattice-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "lattice-VN-AI-MEDIA-MARK": "DEV",
+          "lattice-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "lattice-VN-AI-RISK-VERSION": "DEV",
+          "prototype-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "prototype-VN-AI-MEDIA-MARK": "DEV",
+          "prototype-VN-AI-RISK-VERSION": "DEV",
+          "studio-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "studio-VN-AI-MEDIA-MARK": "DEV",
+          "studio-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "studio-VN-AI-RISK-VERSION": "DEV",
+          "workbench-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "workbench-VN-AI-MEDIA-MARK": "DEV",
+          "workbench-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "workbench-VN-AI-RISK-VERSION": "DEV"
+        },
+        "executionCaseCounts": {
+          "DEV": 22,
+          "HOLDOUT": 8
+        },
+        "executionDatasetSha256": "b2581daee6a82a222fd1baf543b7d80d888ac52103a938f7e6700fc32e117685",
+        "executionSplit": "ALL",
+        "generalizationClaim": "NOT_SUPPORTED_BY_SMALL_SHARED_SCRIPTED_COHORT",
+        "groupCounts": {
+          "DEV": 2,
+          "HOLDOUT": 1
+        },
+        "splitDigest": "b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851"
+      },
+      "traceBindings": [
+        {
+          "candidateCaseId": "vn-ai-archive-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "0f4874609ab116c4353d913392a0172d44bb50e383921cfe79cc9f12986d9020",
+          "p14CaseId": "archive-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "7d830239-0d8f-4266-999c-b05c08e4c8db",
+          "traceSha256": "9b89b8c19cfeab9428166d17f61acd4883399ebbd95731ea07d6b8686b7ba9e1",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-archive-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "443b83ab9b7583d599cc7fd73b1020a35072fe9b9897a4b76a4c430864f559c7",
+          "p14CaseId": "archive-VN-AI-MEDIA-MARK",
+          "threadId": "3ba90ad6-aba1-4397-95d2-d7b46f238858",
+          "traceSha256": "81902ac96ec90b9a83b1d2f1f76c1b53b20992ea3f9c62011e328d3cc5c12796",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-archive-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "dc36b0ca5b977ada3bdd8b4a93dc819c0882ab20118a20674a820ae3fa29ed6a",
+          "p14CaseId": "archive-VN-AI-RISK-VERSION",
+          "threadId": "0736a74d-d233-4e12-8526-e5f07ca4fca0",
+          "traceSha256": "a9ff887f42fc2d3cac949974fbcee2f4aa4204664ebb70be831b61fa28cb1288",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "8c099d5ae6a18608c2c9bd77e467aecdbed53b8e24a0184e0bb7c5733cfa2a6e",
+          "p14CaseId": "assist-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "78fb6097-e170-4bf1-86be-deba77543ac1",
+          "traceSha256": "958127c4b128541035cadc48ce5835837c6529e1eff740cd4f78f2979961cb75",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "73524294eee3ae5bef760ab42906f2239a9377e9c45065cd764ee90ab2d8027f",
+          "p14CaseId": "assist-VN-AI-MEDIA-MARK",
+          "threadId": "a96769b0-4c58-4920-ab9c-2512883fe0a5",
+          "traceSha256": "87684311c8e882d4c0819be04e864a25f414c4c26822968ee5a599d3bfea84af",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "502be53c9722bef70646198bee7f7afced835a76d40ac7ddcc9371c18170427e",
+          "p14CaseId": "assist-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "4a1c7de2-8738-4f31-8a61-80c29973a565",
+          "traceSha256": "20897422dfdb7f57d489682f472dc18e76ab91b9c7deacbcc3b7c62b3538faf2",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "7d8f87f6366fa47f1f9ed96dc4bb148ef05eae57a034df7530c9eef99a95f957",
+          "p14CaseId": "assist-VN-AI-RISK-VERSION",
+          "threadId": "d5b962e2-5e23-4369-a260-4963ce8d1fe1",
+          "traceSha256": "08a0b7aea56fa933795f624e388afbc1b9abbece1232ee8080852b1f9b8d447a",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "01a16de4e912e4bd1e3e19ef4f72cf51a90541127d987c6a2bc4b5239dc17a0d",
+          "p14CaseId": "bulletin-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "2c1658ac-13f6-48c1-b9be-96fd9535e91b",
+          "traceSha256": "d78eef3920b1d975427799a0b9cb997d76d4378e1f805bc6b4f4ef5a3a77b3cd",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "08b8155b921a8052f5a8cc91a4a78db9131e758b01ee5709fff3782d984cbb97",
+          "p14CaseId": "bulletin-VN-AI-MEDIA-MARK",
+          "threadId": "230ff38f-0c4a-44da-b68d-2681d2826abe",
+          "traceSha256": "3ff70c1aa114768b3fc5f15696f3a1341c9dee183e7298a6d4e0b2f33f398d8d",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "b58907ad42af69f72950cb6a614b30bea01af7b388956e6e7f77c3316ea2114c",
+          "p14CaseId": "bulletin-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "206b55c3-babd-419e-b4e1-6d8cfe7fdd48",
+          "traceSha256": "476fcb6c0c739945081ab13e3df97796944d99f0542ca8e4aae287025845778e",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "cfcd06f15694b25d70b22020e2ccc0a763c8c322782292074fe7677818564697",
+          "p14CaseId": "bulletin-VN-AI-RISK-VERSION",
+          "threadId": "c8f33bbe-5e22-4db5-8c52-d6e67828c4fb",
+          "traceSha256": "4592cb8258b5a0f0ef31b3920c2edf23afe4d60f10110889a4b37f3c2afd45a1",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "9d72689ec0bada245ca748615242aea252609d414e5cab9959f2578df69f7da3",
+          "p14CaseId": "capture-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "8e6984ce-c7e9-40f1-84d2-10388497ade9",
+          "traceSha256": "595b6898a108d58546c5f9b8feceb9f5e498858c37779fb04eadd4838037d0c7",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "6fc40c99ba5d44c1427c644c8cd8468dd2ad4f427e6267981d0c286ce707adbf",
+          "p14CaseId": "capture-VN-AI-MEDIA-MARK",
+          "threadId": "ff13017c-0efb-49b7-8a4b-ff3407dead03",
+          "traceSha256": "0a2ce4934f4dd01a2d466f4f1d4a09df5a26b966c1481707e350c9c916a6e0c8",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "3e409650a0e64b503a4704f3310e700f756bdef687e199701b21845e13012d2c",
+          "p14CaseId": "capture-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "dc380607-9427-403e-a5e3-7fd2ff7f6e19",
+          "traceSha256": "7c70ae3fc2126f25ffc612af36f82534fba7f686cf1d39a4a5199a23652592f0",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "ed7a0f7b0b823fa964466368eddd90573e7b74fa025c975425379a191341f994",
+          "p14CaseId": "capture-VN-AI-RISK-VERSION",
+          "threadId": "82ee83eb-ce23-4362-ad1d-95ca013e6f72",
+          "traceSha256": "d34b9b1740bba58534f12b77df70c22d4d23235b09e987216921b6a6d823721f",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "1b0e9ac388e4bce8005b9bacffce16c8e1187601212e206dec01a80fc270c4db",
+          "p14CaseId": "lattice-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "4495ad51-06e9-4e2d-8ea1-bea754926430",
+          "traceSha256": "5cc8175a401d65caf024baa2ccef9603cdd4f9348cb09929c4d2bc10f78ed62e",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "7a6f1ff06de69c90b5af20ce3bf4cd03132e87c925ea16066857ce10ae3f8d12",
+          "p14CaseId": "lattice-VN-AI-MEDIA-MARK",
+          "threadId": "bd8266bf-5d14-4bf4-97a0-bf9ed0af507c",
+          "traceSha256": "a2a71173a25217ad3a0dbdf2b1f7a90f30dbb68cd3b5dc7f32e107131828acb9",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "1b44872e1c2dbdc13a32afa192cfc5bba8bd17a05fdf3e8b38fccb0522b9cb43",
+          "p14CaseId": "lattice-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "33edebb6-5154-4fa1-a12d-eac6d3f64e34",
+          "traceSha256": "d9d7429c4fca05b4708743796bc7b9b560b1dcbb5123fb318ce7ac9ea0fd1f7a",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "e589fc1e5286660b7933698e0e1a56462e6b40db5bd1bd515422fa60b87ef646",
+          "p14CaseId": "lattice-VN-AI-RISK-VERSION",
+          "threadId": "190f38df-65ef-42bc-b025-ae7a1a503481",
+          "traceSha256": "8953bc5bb350fc87a8123c9ee9db43157a759757b79c5a1e480fb492fe16203d",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-prototype-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "11ad76e5c5dca2a0c4c08bd52721178098451fe9a2f26b0c5ef9de2108b11451",
+          "p14CaseId": "prototype-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "d363c1e1-4790-4b3e-9047-7124c8c21cdb",
+          "traceSha256": "192a58a3507437ab515c73304f0ff8834a4f97a46839f23e1458e7c5b07d1106",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-prototype-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "76f100bb4158f40443f100a00748bfa80695af08eeeab099b5ea8ca4cd487e21",
+          "p14CaseId": "prototype-VN-AI-MEDIA-MARK",
+          "threadId": "45b4b5da-751d-4680-9116-494e78a64153",
+          "traceSha256": "a2db7cf581e2785b3c2923f5b5830417d4582075de0e772c7468f6c77c330957",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-prototype-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "2099ea5db546aef10bfaa386bd186a7c26626ed6663955da93b9c6cffdc24b93",
+          "p14CaseId": "prototype-VN-AI-RISK-VERSION",
+          "threadId": "84df76d1-69f7-4e4e-b3be-e673ab1e5008",
+          "traceSha256": "603a08133ab49daba02c68b26ae1edd1b01b7c69407329ceb8868d4969552f2c",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "3e57fa4c7405c030d886b5d1b53de89c68e9d05588667bfa34aef08b127e38f8",
+          "p14CaseId": "studio-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "3a4d5b5c-dbb9-40e1-b98b-83ecce048d4e",
+          "traceSha256": "f6cfceceebd940d4882b98ab635872645fb646fe256c54cbde5329ba209afb15",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "ad5f49aee6d44df5c7f858ad4bc55ff5640bb196d798ae375f1950a98bb25dbc",
+          "p14CaseId": "studio-VN-AI-MEDIA-MARK",
+          "threadId": "ccd25888-74bf-433e-a623-b20941fbe6af",
+          "traceSha256": "c333403bc35f56bb7c17134f1c967034df7c92f1eddb92a5033461ea4b27bad4",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "6b8d382ca7d7f9d5b8ea46718eb334dbfb776cec69dcfd98eecfc0a2277d55bc",
+          "p14CaseId": "studio-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "2d31b49b-583d-45b3-9e8f-7c45025232bc",
+          "traceSha256": "dc9b8367c47695f2e394f8cf8e59741faad9f21b1c3a5c54cf16b0d812ec025f",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "bbef65d29507962e10aa658c5d5f9ee1236cc46411a2a5cc1eb1b736c0c7c270",
+          "p14CaseId": "studio-VN-AI-RISK-VERSION",
+          "threadId": "69174f56-aa5f-4355-9715-b01771084402",
+          "traceSha256": "58144340da2330d2335bc027611fd815114777b577e48f43c10b902735ed6e18",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "54d73976bf0ad904c46f1964f4fca52d9b4b8be5f2d9887a4da97e9f5672d192",
+          "p14CaseId": "workbench-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "18b27563-0d1e-410d-a594-e57c92451020",
+          "traceSha256": "83c69fe06a78e6c9b0ff5092f38cb00de6a8c5b37088baca685df304552deaef",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "observedOutputSha256": "7dea4dcbf9a9a180728555146ae277b262f2e5640a4c8788c5bf23778099ce9d",
+          "p14CaseId": "workbench-VN-AI-MEDIA-MARK",
+          "threadId": "a7cb442b-7ca8-4393-8c51-03ddec283e41",
+          "traceSha256": "1acbfe0e5f40afd1f9b0052c6ce007d2af3d194b407234c43b91df8be74a297b",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "7d5f6aaa9052d47a36e0c93d75e6c025a2803a37c46a619971660e2f04524ef7",
+          "p14CaseId": "workbench-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "a6208991-2fb1-4872-b54a-cad3abe9c182",
+          "traceSha256": "142c3905455387f6b563920f805b02a223e4a4307028f2f5b9bf3e4e55cc93dc",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "9f63f804dadd59160ce3769f48d1700b5d74d3a26d18e5098e16f4aeb56754bf",
+          "p14CaseId": "workbench-VN-AI-RISK-VERSION",
+          "threadId": "bc3fc9b9-dbd2-460b-85e4-036e5168a8d1",
+          "traceSha256": "30962d2952b64d413072a09c01c58dfa0f2d3c0fc981176498f6e79ec56c8c17",
+          "trialIndex": 0
+        }
+      ],
+      "trialsFileSha256": "1229da190dc2078959f8600bf909c945cdcc87dbb176dbe86b74453fc1f5f3d9",
+      "verifiedSemanticMetrics": false
+    },
+    {
+      "artifactValidationStatus": "VALIDATED",
+      "executionCohort": {
+        "executedCaseCount": 22,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 22,
+        "expectedTrialCount": 22,
+        "mappedCaseCount": 22,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 22,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "manifestSha256": "bc239c4bcde094a8430c26784ae49c50b39590d76de30116abdbea750ce376ce",
+      "metricSummariesBySplitAndTrial": [
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 21,
+          "lifecycleStage": "INITIAL",
+          "scoringStatus": "NOT_SCORED",
+          "split": "DEV",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 0,
+          "lifecycleStage": "INITIAL",
+          "scoringStatus": "NOT_SCORED",
+          "split": "HOLDOUT",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 1,
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "scoringStatus": "NOT_SCORED",
+          "split": "DEV",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 0,
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "scoringStatus": "NOT_SCORED",
+          "split": "HOLDOUT",
+          "trialIndex": 0
+        }
+      ],
+      "reviewAuthenticityStatus": "NOT_AUTHENTICATED_BY_TOOL",
+      "reviewedGoldDenominator": 0,
+      "scoringStatus": "NOT_SCORED",
+      "split": "DEV",
+      "splitInventory": {
+        "canonicalDatasetSha256": "b2581daee6a82a222fd1baf543b7d80d888ac52103a938f7e6700fc32e117685",
+        "caseCounts": {
+          "DEV": 44,
+          "HOLDOUT": 16
+        },
+        "currentP14CaseMembership": {
+          "archive-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "archive-VN-AI-MEDIA-MARK": "DEV",
+          "archive-VN-AI-RISK-VERSION": "DEV",
+          "assist-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "assist-VN-AI-MEDIA-MARK": "DEV",
+          "assist-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "assist-VN-AI-RISK-VERSION": "DEV",
+          "bulletin-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "bulletin-VN-AI-MEDIA-MARK": "DEV",
+          "bulletin-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "bulletin-VN-AI-RISK-VERSION": "DEV",
+          "capture-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "capture-VN-AI-MEDIA-MARK": "DEV",
+          "capture-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "capture-VN-AI-RISK-VERSION": "DEV",
+          "lattice-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "lattice-VN-AI-MEDIA-MARK": "DEV",
+          "lattice-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "lattice-VN-AI-RISK-VERSION": "DEV",
+          "prototype-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "prototype-VN-AI-MEDIA-MARK": "DEV",
+          "prototype-VN-AI-RISK-VERSION": "DEV",
+          "studio-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "studio-VN-AI-MEDIA-MARK": "DEV",
+          "studio-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "studio-VN-AI-RISK-VERSION": "DEV",
+          "workbench-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "workbench-VN-AI-MEDIA-MARK": "DEV",
+          "workbench-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "workbench-VN-AI-RISK-VERSION": "DEV"
+        },
+        "executionCaseCounts": {
+          "DEV": 22
+        },
+        "executionDatasetSha256": "761393814bb95a5b6b49d4fdbfc610e1150d8b519f612d160a33517fe2d74714",
+        "executionSplit": "DEV",
+        "generalizationClaim": "NOT_SUPPORTED_BY_SMALL_SHARED_SCRIPTED_COHORT",
+        "groupCounts": {
+          "DEV": 2,
+          "HOLDOUT": 1
+        },
+        "splitDigest": "b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851"
+      },
+      "traceBindings": [
+        {
+          "candidateCaseId": "vn-ai-archive-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "c682ce0c3db545a342c190ab959421518754788cf878ef995b81043adcccbf72",
+          "p14CaseId": "archive-VN-AI-MEDIA-MARK",
+          "threadId": "35d9ccda-f2af-4382-8de1-ca2aaa5d3b1b",
+          "traceSha256": "1cfcc7315b29a04bfba77243fb058c269a570c92cb0a528e617fa6d9d7d0dd46",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-archive-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "059332d494e5e749bdefea866f7e304f4c4958de3e52df975ba22d60b036d46b",
+          "p14CaseId": "archive-VN-AI-RISK-VERSION",
+          "threadId": "c4b0804c-7bde-4461-b388-b2ecf1d2b8c6",
+          "traceSha256": "92d9d4cc4f699fe3878d883cd636b6b4510359afc0b79149f1888fedb446be01",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "34b0aa299a7ca58558515a89b7c156f7d8fec97089f1ac1a353d57a2c831be0b",
+          "p14CaseId": "assist-VN-AI-MEDIA-MARK",
+          "threadId": "975c88cf-fa45-4c2f-9d4d-d46bb4466301",
+          "traceSha256": "5cfdee8ed983963aabafd9e368dcc83d75fb0faaff7dd02524f53491e9f7a0e7",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "c67d7f7396e826a57d89e551940b23be42ee673296f81e4d377077b1c5036025",
+          "p14CaseId": "assist-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "1c6b6b0e-1842-4a1b-b2d8-23042b93f901",
+          "traceSha256": "5455de5dd6538a484e1fefd2d6fbda83668e031ab77ce1077dd926a2661736b3",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "56998895585b85d873ae501e426b7b11c93bdf88e9315024dd88eaf80fb5ed75",
+          "p14CaseId": "assist-VN-AI-RISK-VERSION",
+          "threadId": "a30f79e4-782c-4e22-ba6c-67d5aafdad8f",
+          "traceSha256": "cf2f0ce83ce24d99ef04d0fa8f9de41f6a1cd0ce17a955a2e426569de3ed4717",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "2ba9e51b30774397c16eefe1ad607b8ac26f8fbe86243b5e95be5ae00657845a",
+          "p14CaseId": "bulletin-VN-AI-MEDIA-MARK",
+          "threadId": "3adad895-4204-41d0-b74c-742995b0088c",
+          "traceSha256": "cd4537f6207f68a7f26f9c5c3f500f883774662c75a599833b8bed434b368234",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "09aa59dfe093f5dc8d1fbb79573796294f27ada0a85e500b2d2c96df0a3af78a",
+          "p14CaseId": "bulletin-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "4fdcc808-76f9-4a62-875a-f381c820729d",
+          "traceSha256": "1ea10963299f516aab211b4a29fd96806b267633b377e4b384d6f018b1d45cee",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "b7487121b36997bc96ccac66b887f462c1d1511537a866f4dd76a62e718627ed",
+          "p14CaseId": "bulletin-VN-AI-RISK-VERSION",
+          "threadId": "6974b964-b8fe-45f6-b1c2-97f2c5204c56",
+          "traceSha256": "a7973a1ef73f087b79314c137d8c1a60aa1c7cc4692ad3d7a4b0a9ab62f07c00",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "de1a33c59c1ad3b12fde680815840c070d6858d137c6386ac78922938ec1414a",
+          "p14CaseId": "capture-VN-AI-MEDIA-MARK",
+          "threadId": "613e9161-58e1-443f-a0cb-5667e21009df",
+          "traceSha256": "9cf0c9a91dd410f5ef5522607c472ad84f9b4f3002a2c0d75523e27ac0bf5db4",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "bcb1f6e800a9594af7d183c20b36da32ab11acab92e6baaddd68c10de407865b",
+          "p14CaseId": "capture-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "0577a09b-6c71-48cb-81b8-70538d4c0c85",
+          "traceSha256": "9675d6611e3f9b5599fd0cd01923dadb8a8800bbcac2160438b6b7399da4e68c",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "e7c0474c90605b9257bc0c47e0000f80c2b95ba05bd3bd4e7f392800579cc196",
+          "p14CaseId": "capture-VN-AI-RISK-VERSION",
+          "threadId": "c3d89f2c-c962-4253-80ab-3a7a7ce23918",
+          "traceSha256": "40713144df54b78ccd8aa9f47768917fb42606d054e0a19674c7a657c8299171",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "914f0b47820cbbbb106bcc018996a763307c66abc80bc9e10cdcd2528d452b68",
+          "p14CaseId": "lattice-VN-AI-MEDIA-MARK",
+          "threadId": "6fde4d48-4992-4126-a58b-75fd351bebd5",
+          "traceSha256": "ab4dd53de50a00aa8e37be92241ae1f7f1f8de4836838e3306668e8e10b615cb",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "cbe68bd1e01829520bd1896a9a04e9b36b0c4a8f3a76783bd4f20c691f115efa",
+          "p14CaseId": "lattice-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "95075f98-fbb9-4967-ac37-616f34dce59b",
+          "traceSha256": "4d594445ae90a13d0ca1a5938da06d51849be4a5de2fcc3771fd596357d414d1",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "d46fe327a0af1d200c5fbb50a15489b4418b7ec39fe4c859a3558504a407af5b",
+          "p14CaseId": "lattice-VN-AI-RISK-VERSION",
+          "threadId": "901e33bf-8296-44d6-8a66-a213a078f548",
+          "traceSha256": "edda86212a4666a646155d425bd8b49f6132385929efcc049168dc34935dda1b",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-prototype-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "22327d6fea8407c7d12ccfce99b4244bdd15c09fddaa960deb80afaa4b72aae8",
+          "p14CaseId": "prototype-VN-AI-MEDIA-MARK",
+          "threadId": "c3f1d056-a62e-4c60-8cd1-c6bfe7decb3b",
+          "traceSha256": "0c1237989a5ae001fafc93ae26bc6643a09516751a7c0ffbec57128ad7af6697",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-prototype-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "61faf1c837d9471297673b27c7ae80b4672d5012ffdc8934f28bd31ad815eb52",
+          "p14CaseId": "prototype-VN-AI-RISK-VERSION",
+          "threadId": "f7112a19-6b57-460c-902a-b0c020310a78",
+          "traceSha256": "36c45c33af37c66eff838c1ffee4c8d628bab01d4e166b7db8269b92dbb2923a",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "2a8f5249677bdc69391f56f178bb5775f9fcf846ce175ecf283f79cac87473a1",
+          "p14CaseId": "studio-VN-AI-MEDIA-MARK",
+          "threadId": "402f7b48-2a6f-40ba-939a-369d7a1fbb24",
+          "traceSha256": "6f5457628502d72581c8d3abf901269d3bbf74b16786a711d52d1b31f2534989",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "f8668f7d7c935234239a3425207561b4803d5b709a74228eff88c413ad7d5113",
+          "p14CaseId": "studio-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "574902b9-a7f6-450d-ad21-60a901eb346e",
+          "traceSha256": "37603db31ef14b54127b37ea8f626426ac49e879c203b9a316a50945e84f1251",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "deb14b3e32dae7008339e5e45112060f36c2f2308b13017f2176668b9d459e66",
+          "p14CaseId": "studio-VN-AI-RISK-VERSION",
+          "threadId": "e7c497e0-3996-40ab-ac9f-6a5e381f166b",
+          "traceSha256": "bf89afc2c55d7a87100f70622e9e346f43d1c481b35d7ae4b4089887297e2dab",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-media-mark",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "observedOutputSha256": "288bdd0897e84cd394d07b5354fde4ba3e84c11a1316de6c9bf8297b90927473",
+          "p14CaseId": "workbench-VN-AI-MEDIA-MARK",
+          "threadId": "b66fe208-5594-4fa2-9e7e-570121e165ec",
+          "traceSha256": "6765868985bc1302c16c87c33259bbdb5d5b2950cbca4bf357be4915ee0e6fdc",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-open-mark-enablement",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "3609ba15a1b2f2fccf5015cc5235376ddf9497d3988c1e59e78319138e411ccf",
+          "p14CaseId": "workbench-VN-AI-OPEN-MARK-ENABLEMENT",
+          "threadId": "31e2fc5f-4770-4a70-99f7-bcb4a1ff1d24",
+          "traceSha256": "df597b7992be7733c6273a85368fdb0e5f6f194bc572b39ea8aec94d67aaa8f8",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-risk-version",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "0270227758174caa1cdef7280f3ff8b0a54e4ddce81fe7a064ae11be5b2aceb9",
+          "p14CaseId": "workbench-VN-AI-RISK-VERSION",
+          "threadId": "006801fd-c844-4571-90d3-c5ac0fe45bfa",
+          "traceSha256": "5a587b7d3e237acc5c1e92e84ca57d3f6d011f4fc9d0f16e9b3d786586f899f5",
+          "trialIndex": 0
+        }
+      ],
+      "trialsFileSha256": "91229e19da6614ac9058d73c355f53545e045246db3b6b4979da0e030dfa4851",
+      "verifiedSemanticMetrics": false
+    },
+    {
+      "artifactValidationStatus": "VALIDATED",
+      "executionCohort": {
+        "executedCaseCount": 8,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 8,
+        "expectedTrialCount": 8,
+        "mappedCaseCount": 8,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 8,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "manifestSha256": "1227bd6ba66215c9b14c8ffbfe646e892b58cedac9eaf93eaf22aed9bbef11a3",
+      "metricSummariesBySplitAndTrial": [
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 0,
+          "lifecycleStage": "INITIAL",
+          "scoringStatus": "NOT_SCORED",
+          "split": "DEV",
+          "trialIndex": 0
+        },
+        {
+          "dimensions": {
+            "ACTOR": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "APPLICABILITY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "COMPLIANCE": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "CONDITIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EVIDENCE_SUFFICIENCY": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "EXCEPTIONS": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            },
+            "UNSUPPORTED_CONCLUSION": {
+              "denominator": 0,
+              "invalidPredictionCount": 0,
+              "macroF1": null,
+              "missingPredictionCount": 0,
+              "status": "NOT_SCORED"
+            }
+          },
+          "executionCaseCount": 8,
+          "lifecycleStage": "INITIAL",
+          "scoringStatus": "NOT_SCORED",
+          "split": "HOLDOUT",
+          "trialIndex": 0
+        }
+      ],
+      "reviewAuthenticityStatus": "NOT_AUTHENTICATED_BY_TOOL",
+      "reviewedGoldDenominator": 0,
+      "scoringStatus": "NOT_SCORED",
+      "split": "HOLDOUT",
+      "splitInventory": {
+        "canonicalDatasetSha256": "b2581daee6a82a222fd1baf543b7d80d888ac52103a938f7e6700fc32e117685",
+        "caseCounts": {
+          "DEV": 44,
+          "HOLDOUT": 16
+        },
+        "currentP14CaseMembership": {
+          "archive-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "archive-VN-AI-MEDIA-MARK": "DEV",
+          "archive-VN-AI-RISK-VERSION": "DEV",
+          "assist-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "assist-VN-AI-MEDIA-MARK": "DEV",
+          "assist-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "assist-VN-AI-RISK-VERSION": "DEV",
+          "bulletin-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "bulletin-VN-AI-MEDIA-MARK": "DEV",
+          "bulletin-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "bulletin-VN-AI-RISK-VERSION": "DEV",
+          "capture-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "capture-VN-AI-MEDIA-MARK": "DEV",
+          "capture-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "capture-VN-AI-RISK-VERSION": "DEV",
+          "lattice-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "lattice-VN-AI-MEDIA-MARK": "DEV",
+          "lattice-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "lattice-VN-AI-RISK-VERSION": "DEV",
+          "prototype-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "prototype-VN-AI-MEDIA-MARK": "DEV",
+          "prototype-VN-AI-RISK-VERSION": "DEV",
+          "studio-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "studio-VN-AI-MEDIA-MARK": "DEV",
+          "studio-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "studio-VN-AI-RISK-VERSION": "DEV",
+          "workbench-VN-AI-INTERACTION-DISCLOSURE": "HOLDOUT",
+          "workbench-VN-AI-MEDIA-MARK": "DEV",
+          "workbench-VN-AI-OPEN-MARK-ENABLEMENT": "DEV",
+          "workbench-VN-AI-RISK-VERSION": "DEV"
+        },
+        "executionCaseCounts": {
+          "HOLDOUT": 8
+        },
+        "executionDatasetSha256": "14b822f691cffb73731c0a7816d90f104a0d7c2fef925a7b18290cd51ec036bd",
+        "executionSplit": "HOLDOUT",
+        "generalizationClaim": "NOT_SUPPORTED_BY_SMALL_SHARED_SCRIPTED_COHORT",
+        "groupCounts": {
+          "DEV": 2,
+          "HOLDOUT": 1
+        },
+        "splitDigest": "b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851"
+      },
+      "traceBindings": [
+        {
+          "candidateCaseId": "vn-ai-archive-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "e916b84c5db1401b8e665a8a69baea8dc7bc367f39493e2ab626aa77049d5bc4",
+          "p14CaseId": "archive-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "b635479d-46df-4a0d-a24a-4f415ec87f50",
+          "traceSha256": "6d6a9b93f14ee2f6b97bdfe5c90193b6363cfa7657bdd426ca7b9cf1f64d5332",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-assist-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "7bd53a1ed2294045bc28bac0e3bd77beccd7869f7c64e74e92e2512d9d9fe405",
+          "p14CaseId": "assist-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "6927943e-2946-4c7b-b156-9a25558344c8",
+          "traceSha256": "3a2b6d41c46fa9a8d1812685447b04a3b10065f152e7d719c536ed4e5fa136da",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-bulletin-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "ea9badcd06997e180553113b7659b245a25a407d6124eadd3a91ecd728055c76",
+          "p14CaseId": "bulletin-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "c54c270e-a670-4069-babd-0f566b0909a8",
+          "traceSha256": "8f25d42e6fb606596e09eaaba39c54c28a3db62f85b33dc700afb8fce5d79ba3",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-capture-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "86c8c89e6b008e4a33dd350c71149e4ec758a8aff1a79300849f4a6e2ae0ca7b",
+          "p14CaseId": "capture-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "bc94dac9-faef-447f-81ec-529ecd637699",
+          "traceSha256": "bedd9bd66023f71ab9eb2d334fa86478a3db4d1d36024f99df9aa87c6750fee1",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-lattice-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "bd5bedaaaa1afc1b874e1ffffdc38363cb75f88cd07160d6670a13daf1b11ce2",
+          "p14CaseId": "lattice-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "3068cfda-8e32-46cf-b817-446ca55b6509",
+          "traceSha256": "6788cd3970aadac4b26eb2420ef7696e58244638dde69fb93dc4d4e68565c2ea",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-prototype-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "42084a16046d3e901b5501523a8527fb3f731845c1650b5d1056fa9f10b27086",
+          "p14CaseId": "prototype-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "091b888c-fc91-4019-8f92-c4ffd54b2593",
+          "traceSha256": "69b24dda3caec2409ec11d1a4fd89d0338f6b8f8389c226f903eaead36e77684",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-studio-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "c0d3d6eac08165c84f26faf61f23e15e3b6ce86061d3a5ca80fc8ac1879ea5fc",
+          "p14CaseId": "studio-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "b40551b8-83f1-4bd6-937b-97380a476225",
+          "traceSha256": "d6ce018752412f0b010961b422154c7086104b8a1d9c8768059bb07d1a94f9d1",
+          "trialIndex": 0
+        },
+        {
+          "candidateCaseId": "vn-ai-workbench-vn-ai-interaction-disclosure",
+          "evaluationStage": "ASSESSMENT_ROOT",
+          "lifecycleStage": "INITIAL",
+          "observedOutputSha256": "3538f304701fd4d6bc16e8c47c0e7afd3d668adfa2031905ae29fb682865e142",
+          "p14CaseId": "workbench-VN-AI-INTERACTION-DISCLOSURE",
+          "threadId": "7a328cd2-9cbf-45ac-9802-186b0afddb92",
+          "traceSha256": "f7fdea50a35bd61ffaae693b7abfd68894bc3b5fedbc2bf687ed949548d28b2f",
+          "trialIndex": 0
+        }
+      ],
+      "trialsFileSha256": "1203e8209bae320223af6d76f6d365aa11f06681dab58b2f12b6820208e78ad9",
+      "verifiedSemanticMetrics": false
+    }
+  ]
+}

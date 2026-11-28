@@ -140,3 +140,7 @@ Artifact validation, execution mode, structurally eligible labels, reviewer auth
 | Metric provenance | Corrected as above; authentic human review and an authorized actual baseline remain external dependencies. |
 
 AC1–AC3 remain partial. Keep LCSP-400 In Progress and request no blanket closure of these findings. The split fix does not complete the remaining implementation or research requirements. No live or paid model call or genuine human review was performed.
+
+Verification at implementation commit `22c26edfbbd63cdbe18ae21f692bc8962ea29f2a`: the real SCRIPTED runner and adapter validated ALL 30, DEV 22 and HOLDOUT 8 cases, with zero missing outputs or unexecuted targets in each intended cohort. The compact receipt is [`reports/r5/split-verification.v1.json`](../../deepagents/evals/legal_reasoning/reports/r5/split-verification.v1.json). It records manifest/trial-file/trace/output digests and per-split zero-reviewed-denominator results. Full run artifacts were retained in the local temporary verification directory; reproduce them with the commands above before artifact validation elsewhere. The receipt alone does not prove execution provenance.
+
+Regression: LCSP-400 focused tests 56 passed; P14 benchmark/manifest tests 16 passed; positive structurally reviewed SCRIPTED scoring test 1 passed (simulated reviews only). Scoped Ruff/format, Python compilation, documentation checker and its 5 tests, and `git diff --check` passed. No legal performance metric is reported.
