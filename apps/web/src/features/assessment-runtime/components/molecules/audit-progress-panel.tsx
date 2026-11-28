@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { LoaderCircleIcon, RotateCcwIcon } from "lucide-react";
 import { RULE_AUDIT_PROGRESS_STATES } from "@lcsp/contracts/assessment-domain";
 
@@ -32,11 +33,15 @@ export interface AuditProgressItem {
 export function AuditProgressPanel({
   items,
   retrying = false,
+  paused = false,
+  runtimeControls,
   onViewResult,
   onRetryRule,
 }: {
   items: readonly AuditProgressItem[];
   retrying?: boolean;
+  paused?: boolean;
+  runtimeControls?: ReactNode;
   onViewResult?: (decisionId: string) => void;
   onRetryRule?: (assessmentRuleId: string) => void;
 }) {
@@ -45,11 +50,13 @@ export function AuditProgressPanel({
   const readyCount = items.filter(
     (item) => item.progress === RULE_AUDIT_PROGRESS_STATES.RESULT_READY,
   ).length;
-  const hasRunning = items.some(
-    (item) =>
-      item.progress === RULE_AUDIT_PROGRESS_STATES.QUEUED ||
-      item.progress === RULE_AUDIT_PROGRESS_STATES.INVESTIGATING,
-  );
+  const hasRunning =
+    !paused &&
+    items.some(
+      (item) =>
+        item.progress === RULE_AUDIT_PROGRESS_STATES.QUEUED ||
+        item.progress === RULE_AUDIT_PROGRESS_STATES.INVESTIGATING,
+    );
 
   const summary = resolveAppMessage(
     "pages.assessmentWorkspace.selectedAudit.resultsReadySummary",
@@ -79,9 +86,20 @@ export function AuditProgressPanel({
             )}
           </h3>
         </div>
-        <span className="text-xs font-medium text-muted-foreground">
-          {summary}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {paused ? (
+            <Badge
+              variant="outline"
+              className="border-status-warning-border bg-status-warning-bg text-status-warning"
+            >
+              {copy("state.PAUSED")}
+            </Badge>
+          ) : null}
+          <span className="text-xs font-medium text-muted-foreground">
+            {summary}
+          </span>
+          {runtimeControls}
+        </div>
       </div>
 
       <ul className="mt-3 divide-y divide-border">

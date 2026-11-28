@@ -22,6 +22,7 @@ import {
 import { copy } from "../../utils/conversation-copy";
 import { customerAssessmentState } from "../../utils/customer-assessment-state";
 import { AssessmentInteractionBar } from "../molecules/assessment-interaction-bar";
+import { AssessmentRuntimeControls } from "../molecules/assessment-runtime-controls";
 import { EvidenceInspector } from "../molecules/evidence-inspector";
 import { SourceVersionSummary } from "../molecules/source-version-summary";
 import { AssessmentConversation } from "./assessment-conversation";
@@ -172,6 +173,26 @@ export function AssessmentChatView({
   const legalSourceVersion =
     assessment.case?.ruleSet?.legalSourceVersion ?? null;
 
+  const runtimeControls = (
+    <AssessmentRuntimeControls
+      assessmentId={assessmentId}
+      lifecycleState={assessment.lifecycle.state}
+      executionState={assessment.runtime.executionState}
+      customerState={state}
+      auditMode={assessment.case?.auditMode}
+      targetRunId={assessment.runtime.currentExecutionId}
+      hasOpenHumanRequest={
+        state === CUSTOMER_ASSESSMENT_STATES.WAITING || Boolean(openRequest)
+      }
+      compact
+      onReconcile={() => {
+        void detail.refetch();
+        void requests.refetch();
+        void events.refetch();
+      }}
+    />
+  );
+
   return (
     <main
       className="flex h-full min-h-0 flex-col"
@@ -207,6 +228,7 @@ export function AssessmentChatView({
         onAuditSelectedRules={() =>
           setActiveTab(ASSESSMENT_WORKSPACE_TABS.requests)
         }
+        runtimeControls={runtimeControls}
         interactionBar={
           <AssessmentInteractionBar
             assessment={assessment}
@@ -265,7 +287,13 @@ export function AssessmentChatView({
         ) : (
           <AssessmentConversation
             projection={projection}
-            intro={<RuleAuditPicker assessmentId={assessmentId} />}
+            intro={
+              <RuleAuditPicker
+                assessmentId={assessmentId}
+                paused={state === CUSTOMER_ASSESSMENT_STATES.PAUSED}
+                runtimeControls={runtimeControls}
+              />
+            }
             targetRequestId={targetRequestId}
             answerPending={answer.pending}
             answerFailed={answer.failed}

@@ -7,8 +7,24 @@ import {
 } from "../types/structured-answer.types";
 
 /**
- * Chooses the control from the request itself. A choice control without choices cannot be
- * answered, so it falls back to free text; an unknown control type is free text too.
+ * Business purpose:
+ * Map a human resolution request's controlType and choices to the canonical UI answer mode.
+ *
+ * Business rules:
+ * - `SINGLE_SELECT` with choices renders single-select radio/select; without choices falls back to free text.
+ * - `BOOLEAN` renders explicit Yes/No boolean radio cards (defaulting to true/false when choices are omitted).
+ * - `MULTI_SELECT` with choices renders multi-select checkboxes; without choices falls back to free text.
+ * - Unknown or `FREE_TEXT` types render the free-text composer.
+ *
+ * Execution flow:
+ * 1. Inspect `request.controlType` and `request.choices.length`.
+ * 2. Return the matching `StructuredAnswerMode`.
+ *
+ * Failure cases:
+ * - Empty choices on select modes safely fall back to `TEXT` instead of rendering an unanswerable control.
+ *
+ * Side effects:
+ * - Pure mapping function.
  */
 export function structuredAnswerMode(
   request: AnswerableRequest,
@@ -16,10 +32,11 @@ export function structuredAnswerMode(
   const hasChoices = request.choices.length > 0;
   switch (request.controlType) {
     case HUMAN_RESOLUTION_CONTROL_TYPES.SINGLE_SELECT:
-    case ANSWER_CONTROL_TYPES.BOOLEAN:
       return hasChoices
         ? STRUCTURED_ANSWER_MODES.CHOICE
         : STRUCTURED_ANSWER_MODES.TEXT;
+    case ANSWER_CONTROL_TYPES.BOOLEAN:
+      return STRUCTURED_ANSWER_MODES.BOOLEAN;
     case ANSWER_CONTROL_TYPES.MULTI_SELECT:
       return hasChoices
         ? STRUCTURED_ANSWER_MODES.MULTI_CHOICE
