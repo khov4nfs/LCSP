@@ -320,6 +320,37 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
         (PACKAGE_ROOT / "source-pins.vn-ai.v1.json").read_text(encoding="utf-8")
     )
     source = pins["sources"][0]
+    from evals.policy_baseline import _load_legal_context
+
+    context, _ = _load_legal_context()
+    ref = next(iter(source["provisions"]))
+    article_number = ref.removeprefix("article-")
+    original = context[f"decree-{article_number}"]
+    claim = output["semanticGraph"]["claims"][0]
+    claim["sourceNodeIds"] = ["a" * 64]
+    source_graph = {
+        "legalSourceVersionId": source["sourceVersion"],
+        "nodes": [
+            {
+                "nodeId": "b" * 64,
+                "parentNodeId": None,
+                "documentId": source["documentNumber"],
+                "nodeType": "ARTICLE",
+                "label": article_number,
+                "content": original.content,
+            },
+            {
+                "nodeId": "a" * 64,
+                "parentNodeId": "b" * 64,
+                "documentId": source["documentNumber"],
+                "nodeType": "CLAUSE",
+                "label": "1",
+                "content": original.content[:80],
+            },
+        ],
+    }
+    source_graph_path = tmp_path / "source-graph.json"
+    source_graph_path.write_text(json.dumps(source_graph), encoding="utf-8")
     source_version = source["sourceVersion"]
     gold["goldApprovalStatus"] = "HUMAN_APPROVED"  # simulated contract marker only
     gold["legalSourceVersionId"] = source_version
@@ -328,6 +359,7 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
         legalSourceVersionId=source_version,
         legalCorpusDigestSha256=pins["officialCorpus"]["corpusDigestSha256"],
         legalSourceDocumentSha256=source["pdfSha256"],
+        sourceGraphSha256=sha256(source_graph_path.read_bytes()).hexdigest(),
     )
     manifest["instructionBundle"] = {"enRuntimeBundleDigest": "c" * 64}
     manifest["manifestSha256"] = stable_hash(
@@ -339,7 +371,6 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
         for r in load_dataset(PACKAGE_ROOT / "candidate-cases.v1.jsonl")
         if r["evaluationTarget"] == "RULE_SET_PREPARATION_OUTPUT"
     )
-    ref = next(iter(source["provisions"]))
     row["legalSource"] = {
         "sourceId": source["sourceId"],
         "sourceVersion": source_version,
@@ -347,7 +378,6 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
         "provisionRefs": [ref],
         "citations": [source["provisions"][ref]["citation"]],
     }
-    claim = output["semanticGraph"]["claims"][0]
     paths = {
         name: tmp_path / (name + ".json")
         for name in ("output", "manifest", "gold", "judgments")
@@ -396,6 +426,7 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
         "annotations_path": annotations,
         "judgments_path": paths["judgments"],
         "rubric_path": PACKAGE_ROOT / "rubric.v1.json",
+        "source_graph_path": source_graph_path,
     }
     report = integrate_preparation_artifacts(**args)
     assert report["blockingReasons"] == []
@@ -408,6 +439,39 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
     with pytest.raises(
         ValueError, match="PREPARATION_P15_OUTPUT_CLAIM_BINDING_MISMATCH"
     ):
+        integrate_preparation_artifacts(**args)
+
+    judgments["casePredictions"][0]["targetBinding"]["claimSha256"] = stable_hash(claim)
+    source_graph["nodes"][1]["parentNodeId"] = "c" * 64
+    source_graph["nodes"].append(
+        {
+            "nodeId": "c" * 64,
+            "parentNodeId": None,
+            "documentId": source["documentNumber"],
+            "nodeType": "ARTICLE",
+            "label": "17",
+            "content": context["decree-17"].content,
+        }
+    )
+    source_graph_path.write_text(json.dumps(source_graph), encoding="utf-8")
+    manifest["sourcePins"]["sourceGraphSha256"] = sha256(
+        source_graph_path.read_bytes()
+    ).hexdigest()
+    manifest["manifestSha256"] = stable_hash(
+        {k: v for k, v in manifest.items() if k != "manifestSha256"}
+    )
+    output["promptManifestSha256"] = manifest["manifestSha256"]
+    paths["manifest"].write_text(json.dumps(manifest), encoding="utf-8")
+    paths["output"].write_text(json.dumps(output), encoding="utf-8")
+    judgments["casePredictions"][0]["targetBinding"]["manifestSha256"] = manifest[
+        "manifestSha256"
+    ]
+    judgments["casePredictions"][0]["targetBinding"]["outputSha256"] = sha256(
+        paths["output"].read_bytes()
+    ).hexdigest()
+    paths["judgments"].write_text(json.dumps(judgments), encoding="utf-8")
+    args["expected_output_sha256"] = sha256(paths["output"].read_bytes()).hexdigest()
+    with pytest.raises(ValueError, match="PREPARATION_P15_CLAIM_PROVISION_MISMATCH"):
         integrate_preparation_artifacts(**args)
 
 

@@ -48,14 +48,14 @@ uv run python -m evals.cli legal-score --manifest "$work/lcsp400-official-hitl/m
 
 `evals.legal_reasoning.preparation_adapter` accepts a frozen LCSP-402 output and manifest, an externally pinned output digest, independently approved LCSP-402 gold and its external digest, P15 Preparation annotations/rubric and exact output-bound human judgments. It reuses LCSP-402 `reviewed_eval_preflight` for existing artifact provenance and P15 `score_dataset()` for stage-specific metrics. It does **not** invoke the legacy development-scope classifier or use generated output as gold. Legacy manifest/gold metadata is a compatibility contract, not a selectable business mode.
 
-Exact manifest/output/claim/source/provision/instruction/skill bindings are required. The manifest must bind the official corpus and document PDF hash. Source-version correspondence must be explicit; an internal version ID cannot silently stand for a different official source pin. An unavailable mapping needs separately reviewed correspondence. Structural provenance never authenticates reviewers or proves actual model execution.
+Exact manifest/output/claim/source/provision/instruction/skill bindings are required. Supply the frozen Preparation source graph with `--source-graph`; its byte digest must be recorded as `sourcePins.sourceGraphSha256` in the run manifest. Each claim's `sourceNodeIds` must resolve through that graph to the selected original document and article, and the cited node content must occur in the pinned original provision bytes. An unrelated article fails even when the claim, source graph, manifest and output are all consistently rehashed. The manifest must also bind the official corpus and document PDF hash. Source-version correspondence must be explicit; an internal version ID cannot silently stand for a different official source pin. An unavailable mapping needs separately reviewed correspondence. Structural provenance never authenticates reviewers or proves actual model execution.
 
 No frozen actual source-backed Preparation output was supplied or found in checked-in evaluation assets. Therefore **actual Preparation integration remains open**. The importer returns explicit NOT_SCORED blockers, without fabricating a baseline:
 
 ```powershell
 uv run python -m evals.legal_reasoning.preparation_adapter
 # After genuine frozen files and independent review are available:
-uv run python -m evals.legal_reasoning.preparation_adapter --output-artifact <frozen-output.json> --manifest <run-manifest.json> --gold <independent-lcsp402-gold.json> --approved-gold-sha256 <external-approved-digest> --expected-output-sha256 <external-frozen-output-digest> --annotations <p15-reviewed-preparation.jsonl> --judgments <output-bound-judgments.json> --rubric <preparation-rubric.json>
+uv run python -m evals.legal_reasoning.preparation_adapter --output-artifact <frozen-output.json> --manifest <run-manifest.json> --source-graph <frozen-source-graph.json> --gold <independent-lcsp402-gold.json> --approved-gold-sha256 <external-approved-digest> --expected-output-sha256 <external-frozen-output-digest> --annotations <p15-reviewed-preparation.jsonl> --judgments <output-bound-judgments.json> --rubric <preparation-rubric.json>
 ```
 
 ## Split-aware scoring and metric integrity
@@ -105,7 +105,7 @@ uv run pytest tests/test_legal_reasoning_rubric.py tests/test_legal_reasoning_r2
 | Finding | Technical work and remaining evidence |
 |---|---|
 | Split-aware scoring / metric provenance | Previously accepted at static review; retained with negative/positive regressions and no review-authenticity inference. |
-| Actual Preparation integration | Frozen-artifact importer and failure gates are implemented. No actual output/manifest or independent gold exists in the available assets; actual stage coverage remains open. |
+| Actual Preparation integration | Frozen-artifact importer now resolves claim source nodes to pinned original document, article and bytes, including a cross-provision negative control. No actual output/manifest/source graph or independent gold exists in the available assets; actual stage coverage remains open. |
 | Candidate quality/diversity | Default heuristic quality labels removed; 15 original-clause review frames and 30 material counterfactual scenarios supplied. These are not executed benchmark cases or confirmed gold; independent dimension annotations and wider executable coverage remain open. |
 | Actor/effectivity | Source/actor/action/date declarations and negative mismatch controls implemented. As-of/transition interpretation still requires independent legal review and cannot be confirmed by hashes. |
 | Official VN HITL | Source-pinned real SCRIPTED request/resume with missing evidence, explicit simulated answer and output/fact bindings implemented. No actual human decision or LIVE reliability claim. |

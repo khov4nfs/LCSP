@@ -9,6 +9,7 @@ from pathlib import Path
 
 from evals.legal_reasoning.scorer import score_dataset
 from evals.legal_reasoning.validation import PACKAGE_ROOT, load_dataset
+from evals.policy_baseline import _load_legal_context
 from evals.run_manifest import stable_hash
 from rule_set_preparation.reviewed_eval_gate import reviewed_eval_preflight
 
@@ -23,6 +24,7 @@ def integrate_preparation_artifacts(
     annotations_path: Path | None = None,
     judgments_path: Path | None = None,
     rubric_path: Path | None = None,
+    source_graph_path: Path | None = None,
 ) -> dict:
     """Business purpose: Import frozen source-pinned Preparation evidence through LCSP-402's own gate.
 
@@ -107,6 +109,20 @@ def integrate_preparation_artifacts(
     ):
         raise ValueError("PREPARATION_P15_TARGET_MISMATCH")
     predictions = json.loads(judgments_path.read_text(encoding="utf-8"))
+    if source_graph_path is None or not source_graph_path.is_file():
+        report["blockingReasons"].append("PREPARATION_PINNED_SOURCE_GRAPH_REQUIRED")
+        return report
+    source_graph_bytes = source_graph_path.read_bytes()
+    report["inputProvenance"]["sourceGraphSha256"] = sha256(
+        source_graph_bytes
+    ).hexdigest()
+    if pins.get("sourceGraphSha256") != report["inputProvenance"]["sourceGraphSha256"]:
+        raise ValueError("PREPARATION_PINNED_SOURCE_GRAPH_DIGEST_MISMATCH")
+    source_graph = json.loads(source_graph_bytes)
+    if source_graph.get("legalSourceVersionId") != pins["legalSourceVersionId"]:
+        raise ValueError("PREPARATION_PINNED_SOURCE_GRAPH_VERSION_MISMATCH")
+    nodes = {node["nodeId"]: node for node in source_graph.get("nodes", [])}
+    original_context, _ = _load_legal_context()
     claims = {
         row["claimId"]: row
         for row in candidate.get("semanticGraph", {}).get("claims", [])
@@ -145,6 +161,53 @@ def integrate_preparation_artifacts(
             != annotation["legalSource"]["provisionRefs"]
         ):
             raise ValueError("PREPARATION_P15_ANNOTATION_SOURCE_MISMATCH")
+        source = next(
+            (
+                item
+                for item in official["sources"]
+                if item["sourceId"] == binding["sourceId"]
+            ),
+            None,
+        )
+        if source is None or source["documentNumber"] not in binding["sourceVersion"]:
+            raise ValueError("PREPARATION_P15_CLAIM_PROVISION_MISMATCH")
+        claim_nodes = claim.get("sourceNodeIds")
+        if (
+            not isinstance(claim_nodes, list)
+            or not claim_nodes
+            or len(claim_nodes) != len(set(claim_nodes))
+        ):
+            raise ValueError("PREPARATION_P15_CLAIM_PROVISION_MISMATCH")
+        for node_id in claim_nodes:
+            node = nodes.get(node_id)
+            if node is None or node.get("documentId") != source["documentNumber"]:
+                raise ValueError("PREPARATION_P15_CLAIM_PROVISION_MISMATCH")
+            lineage = []
+            seen = set()
+            while node is not None:
+                if node["nodeId"] in seen:
+                    raise ValueError("PREPARATION_P15_SOURCE_GRAPH_CYCLE")
+                seen.add(node["nodeId"])
+                lineage.append(node)
+                node = nodes.get(node.get("parentNodeId"))
+            article = next(
+                (item for item in lineage if item.get("nodeType") == "ARTICLE"), None
+            )
+            ref = f"article-{article['label']}" if article else None
+            if ref not in binding["provisionRefs"] or ref not in source["provisions"]:
+                raise ValueError("PREPARATION_P15_CLAIM_PROVISION_MISMATCH")
+            original = original_context.get(
+                ("law-" if source["documentNumber"] == "134-2025-QH15" else "decree-")
+                + str(article["label"])
+            )
+            content = lineage[0].get("content", "")
+            if (
+                original is None
+                or not content
+                or content not in original.content
+                or original.content_sha256 != source["provisions"][ref]["contentSha256"]
+            ):
+                raise ValueError("PREPARATION_P15_CLAIM_PROVISION_MISMATCH")
         for key, value in binding.items():
             if key not in {"bindingKind", "candidateCaseId"}:
                 row[key] = value
@@ -168,6 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--annotations", type=Path)
     parser.add_argument("--judgments", type=Path)
     parser.add_argument("--rubric", type=Path)
+    parser.add_argument("--source-graph", type=Path)
     args = parser.parse_args()
     print(
         json.dumps(
@@ -180,6 +244,7 @@ if __name__ == "__main__":
                 annotations_path=args.annotations,
                 judgments_path=args.judgments,
                 rubric_path=args.rubric,
+                source_graph_path=args.source_graph,
             ),
             indent=2,
         )
