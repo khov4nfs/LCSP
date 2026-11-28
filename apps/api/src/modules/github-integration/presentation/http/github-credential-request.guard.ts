@@ -24,6 +24,13 @@ export class GitHubCredentialRequestGuard implements CanActivate {
     { startsAt: number; count: number }
   >();
 
+  /**
+   * Business purpose: Bound secret-bearing credential submissions per customer and request size.
+   * Business rules: Only authenticated user windows count; expired windows must not remain in process memory.
+   * Execution flow: 1. Validate JSON and size. 2. Prune expired windows. 3. Count the customer request and enforce the limit.
+   * Failure cases: Invalid body or excess requests return a typed problem; missing RBAC context denies access.
+   * Side effects: Updates the process-local rate-limit window map; does not persist secrets.
+   */
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<GuardRequest>();
     const correlationId = request.correlationId ?? crypto.randomUUID();
@@ -48,6 +55,11 @@ export class GitHubCredentialRequestGuard implements CanActivate {
     if (!rbac) return false;
     const key = rbac.userId;
     const now = Date.now();
+    // Why: Each historical customer otherwise remains in the singleton guard
+    // forever. Pruning on access bounds memory to recent request windows.
+    for (const [userId, window] of this.windows) {
+      if (now - window.startsAt >= WINDOW_MS) this.windows.delete(userId);
+    }
     const current = this.windows.get(key);
     if (!current || now - current.startsAt >= WINDOW_MS) {
       this.windows.set(key, { startsAt: now, count: 1 });

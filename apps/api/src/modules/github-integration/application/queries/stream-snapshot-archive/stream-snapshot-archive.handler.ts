@@ -102,9 +102,10 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
    * Execution flow:
    * 1. Validate scan/assessment/snapshot association, eligible state, current assessment owner, repository identity, and authentication shape.
    * 2. Require the exact provider to be registered, then resolve the current connection-bound lease; this database authorization read is the delivery linearization point.
-   * 3. Atomically claim queued scan or hydration work, then inspect the cache or retrieve the exact pinned archive.
-   * 4. Require verified redirect validation, capture the stream for reruns when possible, and return immutable snapshot metadata with the stream.
-   * 5. On failure, finalize claimed hydration work, mark invalid credentials only on typed authoritative evidence, map safe failures, and dispose the lease on every path.
+   * 3. Reconcile a stranded RUNNING hydration ticket only after verified Root termination, then atomically claim retryable work.
+   * 4. Inspect the cache or retrieve the exact pinned archive.
+   * 5. Require verified redirect validation, capture the stream for reruns when possible, and return immutable snapshot metadata with the stream.
+   * 6. On failure, finalize claimed hydration work, mark invalid credentials only on typed authoritative evidence, map safe failures, and dispose the lease on every path.
    *
    * Failure cases:
    * - Scan/assessment/snapshot mismatch, unsupported job state, or a failed conditional claim raises `snapshotScanMismatch` (HTTP 409).
@@ -140,7 +141,7 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       );
     }
 
-    const scanJobStatus = fromPrismaRepositoryScanJobStatus(scanJob.status);
+    let scanJobStatus = fromPrismaRepositoryScanJobStatus(scanJob.status);
     const isHydration = this.hydrationLifecycle.isHydrationTicket(scanJob);
     const canReadPinnedArchive =
       scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.queued ||
@@ -156,11 +157,26 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
     }
 
     if (isHydration && scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.running) {
-      throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
-        query.correlationId,
-        { status: HttpStatus.CONFLICT },
+      // Why: A crash after streaming can strand a durable RUNNING ticket.
+      // Root-terminal reconciliation is the existing independent authority
+      // for marking its outcome unproven and allowing a fresh delivery.
+      const reconciled = await this.hydrationLifecycle.reconcileTerminalRuntime(
+        {
+          ticketId: scanJob.id,
+          snapshotId: query.snapshotId,
+        },
       );
+      if (
+        reconciled.status !== REPOSITORY_SCAN_JOB_STATUSES.failed &&
+        reconciled.status !== REPOSITORY_SCAN_JOB_STATUSES.completed
+      ) {
+        throw problemException(
+          GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
+          query.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      scanJobStatus = reconciled.status;
     }
     const hydrationDeliveryTicketId =
       isHydration && scanJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.completed

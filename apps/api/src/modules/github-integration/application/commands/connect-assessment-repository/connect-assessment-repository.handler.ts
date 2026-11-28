@@ -4,7 +4,7 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   RepositoryAuthenticationMode,
   RepositoryConnectionStatus,
-  type Prisma,
+  Prisma,
 } from "@prisma/client";
 import {
   CREDENTIAL_PROVIDERS,
@@ -60,6 +60,7 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
    * Business rules:
    * - The caller must own an editable assessment and the selected provider must be registered.
    * - A replacement credential is bound only after it proves access to the repository.
+   * - Commit authority is checked again in the write transaction after provider I/O.
    * Execution flow:
    * 1. Validate the assessment and shared URL locator, and select the provider before reading a credential.
    * 2. Validate repository access, then create or explicitly rebind one version-pinned connection.
@@ -159,6 +160,10 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
       const now = new Date();
       if (existing) {
         await this.unitOfWork.execute(async (transaction) => {
+          await this.assertCurrentAssessment(transaction, command);
+          await transaction.database.$queryRaw(
+            Prisma.sql`SELECT "id" FROM "ProviderCredential" WHERE "id" = ${metadata.id} FOR SHARE`,
+          );
           const currentCredential =
             await transaction.providerCredentials.findActiveByOwnerProvider(
               command.userId,
@@ -230,6 +235,31 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
       }
       const connectionId = crypto.randomUUID();
       await this.unitOfWork.execute(async (transaction) => {
+        await this.assertCurrentAssessment(transaction, command);
+        await transaction.database.$queryRaw(
+          Prisma.sql`SELECT "id" FROM "ProviderCredential" WHERE "id" = ${metadata.id} FOR SHARE`,
+        );
+        const currentCredential =
+          await transaction.providerCredentials.findActiveByOwnerProvider(
+            command.userId,
+            provider,
+          );
+        // Why: Provider validation may have used a credential revoked during
+        // network I/O; a new binding must retain the exact validated version.
+        if (
+          !currentCredential ||
+          currentCredential.id !== metadata.id ||
+          currentCredential.currentVersion !== metadata.currentVersion ||
+          currentCredential.status !== PROVIDER_CREDENTIAL_STATUSES.active ||
+          (currentCredential.declaredExpiresAt !== null &&
+            currentCredential.declaredExpiresAt <= new Date())
+        ) {
+          throw problemException(
+            GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid,
+            command.correlationId,
+            { status: HttpStatus.UNAUTHORIZED },
+          );
+        }
         await this.persistRepositoryConnection(transaction, {
           id: connectionId,
           assessmentId: command.assessmentId,
@@ -263,6 +293,46 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
       };
     } finally {
       lease.dispose();
+    }
+  }
+
+  /**
+   * Business purpose: Preserve assessment ownership and editable lifecycle at the moment a repository binding is committed.
+   * Business rules:
+   * - Only the same owner and an editable assessment may authorize creation or reauthorization.
+   * Execution flow:
+   * 1. Lock the assessment row in the write transaction.
+   * 2. Read its current ownership and lifecycle and reject stale authority.
+   * Failure cases:
+   * - A removed owner or changed lifecycle raises the assessment-state problem and rolls back the binding.
+   * Side effects:
+   * - Holds an assessment row lock until the caller's transaction completes; performs no independent write.
+   */
+  private async assertCurrentAssessment(
+    transaction: CredentialPersistenceTransaction,
+    command: ConnectAssessmentRepositoryCommand,
+  ): Promise<void> {
+    // Why: The row lock serializes lifecycle transitions with the subsequent
+    // connection insert so validation cannot become stale before commit.
+    await transaction.database.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "Assessment" WHERE "id" = ${command.assessmentId} FOR SHARE`,
+    );
+    const current = await transaction.database.assessment.findFirst({
+      where: { id: command.assessmentId, ownerId: command.userId },
+      select: { id: true, lifecycleState: true },
+    });
+    if (
+      !current ||
+      (current.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.CREATED &&
+        current.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.PREPARING &&
+        current.lifecycleState !==
+          ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT)
+    ) {
+      throw problemException(
+        GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,
+        command.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
     }
   }
 

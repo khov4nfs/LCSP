@@ -41,10 +41,15 @@ export class InternalSnapshotController {
 
   /**
    * Business purpose: Deliver one authorized immutable repository archive to the worker hydration client.
-   * Business rules: Worker authentication and query-handler authorization are required; format and optional exact wrapper metadata are returned with the same pinned bytes.
-   * Execution flow: 1. Dispatch the snapshot/scan association query. 2. Set no-store and pin/archive metadata headers. 3. Pipeline archive bytes and finalize hydration delivery.
-   * Failure cases: Query, stream, or delivery failures finalize the hydration ticket as failed and propagate through the shared API error path.
-   * Side effects: Streams repository source to the worker and records hydration ticket completion; it does not wrap the binary response in JSON.
+   * Business rules:
+   * - Worker authentication and query-handler authorization are required; a trusted hydration ticket ID accompanies only its pinned bytes.
+   * Execution flow:
+   * 1. Dispatch the snapshot/scan association query and set no-store, pin, archive, and optional hydration ticket headers.
+   * 2. Pipeline archive bytes and retry transient completion finalization once; the worker can ACK the same ticket after validating the response.
+   * Failure cases:
+   * - Query, stream, or delivery failures reject through the shared API error path; a failed post-stream finalization leaves the ticket for worker ACK or reconciliation.
+   * Side effects:
+   * - Streams repository source to the worker and records hydration ticket completion; binary responses are not JSON-wrapped.
    */
   @Get(":snapshotId/archive")
   async streamArchive(
@@ -67,6 +72,14 @@ export class InternalSnapshotController {
       );
       response.setHeader("cache-control", "no-store");
       response.setHeader("x-snapshot-id", result.snapshotId);
+      if (result.hydrationDeliveryTicketId) {
+        // Why: Worker acknowledgement can repair a failed server finalization
+        // after response bytes have already been delivered.
+        response.setHeader(
+          "x-hydration-ticket-id",
+          result.hydrationDeliveryTicketId,
+        );
+      }
       response.setHeader("x-commit-sha", result.commitSha);
       response.setHeader("x-repository-full-name", result.repositoryFullName);
       response.setHeader("x-resolved-url", result.resolvedUrl);
@@ -133,6 +146,20 @@ export class InternalSnapshotController {
           ),
         );
       } catch (finalizationError: unknown) {
+        // Why: The bytes are already delivered, so a transient persistence
+        // failure deserves one idempotent retry before deferred reconciliation.
+        try {
+          await this.commandBus.execute(
+            new FinalizeRuntimeHydrationTicketCommand(
+              result.hydrationDeliveryTicketId,
+              snapshotId,
+              REPOSITORY_SCAN_JOB_STATUSES.completed,
+            ),
+          );
+          return;
+        } catch {
+          // The durable ticket remains RUNNING for the explicit reconcile path.
+        }
         this.logger.error(
           "Runtime hydration delivery success could not be persisted",
           undefined,
@@ -146,6 +173,35 @@ export class InternalSnapshotController {
         );
       }
     }
+  }
+
+  /**
+   * Business purpose: Confirm that a worker received and validated a trusted hydration archive.
+   * Business rules:
+   * - The worker key guard protects this route; the lifecycle checks exact trusted ticket and snapshot identity.
+   * - Repeated acknowledgements are idempotent only for the same completed outcome.
+   * Execution flow:
+   * 1. Accept the worker's snapshot and ticket identifiers after archive validation.
+   * 2. Commit the completed ticket outcome through the existing lifecycle command.
+   * Failure cases:
+   * - Missing, mismatched, or conflicting ticket state rejects without changing another scan job.
+   * Side effects:
+   * - May mark one trusted hydration ticket COMPLETED in the database.
+   */
+  @Post(":snapshotId/archive/ack/:scanJobId")
+  acknowledgeHydrationTicket(
+    @Param("snapshotId") snapshotId: string,
+    @Param("scanJobId") scanJobId: string,
+  ) {
+    // Why: Reuse the finalizer's CAS and identity checks; an ACK must never
+    // write a ticket by raw ID without the pinned snapshot boundary.
+    return this.commandBus.execute(
+      new FinalizeRuntimeHydrationTicketCommand(
+        scanJobId,
+        snapshotId,
+        REPOSITORY_SCAN_JOB_STATUSES.completed,
+      ),
+    );
   }
 
   @Post(":snapshotId/archive/reconcile/:scanJobId")
