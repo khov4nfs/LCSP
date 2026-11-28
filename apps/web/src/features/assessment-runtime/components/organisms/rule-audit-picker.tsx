@@ -75,6 +75,8 @@ export function RuleAuditPicker({
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportFailed, setExportFailed] = useState(false);
+  const selectionRef = useRef<HTMLFormElement | null>(null);
+  const discoveryRef = useRef<HTMLDivElement | null>(null);
   const replay = useRef<{ digest: string; key: string } | null>(null);
   const exportKey = useRef<string | null>(null);
   const retryKey = useRef<string | null>(null);
@@ -297,12 +299,32 @@ export function RuleAuditPicker({
     >
       <Card>
         <CardHeader className="gap-2 pb-4">
-          <CardTitle className="text-lg">
-            <h2>{copy("ruleAudit.title")}</h2>
-          </CardTitle>
-          <CardDescription>{copy("ruleAudit.description")}</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">
+                <h2>{copy("ruleAudit.title")}</h2>
+              </CardTitle>
+              <CardDescription>{copy("ruleAudit.description")}</CardDescription>
+              <p className="text-xs text-muted-foreground">
+                {copy("ruleAudit.discovery.existingFindingsPreserved")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                discoveryRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                })
+              }
+            >
+              {copy("ruleAudit.discovery.reviewDiscovery")}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="pb-0">
+        <CardContent ref={discoveryRef} className="pb-0">
           <AssessmentDiscoveryOverview
             assessmentId={assessmentId}
             rules={rules}
@@ -325,6 +347,12 @@ export function RuleAuditPicker({
                 { shouldDirty: true, shouldValidate: true },
               );
             }}
+            onContinueToRuleSelection={() =>
+              selectionRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              })
+            }
           />
         </CardContent>
         {latest ? (
@@ -417,7 +445,11 @@ export function RuleAuditPicker({
             </Alert>
           ) : null}
           <FormProvider {...form}>
-            <form onSubmit={handleSelectionSubmit} className="mt-1 space-y-4">
+            <form
+              ref={selectionRef}
+              onSubmit={handleSelectionSubmit}
+              className="mt-1 space-y-4"
+            >
               <div className="relative">
                 <Search
                   aria-hidden="true"
