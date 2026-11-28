@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import {
   Prisma,
@@ -12,7 +12,6 @@ import { z } from "zod";
 import {
   LEGAL_RULE_CATALOG_ERRORS as E,
   LEGAL_RULE_CATALOG_EVENTS as EVENTS,
-  LEGAL_RULE_PREPARATION_STATES as S,
   LEGAL_RULE_SELECTION_MODES,
   ASSESSMENT_RULE_IMPORT_DEFAULT_ANALYSIS,
   ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
@@ -27,10 +26,9 @@ import {
   type PreparationRuleComplete,
   // Shared contracts type activation, output collection, and rule validation.
   type LegalRuleActivationRequest,
-  type AssessmentRuleImportItem,
+  type LegalRuleActivationResult,
   type AssessmentRuleImportRequest,
   type AssessmentRuleImportResult,
-  type PreparationRuleOutput,
   type PreparationRuleValidate,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
@@ -38,7 +36,6 @@ import {
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
 import {
-  complianceRuleSetPacketSchema,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   declaresApplicabilityScope,
@@ -50,21 +47,12 @@ import {
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import {
   canonicalJson,
   sha256Hex,
 } from "../../../assessment/domain/domain-ids.js";
-import {
-  sourceClaimKey,
-  validateAssessmentRuleBindings,
-  validateComplianceRuleSetPacket,
-} from "../../../compliance-rule-set/domain/compliance-rule-set-integrity.validator.js";
-import {
-  ComplianceRuleSetActivation,
-  type SelectedActivationContext,
-} from "../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
+import { ComplianceRuleSetActivation } from "../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { LegalSourceSnapshotLoader } from "../../../compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
 import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 import {
@@ -75,6 +63,11 @@ import {
 } from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 
 import { CancelRuleSetPreparationCommand } from "../../../compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
+import { ActivatePreparedRulesHandler } from "../commands/activate-prepared-rules/activate-prepared-rules.handler.js";
+import { ActivatePreparedRulesCommand } from "../commands/activate-prepared-rules/activate-prepared-rules.command.js";
+import { ImportAssessmentRulesHandler } from "../commands/import-assessment-rules/import-assessment-rules.handler.js";
+import { ImportAssessmentRulesCommand } from "../commands/import-assessment-rules/import-assessment-rules.command.js";
+import { validateSelectedOutput } from "./selected-output-validation.js";
 import {
   LegalRuleCatalogService,
   catalogFailure,
@@ -210,7 +203,9 @@ export class PreparationRuleService {
           });
           artifactMap.set(input.ruleId, artifact);
         }
-        const sortedArtifactIds = [...new Set([...artifactMap.values()].map((a) => a.id))].sort();
+        const sortedArtifactIds = [
+          ...new Set([...artifactMap.values()].map((a) => a.id)),
+        ].sort();
         if (sortedArtifactIds.length > 0) {
           await tx.$queryRaw(
             Prisma.sql`SELECT "id" FROM "PreparationRule" WHERE "id" IN (${Prisma.join(sortedArtifactIds)}) ORDER BY "id" FOR UPDATE`,
@@ -430,25 +425,16 @@ export class PreparationRuleService {
   }
 
   /**
-   * Business purpose: Publish an explicit set of current selected-rule Assessment Rules through the canonical ACTIVE Rule Set lifecycle.
-   *
+   * Business purpose: Publish an Admin-selected prepared result through the canonical Rule Set lifecycle.
    * Business rules:
-   * - Every requested result must be the current, successful, fingerprint-matching revision for an eligible catalog rule and contain at least one Assessment Rule.
-   * - All selected results share the catalog's pinned Legal Source Version; each output and source reference passes selected-result and Rule Set integrity validation.
-   * - Admin confirmation is explicit; activation never includes unselected results or reruns AI.
-   *
+   * - Preserve the handler's exact result, actor, revision and source-pin checks.
    * Execution flow:
-   * 1. Lock the catalog revision and verify selected result identities against current catalog entries.
-   * 2. Lock selected PreparationRule artifacts, re-read freshness, hydrate exact source chunks, and validate each persisted output.
-   * 3. Combine only the chosen LegalRequirements, AssessmentRules, and context relations; validate citations against the pinned source.
-   * 4. Commit the selected-result manifest and packet through the shared atomic ACTIVE Rule Set publisher.
-   *
+   * 1. Dispatch the typed publication command through CQRS in Nest; direct service tests use the same handler as fallback.
+   * 2. Execute the request.
    * Failure cases:
-   * - Empty, duplicate, stale, failed, zero-rule, incompatible, or source-invalid selections return a typed request/result error without changing the current ACTIVE version.
-   * - Transaction, audit, outbox, or persistence errors roll back publication and retain the current ACTIVE version.
-   *
+   * - Handler rejection propagates without a partial publication.
    * Side effects:
-   * - Creates one ComplianceRuleSetVersion and activation audit/outbox record; selected Preparation results and Legal Sources are immutable and unchanged.
+   * - The handler atomically publishes the selected Rule Set and audit/outbox records.
    */
   async activate(
     catalogId: string,
@@ -612,6 +598,17 @@ export class PreparationRuleService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
     );
+    if (this.activateHandler)
+      return this.commands.execute<
+        ActivatePreparedRulesCommand,
+        LegalRuleActivationResult
+      >(command);
+    return new ActivatePreparedRulesHandler(
+      this.prisma,
+      this.catalogs,
+      this.sourceSnapshot,
+      this.activation,
+    ).execute(command);
   }
 
   /**
@@ -863,11 +860,9 @@ export class PreparationRuleService {
    * 6. Audit each revision and persist an idempotent exclusion receipt before returning acknowledgements.
    *
    * Failure cases:
-   * - Mismatched catalog or source returns request-invalid or stale; unknown or ineligible rules are rejected; invalid output returns RESULT_INVALID with a safe field path; active runs return CONFLICT.
-   * - Any failure rolls back the whole import, leaving previous results and the ACTIVE Rule Set unchanged.
-   *
+   * - Validation and transaction errors propagate with their canonical problem codes.
    * Side effects:
-   * - A dry run writes nothing. Otherwise creates one selection, one batch and per-rule SUCCEEDED run/result revisions plus audit events in one transaction; enqueues no outbox work and starts no model run.
+   * - The handler writes revisions and audits only for non-dry-run imports.
    */
   async importAssessmentRules(
     catalogId: string,

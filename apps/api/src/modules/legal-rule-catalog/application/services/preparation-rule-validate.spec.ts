@@ -12,10 +12,8 @@ import {
   type PreparationRuleValidate,
   type PreparationRuleComplete,
 } from "@lcsp/contracts/legal-rule-catalog";
-import {
-  PreparationRuleService,
-  validateSelectedOutput,
-} from "./preparation-rule.service.js";
+import { PreparationRuleService } from "./preparation-rule.service.js";
+import { validateSelectedOutput } from "./selected-output-validation.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
 const uuid = (n: number) =>
