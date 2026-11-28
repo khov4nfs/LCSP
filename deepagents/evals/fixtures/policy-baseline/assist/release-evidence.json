@@ -1,0 +1,15 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "scenario": "Dịch vụ AI đã đưa phiên bản mới vào sử dụng. Cùng một tổ chức cung cấp hệ thống rủi ro trung bình và phát hành nội dung nghe nhìn mô phỏng sự kiện.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "version": "4.2.0"},
+  "interactionDisclosure": {"status": "VERIFIED_PRESENT", "userCanIdentifyAi": true},
+  "machineReadableMark": {"status": "VERIFIED_PRESENT", "machineRecognizesAiOrigin": true},
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2026-06-01",
+  "mediumOrHighRisk": true
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": false,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "scenario": "Bên triển khai đưa tác phẩm sáng tạo ra công cộng và dùng vị trí danh đề để gắn nhãn. Tổ chức không phải nhà cung cấp hệ thống.",
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2026-06-01",
+  "mediumOrHighRisk": true
+}
