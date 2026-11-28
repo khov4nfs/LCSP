@@ -766,6 +766,23 @@ export class LegalSourceDocumentService {
     sha256: string;
   }> {
     return this.prisma.$transaction(async (tx) => {
+      const initialDocument = await tx.legalSourceDocument.findUnique({
+        where: { id: input.documentRowId },
+        include: { blob: true },
+      });
+      if (!initialDocument?.blob || !initialDocument.mediaType) {
+        throw problemException(Errors.documentNotFound, input.correlationId, {
+          status: HttpStatus.NOT_FOUND,
+        });
+      }
+      const version = await this.lockVersion(
+        tx,
+        initialDocument.legalSourceVersionId,
+        input.correlationId,
+      );
+      // Why: A retry can replace the ingestion attempt while this worker waits for the version lock.
+      // How: Reload the document after locking and use only that row for eligibility and returned bytes.
+      // Invariant: A stale attempt cannot start processing or read the newer attempt's source payload.
       const document = await tx.legalSourceDocument.findUnique({
         where: { id: input.documentRowId },
         include: { blob: true },
@@ -775,13 +792,9 @@ export class LegalSourceDocumentService {
           status: HttpStatus.NOT_FOUND,
         });
       }
-      const version = await this.lockVersion(
-        tx,
-        document.legalSourceVersionId,
-        input.correlationId,
-      );
       if (
         version.status !== Lifecycle.draft ||
+        document.legalSourceVersionId !== version.id ||
         document.ingestionAttempt !== input.attempt
       ) {
         throw problemException(
