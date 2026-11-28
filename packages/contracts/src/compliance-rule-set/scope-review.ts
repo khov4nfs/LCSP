@@ -12,6 +12,10 @@ export const PREPARATION_SCOPE_STAGES = [
   "LEGAL_REVIEW_REQUIRED",
 ] as const;
 
+/** Negative authoring signal only: an unresolved legal scope must not be published as an accepted result. */
+export const PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX =
+  "LEGAL_REVIEW_REQUIRED:";
+
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const preparationClaimStageDecisionSchema = z.strictObject({
   claimId: z.string().min(1).max(128),

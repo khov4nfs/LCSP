@@ -4,6 +4,7 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   LEGAL_RULE_CATALOG_ERRORS,
@@ -189,6 +190,35 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
   });
 
   expect(() => validateSelectedOutput(selected, output, "cid")).not.toThrow();
+
+  // A valid development criterion must not mask a different unresolved legal proposition.
+  const unresolved = {
+    ...output,
+    legalRequirements: [
+      ...output.legalRequirements,
+      {
+        ...output.legalRequirements[0],
+        legalRequirementId: `${input.ruleId}:unresolved-stage`,
+        coverage: {
+          state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+          nonAssessableReason:
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX + " stage unresolved",
+        },
+      },
+    ],
+  };
+  expect(() => validateSelectedOutput(selected, unresolved, "cid")).toThrow(
+    expect.objectContaining({
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+          meta: expect.objectContaining({
+            issues: "output.legalRequirements.1.coverage.nonAssessableReason",
+          }),
+        }),
+      }),
+    }),
+  );
   expect(() =>
     validateSelectedOutput(
       { ...selected, citations: selected.citations.slice(0, 2) },

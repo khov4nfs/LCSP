@@ -14,6 +14,7 @@ import {
   LEGAL_RULE_PREPARATION_STATES as S,
   LEGAL_RULE_SELECTION_MODES,
   ASSESSMENT_RULE_IMPORT_DEFAULT_ANALYSIS,
+  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   legalRuleActivationResultSchema,
   preparationRuleInputSchema,
   preparationRuleOutputSchema,
@@ -37,6 +38,7 @@ import {
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   declaresApplicabilityScope,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
 } from "@lcsp/contracts/compliance-rule-set";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
@@ -563,6 +565,7 @@ export class PreparationRuleService {
    * - Only Admin callers reach this path; the document must name this catalog, its current revision and its pinned Legal Source Version.
    * - Every item must target an eligible catalog Legal Rule and pass the same selected-output validation as agent output: identities carry the rule prefix, and every citation exactly matches the pinned source (document, locator, content hash).
    * - An imported result is only a prepared revision; it becomes ACTIVE solely through the explicit activation step, and excluded items are validated against the catalog but never stored.
+   * - An exclusion explicitly requiring legal review blocks the atomic import until resolved; a caller exclusion is never proof of legal scope eligibility.
    * - A rule with a queued or running Preparation run cannot be replaced; an identical prepared result is acknowledged as a replay without a new revision.
    *
    * Execution flow:
@@ -606,6 +609,15 @@ export class PreparationRuleService {
         const entries = new Map(items.map((entry) => [entry.id, entry]));
         if (request.excludedItems.some((item) => !entries.has(item.ruleId)))
           catalogFailure(E.INVALID, cid, 422);
+        // An acknowledged unresolved proposition cannot be silently excluded to make a document pass.
+        // This rejects known ambiguity only; it is not positive semantic scope authorization.
+        const reviewRequiredIndex = request.excludedItems.findIndex(
+          (item) =>
+            item.reasonCode ===
+            ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
+        );
+        if (reviewRequiredIndex !== -1)
+          rejectSelectedOutput(cid, `excludedItems.${reviewRequiredIndex}.reasonCode`);
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
           if (!entry) catalogFailure(E.NOT_FOUND, cid, 404);
@@ -1420,6 +1432,7 @@ function isIdenticalCurrentResult(
  * Business purpose: Validate selected preparation structure and provenance without deciding legal applicability.
  * Business rules:
  * - References stay within pinned chunks; AssessmentRule parents must be present, assessable and uniquely identified.
+ * - Explicit unresolved legal scope blocks validation, import and selected activation; absence of the signal is not semantic approval.
  * Execution flow:
  * 1. Parse canonical downstream contracts
  * 2. Verify unique identities, source allowlist and parent links.
@@ -1462,6 +1475,14 @@ export function validateSelectedOutput(
       rejectSelectedOutput(cid, `${path}.legalRequirementId`);
     if (!rule.operativePropositions?.length)
       rejectSelectedOutput(cid, `${path}.operativePropositions`);
+    // Do not accept a known unresolved legal scope as a successfully prepared result.
+    // This is a negative protocol signal, not a lexical classifier of legal source text.
+    if (
+      rule.coverage.nonAssessableReason?.startsWith(
+        PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+      )
+    )
+      rejectSelectedOutput(cid, `${path}.coverage.nonAssessableReason`);
     if (
       !declaresApplicabilityScope(
         rule.coverage.state,

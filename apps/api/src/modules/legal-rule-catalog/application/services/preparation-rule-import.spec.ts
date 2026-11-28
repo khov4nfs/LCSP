@@ -3,9 +3,11 @@ import { AgentExecutionState } from "@prisma/client";
 import {
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_CATALOG_EVENTS,
   assessmentRuleImportRequestSchema,
@@ -325,6 +327,73 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     });
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
   });
+
+  it.each([true, false])(
+    "rejects an explicitly unresolved exclusion without writing or dispatch (dryRun=%s)",
+    async (dryRun) => {
+      const { subject, tx, catalogs, enqueue } = setup();
+      await expect(
+        subject.importAssessmentRules(
+          catalogId,
+          request({
+            dryRun,
+            excludedItems: [
+              {
+                ruleId,
+                reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
+                reason: "Actor and regulated activity require legal review",
+              },
+            ],
+          }),
+          "admin-1",
+          "cid",
+        ),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+            meta: { issues: "excludedItems.0.reasonCode" },
+          },
+        },
+      });
+      expect(tx.preparationRule.upsert).not.toHaveBeenCalled();
+      expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+      expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
+      expect(catalogs.record).not.toHaveBeenCalled();
+      expect(enqueue).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([true, false])(
+    "rejects a mixed result with a declared unresolved scope (dryRun=%s)",
+    async (dryRun) => {
+      const { subject, tx, enqueue } = setup();
+      const document = request({ dryRun });
+      const first = document.items[0].legalRequirements[0];
+      document.items[0].legalRequirements.push({
+        ...first,
+        legalRequirementId: `${ruleId}:unresolved-stage`,
+        coverage: {
+          state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+          nonAssessableReason:
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX + " actor unresolved",
+        },
+      });
+      await expect(
+        subject.importAssessmentRules(catalogId, document, "admin-1", "cid"),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+            meta: { issues: "output.legalRequirements.1.coverage.nonAssessableReason" },
+          },
+        },
+      });
+      expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+      expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
+      expect(enqueue).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects an excluded item that is not in the catalog", async () => {
     await expect(
