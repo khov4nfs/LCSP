@@ -101,22 +101,24 @@ export class DisconnectProviderCredentialHandler implements ICommandHandler<Disc
         now,
       );
       if (!revoked) throw new Error("provider_credential_revoke_conflict");
+      // Why: Revocation and secret destruction must not commit unless their
+      // required audit evidence commits in the same database transaction.
+      await this.auditWriter.writeInTx(
+        {
+          eventType:
+            GITHUB_INTEGRATION_EVENT_TYPES.providerCredentialDisconnected,
+          actorId: command.userId,
+          resourceType: AUDIT_RESOURCE_TYPES.authAccount,
+          resourceId: command.userId,
+          correlationId: command.correlationId,
+          sessionId: command.sessionId,
+          decision: AUDIT_DECISIONS.allow,
+          payload: { provider },
+        },
+        transaction.database,
+      );
       return current.id;
     });
-
-    if (revokedId !== null) {
-      await this.auditWriter.write({
-        eventType:
-          GITHUB_INTEGRATION_EVENT_TYPES.providerCredentialDisconnected,
-        actorId: command.userId,
-        resourceType: AUDIT_RESOURCE_TYPES.authAccount,
-        resourceId: command.userId,
-        correlationId: command.correlationId,
-        sessionId: command.sessionId,
-        decision: AUDIT_DECISIONS.allow,
-        payload: { provider },
-      });
-    }
 
     return {
       provider,

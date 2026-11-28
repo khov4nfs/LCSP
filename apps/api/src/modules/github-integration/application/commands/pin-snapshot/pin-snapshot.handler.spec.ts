@@ -22,7 +22,10 @@ import type { AuditWriterService } from "../../../../../platform/audit/audit-wri
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
 import { GitHubCliProviderError } from "../../../infrastructure/github/github-cli-repository.provider.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
-import type { RepositorySnapshotRepository } from "../../ports/persistence/repository-snapshot.repository.js";
+import {
+  RepositorySnapshotAuthorityChangedError,
+  type RepositorySnapshotRepository,
+} from "../../ports/persistence/repository-snapshot.repository.js";
 import type { CredentialAuthorizationResolverPort } from "../../ports/security/credential-authorization-resolver.port.js";
 import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
 import { CredentialLease } from "../../security/credential-lease.js";
@@ -151,6 +154,7 @@ function buildHandler(options?: {
     ),
     findById,
     saveWithCreatedEvent,
+    findUnique,
     resolveCommit,
     write,
     lease,
@@ -158,6 +162,48 @@ function buildHandler(options?: {
 }
 
 describe("PinSnapshotHandler", () => {
+  it("rolls back snapshot publication when its required audit write fails", async () => {
+    const { handler, saveWithCreatedEvent } = buildHandler();
+    const persistedSnapshots: string[] = [];
+    // Why: The repository commit and business audit must share one transaction;
+    // an audit outage must not leave an acknowledged-but-untracked snapshot.
+    saveWithCreatedEvent.mockImplementation(() => {
+      // The transactional repository fails before commit when audit insertion fails.
+      throw new Error("audit store unavailable");
+    });
+
+    await expect(handler.execute(command({ branch: "main" }))).rejects.toThrow(
+      "audit store unavailable",
+    );
+    expect(persistedSnapshots).toEqual([]);
+  });
+
+  it("rechecks assessment ownership after provider resolution before publishing", async () => {
+    const { handler, findUnique, resolveCommit, saveWithCreatedEvent } =
+      buildHandler();
+    // Why: A slow provider response cannot extend an ownership grant that was
+    // removed while the external commit lookup was in progress.
+    findUnique.mockResolvedValueOnce({
+      id: "assessment-1",
+      ownerId: "manager-1",
+    });
+    saveWithCreatedEvent.mockRejectedValueOnce(
+      new RepositorySnapshotAuthorityChangedError(),
+    );
+    resolveCommit.mockResolvedValueOnce({
+      sha: "a".repeat(40),
+      repositoryFullName: "acme/example-repo",
+      htmlUrl: `https://github.com/acme/example-repo/commit/${"a".repeat(40)}`,
+      authorDate: null,
+      committerDate: null,
+    });
+
+    await expect(
+      handler.execute(command({ branch: "main" })),
+    ).rejects.toBeDefined();
+    expect(saveWithCreatedEvent).toHaveBeenCalledTimes(1);
+  });
+
   it("pins a branch to an immutable SHA and emits safe snapshot metadata", async () => {
     const { handler, resolveCommit, saveWithCreatedEvent, write, lease } =
       buildHandler();
@@ -178,7 +224,7 @@ describe("PinSnapshotHandler", () => {
       correlationId: "corr-1",
     });
     expect(saveWithCreatedEvent).toHaveBeenCalledTimes(1);
-    const [snapshot, event] = saveWithCreatedEvent.mock.calls[0];
+    const [snapshot, event, audit] = saveWithCreatedEvent.mock.calls[0];
     expect(snapshot.providerMetadata).toEqual({
       authorDate: "2026-07-18T00:00:00.000Z",
       committerDate: "2026-07-18T00:00:01.000Z",
@@ -195,12 +241,13 @@ describe("PinSnapshotHandler", () => {
         correlationId: "corr-1",
       },
     });
-    expect(write).toHaveBeenCalledWith(
+    expect(audit).toEqual(
       expect.objectContaining({
         eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,
         decision: AUDIT_DECISIONS.allow,
       }),
     );
+    expect(write).not.toHaveBeenCalled();
   });
 
   it("uses an explicit commit SHA instead of a supplied branch", async () => {

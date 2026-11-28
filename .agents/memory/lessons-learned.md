@@ -87,3 +87,13 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 - **Root Cause**: The handler projected records into Node.js and derived completion from mutable Assessment state; the consumer used truthy fallbacks for valid zeros.
 - **Resolution & Invariant**: Aggregate fixed activity buckets in PostgreSQL from Assessment creation and durable COMPLETE lifecycle events; return zero as zero without sample bars. Session creation is labelled as last sign in, not last activity. Preserve RED/GREEN unit and PostgreSQL regressions.
 
+### [2026-11-28] [GITHUB-INTEGRATION/POST-PROVIDER-AUTHORITY] External I/O Does Not Preserve Commit Authority
+- **Context / Symptom**: A repository connection or immutable snapshot could be published after the assessment changed state, the credential was rotated, or audit persistence failed; two cache instances could also delete each other's files.
+- **Root Cause**: Provider calls separated the first authorization read from the write transaction, audit ran after commit, and cache cleanup owned a shared root instead of the failed attempt's files.
+- **Resolution & Invariant**: Revalidate and lock owner, lifecycle, credential and connection rows inside the write transaction after provider I/O; commit required audit with the domain write and outbox. Give each cache instance its own directory and delete only its temporary capture on failure. PostgreSQL tests must prove rollback and lock ordering, including a writer that commits while the contender waits; worker/API crash rehearsals remain separate from unit tests.
+
+### [2026-11-28] [GITHUB-INTEGRATION/HYDRATION-DELIVERY-ACK] HTTP Bytes Do Not Prove Ticket Finalization
+- **Context / Symptom**: An archive response could finish while the server's subsequent ticket update failed, leaving a worker with usable bytes and a `RUNNING` hydration ticket.
+- **Root Cause**: HTTP response completion and PostgreSQL finalization cannot share one atomic commit; retrying only inside the server cannot cover a later process failure.
+- **Resolution & Invariant**: Include the exact trusted ticket ID in the archive response and require the worker to validate the archive then perform an idempotent, worker-authenticated completion ACK before returning bytes to hydration. A failed ACK never becomes a successful worker download. On a later archive GET, only verified terminal-Root reconciliation may change an abandoned `RUNNING` ticket to retryable `FAILED`; an active Root keeps it blocked. Test API command dispatch, worker fail-closed behavior, and the PostgreSQL runtime-row race.
+

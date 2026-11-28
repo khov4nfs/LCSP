@@ -114,6 +114,7 @@ const doc = await prisma.document.findFirst({
 
 ## 4. Verification Checklist (Before declaring complete)
 
+- [ ] For GitHub Integration writes after provider I/O, lock and revalidate assessment, credential, and connection authority in the write transaction; commit snapshot/revocation audit with the mutation and verify PostgreSQL rollback/race behavior, not only mocked call order.
 - [ ] Run fast scoped test for changed file: `pnpm --filter @lcsp/api exec jest --config ./jest.config.ts <path-to-spec>` (~2s)
 - [ ] Run architecture boundary check: `pnpm run check:architecture`
 - [ ] Run business logic documentation audit: `pnpm run check:business-logic-docs`

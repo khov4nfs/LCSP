@@ -248,6 +248,7 @@
   "POST /internal/legal-sources/validated-draft",
   "POST /internal/outbox/dlq/:id/replay",
   "POST /internal/rbac/preflight",
+  "POST /internal/repository-snapshots/:snapshotId/archive/ack/:scanJobId",
   "POST /internal/repository-snapshots/:snapshotId/archive/reconcile/:scanJobId",
   "POST /provider-credentials"
 ]
