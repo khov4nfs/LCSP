@@ -38,8 +38,7 @@ export function rejectSelectedOutput(
   cid: string,
   issues: string,
   code:
-    | typeof E.RESULT_INVALID
-    | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
+    typeof E.RESULT_INVALID | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
 ): never {
   if (code === E.SCOPE_REVIEW_REQUIRED) {
     throw problemException(code, cid, {

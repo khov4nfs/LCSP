@@ -173,9 +173,14 @@ export class ActivatePreparedRulesHandler implements ICommandHandler<ActivatePre
         // Revalidate each publication against the reviewed material rule content and pinned source.
         const hydrated = await this.catalogs.hydrate(tx, inputs, cid);
         for (const [index, input] of hydrated.entries()) {
-          manifest[index].scopeAuthorizationKey = await requireSelectedScopeAuthorization(
-            tx, input, outputs[index], cid, this.authority,
-          );
+          manifest[index].scopeAuthorizationKey =
+            await requireSelectedScopeAuthorization(
+              tx,
+              input,
+              outputs[index],
+              cid,
+              this.authority,
+            );
         }
         const packet = complianceRuleSetPacketSchema.parse({
           legalRequirements: outputs.flatMap(

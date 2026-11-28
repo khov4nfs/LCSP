@@ -252,16 +252,20 @@ export class ComplianceRuleSetActivation {
     // Source admission is checked before publication; never publish a new version from a foreign corpus.
     // Unified legal validation: reject any unresolved LEGAL_REVIEW_REQUIRED marker on publication.
     if (ctx.failures.length === 0) {
-      const hasUnresolvedUncertainty = ctx.packet.legalRequirements.some((req) =>
-        (req.coverage.nonAssessableReason ?? "").startsWith(
-          "LEGAL_REVIEW_REQUIRED:",
-        ),
+      const hasUnresolvedUncertainty = ctx.packet.legalRequirements.some(
+        (req) =>
+          (req.coverage.nonAssessableReason ?? "").startsWith(
+            "LEGAL_REVIEW_REQUIRED:",
+          ),
       );
       if (hasUnresolvedUncertainty) {
         throw problemException(
           COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
           ctx.correlationId,
-          { status: HttpStatus.CONFLICT, meta: { reason: "LEGAL_REVIEW_REQUIRED" } },
+          {
+            status: HttpStatus.CONFLICT,
+            meta: { reason: "LEGAL_REVIEW_REQUIRED" },
+          },
         );
       }
       await this.authority.requireVersion(
@@ -320,11 +324,7 @@ export class ComplianceRuleSetActivation {
       await this.enqueueAuthoredDocuments(tx, ruleSet.id);
       const { materializeGroupingProposal } =
         await import("./rule-catalog-groups.service.js");
-      await materializeGroupingProposal(
-        tx,
-        ruleSet.id,
-        ruleSet.ruleSetDigest,
-      );
+      await materializeGroupingProposal(tx, ruleSet.id, ruleSet.ruleSetDigest);
     }
 
     await tx.ruleSetPreparationRun.update({

@@ -101,7 +101,7 @@ export async function materializeGroupingProposal(
       typeof preparationScopeReviewSubmitSchema.shape.decisions.parse
     >[number]
   >();
-  let selectedRequirementIds: Set<string> | null = null;
+  const selectedRequirementIds: Set<string> | null = null;
   if (preparationRun && preparationRunId) {
     if (preparationRun.executionState === AgentExecutionState.FAILED)
       throw conflict();

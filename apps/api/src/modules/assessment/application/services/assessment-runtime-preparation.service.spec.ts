@@ -117,7 +117,9 @@ describe("New assessment legal admission", () => {
     client.complianceRuleSetVersion.findFirst.mockResolvedValue({
       id: "malformed-selected",
       legalSourceVersionId: "legacy-source",
-      selectedPreparationResults: [{ ruleId: "r1", scopeAuthorizationKey: "bad" }],
+      selectedPreparationResults: [
+        { ruleId: "r1", scopeAuthorizationKey: "bad" },
+      ],
     });
     await expect(service.createCaseInTx(tx, "assessment")).resolves.toEqual({
       ruleSetVersionId: null,
