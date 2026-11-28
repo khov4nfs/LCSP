@@ -3,7 +3,9 @@
 import json
 
 import pytest
+from pydantic import ValidationError
 
+from evals import policy_baseline
 from evals.cli import main
 from evals.policy_baseline import (
     ARTIFACT,
@@ -11,6 +13,7 @@ from evals.policy_baseline import (
     SCOPE_PATH,
     PolicySet,
     _evidence_criteria,
+    _load_legal_context,
     evaluate_policy,
 )
 from evals.run_manifest import digest
@@ -55,6 +58,10 @@ def test_policy_fixtures_replay_deterministically():
         {"status": "UNVERIFIED", "value": "v4"},
         {"status": "VERIFIED_PRESENT", "value": []},
         {"status": "VERIFIED_PRESENT", "value": 42},
+        {"status": "VERIFIED_PRESENT", "value": "Unknown"},
+        {"status": "VERIFIED_PRESENT", "value": "Not provided"},
+        {"status": "VERIFIED_PRESENT", "version": "Unknown"},
+        {"status": "VERIFIED_PRESENT", "version": "Not provided"},
         {"status": "EXPLICITLY_ABSENT", "value": "v4"},
     ],
 )
@@ -69,6 +76,8 @@ def test_unverified_or_malformed_evidence_cannot_establish_system_version(eviden
             "scope": "IN_SCOPE",
             "isProvider": True,
             "mediumOrHighRisk": True,
+            "assessedOn": "2027-10-01",
+            "firstOperatedOn": "2026-06-01",
             policy.field: evidence,
         },
     )
@@ -91,6 +100,60 @@ def test_unverified_scope_cannot_fail_a_policy(scope):
         "missingEvidence": [SCOPE_PATH],
         "evidencePaths": [],
     }
+
+
+@pytest.mark.parametrize(
+    ("sector", "assessed_on", "expected"),
+    [
+        ("FINANCE", "2027-08-31", "NOT_APPLICABLE"),
+        ("FINANCE", "2027-09-01", "FAIL"),
+        ("OTHER", "2027-02-28", "NOT_APPLICABLE"),
+        ("OTHER", "2027-03-01", "FAIL"),
+        (None, "2027-10-01", "UNKNOWN"),
+        ("OTHER", "2027-09-31", "UNKNOWN"),
+        ("OTHER", "2025-11-30", "UNKNOWN"),
+    ],
+)
+def test_legacy_transition_uses_verified_chronology(sector, assessed_on, expected):
+    """A recorded absence is decisive only once the relevant transition has elapsed."""
+    policy = PolicySet.model_validate_json(
+        (FIXTURES / "policies.json").read_bytes()
+    ).policies[0]
+    result = evaluate_policy(
+        policy,
+        {
+            "scope": "IN_SCOPE",
+            "isProvider": True,
+            "mediumOrHighRisk": True,
+            "assessedOn": assessed_on,
+            "firstOperatedOn": "2025-12-01",
+            "sector": sector,
+            policy.field: {"status": "EXPLICITLY_ABSENT"},
+        },
+    )
+    assert result["verdict"] == expected
+
+
+@pytest.mark.parametrize(
+    ("override", "error", "message"),
+    [
+        ({"text": "Unverified replacement"}, ValidationError, "Extra inputs"),
+        ({"locator": "art-2"}, ValueError, "POLICY_SOURCE_LOCATOR_DRIFT"),
+    ],
+)
+def test_legal_context_rejects_fixture_edits_against_unchanged_pdf(
+    tmp_path,
+    monkeypatch,
+    override,
+    error,
+    message,
+):
+    """An editable fixture cannot replace text or retarget an official article identity."""
+    selectors = {"law-1": {"document": "134-2025-QH15", "locator": "art-1", **override}}
+    (tmp_path / "legal-context.json").write_text(json.dumps(selectors))
+    monkeypatch.setattr(policy_baseline, "FIXTURES", tmp_path)
+    with pytest.raises(error, match=message):
+        _load_legal_context()
 
 
 def test_citation_to_correct_repo_but_wrong_span_fails_evidence_gate():
@@ -143,9 +206,22 @@ def test_cli_upload_inventory_includes_p14_smoke_without_semantic_claims(tmp_pat
         "134-2025-QH15",
         "142-2026-ND-CP",
     }
-    assert len(report["rows"]) == len(manifest["expectedTrialInventory"]) == 56
-    assert sum(row["rules"] for row in report["coverageByType"].values()) == 7
-    assert sum(row["excluded"] for row in report["coverageByType"].values()) == 2
+    assert len(report["rows"]) == len(manifest["expectedTrialInventory"]) == 32
+    assert sum(row["rules"] for row in report["coverageByType"].values()) == 4
+    assert sum(row["excluded"] for row in report["coverageByType"].values()) == 5
+    assert all(
+        source["ingestionArtifactSha256"]
+        for source in report["legalSource"]["documents"].values()
+    )
+    open_marking_case = next(
+        case
+        for case in cases
+        if case["case_id"] == "capture-VN-AI-OPEN-MARK-ENABLEMENT"
+    )
+    article = open_marking_case["legal_provisions"][0]
+    assert (article["document_id"], article["locator"]) == ("142-2026-ND-CP", "Điều 17")
+    assert "5. Trường hợp hệ thống trí tuệ nhân tạo" in article["content"]
+    assert "mở hoặc cung cấp miễn phí" in article["content"]
     assert set(report["metrics"]) == {"DEV", "HOLDOUT"}
     dev_trees = {row["treeSha256"] for row in report["rows"] if row["split"] == "DEV"}
     holdout_trees = {

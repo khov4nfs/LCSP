@@ -1,42 +1,41 @@
-# LCSP-412 · Policy baseline pháp luật Việt Nam
+# LCSP-412 · Policy baseline cho Development Activity Scope
 
-Bộ benchmark dùng hai PDF trong corpus P05. Mỗi lần chạy kiểm tra SHA-256 của PDF gốc theo manifest, pin các điều khoản trích xuất và đối chiếu hash của snapshot với manifest P14. Các điều khoản cung cấp cho Root bao gồm định nghĩa chủ thể, phạm vi, hiệu lực, chuyển tiếp và ngoại lệ có liên quan. [Manifest P05](../../corpora/lcsp-402-vn-cong-bao-v1/manifest.json) · [Điều khoản và trang PDF](../../fixtures/policy-baseline/legal-context.json)
+Benchmark áp dụng phạm vi phát triển của LCSP-424 theo chủ thể, nghĩa vụ và đầu ra kỹ thuật. Kết quả chỉ phản ánh tiêu chí được liệt kê trong từng policy. [LCSP-424](https://minhpnq1807.atlassian.net/browse/LCSP-424) · [Định nghĩa policy](../../fixtures/policy-baseline/policies.json)
 
-| Kiểm tra evidence | Căn cứ |
+| Kiểm tra được chấm | Căn cứ và đầu ra |
 |---|---|
-| Phiên bản hệ thống trong hồ sơ phân loại rủi ro | Điều 10 Luật 134/2025/QH15, Điều 12 Nghị định 142/2026/NĐ-CP |
-| Thời điểm thông báo kết quả phân loại | Điều 10 Luật 134, Điều 14 và Điều 46 Nghị định 142 |
-| Nhận biết khi tương tác trực tiếp với hệ thống AI | Điều 11 khoản 1 Luật 134, Điều 16 Nghị định 142 |
-| Dấu máy đọc trên đầu ra nghe nhìn | Điều 11 khoản 2 Luật 134, Điều 17 Nghị định 142 |
-| Cơ chế đánh dấu cho hệ thống nguồn mở hoặc miễn phí | Điều 17 khoản 5 Nghị định 142 |
-| Thời điểm thông báo nội dung AI ra công cộng | Điều 11 khoản 3 Luật 134, Điều 18 khoản 1 và khoản 3 Nghị định 142 |
-| Nhãn hiển thị trên nội dung nghe nhìn thuộc diện gắn nhãn | Điều 11 khoản 4 Luật 134, Điều 18 Nghị định 142 |
+| `RISK-VERSION` | Điều 10 Luật 134 và Điều 12 Nghị định 142, trường phiên bản trong hồ sơ phân loại kỹ thuật của nhà cung cấp |
+| `INTERACTION-DISCLOSURE` | Điều 11 khoản 1 Luật 134, khả năng người dùng nhận biết AI tại điểm tương tác trực tiếp |
+| `MEDIA-MARK` | Điều 11 khoản 2 Luật 134 và Điều 17 Nghị định 142, dấu máy đọc nhận diện nguồn gốc AI trên đầu ra nghe nhìn |
+| `OPEN-MARK-ENABLEMENT` | Điều 17 khoản 5 Nghị định 142, cơ chế tích hợp hoặc phương tiện công khai để bật và vận hành chức năng đánh dấu |
 
-Các fixture mô phỏng việc quan sát hồ sơ, giao diện và đầu ra đã phát hành. Giá trị đã kiểm tra phải có trạng thái `VERIFIED_PRESENT` và đúng kiểu dữ liệu. Evidence thiếu, chưa xác minh hoặc sai cấu trúc trả về `UNKNOWN`. Khi áp dụng, `FAIL` yêu cầu evidence ghi nhận thiếu sót rõ ràng hoặc có giá trị mâu thuẫn với tiêu chí đã định. Hai nhóm cần suy luận về phân loại rủi ro hoặc chất lượng minh bạch được đánh dấu `EXCLUDED`. [Định nghĩa policy](../../fixtures/policy-baseline/policies.json)
+`RISK-NOTICE`, `PUBLIC-NOTICE-TIMING` và `VISIBLE-MEDIA-LABEL` nằm ngoài mẫu số development. Policy đầu kiểm tra thủ tục nộp thông báo hành chính của nhà cung cấp. Hai policy còn lại kiểm tra hành vi của bên triển khai khi đưa nội dung ra công cộng. Khả năng kỹ thuật đánh dấu tiếp tục được đánh giá dưới căn cứ riêng tại Điều 17. Phân loại rủi ro và chất lượng minh bạch vẫn nằm trong danh mục `excluded`. [Luật 134/2025/QH15](https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694.htm) · [Nghị định 142/2026/NĐ-CP](https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-142-2026-nd-cp-469480.htm)
 
-## Kết quả local
+Runner xác minh hash của PDF, tái tạo bản trích xuất bằng pipeline managed-document ingestion và đối chiếu hash của toàn bộ artifact với receipt LCSP-402. Tệp fixture chỉ chọn định danh điều khoản. Văn bản, phần dẫn và dải trang cấp cho P14 đều lấy từ artifact đã xác minh. [Manifest Công báo](../../corpora/lcsp-402-vn-cong-bao-v1/manifest.json) · [Receipt P05](../../corpora/lcsp-402-vn-cong-bao-v1/ingestion-receipt.json)
 
-Bốn snapshot DEV và bốn snapshot HOLDOUT khác nhau tạo thành 56 ca, có 25 negative controls về phạm vi, chủ thể và ngoại lệ. HOLDOUT là nhóm fixture riêng trong cùng repo. Các nhãn tham chiếu đều ở trạng thái `SEEDED_UNREVIEWED`.
+Mỗi tiêu chí yêu cầu evidence đúng kiểu. Chuỗi placeholder gắn nhãn `VERIFIED_PRESENT` trả `UNKNOWN`. Một kết quả thử nghiệm đã xác minh có thể xác nhận hoặc bác bỏ tiêu chí. Runner dùng ngày đánh giá, ngày bắt đầu vận hành và lĩnh vực của hệ thống có trước Luật để kiểm tra mốc chuyển tiếp 12 hoặc 18 tháng theo Điều 35. Khi còn trong thời hạn chuyển tiếp, kết quả chỉ có ý nghĩa tại ngày đánh giá. Ngày sai hoặc thiếu dữ kiện trọng yếu trả `UNKNOWN`.
 
-| Baseline | DEV | HOLDOUT |
+## Kiểm tra local
+
+| Nhãn fixture | DEV | HOLDOUT |
 |---|---:|---:|
-| Khớp nhãn fixture | 28/28 | 28/28 |
-| PASS / FAIL / UNKNOWN / NOT_APPLICABLE | 7 / 6 / 5 / 10 | 8 / 2 / 3 / 15 |
-| Precision và recall theo lớp PASS và FAIL | 100% | 100% |
-| Negative controls | 10 | 15 |
+| PASS | 4 | 2 |
+| FAIL | 3 | 1 |
+| UNKNOWN | 2 | 1 |
+| NOT_APPLICABLE | 7 | 12 |
 
-Hai lượt chạy trả về cùng manifest, input pins, verdict, applicability và đường dẫn evidence. Smoke test P14 chạy đủ 56 ca, không ghi lỗi thực thi và có 0 lượt gọi provider. P14 ghi riêng verdict khớp (15/56), nguồn dẫn phủ đúng đoạn (56/56), cả verdict và nguồn dẫn cùng khớp (15/56), HITL khớp (55/56) và workflow khớp (48/56). Lượt smoke dùng Root `SCRIPTED`, vốn có thể trả `COMPLIANT` theo nhánh mặc định. Trường hợp `workbench` kỳ vọng Root mở HITL khi dấu máy đọc còn thiếu bằng chứng xác minh. Smoke test ghi nhận kịch bản không mở HITL trong ca này.
+Hai nhóm gồm bốn snapshot riêng mỗi nhóm và có tổng 19 negative controls. Nhãn tham chiếu ở trạng thái `SEEDED_UNREVIEWED`. HOLDOUT là phân vùng fixture local. Chưa xác lập việc cách ly dữ liệu trước khi thiết kế policy.
 
-Đánh giá suy luận theo rubric LCSP-400 đang ở trạng thái `NOT_SCORED`. Phép đối chứng với Root LIVE còn cần review độc lập cho gold labels và quyền thực thi theo LCSP-407.
+Baseline khớp 32/32 nhãn fixture. Hai lượt local cho cùng verdict, applicability, đường dẫn evidence và manifest P14 `7c8936384e190da1c8976c7be5c4fc5ca00ad67503c6cad4f5da621911a8675d`.
 
-## Tái lập và kiểm tra artifacts
+Root `SCRIPTED` chạy đủ 32 ca để kiểm tra tích hợp P14, ghi nhận 0 lỗi thực thi và 0 lượt gọi provider. Verdict khớp 6/32, citation anchors khớp 32/32, HITL khớp 31/32 và workflow khớp 29/32. Điểm suy luận vẫn ở trạng thái `NOT_SCORED`. Đối chứng LIVE cần nhãn tham chiếu được review độc lập và quyền chạy theo LCSP-407.
 
-Chạy từ `deepagents/` với một thư mục đầu ra mới.
+## Tái lập
+
+Chạy từ `deepagents/` với thư mục đầu ra mới.
 
 ```bash
-uv run python -m evals.cli policy-baseline --output-dir /tmp/lcsp-vn-policy-pilot
+uv run python -m evals.cli policy-baseline --output-dir /tmp/lcsp-development-policy-pilot
 ```
 
-`policy-report.json` lưu verdict, applicability và JSON Pointer cho từng ca. `cases.json` chứa đầu vào P14 và tiêu chí evidence, HITL, lifecycle. `root-scripted/` chứa manifest, trial inventory, kết quả và traces. Manifest P14 của lượt local có SHA-256 `bd4950f898274f9c16fc45330e5f43f7a82a07b48deb2945b45a8dacb0a9a7d1`.
-
-Workflow Tests tạo artifact `lcsp-policy-baseline-<SHA>` theo từng revision CI và giữ 30 ngày. Artifact gồm cả các tệp dùng để kiểm tra lại kết quả và traces.
+`policy-report.json` lưu verdict, applicability và các đường dẫn evidence. `cases.json` lưu dữ liệu đầu vào của P14. `root-scripted/` chứa manifest, trial inventory, kết quả và traces. Workflow Tests lưu các tệp này trong artifact gắn với revision CI trong 30 ngày.

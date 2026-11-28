@@ -1,22 +1,15 @@
 {
   "scope": "IN_SCOPE",
   "isProvider": true,
-  "mediumOrHighRisk": true,
   "interactsDirectly": true,
   "otherInteractionException": false,
   "generatesAudiovisual": true,
   "openOrFreeDistribution": false,
-  "isDeployer": true,
-  "publicConfusableAiContent": true,
-  "otherPublicNoticeException": false,
-  "publicDistribution": true,
-  "simulatedRealAudiovisual": true,
-  "visibleLabelException": false,
   "scenario": "Nhà cung cấp dịch vụ trả phí và trực tiếp phát hành video giả lập, hồ sơ xác minh thiếu ở một số điểm.",
   "dossierSystemVersion": {"status": "MISSING"},
-  "riskNoticeTiming": {"status": "UNVERIFIED"},
   "interactionDisclosure": {"status": "EXPLICITLY_ABSENT"},
   "machineReadableMark": {"status": "EXPLICITLY_ABSENT"},
-  "publicNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "AFTER_ACCESS"},
-  "visibleMediaLabel": {"status": "UNVERIFIED"}
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2026-06-01",
+  "mediumOrHighRisk": true
 }

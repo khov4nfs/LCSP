@@ -478,7 +478,18 @@ jobs:
           cache-dependency-path: deepagents/pyproject.toml
 
       - name: Install dependencies
-        run: python -m pip install -e ".[dev]"
+        # Replay the verified legal extraction with the PDF parser version in uv.lock.
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          import tomllib
+
+          with open("uv.lock", "rb") as lockfile:
+              packages = tomllib.load(lockfile)["package"]
+          pdf_parser = next(package["version"] for package in packages if package["name"] == "pypdf")
+          subprocess.run([sys.executable, "-m", "pip", "install", "-e", ".[dev]", f"pypdf=={pdf_parser}"], check=True)
+          PY
 
       # Python/API parity tests run the API's TypeScript domain code through `pnpm exec tsx`.
       - uses: pnpm/action-setup@v4

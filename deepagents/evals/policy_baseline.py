@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
+from datetime import date
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Literal
@@ -27,6 +28,7 @@ from evals.benchmark_schema import (
 )
 from evals.run_manifest import digest, stable_hash
 from evals.scorer import export_report_json, validate_run_artifacts_for_scoring
+from tools.legal.managed_documents.ingest import ingest_document
 
 FIXTURES = Path(__file__).parent / "fixtures" / "policy-baseline"
 CORPUS = Path(__file__).parent / "corpora" / "lcsp-402-vn-cong-bao-v1"
@@ -40,6 +42,15 @@ VERDICTS = {
 }
 ROOT_VERDICTS = {verdict: label for label, verdict in VERDICTS.items()}
 RUBRIC_ID = "LCSP-400-LEGAL-REASONING-RUBRIC-V1"
+SOURCE_NUMBERS = {"law": "134-2025-QH15", "decree": "142-2026-ND-CP"}
+LAW_EFFECTIVE = date(2026, 3, 1)
+DECREE_EFFECTIVE = date(2026, 5, 1)
+TRANSITION_END = {
+    "HEALTHCARE": date(2027, 9, 1),
+    "EDUCATION": date(2027, 9, 1),
+    "FINANCE": date(2027, 9, 1),
+    "OTHER": date(2027, 3, 1),
+}
 
 
 class Policy(BaseModel):
@@ -53,20 +64,52 @@ class Policy(BaseModel):
     context: tuple[str, ...] = Field(min_length=1)
     field: str = Field(pattern=r"^[a-zA-Z]+$")
     criterion: str = Field(min_length=1)
-    pass_pattern: re.Pattern[str] | None = None
-    fail_pattern: re.Pattern[str] | None = None
     conditions: dict[str, bool] = Field(default_factory=dict)
     exceptions: tuple[str, ...] = ()
     limit: str = Field(min_length=1)
 
 
-class VerifiedEvidence(BaseModel):
-    """Transcribed documentary value supplied by the fixture author."""
+class VerifiedObservation(BaseModel):
+    """Common status for a fixture observation validated against its criterion schema."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
     status: Literal["VERIFIED_PRESENT"]
-    value: str
+
+
+class DossierVersion(VerifiedObservation):
+    """A version transcribed from the dossier, using the fixture's release ID formats."""
+
+    version: str = Field(pattern=r"^(r[0-9]+|[0-9]+(\.[0-9]+)+)$", max_length=80)
+
+
+class InteractionDisclosure(VerifiedObservation):
+    """Result of observing the disclosure at the tested interaction point."""
+
+    userCanIdentifyAi: bool
+
+
+class MediaMark(VerifiedObservation):
+    """Result of reading the mark and checking its meaning on the sampled output."""
+
+    machineRecognizesAiOrigin: bool
+
+
+class OpenMarking(VerifiedObservation):
+    """Result of exercising the built-in or publicly configurable marking capability."""
+
+    route: Literal[
+        "BUILT_IN_VERIFIED", "PUBLIC_ENABLEMENT_VERIFIED", "NEITHER_ROUTE_WORKS"
+    ]
+
+
+class ArticleSelector(BaseModel):
+    """An allowlisted article identity. Content and page spans come from ingestion."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    document: str
+    locator: str
 
 
 class EvidenceGap(BaseModel):
@@ -122,44 +165,101 @@ class ReferenceSnapshot(BaseModel):
 def _load_legal_context() -> tuple[dict[str, LegalProvisionFixture], dict[str, Any]]:
     """Business purpose: Bind the policy benchmark to checked-in Vietnamese Công báo sources.
     Business rules:
-    - Every provision comes from a named P05 source and valid page range.
+    - Only articles from an extraction byte-for-byte matching the P05 receipt are served.
     Execution flow:
-    1. Load the manifest and selected article extracts.
-    2. Verify each relevant PDF against its P05 SHA-256.
-    3. Return provision fixtures and a receipt pinning both PDFs and extracts.
+    1. Load the P05 manifest, extraction receipt and article selectors.
+    2. Verify each PDF and reproduce the managed ingestion artifact.
+    3. Assemble selected articles from the verified chunks with their extracted page spans.
     Failure cases:
-    - Reject unknown documents, unreadable sources, mismatched PDF bytes or invalid page ranges.
+    - Reject changed PDFs, extraction drift, injected excerpt text, and inconsistent or non-unique article identities.
     Side effects:
     - Reads local legal artifacts without contacting any service.
     """
     manifest = (CORPUS / "manifest.json").read_bytes()
-    extracts = (FIXTURES / "legal-context.json").read_bytes()
+    receipt_bytes = (CORPUS / "ingestion-receipt.json").read_bytes()
+    receipts = {item["file"]: item for item in json.loads(receipt_bytes)["documents"]}
+    selectors_bytes = (FIXTURES / "legal-context.json").read_bytes()
+    selectors = TypeAdapter(dict[str, ArticleSelector]).validate_json(selectors_bytes)
     official_docs = {item["number"]: item for item in json.loads(manifest)["documents"]}
     context: dict[str, LegalProvisionFixture] = {}
     sources = {}
-    for key, excerpt in json.loads(extracts).items():
-        number = excerpt["document"]
+    chunks_by_number = {}
+    for key, selector in selectors.items():
+        prefix, _, article = key.partition("-")
+        number = SOURCE_NUMBERS.get(prefix)
+        locator = f"art-{article}"
+        if (
+            number is None
+            or not re.fullmatch(r"[1-9][0-9]*", article)
+            or (selector.document, selector.locator) != (number, locator)
+        ):
+            raise ValueError(f"POLICY_SOURCE_LOCATOR_DRIFT:{key}")
         document = official_docs[number]
         if number not in sources:
-            # P14 receives normalized article text. The receipt pins the original PDF separately.
             path = CORPUS / document["file"]
+            if path.parent != CORPUS or path.is_symlink():
+                raise ValueError(f"POLICY_SOURCE_PDF_DRIFT:{number}")
+            pdf = path.read_bytes()
+            receipt = receipts[document["file"]]
             if (
-                path.parent != CORPUS
-                or path.is_symlink()
-                or digest(path.read_bytes()) != document["sha256"]
+                digest(pdf) != document["sha256"]
+                or receipt["originalSha256"] != document["sha256"]
             ):
                 raise ValueError(f"POLICY_SOURCE_PDF_DRIFT:{number}")
+            extraction = ingest_document(
+                data=pdf,
+                media_type="application/pdf",
+                structure_profile="AUTO",
+                attempt=1,
+            )
+            # Reproduce the P05 artifact serialization, including chunk locators and page spans.
+            artifact_hash = digest(
+                json.dumps(extraction, ensure_ascii=False, indent=2) + "\n"
+            )
+            if (
+                extraction["outcome"] != "READY"
+                or artifact_hash != receipt["ingestionArtifactSha256"]
+            ):
+                raise ValueError(f"POLICY_SOURCE_EXTRACTION_DRIFT:{number}")
+            chunks_by_number[number] = extraction["chunks"]
             sources[number] = {
                 "url": document["sourcePage"],
                 "pdfSha256": document["sha256"],
+                "ingestionArtifactSha256": artifact_hash,
             }
-        first, last = excerpt["pages"]
-        if not 1 <= first <= last <= document["pages"]:
-            raise ValueError(f"INVALID_POLICY_SOURCE_PAGES:{key}")
-        content = excerpt["text"]
+        chunks = [
+            chunk
+            for chunk in chunks_by_number[number]
+            if chunk["locator"] == locator
+            or chunk["locator"].startswith(f"{locator}::")
+        ]
+        if not chunks:
+            raise ValueError(f"POLICY_SOURCE_LOCATOR_MISSING:{key}")
+        first = min(chunk["pageStart"] for chunk in chunks)
+        last = max(chunk["pageEnd"] for chunk in chunks)
+        # Clause lead-ins carry the regulated actor and exceptions for point-only chunks.
+        hierarchy = chunks[0]["hierarchy"]
+        parts = [hierarchy["articleHeading"]] if chunks[0]["locator"] != locator else []
+        if hierarchy.get("articleLeadIn") and parts:
+            parts.append(hierarchy["articleLeadIn"])
+        seen_clauses = set()
+        for chunk in chunks:
+            hierarchy = chunk["hierarchy"]
+            clause = hierarchy.get("clauseNumber")
+            if (
+                clause not in seen_clauses
+                and hierarchy.get("pointLabel")
+                and hierarchy.get("clauseLeadIn")
+            ):
+                parts.append(
+                    f"{hierarchy['clauseNumbering']} {hierarchy['clauseLeadIn']}"
+                )
+            seen_clauses.add(clause)
+            parts.append(chunk["content"])
+        content = "\n\n".join(parts)
         context[key] = LegalProvisionFixture(
             document_id=number,
-            locator=excerpt["locator"],
+            locator=f"Điều {article}",
             title=f"{number} · Công báo PDF trang {first}–{last}",
             content=content,
             content_sha256=digest(content),
@@ -167,20 +267,65 @@ def _load_legal_context() -> tuple[dict[str, LegalProvisionFixture], dict[str, A
         )
     return context, {
         "manifestSha256": digest(manifest),
-        "extractsSha256": digest(extracts),
+        "selectorsSha256": digest(selectors_bytes),
+        "ingestionReceiptSha256": digest(receipt_bytes),
         "documents": sources,
     }
+
+
+def _temporal_applicability(
+    artifact: dict[str, Any],
+) -> tuple[str, list[str], list[str]]:
+    """Business purpose: Determine whether a selected technical duty is due on the fixture date.
+    Business rules:
+    - Check both instruments' effective dates as the benchmark's supported window.
+    - Apply Article 35 to systems in operation before the Law took effect, using the sector-specific deadline.
+    Execution flow:
+    1. Verify the assessment and first operation dates.
+    2. When the system predates the Law, consult the sector to determine the transition end.
+    Failure cases:
+    - Missing or contradictory chronology and unverified legacy sectors leave applicability UNKNOWN.
+    Side effects:
+    - Reads fixture facts without any external action.
+    """
+    dates = {}
+    for field in ("assessedOn", "firstOperatedOn"):
+        value = artifact.get(field)
+        if not isinstance(value, str) or not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value
+        ):
+            return "UNKNOWN", list(dates), [field]
+        try:
+            dates[field] = date.fromisoformat(value)
+        except ValueError:
+            return "UNKNOWN", list(dates), [field]
+    assessed, operated = dates["assessedOn"], dates["firstOperatedOn"]
+    if operated > assessed or assessed < DECREE_EFFECTIVE:
+        # The period before both instruments are effective needs separate legal analysis.
+        return "UNKNOWN", [], list(dates)
+    if operated >= LAW_EFFECTIVE:
+        return "APPLICABLE", list(dates), []
+    sector = artifact.get("sector")
+    end = TRANSITION_END.get(sector) if isinstance(sector, str) else None
+    if end is None:
+        return "UNKNOWN", list(dates), ["sector"]
+    return (
+        ("NOT_APPLICABLE" if assessed < end else "APPLICABLE"),
+        [*dates, "sector"],
+        [],
+    )
 
 
 def evaluate_policy(policy: Policy, artifact: dict[str, Any]) -> dict[str, Any]:
     """Business purpose: Check one documentary criterion over a frozen release record.
     Business rules:
-    - Use stipulated scope and release conditions. Require a verified transcription or explicit absence.
+    - Resolve actor, release conditions and the statutory transition before scoring technical evidence.
+    - Require a criterion-specific verified observation or an explicit recorded absence.
     Execution flow:
     1. Resolve scope and compare the declared field if applicable.
     2. Return the verdict with present and missing evidence pointers.
     Failure cases:
-    - Overlapping pass and fail patterns for an observed value invalidate the policy.
+    - Missing or malformed observations and undetermined applicability remain UNKNOWN.
     Side effects:
     - Pure evaluation of supplied data.
     """
@@ -221,6 +366,14 @@ def evaluate_policy(policy: Policy, artifact: dict[str, Any]) -> dict[str, Any]:
         result["applicability"] = "UNKNOWN"
         return result
 
+    applicability, facts, missing = _temporal_applicability(artifact)
+    result["evidencePaths"].extend(f"{ARTIFACT}#/{field}" for field in facts)
+    result["missingEvidence"].extend(f"{ARTIFACT}#/{field}" for field in missing)
+    result["applicability"] = applicability
+    if applicability != "APPLICABLE":
+        result["verdict"] = applicability
+        return result
+
     raw = artifact.get(policy.field)
     try:
         record = EvidenceGap.model_validate(raw)
@@ -231,28 +384,30 @@ def evaluate_policy(policy: Policy, artifact: dict[str, Any]) -> dict[str, Any]:
         result["evidencePaths"].append(field_path)
         return result
 
+    evidence_model = {
+        "dossierSystemVersion": DossierVersion,
+        "interactionDisclosure": InteractionDisclosure,
+        "machineReadableMark": MediaMark,
+        "openMarkingCapability": OpenMarking,
+    }[policy.field]
     try:
-        verified = VerifiedEvidence.model_validate(raw)
+        verified = evidence_model.model_validate(raw)
     except ValidationError:
         result["missingEvidence"] = [field_path]
         return result
 
-    # Only fixture-certified transcriptions are eligible for content and format checks.
-    value = verified.value
-    if policy.pass_pattern is None:
-        passed = bool(value.strip())
-    else:
-        passed = bool(policy.pass_pattern.fullmatch(value))
-    failed = policy.fail_pattern is not None and bool(
-        policy.fail_pattern.fullmatch(value)
+    # A validated observation can explicitly contradict the technical criterion.
+    passed = (
+        isinstance(verified, DossierVersion)
+        or (isinstance(verified, InteractionDisclosure) and verified.userCanIdentifyAi)
+        or (isinstance(verified, MediaMark) and verified.machineRecognizesAiOrigin)
+        or (
+            isinstance(verified, OpenMarking)
+            and verified.route != "NEITHER_ROUTE_WORKS"
+        )
     )
-    if passed and failed:
-        raise ValueError(f"AMBIGUOUS_POLICY:{policy.id}")
-    if passed or failed:
-        result["verdict"] = "PASS" if passed else "FAIL"
-        result["evidencePaths"].append(field_path)
-    else:
-        result["missingEvidence"] = [field_path]
+    result["verdict"] = "PASS" if passed else "FAIL"
+    result["evidencePaths"].append(field_path)
     return result
 
 
@@ -333,14 +488,14 @@ def _benchmark_case(
                 "digest_sha256": corpus_digest,
             },
             "rule_set_pin": {
-                "rule_set_version_id": f"{policy.id}-v2",
+                "rule_set_version_id": f"{policy.id}-v3",
                 "rule_ids": [policy.id],
                 "digest_sha256": stable_hash(rules),
             },
             "legal_provisions": provisions,
             "rule_definitions": rules,
             "gold_rubric": {
-                "gold_revision": "vn-ai-documentary-fixtures-v1-unreviewed",
+                "gold_revision": "vn-ai-development-fixtures-v2-unreviewed",
                 "stages": [
                     {
                         "stage": "WAITING_FOR_HUMAN"
