@@ -30,9 +30,9 @@ export function AuthShell({ children, homeLabelKey }: AuthShellProps) {
     resolveMessage(locale, key);
 
   return (
-    // Use canonical surface tokens so auth follows the application theme without changing its light-mode reference surface.
-    <main className="min-h-dvh bg-background text-foreground">
-      <header className="flex h-18 items-center justify-between border-b border-[#D6DFE7] px-6 sm:px-8 xl:px-11">
+    // Lock the auth shell to a single viewport height (100dvh) so desktop/laptop auth screens fit without page-level vertical scroll.
+    <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-6 sm:px-8 xl:px-11">
         <Link href="/" aria-label={t(homeLabelKey)} className="inline-flex items-center">
           <LCSPLogo variant="lockup" size="md" />
         </Link>
@@ -76,14 +76,14 @@ export function AuthShell({ children, homeLabelKey }: AuthShellProps) {
           </Link>
         </nav>
       </header>
-      {/* Keep the two-column composition at xl so the audited panel and form can retain their readable widths on tablets. */}
-      <div className="mx-auto grid w-full max-w-screen-2xl grid-cols-1 gap-8 px-4 py-6 sm:px-8 xl:grid-cols-[minmax(0,590px)_minmax(0,1fr)] xl:gap-12">
+      {/* Keep the two-column composition at xl within the remaining viewport height without page-level y-scroll. */}
+      <div className="mx-auto grid min-h-0 w-full max-w-screen-2xl flex-1 grid-cols-1 gap-6 px-4 py-4 sm:px-8 xl:grid-cols-[minmax(0,590px)_minmax(0,1fr)] xl:gap-12 xl:py-5">
         <AuthBrandPanel />
-        <section className="flex min-w-0 flex-col items-center pt-6 xl:pt-14 xl:pr-14">
-          <div className="flex w-full flex-1 items-start justify-center">
+        <section className="flex min-h-0 min-w-0 flex-col items-center overflow-y-auto pt-4 xl:justify-center xl:pt-0 xl:pr-14">
+          <div className="flex w-full flex-1 items-center justify-center">
             {children}
           </div>
-          <footer className="mt-10 w-full text-center text-xs leading-4 text-muted-foreground xl:mt-auto">
+          <footer className="mt-4 w-full shrink-0 pb-2 text-center text-xs leading-4 text-muted-foreground">
             {t("pages.authShell.footerLabel")}
           </footer>
         </section>
