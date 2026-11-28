@@ -1,0 +1,692 @@
+{
+  "availableSkillsSha256": {},
+  "b1RetrievalConfig": {
+    "adapter_version": "LCSP_RAG_B1_V2",
+    "max_context_chars": 12000,
+    "top_k": 5
+  },
+  "component": "rag-b1-baseline",
+  "expectedTrialInventory": [
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    }
+  ],
+  "goldReviewerRevision": "gold-pilot-r1",
+  "instructionBundle": {
+    "approvalIdentity": "NOT_REQUIRED",
+    "approvalRevision": "NOT_REQUIRED",
+    "enRuntimeBundleDigest": "",
+    "id": "lcsp-fact-need-provenance-r4-2026-11-16",
+    "viSourceInventoryDigest": "",
+    "viSourceRevisions": {
+      "assessment-root.continuation": "lcsp-347-draft-r1",
+      "assessment-root.resume": "lcsp-347-draft-r1",
+      "assessment-root.system": "lcsp-347-draft-r1",
+      "assessment-tool.accept_case_fact.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.cite_repository_source.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_assessment_context.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_assessment_rule.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_pinned_rule_set.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_repository_architecture.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_repository_discovery_details.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_repository_discovery_ranges.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.get_rule_decision.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.list_assessment_skills.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.load_assessment_skill.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.open_human_request.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.read_legal_source.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.record_repository_discovery_expansion.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.record_search_coverage.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.report_human_fact_unresolvable.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.request_finalization.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.search_code_graph.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.search_code_text.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.search_legal_source.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.start_rule_investigation.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.submit_final_report.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.submit_rule_decision.guidance": "lcsp-347-draft-r1",
+      "assessment-tool.trace_call_path.guidance": "lcsp-347-draft-r1",
+      "assessment-tools.descriptions": "lcsp-347-draft-r1",
+      "assessment-tools.upstream": "r3-source-repair-2026-11-15",
+      "claim-author.system": "lcsp-347-draft-r1",
+      "framework.file-deletion": "r3-source-repair-2026-11-15",
+      "framework.injected-policy": "lcsp-347-draft-r1",
+      "preparation-tools.descriptions": "lcsp-347-draft-r1",
+      "preparation.authoring": "lcsp-347-draft-r1",
+      "preparation.authoring-state": "lcsp-347-draft-r1",
+      "preparation.common": "lcsp-347-draft-r1",
+      "preparation.continuation": "lcsp-347-draft-r1",
+      "preparation.development-overlay": "lcsp-540-oversight-scope-draft-r2",
+      "preparation.direct": "lcsp-347-draft-r1",
+      "preparation.discovery": "lcsp-347-draft-r1",
+      "preparation.history": "lcsp-347-draft-r1",
+      "preparation.history-counts": "lcsp-347-draft-r1",
+      "preparation.materialized-source-guidance": "lcsp-347-draft-r1",
+      "preparation.observation-errors": "lcsp-347-draft-r1",
+      "preparation.presentation": "lcsp-347-draft-r1",
+      "preparation.selected": "lcsp-540-oversight-scope-draft-r2",
+      "repository-researcher.system": "lcsp-347-draft-r1",
+      "runtime.budget-finalization": "lcsp-347-draft-r1",
+      "runtime.context-identifiers": "lcsp-347-draft-r1",
+      "runtime.response-language": "lcsp-347-draft-r1",
+      "runtime.response-transform": "r3-source-repair-2026-11-15",
+      "runtime.skill-catalogs": "lcsp-347-draft-r1",
+      "runtime.structured-transform": "r3-source-repair-2026-11-15",
+      "skill.assessment-automated-outcomes": "lcsp-347-draft-r1",
+      "skill.assessment-controls-and-claims": "lcsp-347-draft-r1",
+      "skill.assessment-data-lifecycle": "lcsp-347-draft-r1",
+      "skill.assessment-model-integrity": "lcsp-347-draft-r1",
+      "skill.assessment-system-boundaries": "lcsp-347-draft-r1",
+      "skill.rule-preparation-actor-stage": "lcsp-540-oversight-scope-draft-r2",
+      "skill.rule-preparation-material-context": "lcsp-347-draft-r1",
+      "skill.rule-preparation-mixed-claims": "lcsp-347-draft-r1",
+      "skill.rule-preparation-scope-quality": "lcsp-540-oversight-scope-draft-r2",
+      "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
+    }
+  },
+  "manifestSha256": "337fbc1cd06056d7f80700e3c425a96183e749353a0d49715fd2f2b08be1ab9c",
+  "model": {
+    "adapterClass": "SimpleNamespace",
+    "configuredModelId": "offline-scripted"
+  },
+  "promptsSha256": {
+    "b1_prompt_template": "c8ba6be2440f96e9f0f1f08feec17dcd7f3cd2948fcb3b6baa3911129ad83bf6"
+  },
+  "responseLanguage": "en",
+  "runId": "pilot-b1-v1",
+  "schemaVersion": "LCSP_MODEL_FACING_MANIFEST_V1",
+  "selectedSkillsSha256": {},
+  "semanticAcceptance": "NOT_ESTABLISHED_BY_FINGERPRINT",
+  "sourcePins": {
+    "b1RetrievalConfigSha256": "59ed793a892f70b78f705af244067d2583d6877c2201f82590e51bfce907abcb",
+    "casesDatasetSha256": "31377fcd82a23ae51ccb37b5811c373e5e5f3783531008f4989bfe94551609d5",
+    "corpusPinsSha256": "06fadf0494cd7f14688ba9ad9dd237c8e2e83845e8e72911859e051d26db8fab",
+    "expectedInventorySha256": "b47f8b4bd419579ba160276cb9e5e76349f22a19a96964a9d781ef98f4ea82ee",
+    "repoPinsSha256": "38450cde2d2230d38d5362361e81a1010ca963fe2bde4bc74f84fc62e82e0913",
+    "ruleSetPinsSha256": "f03e0b9ab2636ce9d36790fc123961950a61e64ef8662834e34771ea23f5e2ba",
+    "runConfigSha256": "f4fe70cc3a193963654900263cb9cc1d4e8e56a64ce083dc74f00c7bff8bd29f"
+  },
+  "toolDescriptionsSha256": {},
+  "usage": {
+    "cachedInputTokens": null,
+    "costCurrency": null,
+    "failedAttempts": null,
+    "inputTokens": null,
+    "outputTokens": null,
+    "physicalAttempts": null,
+    "providerCost": null
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "LCSP_RAG_B1_EDGE_FIXTURES_V1",
+  "fixtures": [
+    {
+      "fixtureId": "B1-NO-EVIDENCE",
+      "scenario": "no_evidence",
+      "description": "Single-pass retrieval returns zero matching repository or legal items; B1 must return UNRESOLVED with zero fabricated citations.",
+      "expectedRetrievalStatus": "NO_EVIDENCE",
+      "expectedVerdict": "UNRESOLVED",
+      "candidates": []
+    },
+    {
+      "fixtureId": "B1-IRRELEVANT-EVIDENCE",
+      "scenario": "irrelevant_evidence",
+      "description": "Retrieved legal provision exists, but repository source is missing or contains only unrelated/untrusted prompt-injection text.",
+      "expectedRetrievalStatus": "IRRELEVANT_EVIDENCE",
+      "expectedVerdict": "UNRESOLVED",
+      "candidates": [
+        {
+          "evidence_id": "b1-irr-law-1",
+          "source_type": "LEGAL_PROVISION",
+          "source_id": "vn-pdpl-2025",
+          "version_pin": "2025.1",
+          "path": "art-11",
+          "text": "Controllers must obtain explicit opt-in consent.",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "query_provenance": "b1_legal_pin:consent",
+          "scope_valid": true,
+          "stale": false
+        }
+      ]
+    },
+    {
+      "fixtureId": "B1-STALE-SOURCE",
+      "scenario": "stale_source",
+      "description": "Retrieved repository evidence carries a stale commit SHA mismatching the pinned snapshot; B1 must reject it and return UNRESOLVED.",
+      "expectedRetrievalStatus": "STALE_SOURCE",
+      "expectedVerdict": "UNRESOLVED",
+      "candidates": [
+        {
+          "evidence_id": "b1-stale-repo-1",
+          "source_type": "REPOSITORY_SOURCE",
+          "source_id": "repo-01-consent-app",
+          "version_pin": "synthetic-000000000000",
+          "path": "src/consent.py",
+          "start_line": 4,
+          "end_line": 8,
+          "text": "def collect_user_consent(user_id: str, purpose: str, opt_in: bool) -> dict[str, str]:",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "query_provenance": "b1_repo_single_pass:consent",
+          "scope_valid": true,
+          "stale": true
+        }
+      ]
+    }
+  ]
+}

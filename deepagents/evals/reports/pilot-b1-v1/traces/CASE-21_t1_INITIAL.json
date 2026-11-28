@@ -1,0 +1,32 @@
+{
+  "caseId": "CASE-21",
+  "mode": "OFFLINE_FIXTURE",
+  "modelResponse": {
+    "citedEvidenceIds": [],
+    "rationale": null,
+    "rawVerdict": null,
+    "validationResult": "VALID"
+  },
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "promptSha256": "2ce8618cf77ea134add38507a99f0db08790097cb6fbc5e07d8dcc0b874a01f1",
+  "retrievalArtifact": {
+    "caseId": "CASE-21",
+    "path": "retrieved_evidence.jsonl",
+    "threadId": "414766b3-1c9b-4c61-8c4a-cf9372d34654",
+    "trialIndex": 1
+  },
+  "retrievalStatus": "RETRIEVED",
+  "retrievedEvidenceIds": [
+    "b1-law-case-21",
+    "b1-repo-case-21-1",
+    "ev-case-21-1"
+  ],
+  "runId": "pilot-b1-v1",
+  "stage": "INITIAL",
+  "threadId": "414766b3-1c9b-4c61-8c4a-cf9372d34654",
+  "trialIndex": 1
+}
