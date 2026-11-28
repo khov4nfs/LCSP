@@ -217,11 +217,9 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
         `;
 
         if (!lockedWallet) {
-          throw problemException(
-            BILLING_ERROR_CODES.notFound,
-            correlationId,
-            { status: HttpStatus.NOT_FOUND },
-          );
+          throw problemException(BILLING_ERROR_CODES.notFound, correlationId, {
+            status: HttpStatus.NOT_FOUND,
+          });
         }
 
         // Step 2: Idempotency check inside lock boundary
@@ -234,7 +232,8 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
           if (
             existingWithIdempotency.requestFingerprint !== requestFingerprint ||
             existingWithIdempotency.originalLedgerEntryId !== debit.id ||
-            existingWithIdempotency.deltaMicrocredits !== requestedAmountMicrocredits
+            existingWithIdempotency.deltaMicrocredits !==
+              requestedAmountMicrocredits
           ) {
             throw problemException(
               BILLING_ERROR_CODES.idempotencyConflict,
@@ -286,7 +285,8 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
           newBalanceMicrocredits > 0n
             ? newBalanceMicrocredits / 1_000_000n
             : 0n;
-        const remainingUncompensated = debitMicrocredits - newTotalCompensatedMicrocredits;
+        const remainingUncompensated =
+          debitMicrocredits - newTotalCompensatedMicrocredits;
 
         // 1. Append immutable CreditLedgerEntry with canonical requestFingerprint
         const compensationLedgerEntry = await tx.creditLedgerEntry.create({
@@ -331,11 +331,14 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
               reason: payload.reason,
               walletId: debit.walletId,
               userId: debit.userId,
-              previousBalanceMicrocredits: lockedWallet.balanceMicrocredits.toString(),
+              previousBalanceMicrocredits:
+                lockedWallet.balanceMicrocredits.toString(),
               newBalanceMicrocredits: newBalanceMicrocredits.toString(),
               walletVersion: updatedWallet.version,
-              totalCompensatedMicrocredits: newTotalCompensatedMicrocredits.toString(),
-              remainingUncompensatedMicrocredits: remainingUncompensated.toString(),
+              totalCompensatedMicrocredits:
+                newTotalCompensatedMicrocredits.toString(),
+              remainingUncompensatedMicrocredits:
+                remainingUncompensated.toString(),
               compensatedAt: now.toISOString(),
               requestFingerprint,
             },
@@ -371,7 +374,8 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
           originalLedgerEntryId: debit.id,
           originalDebitMicrocredits: debitMicrocredits.toString(),
           compensatedMicrocredits: requestedAmountMicrocredits.toString(),
-          totalCompensatedMicrocredits: newTotalCompensatedMicrocredits.toString(),
+          totalCompensatedMicrocredits:
+            newTotalCompensatedMicrocredits.toString(),
           remainingUncompensatedMicrocredits: remainingUncompensated.toString(),
           walletBalanceMicrocredits: newBalanceMicrocredits.toString(),
           walletVersion: updatedWallet.version,
@@ -480,7 +484,11 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
       },
     });
 
-    if (!auditEvent || !auditEvent.payload || typeof auditEvent.payload !== "object") {
+    if (
+      !auditEvent ||
+      !auditEvent.payload ||
+      typeof auditEvent.payload !== "object"
+    ) {
       throw problemException(
         BILLING_ERROR_CODES.compensationSnapshotCorrupt,
         correlationId,
@@ -494,15 +502,19 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
     const walletId = typeof p.walletId === "string" ? p.walletId.trim() : null;
     const userId = typeof p.userId === "string" ? p.userId.trim() : null;
     const walletBalanceMicrocredits =
-      typeof p.newBalanceMicrocredits === "string" && /^-?\d+$/.test(p.newBalanceMicrocredits)
+      typeof p.newBalanceMicrocredits === "string" &&
+      /^-?\d+$/.test(p.newBalanceMicrocredits)
         ? p.newBalanceMicrocredits
         : null;
     const walletVersion =
-      typeof p.walletVersion === "number" && Number.isInteger(p.walletVersion) && p.walletVersion >= 0
+      typeof p.walletVersion === "number" &&
+      Number.isInteger(p.walletVersion) &&
+      p.walletVersion >= 0
         ? p.walletVersion
         : null;
     const totalCompensatedMicrocredits =
-      typeof p.totalCompensatedMicrocredits === "string" && /^\d+$/.test(p.totalCompensatedMicrocredits)
+      typeof p.totalCompensatedMicrocredits === "string" &&
+      /^\d+$/.test(p.totalCompensatedMicrocredits)
         ? p.totalCompensatedMicrocredits
         : null;
     const remainingUncompensatedMicrocredits =
@@ -512,7 +524,8 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
         : null;
     // Strict ISO 8601 datetime validation matching compensateBillingDebitResponseSchema (line 304)
     const compensatedAt =
-      typeof p.compensatedAt === "string" && z.string().datetime().safeParse(p.compensatedAt).success
+      typeof p.compensatedAt === "string" &&
+      z.string().datetime().safeParse(p.compensatedAt).success
         ? p.compensatedAt
         : null;
 
@@ -569,7 +582,8 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
     };
 
     // 4. Strict validation against canonical response contract schema
-    const parsed = compensateBillingDebitResponseSchema.safeParse(responseSnapshot);
+    const parsed =
+      compensateBillingDebitResponseSchema.safeParse(responseSnapshot);
     if (!parsed.success) {
       throw problemException(
         BILLING_ERROR_CODES.compensationSnapshotCorrupt,

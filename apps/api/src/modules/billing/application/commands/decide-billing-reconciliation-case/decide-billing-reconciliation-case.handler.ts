@@ -104,9 +104,10 @@ const TERMINAL_CASE_STATES: readonly string[] = [
 
 @Injectable()
 @CommandHandler(DecideBillingReconciliationCaseCommand)
-export class DecideBillingReconciliationCaseHandler
-  implements ICommandHandler<DecideBillingReconciliationCaseCommand, ReconciliationCaseDecisionResponse>
-{
+export class DecideBillingReconciliationCaseHandler implements ICommandHandler<
+  DecideBillingReconciliationCaseCommand,
+  ReconciliationCaseDecisionResponse
+> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly artifactService: ReconciliationArtifactService,
@@ -163,14 +164,14 @@ export class DecideBillingReconciliationCaseHandler
     const { caseId, payload, rbacContext, correlationId } = command;
 
     // 1. RBAC Authority Verification
-    const role = (rbacContext?.role ?? "") as AuthUserRole;
+    const role = rbacContext?.role ?? "";
     if (role !== AUTH_USER_ROLES.admin) {
       throw problemException(AUTH_ERROR_CODES.rbacDenied, correlationId, {
         status: HttpStatus.FORBIDDEN,
       });
     }
 
-    const permissions = (rbacContext?.permissions ?? []) as readonly string[];
+    const permissions = rbacContext?.permissions ?? [];
     if (!permissions.includes(BILLING_ACTIONS.reconciliationDecision)) {
       throw problemException(AUTH_ERROR_CODES.rbacDenied, correlationId, {
         status: HttpStatus.FORBIDDEN,
@@ -185,9 +186,10 @@ export class DecideBillingReconciliationCaseHandler
     });
 
     // 3. Early check on existing receipt (if already committed)
-    const existingReceipt = await this.prisma.billingReconciliationDecisionReceipt.findUnique({
-      where: { idempotencyKey: payload.idempotencyKey },
-    });
+    const existingReceipt =
+      await this.prisma.billingReconciliationDecisionReceipt.findUnique({
+        where: { idempotencyKey: payload.idempotencyKey },
+      });
     if (existingReceipt) {
       if (
         existingReceipt.caseId !== caseId ||
@@ -243,24 +245,39 @@ export class DecideBillingReconciliationCaseHandler
         // Why: Platform-sponsored calls have no customer wallet, yet their case decisions need the same lock hierarchy.
         // How: Lock the funding aggregate before the admission, matching settlement's platform advisory lock.
         // Invariant: A null wallet cannot silently prevent Admin review or release a platform case without serialization.
-        if (reconCase.admission.fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED) {
+        if (
+          reconCase.admission.fundingPrincipal ===
+          ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED
+        ) {
           await tx.$executeRaw`
             SELECT pg_advisory_xact_lock(hashtext('lcsp:platform-sponsorship'), hashtext(${reconCase.admission.logicalOperationId}));
           `;
-        } else if (reconCase.admission.fundingPrincipal === ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET && reconCase.admission.walletId) {
+        } else if (
+          reconCase.admission.fundingPrincipal ===
+            ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET &&
+          reconCase.admission.walletId
+        ) {
           const [lockedWallet] = await tx.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM "BillingWallet" WHERE id = ${reconCase.admission.walletId} FOR UPDATE
           `;
           if (!lockedWallet) {
-            throw problemException(BILLING_ERROR_CODES.notFound, correlationId, {
-              status: HttpStatus.NOT_FOUND,
-            });
+            throw problemException(
+              BILLING_ERROR_CODES.notFound,
+              correlationId,
+              {
+                status: HttpStatus.NOT_FOUND,
+              },
+            );
           }
         } else {
           // Fail closed if the persisted funding principal and wallet binding disagree.
-          throw problemException(BILLING_ERROR_CODES.admissionContextMismatch, correlationId, {
-            status: HttpStatus.UNPROCESSABLE_ENTITY,
-          });
+          throw problemException(
+            BILLING_ERROR_CODES.admissionContextMismatch,
+            correlationId,
+            {
+              status: HttpStatus.UNPROCESSABLE_ENTITY,
+            },
+          );
         }
 
         // Step 7b: Lock BillableInvocationAdmission FOR UPDATE
@@ -328,9 +345,10 @@ export class DecideBillingReconciliationCaseHandler
         }
 
         // Step 7d: Idempotency Check inside Lock Boundary
-        const txExistingReceipt = await tx.billingReconciliationDecisionReceipt.findUnique({
-          where: { idempotencyKey: payload.idempotencyKey },
-        });
+        const txExistingReceipt =
+          await tx.billingReconciliationDecisionReceipt.findUnique({
+            where: { idempotencyKey: payload.idempotencyKey },
+          });
 
         if (txExistingReceipt) {
           if (
@@ -366,7 +384,9 @@ export class DecideBillingReconciliationCaseHandler
         }
 
         // Step 7f: Evidence Validation for new CONFIRM_NO_USAGE decisions
-        if (payload.decision === RECONCILIATION_DECISION_ACTIONS.confirmNoUsage) {
+        if (
+          payload.decision === RECONCILIATION_DECISION_ACTIONS.confirmNoUsage
+        ) {
           if (!payload.providerLogArtifactId) {
             throw problemException(
               BILLING_ERROR_CODES.invalidReconciliationEvidence,
@@ -405,7 +425,9 @@ export class DecideBillingReconciliationCaseHandler
             artifactId: artifact.artifactId,
             expectedSha256: artifact.sha256,
             expectedProvider: reconCase.provider,
-            correlationId: reconCase.providerCorrelationId || reconCase.admission.correlationId,
+            correlationId:
+              reconCase.providerCorrelationId ||
+              reconCase.admission.correlationId,
             potentialDispatchStart,
             potentialDispatchEnd,
             coverageStart: artifact.coverageStart,
@@ -432,7 +454,8 @@ export class DecideBillingReconciliationCaseHandler
           }
 
           // Also scan log entries for invocationId match to prevent edge-case dispatch
-          let entries: Array<{ correlationId?: string; requestId?: string }> = [];
+          let entries: Array<{ correlationId?: string; requestId?: string }> =
+            [];
           try {
             entries = JSON.parse(artifact.rawContent);
           } catch {
@@ -527,7 +550,8 @@ export class DecideBillingReconciliationCaseHandler
         };
 
         // Step 7i: Validate response snapshot against canonical contract schema
-        const parsed = reconciliationCaseDecisionResponseSchema.safeParse(responseSnapshot);
+        const parsed =
+          reconciliationCaseDecisionResponseSchema.safeParse(responseSnapshot);
         if (!parsed.success) {
           throw problemException(
             BILLING_ERROR_CODES.validationFailed,
@@ -584,9 +608,10 @@ export class DecideBillingReconciliationCaseHandler
         "code" in err &&
         (err as { code: string }).code === "P2002"
       ) {
-        const existingReceipt = await this.prisma.billingReconciliationDecisionReceipt.findUnique({
-          where: { idempotencyKey: payload.idempotencyKey },
-        });
+        const existingReceipt =
+          await this.prisma.billingReconciliationDecisionReceipt.findUnique({
+            where: { idempotencyKey: payload.idempotencyKey },
+          });
 
         if (existingReceipt) {
           if (

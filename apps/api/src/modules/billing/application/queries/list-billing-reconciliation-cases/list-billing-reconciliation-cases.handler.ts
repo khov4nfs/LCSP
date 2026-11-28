@@ -6,21 +6,21 @@
 
 import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
 import { Injectable } from "@nestjs/common";
-import type {
-  BillingReconciliationCaseItem,
-} from "@lcsp/contracts/billing";
+import type { BillingReconciliationCaseItem } from "@lcsp/contracts/billing";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { ListBillingReconciliationCasesQuery } from "./list-billing-reconciliation-cases.query.js";
 
 @Injectable()
 @QueryHandler(ListBillingReconciliationCasesQuery)
-export class ListBillingReconciliationCasesHandler
-  implements
-    IQueryHandler<
-      ListBillingReconciliationCasesQuery,
-      { items: BillingReconciliationCaseItem[]; total: number; page: number; pageSize: number }
-    >
-{
+export class ListBillingReconciliationCasesHandler implements IQueryHandler<
+  ListBillingReconciliationCasesQuery,
+  {
+    items: BillingReconciliationCaseItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }
+> {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -45,9 +45,12 @@ export class ListBillingReconciliationCasesHandler
    * Side effects:
    * - Pure read query; no database state mutations.
    */
-  async execute(
-    query: ListBillingReconciliationCasesQuery,
-  ): Promise<{ items: BillingReconciliationCaseItem[]; total: number; page: number; pageSize: number }> {
+  async execute(query: ListBillingReconciliationCasesQuery): Promise<{
+    items: BillingReconciliationCaseItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
     const { state, provider, page = 1, pageSize = 20 } = query.query;
 
     const where: Record<string, unknown> = {};
@@ -104,7 +107,8 @@ export class ListBillingReconciliationCasesHandler
       admission: {
         walletId: r.admission.walletId,
         userId: r.admission.userId,
-        maximumExposureMicrocredits: r.admission.maximumExposureMicrocredits.toString(),
+        maximumExposureMicrocredits:
+          r.admission.maximumExposureMicrocredits.toString(),
         state: r.admission.state,
         admittedAt: r.admission.admittedAt.toISOString(),
         consumedAt: r.admission.consumedAt?.toISOString() ?? null,

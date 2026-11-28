@@ -31,24 +31,21 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
-    AUTH_ERROR_CODES,
-    AUTH_USER_ROLES,
-} from "@lcsp/contracts/auth";
-import {
-    ADMISSION_STATES,
-    BILLING_AUDIT_EVENT_TYPES,
-    BILLING_ERROR_CODES,
-    BILLING_ROLLOUT_MODES,
-    MODEL_USAGE_DEBIT_MODES,
-    PROVIDER_COMPLETION_STATES,
-    RECONCILIATION_CASE_STATES,
-    RECONCILIATION_DECISION_ACTIONS,
-    computeWorkerPreSocketRejectionHmac,
-    type BillingReconciliationCaseDetailResponse,
-    type BillingReconciliationCaseItem,
-    type ReconciliationCaseDecisionRequest,
-    type ReconciliationCaseDecisionResponse
+  ADMISSION_STATES,
+  BILLING_AUDIT_EVENT_TYPES,
+  BILLING_ERROR_CODES,
+  BILLING_ROLLOUT_MODES,
+  MODEL_USAGE_DEBIT_MODES,
+  PROVIDER_COMPLETION_STATES,
+  RECONCILIATION_CASE_STATES,
+  RECONCILIATION_DECISION_ACTIONS,
+  computeWorkerPreSocketRejectionHmac,
+  type BillingReconciliationCaseDetailResponse,
+  type BillingReconciliationCaseItem,
+  type ReconciliationCaseDecisionRequest,
+  type ReconciliationCaseDecisionResponse,
 } from "@lcsp/contracts/billing";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -60,10 +57,10 @@ import type { SignInSuccess } from "../src/modules/auth/application/contracts/au
 import { ReconciliationArtifactService } from "../src/modules/billing/application/shared/reconciliation-artifact.service.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
 import {
-    TEST_DATABASE_URL,
-    ensureMigratedSchema,
-    resetAuthWorkspaceDatabase,
-    seedAuthWorkspaceFixture,
+  TEST_DATABASE_URL,
+  ensureMigratedSchema,
+  resetAuthWorkspaceDatabase,
+  seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemBody, successBody } from "./support/http.js";
 
@@ -125,7 +122,11 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
 
     // Register test Ed25519 keypair for Anthropic
     const keyId = "key-anthropic-recon-test-2026";
-    const keypair = artifactService.generateAndRegisterProviderKeyPair("anthropic", keyId, true);
+    const keypair = artifactService.generateAndRegisterProviderKeyPair(
+      "anthropic",
+      keyId,
+      true,
+    );
     anthropicKeypair = { keyId, privateKeyPem: keypair.privateKeyPem };
   });
 
@@ -166,7 +167,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       email: "manager@acme.test",
       password: "CorrectHorseBatteryStaple!",
     });
-    customerToken = successBody<SignInSuccess>(customerSignIn).session_token ?? "";
+    customerToken =
+      successBody<SignInSuccess>(customerSignIn).session_token ?? "";
 
     // Seed customer prepaid wallet with 100 credits (100,000,000 microcredits)
     const wallet = await prisma.billingWallet.create({
@@ -209,9 +211,15 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const now = new Date();
     const admittedAt = new Date(now.getTime() - 600_000); // 10 mins ago
     const expiresAt = new Date(admittedAt.getTime() + 300_000); // 5 mins after admitted
-    const consumedAt = options?.consumed ? new Date(admittedAt.getTime() + 10_000) : null;
-    const capabilityToken = `tok-test-capability-token-32-chars-long-${invocationId}`.slice(0, 64);
-    const capabilityDigest = crypto.createHash("sha256").update(capabilityToken).digest("hex");
+    const consumedAt = options?.consumed
+      ? new Date(admittedAt.getTime() + 10_000)
+      : null;
+    const capabilityToken =
+      `tok-test-capability-token-32-chars-long-${invocationId}`.slice(0, 64);
+    const capabilityDigest = crypto
+      .createHash("sha256")
+      .update(capabilityToken)
+      .digest("hex");
 
     const admission = await prisma.billableInvocationAdmission.create({
       data: {
@@ -222,7 +230,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         requestFingerprint: `fp-${invocationId}`,
         logicalOperationId: `op-${invocationId}`,
         attemptOrdinal: 1,
-        fundingPrincipal: options?.platformSponsored ? "PLATFORM_SPONSORED" : "CUSTOMER_WALLET",
+        fundingPrincipal: options?.platformSponsored
+          ? "PLATFORM_SPONSORED"
+          : "CUSTOMER_WALLET",
         userId: options?.platformSponsored ? null : customerUserId,
         walletId: options?.platformSponsored ? null : customerWalletId,
         runId: `run-${invocationId}`,
@@ -258,7 +268,14 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       },
     });
 
-    return { admission, reconCase, correlationId, admittedAt, consumedAt, capabilityToken };
+    return {
+      admission,
+      reconCase,
+      correlationId,
+      admittedAt,
+      consumedAt,
+      capabilityToken,
+    };
   }
 
   /**
@@ -287,7 +304,13 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       finalizedWatermark: watermark,
     });
 
-    const signature = crypto.sign(null, Buffer.from(statement, "utf8"), anthropicKeypair.privateKeyPem).toString("base64");
+    const signature = crypto
+      .sign(
+        null,
+        Buffer.from(statement, "utf8"),
+        anthropicKeypair.privateKeyPem,
+      )
+      .toString("base64");
 
     return prisma.providerLogArtifact.create({
       data: {
@@ -316,38 +339,67 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const decisionPayload: ReconciliationCaseDecisionRequest = {
       decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
       idempotencyKey: "recon-rbac-test-01",
-      auditRationale: "Provider logs prove request never reached provider socket",
+      auditRationale:
+        "Provider logs prove request never reached provider socket",
       providerLogArtifactId: "art-test-01",
     };
 
     // 1. Unauthenticated -> 401
-    const unauthList = await httpRequest(app).get("/admin/billing/reconciliation/cases");
-    assert.equal(unauthList.status, 401, "Unauthenticated list must return 401");
+    const unauthList = await httpRequest(app).get(
+      "/admin/billing/reconciliation/cases",
+    );
+    assert.equal(
+      unauthList.status,
+      401,
+      "Unauthenticated list must return 401",
+    );
 
-    const unauthDetail = await httpRequest(app).get(`/admin/billing/reconciliation/cases/${reconCase.caseId}`);
-    assert.equal(unauthDetail.status, 401, "Unauthenticated detail must return 401");
+    const unauthDetail = await httpRequest(app).get(
+      `/admin/billing/reconciliation/cases/${reconCase.caseId}`,
+    );
+    assert.equal(
+      unauthDetail.status,
+      401,
+      "Unauthenticated detail must return 401",
+    );
 
     const unauthDecide = await httpRequest(app)
       .post(`/admin/billing/reconciliation/cases/${reconCase.caseId}/decide`)
       .send(decisionPayload);
-    assert.equal(unauthDecide.status, 401, "Unauthenticated decision must return 401");
+    assert.equal(
+      unauthDecide.status,
+      401,
+      "Unauthenticated decision must return 401",
+    );
 
     // 2. Regular customer -> 403 Forbidden
     const customerList = await httpRequest(app)
       .get("/admin/billing/reconciliation/cases")
       .set("Authorization", `Bearer ${customerToken}`);
-    assert.equal(customerList.status, 403, "Customer cannot list reconciliation cases");
+    assert.equal(
+      customerList.status,
+      403,
+      "Customer cannot list reconciliation cases",
+    );
 
     const customerDetail = await httpRequest(app)
       .get(`/admin/billing/reconciliation/cases/${reconCase.caseId}`)
       .set("Authorization", `Bearer ${customerToken}`);
-    assert.equal(customerDetail.status, 403, "Customer cannot view reconciliation case detail");
+    assert.equal(
+      customerDetail.status,
+      403,
+      "Customer cannot view reconciliation case detail",
+    );
 
     const customerDecide = await httpRequest(app)
       .post(`/admin/billing/reconciliation/cases/${reconCase.caseId}/decide`)
       .set("Authorization", `Bearer ${customerToken}`)
       .send(decisionPayload);
-    assert.equal(customerDecide.status, 403, "Customer cannot make reconciliation decisions");
+    assert.equal(
+      customerDecide.status,
+      403,
+      "Customer cannot make reconciliation decisions",
+    );
 
     // 3. Worker API key -> 401/403 Forbidden (worker key does not confer Admin authority)
     const workerList = await httpRequest(app)
@@ -407,8 +459,12 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     // Seed an admission in IN_FLIGHT state
     const invocationId = crypto.randomUUID();
     const admissionId = crypto.randomUUID();
-    const capabilityToken = `tok-test-capability-token-32-chars-long-${invocationId}`.slice(0, 64);
-    const capabilityDigest = crypto.createHash("sha256").update(capabilityToken).digest("hex");
+    const capabilityToken =
+      `tok-test-capability-token-32-chars-long-${invocationId}`.slice(0, 64);
+    const capabilityDigest = crypto
+      .createHash("sha256")
+      .update(capabilityToken)
+      .digest("hex");
 
     const admission = await prisma.billableInvocationAdmission.create({
       data: {
@@ -469,7 +525,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       });
 
     // Invariant (ADR-028 Line 94): Server MUST NOT trust worker HMAC to transition to CONFIRMED_NO_USAGE
-    assert.ok(settleAttempt.status === 200 || settleAttempt.status === 202, `Expected 200/202, got ${settleAttempt.status}`);
+    assert.ok(
+      settleAttempt.status === 200 || settleAttempt.status === 202,
+      `Expected 200/202, got ${settleAttempt.status}`,
+    );
     const body = successBody<any>(settleAttempt);
     assert.notEqual(
       body.state,
@@ -481,7 +540,11 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       ADMISSION_STATES.DISPATCH_UNKNOWN,
       "Unsettled IN_FLIGHT failure must route to DISPATCH_UNKNOWN",
     );
-    assert.equal(body.slotReleased, false, "Slot must not be released on worker claim");
+    assert.equal(
+      body.slotReleased,
+      false,
+      "Slot must not be released on worker claim",
+    );
 
     // Verify slot remains strictly held in DB
     const dbAdm = await prisma.billableInvocationAdmission.findUniqueOrThrow({
@@ -498,7 +561,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const reconCase = await prisma.billingReconciliationCase.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.ok(reconCase, "Must create BillingReconciliationCase for unresolved IN_FLIGHT invocation");
+    assert.ok(
+      reconCase,
+      "Must create BillingReconciliationCase for unresolved IN_FLIGHT invocation",
+    );
     assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.OPEN);
   });
 
@@ -541,11 +607,23 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const listRes = await httpRequest(app)
       .get("/admin/billing/reconciliation/cases?state=OPEN&page=1&pageSize=10")
       .set("Authorization", `Bearer ${adminToken}`);
-    assert.equal(listRes.status, 200, `List must return 200, got ${listRes.status}`);
+    assert.equal(
+      listRes.status,
+      200,
+      `List must return 200, got ${listRes.status}`,
+    );
 
-    const listData = successBody<{ items: BillingReconciliationCaseItem[]; total: number }>(listRes);
-    assert.ok(listData.items.length >= 1, "Must list at least 1 open reconciliation case");
-    const foundCase = listData.items.find((item) => item.caseId === reconCase.caseId);
+    const listData = successBody<{
+      items: BillingReconciliationCaseItem[];
+      total: number;
+    }>(listRes);
+    assert.ok(
+      listData.items.length >= 1,
+      "Must list at least 1 open reconciliation case",
+    );
+    const foundCase = listData.items.find(
+      (item) => item.caseId === reconCase.caseId,
+    );
     assert.ok(foundCase, "Seeded case must appear in list output");
     assert.equal(foundCase.state, RECONCILIATION_CASE_STATES.OPEN);
     assert.equal(foundCase.admission.maximumExposureMicrocredits, "6000000");
@@ -555,14 +633,22 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const detailRes = await httpRequest(app)
       .get(`/admin/billing/reconciliation/cases/${reconCase.caseId}`)
       .set("Authorization", `Bearer ${adminToken}`);
-    assert.equal(detailRes.status, 200, `Detail must return 200, got ${detailRes.status}`);
+    assert.equal(
+      detailRes.status,
+      200,
+      `Detail must return 200, got ${detailRes.status}`,
+    );
 
-    const detailData = successBody<BillingReconciliationCaseDetailResponse>(detailRes);
+    const detailData =
+      successBody<BillingReconciliationCaseDetailResponse>(detailRes);
     assert.equal(detailData.caseId, reconCase.caseId);
     assert.equal(detailData.invocationId, admission.invocationId);
     assert.equal(detailData.admission.maximumExposureMicrocredits, "6000000");
     assert.equal(detailData.provider, "anthropic");
-    assert.ok(detailData.evidenceArtifact, "Must include linked provider log artifact evidence");
+    assert.ok(
+      detailData.evidenceArtifact,
+      "Must include linked provider log artifact evidence",
+    );
     assert.equal(detailData.evidenceArtifact.artifactId, artifact.artifactId);
     assert.equal(detailData.evidenceArtifact.verified, true);
   });
@@ -574,18 +660,24 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     // Why: Platform sponsorship has no BillingWallet, yet its unknown outcomes still need an audited decision.
     // How: Exercise the real Admin endpoint against a platform admission and verify the case transition.
     // Invariant: A missing customer wallet must never be mistaken for a missing platform case.
-    const { reconCase, admission } = await seedReconciliationCase({ platformSponsored: true });
+    const { reconCase, admission } = await seedReconciliationCase({
+      platformSponsored: true,
+    });
     const decideRes = await httpRequest(app)
       .post(`/admin/billing/reconciliation/cases/${reconCase.caseId}/decide`)
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.maintainExposure,
         idempotencyKey: `idem-platform-${admission.invocationId}`,
-        auditRationale: "Platform provider outcome remains unknown; preserve risk for audit",
+        auditRationale:
+          "Platform provider outcome remains unknown; preserve risk for audit",
       });
 
     assert.equal(decideRes.status, 200);
-    assert.equal(successBody<ReconciliationCaseDecisionResponse>(decideRes).slotReleased, false);
+    assert.equal(
+      successBody<ReconciliationCaseDecisionResponse>(decideRes).slotReleased,
+      false,
+    );
     const savedCase = await prisma.billingReconciliationCase.findUniqueOrThrow({
       where: { caseId: reconCase.caseId },
     });
@@ -596,10 +688,11 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     // Assert invariant: automated release gate is OFF
     assert.equal(process.env.PROVIDER_RECONCILIATION_AUTOMATED_RELEASE, "OFF");
 
-    const { reconCase, admission, correlationId, admittedAt } = await seedReconciliationCase({
-      exposureMicrocredits: 3_000_000n,
-      state: RECONCILIATION_CASE_STATES.OPEN,
-    });
+    const { reconCase, admission, correlationId, admittedAt } =
+      await seedReconciliationCase({
+        exposureMicrocredits: 3_000_000n,
+        state: RECONCILIATION_CASE_STATES.OPEN,
+      });
 
     // Ingest verified provider log artifact covering the potential dispatch window with ZERO matching requests
     const now = Date.now();
@@ -622,7 +715,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const payload: ReconciliationCaseDecisionRequest = {
       decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
       idempotencyKey: `recon-decide-manual-${admission.invocationId}`,
-      auditRationale: "Admin independently verified provider audit log: zero dispatch occurred",
+      auditRationale:
+        "Admin independently verified provider audit log: zero dispatch occurred",
       providerLogArtifactId: artifact.artifactId,
     };
 
@@ -644,16 +738,25 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     assert.equal(data.slotReleased, true);
 
     // Verify DB states
-    const updatedAdmission = await prisma.billableInvocationAdmission.findUniqueOrThrow({
-      where: { id: admission.id },
-    });
+    const updatedAdmission =
+      await prisma.billableInvocationAdmission.findUniqueOrThrow({
+        where: { id: admission.id },
+      });
     assert.equal(updatedAdmission.state, ADMISSION_STATES.CONFIRMED_NO_USAGE);
-    assert.equal(updatedAdmission.maximumExposureMicrocredits, 0n, "Exposure must be zeroed out");
+    assert.equal(
+      updatedAdmission.maximumExposureMicrocredits,
+      0n,
+      "Exposure must be zeroed out",
+    );
 
-    const updatedCase = await prisma.billingReconciliationCase.findUniqueOrThrow({
-      where: { caseId: reconCase.caseId },
-    });
-    assert.equal(updatedCase.state, RECONCILIATION_CASE_STATES.CONFIRMED_NO_USAGE);
+    const updatedCase =
+      await prisma.billingReconciliationCase.findUniqueOrThrow({
+        where: { caseId: reconCase.caseId },
+      });
+    assert.equal(
+      updatedCase.state,
+      RECONCILIATION_CASE_STATES.CONFIRMED_NO_USAGE,
+    );
     assert.equal(updatedCase.resolvedBy, adminUserId);
 
     // Verify immutable AuditEvent recorded
@@ -663,10 +766,16 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         eventType: BILLING_AUDIT_EVENT_TYPES.reconciliationDecided,
       },
     });
-    assert.ok(auditRecord, "Must persist AuditEvent for reconciliation decision");
+    assert.ok(
+      auditRecord,
+      "Must persist AuditEvent for reconciliation decision",
+    );
     assert.equal(auditRecord.actorId, adminUserId);
     const auditPayload = auditRecord.payload as Record<string, unknown>;
-    assert.equal(auditPayload.decision, RECONCILIATION_DECISION_ACTIONS.confirmNoUsage);
+    assert.equal(
+      auditPayload.decision,
+      RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
+    );
     assert.equal(auditPayload.slotReleased, true);
   });
 
@@ -689,7 +798,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .send(payload);
 
     assert.equal(res.status, 422, "Missing artifact must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.invalidReconciliationEvidence,
+    );
   });
 
   it("RECON-RED-05b: Decision fails closed with 422 BILLING_INCOMPLETE_RECONCILIATION_WINDOW when coverage window is insufficient", async () => {
@@ -718,12 +830,20 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .set("Authorization", `Bearer ${adminToken}`)
       .send(payload);
 
-    assert.equal(res.status, 422, "Insufficient coverage window must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.incompleteReconciliationWindow);
+    assert.equal(
+      res.status,
+      422,
+      "Insufficient coverage window must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.incompleteReconciliationWindow,
+    );
   });
 
   it("RECON-RED-05c: Decision fails closed with 422 BILLING_INVALID_RECONCILIATION_EVIDENCE when provider log contains matching dispatched correlation ID", async () => {
-    const { reconCase, admission, correlationId, admittedAt } = await seedReconciliationCase();
+    const { reconCase, admission, correlationId, admittedAt } =
+      await seedReconciliationCase();
 
     const coverageStart = new Date(admittedAt.getTime() - 60_000);
     const coverageEnd = new Date(Date.now() - 60_000);
@@ -745,7 +865,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const payload: ReconciliationCaseDecisionRequest = {
       decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
       idempotencyKey: `recon-dispatch-found-${admission.invocationId}`,
-      auditRationale: "Attempting to claim no-usage despite dispatched log entry",
+      auditRationale:
+        "Attempting to claim no-usage despite dispatched log entry",
       providerLogArtifactId: artifact.artifactId,
     };
 
@@ -754,8 +875,15 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .set("Authorization", `Bearer ${adminToken}`)
       .send(payload);
 
-    assert.equal(res.status, 422, "Dispatched log record must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+    assert.equal(
+      res.status,
+      422,
+      "Dispatched log record must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.invalidReconciliationEvidence,
+    );
   });
 
   it("RECON-RED-05d: Decision fails closed with 422 BILLING_INVALID_RECONCILIATION_EVIDENCE when artifact has verified=true but hash mismatch", async () => {
@@ -771,7 +899,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         source: "PROVIDER_EXPORT_VERIFIED",
         signingKeyId: anthropicKeypair.keyId,
         providerSignature: "dummy-sig",
-        sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+        sha256:
+          "0000000000000000000000000000000000000000000000000000000000000000",
         coverageStart,
         coverageEnd,
         finalizedWatermark: coverageEnd,
@@ -791,8 +920,15 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(res.status, 422, "Tampered artifact hash must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+    assert.equal(
+      res.status,
+      422,
+      "Tampered artifact hash must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.invalidReconciliationEvidence,
+    );
   });
 
   it("RECON-RED-05e: Decision fails closed with 422 BILLING_INVALID_RECONCILIATION_EVIDENCE when artifact provider does not match case/admission provider", async () => {
@@ -829,8 +965,15 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(res.status, 422, "Mismatched provider artifact must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+    assert.equal(
+      res.status,
+      422,
+      "Mismatched provider artifact must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.invalidReconciliationEvidence,
+    );
   });
 
   it("RECON-RED-05f: Decision fails closed with 422 BILLING_INCOMPLETE_RECONCILIATION_WINDOW when watermark is missing or unfinalized", async () => {
@@ -867,8 +1010,15 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(res.status, 422, "Missing watermark must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.incompleteReconciliationWindow);
+    assert.equal(
+      res.status,
+      422,
+      "Missing watermark must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.incompleteReconciliationWindow,
+    );
   });
 
   it("RECON-RED-05g: Decision fails closed with 422 BILLING_INVALID_RECONCILIATION_EVIDENCE when artifact has valid hash and verified=true but forged providerSignature", async () => {
@@ -906,8 +1056,15 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(res.status, 422, "Forged provider signature must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.invalidReconciliationEvidence);
+    assert.equal(
+      res.status,
+      422,
+      "Forged provider signature must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.invalidReconciliationEvidence,
+    );
   });
 
   it("RECON-RED-05h: Decision fails closed with 422 BILLING_INCOMPLETE_RECONCILIATION_WINDOW when admission was consumed and coverageEnd is before consumedAt + 300s", async () => {
@@ -948,12 +1105,20 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
         idempotencyKey: `idem-consumed-gap-${admission.invocationId}`,
-        auditRationale: "Attempting decision with log ending before consumedAt + 300s",
+        auditRationale:
+          "Attempting decision with log ending before consumedAt + 300s",
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(res.status, 422, "Coverage window ending before consumedAt + 300s must fail closed with 422");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.incompleteReconciliationWindow);
+    assert.equal(
+      res.status,
+      422,
+      "Coverage window ending before consumedAt + 300s must fail closed with 422",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.incompleteReconciliationWindow,
+    );
   });
 
   // =========================================================================
@@ -961,7 +1126,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
   // =========================================================================
   it("RECON-RED-06: Holding vs releasing slot: CONFIRM_NO_USAGE releases slot, FLAG_INTEGRITY_REVIEW retains exposure", async () => {
     // Scenario A: CONFIRM_NO_USAGE releases slot
-    const caseA = await seedReconciliationCase({ exposureMicrocredits: 2_000_000n });
+    const caseA = await seedReconciliationCase({
+      exposureMicrocredits: 2_000_000n,
+    });
     const coverageStartA = new Date(caseA.admittedAt.getTime() - 60_000);
     const coverageEndA = new Date(Date.now() - 60_000);
     const artifactA = await seedVerifiedProviderLog({
@@ -972,7 +1139,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     });
 
     const decideRelease = await httpRequest(app)
-      .post(`/admin/billing/reconciliation/cases/${caseA.reconCase.caseId}/decide`)
+      .post(
+        `/admin/billing/reconciliation/cases/${caseA.reconCase.caseId}/decide`,
+      )
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
@@ -981,25 +1150,41 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         providerLogArtifactId: artifactA.artifactId,
       });
     assert.equal(decideRelease.status, 200);
-    assert.equal(successBody<ReconciliationCaseDecisionResponse>(decideRelease).slotReleased, true);
+    assert.equal(
+      successBody<ReconciliationCaseDecisionResponse>(decideRelease)
+        .slotReleased,
+      true,
+    );
 
     const admA = await prisma.billableInvocationAdmission.findUniqueOrThrow({
       where: { id: caseA.admission.id },
     });
-    assert.equal(admA.maximumExposureMicrocredits, 0n, "CONFIRM_NO_USAGE must zero out maximum exposure");
+    assert.equal(
+      admA.maximumExposureMicrocredits,
+      0n,
+      "CONFIRM_NO_USAGE must zero out maximum exposure",
+    );
 
     // Scenario B: FLAG_INTEGRITY_REVIEW preserves exposure
-    const caseB = await seedReconciliationCase({ exposureMicrocredits: 4_000_000n });
+    const caseB = await seedReconciliationCase({
+      exposureMicrocredits: 4_000_000n,
+    });
     const decideHold = await httpRequest(app)
-      .post(`/admin/billing/reconciliation/cases/${caseB.reconCase.caseId}/decide`)
+      .post(
+        `/admin/billing/reconciliation/cases/${caseB.reconCase.caseId}/decide`,
+      )
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.flagIntegrityReview,
         idempotencyKey: `idem-hold-slot-${caseB.admission.invocationId}`,
-        auditRationale: "Evidence is ambiguous: maintaining exposure under integrity review",
+        auditRationale:
+          "Evidence is ambiguous: maintaining exposure under integrity review",
       });
     assert.equal(decideHold.status, 200);
-    assert.equal(successBody<ReconciliationCaseDecisionResponse>(decideHold).slotReleased, false);
+    assert.equal(
+      successBody<ReconciliationCaseDecisionResponse>(decideHold).slotReleased,
+      false,
+    );
 
     const admB = await prisma.billableInvocationAdmission.findUniqueOrThrow({
       where: { id: caseB.admission.id },
@@ -1009,10 +1194,14 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       4_000_000n,
       "FLAG_INTEGRITY_REVIEW must strictly retain maximum exposure",
     );
-    const caseBUpdated = await prisma.billingReconciliationCase.findUniqueOrThrow({
-      where: { caseId: caseB.reconCase.caseId },
-    });
-    assert.equal(caseBUpdated.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
+    const caseBUpdated =
+      await prisma.billingReconciliationCase.findUniqueOrThrow({
+        where: { caseId: caseB.reconCase.caseId },
+      });
+    assert.equal(
+      caseBUpdated.state,
+      RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+    );
   });
 
   // =========================================================================
@@ -1055,8 +1244,16 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
 
     const [res1, res2] = await Promise.all([req1, req2]);
 
-    assert.notEqual(res1.status, 500, "Request 1 must never fail with unhandled 500 collision");
-    assert.notEqual(res2.status, 500, "Request 2 must never fail with unhandled 500 collision");
+    assert.notEqual(
+      res1.status,
+      500,
+      "Request 1 must never fail with unhandled 500 collision",
+    );
+    assert.notEqual(
+      res2.status,
+      500,
+      "Request 2 must never fail with unhandled 500 collision",
+    );
 
     const statuses = [res1.status, res2.status].sort();
     assert.deepEqual(
@@ -1084,7 +1281,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const payload: ReconciliationCaseDecisionRequest = {
       decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
       idempotencyKey: `recon-idem-${admission.invocationId}`,
-      auditRationale: "Original audited decision rationale for idempotency test",
+      auditRationale:
+        "Original audited decision rationale for idempotency test",
       providerLogArtifactId: artifact.artifactId,
     };
 
@@ -1102,7 +1300,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .set("Authorization", `Bearer ${adminToken}`)
       .send(payload);
     assert.equal(replayRes.status, 200);
-    const replayData = successBody<ReconciliationCaseDecisionResponse>(replayRes);
+    const replayData =
+      successBody<ReconciliationCaseDecisionResponse>(replayRes);
     assert.equal(replayData.caseId, firstData.caseId);
     assert.equal(replayData.decidedAt, firstData.decidedAt);
 
@@ -1110,7 +1309,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const conflictingPayload: ReconciliationCaseDecisionRequest = {
       decision: RECONCILIATION_DECISION_ACTIONS.escalate,
       idempotencyKey: payload.idempotencyKey,
-      auditRationale: "Altered decision rationale under the same idempotency key",
+      auditRationale:
+        "Altered decision rationale under the same idempotency key",
     };
 
     const conflictRes = await httpRequest(app)
@@ -1118,7 +1318,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .set("Authorization", `Bearer ${adminToken}`)
       .send(conflictingPayload);
     assert.equal(conflictRes.status, 409, "Conflicting replay must return 409");
-    assert.equal(problemBody(conflictRes).code, BILLING_ERROR_CODES.idempotencyConflict);
+    assert.equal(
+      problemBody(conflictRes).code,
+      BILLING_ERROR_CODES.idempotencyConflict,
+    );
 
     // 4. Conflicting replay (same idempotencyKey, same decision & rationale, but altered providerLogArtifactId) -> 409 Conflict
     const artifactB = await seedVerifiedProviderLog({
@@ -1139,17 +1342,25 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .post(`/admin/billing/reconciliation/cases/${reconCase.caseId}/decide`)
       .set("Authorization", `Bearer ${adminToken}`)
       .send(conflictingArtifactPayload);
-    assert.equal(conflictArtRes.status, 409, "Conflicting artifactId replay must return 409");
-    assert.equal(problemBody(conflictArtRes).code, BILLING_ERROR_CODES.idempotencyConflict);
+    assert.equal(
+      conflictArtRes.status,
+      409,
+      "Conflicting artifactId replay must return 409",
+    );
+    assert.equal(
+      problemBody(conflictArtRes).code,
+      BILLING_ERROR_CODES.idempotencyConflict,
+    );
   });
 
   // =========================================================================
   // RECON-RED-09: Late Receipt Arrival & Terminal Precedence
   // =========================================================================
   it("RECON-RED-09a: Late receipt arriving after Admin CONFIRM_NO_USAGE cannot overwrite outcome or charge wallet", async () => {
-    const { reconCase, admission, admittedAt, capabilityToken } = await seedReconciliationCase({
-      exposureMicrocredits: 3_000_000n,
-    });
+    const { reconCase, admission, admittedAt, capabilityToken } =
+      await seedReconciliationCase({
+        exposureMicrocredits: 3_000_000n,
+      });
 
     const coverageStart = new Date(admittedAt.getTime() - 60_000);
     const coverageEnd = new Date(Date.now() - 60_000);
@@ -1188,20 +1399,38 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       });
 
     // Terminal precedence: must fail closed with 409 Conflict
-    assert.equal(lateReceipt.status, 409, "Late receipt must be rejected with 409 when case is already CONFIRMED_NO_USAGE");
-    assert.equal(problemBody(lateReceipt).code, BILLING_ERROR_CODES.reconciliationAlreadyResolved);
+    assert.equal(
+      lateReceipt.status,
+      409,
+      "Late receipt must be rejected with 409 when case is already CONFIRMED_NO_USAGE",
+    );
+    assert.equal(
+      problemBody(lateReceipt).code,
+      BILLING_ERROR_CODES.reconciliationAlreadyResolved,
+    );
 
     // Conflicting evidence appended to INTEGRITY_REVIEW, wallet remains untouched
-    const updatedCase = await prisma.billingReconciliationCase.findUniqueOrThrow({
-      where: { caseId: reconCase.caseId },
-    });
-    assert.equal(updatedCase.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
-    assert.ok(updatedCase.conflictingPayload !== null, "Must record conflicting late receipt payload");
+    const updatedCase =
+      await prisma.billingReconciliationCase.findUniqueOrThrow({
+        where: { caseId: reconCase.caseId },
+      });
+    assert.equal(
+      updatedCase.state,
+      RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+    );
+    assert.ok(
+      updatedCase.conflictingPayload !== null,
+      "Must record conflicting late receipt payload",
+    );
 
     const wallet = await prisma.billingWallet.findUniqueOrThrow({
       where: { id: customerWalletId },
     });
-    assert.equal(wallet.balanceMicrocredits, 100_000_000n, "Wallet balance must remain completely uncharged");
+    assert.equal(
+      wallet.balanceMicrocredits,
+      100_000_000n,
+      "Wallet balance must remain completely uncharged",
+    );
   });
 
   it("RECON-RED-09b: Late settlement arriving before Admin decision causes subsequent decision to fail closed with 409", async () => {
@@ -1231,12 +1460,20 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
         idempotencyKey: `idem-late-settle-${admission.invocationId}`,
-        auditRationale: "Attempting to confirm no-usage on already settled admission",
+        auditRationale:
+          "Attempting to confirm no-usage on already settled admission",
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(decideRes.status, 409, "Must fail closed with 409 when admission was already settled");
-    assert.equal(problemBody(decideRes).code, BILLING_ERROR_CODES.admissionAlreadySettled);
+    assert.equal(
+      decideRes.status,
+      409,
+      "Must fail closed with 409 when admission was already settled",
+    );
+    assert.equal(
+      problemBody(decideRes).code,
+      BILLING_ERROR_CODES.admissionAlreadySettled,
+    );
   });
 
   // =========================================================================
@@ -1273,7 +1510,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         appliedMaxOutputTokens: 4096,
         maximumExposureMicrocredits: 5_000_000n,
         initialExposureMicrocredits: 5_000_000n,
-        capabilityDigest: crypto.createHash("sha256").update("cap-test").digest("hex"),
+        capabilityDigest: crypto
+          .createHash("sha256")
+          .update("cap-test")
+          .digest("hex"),
         state: ADMISSION_STATES.IN_FLIGHT, // Actively in flight!
         version: 1,
         admittedAt: new Date(Date.now() - 600_000),
@@ -1308,12 +1548,20 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
         idempotencyKey: `idem-inflight-${invocationId}`,
-        auditRationale: "Attempting CONFIRM_NO_USAGE while admission is still in flight",
+        auditRationale:
+          "Attempting CONFIRM_NO_USAGE while admission is still in flight",
         providerLogArtifactId: artifact.artifactId,
       });
 
-    assert.equal(res.status, 409, "Deciding no-usage on IN_FLIGHT admission must fail with 409");
-    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.admissionInvalidState);
+    assert.equal(
+      res.status,
+      409,
+      "Deciding no-usage on IN_FLIGHT admission must fail with 409",
+    );
+    assert.equal(
+      problemBody(res).code,
+      BILLING_ERROR_CODES.admissionInvalidState,
+    );
   });
 
   // =========================================================================
@@ -1326,7 +1574,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     });
 
     const res1 = await httpRequest(app)
-      .post(`/admin/billing/reconciliation/cases/${casePending.reconCase.caseId}/decide`)
+      .post(
+        `/admin/billing/reconciliation/cases/${casePending.reconCase.caseId}/decide`,
+      )
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.maintainExposure,
@@ -1335,7 +1585,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       });
 
     assert.equal(res1.status, 409, "Invalid state transition must return 409");
-    assert.equal(problemBody(res1).code, BILLING_ERROR_CODES.reconciliationCaseInvalidState);
+    assert.equal(
+      problemBody(res1).code,
+      BILLING_ERROR_CODES.reconciliationCaseInvalidState,
+    );
 
     // Scenario 2: Case is in terminal SETTLED_WITH_USAGE, attempting any decision
     const caseSettled = await seedReconciliationCase({
@@ -1343,7 +1596,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     });
 
     const res2 = await httpRequest(app)
-      .post(`/admin/billing/reconciliation/cases/${caseSettled.reconCase.caseId}/decide`)
+      .post(
+        `/admin/billing/reconciliation/cases/${caseSettled.reconCase.caseId}/decide`,
+      )
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.escalate,
@@ -1352,7 +1607,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       });
 
     assert.equal(res2.status, 409, "Deciding on settled case must return 409");
-    assert.equal(problemBody(res2).code, BILLING_ERROR_CODES.reconciliationAlreadyResolved);
+    assert.equal(
+      problemBody(res2).code,
+      BILLING_ERROR_CODES.reconciliationAlreadyResolved,
+    );
   });
 
   // =========================================================================
@@ -1382,7 +1640,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     });
 
     // Case 1 on Wallet 1 (customerUserId)
-    const case1 = await seedReconciliationCase({ exposureMicrocredits: 2_000_000n });
+    const case1 = await seedReconciliationCase({
+      exposureMicrocredits: 2_000_000n,
+    });
     // Case 2 on Wallet 2 (user2.id)
     const case2 = await seedReconciliationCase({
       exposureMicrocredits: 3_000_000n,
@@ -1399,7 +1659,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     const sharedIdempotencyKey = `idem-cross-case-race-${case1.admission.invocationId}`;
 
     const req1 = httpRequest(app)
-      .post(`/admin/billing/reconciliation/cases/${case1.reconCase.caseId}/decide`)
+      .post(
+        `/admin/billing/reconciliation/cases/${case1.reconCase.caseId}/decide`,
+      )
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.flagIntegrityReview,
@@ -1408,7 +1670,9 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       });
 
     const req2 = httpRequest(app)
-      .post(`/admin/billing/reconciliation/cases/${case2.reconCase.caseId}/decide`)
+      .post(
+        `/admin/billing/reconciliation/cases/${case2.reconCase.caseId}/decide`,
+      )
       .set("Authorization", `Bearer ${adminToken}`)
       .send({
         decision: RECONCILIATION_DECISION_ACTIONS.flagIntegrityReview,
@@ -1418,8 +1682,16 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
 
     const [res1, res2] = await Promise.all([req1, req2]);
 
-    assert.notEqual(res1.status, 500, "Request 1 must never fail with unhandled 500");
-    assert.notEqual(res2.status, 500, "Request 2 must never fail with unhandled 500");
+    assert.notEqual(
+      res1.status,
+      500,
+      "Request 1 must never fail with unhandled 500",
+    );
+    assert.notEqual(
+      res2.status,
+      500,
+      "Request 2 must never fail with unhandled 500",
+    );
 
     const statuses = [res1.status, res2.status].sort();
     assert.deepEqual(
@@ -1429,14 +1701,21 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     );
 
     const conflictRes = res1.status === 409 ? res1 : res2;
-    assert.equal(problemBody(conflictRes).code, BILLING_ERROR_CODES.idempotencyConflict);
+    assert.equal(
+      problemBody(conflictRes).code,
+      BILLING_ERROR_CODES.idempotencyConflict,
+    );
   });
 
   // =========================================================================
   // RECON-RED-10: Operational Invariants Verification
   // =========================================================================
   it("RECON-RED-10: Operates strictly with MODEL_USAGE_DEBIT=OFF and PROVIDER_RECONCILIATION_AUTOMATED_RELEASE=OFF", () => {
-    assert.equal(process.env.MODEL_USAGE_DEBIT, "OFF", "MODEL_USAGE_DEBIT must remain OFF");
+    assert.equal(
+      process.env.MODEL_USAGE_DEBIT,
+      "OFF",
+      "MODEL_USAGE_DEBIT must remain OFF",
+    );
     assert.equal(
       process.env.PROVIDER_RECONCILIATION_AUTOMATED_RELEASE,
       "OFF",

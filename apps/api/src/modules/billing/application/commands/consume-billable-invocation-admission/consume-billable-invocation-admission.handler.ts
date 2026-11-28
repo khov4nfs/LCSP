@@ -310,7 +310,10 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
         finalUtcNow = postPrepLockTime?.now ?? dbUtcNow;
 
         // Why: Preparation leases must use the same canonical execution-state value as the Assessment runtime.
-        if (!prepRun || prepRun.executionState !== AGENT_EXECUTION_STATES.RUNNING) {
+        if (
+          !prepRun ||
+          prepRun.executionState !== AGENT_EXECUTION_STATES.RUNNING
+        ) {
           throw problemException(
             BILLING_ERROR_CODES.admissionContextMismatch,
             correlationId,

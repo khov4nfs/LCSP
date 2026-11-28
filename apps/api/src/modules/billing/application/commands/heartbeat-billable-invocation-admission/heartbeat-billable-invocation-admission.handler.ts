@@ -247,7 +247,10 @@ export class HeartbeatBillableInvocationAdmissionHandler implements ICommandHand
         dbUtcNow = postLockTime?.now ?? new Date();
 
         // Why: Heartbeat must compare the preparation run to the canonical runtime state, not a copied literal.
-        if (!prepRun || prepRun.executionState !== AGENT_EXECUTION_STATES.RUNNING) {
+        if (
+          !prepRun ||
+          prepRun.executionState !== AGENT_EXECUTION_STATES.RUNNING
+        ) {
           throw problemException(
             BILLING_ERROR_CODES.admissionContextMismatch,
             correlationId,

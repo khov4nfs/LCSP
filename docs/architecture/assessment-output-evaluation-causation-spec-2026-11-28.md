@@ -1,5 +1,11 @@
 # A3 — Bằng chứng cho verdict `ModelOutputEvaluation`
 
+## Quyết định phạm vi hiện tại
+
+Đóng hạng mục verdict trong Assessment hardening với hành vi **chỉ ghi `NOT_EVALUATED`** cho một physical invocation đã settlement. Settlement không suy ra chất lượng câu trả lời từ usage của provider; rule rejection không tự đổi verdict hoặc số tiền. `DOMAIN_REJECTED` là tính năng theo dõi chất lượng để triển khai riêng khi có event evaluator được lưu và gắn chắc với đúng physical invocation. Callback thử nghiệm tiếp tục không đăng ký route production. Quyết định này không tuyên bố tính năng `DOMAIN_REJECTED` đã hoạt động.
+
+Acceptance hiện tại được khóa bởi `billing-settlement.e2e-spec.ts`: receipt `SETTLED` tạo evaluation row đúng `admissionId` và `invocationId` với `NOT_EVALUATED`; billing receipt, ledger và ví chỉ thay đổi theo usage/settlement, không theo verdict. Các kịch bản callback bên dưới là backlog cho tính năng tương lai, không là điều kiện đóng PR hardening hiện tại.
+
 ## Trạng thái
 
 `DOMAIN_REJECTED` chưa được phép ghi. Settlement chỉ tạo `NOT_EVALUATED` cho đúng `admissionId` và physical `invocationId`. Đường rejection hiện có `modelTurn` và `toolCallId`; worker ghi ánh xạ local `(runId, toolCallId) → invocationId`. Một response có thể tạo nhiều tool calls, nên `modelTurn` không đủ để suy ra invocation.

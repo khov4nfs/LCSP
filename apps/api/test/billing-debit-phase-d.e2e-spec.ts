@@ -279,11 +279,17 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(payload);
 
-    assert.equal(res.status, 201, `Failed to request admission: ${JSON.stringify(res.body)}`);
+    assert.equal(
+      res.status,
+      201,
+      `Failed to request admission: ${JSON.stringify(res.body)}`,
+    );
     return successBody<BillableInvocationAdmissionResponse>(res);
   }
 
-  async function consumeAdmissionHelper(admission: BillableInvocationAdmissionResponse): Promise<void> {
+  async function consumeAdmissionHelper(
+    admission: BillableInvocationAdmissionResponse,
+  ): Promise<void> {
     const consumePayload: BillableInvocationAdmissionConsume = {
       admissionId: admission.admissionId,
       invocationId: admission.invocationId,
@@ -295,10 +301,17 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(consumePayload);
 
-    assert.equal(res.status, 200, `Failed to consume admission: ${JSON.stringify(res.body)}`);
+    assert.equal(
+      res.status,
+      200,
+      `Failed to consume admission: ${JSON.stringify(res.body)}`,
+    );
   }
 
-  async function waitForBlockedLock(queryPattern: string, timeoutMs = 3000): Promise<boolean> {
+  async function waitForBlockedLock(
+    queryPattern: string,
+    timeoutMs = 3000,
+  ): Promise<boolean> {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const rows = await prisma.$queryRaw<Array<{ count: number }>>`
@@ -334,8 +347,16 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(dbAdm?.rolloutMode, BILLING_ROLLOUT_MODES.DEBIT_ENABLED, "Admission must be legitimately issued with DEBIT_ENABLED authority");
-    assert.equal(dbAdm?.debitMode, MODEL_USAGE_DEBIT_MODES.ON, "Admission must be legitimately issued with debitMode ON");
+    assert.equal(
+      dbAdm?.rolloutMode,
+      BILLING_ROLLOUT_MODES.DEBIT_ENABLED,
+      "Admission must be legitimately issued with DEBIT_ENABLED authority",
+    );
+    assert.equal(
+      dbAdm?.debitMode,
+      MODEL_USAGE_DEBIT_MODES.ON,
+      "Admission must be legitimately issued with debitMode ON",
+    );
 
     await consumeAdmissionHelper(admission);
 
@@ -359,44 +380,78 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .send(settlePayload);
 
     // Expect server error due to mid-transaction abort
-    assert.equal(settleRes.status, 500, "Mid-transaction abort must return 500");
+    assert.equal(
+      settleRes.status,
+      500,
+      "Mid-transaction abort must return 500",
+    );
 
     // Atomicity Invariant Proof: ALL 5 records must roll back completely
     // 1. ModelUsageReceipt must NOT exist
     const receipt = await prisma.modelUsageReceipt.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(receipt, null, "ModelUsageReceipt must be rolled back on midway failure");
+    assert.equal(
+      receipt,
+      null,
+      "ModelUsageReceipt must be rolled back on midway failure",
+    );
 
     // 2. CreditLedgerEntry must NOT exist
     const ledgerEntry = await prisma.creditLedgerEntry.findFirst({
       where: { admissionId: admission.admissionId },
     });
-    assert.equal(ledgerEntry, null, "CreditLedgerEntry must be rolled back on midway failure");
+    assert.equal(
+      ledgerEntry,
+      null,
+      "CreditLedgerEntry must be rolled back on midway failure",
+    );
 
     // 3. BillingWallet balance must remain untouched (exactly 100,000,000n)
     const wallet = await prisma.billingWallet.findUnique({
       where: { id: customerWalletId },
     });
-    assert.equal(wallet?.balanceMicrocredits, 100_000_000n, "BillingWallet balance must not be deducted on midway failure");
+    assert.equal(
+      wallet?.balanceMicrocredits,
+      100_000_000n,
+      "BillingWallet balance must not be deducted on midway failure",
+    );
 
     // 4. AuditEvent for this settlement must NOT exist
     const audit = await prisma.auditEvent.findFirst({
-      where: { resourceId: admission.admissionId, eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled },
+      where: {
+        resourceId: admission.admissionId,
+        eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled,
+      },
     });
-    assert.equal(audit, null, "AuditEvent must be rolled back on midway failure");
+    assert.equal(
+      audit,
+      null,
+      "AuditEvent must be rolled back on midway failure",
+    );
 
     // 5. OutboxMessage must NOT exist
     const outbox = await prisma.outboxMessage.findFirst({
-      where: { aggregateId: customerWalletId, eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled },
+      where: {
+        aggregateId: customerWalletId,
+        eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled,
+      },
     });
-    assert.equal(outbox, null, "OutboxMessage must be rolled back on midway failure");
+    assert.equal(
+      outbox,
+      null,
+      "OutboxMessage must be rolled back on midway failure",
+    );
 
     // 6. Admission state must NOT be committed as SETTLED (must remain IN_FLIGHT)
     const dbAdmAfter = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(dbAdmAfter?.state, ADMISSION_STATES.IN_FLIGHT, "Admission must remain IN_FLIGHT after transaction rollback");
+    assert.equal(
+      dbAdmAfter?.state,
+      ADMISSION_STATES.IN_FLIGHT,
+      "Admission must remain IN_FLIGHT after transaction rollback",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -415,8 +470,16 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(dbAdm?.rolloutMode, BILLING_ROLLOUT_MODES.DEBIT_ENABLED, "Admission must be issued with DEBIT_ENABLED authority");
-    assert.equal(dbAdm?.debitMode, MODEL_USAGE_DEBIT_MODES.ON, "Admission must be issued with debitMode ON");
+    assert.equal(
+      dbAdm?.rolloutMode,
+      BILLING_ROLLOUT_MODES.DEBIT_ENABLED,
+      "Admission must be issued with DEBIT_ENABLED authority",
+    );
+    assert.equal(
+      dbAdm?.debitMode,
+      MODEL_USAGE_DEBIT_MODES.ON,
+      "Admission must be issued with debitMode ON",
+    );
 
     await consumeAdmissionHelper(admission);
 
@@ -450,7 +513,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     // Why: A successful ON settlement with remaining funds must not pause a healthy Assessment.
     // How: Verify the server-owned post-debit solvency result on the HTTP response.
     // Invariant: Worker code must not infer depletion from token usage or a pre-settlement balance.
-    assert.equal((body as { paymentRequired?: boolean }).paymentRequired, false);
+    assert.equal(
+      (body as { paymentRequired?: boolean }).paymentRequired,
+      false,
+    );
 
     // 1. Verify ModelUsageReceipt
     const receipt = await prisma.modelUsageReceipt.findUnique({
@@ -467,7 +533,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
       },
     });
-    assert.ok(ledgerEntry, "CreditLedgerEntry of source MODEL_USAGE_DEBIT must exist");
+    assert.ok(
+      ledgerEntry,
+      "CreditLedgerEntry of source MODEL_USAGE_DEBIT must exist",
+    );
     assert.equal(ledgerEntry.deltaMicrocredits, -45_000n);
     assert.equal(ledgerEntry.walletId, customerWalletId);
 
@@ -494,7 +563,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled,
       },
     });
-    assert.ok(outbox, "OutboxMessage for usage settlement must be created in the same atomic transaction");
+    assert.ok(
+      outbox,
+      "OutboxMessage for usage settlement must be created in the same atomic transaction",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -560,7 +632,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const ledgerCount = await prisma.creditLedgerEntry.count({
       where: { admissionId: admission.admissionId },
     });
-    assert.equal(ledgerCount, 0, "No debit ledger entries allowed on shadow admissions");
+    assert.equal(
+      ledgerCount,
+      0,
+      "No debit ledger entries allowed on shadow admissions",
+    );
 
     // Wallet balance untouched
     const wallet = await prisma.billingWallet.findUnique({
@@ -632,7 +708,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const ledgerCount = await prisma.creditLedgerEntry.count({
       where: { admissionId: admission.admissionId },
     });
-    assert.equal(ledgerCount, 0, "No debit ledger entries allowed on OFF admissions");
+    assert.equal(
+      ledgerCount,
+      0,
+      "No debit ledger entries allowed on OFF admissions",
+    );
 
     // Wallet balance untouched
     const wallet = await prisma.billingWallet.findUnique({
@@ -660,8 +740,16 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(dbAdm?.rolloutMode, BILLING_ROLLOUT_MODES.DEBIT_ENABLED, "Admission must be issued with DEBIT_ENABLED authority");
-    assert.equal(dbAdm?.debitMode, MODEL_USAGE_DEBIT_MODES.ON, "Admission must be issued with debitMode ON");
+    assert.equal(
+      dbAdm?.rolloutMode,
+      BILLING_ROLLOUT_MODES.DEBIT_ENABLED,
+      "Admission must be issued with DEBIT_ENABLED authority",
+    );
+    assert.equal(
+      dbAdm?.debitMode,
+      MODEL_USAGE_DEBIT_MODES.ON,
+      "Admission must be issued with debitMode ON",
+    );
 
     await consumeAdmissionHelper(admission);
 
@@ -682,7 +770,7 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       attemptOrdinal: 1,
       providerCompletionState: PROVIDER_COMPLETION_STATES.COMPLETED,
       inputTokens: 5_000, // 15,000
-      outputTokens: 666,  // ~9,990
+      outputTokens: 666, // ~9,990
       totalTokens: 5_666,
     };
 
@@ -691,7 +779,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(settlePayload);
 
-    assert.equal(settleRes.status, 200, "Settlement must succeed into negative balance for admitted invocation");
+    assert.equal(
+      settleRes.status,
+      200,
+      "Settlement must succeed into negative balance for admitted invocation",
+    );
     const body = successBody<BillableInvocationSettlementResponse>(settleRes);
     assert.equal(body.settled, true);
     assert.equal(body.slotReleased, true);
@@ -704,11 +796,18 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const wallet = await prisma.billingWallet.findUnique({
       where: { id: customerWalletId },
     });
-    assert.ok(wallet && wallet.balanceMicrocredits < 0n, "Wallet balance must be negative");
+    assert.ok(
+      wallet && wallet.balanceMicrocredits < 0n,
+      "Wallet balance must be negative",
+    );
     const debitReceipt = await prisma.modelUsageReceipt.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(debitReceipt?.paymentRequired, true, "Depletion must be pinned in the immutable settled receipt");
+    assert.equal(
+      debitReceipt?.paymentRequired,
+      true,
+      "Depletion must be pinned in the immutable settled receipt",
+    );
 
     // Next paid admission must be rejected with 402 PAYMENT_REQUIRED due to insolvent wallet
     const nextAdmissionRes = await httpRequest(app)
@@ -729,7 +828,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         outputTokensUpperBound: 1000,
       });
 
-    assert.equal(nextAdmissionRes.status, 402, "Insolvent wallet with negative balance must reject new dispatches");
+    assert.equal(
+      nextAdmissionRes.status,
+      402,
+      "Insolvent wallet with negative balance must reject new dispatches",
+    );
 
     // Why: A lost settlement response can be replayed after a customer has replenished the wallet.
     // How: Change only this disposable fixture's wallet balance, then replay the identical settled request.
@@ -743,7 +846,8 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .set("x-worker-api-key", WORKER_TEST_API_KEY)
       .send(settlePayload);
     assert.equal(replayRes.status, 200);
-    const replayBody = successBody<BillableInvocationSettlementResponse>(replayRes);
+    const replayBody =
+      successBody<BillableInvocationSettlementResponse>(replayRes);
     assert.equal(replayBody.paymentRequired, true);
   });
 
@@ -757,14 +861,24 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     });
 
     // Request admission via legitimate issuance flow
-    const admission = await requestAdmissionHelper("req-d4-double-debit-prevention");
+    const admission = await requestAdmissionHelper(
+      "req-d4-double-debit-prevention",
+    );
 
     // Assert legitimate issuance authority (no manual database update)
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(dbAdm?.rolloutMode, BILLING_ROLLOUT_MODES.DEBIT_ENABLED, "Admission must be issued with DEBIT_ENABLED authority");
-    assert.equal(dbAdm?.debitMode, MODEL_USAGE_DEBIT_MODES.ON, "Admission must be issued with debitMode ON");
+    assert.equal(
+      dbAdm?.rolloutMode,
+      BILLING_ROLLOUT_MODES.DEBIT_ENABLED,
+      "Admission must be issued with DEBIT_ENABLED authority",
+    );
+    assert.equal(
+      dbAdm?.debitMode,
+      MODEL_USAGE_DEBIT_MODES.ON,
+      "Admission must be issued with debitMode ON",
+    );
 
     await consumeAdmissionHelper(admission);
 
@@ -799,7 +913,8 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .send(originalPayload);
 
     assert.equal(retryRes.status, 200);
-    const retryBody = successBody<BillableInvocationSettlementResponse>(retryRes);
+    const retryBody =
+      successBody<BillableInvocationSettlementResponse>(retryRes);
     assert.equal(retryBody.settled, true);
     assert.equal(retryBody.debitedMicrocredits, "45000");
 
@@ -807,7 +922,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const ledgerCount = await prisma.creditLedgerEntry.count({
       where: { admissionId: admission.admissionId },
     });
-    assert.equal(ledgerCount, 1, "Must not duplicate CreditLedgerEntry on idempotent replay");
+    assert.equal(
+      ledgerCount,
+      1,
+      "Must not duplicate CreditLedgerEntry on idempotent replay",
+    );
 
     // Wallet balance must not be deducted twice
     const finalWallet = await prisma.billingWallet.findUnique({
@@ -820,7 +939,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
   // RED Test D5a: Recovery Sweeper Clock Isolation (Pre-consume TTL vs IN_FLIGHT Lease)
   // -------------------------------------------------------------------------
   it("RED Test D5a: sweeper does NOT sweep IN_FLIGHT invocation when only admission TTL (expiresAt) has expired but inFlightLeaseExpiresAt is active", async () => {
-    const admission = await requestAdmissionHelper("req-d5a-active-in-flight-lease");
+    const admission = await requestAdmissionHelper(
+      "req-d5a-active-in-flight-lease",
+    );
     await consumeAdmissionHelper(admission);
 
     // Admission TTL expired (e.g. 10 minutes ago), but in-flight lease is active for another 10 minutes
@@ -854,14 +975,20 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const reconCase = await prisma.billingReconciliationCase.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(reconCase, null, "No reconciliation case should be opened for active in-flight lease");
+    assert.equal(
+      reconCase,
+      null,
+      "No reconciliation case should be opened for active in-flight lease",
+    );
   });
 
   // -------------------------------------------------------------------------
   // RED Test D5b: Recovery Sweeper on Expired inFlightLeaseExpiresAt (ADR-028 Line 92, 155)
   // -------------------------------------------------------------------------
   it("RED Test D5b: sweeper transitions expired lease IN_FLIGHT invocation to DISPATCH_UNKNOWN when inFlightLeaseExpiresAt passes, opens reconciliation case, retains exposure, and keeps slot blocked", async () => {
-    const admission = await requestAdmissionHelper("req-d5b-expired-lease-recovery");
+    const admission = await requestAdmissionHelper(
+      "req-d5b-expired-lease-recovery",
+    );
     await consumeAdmissionHelper(admission);
 
     // Simulate worker crash: inFlightLeaseExpiresAt expired 5 minutes ago
@@ -892,7 +1019,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const reconCase = await prisma.billingReconciliationCase.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.ok(reconCase, "BillingReconciliationCase must be created when sweeping expired lease to DISPATCH_UNKNOWN");
+    assert.ok(
+      reconCase,
+      "BillingReconciliationCase must be created when sweeping expired lease to DISPATCH_UNKNOWN",
+    );
     assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.OPEN);
     assert.equal(reconCase.admissionId, admission.admissionId);
     // Why: Provider evidence is keyed by the dispatched correlation ID, which can differ from invocation ID.
@@ -981,7 +1111,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       state: string;
       inFlightLeaseExpiresAt: string;
     }>(shortHeartbeatRes);
-    const shortHbExpiry = new Date(shortHbBody.inFlightLeaseExpiresAt).getTime();
+    const shortHbExpiry = new Date(
+      shortHbBody.inFlightLeaseExpiresAt,
+    ).getTime();
     assert.ok(
       shortHbExpiry >= dbAdmInit.inFlightLeaseExpiresAt.getTime(),
       "Heartbeat requesting shorter duration must NOT truncate existing longer deadline",
@@ -1057,7 +1189,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         extensionSeconds: 1800,
       });
 
-    assert.equal(validHbRes.status, 200, "Valid heartbeat extension must succeed with HTTP 200");
+    assert.equal(
+      validHbRes.status,
+      200,
+      "Valid heartbeat extension must succeed with HTTP 200",
+    );
 
     // 7. When the extended deadline finally expires, sweeper correctly reclaims it to DISPATCH_UNKNOWN
     await prisma.billableInvocationAdmission.update({
@@ -1101,8 +1237,12 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.ok(dbAdm?.inFlightLeaseExpiresAt, "inFlightLeaseExpiresAt must be recorded");
-    const leaseRemainingMs = dbAdm.inFlightLeaseExpiresAt.getTime() - Date.now();
+    assert.ok(
+      dbAdm?.inFlightLeaseExpiresAt,
+      "inFlightLeaseExpiresAt must be recorded",
+    );
+    const leaseRemainingMs =
+      dbAdm.inFlightLeaseExpiresAt.getTime() - Date.now();
     assert.ok(
       leaseRemainingMs <= fiveMinutesMs + 3000,
       `In-flight lease must NOT exceed 5-minute run deadline (expected <= ${fiveMinutesMs + 3000}ms, got ${leaseRemainingMs}ms)`,
@@ -1125,7 +1265,8 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
 
     assert.equal(hbRes.status, 200);
     const hbData = successBody<{ inFlightLeaseExpiresAt: string }>(hbRes);
-    const hbRemainingMs = new Date(hbData.inFlightLeaseExpiresAt).getTime() - Date.now();
+    const hbRemainingMs =
+      new Date(hbData.inFlightLeaseExpiresAt).getTime() - Date.now();
     assert.ok(
       hbRemainingMs <= fiveMinutesMs + 3000,
       `Heartbeat renewal must be clamped to 5-minute runtime ceiling (expected <= ${fiveMinutesMs + 3000}ms, got ${hbRemainingMs}ms)`,
@@ -1241,7 +1382,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       "Consume on admission from replaced run must fail closed with 403 Forbidden",
     );
     const consumeProblem = problemBody(badConsumeRes);
-    assert.equal(consumeProblem.code, BILLING_ERROR_CODES.admissionContextMismatch);
+    assert.equal(
+      consumeProblem.code,
+      BILLING_ERROR_CODES.admissionContextMismatch,
+    );
 
     // Restore runtime to default for downstream tests
     await prisma.assessmentRuntime.update({
@@ -1346,7 +1490,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       },
     });
 
-    const admConsume = await requestAdmissionHelper("req-d5g-consume-clock-drift");
+    const admConsume = await requestAdmissionHelper(
+      "req-d5g-consume-clock-drift",
+    );
 
     // 2. Deliberately hold row lock on AssessmentRuntime for 300ms using a deterministic lock acquisition signal
     let signalConsumeLockAcquired!: () => void;
@@ -1387,7 +1533,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       "Consume must fail closed with 403 Forbidden when lease expired while waiting for row lock",
     );
     const consumeProb = problemBody(consumeRes);
-    assert.equal(consumeProb.code, BILLING_ERROR_CODES.admissionContextMismatch);
+    assert.equal(
+      consumeProb.code,
+      BILLING_ERROR_CODES.admissionContextMismatch,
+    );
 
     // Verify admission NEVER entered IN_FLIGHT
     const dbAdmConsume = await prisma.billableInvocationAdmission.findUnique({
@@ -1424,7 +1573,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       },
     });
 
-    const admHeartbeat = await requestAdmissionHelper("req-d5g-heartbeat-clock-drift");
+    const admHeartbeat = await requestAdmissionHelper(
+      "req-d5g-heartbeat-clock-drift",
+    );
     await consumeAdmissionHelper(admHeartbeat);
 
     // 2. Set runtime lease to expire in 150ms
@@ -1644,10 +1795,13 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     });
 
     // 3. Request admission using the discovery run authority (AssessmentRuntime has defaultRunId, so fallback to discovery run is triggered)
-    const admDiscovery = await requestAdmissionHelper("req-d5i-discovery-drift", {
-      runId: discoveryRunId,
-      executionLeaseToken: discoveryLeaseToken,
-    });
+    const admDiscovery = await requestAdmissionHelper(
+      "req-d5i-discovery-drift",
+      {
+        runId: discoveryRunId,
+        executionLeaseToken: discoveryLeaseToken,
+      },
+    );
 
     // 4. Set discovery run lease to expire in 500ms (sufficient buffer to prove request is waiting before expiry)
     const leaseExpiryTime = Date.now() + 500;
@@ -1677,7 +1831,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         signalLockAcquired();
 
         // Wait until we confirm via pg_locks that consume is ACTIVELY BLOCKED waiting on AssessmentDiscoveryRun lock
-        isBlockedWaiting = await waitForBlockedLock('FROM "AssessmentDiscoveryRun"');
+        isBlockedWaiting = await waitForBlockedLock(
+          'FROM "AssessmentDiscoveryRun"',
+        );
         blockedAtTimestamp = Date.now();
 
         // Invariant: Consume MUST be confirmed waiting on lock BEFORE discovery leaseExpiresAt has elapsed
@@ -1719,7 +1875,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       "Consume must fail closed with 403 Forbidden when AssessmentDiscoveryRun lease expired during lock wait",
     );
     const consumeProb = problemBody(consumeRes);
-    assert.equal(consumeProb.code, BILLING_ERROR_CODES.admissionContextMismatch);
+    assert.equal(
+      consumeProb.code,
+      BILLING_ERROR_CODES.admissionContextMismatch,
+    );
 
     // Verify admission NEVER entered IN_FLIGHT
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
@@ -1820,9 +1979,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
 
     // Assert dispatch boundary evidence in PostgreSQL:
     // 1. Exactly 1 physical admission exists for the logical operation across all attempts
-    const admissionsForOperation = await prisma.billableInvocationAdmission.findMany({
-      where: { logicalOperationId: logicalOpId },
-    });
+    const admissionsForOperation =
+      await prisma.billableInvocationAdmission.findMany({
+        where: { logicalOperationId: logicalOpId },
+      });
     assert.equal(
       admissionsForOperation.length,
       1,
@@ -1845,7 +2005,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     );
 
     // 3. Concurrency slot is demonstrably FREE: a request for a NEW distinct logical operation succeeds
-    const nextAdmission = await requestAdmissionHelper("req-d6a-next-request-free");
+    const nextAdmission = await requestAdmissionHelper(
+      "req-d6a-next-request-free",
+    );
     assert.equal(
       nextAdmission.state,
       ADMISSION_STATES.ADMITTED,
@@ -1884,8 +2046,15 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         inputTokensUpperBound: 50_000,
         outputTokensUpperBound: 4096,
       });
-    assert.equal(attempt2InFlightRes.status, 409, "Must reject attempt 2 while attempt 1 is IN_FLIGHT");
-    assert.equal(problemBody(attempt2InFlightRes).code, BILLING_ERROR_CODES.concurrencyConflict);
+    assert.equal(
+      attempt2InFlightRes.status,
+      409,
+      "Must reject attempt 2 while attempt 1 is IN_FLIGHT",
+    );
+    assert.equal(
+      problemBody(attempt2InFlightRes).code,
+      BILLING_ERROR_CODES.concurrencyConflict,
+    );
 
     // 2. Attempt 1 transitions to DISPATCH_UNKNOWN (lease expiry / worker abort)
     await prisma.billableInvocationAdmission.update({
@@ -1910,8 +2079,15 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         inputTokensUpperBound: 50_000,
         outputTokensUpperBound: 4096,
       });
-    assert.equal(attempt2DispatchUnknownRes.status, 409, "Must reject attempt 2 while attempt 1 is DISPATCH_UNKNOWN");
-    assert.equal(problemBody(attempt2DispatchUnknownRes).code, BILLING_ERROR_CODES.concurrencyConflict);
+    assert.equal(
+      attempt2DispatchUnknownRes.status,
+      409,
+      "Must reject attempt 2 while attempt 1 is DISPATCH_UNKNOWN",
+    );
+    assert.equal(
+      problemBody(attempt2DispatchUnknownRes).code,
+      BILLING_ERROR_CODES.concurrencyConflict,
+    );
 
     // 3. Attempt 1 transitions to OUTCOME_UNKNOWN (missing token evidence / timeout)
     await prisma.billableInvocationAdmission.update({
@@ -1936,14 +2112,25 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         inputTokensUpperBound: 50_000,
         outputTokensUpperBound: 4096,
       });
-    assert.equal(attempt2OutcomeUnknownRes.status, 409, "Must reject attempt 2 while attempt 1 is OUTCOME_UNKNOWN");
-    assert.equal(problemBody(attempt2OutcomeUnknownRes).code, BILLING_ERROR_CODES.concurrencyConflict);
+    assert.equal(
+      attempt2OutcomeUnknownRes.status,
+      409,
+      "Must reject attempt 2 while attempt 1 is OUTCOME_UNKNOWN",
+    );
+    assert.equal(
+      problemBody(attempt2OutcomeUnknownRes).code,
+      BILLING_ERROR_CODES.concurrencyConflict,
+    );
 
     // Proof: Only attempt 1 ever exists in the database
     const allAdmissions = await prisma.billableInvocationAdmission.findMany({
       where: { logicalOperationId: logicalOpId },
     });
-    assert.equal(allAdmissions.length, 1, "Zero second physical dispatches allowed while attempt 1 is unresolved");
+    assert.equal(
+      allAdmissions.length,
+      1,
+      "Zero second physical dispatches allowed while attempt 1 is unresolved",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -1989,10 +2176,19 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         outputTokensUpperBound: 4096,
       });
 
-    assert.equal(attempt2Res.status, 201, "Fresh admission must be granted for legitimate attempt 2 retry");
-    const adm2Body = successBody<BillableInvocationAdmissionResponse>(attempt2Res);
+    assert.equal(
+      attempt2Res.status,
+      201,
+      "Fresh admission must be granted for legitimate attempt 2 retry",
+    );
+    const adm2Body =
+      successBody<BillableInvocationAdmissionResponse>(attempt2Res);
     assert.equal(adm2Body.state, ADMISSION_STATES.ADMITTED);
-    assert.notEqual(adm2Body.invocationId, adm1.invocationId, "Attempt 2 must receive a fresh physical invocationId");
+    assert.notEqual(
+      adm2Body.invocationId,
+      adm1.invocationId,
+      "Attempt 2 must receive a fresh physical invocationId",
+    );
 
     // 3. Attempting to reuse attemptOrdinal: 1 or attemptOrdinal: 2 again is rejected
     const nonMonotonicRes = await httpRequest(app)
@@ -2013,8 +2209,15 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         outputTokensUpperBound: 4096,
       });
 
-    assert.equal(nonMonotonicRes.status, 409, "Must reject non-incremented attemptOrdinal for same logical operation");
-    assert.equal(problemBody(nonMonotonicRes).code, BILLING_ERROR_CODES.idempotencyConflict);
+    assert.equal(
+      nonMonotonicRes.status,
+      409,
+      "Must reject non-incremented attemptOrdinal for same logical operation",
+    );
+    assert.equal(
+      problemBody(nonMonotonicRes).code,
+      BILLING_ERROR_CODES.idempotencyConflict,
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -2056,8 +2259,15 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         outputTokensUpperBound: 4096,
       });
 
-    assert.equal(attempt2Res.status, 409, "Must reject attempt 2 while attempt 1 is in BILLING_INTEGRITY_REVIEW");
-    assert.equal(problemBody(attempt2Res).code, BILLING_ERROR_CODES.concurrencyConflict);
+    assert.equal(
+      attempt2Res.status,
+      409,
+      "Must reject attempt 2 while attempt 1 is in BILLING_INTEGRITY_REVIEW",
+    );
+    assert.equal(
+      problemBody(attempt2Res).code,
+      BILLING_ERROR_CODES.concurrencyConflict,
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -2124,12 +2334,17 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
 
     // Exactly one must succeed (201 Created), the other must be rejected (409 Conflict)
     const statuses = [resA.status, resB.status].sort();
-    assert.deepEqual(statuses, [201, 409], "Exactly one concurrent attempt must succeed and the other must 409");
+    assert.deepEqual(
+      statuses,
+      [201, 409],
+      "Exactly one concurrent attempt must succeed and the other must 409",
+    );
 
     const winningRes = resA.status === 201 ? resA : resB;
     const losingRes = resA.status === 409 ? resA : resB;
 
-    const winBody = successBody<BillableInvocationAdmissionResponse>(winningRes);
+    const winBody =
+      successBody<BillableInvocationAdmissionResponse>(winningRes);
     assert.equal(winBody.state, ADMISSION_STATES.ADMITTED);
 
     const loseCode = problemBody(losingRes).code;
@@ -2143,7 +2358,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const dbAttempts = await prisma.billableInvocationAdmission.findMany({
       where: { logicalOperationId: logicalOpId, attemptOrdinal: 2 },
     });
-    assert.equal(dbAttempts.length, 1, "Exactly one DB record must be created for attempt 2");
+    assert.equal(
+      dbAttempts.length,
+      1,
+      "Exactly one DB record must be created for attempt 2",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -2263,12 +2482,17 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
 
     // Advisory lock guarantees transaction serialization: exactly one wins (201 Created), one is rejected (409 Conflict)
     const statuses = [resA.status, resB.status].sort();
-    assert.deepEqual(statuses, [201, 409], "Advisory lock must ensure exactly one concurrent retry succeeds and the other 409s");
+    assert.deepEqual(
+      statuses,
+      [201, 409],
+      "Advisory lock must ensure exactly one concurrent retry succeeds and the other 409s",
+    );
 
     const winningRes = resA.status === 201 ? resA : resB;
     const losingRes = resA.status === 409 ? resA : resB;
 
-    const winBody = successBody<BillableInvocationAdmissionResponse>(winningRes);
+    const winBody =
+      successBody<BillableInvocationAdmissionResponse>(winningRes);
     assert.equal(winBody.state, ADMISSION_STATES.ADMITTED);
 
     const loseCode = problemBody(losingRes).code;
@@ -2282,7 +2506,11 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     const allDbAttempts = await prisma.billableInvocationAdmission.findMany({
       where: { logicalOperationId: logicalOpId },
     });
-    assert.equal(allDbAttempts.length, 2, "Database must contain exactly attempt 1 and the single winning attempt");
+    assert.equal(
+      allDbAttempts.length,
+      2,
+      "Database must contain exactly attempt 1 and the single winning attempt",
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -2300,7 +2528,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     assert.ok(initialWallet);
     const initialVersion = initialWallet.version;
 
-    const admission = await requestAdmissionHelper("req-d7-wallet-version-test");
+    const admission = await requestAdmissionHelper(
+      "req-d7-wallet-version-test",
+    );
     await consumeAdmissionHelper(admission);
 
     const settlePayload: BillableInvocationSettlementRequest = {
@@ -2347,7 +2577,9 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
     });
 
     // 1. Customer wallet settlement check
-    const custAdmission = await requestAdmissionHelper("req-d8-cust-accounting-version");
+    const custAdmission = await requestAdmissionHelper(
+      "req-d8-cust-accounting-version",
+    );
     await consumeAdmissionHelper(custAdmission);
 
     const custSettlePayload: BillableInvocationSettlementRequest = {
@@ -2444,7 +2676,8 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       });
 
     assert.equal(platAdmissionRes.status, 201);
-    const platAdmBody = successBody<BillableInvocationAdmissionResponse>(platAdmissionRes);
+    const platAdmBody =
+      successBody<BillableInvocationAdmissionResponse>(platAdmissionRes);
 
     await consumeAdmissionHelper(platAdmBody);
 
@@ -2469,7 +2702,8 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .send(platSettlePayload);
 
     assert.equal(platSettleRes.status, 200);
-    const platSettleBody = successBody<BillableInvocationSettlementResponse>(platSettleRes);
+    const platSettleBody =
+      successBody<BillableInvocationSettlementResponse>(platSettleRes);
 
     // Platform sponsored must NEVER debit customer wallet: chargedMicrocredits and debitedMicrocredits must be 0!
     assert.equal(
@@ -2546,7 +2780,8 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         outputTokensUpperBound: 4_096,
       });
     assert.equal(admissionRes.status, 201);
-    const admission = successBody<BillableInvocationAdmissionResponse>(admissionRes);
+    const admission =
+      successBody<BillableInvocationAdmissionResponse>(admissionRes);
     await consumeAdmissionHelper(admission);
 
     const settlementRes = await httpRequest(app)
@@ -2568,15 +2803,22 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         providerResponseId: "resp-d8b-platform",
       });
     assert.equal(settlementRes.status, 200);
-    const result = successBody<BillableInvocationSettlementResponse>(settlementRes);
+    const result =
+      successBody<BillableInvocationSettlementResponse>(settlementRes);
     assert.equal(result.settled, false);
     assert.equal(result.slotReleased, false);
-    const storedAdmission = await prisma.billableInvocationAdmission.findUniqueOrThrow({
-      where: { id: admission.admissionId },
-    });
+    const storedAdmission =
+      await prisma.billableInvocationAdmission.findUniqueOrThrow({
+        where: { id: admission.admissionId },
+      });
     assert.equal(storedAdmission.state, ADMISSION_STATES.OUTCOME_UNKNOWN);
     assert.ok(storedAdmission.maximumExposureMicrocredits > 0n);
-    assert.equal(await prisma.modelUsageReceipt.findUnique({ where: { invocationId: admission.invocationId } }), null);
+    assert.equal(
+      await prisma.modelUsageReceipt.findUnique({
+        where: { invocationId: admission.invocationId },
+      }),
+      null,
+    );
     const reconCase = await prisma.billingReconciliationCase.findUniqueOrThrow({
       where: { invocationId: admission.invocationId },
     });
@@ -2627,13 +2869,21 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       .send(settlePayload);
 
     // Must fail closed with 422 Unprocessable Entity when wallet is missing!
-    assert.equal(settleRes.status, 422, "Must fail closed with HTTP 422 if wallet is not found");
+    assert.equal(
+      settleRes.status,
+      422,
+      "Must fail closed with HTTP 422 if wallet is not found",
+    );
 
     // ModelUsageReceipt MUST NOT exist in SETTLED state
     const receipt = await prisma.modelUsageReceipt.findUnique({
       where: { invocationId: admission.invocationId },
     });
-    assert.equal(receipt, null, "Must NOT persist ModelUsageReceipt if wallet is missing");
+    assert.equal(
+      receipt,
+      null,
+      "Must NOT persist ModelUsageReceipt if wallet is missing",
+    );
 
     // Admission MUST be committed in BILLING_INTEGRITY_REVIEW state in PostgreSQL
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({

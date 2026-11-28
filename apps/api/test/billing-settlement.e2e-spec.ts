@@ -487,7 +487,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     // Why: Provider IDs are opaque and can be reused across separate physical calls.
     // How: Settle two sequential admissions in one run with the same tool-call ID.
     // Invariant: Output causation ambiguity must not discard a provider receipt or hold the wallet slot.
-    const first = await requestAdmissionHelper("req-settle-reused-tool-id-first");
+    const first = await requestAdmissionHelper(
+      "req-settle-reused-tool-id-first",
+    );
     await consumeAdmissionHelper(first);
     const firstResult = await httpRequest(app)
       .post("/internal/billing/usage/settle")
@@ -505,7 +507,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       });
     assert.equal(firstResult.status, 200);
 
-    const second = await requestAdmissionHelper("req-settle-reused-tool-id-second");
+    const second = await requestAdmissionHelper(
+      "req-settle-reused-tool-id-second",
+    );
     await consumeAdmissionHelper(second);
     const secondResult = await httpRequest(app)
       .post("/internal/billing/usage/settle")
@@ -532,7 +536,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       new Set(receipts.map((receipt) => receipt.invocationId)),
       new Set([first.invocationId, second.invocationId]),
     );
-    assert.ok(receipts.every((receipt) => receipt.toolCallIds.includes("reused-call")));
+    assert.ok(
+      receipts.every((receipt) => receipt.toolCallIds.includes("reused-call")),
+    );
   });
 
   it("rejects noncanonical tool-call arrays at the database boundary", async () => {

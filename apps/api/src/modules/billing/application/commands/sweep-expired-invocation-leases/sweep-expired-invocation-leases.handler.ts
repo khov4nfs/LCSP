@@ -27,10 +27,13 @@ import { SweepExpiredInvocationLeasesCommand } from "./sweep-expired-invocation-
 
 @Injectable()
 @CommandHandler(SweepExpiredInvocationLeasesCommand)
-export class SweepExpiredInvocationLeasesHandler
-  implements ICommandHandler<SweepExpiredInvocationLeasesCommand, SweepExpiredLeasesResponse>
-{
-  private readonly logger = new Logger(SweepExpiredInvocationLeasesHandler.name);
+export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
+  SweepExpiredInvocationLeasesCommand,
+  SweepExpiredLeasesResponse
+> {
+  private readonly logger = new Logger(
+    SweepExpiredInvocationLeasesHandler.name,
+  );
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -100,7 +103,12 @@ export class SweepExpiredInvocationLeasesHandler
         await this.prisma.$transaction(async (tx) => {
           // Re-fetch with row lock to avoid race conditions with concurrent worker settlement
           const locked = await tx.$queryRaw<
-            Array<{ id: string; state: string; inFlightLeaseExpiresAt: Date | null; correlationId: string }>
+            Array<{
+              id: string;
+              state: string;
+              inFlightLeaseExpiresAt: Date | null;
+              correlationId: string;
+            }>
           >`
             SELECT id, state, "inFlightLeaseExpiresAt", "correlationId"
             FROM "BillableInvocationAdmission"
@@ -110,7 +118,8 @@ export class SweepExpiredInvocationLeasesHandler
 
           if (
             !locked.length ||
-            locked[0]?.state !== toPrismaAdmissionState(ADMISSION_STATES.IN_FLIGHT) ||
+            locked[0]?.state !==
+              toPrismaAdmissionState(ADMISSION_STATES.IN_FLIGHT) ||
             !locked[0]?.inFlightLeaseExpiresAt ||
             locked[0].inFlightLeaseExpiresAt.getTime() > now.getTime()
           ) {
@@ -136,7 +145,9 @@ export class SweepExpiredInvocationLeasesHandler
               caseId,
               invocationId: candidate.invocationId,
               admissionId: candidate.id,
-              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.OPEN),
+              state: toPrismaBillingReconciliationState(
+                RECONCILIATION_CASE_STATES.OPEN,
+              ),
               provider: candidate.resolvedProvider,
               // Why: Evidence lookup must use the ID sent to the provider, which can differ from invocationId.
               // How: Persist the correlation ID read under the admission row lock.
@@ -146,7 +157,9 @@ export class SweepExpiredInvocationLeasesHandler
                 "Swept expired IN_FLIGHT lease to DISPATCH_UNKNOWN; awaiting provider usage receipt or verified no-usage evidence",
             },
             update: {
-              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.OPEN),
+              state: toPrismaBillingReconciliationState(
+                RECONCILIATION_CASE_STATES.OPEN,
+              ),
               updatedAt: now,
             },
           });
@@ -158,7 +171,9 @@ export class SweepExpiredInvocationLeasesHandler
               eventType: BILLING_AUDIT_EVENT_TYPES.leaseSwept,
               actorId: "system:reconciliation-sweeper",
               correlationId: correlationId ?? `sweep-${candidate.invocationId}`,
-              resourceType: toPrismaAuditResourceType(AUDIT_RESOURCE_TYPES.httpRoute),
+              resourceType: toPrismaAuditResourceType(
+                AUDIT_RESOURCE_TYPES.httpRoute,
+              ),
               resourceId: candidate.id,
               decision: toPrismaAuthDecision(AUDIT_DECISIONS.allow),
               payload: {
@@ -167,7 +182,8 @@ export class SweepExpiredInvocationLeasesHandler
                 previousState: ADMISSION_STATES.IN_FLIGHT,
                 newState: ADMISSION_STATES.DISPATCH_UNKNOWN,
                 sweptAt: now.toISOString(),
-                exposureRetainedMicrocredits: candidate.maximumExposureMicrocredits.toString(),
+                exposureRetainedMicrocredits:
+                  candidate.maximumExposureMicrocredits.toString(),
               },
             },
           });

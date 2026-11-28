@@ -195,7 +195,12 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
             checkpointId,
             executionState:
               overrides.executionState ?? AgentExecutionState.FAILED,
+            // A lease belongs to a concrete execution; keep this fixture valid under the DB CHECK.
+            currentExecutionId: overrides.leaseToken ? randomUUID() : null,
             leaseToken: overrides.leaseToken ?? null,
+            leaseExpiresAt: overrides.leaseToken
+              ? new Date(Date.now() + 60_000)
+              : null,
           },
         },
       },
@@ -612,6 +617,8 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
         repositoryName: "test-repo",
         repositoryFullName: "org/test-repo",
         defaultBranch: "main",
+        // GITHUB_APP connections require an installation ID at the persistence boundary.
+        installationId: `installation-${randomUUID()}`,
         permissions: {},
       },
     });
