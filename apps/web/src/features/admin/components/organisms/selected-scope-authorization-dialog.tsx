@@ -29,6 +29,11 @@ import {
 } from "@/lib/api/legal-rule-catalog-queries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+  PREPARATION_SCOPE_STAGES,
+} from "@lcsp/contracts/compliance-rule-set";
+import {
   preparationRuleBatchSchema,
   SELECTED_SCOPE_AUTHORIZATION_STATES,
 } from "@lcsp/contracts/legal-rule-catalog";
@@ -114,7 +119,7 @@ export function SelectedScopeAuthorizationDialog({
   /**
    * Business purpose: Submit the latest Preparation draft as a Legal Review candidate when no authorization exists yet.
    * Business rules:
-   * - Derives initial sourceSupport from the pinned rule citations and preserves requirement coverage rationale.
+   * - Each requirement uses only its own pinned source references; unresolved decisions remain unapproved.
    * Execution flow: 1. Build submit payload from latestDraft. 2. Submit candidate and select its scopeKey.
    * Failure cases: Missing draft or citations is guarded before dispatch; API errors surface in alert.
    * Side effects: Persists a DRAFT SelectedRuleScopeAuthorization record.
@@ -122,7 +127,9 @@ export function SelectedScopeAuthorizationDialog({
   async function handleSubmitCandidate() {
     if (!latestDraft?.output || !latestDraft.input.citations.length) return;
     setStatusMessage(null);
-    const citation = latestDraft.input.citations[0];
+    // Each requirement can cite a different provision or multiple chunks; never
+    // reuse the first citation as evidence for unrelated obligations.
+    const citations = latestDraft.input.citations;
     const submitted = await submitCandidate.mutateAsync({
       ruleId,
       expectedCatalogRevision: catalogRevision,
@@ -131,25 +138,38 @@ export function SelectedScopeAuthorizationDialog({
       decisions: latestDraft.output.legalRequirements.map((req) => ({
         legalRequirementId: req.legalRequirementId,
         stage:
-          req.coverage.state === "COVERED_BY_ASSESSMENT_RULES"
-            ? "DEVELOPMENT"
-            : "NON_DEVELOPMENT",
+          req.coverage.nonAssessableReason?.startsWith(
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+          )
+            ? PREPARATION_SCOPE_STAGES[2]
+            : req.coverage.state === LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES
+              ? PREPARATION_SCOPE_STAGES[0]
+              : PREPARATION_SCOPE_STAGES[1],
         rationale:
           req.coverage.nonAssessableReason ??
           req.proposition ??
           "Legal review candidate",
         technicalDeliverable:
-          req.coverage.state === "COVERED_BY_ASSESSMENT_RULES"
+          req.coverage.state === LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES
             ? req.title
             : null,
-        sourceSupport: [
-          {
-            chunkId: citation.chunkId,
-            startOffset: 0,
-            endOffset: Math.max(1, citation.content.length),
-            contentSha256: citation.contentSha256.replace(/^sha256:/u, ""),
-          },
-        ],
+        sourceSupport: req.sourceRefs.flatMap((ref) => {
+          const citation = citations.find(
+            (candidate) =>
+              candidate.documentId === ref.documentId &&
+              candidate.locator === ref.locator &&
+              candidate.contentSha256 === ref.contentSha256,
+          );
+          // Missing references must fail server validation, not acquire invented spans.
+          return citation && citation.content.length
+            ? [{
+                chunkId: citation.chunkId,
+                startOffset: 0,
+                endOffset: citation.content.length,
+                contentSha256: citation.contentSha256.replace(/^sha256:/u, ""),
+              }]
+            : [];
+        }),
       })),
     });
     setActiveKey(submitted.scopeKey);

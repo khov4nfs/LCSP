@@ -71,3 +71,15 @@ def test_supervision_examples_leave_outputs_empty_only_for_procedure_without_dut
     assert "does not by itself impose a developer duty" in en_example
     assert "Preserve any separately stated duty" in en_example
     assert "only the supervision procedure, return empty legalRequirements and assessmentRules" in en_example
+
+
+def test_selected_scope_includes_system_verifiable_operational_notification():
+    # Guard against lifecycle-stage suppression in both registered prompt sources.
+    en = (ROOT / "instructions/candidates/r1/preparation.selected.txt").read_text(encoding="utf-8")
+    vi = (ROOT / "instructions/vi/preparation-selected.md").read_text(encoding="utf-8")
+    assert "development-relevant duty" not in en
+    assert "out-of-scope LegalRequirement" not in en
+    assert "system-verifiable obligation" in en
+    assert "nghĩa vụ liên quan phát triển" not in vi
+    assert "LegalRequirement ngoài phạm vi" not in vi
+    assert "chứng cứ giao nhận hoặc vận hành" in vi

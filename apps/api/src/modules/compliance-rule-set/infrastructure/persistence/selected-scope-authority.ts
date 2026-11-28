@@ -7,6 +7,7 @@ import {
 import {
   ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS,
+  preparationRuleInputSchema,
   preparationRuleOutputSchema,
   SEMANTIC_VALIDATION_STATUSES,
   SEMANTIC_VALIDATION_VERDICTS,
@@ -30,6 +31,7 @@ import {
   sha256Hex,
 } from "../../../assessment/domain/domain-ids.js";
 import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
+import { preparationInputFingerprint } from "../../../legal-rule-catalog/application/services/legal-rule-catalog-shared.js";
 
 const unresolved = PREPARATION_SCOPE_STAGES[2];
 const covered = LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES;
@@ -120,7 +122,7 @@ export function selectedScopeKey(
 /**
  * Business purpose: Bind a reviewer decision to immutable legal propositions and exact source spans.
  * Business rules:
- * - Every requirement must be classified once; no unresolved or permission-as-mandatory rule may be approved.
+ * - Every requirement has one decision; unresolved candidates may be retained as drafts but never approved or published.
  * - Development means an actual technical development responsibility; external-only obligations remain explicitly accounted for and cannot become assessment rules.
  * - Every requirement source reference must be supported by a verified nonblank text slice. A reason alone is never authority.
  * - This validates structural evidence and recorded review decisions, not semantic entailment by a keyword algorithm.
@@ -170,9 +172,12 @@ export function validateSelectedScopeDecisions(
       LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE
     ) {
       const reason = requirement.coverage.nonAssessableReason?.trim() ?? "";
+      // Preserve the explicit uncertainty in a review draft; approval still requires a
+      // corrected source-backed requirement and cannot clear the marker implicitly.
       if (
         !reason ||
-        reason.startsWith(PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX)
+        (reason.startsWith(PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX) &&
+          (approving || decision.stage !== unresolved))
       )
         reject(cid, "decisions.stage");
     }
@@ -507,12 +512,13 @@ const selectedManifestEntrySchema = z.object({
  * Business purpose: Verify the immutable Selected Rule Set activation manifest and ensure none of its authorizations were revoked.
  *
  * Business rules:
- * - Manifest must be a non-empty array of complete, unique rule/result/digest entries.
+ * - Manifest must be a non-empty array of complete, unique rule/result/digest entries bound to persisted input, output and material authority.
  * - Any REJECTED or DRAFT authorization for a manifest key blocks admission or reactivation.
  *
  * Execution flow:
  * 1. Parse the manifest array and verify uniqueness of ruleId and scopeAuthorizationKey.
- * 2. Check SelectedRuleScopeAuthorization for any REJECTED or DRAFT rows matching the manifest keys.
+ * 2. Recompute the persisted input fingerprint, output digest and material key; verify legacy keys against their exact approved output.
+ * 3. Check SelectedRuleScopeAuthorization for any REJECTED or DRAFT rows matching the manifest keys.
  *
  * Failure cases:
  * - Malformed, empty, duplicate, or revoked/draft manifests return false (fail closed).
@@ -555,13 +561,15 @@ export async function hasValidSelectedActivationManifest(
   // succeeded PreparationRuleResult rows or their immutable output digests.
   // How: When preparationRuleResult is available on tx, verify every entry's resultId,
   // revision, ruleId, executionState, legalSourceVersionId, inputFingerprint, and outputDigest.
-  if (tx.preparationRuleResult?.findMany) {
+  if (!tx.preparationRuleResult?.findMany) return false;
+  {
     const rows = await tx.preparationRuleResult.findMany({
       where: { id: { in: resultIds } },
       select: {
         id: true,
         revision: true,
         inputFingerprint: true,
+        inputSnapshot: true,
         output: true,
         preparationRule: { select: { legalRuleId: true } },
         preparationRun: {
@@ -589,16 +597,45 @@ export async function hasValidSelectedActivationManifest(
       ) {
         return false;
       }
+      const parsedInput = preparationRuleInputSchema.safeParse(row.inputSnapshot);
       const parsedOutput = preparationRuleOutputSchema.safeParse(row.output);
       if (
+        !parsedInput.success ||
+        parsedInput.data.ruleId !== entry.ruleId ||
+        parsedInput.data.legalSourceVersionId !== row.preparationRun.legalSourceVersionId ||
+        preparationInputFingerprint(parsedInput.data) !== entry.inputFingerprint ||
         !parsedOutput.success ||
         sha256Hex(canonicalJson(parsedOutput.data)) !== entry.outputDigest
       ) {
         return false;
       }
+      // A syntactically valid but substituted authorization key must not hide a
+      // revoked approval. V1 keys are accepted only with the original exact review.
+      const materialKey = selectedScopeKey(parsedInput.data, parsedOutput.data);
+      if (entry.scopeAuthorizationKey !== materialKey) {
+        if (
+          entry.scopeAuthorizationKey !== selectedScopeKey(parsedInput.data, parsedOutput.data, 1) ||
+          !tx.selectedRuleScopeAuthorization?.findUnique
+        ) return false;
+        const review = await tx.selectedRuleScopeAuthorization.findUnique({
+          where: { scopeKey: entry.scopeAuthorizationKey },
+        });
+        const reviewed = preparationRuleOutputSchema.safeParse(review?.output);
+        if (
+          !review ||
+          review.state !== PreparationScopeReviewState.APPROVED ||
+          review.ruleId !== entry.ruleId ||
+          review.catalogId !== parsedInput.data.catalogVersionId ||
+          review.legalSourceVersionId !== parsedInput.data.legalSourceVersionId ||
+          !review.approvedBy || review.approvedBy === review.submittedBy ||
+          !review.approvedAt || !reviewed.success ||
+          selectedScopeKey(parsedInput.data, reviewed.data) !== materialKey
+        ) return false;
+      }
     }
   }
-  if (tx.selectedRuleScopeAuthorization?.count) {
+  if (!tx.selectedRuleScopeAuthorization?.count) return false;
+  {
     const blocked = await tx.selectedRuleScopeAuthorization.count({
       where: {
         scopeKey: { in: keys },

@@ -9,14 +9,17 @@ import {
   type SelectedScopeDecision,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
+  AgentExecutionState,
   LegalEffectStatus,
   LegalSourceDocumentCorpusRole,
   PreparationScopeReviewState,
   type Prisma,
 } from "@prisma/client";
 import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
-import { sha256Hex } from "../../../assessment/domain/domain-ids.js";
+import { canonicalJson, sha256Hex } from "../../../assessment/domain/domain-ids.js";
+import { preparationInputFingerprint } from "../../../legal-rule-catalog/application/services/legal-rule-catalog-shared.js";
 import {
+  hasValidSelectedActivationManifest,
   requireSelectedScopeAuthorization,
   selectedScopeKey,
   validateSelectedScopeDecisions,
@@ -349,6 +352,60 @@ describe("Reusable selected semantic scope evidence", () => {
       selectedScopeKey({ ...input, legalSourceVersionId: uuid(5) }, output),
     ).not.toBe(selectedScopeKey(input, output));
   });
+  it("retains genuine legal uncertainty only as a review draft", () => {
+    const { output, decisions } = fixture();
+    output.legalRequirements[1].coverage.nonAssessableReason =
+      "LEGAL_REVIEW_REQUIRED: unresolved external actor";
+    decisions[1].stage = "LEGAL_REVIEW_REQUIRED";
+    // A draft is not a grant: retaining it cannot authorize publication.
+    expect(() =>
+      validateSelectedScopeDecisions(input, output, decisions, "cid", false),
+    ).not.toThrow();
+    expect(() =>
+      validateSelectedScopeDecisions(input, output, decisions, "cid", true),
+    ).toThrow();
+  });
+
+  it("rejects a substituted manifest key and mutated input snapshot", async () => {
+    const { output } = fixture();
+    const inputFingerprint = preparationInputFingerprint(input);
+    const entry = {
+      ruleId: input.ruleId,
+      resultId: uuid(6),
+      revision: 1,
+      inputFingerprint,
+      outputDigest: sha256Hex(canonicalJson(output)),
+      scopeAuthorizationKey: selectedScopeKey(input, output),
+    };
+    const row = {
+      id: entry.resultId,
+      revision: 1,
+      inputFingerprint,
+      inputSnapshot: input,
+      output,
+      preparationRule: { legalRuleId: input.ruleId },
+      preparationRun: {
+        executionState: AgentExecutionState.SUCCEEDED,
+        legalSourceVersionId: input.legalSourceVersionId,
+      },
+    };
+    const findMany = jest.fn(async () => [row]);
+    const count = jest.fn(async () => 0);
+    const tx = {
+      preparationRuleResult: { findMany },
+      selectedRuleScopeAuthorization: { count },
+    } as unknown as Prisma.TransactionClient;
+    // Correct immutable results remain admissible; a new hash-shaped key is not authority.
+    await expect(hasValidSelectedActivationManifest(tx, [entry])).resolves.toBe(true);
+    await expect(hasValidSelectedActivationManifest(tx, [
+      { ...entry, scopeAuthorizationKey: "f".repeat(64) },
+    ])).resolves.toBe(false);
+    findMany.mockResolvedValueOnce([
+      { ...row, inputSnapshot: { ...input, catalogRevision: 2 } },
+    ]);
+    await expect(hasValidSelectedActivationManifest(tx, [entry])).resolves.toBe(false);
+  });
+
   it("rejects unsupported, forged, omitted, ambiguous, and mixed normative evidence", () => {
     const { output, decisions } = fixture();
     expect(() =>
