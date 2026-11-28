@@ -1,0 +1,409 @@
+{
+  "assist": {
+    "split": "DEV",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "PASS",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "mediumOrHighRisk",
+          "dossierSystemVersion",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "PASS",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "interactsDirectly",
+          "otherInteractionException",
+          "interactionDisclosure",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "PASS",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "generatesAudiovisual",
+          "openOrFreeDistribution",
+          "machineReadableMark",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "openOrFreeDistribution"
+        ],
+        "negativeControl": true
+      }
+    }
+  },
+  "capture": {
+    "split": "DEV",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "FAIL",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "mediumOrHighRisk",
+          "dossierSystemVersion",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "UNKNOWN",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "interactsDirectly",
+          "otherInteractionException",
+          "interactionDisclosure",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "openOrFreeDistribution"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "PASS",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "generatesAudiovisual",
+          "openOrFreeDistribution",
+          "openMarkingCapability",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      }
+    }
+  },
+  "prototype": {
+    "split": "DEV",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      }
+    }
+  },
+  "studio": {
+    "split": "DEV",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "UNKNOWN",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "mediumOrHighRisk",
+          "dossierSystemVersion",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "FAIL",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "interactsDirectly",
+          "otherInteractionException",
+          "interactionDisclosure",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "FAIL",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "generatesAudiovisual",
+          "openOrFreeDistribution",
+          "machineReadableMark",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "openOrFreeDistribution"
+        ],
+        "negativeControl": true
+      }
+    }
+  },
+  "archive": {
+    "split": "HOLDOUT",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider"
+        ],
+        "negativeControl": true
+      }
+    }
+  },
+  "lattice": {
+    "split": "HOLDOUT",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "mediumOrHighRisk"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "interactsDirectly"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "openOrFreeDistribution"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "FAIL",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "generatesAudiovisual",
+          "openOrFreeDistribution",
+          "openMarkingCapability",
+          "assessedOn",
+          "firstOperatedOn"
+        ],
+        "negativeControl": false
+      }
+    }
+  },
+  "workbench": {
+    "split": "HOLDOUT",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "PASS",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "mediumOrHighRisk",
+          "dossierSystemVersion",
+          "assessedOn",
+          "firstOperatedOn",
+          "sector"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "PASS",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "interactsDirectly",
+          "otherInteractionException",
+          "interactionDisclosure",
+          "assessedOn",
+          "firstOperatedOn",
+          "sector"
+        ],
+        "negativeControl": false
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "UNKNOWN",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "generatesAudiovisual",
+          "openOrFreeDistribution",
+          "machineReadableMark",
+          "assessedOn",
+          "firstOperatedOn",
+          "sector"
+        ],
+        "negativeControl": false,
+        "expectsOpenHitl": true
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "openOrFreeDistribution"
+        ],
+        "negativeControl": true
+      }
+    }
+  },
+  "bulletin": {
+    "split": "HOLDOUT",
+    "cases": {
+      "VN-AI-RISK-VERSION": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "mediumOrHighRisk",
+          "assessedOn",
+          "firstOperatedOn",
+          "sector"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-INTERACTION-DISCLOSURE": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "interactsDirectly",
+          "otherInteractionException",
+          "assessedOn",
+          "firstOperatedOn",
+          "sector"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-MEDIA-MARK": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "isProvider",
+          "generatesAudiovisual",
+          "openOrFreeDistribution",
+          "assessedOn",
+          "firstOperatedOn",
+          "sector"
+        ],
+        "negativeControl": true
+      },
+      "VN-AI-OPEN-MARK-ENABLEMENT": {
+        "verdict": "NOT_APPLICABLE",
+        "evidence": [
+          "scope",
+          "scenario",
+          "openOrFreeDistribution"
+        ],
+        "negativeControl": true
+      }
+    }
+  }
+}

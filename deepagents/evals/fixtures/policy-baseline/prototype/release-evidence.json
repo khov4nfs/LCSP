@@ -1,0 +1,12 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": false,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "scenario": "Nhóm chỉ nghiên cứu, phát triển nguyên mẫu trong môi trường kiểm soát, chưa cung cấp hoặc triển khai sử dụng thuộc định nghĩa luật.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "version": "0.2.0"},
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2026-06-01"
+}

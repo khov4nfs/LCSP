@@ -37,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     - Persists immutable manifests, all trial outcomes (including failures), and JSON/CSV reports.
 
     Execution flow:
-    1. Parse the benchmark or offline repository retrieval subcommand.
+    1. Parse the benchmark, offline policy baseline, or repository retrieval subcommand.
     2. Load validated cases/reviews or trials.jsonl and verify integrity.
     3. Execute requested action and print bounded JSON summary.
 
@@ -98,7 +98,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_repo.add_argument("--graph-binary", type=Path, required=True)
     p_repo.add_argument("--output-dir", type=Path, required=True)
 
+    # The documentary baseline runs locally and has no provider route or live mode.
+    p_policy = sub.add_parser("policy-baseline", help="Evaluate Vietnamese documentary policies and smoke-test P14 offline")
+    p_policy.add_argument("--output-dir", type=Path, required=True)
+
     args = parser.parse_args(argv)
+
+    if args.command == "policy-baseline":
+        from evals.policy_baseline import run_policy_baseline
+
+        report = run_policy_baseline(args.output_dir)
+        print(json.dumps({key: report[key] for key in ("comparisonMode", "rootManifestSha256", "metrics")}))
+        return 0
 
     if args.command == "repository-retrieval":
         from evals.repository_retrieval import run_repository_retrieval
