@@ -2412,7 +2412,6 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         requestedBy: "SYSTEM",
         correlationId: "corr-d6f-platform-retry",
         idempotencyKey: `idemp-d6f-${Date.now()}`,
-        targetActivityScope: "DEVELOPMENT_ONLY",
         executionState: "RUNNING",
       },
     });
@@ -2655,7 +2654,6 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         requestedBy: "SYSTEM",
         correlationId: "corr-d8-platform-sponsored",
         idempotencyKey: `idemp-d8-${Date.now()}`,
-        targetActivityScope: "DEVELOPMENT_ONLY",
         executionState: "RUNNING",
       },
     });
@@ -2761,7 +2759,6 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
         requestedBy: "SYSTEM",
         correlationId: "corr-d8b-platform",
         idempotencyKey: `idemp-d8b-${Date.now()}`,
-        targetActivityScope: "DEVELOPMENT_ONLY",
         executionState: "RUNNING",
       },
     });

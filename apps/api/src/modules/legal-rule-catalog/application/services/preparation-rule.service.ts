@@ -503,9 +503,13 @@ export class PreparationRuleService {
       const existing = await tx.selectedRuleScopeAuthorization.findUnique({
         where: { scopeKey },
       });
+      // Preserve immutable approval/revocation history: never overwrite a row that
+      // has already been APPROVED, REJECTED (revoked), or carries an approvedBy signature.
       if (
         (existing?.revision ?? 0) !== request.expectedReviewRevision ||
-        existing?.state === PreparationScopeReviewState.APPROVED
+        (existing &&
+          (existing.state !== PreparationScopeReviewState.DRAFT ||
+            existing.approvedBy !== null))
       )
         catalogFailure(E.CONFLICT, cid);
       const data = {

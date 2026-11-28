@@ -31,7 +31,6 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
-import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
 import { PreparationSourceAnalysisReadService } from "../../infrastructure/persistence/preparation-source-analysis-read.service.js";
 import { PreparationGeneratedCatalogReadService } from "../../infrastructure/persistence/preparation-generated-catalog-read.service.js";
 import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
@@ -126,15 +125,6 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
         },
         { provide: CommandBus, useValue: { execute } },
         { provide: QueryBus, useValue: { execute: jest.fn() } },
-        {
-          provide: PreparationScopeReviewService,
-          useValue: {
-            get: jest.fn(),
-            submit: jest.fn(),
-            approve: jest.fn(),
-            activate: jest.fn(),
-          },
-        },
         {
           provide: PreparationSourceAnalysisReadService,
           useValue: {

@@ -135,14 +135,16 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
           : [];
         // Every excluded rule must also have positive semantic approval (e.g. NON_DEVELOPMENT)
         // in SelectedRuleScopeAuthorization before dry-run or persistence.
+        const exclusionScopeKeys: string[] = [];
         for (const [index, excluded] of request.excludedItems.entries()) {
-          await requireSelectedExclusionAuthorization(
+          const scopeKey = await requireSelectedExclusionAuthorization(
             tx,
             hydratedExclusions[index],
             excluded.reasonCode,
             cid,
             this.authority,
           );
+          exclusionScopeKeys.push(scopeKey);
         }
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
@@ -364,6 +366,7 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
             const input = hydratedExclusions[index];
             return {
               ...item,
+              scopeAuthorizationKey: exclusionScopeKeys[index],
               legalRuleId: input.legalRuleId,
               inputFingerprint: preparationInputFingerprint(input),
               indexId: input.indexId,

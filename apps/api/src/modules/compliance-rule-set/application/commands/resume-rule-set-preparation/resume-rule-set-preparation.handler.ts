@@ -83,11 +83,7 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
         run.failureReason ===
         PrismaRuleSetPreparationFailureReason.AGENT_BUDGET_REACHED;
       const resumable =
-        (run.executionState === State.PAUSED &&
-          (isBudgetPause ||
-            (run.scopeReviewRequested &&
-              run.targetActivityScope === "DEVELOPMENT_ONLY" &&
-              run.claimPhase === "CLAIM_INVENTORY_READY"))) ||
+        (run.executionState === State.PAUSED && isBudgetPause) ||
         (run.executionState === State.FAILED &&
           [R.MODEL_ERROR, R.RUNTIME_ERROR].includes(
             run.failureReason as never,

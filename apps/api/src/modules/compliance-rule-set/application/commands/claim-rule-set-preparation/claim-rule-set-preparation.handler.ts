@@ -19,7 +19,6 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.command.js";
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
-import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 
@@ -100,15 +99,6 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         run.legalSourceVersionId,
         input.correlationId,
       );
-      // Verify the approved, pinned source BEFORE claiming and spending tokens.
-      const approvedScope = await requireApprovedDevelopmentScope(
-        tx,
-        run.id,
-        run.claimInventoryRevision,
-        run.legalSourceVersionId,
-        run.targetActivityScope,
-        input.correlationId,
-      );
       const now = new Date();
       const leaseCutoff = new Date(
         now.getTime() - RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS * 1000,
@@ -154,9 +144,9 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         },
         data: { leaseExpiresAt: now },
       });
-      return { run, approvedScope };
+      return { run };
     });
-    const { run, approvedScope } = admission;
+    const { run } = admission;
     const state = PrismaAgentExecutionState.RUNNING;
 
     const legalSource = await this.prisma.legalSourceVersion.findUniqueOrThrow({
@@ -240,14 +230,6 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionContract: run.executionContract,
-      // The server issues scoped authoring only after the review ledger, pinned
-      // inventory and approval are revalidated before worker admission.
-      targetActivityScope: run.targetActivityScope,
-      scopeReviewRequested:
-        run.scopeReviewRequested && run.targetActivityScope === "FULL_SOURCE",
-      ...(approvedScope
-        ? { approvedScopeDigest: approvedScope.decisionsDigest }
-        : {}),
       // Vi is the explicit server-owned Preparation locale until per-run
       // responseLanguage is persisted and selected through an authorized flow.
       responseLanguage: "vi",

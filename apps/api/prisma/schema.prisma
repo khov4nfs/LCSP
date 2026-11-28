@@ -2189,8 +2189,6 @@ model ProviderLogArtifact {
 model RuleSetPreparationRun {
   selectedRuleResult PreparationRuleResult?
   executionContract PreparationExecutionContract @default(CLAIM_INVENTORY_V1)
-  targetActivityScope PreparationTargetActivityScope @default(FULL_SOURCE)
-  scopeReviewRequested Boolean @default(false)
   scopeReviews RuleSetPreparationScopeReview[]
   targetDate DateTime? @db.Date
   draftValidation Json?
@@ -2225,7 +2223,6 @@ model RuleSetPreparationRun {
 
 model ComplianceRuleSetVersion {
   groupingProposal RuleCatalogGroupingProposal?
-  targetActivityScope PreparationTargetActivityScope @default(FULL_SOURCE)
   id                      String                                @id @default(uuid())
   version                 String                                @unique
   legalSourceVersionId    String
@@ -3400,11 +3397,6 @@ model RuleSetPreparationSourceReview {
 
 // Human governance for one fully accounted, frozen legal source inventory.
 // Always a review artifact: never rewrites the original claim inventory.
-enum PreparationTargetActivityScope {
-  FULL_SOURCE
-  DEVELOPMENT_ONLY
-}
-
 enum PreparationScopeReviewState {
   DRAFT
   APPROVED

@@ -7,7 +7,6 @@ import {
   AuthUserRole,
   ComplianceRuleSetValidationOutcome,
   LegalSourceLifecycleStatus,
-  PreparationTargetActivityScope,
   Prisma,
   UserAccessStatus,
 } from "@prisma/client";
@@ -40,7 +39,6 @@ import {
   sha256Hex,
 } from "../../../domain/compliance-rule-set-integrity.validator.js";
 import { acquireComplianceRuleSetActivationLock } from "../../../infrastructure/persistence/compliance-rule-set-activation.service.js";
-import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 import {
   reactivationTargetInclude,
   storedRuleSetIntegrityValid,
@@ -212,10 +210,6 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             });
           if (
             target.lifecycleState !== ArtifactLifecycleState.SUPERSEDED ||
-            target.targetActivityScope !==
-              PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
-            target.preparationRun.targetActivityScope !==
-              target.targetActivityScope ||
             target.validationOutcome !==
               ComplianceRuleSetValidationOutcome.PASSED ||
             target.preparationRun.executionState !==
@@ -256,21 +250,6 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             target.legalSourceVersionId,
             correlationId,
           );
-          // Reuse publication's approval check under the same lock, before changing the active pointer.
-          try {
-            await requireApprovedDevelopmentScope(
-              tx,
-              target.preparationRunId,
-              target.preparationRun.claimInventoryRevision,
-              target.legalSourceVersionId,
-              target.targetActivityScope,
-              correlationId,
-            );
-          } catch (error) {
-            if (error instanceof ConflictException)
-              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
-            throw error;
-          }
           const id = randomUUID();
           const now = new Date();
           await tx.complianceRuleSetVersion.update({

@@ -35,7 +35,6 @@ from tools.common.capabilities.platform.logging import get_logger
 
 from rule_set_preparation.agent import (
     create_rule_set_preparation_agent,
-    ScopeReviewPauseRequired,
     RULE_SET_PREPARATION_ROLE,
     CLAIM_AUTHOR_ROLE,
 )
@@ -474,7 +473,7 @@ def run_rule_set_preparation(
         _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
 
-    context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"), target_activity_scope=bundle.get("targetActivityScope", "FULL_SOURCE"), response_language=bundle.get("responseLanguage", "vi"), scope_review_requested=bundle.get("scopeReviewRequested", False), approved_scope_digest=bundle.get("approvedScopeDigest"))
+    context = RuleSetPreparationContext(run_id=run_id, api=api, direct_draft=bundle.get("executionContract") == "DIRECT_DRAFT_V1", target_date=bundle.get("targetDate"), response_language=bundle.get("responseLanguage", "vi"))
     if bundle.get("cumulativeUsage"):
         context.adopt_usage(bundle["cumulativeUsage"])
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
@@ -654,14 +653,6 @@ def run_rule_set_preparation(
                     {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
                     config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
                 )
-            if context.scope_review_paused:
-                return {"state": "PAUSED", "submission": None, "failureReason": None,
-                        "scopeReviewRequired": True, "trace": context.trace}
-        except ScopeReviewPauseRequired:
-            # Server already froze the inventory and atomically put this run
-            # into PAUSED; no further model calls or FAILURE callback allowed.
-            return {"state": "PAUSED", "submission": None, "failureReason": None,
-                    "scopeReviewRequired": True, "trace": context.trace}
         except NodeCancelledError:
             _flush_draft(context)
             raise
@@ -704,9 +695,6 @@ def run_rule_set_preparation(
             pause_reason = known_budget_pause_reasons[raw_reason]
             context.budget_paused = True
             _flush_draft(context)
-            if context.scope_review_paused:
-                return {"state": "PAUSED", "submission": None, "failureReason": None,
-                        "scopeReviewRequired": True, "trace": context.trace}
             # The API records PAUSED and retains LOAD payloads; no terminal failure callback follows.
             if context.submission is None and context.concluded is None:
                 paused = api.fail_rule_set_preparation(run_id, pause_reason)
@@ -716,11 +704,10 @@ def run_rule_set_preparation(
                     "durability": DURABLE, "activity_kind": "PREPARATION_PAUSED", "reason": pause_reason})
                 return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
         except Exception as error:  # noqa: BLE001 - classify only proven model failures
-            if context.scope_review_paused or getattr(context, "budget_paused", False):
+            if getattr(context, "budget_paused", False):
                 # A concurrent/native completion guard may stop after the API
                 # already committed PAUSED; never rewrite it as failed.
-                return {"state": "PAUSED", "submission": None, "failureReason": None,
-                        "scopeReviewRequired": getattr(context, "scope_review_paused", False), "trace": context.trace}
+                return {"state": "PAUSED", "submission": None, "failureReason": None, "trace": context.trace}
 
             known_budget_pause_reasons = {
                 "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
@@ -743,9 +730,6 @@ def run_rule_set_preparation(
                     pause_reason = known_budget_pause_reasons[raw_reason]
                     context.budget_paused = True
                     _flush_draft(context)
-                    if context.scope_review_paused:
-                        return {"state": "PAUSED", "submission": None, "failureReason": None,
-                                "scopeReviewRequired": True, "trace": context.trace}
                     if context.submission is None and context.concluded is None:
                         paused = api.fail_rule_set_preparation(run_id, pause_reason)
                         if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":

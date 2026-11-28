@@ -66,7 +66,6 @@ export class RetryRuleSetPreparationHandler implements ICommandHandler<RetryRule
                 executionState: true,
                 legalSourceVersionId: true,
                 idempotencyKey: true,
-                scopeReviewRequested: true,
                 legalSourceVersion: { select: { status: true } },
               },
             }),
@@ -163,9 +162,6 @@ export class RetryRuleSetPreparationHandler implements ICommandHandler<RetryRule
             run.legalSourceVersionId,
             attempts + 1,
           ),
-          ...(run.scopeReviewRequested
-            ? { targetActivityScope: "FULL_SOURCE" as const }
-            : {}),
         },
         input.requestedBy,
         input.correlationId,

@@ -772,7 +772,65 @@ describe("PreparationRuleService.importAssessmentRules", () => {
   });
 
   it("previews exclusions without recording audit evidence", async () => {
-    const { subject, catalogs, enqueue } = setup();
+    const { subject, tx, catalogs, enqueue } = setup();
+    const excludedInput = {
+      ...input,
+      ruleId: excludedRuleId,
+      legalRuleId: `${excludedRuleId}:legal-rule`,
+    };
+    const contextOutput = preparationRuleOutputSchema.parse({
+      analysis: "Context framing only.",
+      legalRequirements: [
+        {
+          ...request().items[0].legalRequirements[0],
+          legalRequirementId: `${excludedRuleId}:req-1`,
+          coverage: {
+            state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+            nonAssessableReason: "CONTEXT_ONLY: Definitional framing only",
+          },
+        },
+      ],
+      contextRelations: [],
+      assessmentRules: [],
+    });
+    const contextKey = selectedScopeKey(excludedInput, contextOutput);
+    const contextDecisions = [
+      {
+        legalRequirementId: `${excludedRuleId}:req-1`,
+        stage: "NON_DEVELOPMENT" as const,
+        technicalDeliverable: null,
+        rationale: "Context framing only",
+        sourceSupport: [
+          {
+            chunkId: "chunk-1",
+            startOffset: 0,
+            endOffset: legalText.length,
+            contentSha256: sha256Hex(legalText),
+          },
+        ],
+      },
+    ];
+    tx.selectedRuleScopeAuthorization.findMany.mockResolvedValue([
+      {
+        scopeKey: contextKey,
+        legalSourceVersionId: sourceId,
+        catalogId,
+        ruleId: excludedRuleId,
+        revision: 1,
+        state: PreparationScopeReviewState.APPROVED,
+        output: contextOutput,
+        decisions: contextDecisions,
+        decisionDigest: validateSelectedScopeDecisions(
+          excludedInput,
+          contextOutput,
+          contextDecisions,
+          "cid-ctx",
+        ),
+        submittedBy: "author-1",
+        approvedBy: "reviewer-1",
+        approvedAt: new Date("2026-01-01T00:00:00Z"),
+      },
+    ]);
     await subject.importAssessmentRules(
       catalogId,
       request({
@@ -791,6 +849,70 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     );
     expect(catalogs.record).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("refuses to overwrite a revoked (REJECTED) scope authorization in-place to preserve history", async () => {
+    const { subject, tx } = setup();
+    const baseItem = request().items[0];
+    const baseOutput = preparationRuleOutputSchema.parse({
+      analysis: "Development obligation.",
+      legalRequirements: baseItem.legalRequirements,
+      contextRelations: baseItem.contextRelations,
+      assessmentRules: baseItem.assessmentRules.map((rule) => ({
+        ...rule,
+        investigationGoals: [],
+        startingNodeTypes: [],
+        targetNodeTypes: [],
+        edgeStrategies: [],
+        graphQueries: [],
+        keywords: [],
+        commonApis: [],
+        commonLibraries: [],
+        patterns: [],
+        supportingEvidence: [],
+        negativeEvidence: [],
+      })),
+    });
+    const key = selectedScopeKey(input, baseOutput);
+    tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue({
+      scopeKey: key,
+      revision: 1,
+      state: PreparationScopeReviewState.REJECTED,
+      approvedBy: "reviewer-1",
+      approvedAt: new Date("2026-01-01T00:00:00Z"),
+    });
+    await expect(
+      subject.submitScopeAuthorization(
+        catalogId,
+        {
+          ruleId,
+          expectedCatalogRevision: 3,
+          expectedReviewRevision: 1,
+          output: baseOutput,
+          decisions: [
+            {
+              legalRequirementId: requirementId,
+              stage: "DEVELOPMENT",
+              technicalDeliverable: "Store training logs",
+              rationale: "Applies directly",
+              sourceSupport: [
+                {
+                  chunkId: "chunk-1",
+                  startOffset: 0,
+                  endOffset: legalText.length,
+                  contentSha256: sha256Hex(legalText),
+                },
+              ],
+            },
+          ],
+        },
+        "author-1",
+        "cid-immutable",
+      ),
+    ).rejects.toMatchObject({
+      response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.CONFLICT } },
+    });
+    expect(tx.selectedRuleScopeAuthorization.update).not.toHaveBeenCalled();
   });
 
   it.each([true, false])(

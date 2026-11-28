@@ -595,7 +595,6 @@ describeDatabase(
           },
         });
       expect(persistedFirst.lifecycleState).toBe("ACTIVE");
-      expect(persistedFirst.targetActivityScope).toBe("DEVELOPMENT_ONLY");
       expect(
         await prisma.ruleCatalogGroupingProposal.findUnique({
           where: { ruleSetVersionId: first.ruleSetVersionId },

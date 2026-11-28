@@ -2,7 +2,6 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   ArtifactLifecycleState,
   AssessmentAuditMode,
-  PreparationTargetActivityScope,
   type Prisma,
 } from "@prisma/client";
 
@@ -12,24 +11,18 @@ import {
   PIN_RESULTS,
 } from "./assessment-runtime-preparation.service.js";
 
-function harness(
-  targetActivityScope: PreparationTargetActivityScope,
-  pinnedId: string | null = null,
-) {
+function harness(pinnedId: string | null = null) {
   // An active historical artifact with no admitted original must never supply a new pin.
   const version = {
     id: "legacy",
     legalSourceVersionId: "legacy-source",
-    targetActivityScope,
   };
   const client = {
     $queryRaw: jest.fn(async () => [{ acquired: true }]),
     complianceRuleSetVersion: {
       findFirst: jest.fn(
         async ({ where }: Prisma.ComplianceRuleSetVersionFindFirstArgs) =>
-          where?.lifecycleState === ArtifactLifecycleState.ACTIVE &&
-          (!where.targetActivityScope ||
-            where.targetActivityScope === targetActivityScope)
+          where?.lifecycleState === ArtifactLifecycleState.ACTIVE
             ? version
             : null,
       ),
@@ -76,26 +69,18 @@ function harness(
 }
 
 describe("New assessment legal admission", () => {
-  it.each([
-    PreparationTargetActivityScope.FULL_SOURCE,
-    PreparationTargetActivityScope.DEVELOPMENT_ONLY,
-  ])(
-    "leaves a new case unpinned when historical %s authority is ineligible",
-    async (scope) => {
-      const { service, tx, client } = harness(scope);
-      await expect(service.createCaseInTx(tx, "assessment")).resolves.toEqual({
-        ruleSetVersionId: null,
-      });
-      expect(client.assessmentCase.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ ruleSetVersionId: null }),
-      });
-    },
-  );
+  it("leaves a new case unpinned when historical authority is ineligible", async () => {
+    const { service, tx, client } = harness();
+    await expect(service.createCaseInTx(tx, "assessment")).resolves.toEqual({
+      ruleSetVersionId: null,
+    });
+    expect(client.assessmentCase.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ ruleSetVersionId: null }),
+    });
+  });
 
   it("defers a late pin when the active version lacks admitted originals", async () => {
-    const { service, tx, client } = harness(
-      PreparationTargetActivityScope.DEVELOPMENT_ONLY,
-    );
+    const { service, tx, client } = harness();
     await expect(
       service.pinRuntimeInputsInTx(tx, {
         assessmentId: "assessment",
@@ -106,10 +91,8 @@ describe("New assessment legal admission", () => {
     expect(client.assessmentCase.update).not.toHaveBeenCalled();
   });
 
-  it("admits an active Development rule set with an official original", async () => {
-    const { service, tx, client } = harness(
-      PreparationTargetActivityScope.DEVELOPMENT_ONLY,
-    );
+  it("admits an active rule set with an official original", async () => {
+    const { service, tx, client } = harness();
     const { downloadUrl, sha256 } = OFFICIAL_LEGAL_CORPUS[0];
     client.legalSourceDocument.findMany.mockResolvedValue([
       { sourceUrl: downloadUrl, sourceSha256: sha256, blobSha256: sha256 },
@@ -125,10 +108,7 @@ describe("New assessment legal admission", () => {
   });
 
   it("continues an existing historical pin without re-admitting the corpus", async () => {
-    const { service, tx, client } = harness(
-      PreparationTargetActivityScope.FULL_SOURCE,
-      "historic-pin",
-    );
+    const { service, tx, client } = harness("historic-pin");
     await expect(
       service.pinRuntimeInputsInTx(tx, {
         assessmentId: "assessment",

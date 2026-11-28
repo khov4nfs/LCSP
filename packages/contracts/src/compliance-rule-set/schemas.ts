@@ -1,4 +1,3 @@
-import { PREPARATION_ACTIVITY_SCOPES } from "./scope-review.ts";
 import { legalApplicabilityLogicSchema } from "./applicability-logic.ts";
 export { legalApplicabilityLogicSchema } from "./applicability-logic.ts";
 import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "../legal-source/management.ts";
@@ -652,7 +651,6 @@ export const ruleSetPreparationStartRequestSchema = z
   .object({
     legalSourceVersionId: z.string().uuid(),
     idempotencyKey: z.string().min(8).max(128),
-    targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
   })
   .strict();
 export type RuleSetPreparationStartRequest = z.infer<
@@ -679,7 +677,6 @@ export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 export const ruleSetPreparationAdminRequestSchema = z
   .strictObject({
     replaceActive: z.boolean().optional(),
-    targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
     /**
      * The Legal Source Version the operator is looking at. Preparation always targets the active
      * version; naming it makes the request refuse (instead of silently preparing another version)
@@ -798,9 +795,6 @@ export const complianceRuleSetReadModelSchema = z
     claimInventory: claimInventoryBindingSchema.optional(),
     semanticGraph: legalSemanticGraphSchema.optional(),
     ruleSetVersionId: z.string().uuid(),
-    targetActivityScope: z
-      .enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"])
-      .default("FULL_SOURCE"),
     version: z.string().min(1),
     legalSourceVersionId: z.string().uuid(),
     ruleSetDigest: sha256Schema,
@@ -892,12 +886,6 @@ export const ruleSetPreparationLegalSourceBundleSchema = z
       .enum(PREPARATION_EXECUTION_CONTRACTS)
       .default(PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1),
     targetDate: z.string().date().optional(),
-    // Server-owned activity scope. Until scoped validation exists, only FULL_SOURCE is issued.
-    targetActivityScope: z
-      .enum(["FULL_SOURCE", "DEVELOPMENT_ONLY"])
-      .default("FULL_SOURCE"),
-    scopeReviewRequested: z.boolean().default(false),
-    approvedScopeDigest: sha256Schema.optional(),
     // Server selects the Preparation prompt/skill locale; never infer from legal text.
     responseLanguage: z.enum(["vi", "en"]).default("vi"),
     preparationRunId: z.string().uuid(),
@@ -999,7 +987,6 @@ export const complianceRuleSetHistorySchema = z.strictObject({
     ruleSetPreparationRunSchema.extend({
       executionContract: z.enum(PREPARATION_EXECUTION_CONTRACTS).optional(),
       startedAt: z.iso.datetime().nullable().optional(),
-      targetActivityScope: z.enum(PREPARATION_ACTIVITY_SCOPES).optional(),
       claimPhase: z.enum(CLAIM_PREPARATION_PHASES).optional(),
       persistedCoverageAvailable: z.boolean().optional(),
       persistedDraftAvailable: z.boolean().optional(),

@@ -35,7 +35,6 @@ export function PreparationObservability({
   const cells = [
     [t("runId"), run.preparationRunId],
     [t("source"), `${run.legalSourceVersion} / ${run.legalSourceVersionId}`],
-    [t("scope"), run.targetActivityScope ?? unknown],
     [t("contract"), run.executionContract ?? unknown],
     [t("attempt"), String(run.attempt)],
     [t("state"), canonicalExecutionLabel(run.executionState)],

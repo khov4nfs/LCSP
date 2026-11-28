@@ -111,7 +111,7 @@ export function LegalRuleCatalogWorkflow({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const batchId = useSearchParams().get("preparationBatchId");
+  const batchId = useSearchParams()?.get("preparationBatchId") ?? null;
   const [confirming, setConfirming] = useState(false);
   const [snapshot, setSnapshot] = useState<ReturnType<
     typeof legalRuleSelectionResultSchema.parse

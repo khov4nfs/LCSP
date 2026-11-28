@@ -18,7 +18,6 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   complianceRuleSetHistorySchema,
-  PREPARATION_ACTIVITY_SCOPES,
   RULE_SET_PREPARATION_STAGES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
@@ -445,7 +444,6 @@ test("Prepare sends no source/content and refreshes the running server state", a
     // version on screen.
     assert.deepEqual(JSON.parse(String(posts[0].body ?? "{}")), {
       legalSourceVersionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
     });
     assert.ok(stub.calls.filter((call) => call.method === "GET").length >= 2);
   } finally {
@@ -936,7 +934,6 @@ test("an explicit replacement sends replaceActive, keeps the active version in u
     assert.deepEqual(JSON.parse(String(posts[0].body)), {
       replaceActive: true,
       legalSourceVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-      targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
     });
     const text = rendered.textContent ?? "";
     assert.match(text, /2026\.10\.p1/); // the active version is still shown as ACTIVE

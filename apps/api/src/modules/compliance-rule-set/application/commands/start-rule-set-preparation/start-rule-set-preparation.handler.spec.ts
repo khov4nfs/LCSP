@@ -115,7 +115,7 @@ function createHarness(
 }
 
 describe("StartRuleSetPreparationHandler serialization retry", () => {
-  it("defaults scopeReviewRequested to false when omitted and enables it only for FULL_SOURCE", async () => {
+  it("creates a unified QUEUED preparation run without activity-scope branching", async () => {
     const harness = createHarness(() => ({
       id: "run",
       legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
@@ -125,28 +125,10 @@ describe("StartRuleSetPreparationHandler serialization retry", () => {
     expect(
       harness.transactions[0].ruleSetPreparationRun.create,
     ).toHaveBeenCalledWith({
-      data: expect.objectContaining({ scopeReviewRequested: false }),
-    });
-
-    const reviewHarness = createHarness(() => ({
-      id: "run-review",
-      legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
-      executionState: AgentExecutionState.QUEUED,
-    }));
-    await reviewHarness.handler.execute(
-      new StartRuleSetPreparationCommand(
-        {
-          ...harness.command.request,
-          targetActivityScope: "FULL_SOURCE",
-        },
-        "owner-admin",
-        "cid-review",
-      ),
-    );
-    expect(
-      reviewHarness.transactions[0].ruleSetPreparationRun.create,
-    ).toHaveBeenCalledWith({
-      data: expect.objectContaining({ scopeReviewRequested: true }),
+      data: expect.objectContaining({
+        legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
+        executionState: AgentExecutionState.QUEUED,
+      }),
     });
   });
 

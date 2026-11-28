@@ -135,9 +135,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 idempotencyKey,
                 executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
                 targetDate: new Date(),
-                // Only pause for manual Scope Review when FULL_SOURCE is requested; routine DEVELOPMENT_ONLY runs proceed without forcing manual review.
-                scopeReviewRequested:
-                  input.request.targetActivityScope === "FULL_SOURCE",
                 legalSourceVersionId: source.id,
                 requestedBy: input.requestedBy,
                 correlationId: input.correlationId,

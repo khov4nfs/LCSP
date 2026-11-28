@@ -143,7 +143,7 @@ export function SelectedScopeAuthorizationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-screen max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("scopeAuthTitle")}</DialogTitle>
           <DialogDescription>{t("scopeAuthDescription")}</DialogDescription>
@@ -191,7 +191,125 @@ export function SelectedScopeAuthorizationDialog({
                     {detail.data.approvedBy}
                   </div>
                 ) : null}
+                <div className="col-span-2">
+                  <span className="font-medium">{t("scopeAuthDigestLabel")}:</span>{" "}
+                  <code className="break-all text-xs">
+                    {detail.data.decisionDigest}
+                  </code>
+                </div>
               </div>
+
+              {/* Source-linked citations: show verbatim legal text and locator before approval. */}
+              <div className="space-y-2 border-t pt-3">
+                <h4 className="font-semibold">{t("scopeAuthCitationsTitle")}</h4>
+                {detail.data.citations.map((citation) => (
+                  <div
+                    key={citation.chunkId}
+                    className="space-y-1 rounded border bg-muted/40 p-2 text-xs"
+                  >
+                    <div className="font-medium">
+                      {citation.documentId} · {citation.locator}
+                    </div>
+                    <p className="whitespace-pre-wrap">{citation.content}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Legal Requirements: actor, modality, action, conditions, exceptions, and coverage. */}
+              <div className="space-y-2 border-t pt-3">
+                <h4 className="font-semibold">
+                  {t("scopeAuthRequirementsTitle")}
+                </h4>
+                {detail.data.output.legalRequirements.map((req) => (
+                  <div
+                    key={req.legalRequirementId}
+                    className="space-y-1 rounded border p-2 text-xs"
+                  >
+                    <div className="font-medium">{req.title}</div>
+                    <p>{req.proposition}</p>
+                    {req.operativePropositions?.map((op, idx) => (
+                      <div key={idx} className="text-muted-foreground">
+                        {t("scopeAuthActorLabel")}: {op.actor} ·{" "}
+                        {t("scopeAuthModalityLabel")}: {op.modality} ·{" "}
+                        {t("scopeAuthActionLabel")}: {op.action}
+                      </div>
+                    ))}
+                    {req.applicabilityConditions.length > 0 ? (
+                      <div>
+                        <span className="font-medium">{t("conditions")}:</span>{" "}
+                        {req.applicabilityConditions.join("; ")}
+                      </div>
+                    ) : null}
+                    {req.exceptions.length > 0 ? (
+                      <div>
+                        <span className="font-medium">{t("exceptions")}:</span>{" "}
+                        {req.exceptions.join("; ")}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              {/* Development Scope classification decisions and rationale. */}
+              <div className="space-y-2 border-t pt-3">
+                <h4 className="font-semibold">{t("scopeAuthDecisionsTitle")}</h4>
+                {detail.data.decisions.map((decision) => (
+                  <div
+                    key={decision.legalRequirementId}
+                    className="space-y-1 rounded border p-2 text-xs"
+                  >
+                    <div>
+                      <span className="font-medium">
+                        {t("scopeAuthStageLabel")}:
+                      </span>{" "}
+                      {decision.stage}
+                    </div>
+                    {decision.technicalDeliverable ? (
+                      <div>
+                        <span className="font-medium">
+                          {t("scopeAuthDeliverableLabel")}:
+                        </span>{" "}
+                        {decision.technicalDeliverable}
+                      </div>
+                    ) : null}
+                    <div>
+                      <span className="font-medium">
+                        {t("scopeAuthRationaleLabel")}:
+                      </span>{" "}
+                      {decision.rationale}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Assessment Rules, compliance criteria, and required evidence. */}
+              {detail.data.output.assessmentRules.length > 0 ? (
+                <div className="space-y-2 border-t pt-3">
+                  <h4 className="font-semibold">{t("scopeAuthRulesTitle")}</h4>
+                  {detail.data.output.assessmentRules.map((rule) => (
+                    <div
+                      key={rule.assessmentRuleId}
+                      className="space-y-1 rounded border p-2 text-xs"
+                    >
+                      <div className="font-medium">{rule.concept}</div>
+                      <div>
+                        <span className="font-medium">{t("criteria")}:</span>{" "}
+                        {rule.criteria
+                          .map((c) => c.statement || c.criterionId)
+                          .join("; ")}
+                      </div>
+                      {rule.requiredEvidence.length > 0 ? (
+                        <div>
+                          <span className="font-medium">
+                            {t("requiredEvidence")}:
+                          </span>{" "}
+                          {rule.requiredEvidence.join("; ")}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               {detail.data.state === SELECTED_SCOPE_AUTHORIZATION_STATES.DRAFT ? (
                 <div className="space-y-3 border-t pt-3">

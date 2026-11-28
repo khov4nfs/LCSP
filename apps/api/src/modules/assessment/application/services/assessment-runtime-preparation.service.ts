@@ -22,7 +22,6 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
   AssessmentAuditMode,
-  PreparationTargetActivityScope,
   Prisma,
   RepositoryScanJobStatus,
   RepositoryScanTriggerSource,
@@ -85,7 +84,6 @@ export class AssessmentRuntimePreparation {
     const candidate = await tx.complianceRuleSetVersion.findFirst({
       where: {
         lifecycleState: ArtifactLifecycleState.ACTIVE,
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
       },
       select: { id: true, legalSourceVersionId: true },
     });

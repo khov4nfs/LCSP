@@ -48,7 +48,6 @@ import {
   problemException,
 } from "../../../../platform/http/filters/error.factory.js";
 import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
-import { PreparationScopeReviewService } from "../../infrastructure/persistence/preparation-scope-review.service.js";
 import { RuleCatalogGroupsService } from "../../infrastructure/persistence/rule-catalog-groups.service.js";
 import {
   submitRuleCatalogGroupsSchema,
@@ -77,7 +76,6 @@ export class ComplianceRuleSetAdminController {
   constructor(
     private readonly commands: CommandBus,
     private readonly queries: QueryBus,
-    private readonly scopeReviews: PreparationScopeReviewService,
     private readonly catalogGroups: RuleCatalogGroupsService,
     private readonly sourceAnalysis: PreparationSourceAnalysisReadService,
     private readonly preparationCatalog: PreparationGeneratedCatalogReadService,
@@ -197,14 +195,6 @@ export class ComplianceRuleSetAdminController {
         ),
       )
       .then(resultEnvelope);
-  }
-
-  /** Current inventory review and all historical revisions remain visible to Admin reviewers. */
-  @Get("preparations/:preparationRunId/scope-reviews")
-  async getScopeReviews(
-    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
-  ) {
-    return resultEnvelope(await this.scopeReviews.get(preparationRunId));
   }
 
   /**
@@ -371,76 +361,6 @@ export class ComplianceRuleSetAdminController {
       await this.preparationCatalog.list(
         preparationRunId,
         request,
-        req.correlationId || randomUUID(),
-      ),
-    );
-  }
-
-  @Post("preparations/:preparationRunId/scope-reviews")
-  @HttpCode(HttpStatus.OK)
-  async submitScopeReview(
-    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
-    @Body(
-      new ZodValidationPipe(
-        preparationScopeReviewSubmitSchema,
-        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
-      ),
-    )
-    request: PreparationScopeReviewSubmit,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.scopeReviews.submit(
-        preparationRunId,
-        request,
-        req.rbacContext.userId,
-        req.correlationId || randomUUID(),
-      ),
-    );
-  }
-
-  @Post("preparations/:preparationRunId/scope-reviews/approval")
-  @HttpCode(HttpStatus.OK)
-  async approveScopeReview(
-    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
-    @Body(
-      new ZodValidationPipe(
-        preparationScopeReviewApprovalSchema,
-        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
-      ),
-    )
-    request: PreparationScopeReviewApproval,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.scopeReviews.approve(
-        preparationRunId,
-        request,
-        req.rbacContext.userId,
-        req.correlationId || randomUUID(),
-      ),
-    );
-  }
-
-  /** Separate compare-and-set transition: human approval alone never enables the model. */
-  @Post("preparations/:preparationRunId/scope-reviews/activate")
-  @HttpCode(HttpStatus.OK)
-  async activateScopeReview(
-    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
-    @Body(
-      new ZodValidationPipe(
-        preparationScopeReviewActivateSchema,
-        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
-      ),
-    )
-    request: PreparationScopeReviewActivate,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.scopeReviews.activate(
-        preparationRunId,
-        request.inventoryRevision,
-        req.rbacContext.userId,
         req.correlationId || randomUUID(),
       ),
     );

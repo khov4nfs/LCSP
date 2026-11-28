@@ -16,7 +16,6 @@ import {
   AgentExecutionState,
   ArtifactLifecycleState,
   AuthUserRole,
-  PreparationTargetActivityScope,
   PreparationExecutionContract,
   PrismaClient,
   RuleSetPreparationFailureReason,
@@ -365,15 +364,14 @@ describeDatabase(
         Errors.TARGET_NOT_ELIGIBLE,
       );
     });
-    it("keeps the active Development Rule Set and historical pins when reactivation targets FULL_SOURCE", async () => {
-      // On this disposable database, represent a pre-cutover publication with the default historical scope.
+    it("keeps the active Rule Set and historical pins when reactivation fails", async () => {
+      const before = await snapshot();
       await prisma.complianceRuleSetVersion.update({
         where: { id: a },
         data: {
-          targetActivityScope: PreparationTargetActivityScope.FULL_SOURCE,
+          validationOutcome: "FAILED",
         },
       });
-      const before = await snapshot();
       await expectProblem(
         handler.execute(command()),
         Errors.TARGET_NOT_ELIGIBLE,

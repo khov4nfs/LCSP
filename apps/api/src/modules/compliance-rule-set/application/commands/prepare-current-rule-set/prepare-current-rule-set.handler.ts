@@ -1,6 +1,5 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
-  PREPARATION_ACTIVITY_SCOPES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -106,7 +105,6 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
             availability.legalSourceVersionId,
             attempts + 1,
           ),
-          targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
         },
         input.requestedBy,
         input.correlationId,

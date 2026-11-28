@@ -295,6 +295,17 @@ export const enLegalRuleCatalog = {
   scopeAuthRevokeAction: "Revoke Authorization",
   scopeAuthError: "Scope authorization action failed.",
   scopeAuthSuccess: "Scope authorization updated.",
+  scopeAuthCitationsTitle: "Pinned Legal Source Citations",
+  scopeAuthRequirementsTitle: "Legal Requirements & Operative Propositions",
+  scopeAuthDecisionsTitle: "Development Scope Classification",
+  scopeAuthRulesTitle: "Assessment Rules & Criteria",
+  scopeAuthDigestLabel: "Decision Digest",
+  scopeAuthStageLabel: "Classification",
+  scopeAuthDeliverableLabel: "Technical Deliverable",
+  scopeAuthRationaleLabel: "Rationale",
+  scopeAuthActorLabel: "Actor",
+  scopeAuthModalityLabel: "Modality",
+  scopeAuthActionLabel: "Obligation",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;

@@ -82,7 +82,6 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       where: { id },
       data: {
         executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1,
-        scopeReviewRequested: false,
       },
     });
     await new ClaimRuleSetPreparationHandler(
@@ -396,8 +395,6 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       where: { id },
       data: {
         executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1,
-        // Represent the legacy claim-first path before Development review became mandatory.
-        scopeReviewRequested: false,
       },
     });
     await new ClaimRuleSetPreparationHandler(

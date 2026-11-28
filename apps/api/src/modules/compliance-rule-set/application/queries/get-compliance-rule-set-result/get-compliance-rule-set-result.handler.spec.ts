@@ -11,7 +11,6 @@ const SOURCE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const RUN = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
 const readModel: ComplianceRuleSetReadModel = {
-  targetActivityScope: "FULL_SOURCE",
   ruleSetVersionId: RULE_SET,
   version: "legal source.p2",
   legalSourceVersionId: SOURCE,

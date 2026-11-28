@@ -1,11 +1,7 @@
-/** Server-owned scope review protocol. This is NOT a model-selected source filter. */
+/** Server-owned legal scope classification stages. */
 import { z } from "zod";
 import { RULE_CATALOG_GROUP_IDS } from "../assessment-domain/rule-groups.ts";
 
-export const PREPARATION_ACTIVITY_SCOPES = [
-  "FULL_SOURCE",
-  "DEVELOPMENT_ONLY",
-] as const;
 export const PREPARATION_SCOPE_STAGES = [
   "DEVELOPMENT",
   "NON_DEVELOPMENT",

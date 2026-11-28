@@ -20,7 +20,6 @@ import {
   sourceClaimKey,
   validateComplianceRuleSetPacket,
 } from "../../../domain/compliance-rule-set-integrity.validator.js";
-import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 import { ValidateComplianceRuleSetCommand } from "./validate-compliance-rule-set.command.js";
 
 /** Validates a candidate and records protocol readiness without publishing authority. */
@@ -64,7 +63,6 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         claimPhase: true,
         executionState: true,
         executionContract: true,
-        targetActivityScope: true,
       },
     });
     if (!run) {
@@ -115,15 +113,6 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         ref: "draft",
         detail: "Reload the latest accepted draft before validation",
       });
-    await requireApprovedDevelopmentScope(
-      this.prisma,
-      input.request.preparationRunId,
-      run.claimInventoryRevision,
-      run.legalSourceVersionId,
-      run.targetActivityScope,
-      input.correlationId,
-      input.request.packet,
-    );
     const recorded = await this.prisma.ruleSetPreparationRun.updateMany({
       where: {
         id: input.request.preparationRunId,

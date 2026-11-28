@@ -3,7 +3,6 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import {
   Prisma,
   RuleCatalogReviewState,
-  PreparationTargetActivityScope,
   ArtifactLifecycleState,
   PreparationScopeReviewState,
   LegalClaimAccountingRole,
@@ -33,7 +32,6 @@ import {
 } from "../../../assessment/domain/domain-ids.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
 import {
   authoredFields,
   hasReviewedLocale,
@@ -95,8 +93,6 @@ export async function materializeGroupingProposal(
     );
   if (
     version.ruleSetDigest !== ruleSetDigest ||
-    version.targetActivityScope !==
-      PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
     version.lifecycleState === ArtifactLifecycleState.INVALID
   )
     throw conflict();
@@ -110,30 +106,6 @@ export async function materializeGroupingProposal(
   if (preparationRun && preparationRunId) {
     if (preparationRun.executionState === AgentExecutionState.FAILED)
       throw conflict();
-    const review = await tx.ruleSetPreparationScopeReview.findUnique({
-      where: {
-        preparationRunId_inventoryRevision: {
-          preparationRunId,
-          inventoryRevision: preparationRun.claimInventoryRevision,
-        },
-      },
-    });
-    if (review?.state !== PreparationScopeReviewState.APPROVED)
-      throw conflict();
-    const projection = await requireApprovedDevelopmentScope(
-      tx,
-      preparationRunId,
-      preparationRun.claimInventoryRevision,
-      version.legalSourceVersionId,
-      version.targetActivityScope,
-      randomUUID(),
-    );
-    const retained = new Set(projection?.developmentClaimIds ?? []);
-    for (const decision of preparationScopeReviewSubmitSchema.shape.decisions.parse(
-      review.decisions,
-    ))
-      if (retained.has(decision.claimId))
-        approvedDecisions.set(decision.claimId, decision);
   } else {
     // The selected publication's immutable manifest points at reusable source-bound
     // approvals; catalog/result deletion cannot erase these source-owned proofs.
@@ -353,7 +325,6 @@ export class RuleCatalogGroupsService {
     const rows = await this.prisma.complianceRuleSetVersion.findMany({
       where: {
         lifecycleState: ArtifactLifecycleState.ACTIVE,
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
       },
       orderBy: { id: "asc" },
       take: 100,
@@ -416,11 +387,7 @@ export class RuleCatalogGroupsService {
       const version = await tx.complianceRuleSetVersion.findUniqueOrThrow({
         where: { id: ruleSetVersionId },
       });
-      if (
-        version.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
-        version.targetActivityScope !==
-          PreparationTargetActivityScope.DEVELOPMENT_ONLY
-      )
+      if (version.lifecycleState !== ArtifactLifecycleState.ACTIVE)
         this.conflict(correlationId);
       const proposal = await materializeGroupingProposal(
         tx,
@@ -525,8 +492,6 @@ export class RuleCatalogGroupsService {
         where: { ruleSetVersionId },
       });
       if (
-        version.targetActivityScope !==
-          PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
         version.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
         version.ruleSetDigest !== body.ruleSetDigest ||
         existing.some((row) => row.state === RuleCatalogReviewState.APPROVED)
@@ -685,8 +650,6 @@ export class RuleCatalogGroupsService {
       });
       if (
         version.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
-        version.targetActivityScope !==
-          PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
         rules.some(
           (rule) =>
             !memberships.some(

@@ -15,13 +15,12 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   LegalEffectStatus,
-  LegalRetrievalIndexStatus,
   LegalSourceDocumentCorpusRole,
   PreparationScopeReviewState,
-  PreparationTargetActivityScope,
   PrismaClient,
 } from "@prisma/client";
 import * as assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -130,6 +129,29 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
     const pdfDigest = sha256(pdfBytes);
     assert.equal(pdfDigest, officialDoc.sha256);
 
+    // Real text extraction from the verified official PDF (no hardcoded legal text).
+    const extractedPdfText = execFileSync("pdftotext", [pdfPath, "-"], {
+      encoding: "utf8",
+    });
+    const extractSlice = (startMarker: string, endMarker: string): string => {
+      const start = extractedPdfText.indexOf(startMarker);
+      assert.ok(start >= 0, `PDF must contain marker: ${startMarker}`);
+      const end = extractedPdfText.indexOf(endMarker, start);
+      assert.ok(end >= 0, `PDF must contain end marker: ${endMarker}`);
+      return extractedPdfText.slice(start, end + endMarker.length);
+    };
+
+    const inScopeChunkText = extractSlice(
+      "b) Độ tin cậy và chất lượng:",
+      "trước khi triển khai.",
+    );
+    const outOfScopeChunkText = extractSlice(
+      "2. Bộ Khoa học và Công nghệ chủ trì tổ chức triển khai",
+      "tuân thủ đạo đức trí tuệ nhân tạo.",
+    );
+    assert.ok(extractedPdfText.includes(inScopeChunkText));
+    assert.ok(extractedPdfText.includes(outOfScopeChunkText));
+
     await prisma.legalSourceDocumentBlob.create({
       data: {
         sha256: pdfDigest,
@@ -138,12 +160,8 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       },
     });
 
-    const inScopeChunkText =
-      "Điều 4. Tổ chức phát triển hệ thống AI phải lưu giữ nhật ký huấn luyện và kiểm thử mô hình tối thiểu 12 tháng.";
-    const outOfScopeChunkText =
-      "Điều 9. Cơ quan quản lý nhà nước tổ chức thanh tra định kỳ hằng năm đối với hoạt động cung cấp dịch vụ.";
-    const inScopeChunkId = "vn-chunk-art-4";
-    const outOfScopeChunkId = "vn-chunk-art-9";
+    const inScopeChunkId = "vn-chunk-art-3-1b";
+    const outOfScopeChunkId = "vn-chunk-art-5-2";
 
     const draftRes = await httpRequest(app)
       .post("/internal/legal-sources/validated-draft")
@@ -166,18 +184,18 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
             chunks: [
               {
                 id: inScopeChunkId,
-                locator: "Điều 4",
+                locator: "Điều 3 khoản 1 điểm b",
                 content: inScopeChunkText,
                 contentSha256: `sha256:${sha256(inScopeChunkText)}`,
-                hierarchy: { article: "4" },
+                hierarchy: { article: "3", clause: "1", point: "b" },
                 legalStatus: "ACTIVE",
               },
               {
                 id: outOfScopeChunkId,
-                locator: "Điều 9",
+                locator: "Điều 5 khoản 2",
                 content: outOfScopeChunkText,
                 contentSha256: `sha256:${sha256(outOfScopeChunkText)}`,
-                hierarchy: { article: "9" },
+                hierarchy: { article: "5", clause: "2" },
                 legalStatus: "ACTIVE",
               },
             ],
@@ -203,17 +221,21 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
         legalStatusSourceRef: officialDoc.sourcePage,
       },
     });
-    await prisma.legalRetrievalIndex.create({
-      data: {
-        legalSourceVersionId: draftSource.id,
+    const retrievalIndexRes = await httpRequest(app)
+      .post(`/internal/legal-sources/${draftSource.id}/retrieval-indexes/validated`)
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
         version: `vn-05-2026-idx-${randomUUID().slice(0, 8)}`,
         configHash: sha256("vn-05-2026-config"),
-        status: LegalRetrievalIndexStatus.VALID,
         contentHash: sha256(`${inScopeChunkText}\n${outOfScopeChunkText}`),
         validationManifestRef: "retrieval-validation:vn-05-2026",
-        validatedAt: new Date(),
-      },
-    });
+        validatedAt: new Date().toISOString(),
+      });
+    assert.equal(
+      retrievalIndexRes.status,
+      201,
+      JSON.stringify(retrievalIndexRes.body),
+    );
 
     const activateSourceRes = await httpRequest(app)
       .post(`/internal/legal-sources/${draftSource.id}/activate-validated`)
@@ -241,15 +263,14 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       .post(`/admin/legal-rule-catalog/${catalog.id}/rules`)
       .set("Authorization", `Bearer ${authorToken}`)
       .send({
-        legalRuleId: "VN-TT05-ART4-LOG-RETENTION",
+        legalRuleId: "VN-TT05-ART3-1B-QUALITY-TEST",
         expectedRevision: catalog.revision,
-        title: "Lưu giữ nhật ký huấn luyện và kiểm thử mô hình",
-        description:
-          "Tổ chức phát triển hệ thống AI phải lưu giữ nhật ký huấn luyện và kiểm thử mô hình tối thiểu 12 tháng.",
+        title: "Kiểm thử, xác nhận và kiểm định nội bộ chất lượng dữ liệu, mô hình",
+        description: inScopeChunkText,
         citationLocatorRefs: [
           {
             documentId: "05-2026-TT-BKHCN",
-            locator: "Điều 4",
+            locator: "Điều 3 khoản 1 điểm b",
           },
         ],
       });
@@ -267,15 +288,14 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       .post(`/admin/legal-rule-catalog/${catalog.id}/rules`)
       .set("Authorization", `Bearer ${authorToken}`)
       .send({
-        legalRuleId: "VN-TT05-ART9-REGULATOR-INSPECTION",
+        legalRuleId: "VN-TT05-ART5-2-MINISTRY-DUTY",
         expectedRevision: inScopeSaved.catalogRevision,
-        title: "Thanh tra định kỳ của cơ quan nhà nước",
-        description:
-          "Cơ quan quản lý nhà nước tổ chức thanh tra định kỳ hằng năm đối với hoạt động cung cấp dịch vụ.",
+        title: "Trách nhiệm tổ chức triển khai của Bộ Khoa học và Công nghệ",
+        description: outOfScopeChunkText,
         citationLocatorRefs: [
           {
             documentId: "05-2026-TT-BKHCN",
-            locator: "Điều 9",
+            locator: "Điều 5 khoản 2",
           },
         ],
       });
@@ -294,12 +314,12 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
 
     const inScopeRef = {
       documentId: "05-2026-TT-BKHCN",
-      locator: "Điều 4",
+      locator: "Điều 3 khoản 1 điểm b",
       contentSha256: `sha256:${sha256(inScopeChunkText)}`,
     };
     const outOfScopeRef = {
       documentId: "05-2026-TT-BKHCN",
-      locator: "Điều 9",
+      locator: "Điều 5 khoản 2",
       contentSha256: `sha256:${sha256(outOfScopeChunkText)}`,
     };
 
@@ -308,20 +328,19 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       legalRequirements: [
         {
           legalRequirementId: `${inScopeRuleId}:req-1`,
-          title: "Lưu giữ nhật ký huấn luyện tối thiểu 12 tháng",
-          proposition:
-            "Tổ chức phát triển hệ thống AI phải lưu giữ nhật ký huấn luyện và kiểm thử mô hình tối thiểu 12 tháng.",
+          title: "Thiết lập tiêu chí chất lượng và kiểm định nội bộ trước khi triển khai",
+          proposition: inScopeChunkText,
           operativePropositions: [
             {
-              actor: "Tổ chức phát triển hệ thống AI",
+              actor: "Tổ chức, cá nhân",
               modality: LEGAL_OPERATIVE_MODALITIES.DUTY,
               action:
-                "Lưu giữ nhật ký huấn luyện và kiểm thử mô hình tối thiểu 12 tháng",
+                "Thiết lập tiêu chí chất lượng dữ liệu, mô hình, kết quả đầu ra và thực hiện kiểm thử, xác nhận, kiểm định nội bộ trước khi triển khai",
               sourceRefs: [inScopeRef],
             },
           ],
           applicabilityConditions: [
-            "Hệ thống AI được phát triển và đưa vào kiểm thử",
+            "Trước khi triển khai hệ thống trí tuệ nhân tạo",
           ],
           qualifiers: [],
           exceptions: [],
@@ -338,7 +357,7 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       assessmentRules: [
         {
           assessmentRuleId: `${inScopeRuleId}:ar-1`,
-          concept: "Kiểm tra cơ chế lưu giữ nhật ký huấn luyện và kiểm thử",
+          concept: "Kiểm tra tiêu chí chất lượng và cơ chế kiểm thử, kiểm định nội bộ",
           legalRequirementIds: [`${inScopeRuleId}:req-1`],
           criteria: [
             {
@@ -348,7 +367,7 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
           ],
           evidenceBindings: [{ criterionId: "crit-1", kind: "REQUIRED" }],
           requiredEvidence: [
-            "Cấu hình lưu trữ nhật ký huấn luyện tối thiểu 12 tháng",
+            "Tài liệu tiêu chí chất lượng dữ liệu, mô hình và kết quả kiểm thử nội bộ trước khi triển khai",
           ],
           sourceRefs: [inScopeRef],
         },
@@ -376,23 +395,22 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
     });
 
     const outOfScopeOutput = C.preparationRuleOutputSchema.parse({
-      analysis: "Điều 9 là hoạt động thanh tra của cơ quan nhà nước.",
+      analysis: "Điều 5 khoản 2 là trách nhiệm quản lý nhà nước của Bộ KH&CN.",
       legalRequirements: [
         {
           legalRequirementId: `${outOfScopeRuleId}:req-1`,
-          title: "Cơ quan quản lý nhà nước tổ chức thanh tra định kỳ",
-          proposition:
-            "Cơ quan quản lý nhà nước tổ chức thanh tra định kỳ hằng năm đối với hoạt động cung cấp dịch vụ.",
+          title: "Bộ KH&CN chủ trì tổ chức triển khai Thông tư",
+          proposition: outOfScopeChunkText,
           operativePropositions: [
             {
-              actor: "Cơ quan quản lý nhà nước",
+              actor: "Bộ Khoa học và Công nghệ",
               modality: LEGAL_OPERATIVE_MODALITIES.DUTY,
-              action: "Tổ chức thanh tra định kỳ hằng năm",
+              action: "Chủ trì tổ chức triển khai, thực hiện Thông tư và ban hành hướng dẫn",
               sourceRefs: [outOfScopeRef],
             },
           ],
           applicabilityConditions: [
-            "Khi cơ quan nhà nước thực hiện thanh tra định kỳ",
+            "Khi cơ quan nhà nước tổ chức triển khai Thông tư 05/2026/TT-BKHCN",
           ],
           qualifiers: [],
           exceptions: [],
@@ -577,10 +595,6 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       await prisma.complianceRuleSetVersion.findUniqueOrThrow({
         where: { id: activatedRuleSet.ruleSetVersionId },
       });
-    assert.equal(
-      persistedRuleSet.targetActivityScope,
-      PreparationTargetActivityScope.DEVELOPMENT_ONLY,
-    );
     assert.equal(persistedRuleSet.legalSourceVersionId, draftSource.id);
 
     // 5. New Assessment with admitted legal pins.
@@ -613,7 +627,6 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
               select: {
                 id: true,
                 legalSourceVersionId: true,
-                targetActivityScope: true,
               },
             },
           },
@@ -629,10 +642,93 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
         persistedAssessment.domainCase.ruleSet?.legalSourceVersionId,
         draftSource.id,
       );
-      assert.equal(
-        persistedAssessment.domainCase.ruleSet?.targetActivityScope,
-        PreparationTargetActivityScope.DEVELOPMENT_ONLY,
-      );
     }
+
+    // 6. Negative regression: valid official PDF SHA-256, but tampered chunk content / wrong locator / non-effective status must be rejected.
+    const tamperedContentShaRes = await httpRequest(app)
+      .post(`/admin/legal-rule-catalog/${catalog.id}/scope-authorizations/submit`)
+      .set("Authorization", `Bearer ${authorToken}`)
+      .send({
+        ruleId: inScopeRuleId,
+        expectedCatalogRevision: outOfScopeSaved.catalogRevision,
+        expectedReviewRevision: 0,
+        output: {
+          ...inScopeOutput,
+          legalRequirements: [
+            {
+              ...inScopeOutput.legalRequirements[0],
+              sourceRefs: [
+                {
+                  ...inScopeRef,
+                  contentSha256: `sha256:${sha256("Nội dung bị thay đổi không thuộc PDF gốc")}`,
+                },
+              ],
+            },
+          ],
+        },
+        decisions: [
+          {
+            legalRequirementId: `${inScopeRuleId}:req-1`,
+            stage: "DEVELOPMENT",
+            technicalDeliverable: "Tampered test",
+            rationale: "Should fail because contentSha256 does not match extracted PDF chunk",
+            sourceSupport: [
+              {
+                chunkId: inScopeChunkId,
+                startOffset: 0,
+                endOffset: inScopeChunkText.length,
+                contentSha256: sha256("Nội dung bị thay đổi không thuộc PDF gốc"),
+              },
+            ],
+          },
+        ],
+      });
+    assert.ok(
+      tamperedContentShaRes.status >= 400 && tamperedContentShaRes.status < 500,
+      `Tampered chunk hash must be rejected, got ${tamperedContentShaRes.status}`,
+    );
+
+    const wrongLocatorRes = await httpRequest(app)
+      .post(`/admin/legal-rule-catalog/${catalog.id}/rules`)
+      .set("Authorization", `Bearer ${authorToken}`)
+      .send({
+        legalRuleId: "VN-TT05-NONEXISTENT-LOCATOR",
+        expectedRevision: outOfScopeSaved.catalogRevision,
+        title: "Non-existent locator",
+        description: "Should fail because Điều 99 does not exist in PDF",
+        citationLocatorRefs: [
+          {
+            documentId: "05-2026-TT-BKHCN",
+            locator: "Điều 99",
+          },
+        ],
+      });
+    assert.ok(
+      wrongLocatorRes.status >= 400 && wrongLocatorRes.status < 500,
+      `Non-existent locator must be rejected, got ${wrongLocatorRes.status}`,
+    );
+
+    // Non-effective (REPEALED) legal chunk must be rejected during scope authorization / import.
+    await prisma.legalDocumentChunk.update({
+      where: { id: inScopeChunkId },
+      data: { legalEffectStatus: LegalEffectStatus.REPEALED },
+    });
+    const repealedChunkImportRes = await httpRequest(app)
+      .post(`/admin/legal-rule-catalog/${catalog.id}/assessment-rules/import`)
+      .set("Authorization", `Bearer ${authorToken}`)
+      .send({
+        schemaVersion: C.ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+        catalogVersionId: catalog.id,
+        expectedCatalogRevision: outOfScopeSaved.catalogRevision,
+        legalSourceVersionId: draftSource.id,
+        dryRun: true,
+        items: [inScopeImportItem],
+        excludedItems: [],
+      });
+    assert.ok(
+      repealedChunkImportRes.status >= 400 &&
+        repealedChunkImportRes.status < 500,
+      `REPEALED chunk must be rejected, got ${repealedChunkImportRes.status}`,
+    );
   });
 });

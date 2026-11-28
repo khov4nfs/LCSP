@@ -178,7 +178,6 @@ export class ComplianceRuleSetHistoryLoader {
             });
             return {
               executionContract: row.executionContract,
-              targetActivityScope: row.targetActivityScope,
               claimPhase: row.claimPhase,
               startedAt: row.startedAt?.toISOString() ?? null,
               persistedCoverageAvailable: Boolean(frontier),

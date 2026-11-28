@@ -412,15 +412,56 @@ export async function requireSelectedExclusionAuthorization(
     if (decisions.data.some((decision) => decision.stage !== nonDevelopment)) {
       continue;
     }
-    if (
-      reasonCode === ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE &&
-      output.legalRequirements.some(
-        (req) =>
-          !(req.coverage.nonAssessableReason ?? "").startsWith(
-            "OUT_OF_SCOPE_TARGET:",
-          ),
-      )
+    // Enforce semantic distinction between exclusion reason codes so a context-only
+    // framing cannot masquerade as an out-of-scope obligation or vice versa.
+    if (reasonCode === ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE) {
+      if (
+        output.legalRequirements.some(
+          (req) =>
+            req.coverage.state !==
+              LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE ||
+            !(req.coverage.nonAssessableReason ?? "").startsWith(
+              "OUT_OF_SCOPE_TARGET:",
+            ),
+        )
+      ) {
+        continue;
+      }
+    } else if (
+      reasonCode === ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.CONTEXT_ONLY
     ) {
+      if (
+        output.legalRequirements.some(
+          (req) =>
+            req.coverage.state !==
+              LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE ||
+            !(req.coverage.nonAssessableReason ?? "").startsWith(
+              "CONTEXT_ONLY:",
+            ),
+        )
+      ) {
+        continue;
+      }
+    } else if (
+      reasonCode === ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NON_ASSESSABLE
+    ) {
+      if (
+        output.legalRequirements.some(
+          (req) =>
+            req.coverage.state !==
+              LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE ||
+            !(req.coverage.nonAssessableReason ?? "").trim() ||
+            (req.coverage.nonAssessableReason ?? "").startsWith(
+              "OUT_OF_SCOPE_TARGET:",
+            ) ||
+            (req.coverage.nonAssessableReason ?? "").startsWith(
+              "CONTEXT_ONLY:",
+            ),
+        )
+      ) {
+        continue;
+      }
+    } else {
       continue;
     }
     if (

@@ -31,7 +31,6 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
-  PreparationTargetActivityScope,
   ClaimPreparationPhase,
   AgentExecutionState as PrismaAgentExecutionState,
   ArtifactLifecycleState as PrismaArtifactLifecycleState,
@@ -51,7 +50,6 @@ import {
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
 import { writeSemanticGraph } from "./semantic-graph.persistence.js";
 import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
-import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
 import { requireSelectedScopeAuthorization } from "./selected-scope-authority.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
@@ -193,10 +191,9 @@ export class ComplianceRuleSetActivation {
         claimInventoryRevision: number;
         claimPhase: ClaimPreparationPhase;
         executionContract: import("@prisma/client").PreparationExecutionContract;
-        targetActivityScope: import("@prisma/client").PreparationTargetActivityScope;
       }>
     >(
-      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract", "targetActivityScope" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -252,30 +249,7 @@ export class ComplianceRuleSetActivation {
         },
       );
 
-    // Recompute human-reviewed projection after the run lock: a stale
-    // approval can NEVER publish an incomplete Development catalog.
-    if (
-      ctx.failures.length === 0 &&
-      preparation.targetActivityScope !==
-        PreparationTargetActivityScope.DEVELOPMENT_ONLY
-    ) {
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
-        ctx.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-    await requireApprovedDevelopmentScope(
-      tx,
-      ctx.runId,
-      preparation.claimInventoryRevision,
-      ctx.legalSource.id,
-      preparation.targetActivityScope,
-      ctx.correlationId,
-      ctx.packet,
-    );
-
-    // Source admission is independent of the activity-scope proof; never publish a new version from a foreign corpus.
+    // Source admission is checked before publication; never publish a new version from a foreign corpus.
     if (ctx.failures.length === 0) {
       await this.authority.requireVersion(
         tx,
@@ -316,7 +290,6 @@ export class ComplianceRuleSetActivation {
         version,
         legalSourceVersionId: ctx.legalSource.id,
         preparationRunId: ctx.runId,
-        targetActivityScope: preparation.targetActivityScope,
         lifecycleState: valid
           ? PrismaArtifactLifecycleState.ACTIVE
           : PrismaArtifactLifecycleState.INVALID,
@@ -332,18 +305,13 @@ export class ComplianceRuleSetActivation {
     if (valid) {
       await this.writeChildren(tx, ruleSet.id, ctx);
       await this.enqueueAuthoredDocuments(tx, ruleSet.id);
-      if (
-        ruleSet.targetActivityScope ===
-        PreparationTargetActivityScope.DEVELOPMENT_ONLY
-      ) {
-        const { materializeGroupingProposal } =
-          await import("./rule-catalog-groups.service.js");
-        await materializeGroupingProposal(
-          tx,
-          ruleSet.id,
-          ruleSet.ruleSetDigest,
-        );
-      }
+      const { materializeGroupingProposal } =
+        await import("./rule-catalog-groups.service.js");
+      await materializeGroupingProposal(
+        tx,
+        ruleSet.id,
+        ruleSet.ruleSetDigest,
+      );
     }
 
     await tx.ruleSetPreparationRun.update({
@@ -635,7 +603,6 @@ export class ComplianceRuleSetActivation {
         legalSourceVersionId: ctx.legalSource.id,
         preparationRunId: null,
         selectedPreparationResults: manifest,
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
         lifecycleState: PrismaArtifactLifecycleState.ACTIVE,
         ruleSetDigest: ctx.ruleSetDigest,
         validationOutcome: PrismaValidationOutcome.PASSED,

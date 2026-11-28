@@ -68,22 +68,6 @@ function build() {
 }
 
 describe("Admin current-source preparation", () => {
-  it("pins DEVELOPMENT_ONLY intent before a paid Preparation starts", async () => {
-    const { handler, execute } = build();
-    await handler.execute(
-      new PrepareCurrentRuleSetCommand(
-        "owner-admin",
-        "correlation-1",
-        false,
-        undefined,
-        "DEVELOPMENT_ONLY",
-      ),
-    );
-    const request = (
-      execute.mock.calls[0]?.[0] as StartRuleSetPreparationCommand
-    ).request;
-    expect(request.targetActivityScope).toBe("DEVELOPMENT_ONLY");
-  });
   it("resolves the eligible ACTIVE source and delegates only to the canonical command", async () => {
     const { handler, tx, execute } = build();
     const result = await handler.execute(command());
@@ -100,7 +84,6 @@ describe("Admin current-source preparation", () => {
     expect(dispatched.request).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE),
-      targetActivityScope: "DEVELOPMENT_ONLY",
     });
     expect(dispatched.requestedBy).toBe("owner-admin");
     expect(execute).toHaveBeenCalledTimes(1);
@@ -158,7 +141,6 @@ describe("Admin current-source preparation", () => {
     expect(dispatched.request).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 20),
-      targetActivityScope: "DEVELOPMENT_ONLY",
     });
   });
 
@@ -222,7 +204,6 @@ describe("Admin current-source preparation", () => {
     ).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 2),
-      targetActivityScope: "DEVELOPMENT_ONLY",
     });
     expect(execute).toHaveBeenCalledTimes(1);
   });
@@ -245,7 +226,6 @@ describe("Admin current-source preparation", () => {
     ).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 2),
-      targetActivityScope: "DEVELOPMENT_ONLY",
     });
   });
 
@@ -268,7 +248,6 @@ describe("Admin current-source preparation", () => {
       ).toEqual({
         legalSourceVersionId: SOURCE,
         idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, attempts + 1),
-        targetActivityScope: "DEVELOPMENT_ONLY",
       });
       expect(execute).toHaveBeenCalledTimes(1);
     },

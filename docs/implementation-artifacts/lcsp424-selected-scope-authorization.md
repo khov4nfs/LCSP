@@ -35,7 +35,7 @@ Status: implementation increment; not final acceptance. Base: 5f145c439.
 - Real Vietnamese corpus positive end-to-end test must exercise actual source admission/extraction, legal interpretation approval, selected import/preparation, grouping, activation and Assessment. Current synthetic database regression is not that test. No live model request made.
 - Exclusion receipts record caller declarations, and excluded import items (`OUT_OF_SCOPE`, `CONTEXT_ONLY`, `NON_ASSESSABLE`) are verified against `SelectedRuleScopeAuthorization` (`NON_DEVELOPMENT`) with zero Assessment Rules.
 - Approval revocation/supersession is implemented via `POST /admin/legal-rule-catalog/:catalogId/scope-authorizations/revoke` (`PreparationScopeReviewState.REJECTED`), preserving historical Rule Sets and audit records while blocking new reuse.
-- Routine `DEVELOPMENT_ONLY` preparation runs default `scopeReviewRequested` to `false`; only `FULL_SOURCE` runs trigger full-inventory manual scope review.
+- Canonical server-owned whole-source runs always start in `FULL_SOURCE` with `scopeReviewRequested: true`, freeze the full claim inventory, reuse an existing unrevoked `APPROVED` scope review when source and inventory match, and pause for manual Scope Review only when matching approval is absent.
 - Positive end-to-end verification on the tracked Vietnamese official corpus (`05-05-2026-TT-BKHCN.pdf`) is implemented in `apps/api/test/vietnamese-corpus-lifecycle.e2e-spec.ts` without authority overrides.
 - Web BFF proxy (`legal-rule-catalog-proxy.ts`), TanStack Query hooks (`legal-rule-catalog-queries.ts`), i18n keys, and `SelectedScopeAuthorizationDialog` are wired for read/approve/revoke; Figma canvas synchronization remains manual.
 
