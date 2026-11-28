@@ -42,15 +42,18 @@ export class StartClaimDiscoveryDiagnosticHandler implements ICommandHandler<Sta
    * - May create the isolated discovery-only run and reads the existing graph/chunks; it does not enqueue paid Preparation work.
    */
   async execute(input: StartClaimDiscoveryDiagnosticCommand) {
-    const url = new URL(
-      process.env.DATABASE_URL ?? "postgresql://disabled/disabled",
-    );
+    // Why: Environment variables can differ from the URL Prisma already used at startup.
+    // How: Check the sanitized target captured from the actual adapter configuration.
+    // Invariant: A permitted env string cannot authorize writes to another database.
+    const target = this.prisma.databaseTarget;
     const isolated =
-      /^lcsp-release-staging-[a-f0-9]{16}-postgres$/u.test(url.hostname) &&
-      url.pathname === "/lcsp_staging";
+      !!target &&
+      /^lcsp-release-staging-[a-f0-9]{16}-postgres$/u.test(target.hostname) &&
+      target.pathname === "/lcsp_staging";
     const localTest =
-      ["127.0.0.1", "localhost"].includes(url.hostname) &&
-      url.pathname === "/lcsp_review_frontier_test";
+      !!target &&
+      ["127.0.0.1", "localhost"].includes(target.hostname) &&
+      target.pathname === "/lcsp_review_frontier_test";
     if (
       process.env.LEGAL_CLAIM_DISCOVERY_DIAGNOSTICS_ENABLED !== "true" ||
       !(isolated || localTest)

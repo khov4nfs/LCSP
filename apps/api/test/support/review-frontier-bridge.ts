@@ -49,7 +49,13 @@ type BridgeInput = {
   requests?: unknown[];
 };
 const db = new PrismaClient({ adapter: new PrismaPg(url) });
-const service = db as PrismaService;
+// The bridge uses a raw PrismaClient, so bind its guard identity to the same URL as its adapter.
+const service = Object.assign(db, {
+  databaseTarget: {
+    hostname: new URL(url).hostname,
+    pathname: new URL(url).pathname,
+  },
+}) as PrismaService;
 const graphs = new LegalDocumentGraphService(service);
 async function invoke(input: BridgeInput) {
   let result: unknown;

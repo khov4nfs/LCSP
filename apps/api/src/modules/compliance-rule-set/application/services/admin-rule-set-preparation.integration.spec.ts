@@ -372,6 +372,19 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     await expect(cancelRun(running.preparationRunId)).resolves.toMatchObject({
       executionState: AGENT_EXECUTION_STATES.CANCEL_REQUESTED,
     });
+    // Why: A durable cancellation fence must retain the Admin identity in its committed audit row.
+    // How: Read the persisted event for this isolated source after cancellation returns.
+    // Invariant: The run transition and actor audit are committed together before native stop.
+    expect(
+      await prisma.auditEvent.findFirst({
+        where: {
+          eventType:
+            COMPLIANCE_RULE_SET_EVENT_TYPES.preparationCancellationRequested,
+          resourceId: source.id,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ).toMatchObject({ actorId: "test-admin" });
     // The native stop happens after the DB request commits, outside its row lock.
     expect(nativeCancelIds).toEqual([]);
     await expect(

@@ -11,7 +11,10 @@
  * contract. No approval, signoff or draft values exist here.
  */
 
-import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.js";
+// Why: The web app consumes contract source directly, so this internal import must resolve in Next.
+// How: Match the package's other source imports while preserving the canonical state values.
+// Invariant: API and web share one unresolved preparation state set.
+import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.ts";
 
 /**
  * Why: Restoring an older shared Rule Set must not race a resumable or cancelling Preparation.

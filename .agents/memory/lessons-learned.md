@@ -442,3 +442,23 @@
 - **Root Cause**: The handler made a network call while holding the preparation row lock, then treated transport acknowledgement as terminal cancellation. Reactivation and availability used different unresolved-state sets.
 - **Resolution & Invariant**: Commit a nonterminal `CANCEL_REQUESTED` fence with actor audit first. A bounded poller signals the native run outside the transaction and closes the row only after an explicit terminal status; unknown status, HTTP 404, timeout, or network failure keeps the request pending. Reactivation and availability share the same unresolved-state set. PostgreSQL integration must verify the cancel/submission race before operational closure.
 
+### [2026-11-28] [COMPLIANCE-RULE-SET/SELECTED-RULE] Cancellation authority and pending state must cross every entry point
+- **Context / Symptom**: The selected-rule cancel route attributed an Admin request to a fixed system actor. Its submit/import and catalog paths also treated `CANCEL_REQUESTED` as finished, while Admin activity UI closed its stream early.
+- **Root Cause**: A shared cancellation command accepted an actor but the selected-rule wrapper supplied a constant; adjacent consumers each maintained their own incomplete QUEUED/RUNNING checks.
+- **Resolution & Invariant**: Pass the authenticated Admin ID through the controller and service into the audited command. Reuse the canonical unresolved-state set for submission, import and catalog decisions, and keep SSE live until native cancellation reaches a terminal state. Regression tests must exercise the controller-to-command actor and pending-cancel behavior.
+
+### [2026-11-28] [COMPLIANCE-RULE-SET/DIAGNOSTIC-DB] Guard the resolved adapter target
+- **Context / Symptom**: A diagnostic command could pass its database allowlist using `process.env.DATABASE_URL` even when `PrismaService` connected through a different ConfigService URL.
+- **Root Cause**: The guard checked an environment value instead of the adapter's effective datasource.
+- **Resolution & Invariant**: Capture only the sanitized host and database name from Prisma's resolved connection configuration and check that identity before diagnostic writes. A permitted environment URL cannot authorize a client connected to another target; never expose the connection string or password.
+
+### [2026-11-28] [CONTRACTS/NEXT-SOURCE-IMPORT] Browser bundling must resolve source imports
+- **Context / Symptom**: The Admin Rule Set page failed to compile in Next although API unit tests passed, because a new contracts constant imported an internal `.js` path while the web package resolved contracts directly from TypeScript source.
+- **Root Cause**: The internal import followed the server's emitted-JavaScript convention instead of the source-import convention already used by neighboring contract files.
+- **Resolution & Invariant**: Use the package's source-resolvable `.ts` import for internal shared-contract references and verify the affected page in Chromium. Contract unit tests alone do not establish that Next can bundle a changed contract.
+
+### [2026-11-28] [COMPLIANCE-RULE-SET/CATALOG-DELETE-LOCK] Deletion Must Serialize With Selected-Rule Submission
+- **Context / Symptom**: Catalog deletion checked unresolved preparation results before deleting descendants, but a concurrent selected-rule submit could create a run after that check.
+- **Root Cause**: Submit held the catalog row lock while deletion only read the catalog and its children without taking the same lock.
+- **Resolution & Invariant**: Lock the catalog row with `FOR UPDATE` before checking unresolved results and deleting descendants in one transaction. PostgreSQL race coverage must hold the creator lock, confirm deletion waits, then commit a `CANCEL_REQUESTED` result and verify deletion rejects while both catalog and result survive.
+
