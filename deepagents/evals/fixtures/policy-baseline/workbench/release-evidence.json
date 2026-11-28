@@ -1,0 +1,16 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "scenario": "Nhà cung cấp và bên triển khai cùng pháp nhân; nội dung mô phỏng chỉ dùng nội bộ, không công bố. Có công cụ gắn nhãn, nhưng chưa thấy evidence xác nhận đầu ra có dấu.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "version": "2026.10.2"},
+  "interactionDisclosure": {"status": "VERIFIED_PRESENT", "userCanIdentifyAi": true},
+  "machineReadableMark": {"status": "UNVERIFIED"},
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2025-12-01",
+  "sector": "FINANCE",
+  "mediumOrHighRisk": true
+}
