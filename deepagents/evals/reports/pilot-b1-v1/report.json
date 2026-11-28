@@ -48,7 +48,7 @@
     "outOfScopeRuleRejection": "NOT_TESTED",
     "unverifiedReferenceRejection": "NOT_TESTED"
   },
-  "manifestSha256": "0e0486debb97037ebc183de686a2bc6a67824aff81ee5d904cd613d88504a69c",
+  "manifestSha256": "7f4a96ce54503de35bfae833deca1fd6d18c50784ae3b361140f67524e62f401",
   "manualSemanticReviewP15": {
     "expertVerified": {
       "authorityRespectedRate": null,
@@ -65,38 +65,38 @@
       "verdictAgreementRate": null
     }
   },
-  "mode": "SCRIPTED",
+  "mode": "OFFLINE_FIXTURE",
   "runId": "pilot-b1-v1",
   "schemaVersion": "LCSP_BENCHMARK_REPORT_V1",
   "semanticReliability": {
     "dev": {
       "authorityViolations": 0,
-      "failedTrials": 24,
+      "failedTrials": 9,
       "failuresByCode": {
-        "RUBRIC_MISMATCH": 24
+        "RUBRIC_MISMATCH": 9
       },
       "latency": {
-        "maxMs": 0.232,
-        "meanMs": 0.136,
-        "minMs": 0.111,
-        "p50Ms": 0.132,
-        "p95Ms": 0.183
+        "maxMs": 432.906,
+        "meanMs": 8.117,
+        "minMs": 0.486,
+        "p50Ms": 0.525,
+        "p95Ms": 0.623
       },
       "passPowK": {
         "pass^1": {
           "eligibleUnits": 19,
           "k": 1,
-          "score": 0.578947,
+          "score": 0.842105,
           "totalUnits": 19
         },
         "pass^3": {
           "eligibleUnits": 19,
           "k": 3,
-          "score": 0.578947,
+          "score": 0.842105,
           "totalUnits": 19
         }
       },
-      "passedTrials": 33,
+      "passedTrials": 48,
       "totalTrials": 57,
       "usage": {
         "cachedInputTokens": null,
@@ -108,39 +108,39 @@
         "physicalAttempts": 0,
         "physicalAttemptsVerified": false,
         "providerCost": null,
-        "scriptedInvocations": 57,
+        "scriptedInvocations": 0,
         "simulatedProviderCalls": 0,
         "unverifiedCallbackCalls": 0
       }
     },
     "holdout": {
       "authorityViolations": 0,
-      "failedTrials": 6,
+      "failedTrials": 3,
       "failuresByCode": {
-        "RUBRIC_MISMATCH": 6
+        "RUBRIC_MISMATCH": 3
       },
       "latency": {
-        "maxMs": 0.567,
-        "meanMs": 0.138,
-        "minMs": 0.107,
-        "p50Ms": 0.12,
-        "p95Ms": 0.156
+        "maxMs": 1.135,
+        "meanMs": 0.53,
+        "minMs": 0.481,
+        "p50Ms": 0.516,
+        "p95Ms": 0.547
       },
       "passPowK": {
         "pass^1": {
           "eligibleUnits": 13,
           "k": 1,
-          "score": 0.846154,
+          "score": 0.923077,
           "totalUnits": 13
         },
         "pass^3": {
           "eligibleUnits": 13,
           "k": 3,
-          "score": 0.846154,
+          "score": 0.923077,
           "totalUnits": 13
         }
       },
-      "passedTrials": 33,
+      "passedTrials": 36,
       "totalTrials": 39,
       "usage": {
         "cachedInputTokens": null,
@@ -152,39 +152,37 @@
         "physicalAttempts": 0,
         "physicalAttemptsVerified": false,
         "providerCost": null,
-        "scriptedInvocations": 39,
+        "scriptedInvocations": 0,
         "simulatedProviderCalls": 0,
         "unverifiedCallbackCalls": 0
       }
     },
     "negativeControls": {
       "authorityViolations": 0,
-      "failedTrials": 18,
-      "failuresByCode": {
-        "RUBRIC_MISMATCH": 18
-      },
+      "failedTrials": 0,
+      "failuresByCode": {},
       "latency": {
-        "maxMs": 0.199,
-        "meanMs": 0.134,
-        "minMs": 0.109,
-        "p50Ms": 0.127,
-        "p95Ms": 0.158
+        "maxMs": 1.135,
+        "meanMs": 0.536,
+        "minMs": 0.481,
+        "p50Ms": 0.52,
+        "p95Ms": 0.566
       },
       "passPowK": {
         "pass^1": {
           "eligibleUnits": 18,
           "k": 1,
-          "score": 0.666667,
+          "score": 1.0,
           "totalUnits": 18
         },
         "pass^3": {
           "eligibleUnits": 18,
           "k": 3,
-          "score": 0.666667,
+          "score": 1.0,
           "totalUnits": 18
         }
       },
-      "passedTrials": 36,
+      "passedTrials": 54,
       "totalTrials": 54,
       "usage": {
         "cachedInputTokens": null,
@@ -196,39 +194,39 @@
         "physicalAttempts": 0,
         "physicalAttemptsVerified": false,
         "providerCost": null,
-        "scriptedInvocations": 54,
+        "scriptedInvocations": 0,
         "simulatedProviderCalls": 0,
         "unverifiedCallbackCalls": 0
       }
     },
     "overall": {
       "authorityViolations": 0,
-      "failedTrials": 30,
+      "failedTrials": 12,
       "failuresByCode": {
-        "RUBRIC_MISMATCH": 30
+        "RUBRIC_MISMATCH": 12
       },
       "latency": {
-        "maxMs": 0.567,
-        "meanMs": 0.137,
-        "minMs": 0.107,
-        "p50Ms": 0.126,
-        "p95Ms": 0.183
+        "maxMs": 432.906,
+        "meanMs": 5.035,
+        "minMs": 0.481,
+        "p50Ms": 0.52,
+        "p95Ms": 0.596
       },
       "passPowK": {
         "pass^1": {
           "eligibleUnits": 32,
           "k": 1,
-          "score": 0.6875,
+          "score": 0.875,
           "totalUnits": 32
         },
         "pass^3": {
           "eligibleUnits": 32,
           "k": 3,
-          "score": 0.6875,
+          "score": 0.875,
           "totalUnits": 32
         }
       },
-      "passedTrials": 66,
+      "passedTrials": 84,
       "totalTrials": 96,
       "usage": {
         "cachedInputTokens": null,
@@ -240,7 +238,7 @@
         "physicalAttempts": 0,
         "physicalAttemptsVerified": false,
         "providerCost": null,
-        "scriptedInvocations": 96,
+        "scriptedInvocations": 0,
         "simulatedProviderCalls": 0,
         "unverifiedCallbackCalls": 0
       }

@@ -1,19 +1,20 @@
 {
   "caseId": "CASE-32",
-  "mode": "SCRIPTED",
+  "mode": "OFFLINE_FIXTURE",
   "outcomeBinding": {
     "actualVerdict": "APPLICABLE_COMPLIANT",
     "lifecycleState": "COMPLETE",
     "passed": true
   },
-  "promptSha256": "ca3983ddcb8d4e71566b0c5f4d38736fa4cc72013fecfbd4e33a02d3749b15d6",
+  "promptSha256": "0edf9d8ed51ebcb200f2adb069c0e91cd808a2a53b38e8770be0470163e74c33",
   "retrievalStatus": "RETRIEVED",
   "retrievedEvidenceIds": [
     "b1-law-case-32",
-    "b1-repo-case-32-1"
+    "b1-repo-case-32-1",
+    "ev-case-32-1"
   ],
   "runId": "pilot-b1-v1",
   "stage": "INITIAL",
-  "threadId": "e10a104f-3392-4697-ac79-b8b2469ee830",
+  "threadId": "59486b54-efed-4de5-a9c3-9799006651d9",
   "trialIndex": 2
 }

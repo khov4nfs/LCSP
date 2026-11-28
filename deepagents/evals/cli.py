@@ -89,6 +89,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_b1.add_argument("--trials", type=int, default=3)
     p_b1.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_b1.add_argument("--locale", choices=["en", "vi"], default="en")
+    p_b1.add_argument("--model-route", default="offline-scripted")
     p_b1.add_argument("--allow-live", action="store_true")
     p_b1.add_argument("--output-dir", type=Path, required=True)
 
@@ -169,7 +170,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             trials_per_case=args.trials,
             k_values=tuple(args.k),
             locale=args.locale,
-            model_route="rag-b1-single-pass",
+            model_route=args.model_route,
             allow_live=args.allow_live,
         )
         cases = load_benchmark_cases(args.cases, split=args.split, include_fault_injection=False)
