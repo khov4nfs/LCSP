@@ -11,6 +11,10 @@ import { retainedBindingCase } from "../../../../test/support/retained-reference
 import { buildLegalDocumentGraph } from "../../legal-source/domain/document-graph.js";
 import { SOURCE_REVIEW_STATES as S } from "@lcsp/contracts/legal-source";
 import { inventoryHash } from "./claim-inventory.js";
+import {
+  initialReviewFrontierProjection,
+  referenceIdsByReviewOwner,
+} from "./source-review-frontier-projection.js";
 
 const fixture = JSON.parse(
   readFileSync(
@@ -32,6 +36,30 @@ const graph = buildLegalDocumentGraph("00000000-0000-4000-8000-000000000001", [
   },
 ]);
 describe("Deterministic body review units", () => {
+  it("projects the same ordered review units and reference owners for initialization", () => {
+    const projected = initialReviewFrontierProjection(graph, undefined, false);
+    expect(projected?.items.create.map((item) => item.sourceNodeId)).toEqual(
+      sourceReviewUnits(graph).map((unit) => unit.nodeId),
+    );
+    const byOwner = referenceIdsByReviewOwner(graph);
+    for (const item of projected?.items.create ?? [])
+      expect(item.referenceIds).toEqual(byOwner.get(item.sourceNodeId) ?? []);
+    expect(projected?.unitCount).toBe(sourceReviewUnits(graph).length);
+    expect(projected?.pendingCount).toBe(projected?.unitCount);
+  });
+
+  it("rejects diagnostic scope on a normal run and unknown graph units", () => {
+    const unitId = sourceReviewUnits(graph)[0].nodeId;
+    expect(initialReviewFrontierProjection(graph, [unitId], false)).toBeNull();
+    expect(
+      initialReviewFrontierProjection(graph, ["unknown"], true),
+    ).toBeNull();
+    expect(
+      initialReviewFrontierProjection(graph, [unitId], true)?.items.create.map(
+        (item) => item.sourceNodeId,
+      ),
+    ).toEqual([unitId]);
+  });
   it("derives all material relation IDs and drops stale material accounting after removal", () => {
     const { fixture, good } = retainedBindingCase();
     const payload = fixture.reviews.find(

@@ -35,18 +35,20 @@ import {
 import {
   sourceReviewUnits,
   referenceOnlyNodeIds,
-  reviewReferenceOwners,
   frontierDefinitionFingerprint,
   reviewedFrontierFingerprint,
   completedReviewStates,
   reviewItemStateFingerprint,
   xorReviewHash,
-  zeroReviewAccumulator,
   normalizeReviewPayload,
   reviewCompletionFingerprint,
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
 import { reviewPayload } from "../../../domain/source-review-payload.js";
+import {
+  initialReviewFrontierProjection,
+  referenceIdsByReviewOwner,
+} from "../../../domain/source-review-frontier-projection.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { withLockedPreparationRun } from "../../../infrastructure/persistence/locked-preparation-run.js";
 import { sourceSupportFailures } from "../../../domain/source-completeness.js";
@@ -275,73 +277,25 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               "The pinned document graph is unavailable",
               "report_rule_set_source_blocked",
             );
-          let units = sourceReviewUnits(graph);
-          if (input.scopeNodeIds) {
-            if (
-              !run.claimDiscoveryOnly ||
-              input.scopeNodeIds.some(
-                (id) => !units.some((n) => n.nodeId === id),
-              )
-            )
-              return failed(
-                G.BINDING,
-                "scopeNodeIds",
-                "Explicit diagnostic scope must select existing review units",
-              );
-            const selected = new Set(input.scopeNodeIds);
-            units = units.filter((n) => selected.has(n.nodeId));
-          }
-          const referenceOwners = reviewReferenceOwners(graph);
-          const referencesByOwner = new Map<string, string[]>();
-          for (const ref of graph.references) {
-            const owner = referenceOwners.get(ref.referenceId);
-            if (owner) {
-              const ids = referencesByOwner.get(owner) ?? [];
-              ids.push(ref.referenceId);
-              referencesByOwner.set(owner, ids);
-            }
-          }
-          const fingerprint = frontierDefinitionFingerprint(
-            graph.materializationId,
-            1,
-            units.map((n) => n.nodeId),
+          const projection = initialReviewFrontierProjection(
+            graph,
+            input.scopeNodeIds,
+            run.claimDiscoveryOnly,
           );
-          const stateAccumulator = units.reduce(
-            (hash, n) =>
-              xorReviewHash(
-                hash,
-                reviewItemStateFingerprint({
-                  sourceNodeId: n.nodeId,
-                  state: S.PENDING,
-                }),
-              ),
-            zeroReviewAccumulator,
-          );
+          if (!projection)
+            return failed(
+              G.BINDING,
+              "scopeNodeIds",
+              "Explicit diagnostic scope must select existing review units",
+            );
+          // Why: Persist exactly the frontier derived from the pinned graph and authorized scope.
+          // How: The pure projection carries row identities, counters and fingerprints together.
+          // Invariant: A rejected scope writes no review units.
           frontier = await tx.ruleSetPreparationReviewFrontier.create({
             data: {
               ...key,
               legalSourceVersionId: run.legalSourceVersionId,
-              materializationId: graph.materializationId,
-              fingerprint,
-              stateAccumulator,
-              stateFingerprint: inventoryHash({
-                fingerprint,
-                accumulator: stateAccumulator,
-              }),
-              unitCount: units.length,
-              pendingCount: units.length,
-              items: {
-                create: units.map((n, ordinal) => ({
-                  sourceNodeId: n.nodeId,
-                  structuralPath: n.structuralPath,
-                  ordinal,
-                  stateFingerprint: reviewItemStateFingerprint({
-                    sourceNodeId: n.nodeId,
-                    state: S.PENDING,
-                  }),
-                  referenceIds: referencesByOwner.get(n.nodeId) ?? [],
-                })),
-              },
+              ...projection,
             },
           });
         }
@@ -1624,16 +1578,8 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             );
           const selected = new Set<string>();
           const allUnits = sourceReviewUnits(graph);
-          const referenceOwners = reviewReferenceOwners(graph);
-          const referencesByOwner = new Map<string, string[]>();
-          for (const ref of graph.references) {
-            const owner = referenceOwners.get(ref.referenceId);
-            if (owner) {
-              const ids = referencesByOwner.get(owner) ?? [];
-              ids.push(ref.referenceId);
-              referencesByOwner.set(owner, ids);
-            }
-          }
+          // Expansion and initialization must assign the same references to each source owner.
+          const referencesByOwner = referenceIdsByReviewOwner(graph);
           for (const id of input.referenceIds) {
             const ref = graph.references.find(
               (r) => r.referenceId === id && existing.referenceIds.includes(id),
