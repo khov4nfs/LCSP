@@ -192,6 +192,78 @@ export class LegalRuleCatalogController {
     );
   }
 
+  /**
+   * Business purpose: Register an exact source-backed legal scope candidate for review.
+   * Business rules: Authenticated Admin only; the service owns source pins and review identity.
+   * Execution flow: 1. Validate the request. 2. Delegate draft registration and return its revision/digest.
+   * Failure cases: Stale or invalid scope evidence is rejected by the service.
+   * Side effects: Creates or revises a draft authorization; no Preparation or model call.
+   */
+  @Post(":catalogId/scope-authorizations/submit")
+  @HttpCode(200)
+  async submitScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.selectedScopeAuthorizationSubmitSchema))
+    request: C.SelectedScopeAuthorizationSubmit,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.submitScopeAuthorization(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Read an exact candidate and pinned source evidence for independent legal review.
+   * Business rules: Admin-only; the service verifies catalog ownership and current source identity.
+   * Execution flow: 1. Resolve the candidate key. 2. Return verified review evidence.
+   * Failure cases: Missing or stale candidates cannot be reviewed from this endpoint.
+   * Side effects: Read-only.
+   */
+  @Get(":catalogId/scope-authorizations/:scopeKey")
+  async readScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Param("scopeKey") scopeKey: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.readScopeAuthorization(
+        catalogId,
+        scopeKey,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Approve the independently reviewed semantic candidate.
+   * Business rules: Authenticated Admin only; separate reviewer and exact source/digest checks remain server-owned.
+   * Execution flow: 1. Validate request. 2. Delegate approval and return persisted state.
+   * Failure cases: Stale, self-approved or unsupported candidates cannot authorize publication.
+   * Side effects: Persists approval and audit only.
+   */
+  @Post(":catalogId/scope-authorizations/approve")
+  @HttpCode(200)
+  async approveScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.selectedScopeAuthorizationApproveSchema))
+    request: C.SelectedScopeAuthorizationApprove,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.approveScopeAuthorization(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
   @Post(":catalogId/rules")
   @HttpCode(200)
   async saveRule(

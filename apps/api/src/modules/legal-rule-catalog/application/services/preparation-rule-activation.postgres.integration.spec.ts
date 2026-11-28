@@ -53,7 +53,9 @@ const disposableDatabase = (() => {
     return (
       ["localhost", "127.0.0.1"].includes(url.hostname) &&
       url.port === "55448" &&
-      url.pathname === "/lcsp_r2_activation"
+      ["/lcsp_r2_activation", "/lcsp_r2_activation_scope"].includes(
+        url.pathname,
+      )
     );
   } catch {
     return false;
@@ -99,6 +101,7 @@ describeDatabase(
       {} as never,
       sourceSnapshot,
       activation,
+      fixtureSourceAuthority,
     );
     const readModel = new ComplianceRuleSetReadModelLoader(
       db,
@@ -151,6 +154,16 @@ describeDatabase(
         })
       ).id;
 
+      const reviewer = await prisma.user.create({
+        data: {
+          id: randomUUID(),
+          email: `${randomUUID()}@test.invalid`,
+          passwordHash: "test-only",
+          emailVerified: true,
+          failedLoginCount: 0,
+          role: AuthUserRole.ADMIN,
+        },
+      });
       const source = await makeSource(false, "DRAFT");
       sourceVersionId = source.id;
       const content = "a) Keep complete records for the required period.";
@@ -308,6 +321,53 @@ describeDatabase(
               : {}),
           },
         });
+        // Synthetic independent review fixture, not a legal opinion about an actual statute.
+        if (
+          output?.assessmentRules.length &&
+          (!input.fingerprintState || input.fingerprintState === "CURRENT")
+        ) {
+          const review = await preparation.submitScopeAuthorization(
+            catalog.id,
+            {
+              ruleId: legalRule.id,
+              expectedCatalogRevision: catalog.revision,
+              expectedReviewRevision: 0,
+              output,
+              decisions: output.legalRequirements.map((requirement) => ({
+                legalRequirementId: requirement.legalRequirementId,
+                stage: "DEVELOPMENT" as const,
+                rationale: "Synthetic test control",
+                technicalDeliverable: "Synthetic repository control",
+                sourceSupport: [
+                  {
+                    chunkId: citation.chunkId,
+                    startOffset: 0,
+                    endOffset: citation.content.length,
+                    contentSha256: citation.contentSha256.replace(
+                      /^sha256:/u,
+                      "",
+                    ),
+                  },
+                ],
+              })),
+            },
+            actorId,
+            correlationId,
+          );
+          await preparation.approveScopeAuthorization(
+            catalog.id,
+            {
+              ruleId: legalRule.id,
+              expectedCatalogRevision: catalog.revision,
+              expectedReviewRevision: review.revision,
+              scopeKey: review.scopeKey,
+              decisionDigest: review.decisionDigest,
+              confirmsLegalReview: true,
+            },
+            reviewer.id,
+            correlationId,
+          );
+        }
         return { legalRule, result };
       };
 
@@ -534,12 +594,19 @@ describeDatabase(
           },
         });
       expect(persistedFirst.lifecycleState).toBe("ACTIVE");
+      expect(persistedFirst.targetActivityScope).toBe("DEVELOPMENT_ONLY");
+      expect(
+        await prisma.ruleCatalogGroupingProposal.findUnique({
+          where: { ruleSetVersionId: first.ruleSetVersionId },
+        }),
+      ).not.toBeNull();
       expect(persistedFirst.preparationRunId).toBeNull();
       expect(persistedFirst.selectedPreparationResults).toMatchObject([
         {
           ruleId: positiveThree.legalRule.id,
           resultId: positiveThree.result.id,
           revision: 1,
+          scopeAuthorizationKey: expect.stringMatching(/^[a-f0-9]{64}$/),
         },
       ]);
       expect(persistedFirst.rules).toHaveLength(3);

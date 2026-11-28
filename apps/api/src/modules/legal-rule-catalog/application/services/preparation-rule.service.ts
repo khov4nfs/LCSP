@@ -6,6 +6,7 @@ import {
   AgentExecutionState as A,
   PreparationExecutionContract,
   RuleSetPreparationFailureReason,
+  PreparationScopeReviewState,
 } from "@prisma/client";
 import { z } from "zod";
 import {
@@ -19,6 +20,9 @@ import {
   preparationRuleInputSchema,
   preparationRuleOutputSchema,
   preparationInstructionReceiptSchema,
+  selectedScopeDecisionSchema,
+  type SelectedScopeAuthorizationSubmit,
+  type SelectedScopeAuthorizationApprove,
   type PreparationRuleInput,
   type PreparationRuleComplete,
   // Shared contracts type activation, output collection, and rule validation.
@@ -62,6 +66,14 @@ import {
   type SelectedActivationContext,
 } from "../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { LegalSourceSnapshotLoader } from "../../../compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
+import {
+  requireSelectedScopeAuthorization,
+  requireSelectedScopeSource,
+  selectedScopeKey,
+  validateSelectedScopeDecisions,
+} from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
+
 import { CancelRuleSetPreparationCommand } from "../../../compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import {
   LegalRuleCatalogService,
@@ -97,6 +109,7 @@ export class PreparationRuleService {
     private readonly commands: CommandBus,
     private readonly sourceSnapshot: LegalSourceSnapshotLoader,
     private readonly activation: ComplianceRuleSetActivation,
+    private readonly scopeSourceAuthority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -497,6 +510,7 @@ export class PreparationRuleService {
           const output = preparationRuleOutputSchema.parse(result.output);
           if (
             input.ruleId !== selection.ruleId ||
+            preparationInputFingerprint(input) !== result.inputFingerprint ||
             input.legalSourceVersionId !== first.catalog.legalSourceVersionId ||
             output.assessmentRules.length === 0
           )
@@ -513,7 +527,19 @@ export class PreparationRuleService {
           });
         }
 
-        await this.catalogs.hydrate(tx, inputs, cid);
+        // Reuse the independent reviewed source authority, never a caller-provided scope flag.
+        const hydrated = await this.catalogs.hydrate(tx, inputs, cid);
+        for (let index = 0; index < hydrated.length; index++) {
+          const scopeKey = await requireSelectedScopeAuthorization(
+            tx,
+            hydrated[index],
+            outputs[index],
+            cid,
+            this.scopeSourceAuthority,
+          );
+          if (!scopeKey) catalogFailure(E.SCOPE_REVIEW_REQUIRED, cid, 422);
+          manifest[index].scopeAuthorizationKey = scopeKey;
+        }
         const packet = complianceRuleSetPacketSchema.parse({
           legalRequirements: outputs.flatMap(
             (output) => output.legalRequirements,
@@ -562,6 +588,234 @@ export class PreparationRuleService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
     );
+  }
+
+  /**
+   * Business purpose: Register reusable source-backed semantic review without creating a Preparation run.
+   * Business rules:
+   * - Only the authenticated Admin route supplies the author; the candidate must match the current catalog and official original source.
+   * - A draft cannot publish; approved authority is immutable and cannot be self-approved.
+   * Execution flow: 1. Lock and hydrate the exact catalog entry. 2. Validate output and decision source support. 3. CAS-create/update the draft and audit.
+   * Failure cases:
+   * - Stale revisions, missing source or invalid scope evidence reject before writes.
+   * Side effects:
+   * - Saves a review candidate and audit event only; never invokes a provider or creates a result.
+   */
+  async submitScopeAuthorization(
+    catalogId: string,
+    request: SelectedScopeAuthorizationSubmit,
+    actor: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.catalogs.lock(
+        tx,
+        catalogId,
+        request.expectedCatalogRevision,
+        cid,
+      );
+      const { items } = await this.catalogs.entries(tx, catalogId, cid);
+      const item = items.find((row) => row.id === request.ruleId);
+      if (!item?.input) catalogFailure(E.INELIGIBLE, cid);
+      const [input] = await this.catalogs.hydrate(tx, [item.input], cid);
+      validateSelectedOutput(input, request.output, cid, true);
+      const scopeKey = selectedScopeKey(input, request.output);
+      const decisionDigest = validateSelectedScopeDecisions(
+        input,
+        request.output,
+        request.decisions,
+        cid,
+        false,
+      );
+      const existing = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey },
+      });
+      if (
+        (existing?.revision ?? 0) !== request.expectedReviewRevision ||
+        existing?.state === PreparationScopeReviewState.APPROVED
+      )
+        catalogFailure(E.CONFLICT, cid);
+      const data = {
+        legalSourceVersionId: input.legalSourceVersionId,
+        catalogId,
+        ruleId: input.ruleId,
+        output: request.output as unknown as Prisma.InputJsonValue,
+        decisions: request.decisions as unknown as Prisma.InputJsonValue,
+        decisionDigest,
+        submittedBy: actor,
+        state: PreparationScopeReviewState.DRAFT,
+        approvedBy: null,
+        approvedAt: null,
+      };
+      const row = existing
+        ? await tx.selectedRuleScopeAuthorization.update({
+            where: { scopeKey },
+            data: { ...data, revision: { increment: 1 } },
+          })
+        : await tx.selectedRuleScopeAuthorization.create({
+            data: { scopeKey, ...data },
+          });
+      await this.catalogs.record(
+        tx,
+        EVENTS.SCOPE_AUTHORIZATION_SUBMITTED,
+        scopeKey,
+        actor,
+        cid,
+        {
+          scopeAuthorizationId: scopeKey,
+          decisionDigest,
+          revision: row.revision,
+        },
+      );
+      return {
+        scopeKey,
+        decisionDigest,
+        revision: row.revision,
+        state: row.state,
+      };
+    });
+  }
+
+  /**
+   * Business purpose: Present a persisted semantic candidate and the exact source to an independent reviewer.
+   * Business rules:
+   * - Only the owning catalog, current eligible rule and matching pinned evidence are accessible; no caller-supplied source text is trusted.
+   * Execution flow: 1. Read the candidate. 2. Resolve the catalog entry and hydrate its pinned source. 3. Recheck the semantic key and return the reviewed payload.
+   * Failure cases:
+   * - Missing, mismatched or stale evidence returns a typed conflict.
+   * Side effects:
+   * - Read-only; no model invocation, mutation or approval.
+   */
+  async readScopeAuthorization(
+    catalogId: string,
+    scopeKey: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey },
+      });
+      if (!row || row.catalogId !== catalogId) catalogFailure(E.CONFLICT, cid);
+      const { items } = await this.catalogs.entries(tx, catalogId, cid);
+      const item = items.find((candidate) => candidate.id === row.ruleId);
+      if (!item?.input) catalogFailure(E.INELIGIBLE, cid);
+      const [input] = await this.catalogs.hydrate(tx, [item.input], cid);
+      const output = preparationRuleOutputSchema.parse(row.output);
+      const decisions = z
+        .array(selectedScopeDecisionSchema)
+        .parse(row.decisions);
+      if (
+        selectedScopeKey(input, output) !== scopeKey ||
+        validateSelectedScopeDecisions(input, output, decisions, cid, false) !==
+          row.decisionDigest
+      )
+        catalogFailure(E.CONFLICT, cid);
+      return {
+        scopeKey,
+        ruleId: row.ruleId,
+        state: row.state,
+        revision: row.revision,
+        catalogRevision: input.catalogRevision,
+        decisionDigest: row.decisionDigest,
+        submittedBy: row.submittedBy,
+        approvedBy: row.approvedBy,
+        approvedAt: row.approvedAt,
+        legalSourceVersionId: input.legalSourceVersionId,
+        output,
+        decisions,
+        citations: input.citations,
+      };
+    });
+  }
+
+  /**
+   * Business purpose: Independently approve an exact reusable legal-scope candidate.
+   * Business rules:
+   * - The reviewer must differ from the author and explicitly confirm the reviewed legal meaning.
+   * - All operative decisions, effective original citations and material context must match; unresolved or mixed unsupported candidates cannot publish.
+   * Execution flow: 1. Lock catalog revision and reload the draft. 2. Rehydrate source and revalidate candidate/digest. 3. Mark approved and audit atomically.
+   * Failure cases:
+   * - Self-approval, stale or changed candidates, unresolved scope, source drift and malformed evidence reject.
+   * Side effects:
+   * - Persists independent reviewer identity; no Preparation, provider calls or automatic activation.
+   */
+  async approveScopeAuthorization(
+    catalogId: string,
+    request: SelectedScopeAuthorizationApprove,
+    actor: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.catalogs.lock(
+        tx,
+        catalogId,
+        request.expectedCatalogRevision,
+        cid,
+      );
+      const row = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey: request.scopeKey },
+      });
+      if (
+        request.confirmsLegalReview !== true ||
+        !row ||
+        row.catalogId !== catalogId ||
+        row.ruleId !== request.ruleId ||
+        row.state !== PreparationScopeReviewState.DRAFT ||
+        row.submittedBy === actor ||
+        row.revision !== request.expectedReviewRevision ||
+        row.decisionDigest !== request.decisionDigest
+      )
+        catalogFailure(E.CONFLICT, cid);
+      const { items } = await this.catalogs.entries(tx, catalogId, cid);
+      const item = items.find((candidate) => candidate.id === request.ruleId);
+      if (!item?.input) catalogFailure(E.INELIGIBLE, cid);
+      const [input] = await this.catalogs.hydrate(tx, [item.input], cid);
+      const output = preparationRuleOutputSchema.parse(row.output);
+      const decisions = z
+        .array(selectedScopeDecisionSchema)
+        .parse(row.decisions);
+      validateSelectedOutput(input, output, cid);
+      if (
+        row.legalSourceVersionId !== input.legalSourceVersionId ||
+        selectedScopeKey(input, output) !== row.scopeKey ||
+        validateSelectedScopeDecisions(input, output, decisions, cid) !==
+          row.decisionDigest
+      )
+        catalogFailure(E.CONFLICT, cid);
+      await requireSelectedScopeSource(
+        tx,
+        input,
+        output,
+        cid,
+        this.scopeSourceAuthority,
+      );
+      const approved = await tx.selectedRuleScopeAuthorization.update({
+        where: { scopeKey: row.scopeKey },
+        data: {
+          state: PreparationScopeReviewState.APPROVED,
+          approvedBy: actor,
+          approvedAt: new Date(),
+        },
+      });
+      await this.catalogs.record(
+        tx,
+        EVENTS.SCOPE_AUTHORIZATION_APPROVED,
+        row.scopeKey,
+        actor,
+        cid,
+        {
+          scopeAuthorizationId: row.scopeKey,
+          decisionDigest: row.decisionDigest,
+          revision: row.revision,
+        },
+      );
+      return {
+        scopeKey: approved.scopeKey,
+        decisionDigest: approved.decisionDigest,
+        revision: approved.revision,
+        state: approved.state,
+      };
+    });
   }
 
   /**
@@ -667,6 +921,16 @@ export class PreparationRuleService {
           validateSelectedOutput(hydrated[index], output, cid);
           return { input: hydrated[index], output };
         });
+
+        // Even a dry-run must establish positive scope authority before claiming eligibility.
+        for (const { input, output } of prepared)
+          await requireSelectedScopeAuthorization(
+            tx,
+            input,
+            output,
+            cid,
+            this.scopeSourceAuthority,
+          );
 
         if (request.dryRun) {
           // Preview only: report what an import would record, using reads alone.
@@ -1294,10 +1558,15 @@ export class PreparationRuleService {
       !result.instructionReceipt
     )
       catalogFailure(E.CONFLICT, cid);
-    validateSelectedOutput(
-      preparationRuleInputSchema.parse(result.inputSnapshot),
+    const input = preparationRuleInputSchema.parse(result.inputSnapshot);
+    validateSelectedOutput(input, request.output, cid);
+    // A missing positive grant is a legal-review error, never a paid structural repair.
+    await requireSelectedScopeAuthorization(
+      this.prisma,
+      input,
       request.output,
       cid,
+      this.scopeSourceAuthority,
     );
     return { valid: true as const };
   }
@@ -1344,10 +1613,15 @@ export class PreparationRuleService {
           request.failureCode
         )
           catalogFailure(E.RESULT_INVALID, cid, 422);
-        validateSelectedOutput(
-          preparationRuleInputSchema.parse(result.inputSnapshot),
+        const input = preparationRuleInputSchema.parse(result.inputSnapshot);
+        validateSelectedOutput(input, request.output, cid);
+        // Completion rechecks authority even when worker preflight was inconclusive.
+        await requireSelectedScopeAuthorization(
+          tx,
+          input,
           request.output,
           cid,
+          this.scopeSourceAuthority,
         );
       } else if (
         request.executionState === A.FAILED &&
@@ -1527,7 +1801,7 @@ function isIdenticalCurrentResult(
  * Business rules:
  * - References stay within pinned chunks; AssessmentRule parents must be present, assessable and uniquely identified.
  * - Explicit unresolved legal scope blocks validation, import and selected activation; absence of the signal is not semantic approval.
- * - Only failure settlement may retain an unresolved draft, after validating its complete structure and provenance.
+ * - Failure settlement and explicit scope review may retain an unresolved draft, after validating its complete structure and provenance.
  * Execution flow:
  * 1. Parse canonical downstream contracts
  * 2. Verify unique identities, source allowlist and parent links.
@@ -1559,7 +1833,9 @@ export function validateSelectedOutput(
       `output.legalRequirements.${unresolvedIndex}.coverage.nonAssessableReason`,
       E.SCOPE_REVIEW_REQUIRED,
     );
-  if (retainUnresolvedDraft && unresolvedIndex === -1)
+  // A structurally valid but unauthorized normative candidate may be retained as a failed
+  // review draft, even when the model did not emit its own ambiguity marker.
+  if (retainUnresolvedDraft && !output.legalRequirements.length)
     rejectSelectedOutput(cid, "output.legalRequirements");
   const requirements = new Map(
     output.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.ts";
 import { LEGAL_REFERENCE_RESOLUTION_STATES } from "../legal-source/document-graph.ts";
+import { PREPARATION_SCOPE_STAGES } from "../compliance-rule-set/scope-review.ts";
 import {
   legalRequirementSchema,
   assessmentRuleSchema,
@@ -41,7 +42,12 @@ export const LEGAL_RULE_CATALOG_EVENTS = {
   RESULT_RECORDED: "event.legal-rule-catalog.result-recorded.v1",
   RESULT_IMPORTED: "event.legal-rule-catalog.result-imported.v1",
   // Import declarations are audit evidence, not server-approved scope decisions.
-  IMPORT_EXCLUSIONS_RECORDED: "event.legal-rule-catalog.import-exclusions-recorded.v1",
+  IMPORT_EXCLUSIONS_RECORDED:
+    "event.legal-rule-catalog.import-exclusions-recorded.v1",
+  SCOPE_AUTHORIZATION_SUBMITTED:
+    "event.legal-rule-catalog.scope-authorization-submitted.v1",
+  SCOPE_AUTHORIZATION_APPROVED:
+    "event.legal-rule-catalog.scope-authorization-approved.v1",
   DELETED: "event.legal-rule-catalog.deleted.v1",
 } as const;
 export const LEGAL_RULE_INELIGIBILITY_REASONS = {
@@ -282,6 +288,55 @@ export const preparationRuleOutputSchema = z
   })
   .transform(normalizeSelectedRuleOutput);
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;
+// Source-level semantic authority is separate from a selected-run result or a client
+// scope flag. Existing import/worker output schemas remain unchanged. An independent
+// reviewer can approve an exact normative candidate once; subsequent identical
+// imports/regenerations can consume that authority without a model invocation.
+const scopeHash = z.string().regex(/^[a-f0-9]{64}$/);
+export const selectedScopeDecisionSchema = z.strictObject({
+  legalRequirementId: z.string().min(1).max(128),
+  stage: z.enum(PREPARATION_SCOPE_STAGES),
+  rationale: z.string().trim().min(8).max(8000),
+  technicalDeliverable: z.string().trim().min(1).max(8000).nullable(),
+  // Offsets are UTF-16 code units, like other pinned legal source spans.
+  sourceSupport: z
+    .array(
+      z.strictObject({
+        chunkId: z.string().min(1),
+        startOffset: z.number().int().nonnegative(),
+        endOffset: z.number().int().positive(),
+        contentSha256: scopeHash,
+      }),
+    )
+    .min(1)
+    .max(256),
+});
+export const selectedScopeAuthorizationSubmitSchema = z.strictObject({
+  ruleId: id,
+  expectedCatalogRevision: z.number().int().positive(),
+  expectedReviewRevision: z.number().int().nonnegative(),
+  output: preparationRuleOutputSchema,
+  decisions: z
+    .array(selectedScopeDecisionSchema)
+    .min(1)
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+});
+export const selectedScopeAuthorizationApproveSchema = z.strictObject({
+  ruleId: id,
+  expectedCatalogRevision: z.number().int().positive(),
+  scopeKey: scopeHash,
+  expectedReviewRevision: z.number().int().positive(),
+  decisionDigest: scopeHash,
+  confirmsLegalReview: z.literal(true),
+});
+export type SelectedScopeDecision = z.infer<typeof selectedScopeDecisionSchema>;
+export type SelectedScopeAuthorizationSubmit = z.infer<
+  typeof selectedScopeAuthorizationSubmitSchema
+>;
+export type SelectedScopeAuthorizationApprove = z.infer<
+  typeof selectedScopeAuthorizationApproveSchema
+>;
+
 /** Version of the externally authored Assessment Rule Import document. */
 export const ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION = 1 as const;
 /** Why a reviewed Legal Rule (or part of one) was deliberately not imported. */

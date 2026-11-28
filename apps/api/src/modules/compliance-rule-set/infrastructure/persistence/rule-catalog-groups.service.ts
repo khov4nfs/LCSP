@@ -18,9 +18,19 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
   PREPARATION_SCOPE_STAGES,
   preparationScopeReviewSubmitSchema,
 } from "@lcsp/contracts/compliance-rule-set";
+import {
+  preparationRuleOutputSchema,
+  selectedScopeDecisionSchema,
+} from "@lcsp/contracts/legal-rule-catalog";
+import { z } from "zod";
+import {
+  canonicalJson,
+  sha256Hex,
+} from "../../../assessment/domain/domain-ids.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
@@ -66,35 +76,49 @@ export async function materializeGroupingProposal(
   });
   const preparationRun = version.preparationRun;
   const preparationRunId = version.preparationRunId;
-  if (
-    !preparationRun ||
-    !preparationRunId ||
-    version.ruleSetDigest !== ruleSetDigest ||
-    version.targetActivityScope !==
-      PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
-    preparationRun.executionState === AgentExecutionState.FAILED ||
-    version.lifecycleState === ArtifactLifecycleState.INVALID
-  )
-    throw problemException(
+  /**
+   * Business purpose: Reject a grouping request lacking exact development authority.
+   * Business rules:
+   * - Do not expose source or decision data in a conflict.
+   * Execution flow: 1. Construct the shared problem response.
+   * Failure cases:
+   * - The caller aborts grouping on any proof mismatch.
+   * Side effects:
+   * - None; constructs an error only.
+   */
+  const conflict = () =>
+    problemException(
       COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
       randomUUID(),
       { status: HttpStatus.CONFLICT },
     );
-  const review = await tx.ruleSetPreparationScopeReview.findUnique({
-    where: {
-      preparationRunId_inventoryRevision: {
-        preparationRunId,
-        inventoryRevision: preparationRun.claimInventoryRevision,
-      },
-    },
-  });
+  if (
+    version.ruleSetDigest !== ruleSetDigest ||
+    version.targetActivityScope !==
+      PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
+    version.lifecycleState === ArtifactLifecycleState.INVALID
+  )
+    throw conflict();
   const approvedDecisions = new Map<
     string,
     ReturnType<
       typeof preparationScopeReviewSubmitSchema.shape.decisions.parse
     >[number]
   >();
-  if (review?.state === PreparationScopeReviewState.APPROVED) {
+  let selectedRequirementIds: Set<string> | null = null;
+  if (preparationRun && preparationRunId) {
+    if (preparationRun.executionState === AgentExecutionState.FAILED)
+      throw conflict();
+    const review = await tx.ruleSetPreparationScopeReview.findUnique({
+      where: {
+        preparationRunId_inventoryRevision: {
+          preparationRunId,
+          inventoryRevision: preparationRun.claimInventoryRevision,
+        },
+      },
+    });
+    if (review?.state !== PreparationScopeReviewState.APPROVED)
+      throw conflict();
     const projection = await requireApprovedDevelopmentScope(
       tx,
       preparationRunId,
@@ -109,6 +133,76 @@ export async function materializeGroupingProposal(
     ))
       if (retained.has(decision.claimId))
         approvedDecisions.set(decision.claimId, decision);
+  } else {
+    // The selected publication's immutable manifest points at reusable source-bound
+    // approvals; catalog/result deletion cannot erase these source-owned proofs.
+    const parsed = z
+      .array(
+        z.object({
+          ruleId: z.string().uuid(),
+          scopeAuthorizationKey: z.string().regex(/^[a-f0-9]{64}$/),
+        }),
+      )
+      .min(1)
+      .safeParse(version.selectedPreparationResults);
+    if (
+      preparationRun ||
+      preparationRunId ||
+      !parsed.success ||
+      new Set(parsed.data.map((row) => row.scopeAuthorizationKey)).size !==
+        parsed.data.length
+    )
+      throw conflict();
+    const keys = parsed.data.map((row) => row.scopeAuthorizationKey);
+    const proofs = await tx.selectedRuleScopeAuthorization.findMany({
+      where: {
+        scopeKey: { in: keys },
+        legalSourceVersionId: version.legalSourceVersionId,
+        state: PreparationScopeReviewState.APPROVED,
+      },
+    });
+    if (proofs.length !== keys.length) throw conflict();
+    selectedRequirementIds = new Set();
+    for (const entry of parsed.data) {
+      const proof = proofs.find(
+        (row) => row.scopeKey === entry.scopeAuthorizationKey,
+      );
+      if (
+        !proof ||
+        proof.ruleId !== entry.ruleId ||
+        !proof.approvedBy ||
+        proof.approvedBy === proof.submittedBy ||
+        !proof.approvedAt
+      )
+        throw conflict();
+      const candidate = preparationRuleOutputSchema.parse(proof.output);
+      const decisions = z
+        .array(selectedScopeDecisionSchema)
+        .parse(proof.decisions);
+      if (
+        sha256Hex(
+          canonicalJson(
+            [...decisions].sort((a, b) =>
+              a.legalRequirementId.localeCompare(b.legalRequirementId),
+            ),
+          ),
+        ) !== proof.decisionDigest
+      )
+        throw conflict();
+      const developmentIds = new Set(
+        decisions
+          .filter((d) => d.stage === PREPARATION_SCOPE_STAGES[0])
+          .map((d) => d.legalRequirementId),
+      );
+      for (const req of candidate.legalRequirements)
+        if (
+          req.coverage.state ===
+          LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES
+        ) {
+          if (!developmentIds.has(req.legalRequirementId)) throw conflict();
+          selectedRequirementIds.add(req.legalRequirementId);
+        }
+    }
   }
   const rules = await tx.assessmentRule.findMany({
     where: { ruleSetVersionId },
@@ -127,6 +221,14 @@ export async function materializeGroupingProposal(
     const requirements = rule.legalRequirementLinks.map(
       (link) => link.legalRequirement,
     );
+    if (
+      selectedRequirementIds &&
+      (!requirements.length ||
+        requirements.some(
+          (req) => !selectedRequirementIds!.has(req.legalRequirementId),
+        ))
+    )
+      throw conflict();
     const propositions = requirements.flatMap((requirement) =>
       Array.isArray(requirement.operativePropositions)
         ? requirement.operativePropositions

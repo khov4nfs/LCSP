@@ -72,6 +72,29 @@ model PreparationRule {
   results PreparationRuleResult[]
 }
 
+/// Independent, reusable approval of exact source-backed normative content.
+/// It deliberately has no PreparationRun foreign key: external JSON authors can
+/// obtain source authority without dispatching any model or creating a run.
+model SelectedRuleScopeAuthorization {
+  scopeKey String @id
+  legalSourceVersionId String
+  catalogId String
+  ruleId String
+  revision Int @default(1)
+  state PreparationScopeReviewState @default(DRAFT)
+  output Json
+  decisions Json
+  decisionDigest String
+  submittedBy String
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  legalSourceVersion LegalSourceVersion @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "SelectedRuleScopeAuthorization_source_fkey")
+  @@index([legalSourceVersionId, state], map: "SelectedRuleScopeAuthorization_source_state_idx")
+  @@index([catalogId, ruleId], map: "SelectedRuleScopeAuthorization_catalog_rule_idx")
+}
+
 model PreparationRuleResult {
   id String @id @default(uuid())
   preparationRuleId String
@@ -986,6 +1009,7 @@ model LegalSource {
 
 model LegalSourceVersion {
   ruleCatalogVersions LegalRuleCatalogVersion[]
+  selectedScopeAuthorizations SelectedRuleScopeAuthorization[]
   id                     String                        @id @default(uuid())
   /// Always set: a database trigger assigns a parent when an insert names none (older callers).
   legalSourceId          String?

@@ -1,5 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { AgentExecutionState } from "@prisma/client";
+import {
+  AgentExecutionState,
+  LegalEffectStatus,
+  LegalSourceDocumentCorpusRole,
+  PreparationScopeReviewState,
+} from "@prisma/client";
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import {
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
@@ -14,9 +20,19 @@ import {
   preparationRuleOutputSchema,
   type AssessmentRuleImportRequest,
 } from "@lcsp/contracts/legal-rule-catalog";
-import { PreparationRuleService } from "./preparation-rule.service.js";
+import {
+  PreparationRuleService,
+  normalizeImportItem,
+} from "./preparation-rule.service.js";
+import {
+  selectedScopeKey,
+  validateSelectedScopeDecisions,
+} from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 import { preparationInputFingerprint } from "./legal-rule-catalog.service.js";
-import { canonicalJson } from "../../../assessment/domain/domain-ids.js";
+import {
+  canonicalJson,
+  sha256Hex,
+} from "../../../assessment/domain/domain-ids.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
 const uuid = (n: number) =>
@@ -25,10 +41,12 @@ const catalogId = uuid(3);
 const sourceId = uuid(4);
 const ruleId = uuid(2);
 const excludedRuleId = uuid(8);
+// Synthetic unit source; real corpus byte identity has its own regression.
+const legalText = "Legal text";
 const ref = {
   documentId: "LAW-134-2025-QH15",
   locator: "art-7::cl-5",
-  contentSha256: `sha256:${"a".repeat(64)}`,
+  contentSha256: `sha256:${sha256Hex(legalText)}`,
 };
 const input = {
   ruleId,
@@ -42,7 +60,7 @@ const input = {
   sourceVersion: "v1",
   indexId: uuid(5),
   indexContentHash: "sha256:index",
-  citations: [{ ...ref, chunkId: "chunk-1", content: "Legal text" }],
+  citations: [{ ...ref, chunkId: "chunk-1", content: legalText }],
 };
 const requirementId = `${ruleId}:preserve-mark`;
 const request = (
@@ -103,6 +121,46 @@ const request = (
     ...override,
   });
 
+function approvedScope() {
+  const output = normalizeImportItem(request().items[0], 0, "fixture");
+  const decisions = [
+    {
+      legalRequirementId: requirementId,
+      stage: "DEVELOPMENT" as const,
+      rationale: "Synthetic source-backed development control fixture",
+      technicalDeliverable: "Preserve mandatory marking",
+      sourceSupport: [
+        {
+          chunkId: input.citations[0].chunkId,
+          startOffset: 0,
+          endOffset: legalText.length,
+          contentSha256: sha256Hex(legalText),
+        },
+      ],
+    },
+  ];
+  const scopeKey = selectedScopeKey(input, output);
+  return {
+    scopeKey,
+    legalSourceVersionId: sourceId,
+    catalogId,
+    ruleId,
+    state: PreparationScopeReviewState.APPROVED,
+    revision: 1,
+    output,
+    decisions,
+    decisionDigest: validateSelectedScopeDecisions(
+      input,
+      output,
+      decisions,
+      "fixture",
+    ),
+    submittedBy: "author-fixture",
+    approvedBy: "reviewer-fixture",
+    approvedAt: new Date(0),
+  };
+}
+
 type Call = (...args: unknown[]) => Promise<unknown>;
 const resolves = (value: unknown) => jest.fn<Call>().mockResolvedValue(value);
 
@@ -112,7 +170,30 @@ function setup(
     legalSourceVersionId: sourceId,
   },
 ) {
+  const grant = approvedScope();
   const tx = {
+    selectedRuleScopeAuthorization: {
+      findUnique: jest
+        .fn<(args: { where: { scopeKey: string } }) => Promise<unknown>>()
+        .mockImplementation(async (args) =>
+          args.where.scopeKey === grant.scopeKey ? grant : null,
+        ),
+      create: resolves(grant),
+      update: resolves(grant),
+    },
+    legalDocumentChunk: {
+      findMany: resolves([
+        {
+          id: input.citations[0].chunkId,
+          ...ref,
+          content: legalText,
+          legalEffectStatus: LegalEffectStatus.EFFECTIVE,
+          sourceDocument: {
+            corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+          },
+        },
+      ]),
+    },
     preparationRule: {
       upsert: resolves({ id: uuid(6), legalRuleId: ruleId }),
       findUnique: resolves({ id: uuid(6), legalRuleId: ruleId }),
@@ -166,11 +247,97 @@ function setup(
       { execute: jest.fn<Call>() } as never,
       {} as never,
       {} as never,
+      fixtureSourceAuthority,
     ),
   };
 }
 
 describe("PreparationRuleService.importAssessmentRules", () => {
+  it.each([true, false])(
+    "rejects structurally valid but unauthorized import without any writes (dryRun=%s)",
+    async (dryRun) => {
+      const { subject, tx, catalogs, enqueue } = setup();
+      tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue(null);
+      await expect(
+        subject.importAssessmentRules(
+          catalogId,
+          request({ dryRun }),
+          "admin-1",
+          "cid",
+        ),
+      ).rejects.toMatchObject({
+        response: {
+          problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+        },
+      });
+      expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+      expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
+      expect(catalogs.record).not.toHaveBeenCalled();
+      expect(enqueue).not.toHaveBeenCalled();
+    },
+  );
+  it("requires a separate reviewer and an unchanged source-backed decision", async () => {
+    const { subject, tx, catalogs } = setup();
+    const grant = approvedScope();
+    tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue({
+      ...grant,
+      state: PreparationScopeReviewState.DRAFT,
+      approvedBy: null,
+      approvedAt: null,
+    });
+    const approval = {
+      ruleId,
+      expectedCatalogRevision: 3,
+      scopeKey: grant.scopeKey,
+      expectedReviewRevision: 1,
+      decisionDigest: grant.decisionDigest,
+      confirmsLegalReview: true as const,
+    };
+    await expect(
+      subject.approveScopeAuthorization(
+        catalogId,
+        approval,
+        grant.submittedBy,
+        "cid",
+      ),
+    ).rejects.toMatchObject({
+      response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.CONFLICT } },
+    });
+    expect(tx.selectedRuleScopeAuthorization.update).not.toHaveBeenCalled();
+    await expect(
+      subject.approveScopeAuthorization(
+        catalogId,
+        approval,
+        "reviewer-fixture",
+        "cid",
+      ),
+    ).resolves.toMatchObject({
+      scopeKey: grant.scopeKey,
+      state: PreparationScopeReviewState.APPROVED,
+    });
+    expect(tx.selectedRuleScopeAuthorization.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ approvedBy: "reviewer-fixture" }),
+      }),
+    );
+    expect(catalogs.record).toHaveBeenCalled();
+  });
+  it("does not reuse a reviewed result when the legal condition is changed", async () => {
+    const { subject, tx } = setup();
+    const changed = request();
+    changed.items[0].legalRequirements[0].applicabilityConditions = [
+      "A changed legal condition",
+    ];
+    await expect(
+      subject.importAssessmentRules(catalogId, changed, "admin-1", "cid"),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+      },
+    });
+    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+  });
+
   it("records a SUCCEEDED prepared revision without dispatching any agent work", async () => {
     const { subject, tx, catalogs, enqueue } = setup();
     const result = await subject.importAssessmentRules(
