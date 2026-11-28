@@ -340,7 +340,8 @@ describe("PreparationRuleService.importAssessmentRules", () => {
             excludedItems: [
               {
                 ruleId,
-                reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
+                reasonCode:
+                  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
                 reason: "Actor and regulated activity require legal review",
               },
             ],
@@ -376,7 +377,8 @@ describe("PreparationRuleService.importAssessmentRules", () => {
         coverage: {
           state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
           nonAssessableReason:
-            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX + " actor unresolved",
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX +
+            " actor unresolved",
         },
       });
       await expect(
@@ -385,7 +387,9 @@ describe("PreparationRuleService.importAssessmentRules", () => {
         response: {
           problem: {
             code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
-            meta: { issues: "output.legalRequirements.1.coverage.nonAssessableReason" },
+            meta: {
+              issues: "output.legalRequirements.1.coverage.nonAssessableReason",
+            },
           },
         },
       });

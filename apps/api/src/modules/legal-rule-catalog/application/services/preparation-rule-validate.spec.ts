@@ -202,7 +202,8 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
         coverage: {
           state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
           nonAssessableReason:
-            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX + " stage unresolved",
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX +
+            " stage unresolved",
         },
       },
     ],

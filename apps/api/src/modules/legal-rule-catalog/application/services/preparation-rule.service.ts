@@ -617,7 +617,10 @@ export class PreparationRuleService {
             ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
         );
         if (reviewRequiredIndex !== -1)
-          rejectSelectedOutput(cid, `excludedItems.${reviewRequiredIndex}.reasonCode`);
+          rejectSelectedOutput(
+            cid,
+            `excludedItems.${reviewRequiredIndex}.reasonCode`,
+          );
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
           if (!entry) catalogFailure(E.NOT_FOUND, cid, 404);
