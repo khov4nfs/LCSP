@@ -10,18 +10,23 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import re
 import time
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
-from typing import Any, Iterator
+from types import SimpleNamespace
+from typing import Any
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
+from langchain.agents.middleware import ModelResponse
 from langchain_core.exceptions import ModelError
+from langchain_core.messages import BaseMessage, message_to_dict, messages_from_dict
 
 from middleware.token_fallback import model_protocol, model_provider
 from middleware.usage_recovery import enqueue_usage, record_usage_evidence, drain
@@ -53,8 +58,15 @@ from tools.common.capabilities.platform.config import resolve_usage_recovery_sto
 from tools.common.capabilities.platform.logging import get_logger
 
 _MODEL_CALL_HEARTBEAT_SECONDS = 10.0
-# Output cap when the model route declares no ``max_output_tokens`` option.
-DEFAULT_MAX_OUTPUT_TOKENS = 4096
+# Why: Separate provider execution termination states from downstream output evaluation outcomes (ASM-USAGE-02..04).
+# How: Freeze canonical SCREAMING_SNAKE_CASE state sets for cross-layer metering and telemetry contracts.
+# Invariant: Provider completion status never implies schema or domain acceptance of the generated output.
+PROVIDER_COMPLETION_STATES: frozenset[str] = frozenset(
+    {"COMPLETED", "MAX_TOKENS", "TRUNCATED", "FAILED", "OUTCOME_UNKNOWN"}
+)
+OUTPUT_EVALUATION_STATES: frozenset[str] = frozenset(
+    {"ACCEPTED", "SCHEMA_INVALID", "DOMAIN_REJECTED", "NOT_EVALUATED"}
+)
 logger = get_logger(__name__)
 
 
@@ -67,6 +79,31 @@ class ModelIdentityMismatch(RuntimeError):
 
     status_code = 400
     error_code = "MODEL_IDENTITY_MISMATCH"
+
+
+class InFlightAdmissionRecoveryError(RuntimeError):
+    """Business purpose: Signal that an invocation admission is already IN_FLIGHT.
+
+    Business rules:
+    - Replay of an IN_FLIGHT admission is strictly for evidence recovery or reconciliation.
+    - Zero provider bytes or provider calls may be dispatched.
+
+    Execution flow:
+    1. Worker identifies returned admission state as IN_FLIGHT.
+    2. Halt execution before provider dispatch and attach admission metadata.
+
+    Failure cases:
+    - Handled as recovery control flow rather than unmediated error.
+
+    Side effects:
+    - Zero provider invocations made.
+    """
+
+    def __init__(self, admission: dict):
+        super().__init__(
+            f"Invocation {admission.get('invocationId')} is already IN_FLIGHT; bypassing provider dispatch for evidence recovery."
+        )
+        self.admission = admission
 
 
 _active_agent_role: ContextVar[str | None] = ContextVar(
@@ -163,9 +200,14 @@ class AgentRunState:
     api_client: WorkerApiClient | None = None
     admission: RunAdmission | None = None
     bounded: bool = False
+    # Why: A terminal ON settlement may empty the wallet on the final model call without another admission.
+    # How: Carry the server-owned post-debit decision to Root's separate after_model checkpoint node.
+    # Invariant: Fresh execution state resets this process-local flag; it never stands in for a billing receipt.
+    payment_required_after_settlement: bool = field(default=False, init=False)
     _attempt_times: dict[str, str] = field(default_factory=dict, init=False)
     _disabled_provider_routes: set[str] = field(default_factory=set, init=False)
     _sticky_provider_routes: set[str] = field(default_factory=set, init=False)
+    _attempt_ordinals: dict[str, int] = field(default_factory=dict, init=False)
 
     def disable_provider_route(self, provider: str, *, sticky: bool = False) -> None:
         """Skip a route for the rest of the run; ``sticky`` marks a transient failure."""
@@ -300,14 +342,119 @@ def check_request_context(request: Any, model: Any) -> "RequestMetrics":
 
 
 def output_token_limit(model: Any) -> int:
-    """The route's ``max_output_tokens`` profile value or the code default."""
+    """Business purpose: Resolve the authoritative per-call output token ceiling for a model route.
+
+    Business rules:
+    - Every governed model route must declare an explicit positive integer max_output_tokens; silent numeric defaults are prohibited.
+    - Inspect model.profile first, then attached route.options, then model.options when resolving the declared ceiling.
+    - Booleans, non-integers, missing values, and non-positive integers fail closed before provider dispatch.
+
+    Execution flow:
+    1. Read max_output_tokens from model.profile as a Mapping key or object attribute.
+    2. If still None, read max_output_tokens from model_route_config(model).options when available.
+    3. If still None, read max_output_tokens from model.options when it is a Mapping.
+    4. If the model lacks attached route metadata, match a single configured route by provider, protocol, and model.
+    5. Reject bool, non-int, non-positive, missing, or ambiguous values with ValueError; otherwise return the integer limit.
+
+    Failure cases:
+    - Raises ValueError mentioning max_output_tokens when the output cap is absent or invalid.
+
+    Side effects:
+    - Pure read-only metadata inspection; no model invocation or persistence occurs.
+    """
+    # Why: Fail closed when a model route omits max_output_tokens instead of silently falling back to a hard-coded default.
+    # How: Check profile, then route.options, then model.options while declared is None, then enforce strict positive int.
+    # Invariant: Python bool subclasses int, so isinstance(declared, bool) must be rejected explicitly before dispatch.
     profile = getattr(model, "profile", None)
     declared = (
         profile.get("max_output_tokens")
-        if isinstance(profile, dict)
+        if isinstance(profile, Mapping)
         else getattr(profile, "max_output_tokens", None)
     )
-    return declared if isinstance(declared, int) and declared > 0 else DEFAULT_MAX_OUTPUT_TOKENS
+    if declared is None:
+        route = model_route_config(model)
+        if route is not None and isinstance(route.options, Mapping):
+            declared = route.options.get("max_output_tokens")
+    if declared is None:
+        options = getattr(model, "options", None)
+        if isinstance(options, Mapping):
+            declared = options.get("max_output_tokens")
+    if isinstance(declared, bool) or not isinstance(declared, int) or declared <= 0:
+        raise ValueError("Model route must declare a positive integer max_output_tokens")
+    return declared
+
+
+def input_token_limit(model: Any) -> int:
+    """Business purpose: Resolve the authoritative per-call input token ceiling (context window) for a model route.
+
+    Business rules:
+    - Every governed model route must declare an explicit positive integer context_window_tokens; silent numeric defaults are prohibited.
+    - Fallback lookup for an untagged model must match exactly one provider, protocol, and model identity.
+    - Inspect model.profile first, then attached route.options, then model.options when resolving the declared ceiling.
+    - Booleans, non-integers, missing values, and non-positive integers fail closed before provider dispatch.
+
+    Execution flow:
+    1. Read context_window_tokens or max_input_tokens from model.profile as a Mapping key or object attribute.
+    2. If still None, read context_window_tokens or max_input_tokens from model_route_config(model).options when available.
+    3. If still None, read context_window_tokens or max_input_tokens from model.options when it is a Mapping.
+    4. Reject bool, non-int, or non-positive values with ValueError; otherwise return the integer limit.
+
+    Failure cases:
+    - Raises ValueError mentioning context_window_tokens when the context window is absent, ambiguous, or invalid.
+
+    Side effects:
+    - Pure read-only metadata inspection; no model invocation or persistence occurs.
+    """
+    # Why: Fail closed when a model route omits context_window_tokens instead of silently falling back to a loose 1000 default.
+    # How: Check profile, then route.options, then model.options while declared is None, then enforce strict positive int.
+    # Invariant: Python bool subclasses int, so isinstance(declared, bool) must be rejected explicitly before dispatch.
+    profile = getattr(model, "profile", None)
+    declared = (
+        profile.get("context_window_tokens") or profile.get("max_input_tokens")
+        if isinstance(profile, Mapping)
+        else (getattr(profile, "context_window_tokens", None) or getattr(profile, "max_input_tokens", None))
+    )
+    if declared is None:
+        route = model_route_config(model)
+        if route is not None and isinstance(route.options, Mapping):
+            declared = route.options.get("context_window_tokens") or route.options.get("max_input_tokens")
+    if declared is None:
+        options = getattr(model, "options", None)
+        if isinstance(options, Mapping):
+            declared = options.get("context_window_tokens") or options.get("max_input_tokens")
+    if declared is None:
+        try:
+            from middleware.paid_admission import _TEST_SCRIPTED_MODEL_REGISTRY
+            registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+            if registry and id(model) in registry:
+                declared = registry[id(model)].get("input_upper_bound")
+        except Exception:
+            pass
+    if declared is None:
+        try:
+            from model_policy import load_model_routes
+            routes_obj = load_model_routes()
+            provider = getattr(model, "provider", None)
+            protocol = model_protocol(model)
+            model_name = getattr(model, "model_name", None) or getattr(model, "model", None)
+            # Why: A model name can be reused by different providers with different token limits.
+            # How: Accept an untagged model only when its full runtime identity selects one route.
+            # Invariant: Route ordering cannot lower the exposure sent to server admission.
+            matches = [
+                cfg for cfg in routes_obj.routes.values()
+                if provider and protocol and model_name
+                and cfg["provider"] == provider
+                and cfg["protocol"] == protocol
+                and cfg["model"] == model_name
+            ]
+            if len(matches) == 1:
+                opts = matches[0].get("options", {})
+                declared = opts.get("context_window_tokens") or opts.get("max_input_tokens")
+        except Exception:
+            pass
+    if isinstance(declared, bool) or not isinstance(declared, int) or declared <= 0:
+        raise ValueError("Model route must declare a positive integer context_window_tokens")
+    return declared
 
 
 def response_shape(response: Any) -> list[dict[str, Any]]:
@@ -338,16 +485,32 @@ def response_shape(response: Any) -> list[dict[str, Any]]:
 
 
 def output_cap_settings(model: Any) -> dict[str, int]:
-    """The per-call output ceiling as native model settings.
+    """Business purpose: Build the native per-call output token ceiling settings for downstream provider dispatch.
 
-    LangChain forwards ``request.model_settings`` through ``bind_tools``/``bind``. A bare
-    ``model.bind(max_tokens=...)`` is dropped by ``bind_tools``, so a cap bound that way never
-    reached the provider and the SDK's own default (4096 for an unknown Anthropic model id) won.
+    Business rules:
+    - Validate and resolve max_output_tokens before provider/protocol projection so misconfigured routes fail closed.
+    - LangChain forwards request.model_settings through bind_tools/bind, whereas bare model.bind can be dropped by bind_tools.
+    - Google GenAI protocol routes receive max_output_tokens; other supported protocols receive max_tokens.
+
+    Execution flow:
+    1. Call output_token_limit(model) eagerly to enforce explicit positive integer cap declaration.
+    2. Resolve provider identity and protocol for the target model.
+    3. Return the protocol-specific settings mapping containing the validated output limit.
+
+    Failure cases:
+    - Propagates ValueError from output_token_limit(model) when max_output_tokens is missing or invalid.
+
+    Side effects:
+    - Pure read-only settings construction; no provider call or telemetry write occurs.
     """
+    # Why: Resolve and validate output_token_limit eagerly before touching provider/protocol routing.
+    # How: Enforce limit = output_token_limit(model) first, then map to the native protocol parameter name.
+    # Invariant: Never fall back to any implicit SDK or code-level numeric default when max_output_tokens is missing.
+    limit = output_token_limit(model)
     provider, _ = provider_identity(model, None)
     protocol = model_protocol(model) or provider.lower()
     parameter = "max_output_tokens" if protocol == "google_genai" else "max_tokens"
-    return {parameter: output_token_limit(model)}
+    return {parameter: limit}
 
 
 @dataclass(frozen=True)
@@ -619,7 +782,14 @@ def active_model_step_id() -> str | None:
 class _ModelCallTelemetry:
     """Emit safe progress around one blocking provider call."""
 
-    def __init__(self, model: Any, *, invocation_id: str | None = None) -> None:
+    def __init__(
+        self,
+        model: Any,
+        *,
+        invocation_id: str | None = None,
+        admission: dict | None = None,
+        api_client: Any | None = None,
+    ) -> None:
         self.provider, self.model_name = provider_identity(model)
         self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
@@ -629,6 +799,8 @@ class _ModelCallTelemetry:
         self.logical_invocation_id = _active_logical_invocation_id()
         self.agent_role = active_agent_role()
         self.operation_type = active_model_operation()
+        self._admission = admission
+        self._api_client = api_client
         self._started_at = time.monotonic()
         self._stop = Event()
         self._context = copy_context()
@@ -771,6 +943,27 @@ class _ModelCallTelemetry:
         self._emit(event_type, status=status, text=text, data=data)
 
     def _heartbeat(self) -> None:
+        """Business purpose: Emit live progress telemetry and extend the in-flight admission lease during model inference.
+
+        Business rules:
+        - Runs on a background thread while model inference is active.
+        - Emits safe waiting progress events at fixed intervals without logging raw prompts or keys.
+        - Calls the server admission heartbeat endpoint with capability token to prevent false lease recovery sweeps.
+        - Heartbeat failures are non-blocking and never abort an in-progress model inference.
+
+        Execution flow:
+        1. Initialize timer tracking next heartbeat interval.
+        2. Wait on stop event or cancellation context.
+        3. When interval elapses, emit MODEL_CALL_HEARTBEAT telemetry event.
+        4. If api_client and admission are present, POST heartbeat extension to internal billing API.
+        5. Reset timer and loop until execution terminates or cancellation triggers.
+
+        Failure cases:
+        - Network errors or rejected heartbeats are caught and ignored; the inference loop continues.
+
+        Side effects:
+        - Emits progress stream events and updates inFlightLeaseExpiresAt on the server.
+        """
         cancel = self._context.get(active_agent_stream_cancel)
         next_heartbeat = time.monotonic() + _MODEL_CALL_HEARTBEAT_SECONDS
         while not self._stop.wait(min(0.025, _MODEL_CALL_HEARTBEAT_SECONDS)):
@@ -784,6 +977,16 @@ class _ModelCallTelemetry:
                     text="model call waiting",
                     data=self._data(elapsed_seconds=self._elapsed_seconds()),
                 )
+                if self._api_client is not None and self._admission is not None:
+                    try:
+                        self._api_client.heartbeat_invocation_admission({
+                            "admissionId": self._admission.get("admissionId"),
+                            "invocationId": self._admission.get("invocationId"),
+                            "capabilityToken": self._admission.get("capabilityToken", ""),
+                            "extensionSeconds": 900,
+                        })
+                    except Exception:
+                        pass
                 next_heartbeat = time.monotonic() + _MODEL_CALL_HEARTBEAT_SECONDS
 
     def _elapsed_seconds(self) -> int:
@@ -1047,6 +1250,28 @@ def _publish_provider_attempt_failure(
     })
 
 
+def _checkpoint_model_step_id(request: Any) -> str | None:
+    """Business purpose: Bind a billable logical model step to the native graph task across checkpoint replay.
+
+    Business rules:
+    - Use only a LangGraph execution task identity when present; its server-bound run context is checked at admission.
+    - A repeated physical attempt within one task retains the same logical operation; distinct tasks have distinct IDs.
+    Execution flow:
+    1. Read the request runtime's checkpointed execution information.
+    2. Return its nonempty task ID as the model-step identity, or None for nongraph callers.
+    Failure cases:
+    - Missing or malformed graph metadata falls back to the caller's existing fresh-step behavior.
+    Side effects:
+    - Pure context inspection; no journal, provider, or server write.
+    """
+    # Why: A crash after paid settlement but before model-node checkpoint replays that node.
+    # How: LangGraph retains the same task_id on node replay, allowing the server's logical-operation fence to match it.
+    # Invariant: A fresh random step ID must not bypass the server's already-settled admission on replay.
+    info = getattr(getattr(request, "runtime", None), "execution_info", None)
+    task_id = getattr(info, "task_id", None)
+    return f"graph-task:{task_id}" if isinstance(task_id, str) and task_id.strip() else None
+
+
 class AgentRoleMiddleware(AgentMiddleware):
     """Attach the canonical policy role to every model call of one agent."""
 
@@ -1068,7 +1293,7 @@ class AgentRoleMiddleware(AgentMiddleware):
         Side effects:
         - Changes temporary contexts and may publish terminal failure; downstream middleware owns provider calls and usage.
         """
-        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step(_checkpoint_model_step_id(request)) as step_id:
             try:
                 return handler(request)
             except Exception as error:
@@ -1089,7 +1314,7 @@ class AgentRoleMiddleware(AgentMiddleware):
         Side effects:
         - Changes temporary contexts and may publish terminal failure; downstream middleware owns inference and settlement.
         """
-        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step(_checkpoint_model_step_id(request)) as step_id:
             try:
                 return await handler(request)
             except Exception as error:
@@ -1104,7 +1329,429 @@ class UsageMeteringMiddleware(AgentMiddleware):
     token usage is reported only when the run state is attached to an assessment.
     """
 
+    def __init__(self, recovery_store: Any | None = None) -> None:
+        super().__init__()
+        self._recovery_store = recovery_store
+
+    @staticmethod
+    def _serialize_model_response(response: Any) -> dict[str, Any]:
+        """Business purpose: Encode a paid model response for exact graph-step recovery.
+
+        Business rules:
+        - Preserve message content, tool calls, metadata, and usage through LangChain's message schema.
+        - Reject unsupported structured outputs rather than storing a lossy representation.
+        Execution flow:
+        1. Encode each model message using the LangChain message serializer.
+        2. Validate the full payload is JSON-compatible before encrypted persistence.
+        Failure cases:
+        - Unsupported response shape or non-JSON metadata raises before settlement.
+        Side effects:
+        - Pure serialization; no disk or provider access.
+        """
+        # Why: ModelResponse.dumpd() is not implemented and repr cannot restore paid tool calls.
+        # How: Use the supported message schema and a strict JSON round trip.
+        # Invariant: Never persist an incomplete response that would change graph behavior on replay.
+        if isinstance(response, ModelResponse):
+            payload = {
+                "kind": "model_response",
+                "result": [message_to_dict(message) for message in response.result],
+                "structured_response": response.structured_response,
+            }
+        elif isinstance(response, BaseMessage):
+            payload = {"kind": "message", "data": message_to_dict(response)}
+        elif isinstance(response, SimpleNamespace):
+            # Why: Some governed integrations return a plain response object with token metadata.
+            # How: Retain only its JSON attributes and restore the same inert container type.
+            # Invariant: Never deserialize arbitrary Python classes from paid response storage.
+            payload = {"kind": "simple_response", "data": vars(response)}
+        else:
+            raise ValueError("Unsupported model response type for recovery")
+        return json.loads(json.dumps(payload, allow_nan=False))
+
+    @staticmethod
+    def _deserialize_model_response(payload: dict[str, Any]) -> Any:
+        """Business purpose: Restore the original paid model result for a replayed graph node.
+
+        Business rules:
+        - Accept only the bounded message schema created by the serializer.
+        - Do not import arbitrary Python classes from persisted ciphertext.
+        Execution flow:
+        1. Validate payload keys and message list.
+        2. Restore LangChain message instances and structured JSON value.
+        Failure cases:
+        - Malformed payload raises before the graph can consume it.
+        Side effects:
+        - Pure in-memory reconstruction; no provider call.
+        """
+        # Why: Returning plain dictionaries would break downstream tool-call and checkpoint semantics.
+        # How: Reconstruct only LangChain's known message types from authenticated JSON.
+        # Invariant: Never execute code or import arbitrary classes from the recovery store.
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid recovered model response shape")
+        if payload.get("kind") == "message" and set(payload) == {"kind", "data"}:
+            return messages_from_dict([payload["data"]])[0]
+        if payload.get("kind") == "simple_response" and set(payload) == {"kind", "data"}:
+            if not isinstance(payload["data"], dict):
+                raise ValueError("Invalid recovered simple response")
+            return SimpleNamespace(**payload["data"])
+        if payload.get("kind") != "model_response" or set(payload) != {"kind", "result", "structured_response"}:
+            raise ValueError("Invalid recovered model response shape")
+        messages = payload["result"]
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("Recovered model response has no messages")
+        return ModelResponse(result=messages_from_dict(messages), structured_response=payload["structured_response"])
+
+    @staticmethod
+    def _response_recovery_identity(request: Any) -> tuple[str, str]:
+        """Business purpose: Bind a temporary paid answer to its original execution and graph step.
+
+        Business rules:
+        - A missing run or stable logical step cannot authorize response recovery.
+        Execution flow:
+        1. Read trusted active run state and the active graph step.
+        2. Fall back only to the request's explicitly supplied execution IDs.
+        Failure cases:
+        - Missing identity raises a fail-closed paid admission error.
+        Side effects:
+        - Pure identity lookup.
+        """
+        # Why: A response may contain customer material and must never cross run or step boundaries.
+        # How: Reuse the same stable identities that the server admission request uses.
+        # Invariant: No random fallback ID can bind a paid result.
+        state = active_agent_run_state()
+        run_id = (state.run_id if state else None) or getattr(request, "run_id", None)
+        step_id = active_model_step_id() or getattr(request, "logical_operation_id", None)
+        if not isinstance(run_id, str) or not run_id or not isinstance(step_id, str) or not step_id:
+            raise PaidAdmissionError("MISSING_EXECUTION_CONTEXT", run_id or "unknown")
+        return run_id, step_id
+
+    def _persist_model_response(self, request: Any, admission: dict[str, Any], response: Any) -> None:
+        """Business purpose: Durably protect the original paid answer before settlement may become terminal.
+
+        Business rules:
+        - Persist an authenticated response before settlement to close the paid-answer crash window.
+        - A failed write must stop terminal settlement and never silently discard the answer.
+        Execution flow:
+        1. Resolve exact run and graph step identities.
+        2. Serialize the model response without losing tool calls or usage.
+        3. Encrypt and commit a temporary response with a 24-hour expiry.
+        Failure cases:
+        - Missing store or unsupported response fails closed with no terminal acknowledgment.
+        Side effects:
+        - Writes encrypted customer response content to worker-local SQLite.
+        """
+        # Why: LangGraph's checkpoint occurs only after this middleware returns.
+        # How: Commit encrypted ciphertext synchronously before the server settlement call.
+        # Invariant: A missing durable answer cannot become a locally replayable terminal result.
+        store = self._get_recovery_store()
+        if store is None:
+            raise PaidAdmissionError("CAPABILITY_RECOVERY_STORE_UNAVAILABLE", getattr(request, "run_id", "unknown"))
+        run_id, step_id = self._response_recovery_identity(request)
+        payload = self._serialize_model_response(response)
+        store.record_model_response(
+            admission["admissionId"], admission["invocationId"], run_id, step_id, payload,
+            datetime.now(timezone.utc) + timedelta(hours=24),
+        )
+
+    def _persist_output_causation(self, request: Any, invocation_id: str, response: Any) -> None:
+        """Business purpose: Link each emitted tool call to the physical model attempt that produced it.
+
+        Business rules:
+        - Only the server-issued invocation identity can own a tool-call causation row.
+        - A conflicting mapping must fail closed before downstream evaluation.
+        Execution flow:
+        1. Resolve the active run and encrypted recovery store.
+        2. Persist each model-emitted tool call under the physical invocation identity.
+        Failure cases:
+        - Missing store or conflicting tool-call identity raises and stops this response.
+        Side effects:
+        - Writes worker-local durable causation rows for later evidence matching.
+        """
+        # Why: A logical model turn can emit multiple tool calls and can span physical retries.
+        # How: Bind emitted tool_call IDs to the current server invocation before any evaluator sees them.
+        # Invariant: A later DOMAIN_REJECTED verdict cannot guess its physical cause from model_turn alone.
+        from middleware.model_output_causation import record_physical_tool_call_causation
+
+        run_id, _ = self._response_recovery_identity(request)
+        store = self._get_recovery_store()
+        if store is None:
+            raise PaidAdmissionError("CAPABILITY_RECOVERY_STORE_UNAVAILABLE", run_id)
+        record_physical_tool_call_causation(store.db_path, run_id, invocation_id, response)
+
+    def _restore_terminal_model_response(self, request: Any, admission: dict[str, Any]) -> Any:
+        """Business purpose: Return a previously paid answer after the server confirms terminal replay.
+
+        Business rules:
+        - Require both server SETTLED status and exact local admission and invocation IDs.
+        - An expired, missing, or damaged answer must fail closed without provider redispatch.
+        Execution flow:
+        1. Resolve the original run and graph step.
+        2. Read authenticated terminal response record from local storage.
+        3. Compare the server replay IDs and reconstruct the model response.
+        Failure cases:
+        - Any mismatch or missing terminal record rejects replay.
+        Side effects:
+        - Reads encrypted worker-local SQLite; no provider call or new settlement.
+        """
+        # Why: A local terminal marker alone cannot prove current billing authority.
+        # How: Compare it against a fresh server-issued SETTLED replay for the same physical invocation.
+        # Invariant: One paid physical call yields at most its original answer on graph replay.
+        run_id, step_id = self._response_recovery_identity(request)
+        store = self._get_recovery_store()
+        record = store.get_terminal_model_response_record(run_id, step_id) if store else None
+        if (
+            record is None
+            or record.get("admissionId") != admission.get("admissionId")
+            or record.get("invocationId") != admission.get("invocationId")
+        ):
+            raise PaidAdmissionError("PAID_RESPONSE_RECOVERY_UNAVAILABLE", run_id)
+        return self._deserialize_model_response(record["response"])
+
+    @staticmethod
+    def _stamp_physical_invocation_id(response: Any, invocation_id: str) -> None:
+        """Business purpose: Preserve the server-issued physical call identity for downstream output evaluation.
+
+        Business rules:
+        - The marker comes only from the current server admission, never provider response metadata.
+        - It identifies one physical attempt; retry and fallback responses must carry their own invocation IDs.
+        Execution flow:
+        1. Locate returned model messages.
+        2. Overwrite the reserved metadata field on every message with the current invocation ID.
+        Failure cases:
+        - Responses without mutable message metadata remain unmarked and cannot support an authoritative verdict.
+        Side effects:
+        - Mutates response metadata persisted by the graph; never stores a capability secret or changes billing.
+        """
+        # Why: The outer schema/domain evaluators run after metering and otherwise see only a logical model step.
+        # How: Overwrite any provider-supplied marker with the admission's physical invocation ID.
+        # Invariant: A retry verdict cannot accidentally attach to an earlier paid provider attempt.
+        messages = getattr(response, "result", None)
+        if messages is None and hasattr(response, "model_response"):
+            messages = getattr(response.model_response, "result", None)
+        if messages is None:
+            messages = [response]
+        for message in messages:
+            metadata = getattr(message, "response_metadata", None)
+            if isinstance(metadata, dict):
+                metadata["_lcsp_physical_invocation_id"] = invocation_id
+
+    @staticmethod
+    def _stamp_payment_decision(response: Any, required: bool) -> None:
+        """Business purpose: Carry a server-owned settlement decision across the model checkpoint boundary.
+
+        Business rules:
+        - Every provider result clears the reserved marker before settlement, even when no recovery store exists.
+        - Only an acknowledged terminal ON settlement may replace the marker with true.
+        Execution flow:
+        1. Locate returned model messages without changing their content or tool calls.
+        2. Overwrite the reserved metadata field on each message with the trusted decision.
+        Failure cases:
+        - Responses without mutable message metadata retain the run-scoped decision only.
+        Side effects:
+        - Mutates safe response metadata that LangGraph persists; never writes a capability token.
+        """
+        # Why: A provider may supply arbitrary metadata, including a forged reserved payment marker.
+        # How: Overwrite it on all returned messages before and after authoritative settlement.
+        # Invariant: The checkpoint contains only a boolean payment decision, never wallet or capability secrets.
+        messages = getattr(response, "result", None)
+        if messages is None and hasattr(response, "model_response"):
+            messages = getattr(response.model_response, "result", None)
+        if messages is None:
+            messages = [response]
+        for message in messages:
+            metadata = getattr(message, "response_metadata", None)
+            if isinstance(metadata, dict):
+                metadata["_lcsp_payment_required_after_settlement"] = required
+
+    def _get_recovery_store(self) -> Any:
+        """Business purpose: Resolve or lazily initialize the worker capability recovery store.
+
+        Business rules:
+        - Uses explicit injected instance if provided.
+        - Otherwise, initializes from WORKER_ENVELOPE_ENCRYPTION_KEY if set in environment.
+        - If unconfigured, returns None (graceful no-op for non-hardened environments).
+        Execution flow:
+        1. Return injected recovery store if set.
+        2. Check for WORKER_ENVELOPE_ENCRYPTION_KEY environment variable.
+        3. If present, instantiate WorkerEnvelopeKeyring and CapabilityRecoveryStore.
+        Failure cases:
+        - Corrupted keyring or store startup errors log warning and fail closed for capability recovery.
+        Side effects:
+        - May initialize worker-local SQLite database tables for capability recovery.
+        """
+        # Why: Support dependency injection for tests while maintaining zero-config initialization from env in workers.
+        # How: Check instance attribute, then lazy load from keyring.from_env() and store.
+        # Invariants & Constraints: Key must be 32 bytes; fails closed on corrupt key.
+        if getattr(self, "_recovery_store", None) is not None:
+            return self._recovery_store
+        key = os.environ.get("WORKER_ENVELOPE_ENCRYPTION_KEY")
+        if not key or not key.strip():
+            return None
+        try:
+            from middleware.envelope_encryption import WorkerEnvelopeKeyring
+            from middleware.capability_recovery import CapabilityRecoveryStore
+            keyring = WorkerEnvelopeKeyring.from_env()
+            db_path = os.environ.get("WORKER_RECOVERY_DB_PATH", ".data/worker_recovery.db")
+            self._recovery_store = CapabilityRecoveryStore(db_path, keyring)
+            return self._recovery_store
+        except Exception as error:
+            logger.warning("FAILED_TO_INITIALIZE_CAPABILITY_RECOVERY_STORE", error=str(error))
+            return None
+
+    def _settle_completed_invocation(
+        self,
+        request: Any,
+        admission: Any,
+        invocation_id: str,
+        response: Any,
+        model: Any = None,
+    ) -> None:
+        """Business purpose: Commit provider token evidence to local durable store and settle billable invocation with authoritative server.
+
+        Business rules:
+        - Must normalize token usage into non-overlapping accounting buckets prior to settlement.
+        - Pin only bounded canonical tool-call IDs from the actual physical response; unknown outcomes carry none.
+        - Must record token usage evidence in recovery store prior to invoking /internal/billing/usage/settle.
+        - Only server-confirmed terminal settlement may promote the encrypted answer to replayable state.
+        - Calls client.settle_invocation_usage() with providerCompletionState COMPLETED and exact token counts.
+        - Only removes capability envelope from recovery store upon verified terminal acknowledgement (settled: true, slotReleased: true).
+        Execution flow:
+        1. Resolve capability recovery store, worker API client, and model execution context.
+        2. Normalize token usage and validate current-response tool-call IDs.
+        3. Record token and tool-call causation evidence durably in worker recovery store.
+        4. Send billable invocation settlement request to server.
+        5. On terminal release, preserve the server-owned payment decision and promote the encrypted answer before deleting the capability envelope.
+        Failure cases:
+        - Non-terminal server responses (settled: false) retain envelope for subsequent crash/reconciliation recovery.
+        - Unverified or invalid usage metadata reports OUTCOME_UNKNOWN and retains envelope.
+        - Network/server or local cleanup errors are logged without suppressing completed inference response or a confirmed payment pause.
+        Side effects:
+        - Releases admission concurrency slot on server, marks the encrypted answer terminal, deletes local capability envelope, and may flag Root to pause after the model step.
+        """
+        # Rationale ("Why"): Releasing server slot and closing exposure window requires capabilityToken and usage settlement.
+        # Mechanism ("How"): Send billableInvocationSettlementRequest to /internal/billing/usage/settle and verify terminal ack.
+        # Invariants & Constraints: Token never leaks; envelope preserved if server returns settled: false.
+        store = self._get_recovery_store()
+        if store is None or not isinstance(admission, dict):
+            return
+
+        client = admission.get("_api_client")
+        if client is None or not hasattr(client, "settle_invocation_usage"):
+            return
+
+        try:
+            from middleware.capability_recovery import extract_verified_token_evidence
+            from types import SimpleNamespace
+
+            # Resolve model context for provider identity and inclusive cache bucket calculation
+            model_ctx = model or getattr(request, "model", None)
+            if model_ctx is None:
+                p_name = admission.get("resolvedProvider") or "UNKNOWN"
+                m_name = admission.get("resolvedModel") or "UNKNOWN"
+                model_ctx = SimpleNamespace(
+                    provider=p_name,
+                    model_name=m_name,
+                    protocol=p_name.lower(),
+                )
+
+            # Rationale ("Why"): Normalize token buckets into non-overlapping counts to prevent double-charging cache.
+            # Mechanism ("How"): Delegate strictly to extract_provider_usage with model context, then validate via extract_verified_token_evidence.
+            # Invariants & Constraints: If normalization rejects contradictory/invalid usage (e.g. input < cached), NEVER fallback to raw usage
+            # to send COMPLETED. Leave verified_evidence as None to route strictly to OUTCOME_UNKNOWN.
+            extracted_usage = extract_provider_usage(response, model_ctx)
+            verified_evidence = None
+            if extracted_usage is not None:
+                verified_evidence = extract_verified_token_evidence(extracted_usage)
+            tool_call_ids: list[str] = []
+            if verified_evidence is not None:
+                try:
+                    tool_call_ids = extract_settlement_tool_call_ids(response)
+                except ValueError as invalid_tool_calls:
+                    # Why: A malformed tool identity would poison immutable output-verdict causation.
+                    # How: Treat the physical outcome as unverified and retain its slot for reconciliation.
+                    # Invariant: Never settle COMPLETED with partial, duplicate, or guessed tool IDs.
+                    logger.warning("INVALID_SETTLEMENT_TOOL_CALL_IDS", invocation_id=invocation_id, error=str(invalid_tool_calls))
+                    verified_evidence = None
+
+            tracker = getattr(request, "_lcsp_attempt_tracker", {}) or {}
+            attempt_ordinal = tracker.get("ordinal", 1) or 1
+
+            if verified_evidence is not None:
+                # 1. Durably record usage evidence with all verified priced buckets
+                store.record_usage_evidence(invocation_id, {
+                    "invocationId": invocation_id,
+                    **verified_evidence,
+                    "toolCallIds": tool_call_ids,
+                })
+
+                # 2. Settle with server as COMPLETED with all priced token buckets
+                settle_payload = {
+                    "admissionId": admission["admissionId"],
+                    "invocationId": invocation_id,
+                    "capabilityToken": admission.get("capabilityToken", ""),
+                    "attemptOrdinal": attempt_ordinal,
+                    "providerCompletionState": "COMPLETED",
+                    **verified_evidence,
+                    "toolCallIds": tool_call_ids,
+                }
+                settle_resp = client.settle_invocation_usage(settle_payload)
+
+                # 3. Terminal acknowledgement carries the payment decision before local cleanup.
+                if isinstance(settle_resp, dict) and settle_resp.get("settled") is True and settle_resp.get("slotReleased") is True:
+                    # Why: SQLite deletion may fail after the server has committed a debit; Root must still pause.
+                    # How: Stamp the server's terminal ON decision before attempting fallible envelope cleanup.
+                    # Invariant: An undeleted envelope permits idempotent settlement recovery, never provider redispatch.
+                    if settle_resp.get("debitMode") == "ON" and settle_resp.get("paymentRequired") is True:
+                        run_state = active_agent_run_state()
+                        if run_state is not None and run_state.assessment_id is not None:
+                            run_state.payment_required_after_settlement = True
+                            self._stamp_payment_decision(response, True)
+                            # Why: A replayed answer must preserve the server-owned payment pause decision.
+                            # How: Replace only the encrypted response before making it terminal for replay.
+                            # Invariant: The graph must never continue without the payment marker after ON depletion.
+                            run_id, step_id = self._response_recovery_identity(request)
+                            store.update_model_response_before_terminal(
+                                admission["admissionId"], invocation_id, run_id, step_id,
+                                self._serialize_model_response(response),
+                            )
+                    # Why: Server terminal acknowledgment is the only authority to release this paid answer for replay.
+                    # How: Mark the encrypted row terminal before fallible capability-envelope cleanup.
+                    # Invariant: A crash after settlement can still restore the original response without redispatch.
+                    store.mark_model_response_terminal(admission["admissionId"])
+                    store.remove_admission_recovery(admission["admissionId"])
+            else:
+                # Root Cause 3 Fix: If provider omitted either token bucket or reported invalid usage,
+                # do NOT default to 0 and do NOT send COMPLETED!
+                # Report OUTCOME_UNKNOWN and retain envelope and concurrency slot for integrity review.
+                settle_payload = {
+                    "admissionId": admission["admissionId"],
+                    "invocationId": invocation_id,
+                    "capabilityToken": admission.get("capabilityToken", ""),
+                    "attemptOrdinal": attempt_ordinal,
+                    "providerCompletionState": "OUTCOME_UNKNOWN",
+                }
+                settle_resp = client.settle_invocation_usage(settle_payload)
+                if isinstance(settle_resp, dict) and settle_resp.get("settled") is True and settle_resp.get("slotReleased") is True:
+                    store.remove_admission_recovery(admission["admissionId"])
+        except Exception as error:
+            logger.warning("FAILED_TO_SETTLE_COMPLETED_INVOCATION", invocation_id=invocation_id, error=str(error))
+
     def _prepare(self, request):
+        """Business purpose: Prepare a governed provider request without exceeding admitted token exposure.
+
+        Business rules:
+        - The model identity and prompt context must pass the configured route guards.
+        - Provider-facing output caps cannot exceed the model cap used for server admission.
+        - A valid smaller caller cap may reduce output; it cannot increase the admitted limit.
+        Execution flow:
+        1. Validate model identity and context; log non-sensitive request diagnostics.
+        2. Resolve the provider-specific hard output cap and clamp any request cap to it.
+        3. Return the prepared request and original model for admission and dispatch.
+        Failure cases:
+        - Invalid model identity, context, or output cap aborts before provider dispatch.
+        Side effects:
+        - Writes diagnostic logs and may create an overridden request object; no provider call occurs.
+        """
         check_agent_execution_active()
         model = request.model
         assert_model_identity(model)
@@ -1125,7 +1772,18 @@ class UsageMeteringMiddleware(AgentMiddleware):
         check_agent_execution_active()
         # The request keeps its original model for identity/usage; the cap travels as model settings.
         if hasattr(request, "override"):
-            settings = {**output_cap_settings(model), **(getattr(request, "model_settings", None) or {})}
+            settings = dict(getattr(request, "model_settings", None) or {})
+            for cap_name, route_cap in output_cap_settings(model).items():
+                requested_cap = settings.get(cap_name)
+                # Why: Request settings must not raise the provider cap above the amount priced by admission.
+                # How: Preserve a valid smaller caller cap, but clamp larger values to the route cap.
+                # Invariant: The provider-facing output bound is always <= admission.outputTokensUpperBound.
+                if requested_cap is None:
+                    settings[cap_name] = route_cap
+                elif type(requested_cap) is int and requested_cap > 0:
+                    settings[cap_name] = min(requested_cap, route_cap)
+                else:
+                    raise ValueError(f"Invalid positive integer {cap_name} in request model settings")
             request = request.override(model_settings=settings)
         return request, model
 
@@ -1209,29 +1867,328 @@ class UsageMeteringMiddleware(AgentMiddleware):
             status = "FAILED" if type(code) is int and 400 <= code <= 599 else "OUTCOME_UNKNOWN"
             state.record_attempt(model, invocation_id, status, agent_role=active_agent_role(), error=error)
 
+    @staticmethod
+    def _cancel_unconsumed_server_admission(client, store, admission, reason: str, run_id: str) -> None:
+        """Business purpose: Release an unconsumed server slot when local authorization prevents provider dispatch.
+
+        Business rules:
+        - Only a server-confirmed terminal cancellation can release the slot and delete its recovery envelope.
+        - A lost response or IN_FLIGHT conflict keeps the encrypted envelope for crash recovery.
+        Execution flow:
+        1. Send cancellation with the same admission identity and capability.
+        2. Delete the local envelope only after CONFIRMED_NO_USAGE and slotReleased are both confirmed.
+        Failure cases:
+        - Network, state, or cleanup errors retain the envelope; the caller's original admission failure remains authoritative.
+        Side effects:
+        - May cancel an ADMITTED server record and delete its worker-local encrypted recovery record.
+        """
+        # Why: A local hard ceiling may reject after the server reserved a wallet slot but before any model byte left the worker.
+        # How: Ask the server to cancel only its still-ADMITTED record and require terminal acknowledgement before cleanup.
+        # Invariant: An ambiguous consume or cancellation never turns an IN_FLIGHT call into worker-asserted no usage.
+        try:
+            result = client.cancel_invocation_admission({
+                "admissionId": admission["admissionId"],
+                "invocationId": admission["invocationId"],
+                "capabilityToken": admission["capabilityToken"],
+                "cancellationReason": reason,
+            })
+            if isinstance(result, dict) and result.get("state") == "CONFIRMED_NO_USAGE" and result.get("slotReleased") is True:
+                # Why: The local journal otherwise retains an IN_FLIGHT hard-ceiling reservation after the server freed its slot.
+                # How: Close only the same run's local predispatch attempt after the trusted terminal server receipt.
+                # Invariant: An ambiguous consume or nonterminal cancel still retains both local exposure and envelope.
+                state = active_agent_run_state()
+                if state is not None and state.admission is not None and state.run_id == run_id:
+                    state.admission.cancel_pre_dispatch(admission["invocationId"])
+                store.remove_admission_recovery(admission["admissionId"])
+        except Exception as error:
+            logger.warning("PRE_CONSUME_ADMISSION_CANCEL_UNCONFIRMED", invocation_id=admission["invocationId"],
+                           error_type=type(error).__name__)
+
+    def _execute_server_admission(self, request, model, invocation_id: str | None = None) -> dict:
+        """Business purpose: Acquire server-issued admission and coordinate local authorization before atomic CAS consume.
+
+        Business rules:
+        - Must contact server via WorkerApiClient to verify wallet solvency and concurrency limits.
+        - Fails closed on HTTP 402 PAYMENT_REQUIRED, 429/409 concurrency limit, or 403 context mismatch.
+        - If returned admission is already IN_FLIGHT, raises InFlightAdmissionRecoveryError to prevent duplicate dispatch.
+        - SETTLED replay may return only a matching encrypted terminal response; every other non-ADMITTED state remains non-dispatchable.
+        - Local hard ceilings must authorize the attempt before atomic CAS consume and provider invocation.
+        - Prices exposure using the configured route input ceiling, never a request-local token estimate.
+
+        Execution flow:
+        1. Resolve WorkerApiClient from active run state or environment configuration.
+        2. Derive attempt ordinal and construct admission request payload.
+        3. POST to /internal/billing/admission/request.
+        4. If state == IN_FLIGHT, raise InFlightAdmissionRecoveryError; if SETTLED, require matching local paid response IDs.
+        5. For fresh ADMITTED calls, durably store the capability and authorize the local hard ceiling.
+        6. POST to /internal/billing/admission/consume and return the prepared request with admitted metadata.
+
+        Failure cases:
+        - 402/429/409/422 errors propagate immediately as WorkerCallbackError, aborting provider dispatch.
+        - A non-ADMITTED replay without matching terminal response is rejected before local reservation or provider dispatch.
+        - Missing server invocationId, missing/invalid capabilityToken, or unavailable recovery store raises PaidAdmissionError.
+
+        Side effects:
+        - May cancel ADMITTED on a local denial; otherwise moves server admission to IN_FLIGHT.
+        """
+        # Why: Enforces financial safety and single-slot concurrency boundary at the worker level.
+        # How: Sends admission request, checks for IN_FLIGHT replay, and commits capability token before provider byte dispatch.
+        # Invariants & Constraints: Provider handler is NEVER invoked if admission or consume fails.
+        state = active_agent_run_state()
+        if state is not None and getattr(state, "api_client", None) is not None:
+            client = state.api_client
+        else:
+            from tools.common.capabilities.platform import api_client as api_client_module
+            base_url = os.environ.get("LCSP_API_BASE_URL", "http://127.0.0.1:3000")
+            api_key = os.environ.get("LCSP_WORKER_API_KEY", "")
+            client = api_client_module.WorkerApiClient(base_url, api_key)
+
+        logical_op_id = active_model_step_id() or getattr(request, "logical_operation_id", None)
+        run_id = (state.run_id if state else None) or getattr(request, "run_id", None)
+        assessment_id = (state.assessment_id if state else None) or getattr(request, "assessment_id", None)
+        preparation_run_id = (state.preparation_run_id if state else None) or getattr(request, "preparation_run_id", None)
+        agent_role = active_agent_role() or (state.agent_role if state else None) or "assessment-root"
+        operation_type = active_model_operation() or "SYNTHESIS"
+        lease_token = getattr(state, "execution_lease_token", None) or getattr(request, "execution_lease_token", None)
+
+        # Why: Enforces fail-closed security boundary when execution context is missing (ADR-028).
+        # How: Verifies real run_id, logical_op_id, and authority context without synthesizing dummy fallback strings.
+        # Invariants: Model provider cannot be dispatched when runtime context binding is lost or unauthenticated.
+        # Assessment requests require an active executionLeaseToken; RuleSetPreparation requests require verified preparationRunId.
+        if not logical_op_id or not run_id:
+            raise PaidAdmissionError(
+                "MISSING_EXECUTION_CONTEXT",
+                run_id or "unknown",
+            )
+        if not preparation_run_id and not lease_token:
+            raise PaidAdmissionError(
+                "MISSING_EXECUTION_CONTEXT",
+                run_id or "unknown",
+            )
+
+        # Why: Preserve deterministic admissionRequestId and attempt ordinal across retries and lost responses.
+        # How: Inspect if request already carries an admission_request_id; if not, initialize and pin it.
+        # Invariants: A retry of the same attempt re-sends the exact same admissionRequestId without a new random UUID.
+        admission_request_id = getattr(request, "_lcsp_admission_request_id", None) or getattr(request, "admission_request_id", None)
+        if not admission_request_id:
+            if state is not None:
+                ordinals = getattr(state, "_attempt_ordinals", None)
+                if ordinals is None:
+                    ordinals = {}
+                    setattr(state, "_attempt_ordinals", ordinals)
+                attempt_ordinal = ordinals.get(logical_op_id, 0) + 1
+                ordinals[logical_op_id] = attempt_ordinal
+            else:
+                tracker = getattr(request, "_lcsp_attempt_tracker", None)
+                if tracker is not None and isinstance(tracker, dict):
+                    tracker["ordinal"] = tracker.get("ordinal", 0) + 1
+                    attempt_ordinal = tracker["ordinal"]
+                else:
+                    attempt_ordinal = getattr(request, "_lcsp_attempt_ordinal", 0) + 1
+            try:
+                object.__setattr__(request, "_lcsp_attempt_ordinal", attempt_ordinal)
+            except Exception:
+                pass
+            admission_request_id = f"adm-req-{logical_op_id}-{attempt_ordinal}"
+            try:
+                object.__setattr__(request, "_lcsp_admission_request_id", admission_request_id)
+            except Exception:
+                pass
+        else:
+            attempt_ordinal = getattr(request, "_lcsp_attempt_ordinal", 1)
+
+        output_bound = output_token_limit(model)
+        # Why: Request-local estimates can understate a provider call's actual token volume and its exposure.
+        # How: Always resolve the configured hard route ceiling before asking the server for admission.
+        # Invariant: The request cannot lower the ceiling used to price maximumExposureMicrocredits.
+        input_bound = input_token_limit(model)
+
+        # Derive requested provider and model from model attributes, route config, or test registry
+        req_provider = getattr(model, "provider", None)
+        req_model = getattr(model, "model_name", None) or getattr(model, "model", None)
+        if not req_provider or not req_model:
+            try:
+                from middleware.paid_admission import _TEST_SCRIPTED_MODEL_REGISTRY
+                registry = _TEST_SCRIPTED_MODEL_REGISTRY.get()
+                if registry and id(model) in registry:
+                    req_provider = req_provider or registry[id(model)].get("provider")
+                    req_model = req_model or registry[id(model)].get("model")
+            except Exception:
+                pass
+        if not req_provider or not req_model:
+            route = model_route_config(model)
+            if route is not None:
+                req_provider = req_provider or route.provider
+                req_model = req_model or route.model
+
+        if not req_provider or not req_model:
+            # Why: ADR-028 & Security Invariant: Admission requires a verified, registered provider and model identity.
+            # Mechanism: Fail closed before issuing request_invocation_admission when provider or model cannot be resolved.
+            # Invariants: Server must never be sent fabricated or arbitrary fallback identities (e.g. "anthropic"/"claude-sonnet-4-6"); 0 admissions, 0 provider calls.
+            raise PaidAdmissionError("UNBOUND_MODEL_ROUTE", run_id)
+
+        # Why: Construct canonical admission payload matching contracts schema (ADR-028 Section 3).
+        # How: Send assessmentId/executionLeaseToken for assessment runs, or preparationRunId for legal rule preparation runs.
+        # Invariants: Server validates funding principal, locks wallet/sponsorship, and enforces CAS before first provider byte.
+        admit_payload: dict[str, Any] = {
+            "admissionRequestId": admission_request_id,
+            "logicalOperationId": logical_op_id,
+            "attemptOrdinal": attempt_ordinal,
+            "runId": run_id,
+            "agentRole": agent_role,
+            "operationType": operation_type,
+            "requestedProvider": req_provider,
+            "requestedModel": req_model,
+            "inputTokensUpperBound": int(input_bound),
+            "outputTokensUpperBound": int(output_bound),
+        }
+        if assessment_id:
+            admit_payload["assessmentId"] = assessment_id
+            if lease_token:
+                admit_payload["executionLeaseToken"] = lease_token
+        if preparation_run_id:
+            admit_payload["preparationRunId"] = preparation_run_id
+
+        admission = client.request_invocation_admission(admit_payload)
+
+        if admission.get("state") == "IN_FLIGHT":
+            raise InFlightAdmissionRecoveryError(admission)
+        if admission.get("state") == "SETTLED":
+            # Why: A graph node may replay after the server settled a paid response but before checkpointing.
+            # How: Return the server's terminal identity only when an encrypted terminal response exists locally.
+            # Invariant: The wrapper compares both physical IDs before returning; this path never consumes or dispatches.
+            store = self._get_recovery_store()
+            record = store.get_terminal_model_response_record(run_id, logical_op_id) if store else None
+            if (
+                record is not None
+                and record.get("admissionId") == admission.get("admissionId")
+                and record.get("invocationId") == admission.get("invocationId")
+            ):
+                return admission
+        if admission.get("state") != "ADMITTED":
+            # Why: A checkpoint replay may return an already SETTLED invocation after the worker lost the model response.
+            # How: Refuse every non-dispatchable server state before local admission or CAS consume.
+            # Invariant: Terminal billing evidence can never authorize a second physical provider request.
+            raise PaidAdmissionError("ADMISSION_NOT_DISPATCHABLE", run_id or "unknown")
+
+        # Why (ADR-028 & Root Cause): Server assigns authoritative invocationId during admission issuance.
+        # Mechanism: Validate invocationId exists and is string before storing envelope or consuming.
+        # Invariants: Fail closed immediately if server does not issue invocationId; never fallback to client UUID.
+        invocation_id = admission.get("invocationId") if isinstance(admission, dict) else None
+        if not invocation_id or not isinstance(invocation_id, str):
+            raise PaidAdmissionError("MISSING_SERVER_INVOCATION_ID", run_id or "unknown")
+
+        # Why (ADR-028 & Issue 2): Validate authoritative capabilityToken before attempting durable write or consume.
+        # Mechanism: Ensure capabilityToken is present and non-empty string.
+        # Invariants: 0 consume calls and 0 provider calls if capabilityToken is absent or empty.
+        capability_token = admission.get("capabilityToken") if isinstance(admission, dict) else None
+        if not capability_token or not isinstance(capability_token, str) or not capability_token.strip():
+            raise PaidAdmissionError("MISSING_SERVER_CAPABILITY_TOKEN", run_id or "unknown")
+
+        # Why (ADR-028 & G-06/G-07): Durably encrypt capability recovery envelope before consuming.
+        # How: Persist AES-256-GCM envelope to worker SQLite with AAD before calling consume_invocation_admission.
+        # Invariants & Constraints: Token must never be written in plaintext; durable write must succeed before consume.
+        store = self._get_recovery_store()
+        if store is None:
+            raise PaidAdmissionError("CAPABILITY_RECOVERY_STORE_UNAVAILABLE", run_id)
+
+        envelope_data = {
+            "admissionId": admission["admissionId"],
+            "invocationId": invocation_id,
+            "runId": run_id or admission.get("runId", "unknown"),
+            "attemptOrdinal": attempt_ordinal,
+            "capabilityToken": capability_token,
+            "maximumExposureMicrocredits": str(admission.get("maximumExposureMicrocredits", "0")),
+            "expiresAt": admission.get("expiresAt", ""),
+        }
+        store.record_in_flight_admission(envelope_data)
+
+        # Why: A local RunAdmission denial after server consume strands an IN_FLIGHT wallet slot without provider usage.
+        # How: Commit local authorization while the server is still ADMITTED; cancel that server reservation on denial.
+        # Invariant: The provider is never dispatched unless both local hard ceilings and server CAS approve this attempt.
+        try:
+            prepared_request = self._admit(request, invocation_id)
+            check_agent_execution_active()
+        except BaseException:
+            self._cancel_unconsumed_server_admission(client, store, admission, "LOCAL_ADMISSION_REJECTED", run_id)
+            raise
+
+        consume_payload = {
+            "admissionId": admission["admissionId"],
+            "invocationId": invocation_id,
+            "capabilityToken": capability_token,
+        }
+        try:
+            client.consume_invocation_admission(consume_payload)
+        except BaseException:
+            # Why: A failed consume response may mean the CAS did or did not commit remotely.
+            # How: Cancel only if the server still confirms ADMITTED; retain the envelope on any ambiguity.
+            # Invariant: No provider call follows an unconfirmed consume, and worker claims never free IN_FLIGHT slots.
+            self._cancel_unconsumed_server_admission(client, store, admission, "CONSUME_UNCONFIRMED", run_id)
+            raise
+        try:
+            delattr(request, "_lcsp_admission_request_id")
+        except Exception:
+            pass
+        if isinstance(admission, dict):
+            admission["_api_client"] = client
+            admission["_prepared_request"] = prepared_request
+        return admission
+
     def wrap_model_call(self, request, handler):
         """Business purpose: Govern one synchronous downstream provider attempt and durably record its actual response or unknown outcome.
 
         Business rules:
         - Validate configured identity/context and honor execution control before dispatch.
         - Each physical attempt gets a fresh settlement ID; late responses still use that ID for recording and reconciliation.
+        - Encrypt the original model response before terminal settlement so checkpoint replay can restore it.
         Execution flow:
         1. Prepare/admit the request and start safe heartbeat telemetry.
-        2. Invoke through the cancellable boundary and record reported usage.
-        3. On failure preserve unknown exposure and cancellation/failure telemetry; on success publish response shape and completion.
+        2. On a server-confirmed SETTLED replay, return the matching encrypted answer without provider dispatch.
+        3. Otherwise invoke through the cancellable boundary, store the answer and causation, then record usage.
+        4. On failure preserve unknown exposure and cancellation/failure telemetry; on success settle and return the answer.
         Failure cases:
         - Admission, provider, control or durability failures propagate; cancellation emits STOPPED and never fabricates a completed response.
         Side effects:
-        - May dispatch a real model, persist/deliver usage, settle admission and publish telemetry; prompt/response content stays out of usage payloads.
+        - May dispatch a real model, persist encrypted response content locally for bounded recovery, settle admission and publish content-free usage telemetry.
         """
+        tracker = getattr(request, "_lcsp_attempt_tracker", None)
+        if tracker is None:
+            tracker = {"ordinal": 0}
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
         request, model = self._prepare(request)
-        # Each answered attempt must survive the API's settlement idempotency key.
-        invocation_id = str(uuid4())
-        request = self._admit(request, invocation_id)
-        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
+        if not hasattr(request, "_lcsp_attempt_tracker"):
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
+        # Server assigns authoritative invocationId during admission issuance.
+        # Invariants: Fail closed immediately if server does not issue invocationId; never fallback to client UUID.
+        admission = self._execute_server_admission(request, model)
+        if isinstance(admission, dict) and admission.get("state") == "SETTLED":
+            return self._restore_terminal_model_response(request, admission)
+        invocation_id = admission.get("invocationId") if isinstance(admission, dict) else None
+        if not invocation_id or not isinstance(invocation_id, str):
+            run_id = getattr(request, "run_id", None) or "unknown"
+            raise PaidAdmissionError("MISSING_SERVER_INVOCATION_ID", run_id)
+        request = admission["_prepared_request"]
+        client = admission.get("_api_client") if isinstance(admission, dict) else None
+        telemetry = _ModelCallTelemetry(
+            model,
+            invocation_id=invocation_id,
+            admission=admission if isinstance(admission, dict) else None,
+            api_client=client,
+        )
         telemetry.start()
         try:
             response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
+            self._stamp_payment_decision(response, False)
+            self._stamp_physical_invocation_id(response, invocation_id)
+            self._persist_model_response(request, admission, response)
+            self._persist_output_causation(request, invocation_id, response)
             self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
@@ -1245,6 +2202,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             raise
         self._log_response(response, model)
         telemetry.complete(response, invocation_id=invocation_id)
+        self._settle_completed_invocation(request, admission, invocation_id, response, model=model)
         return response
 
     async def awrap_model_call(self, request, handler):
@@ -1252,22 +2210,55 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
         Business rules:
         - Use a fresh physical settlement ID and the configured identity/context guards; blocking journal work runs outside the async cancellation loop.
+        - Persist encrypted response and physical causation before terminal settlement; replay requires server SETTLED confirmation.
         Execution flow:
-        1. Prepare the request and admit/record STARTED in a worker thread.
-        2. Await cancellable inference and record response usage in a worker thread.
-        3. Preserve unknown exposure and failure/cancellation telemetry or publish successful completion.
+        1. Prepare the request and ask for server admission in a worker thread.
+        2. Restore a matching paid response on terminal replay or await one governed provider inference.
+        3. Commit encrypted response and causation before usage settlement in worker threads.
+        4. Preserve unknown exposure on failure or publish successful completion.
         Failure cases:
         - Admission, provider, control and durability errors propagate; late responses retain their original settlement identity.
         Side effects:
-        - May dispatch a real model, write/deliver usage and admission records, and publish telemetry without retaining prompt contents.
+        - May dispatch a real model, retain encrypted response content temporarily, write usage and admission records, and publish content-free telemetry.
         """
+        tracker = getattr(request, "_lcsp_attempt_tracker", None)
+        if tracker is None:
+            tracker = {"ordinal": 0}
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
         request, model = self._prepare(request)
-        invocation_id = str(uuid4())
-        request = await physical_to_thread(self._admit, request, invocation_id)
-        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
+        if not hasattr(request, "_lcsp_attempt_tracker"):
+            try:
+                object.__setattr__(request, "_lcsp_attempt_tracker", tracker)
+            except Exception:
+                pass
+        # Why: ADR-028 & Root Cause 1: Worker must bind to server-issued invocationId across both sync and async paths.
+        # Mechanism: Await admission issuance on worker thread, extract server invocationId, and pass it to _admit and telemetry.
+        # Invariants: Preserves server authority; fail closed if invocationId missing, never fallback to ad-hoc client UUID.
+        admission = await physical_to_thread(self._execute_server_admission, request, model)
+        if isinstance(admission, dict) and admission.get("state") == "SETTLED":
+            return await physical_to_thread(self._restore_terminal_model_response, request, admission)
+        invocation_id = admission.get("invocationId") if isinstance(admission, dict) else None
+        if not invocation_id or not isinstance(invocation_id, str):
+            run_id = getattr(request, "run_id", None) or "unknown"
+            raise PaidAdmissionError("MISSING_SERVER_INVOCATION_ID", run_id)
+        request = admission["_prepared_request"]
+        client = admission.get("_api_client") if isinstance(admission, dict) else None
+        telemetry = _ModelCallTelemetry(
+            model,
+            invocation_id=invocation_id,
+            admission=admission if isinstance(admission, dict) else None,
+            api_client=client,
+        )
         telemetry.start()
         try:
             response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
+            self._stamp_payment_decision(response, False)
+            self._stamp_physical_invocation_id(response, invocation_id)
+            await physical_to_thread(self._persist_model_response, request, admission, response)
+            await physical_to_thread(self._persist_output_causation, request, invocation_id, response)
             # Usage-only delivery must not block the graph's async cancellation
             # loop. This thread can finish telemetry after the turn is stopped.
             await physical_to_thread(self._record, response, model, invocation_id)
@@ -1283,6 +2274,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             raise
         self._log_response(response, model)
         telemetry.complete(response, invocation_id=invocation_id)
+        await physical_to_thread(self._settle_completed_invocation, request, admission, invocation_id, response, model)
         return response
 
     def wrap_tool_call(self, request, handler):
@@ -1290,6 +2282,72 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
     async def awrap_tool_call(self, request, handler):
         return await cancellable_async(lambda: handler(request))
+
+
+def stamp_server_payment_decision_in_recovery_payload(payload: dict[str, Any], required: bool) -> dict[str, Any]:
+    """Business purpose: Preserve an authoritative payment pause when a crash sweeper closes a paid call.
+
+    Business rules:
+    - Only the caller's verified terminal server receipt may supply the payment decision.
+    - The response payload must remain within the bounded serializer schema.
+    Execution flow:
+    1. Decode the encrypted-store payload to a known response type.
+    2. Overwrite the reserved payment marker on returned messages.
+    3. Re-encode the response for encrypted persistence before terminal marking.
+    Failure cases:
+    - Invalid or unsupported payload raises and prevents terminal response replay.
+    Side effects:
+    - Pure in-memory transformation; no provider dispatch or database write.
+    """
+    # Why: Recovery may settle after the worker crashed, so the original in-memory payment flag is unavailable.
+    # How: Reuse the middleware's strict response codec and server-marker overwrite.
+    # Invariant: A terminal ON settlement cannot resume the graph without its payment pause.
+    response = UsageMeteringMiddleware._deserialize_model_response(payload)
+    UsageMeteringMiddleware._stamp_payment_decision(response, required)
+    return UsageMeteringMiddleware._serialize_model_response(response)
+
+
+def extract_settlement_tool_call_ids(response: Any) -> list[str]:
+    """Business purpose: Identify the physical model result's tool calls for later output verdicts.
+
+    Business rules:
+    - Include only tool-call IDs from the actual response, never request data or prior attempts.
+    - Allow at most 64 unique IDs of 1 to 200 characters, with no surrounding whitespace.
+    Execution flow:
+    1. Read returned LangChain messages and their tool calls.
+    2. Validate each ID and reject duplicates.
+    3. Return IDs in canonical sorted order.
+    Failure cases:
+    - Malformed, repeated, or excessive IDs raise and prevent a false COMPLETED settlement.
+    Side effects:
+    - Pure extraction; sends no content, arguments, or model output to billing.
+    """
+    # Why: An evaluator must prove that a rejected tool call came from this paid physical invocation.
+    # How: Send only bounded IDs extracted from the actual stamped result, sorted for fingerprint stability.
+    # Invariant: No tool arguments, response text, or prior retry IDs cross the billing boundary.
+    messages = getattr(response, "result", None)
+    if messages is None:
+        messages = [response]
+    if not isinstance(messages, list):
+        raise ValueError("Invalid model response messages")
+    ids: list[str] = []
+    for message in messages:
+        calls = getattr(message, "tool_calls", None) or []
+        if not isinstance(calls, list):
+            raise ValueError("Invalid model tool calls")
+        for call in calls:
+            call_id = call.get("id") if isinstance(call, dict) else None
+            # Why: JavaScript and PostgreSQL sort some Unicode identities differently.
+            # How: Accept only printable ASCII IDs shared by contract, worker, and DB canonical ordering.
+            # Invariant: Unrecognized provider IDs produce OUTCOME_UNKNOWN, never ambiguous receipt evidence.
+            if not isinstance(call_id, str) or not 1 <= len(call_id) <= 200 or re.fullmatch(r"[!-~]+", call_id) is None:
+                raise ValueError("Invalid model tool call ID")
+            ids.append(call_id)
+            if len(ids) > 64:
+                raise ValueError("Model response exceeds maximum tool call IDs")
+    if len(set(ids)) != len(ids):
+        raise ValueError("Duplicate model tool call IDs")
+    return sorted(ids)
 
 
 def effective_runtime_model(
@@ -1397,13 +2455,27 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
         result["outputTokens"] = str(output_tokens)
     nested_input = metadata.get("input_token_details")
     nested_output = metadata.get("output_token_details")
+    prompt_details = metadata.get("prompt_tokens_details")
+    completion_details = metadata.get("completion_tokens_details")
+    cache_creation = metadata.get("cache_creation")
+    details = metadata.get("details")
+
+    # Rationale ("Why"): Providers place cache and reasoning breakdowns in various nested containers
+    # (e.g. OpenAI prompt_tokens_details, Anthropic input_token_details, or telemetry details).
+    # Mechanism ("How"): Flatten all known nested dictionary containers into metadata to ensure complete bucket extraction.
+    # Invariants & Constraints: Overwrites only if child dict is non-empty; preserves root if nested missing.
     if isinstance(nested_input, dict):
         metadata = {**metadata, **nested_input}
     if isinstance(nested_output, dict):
         metadata = {**metadata, **nested_output}
-    cache_creation = metadata.get("cache_creation")
+    if isinstance(prompt_details, dict):
+        metadata = {**metadata, **prompt_details}
+    if isinstance(completion_details, dict):
+        metadata = {**metadata, **completion_details}
     if isinstance(cache_creation, dict):
         metadata = {**metadata, **cache_creation}
+    if isinstance(details, dict):
+        metadata = {**metadata, **details}
     optional = (
         (
             "cachedInputTokens",
@@ -1442,23 +2514,32 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
             result[target] = str(value)
     provider, _ = provider_identity(model, response)
     if input_tokens is not None:
-        inclusive = provider in {"OPENAI", "GOOGLE_GENAI", "INCEPTION"} or (model_protocol(model) in {"anthropic", "openai"} and normalized)
+        inclusive = (
+            provider in {"OPENAI", "GOOGLE_GENAI", "INCEPTION"}
+            or (model_protocol(model) in {"anthropic", "openai"} and normalized)
+            or ("prompt_tokens_details" in metadata)
+            or ("cached_tokens" in metadata)
+        )
         cached = result.get("cachedInputTokens")
         written = result.get("cacheWriteTokens")
+        cached_val = int(cached) if cached is not None else 0
+        written_val = int(written) if written is not None else 0
         if inclusive:
             result["inputTokensIncludingCache"] = str(input_tokens)
-            # No cache-creation bucket exists in OpenAI-compatible/Google token usage.
-            if model_protocol(model) in {"openai", "google_genai"} and written is None:
-                written = "0"  # These protocols have no separate cache-creation input bucket.
-            if cached is not None and written is not None:
-                uncached = input_tokens - int(cached) - int(written)
+            # Rationale ("Why"): In inclusive accounting, inputTokens represents strictly uncached prompt tokens.
+            # Mechanism ("How"): Subtract cached and cache-creation tokens from inclusive input_tokens.
+            # Invariants & Constraints: Double-counting of cached tokens is strictly prevented.
+            if cached is not None or written is not None:
+                uncached = input_tokens - cached_val - written_val
                 if uncached < 0:
                     return None
                 result["inputTokens"] = str(uncached)
+            else:
+                result["inputTokens"] = str(input_tokens)
         else:
             result["inputTokens"] = str(input_tokens)
-            if cached is not None and written is not None:
-                result["inputTokensIncludingCache"] = str(input_tokens + int(cached) + int(written))
+            if cached is not None or written is not None:
+                result["inputTokensIncludingCache"] = str(input_tokens + cached_val + written_val)
     if not normalized and provider == "GOOGLE_GENAI" and "candidatesTokenCount" in metadata:
         result["visibleOutputTokens"] = str(output_tokens) if output_tokens is not None else None
         if output_tokens is not None and "reasoningTokens" in result:
@@ -1557,6 +2638,8 @@ def _usage_metadata(response: Any, *, include_root: bool = True) -> dict[str, An
     - Read-only response metadata inspection; no logging or settlement occurs.
     """
     candidates = [getattr(response, "usage_metadata", None)]
+    if isinstance(response, dict):
+        candidates.append(response)
     response_metadata = getattr(response, "response_metadata", None)
     if isinstance(response_metadata, dict):
         candidates.extend(
@@ -1615,11 +2698,16 @@ __all__ = [
     "AgentRunState",
     "ModelContextWindowExceeded",
     "ModelIdentityMismatch",
+    "OUTPUT_EVALUATION_STATES",
+    "PROVIDER_COMPLETION_STATES",
     "UsageMeteringMiddleware",
     "activate_agent_role",
     "activate_agent_run_state",
     "active_agent_role",
     "active_agent_run_state",
     "extract_provider_usage",
+    "input_token_limit",
+    "output_cap_settings",
+    "output_token_limit",
     "provider_usage_telemetry",
 ]

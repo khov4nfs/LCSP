@@ -151,14 +151,40 @@ describe("RbacPreflightService", () => {
     });
   });
 
-  it("does not throw when the decision-log write fails", async () => {
-    const { service } = makeService({
-      appendImpl: () => Promise.reject(new Error("db down")),
-    });
+  it("allows when the repository reports a durable fallback as a successful append", async () => {
+    const { service } = makeService();
 
     await expect(service.evaluate(makeInput())).resolves.toEqual({
       decision: "ALLOW",
       reasonCode: null,
+      correlationId: "corr-1",
+    });
+  });
+
+  it("[RED][ASM-RBAC-02] converts an unauditable ALLOW to DENY", async () => {
+    const { service } = makeService({
+      appendImpl: () => Promise.reject(new Error("audit store unavailable")),
+    });
+
+    // Preflight is itself an authorization decision boundary. A caller must
+    // not observe ALLOW when the required decision evidence was not persisted.
+    await expect(service.evaluate(makeInput())).resolves.toEqual({
+      decision: "DENY",
+      reasonCode: RBAC_REASON_CODES.loadError,
+      correlationId: "corr-1",
+    });
+  });
+
+  it("[ASM-RBAC-02] preserves DENY when decision auditing also fails", async () => {
+    const { service } = makeService({
+      appendImpl: () => Promise.reject(new Error("audit sinks unavailable")),
+    });
+
+    await expect(
+      service.evaluate(makeInput({ requiredRoles: [AUTH_USER_ROLES.admin] })),
+    ).resolves.toEqual({
+      decision: "DENY",
+      reasonCode: RBAC_REASON_CODES.denied,
       correlationId: "corr-1",
     });
   });

@@ -9,6 +9,8 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+  AUDIT_EVENT_RESULTS,
   type AuditActorType,
 } from "@lcsp/contracts/audit";
 import {
@@ -21,6 +23,7 @@ import { Prisma } from "@prisma/client";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { enqueueAuthoredDocument } from "../../../../platform/localization/authored-localization.service.js";
 import { AUTHORED_LOCALIZATION_ENTITIES } from "@lcsp/contracts/assessment-domain";
+import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 
 export interface AppendAssessmentEventInput {
   assessmentId: string;
@@ -46,7 +49,10 @@ export interface AppendAssessmentEventInput {
  */
 @Injectable()
 export class AssessmentEventAppender {
-  constructor(private readonly outbox: OutboxRepository) {}
+  constructor(
+    private readonly outbox: OutboxRepository,
+    private readonly auditWriter: AuditWriterService,
+  ) {}
 
   /**
    * Business purpose: Append an authoritative assessment event and enqueue authored localization atomically.
@@ -54,11 +60,11 @@ export class AssessmentEventAppender {
    * Business rules:
    * - Sequence, runtime and outbox identities remain server-owned; translations cannot become accepted facts.
    * Execution flow:
-   * 1. Resolve runtime sequence, persist the event/outbox and enqueue its authored narratives and linked decision or request.
+   * 1. Resolve runtime sequence, persist separate AssessmentEvent, canonical AuditEvent and outbox records, then enqueue authored narratives and linked decision or request.
    * Failure cases:
    * - Missing runtime, schema errors or localization enqueue failures abort the caller transaction.
    * Side effects:
-   * - Write assessment history, outbox and translation requests in the supplied transaction.
+   * - Write assessment history, canonical audit, outbox and translation requests in the supplied transaction.
    */
   async appendInTx(
     tx: Prisma.TransactionClient,
@@ -147,6 +153,33 @@ export class AssessmentEventAppender {
         outboxMessageId,
       },
     });
+    // AssessmentEvent is the domain timeline and outbox is delivery intent;
+    // this separate canonical AuditEvent provides operator/compliance evidence.
+    // All three share the caller transaction and therefore cannot commit alone.
+    await this.auditWriter.writeInTx(
+      {
+        eventType: input.eventType,
+        actorId: input.auditActor.id,
+        assessmentId: input.assessmentId,
+        resourceType: AUDIT_RESOURCE_TYPES.assessment,
+        resourceId: input.assessmentId,
+        reasonCode: null,
+        correlationId: input.correlationId,
+        causationId: eventId,
+        result: AUDIT_EVENT_RESULTS.success,
+        redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+        actor: input.auditActor,
+        sessionId: null,
+        // Domain occurrence is not itself an authorization verdict.
+        decision: null,
+        payload: {
+          assessmentEventId: eventId,
+          assessmentEventType: input.eventType,
+          assessmentEventSequence: sequence,
+        },
+      },
+      tx,
+    );
     await enqueueAuthoredDocument(tx, {
       // No reviewed upstream field-language declaration exists at this writer boundary.
       sourceLanguages: {},

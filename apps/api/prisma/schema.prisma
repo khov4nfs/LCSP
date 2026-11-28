@@ -283,6 +283,8 @@ model User {
   llmUsageEvents            LlmUsageEvent[]
   paymentTransactions       PaymentTransaction[]
   assessmentFactNeeds       AssessmentFactNeed[]          @relation("AssessmentFactNeedTenantOwner")
+  // WP8 direct-credit admission linkage (optional owner for customer-funded invocations).
+  billableInvocationAdmissions BillableInvocationAdmission[]
   privacySetting            PrivacySetting?
   capabilitySetting         CapabilitySetting?
 
@@ -427,10 +429,34 @@ model Assessment {
   rootExecutionSlots     AssessmentRootExecutionSlot[]
   rootAdmissionRequests  AssessmentRootAdmissionRequest[]
   executionIsolation     AssessmentExecutionIsolation?
+  deletionFence          AssessmentDeletionFence?
+  // WP8 direct-credit admission linkage for per-invocation telemetry and retention detachment.
+  billableInvocationAdmissions BillableInvocationAdmission[]
 
+  @@unique([id, ownerId])
   @@index([ownerId])
   @@index([ownerId, updatedAt(sort: Desc), id])
   @@index([ownerId, lifecycleState, id])
+  // ADMIN metadata reads have no owner predicate; these indexes preserve stable list ordering
+  // for both the unfiltered path and the optional lifecycle-state filter.
+  @@index([updatedAt(sort: Desc), id])
+  @@index([lifecycleState, updatedAt(sort: Desc), id])
+}
+
+/// Durable owner-bound authorization fence for synchronous assessment cleanup.
+/// The composite FK prevents owner changes while destructive external work is in flight.
+model AssessmentDeletionFence {
+  assessmentId  String   @id
+  ownerId       String
+  token         String   @unique
+  startedAt     DateTime @default(now()) @db.Timestamptz(3)
+  leaseExpiresAt DateTime @db.Timestamptz(3)
+  assessment    Assessment @relation(fields: [assessmentId, ownerId], references: [id, ownerId], onDelete: Cascade, onUpdate: Restrict)
+
+  // Prisma requires the complete composite relation fields to be unique for
+  // this one-to-one fence, even though assessmentId is also the primary key.
+  @@unique([assessmentId, ownerId])
+  @@index([ownerId, startedAt])
 }
 
 /// Optional deployment fence for a new Assessment in a shared, mixed-version database.
@@ -721,6 +747,7 @@ enum AuditResourceType {
   AUTH_SESSION
   GITHUB_APP_INSTALL_STATE
   HTTP_ROUTE
+  CUSTOMER_MODEL_TARIFF
   LEGAL_REQUIREMENT
   COMPLIANCE_RULE_SET_VERSION
   LEGAL_SOURCE_VERSION
@@ -735,6 +762,8 @@ enum AuditResourceType {
 
 enum OutboxAggregateType {
   BILLING_PAYMENT
+  BILLING_WALLET
+  CUSTOMER_MODEL_TARIFF
   ASSESSMENT
   AUTH_USER
   LEGAL_SOURCE_VERSION
@@ -1453,17 +1482,22 @@ enum LlmUsageStatus {
 }
 
 model BillingWallet {
-  id                           String               @id @default(uuid())
-  userId                       String               @unique
-  availableCredits             BigInt               @default(0)
-  reservedCredits              BigInt               @default(0)
-  version                      Int                  @default(0)
-  reservationAutoRefillEnabled Boolean              @default(false)
-  createdAt                    DateTime             @default(now())
-  updatedAt                    DateTime             @updatedAt
-  user                         User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  id                           String                        @id @default(uuid())
+  userId                       String                        @unique
+  availableCredits             BigInt                        @default(0)
+  reservedCredits              BigInt                        @default(0)
+  // WP8 shadow microcredit authority (1 public credit = 1,000,000 microcredits).
+  // Kept additive alongside legacy *Credits columns so pre-cutover writers remain compatible.
+  balanceMicrocredits          BigInt                        @default(0)
+  accountingUnitVersion        Int                           @default(1)
+  version                      Int                           @default(0)
+  reservationAutoRefillEnabled Boolean                       @default(false)
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  user                         User                          @relation(fields: [userId], references: [id], onDelete: Restrict)
   ledgerEntries                CreditLedgerEntry[]
   reservations                 BillingReservation[]
+  admissions                   BillableInvocationAdmission[]
 }
 
 model BillingOrder {
@@ -1532,23 +1566,33 @@ model PaymentTransaction {
 }
 
 model CreditLedgerEntry {
-  id             String        @id @default(uuid())
-  userId         String
-  walletId       String
-  billingOrderId String?
-  idempotencyKey String        @unique
-  source         String
-  referenceId    String?
-  deltaCredits   BigInt
-  createdAt      DateTime      @default(now())
-  user           User          @relation(fields: [userId], references: [id], onDelete: Restrict)
-  wallet         BillingWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  billingOrder   BillingOrder? @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
+  id                    String              @id @default(uuid())
+  userId                String
+  walletId              String
+  billingOrderId        String?
+  idempotencyKey        String              @unique
+  source                String
+  referenceId           String?
+  deltaCredits          BigInt
+  // WP8 shadow microcredit columns: deltaMicrocredits remains nullable so historical
+  // pre-microcredit rows stay distinguishable from explicit zero-microcredit rows.
+  deltaMicrocredits     BigInt?
+  accountingUnitVersion Int                 @default(1)
+  ledgerSource          CreditLedgerSource?
+  admissionId           String?
+  originalLedgerEntryId String?
+  requestFingerprint    String?
+  createdAt             DateTime            @default(now())
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet                BillingWallet       @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  billingOrder          BillingOrder?       @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
 
   @@index([userId, createdAt])
   @@index([walletId, createdAt])
   @@index([source, referenceId])
   @@index([source, createdAt])
+  @@index([admissionId])
+  @@index([originalLedgerEntryId])
 }
 
 model BillingReservation {
@@ -1676,6 +1720,19 @@ model LlmUsageEvent {
   customerChargeVnd       BigInt?
   reservationId           String?
   chargedCredits          BigInt?
+  // WP8 additive nullable telemetry columns (keeps existing LlmUsageEvent writers unaffected).
+  operationType           String?
+  protocol                String?
+  appliedMaxOutputTokens  Int?
+  finishReason            String?
+  providerCompletionState ProviderCompletionState?
+  durationMs              Int?
+  modelStep               Int?
+  attemptOrdinal          Int?
+  logicalOperationId      String?
+  admissionId             String?
+  pricingResolution       ModelPricingScope?
+  chargedMicrocredits     BigInt?
   occurredAt              DateTime                    @default(now())
   createdAt               DateTime                    @default(now())
   user                    User?                        @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -1691,6 +1748,404 @@ model LlmUsageEvent {
   @@index([reservationId, createdAt])
   @@index([userId, createdAt])
   @@index([provider, model, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// WP8 Direct-Credit Tariff, Per-Invocation Admission, Receipt & Evaluation
+// Legacy ModelPricingSnapshot, BillingReservation, BillingReservationInvocationClaim,
+// and RuntimeModelPolicySnapshot remain untouched (REFERENCE_ONLY / compatibility-drain).
+// ---------------------------------------------------------------------------
+
+enum ModelPricingScope {
+  EXACT_MODEL
+  PROVIDER_DEFAULT
+  GLOBAL_DEFAULT
+}
+
+enum CustomerTariffDraftStatus {
+  DRAFT
+  PUBLISHED
+  ABANDONED
+}
+
+enum TokenBucketPolicy {
+  SEPARATE_RATE
+  USE_OUTPUT_RATE
+  INCLUDED_IN_OUTPUT
+  UNSUPPORTED
+}
+
+enum ModelUsageDebitMode {
+  OFF
+  SHADOW
+  ON
+}
+
+enum BillingRolloutMode {
+  TELEMETRY_ONLY
+  SHADOW_PRICING
+  ADMISSION_REQUIRED
+  SHADOW_SETTLEMENT
+  DEBIT_ENABLED
+}
+
+enum AdmissionFundingPrincipal {
+  CUSTOMER_WALLET
+  PLATFORM_SPONSORED
+}
+
+enum AdmissionState {
+  REQUESTED
+  ADMITTED
+  REJECTED
+  IN_FLIGHT
+  EXPIRED
+  REVOKED
+  DISPATCH_UNKNOWN
+  OUTCOME_UNKNOWN
+  CONFIRMED_NO_USAGE
+  SETTLED
+  BILLING_INTEGRITY_REVIEW
+  COMPENSATED
+}
+
+enum ProviderCompletionState {
+  COMPLETED
+  MAX_TOKENS
+  TRUNCATED
+  FAILED
+  OUTCOME_UNKNOWN
+}
+
+enum OutputEvaluationState {
+  ACCEPTED
+  SCHEMA_INVALID
+  DOMAIN_REJECTED
+  NOT_EVALUATED
+}
+
+enum CreditLedgerSource {
+  BILLING_ORDER_CREDIT
+  MODEL_USAGE_DEBIT
+  COMPENSATION
+  GOODWILL_CREDIT
+}
+
+/// Mutable operational tariff draft authored by ADMIN. Never billable directly;
+/// publishing copies immutable direct-credit microcredit rates into CustomerModelTariffSnapshot.
+model CustomerModelTariffDraft {
+  id                               String                    @id @default(uuid())
+  scope                            ModelPricingScope
+  provider                         String?
+  resolvedModel                    String?
+  normalizedScopeKey               String
+  status                           CustomerTariffDraftStatus @default(DRAFT)
+  version                          Int                       @default(1)
+  inputMicrocreditsPerMillion      BigInt
+  outputMicrocreditsPerMillion     BigInt
+  reasoningPolicy                  TokenBucketPolicy
+  reasoningMicrocreditsPerMillion  BigInt?
+  cachedInputPolicy                TokenBucketPolicy         @default(UNSUPPORTED)
+  cachedInputMicrocreditsPerMillion BigInt?
+  cacheWritePolicy                 TokenBucketPolicy         @default(UNSUPPORTED)
+  cacheWriteMicrocreditsPerMillion BigInt?
+  cacheWrite5mMicrocreditsPerMillion BigInt?
+  cacheWrite1hMicrocreditsPerMillion BigInt?
+  operationalAssumptions           Json?
+  publishedSnapshotId              String?                   @unique
+  createdBy                        String
+  updatedBy                        String
+  createdAt                        DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt                        DateTime                  @updatedAt @db.Timestamptz(3)
+
+  @@index([normalizedScopeKey, status, updatedAt])
+}
+
+/// Immutable append-only direct-credit tariff authority (enforced by PostgreSQL trigger).
+/// Rates are expressed strictly in microcredits per 1M tokens (no runtime FX or markup).
+model CustomerModelTariffSnapshot {
+  id                                 String                          @id @default(uuid())
+  sourceDraftId                      String?
+  scope                              ModelPricingScope
+  provider                           String?
+  resolvedModel                      String?
+  normalizedScopeKey                 String
+  version                            Int
+  accountingUnitVersion              Int                             @default(1)
+  inputMicrocreditsPerMillion        BigInt
+  outputMicrocreditsPerMillion       BigInt
+  reasoningPolicy                    TokenBucketPolicy
+  reasoningMicrocreditsPerMillion    BigInt?
+  cachedInputPolicy                  TokenBucketPolicy
+  cachedInputMicrocreditsPerMillion  BigInt?
+  cacheWritePolicy                   TokenBucketPolicy
+  cacheWriteMicrocreditsPerMillion   BigInt?
+  cacheWrite5mMicrocreditsPerMillion BigInt?
+  cacheWrite1hMicrocreditsPerMillion BigInt?
+  idempotencyKey                     String                          @unique
+  requestFingerprint                 String
+  publishedBy                        String
+  auditReason                        String
+  publishedAt                        DateTime                        @default(now()) @db.Timestamptz(3)
+  createdAt                          DateTime                        @default(now()) @db.Timestamptz(3)
+  assignments                        CustomerModelTariffAssignment[]
+  admissions                         BillableInvocationAdmission[]
+
+  @@unique([normalizedScopeKey, version])
+  @@index([normalizedScopeKey, publishedAt])
+}
+
+/// Versioned half-open UTC interval [effectiveFrom, effectiveTo) binding a normalized
+/// scope key to an immutable CustomerModelTariffSnapshot. PostgreSQL btree_gist EXCLUDE
+/// constraint prevents overlapping active intervals for the same normalizedScopeKey.
+model CustomerModelTariffAssignment {
+  id                          String                        @id @default(uuid())
+  tariffSnapshotId            String
+  scope                       ModelPricingScope
+  normalizedScopeKey          String
+  effectiveFrom               DateTime                      @db.Timestamptz(3)
+  effectiveTo                 DateTime?                     @db.Timestamptz(3)
+  supersededByAssignmentId    String?
+  supersededBy                String?
+  supersededAt                DateTime?                     @db.Timestamptz(3)
+  cancelledAt                 DateTime?                     @db.Timestamptz(3)
+  supersedeIdempotencyKey     String?                       @unique
+  supersedeRequestFingerprint String?
+  version                     Int                           @default(1)
+  auditReason                 String?
+  createdBy                   String
+  createdAt                   DateTime                      @default(now()) @db.Timestamptz(3)
+  tariffSnapshot              CustomerModelTariffSnapshot   @relation(fields: [tariffSnapshotId], references: [id], onDelete: Restrict)
+  admissions                  BillableInvocationAdmission[]
+
+  @@index([normalizedScopeKey, effectiveFrom, effectiveTo])
+  @@index([tariffSnapshotId])
+}
+
+/// Server-issued per-physical-invocation authority pinning funding principal, wallet/user,
+/// assessment/run/lease, allowlisted model, tariff snapshot, rollout mode, and max exposure.
+model BillableInvocationAdmission {
+  id                          String                         @id @default(uuid())
+  invocationId                String                         @unique
+  admissionRequestId          String                         @unique
+  requestFingerprint          String
+  logicalOperationId          String
+  attemptOrdinal              Int                            @default(1)
+  fundingPrincipal            AdmissionFundingPrincipal
+  userId                      String?
+  walletId                    String?
+  assessmentId                String?
+  preparationRunId            String?
+  runId                       String
+  executionLeaseToken         String?
+  agentRole                   String
+  operationType               String
+  requestedModel              String
+  resolvedProvider            String
+  resolvedModel               String
+  tariffSnapshotId            String?
+  tariffAssignmentId          String?
+  pricingResolution           ModelPricingScope?
+  sponsorshipPolicySnapshotId String?
+  runtimePolicyVersion        String
+  rolloutMode                 BillingRolloutMode             @default(TELEMETRY_ONLY)
+  debitMode                   ModelUsageDebitMode            @default(OFF)
+  appliedMaxOutputTokens      Int
+  maximumExposureMicrocredits BigInt
+  initialExposureMicrocredits BigInt?
+  capabilityDigest            String
+  state                       AdmissionState                 @default(ADMITTED)
+  version                     Int                            @default(1)
+  admittedAt                  DateTime                       @default(now()) @db.Timestamptz(3)
+  expiresAt                   DateTime                       @db.Timestamptz(3)
+  inFlightLeaseExpiresAt      DateTime?                      @db.Timestamptz(3)
+  consumedAt                  DateTime?                      @db.Timestamptz(3)
+  settledAt                   DateTime?                      @db.Timestamptz(3)
+  settlementFingerprint       String?                        @unique
+  chargedMicrocredits         BigInt?
+  correlationId               String
+  createdAt                   DateTime                       @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime                       @updatedAt @db.Timestamptz(3)
+  user                        User?                              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet                      BillingWallet?                     @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  assessment                  Assessment?                        @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  tariffSnapshot              CustomerModelTariffSnapshot?       @relation(fields: [tariffSnapshotId], references: [id], onDelete: Restrict)
+  tariffAssignment            CustomerModelTariffAssignment?     @relation(fields: [tariffAssignmentId], references: [id], onDelete: Restrict)
+  sponsorshipPolicySnapshot   PlatformSponsorshipPolicySnapshot? @relation(fields: [sponsorshipPolicySnapshotId], references: [id], onDelete: Restrict)
+  usageReceipt                ModelUsageReceipt?
+  outputEvaluation            ModelOutputEvaluation?
+  reconciliationCase          BillingReconciliationCase?
+
+  @@unique([logicalOperationId, attemptOrdinal])
+  @@index([walletId, state])
+  @@index([assessmentId, runId])
+  @@index([logicalOperationId])
+  @@index([state, admittedAt])
+  @@index([state, inFlightLeaseExpiresAt])
+  @@index([sponsorshipPolicySnapshotId])
+}
+
+/// Immutable authority for approved system-owned provider work such as ownerless Rule Set Preparation.
+/// It pins provider-cost/exposure policy and records usage/cost/audit/outbox without customer tariff resolution or wallet debit.
+model PlatformSponsorshipPolicySnapshot {
+  id                           String                        @id @default(uuid())
+  policyName                   String
+  policyVersion                String
+  description                  String?
+  provider                     String
+  resolvedModel                String
+  inputMicrocreditsPerMillion  BigInt
+  outputMicrocreditsPerMillion BigInt
+  effectiveFrom                DateTime                      @default(now()) @db.Timestamptz(3)
+  effectiveTo                  DateTime?                     @db.Timestamptz(3)
+  createdAt                    DateTime                      @default(now()) @db.Timestamptz(3)
+  admissions                   BillableInvocationAdmission[]
+
+  @@unique([policyName, policyVersion, provider, resolvedModel])
+  @@index([policyName, provider, resolvedModel, effectiveFrom, effectiveTo])
+}
+
+/// Immutable provider usage & settlement receipt linked 1:1 to BillableInvocationAdmission.
+/// Stores non-overlapping token buckets and operational metadata without raw prompt/response/source.
+model ModelUsageReceipt {
+  id                       String                      @id @default(uuid())
+  admissionId              String                      @unique
+  invocationId             String                      @unique
+  providerCompletionState  ProviderCompletionState
+  finishReason             String?
+  responseStatus           String?
+  appliedMaxOutputTokens   Int?
+  operationType            String
+  routeProtocol            String?
+  runtimePolicyVersion     String
+  durationMs               Int?
+  modelStep                Int?
+  attemptOrdinal           Int?
+  providerResponseId       String?
+  // Why: Later domain rejection must be scoped to a tool call emitted by this physical model response.
+  // How: Persist only bounded call IDs in the immutable usage receipt, never tool arguments or outputs.
+  // Invariant: Evaluation cannot introduce a new toolCallId after settlement.
+  toolCallIds              String[]                    @default([])
+  inputTokens              BigInt?
+  cachedInputTokens        BigInt?
+  cacheWriteTokens         BigInt?
+  cacheWrite5mTokens       BigInt?
+  cacheWrite1hTokens       BigInt?
+  outputTokens             BigInt?
+  visibleOutputTokens      BigInt?
+  reasoningTokens          BigInt?
+  totalTokens              BigInt?
+  calculatedMicrocredits   BigInt                      @default(0)
+  debitedMicrocredits      BigInt                      @default(0)
+  shadowMicrocredits       BigInt?
+  chargedMicrocredits      BigInt?
+  // Server-owned post-debit solvency snapshot keeps lost-response settlement replay stable after later top-ups.
+  paymentRequired          Boolean                     @default(false)
+  settlementIdempotencyKey String?                     @unique
+  settledAt                DateTime?                   @db.Timestamptz(3)
+  createdAt                DateTime                    @default(now()) @db.Timestamptz(3)
+  admission                BillableInvocationAdmission @relation(fields: [admissionId], references: [id], onDelete: Restrict)
+
+  @@index([providerResponseId])
+  @@index([operationType, runtimePolicyVersion, createdAt])
+}
+
+/// AD-12 downstream output evaluation record stored separately from ModelUsageReceipt
+/// so provider completion state (TRUNCATED/MAX_TOKENS) remains decoupled from domain evaluation.
+model ModelOutputEvaluation {
+  id                      String                       @id @default(uuid())
+  invocationId            String                       @unique
+  admissionId             String?                      @unique
+  operationType           String
+  evaluationState         OutputEvaluationState        @default(NOT_EVALUATED)
+  providerCompletionState ProviderCompletionState?
+  evaluatorVersion        String?
+  // Why: A repeated worker callback must replay one persisted evaluator event without changing the verdict.
+  // How: Store the server-journal event identity and a fingerprint of exact callback fields.
+  // Invariant: Conflicting callbacks never overwrite a completed evaluation.
+  evaluatorEventId        String?                      @unique
+  evaluationFingerprint   String?
+  reasonCode              String?
+  correlationId           String
+  evaluatedAt             DateTime                     @default(now()) @db.Timestamptz(3)
+  createdAt               DateTime                     @default(now()) @db.Timestamptz(3)
+  admission               BillableInvocationAdmission? @relation(fields: [admissionId], references: [id], onDelete: Restrict)
+
+  @@index([evaluationState, evaluatedAt])
+}
+
+enum BillingReconciliationState {
+  OPEN
+  EVIDENCE_PENDING
+  INTEGRITY_REVIEW
+  SETTLED_WITH_USAGE
+  CONFIRMED_NO_USAGE
+  ESCALATED
+  CLOSED
+}
+
+/// Operations aggregate for DISPATCH_UNKNOWN, OUTCOME_UNKNOWN, over-exposure, and conflicting evidence (ADR-028 Line 155).
+model BillingReconciliationCase {
+  id                       String                      @id @default(uuid())
+  caseId                   String                      @unique
+  invocationId             String                      @unique
+  admissionId              String                      @unique
+  state                    BillingReconciliationState  @default(OPEN)
+  provider                 String
+  providerCorrelationId   String
+  providerLogArtifactId   String?
+  providerLogArchiveSha256 String?
+  coverageStart            DateTime?                   @db.Timestamptz(3)
+  coverageEnd              DateTime?                   @db.Timestamptz(3)
+  resolvedAt               DateTime?                   @db.Timestamptz(3)
+  resolvedBy               String?
+  auditRationale           String?
+  conflictingPayload       Json?
+  conflictDetectedAt       DateTime?                   @db.Timestamptz(3)
+  version                  Int                         @default(1)
+  createdAt                DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                    @updatedAt @db.Timestamptz(3)
+  admission                BillableInvocationAdmission @relation(fields: [admissionId], references: [id], onDelete: Restrict)
+
+  @@index([state])
+  @@index([admissionId])
+}
+
+/// Durable, unique idempotency receipt for BillingReconciliationCase administrative decisions.
+model BillingReconciliationDecisionReceipt {
+  id                    String   @id @default(uuid())
+  caseId                String
+  idempotencyKey        String   @unique
+  requestFingerprint    String
+  decision              String
+  auditRationale        String
+  providerLogArtifactId String?
+  decidedBy             String
+  responseSnapshot      Json
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([caseId])
+}
+
+/// Durable, server-authenticated provider audit log artifact for independent reconciliation.
+model ProviderLogArtifact {
+  id                 String    @id @default(uuid())
+  artifactId         String    @unique
+  provider           String
+  source             String    @default("PROVIDER_EXPORT_VERIFIED")
+  signingKeyId       String?
+  providerSignature  String
+  sha256             String
+  coverageStart      DateTime  @db.Timestamptz(3)
+  coverageEnd        DateTime  @db.Timestamptz(3)
+  finalizedWatermark DateTime? @db.Timestamptz(3)
+  rawContent         String    @db.Text
+  verified           Boolean   @default(false)
+  ingestedBy         String    @default("system")
+  ingestedAt         DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([provider, coverageStart, coverageEnd])
+  @@index([sha256])
 }
 
 // ---------------------------------------------------------------------------

@@ -5820,9 +5820,9 @@
       "dispositionEvidence": "Registered VI draft describes this consumer; runtime cutover and equivalence review remain pending."
     },
     {
-      "siteId": "ast:middleware/usage_metering.py::_tool_estimation_payload::SCHEMA_DESCRIPTION::499:afdcabcece5a57ec",
+      "siteId": "ast:middleware/usage_metering.py::_tool_estimation_payload::SCHEMA_DESCRIPTION::554:afdcabcece5a57ec",
       "filePath": "middleware/usage_metering.py",
-      "lineNumber": 499,
+      "lineNumber": 554,
       "symbolName": "_tool_estimation_payload",
       "constructionSha256": "afdcabcece5a57ec75e1181aa1900f3d8f80ee34124c3cc2025db65233030e31",
       "evidence": "getattr(tool, \"description\", None)",

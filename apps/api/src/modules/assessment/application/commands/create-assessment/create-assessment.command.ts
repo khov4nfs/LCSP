@@ -1,6 +1,6 @@
 import { Command } from "@nestjs/cqrs";
 
-import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
+import type { AssessmentDetail as CreateAssessmentDto } from "@lcsp/contracts/assessment-domain";
 
 /**
  * Carries assessment-creation input for an already authenticated owner.

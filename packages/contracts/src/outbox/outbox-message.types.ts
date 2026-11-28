@@ -40,6 +40,11 @@ export const OUTBOX_EVENT_EXCHANGES = {
 
 export const OUTBOX_AGGREGATE_TYPES = {
   billingPayment: "BILLING_PAYMENT",
+  billingWallet: "BILLING_WALLET",
+  // Why: Enables transactional outbox emission for WP8 Phase B2 customer model tariff lifecycle events.
+  // How: Canonical SCREAMING_SNAKE_CASE value aligned 1:1 with Prisma OutboxAggregateType.CUSTOMER_MODEL_TARIFF.
+  // Invariants: Mapped exhaustively in apps/api prisma-enum-mappers.ts.
+  customerModelTariff: "CUSTOMER_MODEL_TARIFF",
   assessment: "ASSESSMENT",
   authUser: "AUTH_USER",
   legalSourceVersion: "LEGAL_SOURCE_VERSION",

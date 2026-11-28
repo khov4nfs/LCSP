@@ -19,7 +19,7 @@ export class GetCustomerUsageHandler implements IQueryHandler<GetCustomerUsageQu
    * Business rules:
    * - The authenticated owner is mandatory and cannot be overridden by query filters.
    * - System-owned receipts are excluded; workflow IDs, failures and pricing internals are not public.
-   * - Quote the selected report at the current LCSP 1.8 policy without changing provider reference costs.
+   * - Quote the selected report at the versioned LCSP 1.2 informational policy without changing provider reference costs or wallet authority.
    * Execution flow:
    * 1. Validate the bounded customer filters and require a nonempty authenticated owner.
    * 2. Apply the owner to both aggregates and receipt pagination through the shared reader.

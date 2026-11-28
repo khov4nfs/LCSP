@@ -20,9 +20,16 @@ function makeContext(
   } as unknown as ExecutionContext;
 }
 
-function makeGuard(configuredKey: string = VALID_KEY): WorkerApiKeyGuard {
+function makeGuard(
+  configuredKey: string = VALID_KEY,
+  previousKey?: string,
+): WorkerApiKeyGuard {
   const configService = {
-    get: (_key: string, fallback?: unknown) => configuredKey ?? fallback,
+    get: (key: string, fallback?: unknown) => {
+      if (key === "worker.apiKey") return configuredKey ?? fallback;
+      if (key === "worker.previousApiKey") return previousKey ?? fallback;
+      return fallback;
+    },
   } as unknown as ConfigService;
   return new WorkerApiKeyGuard(configService);
 }
@@ -64,6 +71,21 @@ describe("WorkerApiKeyGuard", () => {
     const ctx = makeContext({ "x-worker-api-key": VALID_KEY });
 
     expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it("accepts only the configured WORKER_API_KEY even if a previous key is present", () => {
+    const previousKey = "previous-secret-worker-key-67890";
+    const guard = makeGuard(VALID_KEY, previousKey);
+
+    // Why: ASM-WORKER-01 was withdrawn when the product accepted one worker key.
+    // How: A stale key is rejected even if legacy config exposes it, while the current key works.
+    // Invariant: This test must not force previous-key rotation into production authorization.
+    expect(() =>
+      guard.canActivate(makeContext({ "x-worker-api-key": previousKey })),
+    ).toThrow(UnauthorizedException);
+    expect(
+      guard.canActivate(makeContext({ "x-worker-api-key": VALID_KEY })),
+    ).toBe(true);
   });
 
   it("preserves correlationId from header when rejecting", () => {

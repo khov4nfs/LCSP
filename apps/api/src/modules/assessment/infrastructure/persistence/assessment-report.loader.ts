@@ -1,4 +1,10 @@
-import { Injectable, HttpStatus, HttpException } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
 import {
   AUTH_ERROR_CODES,
   AUTH_USER_ROLES,
@@ -24,17 +30,46 @@ import {
 } from "../../../../platform/storage/artifact-storage.service.js";
 import { sha256Hex } from "../../domain/domain-ids.js";
 import { decisionFingerprint } from "../../domain/decision-fingerprint.js";
+import {
+  classifyFinalReportFailure,
+  FinalReportIntegrityError,
+  finalReportFailureCode,
+  withFinalReportDependencyDeadline,
+} from "../../application/services/final-report-error-classifier.js";
 import { buildCanonicalRepositoryUrl } from "@lcsp/contracts/github-integration";
 
 /** Reads the existing immutable artifact. This path never generates a report. */
 @Injectable()
 export class AssessmentReportLoader {
+  private readonly logger = new Logger(AssessmentReportLoader.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ArtifactStorageService,
     private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
+  /**
+   * Business purpose: Return a customer-owned ACTIVE final report after proving its immutable integrity.
+   *
+   * Business rules:
+   * - Only the owning Customer may read a report and the Assessment must already be COMPLETE.
+   * - Only ACTIVE artifacts are served; BUILDING, INVALID, and SUPERSEDED artifacts never reach storage.
+   * - Manifest, schema, pins, decision fingerprint, hash, size, and frozen case identity must agree.
+   *
+   * Execution flow:
+   * 1. Load the artifact with its Assessment ownership and lifecycle authority.
+   * 2. Enforce owner, role, COMPLETE, ACTIVE, and storage-reference guards.
+   * 3. Reconstruct and validate immutable bytes plus authoritative rule-set and snapshot pins.
+   * 4. Optionally project an approved locale overlay and return content with source digests.
+   *
+   * Failure cases:
+   * - Access failures are 404, inactive/corrupt artifacts are 409, dependency outages are 503,
+   *   and unexpected internal failures are masked as 500.
+   *
+   * Side effects:
+   * - Read-only database and storage access; locale projection may read durable localization overlays.
+   */
   async load(input: {
     assessmentId: string;
     artifactId: string;
@@ -43,58 +78,81 @@ export class AssessmentReportLoader {
     correlationId: string;
     locale?: string | null;
   }) {
-    const artifact = await this.prisma.assessmentArtifact.findUnique({
-      where: { artifactId: input.artifactId },
-      include: { assessmentCase: { include: { assessment: true } } },
-    });
-    if (
-      !artifact ||
-      artifact.assessmentId !== input.assessmentId ||
-      input.subjectRole !== AUTH_USER_ROLES.customer ||
-      artifact.assessmentCase.assessment.ownerId !== input.sessionUserId
-    ) {
-      throw problemException(
-        ASSESSMENT_ERROR_CODES.notFound,
-        input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
-
-    // Rationale (Why): Enforce runtime capability policy at the artifact download boundary so disabling artifacts cannot be bypassed via direct API calls.
-    // Mechanism (How): Queries the owner's CapabilitySetting row and rejects with 403 Forbidden (fail closed) if artifactsEnabled is explicitly false.
-    // Invariants (What): Unconfigured accounts default to artifactsEnabled=true; existing ownership checks remain intact.
-    if (this.prisma.capabilitySetting) {
-      const capabilitySetting = await this.prisma.capabilitySetting.findUnique({
-        where: { userId: input.sessionUserId },
-        select: { artifactsEnabled: true },
-      });
-      if (capabilitySetting && capabilitySetting.artifactsEnabled === false) {
+    try {
+      // The read, authorization, lifecycle gate, storage reconstruction, and
+      // pin checks share one classification boundary so DB outages cannot leak.
+      if (input.subjectRole !== AUTH_USER_ROLES.customer) {
         throw problemException(
-          AUTH_ERROR_CODES.rbacDenied,
+          ASSESSMENT_ERROR_CODES.notFound,
           input.correlationId,
-          { status: HttpStatus.FORBIDDEN },
+          { status: HttpStatus.NOT_FOUND },
         );
       }
-    }
-
-    const domainCase = artifact.assessmentCase;
-    if (
-      domainCase.assessment.lifecycleState !==
-        ASSESSMENT_LIFECYCLE_STATES.COMPLETE ||
-      artifact.lifecycleState !== ARTIFACT_LIFECYCLE_STATES.ACTIVE ||
-      !artifact.storageRef
-    ) {
-      throw problemException(
-        ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-    try {
+      const artifact = await this.prisma.assessmentArtifact.findFirst({
+        where: {
+          artifactId: input.artifactId,
+          assessmentId: input.assessmentId,
+          assessmentCase: { assessment: { ownerId: input.sessionUserId } },
+        },
+        include: { assessmentCase: { include: { assessment: true } } },
+      });
+      if (!artifact) {
+        throw problemException(
+          ASSESSMENT_ERROR_CODES.notFound,
+          input.correlationId,
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+      // Why: A direct artifact read must obey the owner's capability setting after
+      // ownership is proven. How: Check the setting before storage access.
+      // Invariant: Missing settings retain the default enabled behavior.
+      if (this.prisma.capabilitySetting) {
+        const capabilitySetting =
+          await this.prisma.capabilitySetting.findUnique({
+            where: { userId: input.sessionUserId },
+            select: { artifactsEnabled: true },
+          });
+        if (capabilitySetting?.artifactsEnabled === false) {
+          throw problemException(
+            AUTH_ERROR_CODES.rbacDenied,
+            input.correlationId,
+            {
+              status: HttpStatus.FORBIDDEN,
+            },
+          );
+        }
+      }
+      const domainCase = artifact.assessmentCase;
+      if (
+        domainCase.assessment.lifecycleState !==
+          ASSESSMENT_LIFECYCLE_STATES.COMPLETE ||
+        artifact.lifecycleState !== ARTIFACT_LIFECYCLE_STATES.ACTIVE ||
+        !artifact.storageRef
+      ) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
       const manifest = chunkedManifestSchema.parse(
         JSON.parse(artifact.storageRef),
       );
-      const content = await this.storage.readAndReconstruct(manifest);
+      let content: string;
+      try {
+        content = await withFinalReportDependencyDeadline(
+          this.storage.readAndReconstruct(manifest),
+        );
+      } catch (error) {
+        // The manifest is server-owned, so storage BadRequest means persisted
+        // corruption and must be reported as integrity conflict, not client 400.
+        if (error instanceof BadRequestException) {
+          throw new FinalReportIntegrityError(
+            "Final-report storage integrity mismatch",
+          );
+        }
+        throw error;
+      }
       const report = assessmentFinalReportArtifactVersionedSchema.parse(
         JSON.parse(content),
       );
@@ -123,7 +181,9 @@ export class AssessmentReportLoader {
           report.pins.legalSourceVersion !==
             pinnedRuleSet.legalSourceVersion.version
         ) {
-          throw new Error("Final report pinned rule-set integrity mismatch");
+          throw new FinalReportIntegrityError(
+            "Final report pinned rule-set integrity mismatch",
+          );
         }
       }
       if (
@@ -135,11 +195,13 @@ export class AssessmentReportLoader {
           select: { id: true, sourcePathPrefix: true },
         });
         if (!snapshot) {
-          throw new Error("Final report pinned repository snapshot not found");
+          throw new FinalReportIntegrityError(
+            "Final report pinned repository snapshot not found",
+          );
         }
         const authoritativePrefix = snapshot.sourcePathPrefix ?? null;
         if (report.pins.sourcePathPrefix !== authoritativePrefix) {
-          throw new Error(
+          throw new FinalReportIntegrityError(
             "Final report source path prefix does not match authoritative repository snapshot",
           );
         }
@@ -155,7 +217,10 @@ export class AssessmentReportLoader {
         report.schemaVersion !== artifact.schemaVersion ||
         report.pins.ruleSetVersionId !== artifact.ruleSetVersionId ||
         report.pins.repositorySnapshotId !== artifact.repositorySnapshotId ||
-        report.pins.repositoryCommit !== artifact.repositoryCommit ||
+        // Git object IDs are hexadecimal identifiers, so letter casing is not
+        // semantic. Normalize both persisted boundaries before comparison.
+        report.pins.repositoryCommit.toLowerCase() !==
+          artifact.repositoryCommit.toLowerCase() ||
         report.caseRevision !== artifact.caseRevision ||
         report.decisionFingerprint !== fingerprint ||
         sha256Hex(content) !==
@@ -165,9 +230,10 @@ export class AssessmentReportLoader {
         report.pins.ruleSetVersionId !== domainCase.ruleSetVersionId ||
         report.pins.repositorySnapshotId !== domainCase.repositorySnapshotId ||
         report.pins.repositoryScanJobId !== domainCase.repositoryScanJobId ||
-        report.pins.repositoryCommit !== domainCase.repositoryCommit
+        report.pins.repositoryCommit.toLowerCase() !==
+          domainCase.repositoryCommit?.toLowerCase()
       ) {
-        throw new Error("Final report integrity mismatch");
+        throw new FinalReportIntegrityError("Final report integrity mismatch");
       }
       const repositorySource = await this.loadRepositorySource({
         assessmentId: input.assessmentId,
@@ -204,11 +270,18 @@ export class AssessmentReportLoader {
         repositorySource,
       };
     } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw problemException(
-        ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+      const failureCode = finalReportFailureCode(error);
+      // Expected access/integrity problems are already structured outcomes;
+      // only operational failures need a bounded correlation-safe log record.
+      if (!(error instanceof HttpException)) {
+        this.logger.error(
+          `Final report read failed; correlationId=${input.correlationId}; failure=${error instanceof Error ? error.name : typeof error}; code=${typeof failureCode === "string" ? failureCode : "UNCLASSIFIED"}`,
+        );
+      }
+      throw classifyFinalReportFailure(
+        error,
         input.correlationId,
-        { status: HttpStatus.CONFLICT },
+        ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
       );
     }
   }

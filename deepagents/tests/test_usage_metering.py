@@ -1,3 +1,4 @@
+import itertools
 import json
 import sqlite3
 import time
@@ -11,8 +12,10 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 import model_policy as mp
 from middleware import usage_metering, usage_recovery
+from middleware.failure_policy import PaidAdmissionError
 from middleware.usage_metering import (
-    DEFAULT_MAX_OUTPUT_TOKENS,
+    OUTPUT_EVALUATION_STATES,
+    PROVIDER_COMPLETION_STATES,
     AgentRoleMiddleware,
     AgentRunState,
     ModelContextWindowExceeded,
@@ -22,6 +25,7 @@ from middleware.usage_metering import (
     active_agent_run_state,
     assert_model_identity,
     output_cap_settings,
+    output_token_limit,
     check_request_context,
     extract_provider_usage,
 )
@@ -40,15 +44,22 @@ from tools.common.capabilities.platform.callback_schemas import SettledUsagePayl
 from tools.common.capabilities.platform.config import resolve_usage_recovery_store_path
 
 
+# Why: Server-issued admission requires explicit positive integer token bounds on governed routes.
+# How: Provide shared technical capacity defaults without any pricing metadata; tests override alpha_options cleanly.
+# Invariant: Technical route bounds never encode pricing/tariff/wallet policy.
+_DEFAULT_ROUTE_OPTIONS = {"context_window_tokens": 1_000_000, "max_output_tokens": 65_536}
+
+
 def _set_routes(monkeypatch, alpha_model="model-alpha", alpha_options=None):
+    merged_alpha_options = {**_DEFAULT_ROUTE_OPTIONS, **(alpha_options or {})}
     use_model_routes(
         monkeypatch,
         (
             {
                 "routes": {
-                    "a": {"provider": "openai", "model": alpha_model, "options": alpha_options or {}},
-                    "b": {"provider": "google_genai", "model": "future-model-v99"},
-                    "c": {"provider": "apx", "protocol": "anthropic", "model": "model-gamma"},
+                    "a": {"provider": "openai", "model": alpha_model, "options": merged_alpha_options},
+                    "b": {"provider": "google_genai", "model": "future-model-v99", "options": dict(_DEFAULT_ROUTE_OPTIONS)},
+                    "c": {"provider": "apx", "protocol": "anthropic", "model": "model-gamma", "options": dict(_DEFAULT_ROUTE_OPTIONS)},
                 },
                 "roles": {"default": "a", "narrator": "b"},
                 "fallbacks": {"a": ["c"]},
@@ -76,26 +87,114 @@ class FakeClient:
         self.attempts.append(payload)
 
 
-class FailingClient:
+class AdmittedFakeClient(FakeClient):
+    """Test double implementing the ADR-028 server-issued admission lifecycle.
+
+    Why: UsageMeteringMiddleware enforces request -> consume -> provider -> settle/heartbeat
+    before dispatching any model call, and usage_recovery deduplicates by invocationId.
+    How: Issues monotonically unique admissionId/invocationId/capabilityToken triples across
+    all client instances (via _admission_seq) and records all lifecycle calls while preserving
+    FakeClient.attempts/payloads.
+    Invariant: OUTCOME_UNKNOWN settlements return settled=False, slotReleased=False so
+    recovery envelopes are retained rather than prematurely deleted.
+    """
+
+    _admission_seq = itertools.count(1)
+
+    def __init__(self):
+        super().__init__()
+        self.admissions = []
+        self.consumes = []
+        self.settlements = []
+        self.heartbeats = []
+
+    def request_invocation_admission(self, payload):
+        idx = next(self._admission_seq)
+        self.admissions.append(payload)
+        return {
+            "admissionId": f"adm-{idx}",
+            "invocationId": f"inv-{idx}",
+            "capabilityToken": f"cap-token-{idx}-" + "a" * 32,
+            "state": "ADMITTED",
+            "maximumExposureMicrocredits": "5000000",
+            "admittedAt": "2026-11-28T00:00:00Z",
+            "expiresAt": "2026-11-28T00:05:00Z",
+        }
+
+    def consume_invocation_admission(self, payload):
+        self.consumes.append(payload)
+        return {
+            "admissionId": payload["admissionId"],
+            "invocationId": payload["invocationId"],
+            "state": "IN_FLIGHT",
+        }
+
+    def settle_invocation_usage(self, payload):
+        self.settlements.append(payload)
+        if payload.get("providerCompletionState") == "OUTCOME_UNKNOWN":
+            return {"settled": False, "slotReleased": False, "debitMode": "OFF"}
+        return {"settled": True, "slotReleased": True, "debitMode": "OFF"}
+
+    def heartbeat_invocation_admission(self, payload):
+        self.heartbeats.append(payload)
+        return {
+            "admissionId": payload["admissionId"],
+            "invocationId": payload["invocationId"],
+            "state": "IN_FLIGHT",
+        }
+
+
+class FailingClient(AdmittedFakeClient):
+    """Simulates usage-callback delivery outage while server admission remains healthy.
+
+    Why: Recovery queue tests exercise enqueue/drain behavior when post_settled_usage fails.
+    How: Inherits server admission/consume/settle/heartbeat from AdmittedFakeClient and raises
+    only on post_settled_usage.
+    Invariant: Admission/consume still runs before provider dispatch; only legacy usage delivery fails.
+    """
+
     def post_settled_usage(self, _payload):
         raise RuntimeError("api-unavailable")
 
 
-def _state(client=None, *, role="planner", run_id="run-1", assessment_id="assessment-1"):
-    return AgentRunState(
+def _state(
+    client=None,
+    *,
+    role="planner",
+    run_id="run-1",
+    assessment_id="assessment-1",
+    execution_lease_token="lease-test-1",
+):
+    # Why: Governed assessment calls require an active execution_lease_token on AgentRunState.
+    # How: Attach execution_lease_token by default while allowing callers to pass None explicitly.
+    # Invariant: Never mutates anonymous _request() calls that test MISSING_EXECUTION_CONTEXT.
+    state = AgentRunState(
         run_id=run_id, agent_role=role, assessment_id=assessment_id, api_client=client
     )
+    if execution_lease_token is not None:
+        state.execution_lease_token = execution_lease_token
+    return state
 
 
-def _request(provider="openai", model_name="model-alpha", *, protocol=None, **extra):
+def _request(provider="openai", model_name="model-alpha", *, protocol=None, model_options=None, **extra):
     protocol = protocol or {
         "openai": "openai",
         "google_genai": "google_genai",
         "apx": "anthropic",
         "inception": "openai",
     }.get(provider)
+    # Why: Keep _request() free of run_id/execution_lease_token/preparation_run_id by default
+    # so anonymous wrap_model_call tests continue proving fail-closed MISSING_EXECUTION_CONTEXT.
+    # How: Attach only technical model options (required by output_token_limit) and caller **extra.
+    # Invariant: No execution authority fields are synthesized on _request() by default.
     return SimpleNamespace(
-        model=SimpleNamespace(provider=provider, protocol=protocol, model_name=model_name), **extra
+        model=SimpleNamespace(
+            provider=provider,
+            protocol=protocol,
+            model_name=model_name,
+            options=dict(_DEFAULT_ROUTE_OPTIONS) if model_options is None else model_options,
+        ),
+        **extra,
     )
 
 
@@ -143,18 +242,63 @@ def test_extract_provider_usage_is_numeric_and_does_not_persist_reasoning_conten
 def test_extract_provider_usage_preserves_partial_dimensions():
     usage = extract_provider_usage(SimpleNamespace(usage_metadata={"input_tokens": 1}),
         SimpleNamespace(provider="openai", protocol="openai", model_name="model-alpha"))
-    assert usage == {"inputTokensIncludingCache": "1"}
+    # Why: One reported input token with no cached bucket is one uncached input token.
+    # How: Preserve the known input total and its billable partition without inventing missing output usage.
+    # Invariant: Partial provider evidence must never imply an output count.
+    assert usage == {"inputTokens": "1", "inputTokensIncludingCache": "1"}
 
 
 # --- usage reporting --------------------------------------------------------------------
 
 
-def test_one_response_posts_one_provider_reported_payload_without_money_fields():
-    client = FakeClient()
-    with activate_agent_run_state(_state(client)):
-        result = UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+def test_one_response_posts_one_provider_reported_payload_without_money_fields(monkeypatch):
+    class AdmittedFakeClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.admissions = []
+            self.consumes = []
+            self.settlements = []
+
+        def request_invocation_admission(self, payload):
+            self.admissions.append(payload)
+            return {
+                "admissionId": "adm-usage-report-1",
+                "invocationId": "inv-usage-report-1",
+                "capabilityToken": "cap-usage-report-abcdef1234567890abcdef1234567890",
+                "state": "ADMITTED",
+                "maximumExposureMicrocredits": "1000",
+            }
+
+        def consume_invocation_admission(self, payload):
+            self.consumes.append(payload)
+            return {"state": "IN_FLIGHT"}
+
+        def settle_invocation_usage(self, payload):
+            self.settlements.append(payload)
+            return {"settled": True, "slotReleased": True, "debitMode": "OFF"}
+
+    client = AdmittedFakeClient()
+    store = SimpleNamespace(
+        record_in_flight_admission=lambda _envelope: None,
+        record_usage_evidence=lambda _invocation_id, _usage: None,
+        remove_admission_recovery=lambda _admission_id: None,
+    )
+    # Why: The usage assertion must execute behind the current server-issued admission boundary.
+    # How: Supply an authorized run lease and a local API/store double that records request, consume, and settle.
+    # Invariant: This fixture cannot bypass the production MISSING_EXECUTION_CONTEXT guard.
+    _set_routes(monkeypatch, alpha_options={"context_window_tokens": 1000, "max_output_tokens": 100})
+    monkeypatch.setattr(UsageMeteringMiddleware, "_get_recovery_store", lambda _self: store)
+    state = _state(client)
+    state.execution_lease_token = "lease-usage-report-1"
+    request = _request(logical_operation_id="op-usage-report-1")
+    request.model.options = {"context_window_tokens": 1000, "max_output_tokens": 100}
+    with activate_agent_run_state(state):
+        result = UsageMeteringMiddleware().wrap_model_call(
+            request, lambda _: response()
+        )
 
     assert result is not None
+    assert len(client.admissions) == len(client.consumes) == len(client.settlements) == 1
     assert len(client.payloads) == 1
     payload = client.payloads[0]
     assert (payload.assessmentId, payload.runId, payload.agentRole) == (
@@ -172,10 +316,10 @@ def test_one_response_posts_one_provider_reported_payload_without_money_fields()
 
 
 def test_partial_response_is_recorded_without_inventing_missing_tokens():
-    client = FakeClient()
+    client = AdmittedFakeClient()
     with activate_agent_run_state(_state(client)):
         UsageMeteringMiddleware().wrap_model_call(
-            _request(),
+            _request(logical_operation_id="op-partial"),
             lambda _: SimpleNamespace(
                 usage_metadata={"input_tokens": 1}, response_metadata={"id": "partial"}
             ),
@@ -183,49 +327,76 @@ def test_partial_response_is_recorded_without_inventing_missing_tokens():
     assert len(client.payloads) == 1
     assert client.payloads[0].inputTokensIncludingCache == "1"
     assert client.payloads[0].outputTokens is None
+    # Partial usage lacking outputTokens cannot settle as COMPLETED; server receives OUTCOME_UNKNOWN.
+    assert client.settlements[0]["providerCompletionState"] == "OUTCOME_UNKNOWN"
 
 
 def test_failed_provider_attempt_posts_no_usage():
-    client = FakeClient()
+    client = AdmittedFakeClient()
     with activate_agent_run_state(_state(client)), pytest.raises(ConnectionError):
         UsageMeteringMiddleware().wrap_model_call(
-            _request(), lambda _: (_ for _ in ()).throw(ConnectionError("down"))
+            _request(logical_operation_id="op-fail"),
+            lambda _: (_ for _ in ()).throw(ConnectionError("down")),
         )
     assert client.payloads == []
 
 
 @pytest.mark.asyncio
 async def test_async_failed_provider_attempt_posts_no_usage():
-    client = FakeClient()
+    client = AdmittedFakeClient()
 
     async def fail(_request):
         raise ConnectionError("provider connection failed")
 
     with activate_agent_run_state(_state(client)), pytest.raises(ConnectionError):
-        await UsageMeteringMiddleware().awrap_model_call(_request(), fail)
+        await UsageMeteringMiddleware().awrap_model_call(
+            _request(logical_operation_id="op-fail-async"), fail
+        )
     assert client.payloads == []
 
 
-def test_scoped_state_archives_usage_locally_even_without_api_client():
-    for state in (
+def test_scoped_state_archives_usage_locally_even_without_api_client(monkeypatch):
+    # Why: Non-assessment states without api_client still execute behind server-issued admission
+    # via WorkerApiClient fallback, while local usage recovery archiving remains scoped strictly
+    # to states carrying assessment_id or preparation_run_id.
+    # How: Monkeypatch WorkerApiClient to AdmittedFakeClient and attach execution_lease_token
+    # to all 3 states without adding assessment_id/preparation_run_id to states 1 & 3.
+    # Invariant: Only the assessment-scoped state writes STARTED/COMPLETED rows to usage_recovery.
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *_a, **_kw: AdmittedFakeClient(),
+    )
+    states = (
         AgentRunState(run_id="r", agent_role="legal"),
         AgentRunState(run_id="r", agent_role="legal", assessment_id="a"),
-        AgentRunState(run_id="r", agent_role="legal", api_client=FakeClient()),
-    ):
+        AgentRunState(run_id="r", agent_role="legal", api_client=AdmittedFakeClient()),
+    )
+    for idx, state in enumerate(states, start=1):
+        state.execution_lease_token = "lease-local-archive"
         with activate_agent_run_state(state):
-            UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+            UsageMeteringMiddleware().wrap_model_call(
+                _request(logical_operation_id=f"op-local-archive-{idx}"),
+                lambda _: response(),
+            )
     records = usage_recovery.read_usage_evidence(resolve_usage_recovery_store_path())
     assert [r["attemptStatus"] for r in records] == ["STARTED", "COMPLETED"]
 
 
-def test_metering_runs_without_any_run_state(monkeypatch):
+def test_metering_without_run_state_fails_before_provider_dispatch(monkeypatch):
     events = _capture_events(monkeypatch)
     assert active_agent_run_state() is None
+    provider_calls = []
 
-    result = UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+    # Why: Server-issued admission cannot bind an anonymous model call to a run or lease.
+    # How: The missing-context guard rejects before the handler and before model-call telemetry starts.
+    # Invariant: A legacy no-state fixture must not silently dispatch a billable provider call.
+    with pytest.raises(PaidAdmissionError, match="MISSING_EXECUTION_CONTEXT"):
+        UsageMeteringMiddleware().wrap_model_call(
+            _request(), lambda _: provider_calls.append("dispatched")
+        )
 
-    assert result is not None
-    assert [t for t, _ in events] == ["MODEL_CALL_STARTED", "MODEL_CALL_COMPLETED"]
+    assert provider_calls == []
+    assert events == []
 
 
 def test_identity_check_runs_without_any_run_state():
@@ -239,7 +410,7 @@ def test_identity_check_runs_without_any_run_state():
 
 def test_cancelled_turn_never_replays_and_keeps_usage_of_the_answered_call():
     for cancel_during_call in (False, True):
-        client = FakeClient()
+        client = AdmittedFakeClient()
         cancel = Event()
         calls = []
 
@@ -255,7 +426,9 @@ def test_cancelled_turn_never_replays_and_keeps_usage_of_the_answered_call():
             with activate_agent_run_state(_state(client)):
                 for _ in range(2):
                     with pytest.raises(AgentStreamInterrupted):
-                        UsageMeteringMiddleware().wrap_model_call(_request(), provider)
+                        UsageMeteringMiddleware().wrap_model_call(
+                            _request(logical_operation_id="op-cancel"), provider
+                        )
         finally:
             active_agent_stream_cancel.reset(token)
         assert len(calls) == int(cancel_during_call)
@@ -265,7 +438,7 @@ def test_cancelled_turn_never_replays_and_keeps_usage_of_the_answered_call():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("cancel_during_call", [False, True])
 async def test_async_cancelled_turn_keeps_usage_without_next_call(cancel_during_call):
-    client = FakeClient()
+    client = AdmittedFakeClient()
     cancel = Event()
     calls = []
 
@@ -281,7 +454,9 @@ async def test_async_cancelled_turn_keeps_usage_without_next_call(cancel_during_
         with activate_agent_run_state(_state(client)):
             for _ in range(2):
                 with pytest.raises(AgentStreamInterrupted):
-                    await UsageMeteringMiddleware().awrap_model_call(_request(), provider)
+                    await UsageMeteringMiddleware().awrap_model_call(
+                        _request(logical_operation_id="op-async-cancel"), provider
+                    )
     finally:
         active_agent_stream_cancel.reset(token)
     assert len(calls) == int(cancel_during_call)
@@ -289,17 +464,20 @@ async def test_async_cancelled_turn_keeps_usage_without_next_call(cancel_during_
 
 
 # --- no pricing, no model allow-list beyond the routes file ------------------------------
-
-
-def test_metering_has_no_pricing_or_reservation_surface():
-    source = Path(usage_metering.__file__).read_text(encoding="utf-8").lower()
-    for word in ("pricing", "reservation", "wallet", "credits"):
-        assert word not in source
+# Note: Legacy raw-text scan `test_metering_has_no_pricing_or_reservation_surface` was superseded
+# by ADR-028 server-issued admission (envelope `maximumExposureMicrocredits` and wallet boundary
+# docs in usage_metering.py). Equivalent invariants remain enforced by:
+# - test_one_response_posts_one_provider_reported_payload_without_money_fields
+# - tests/test_api_client.py::test_post_settled_usage_sends_provider_reported_fields_without_reservation
+# - tests/test_server_issued_admission.py::test_insolvent_wallet_stops_execution_with_zero_provider_calls
+# - tests/test_assessment_payment_required.py::test_payment_required_pauses_root_without_dispatching_provider
 
 
 def test_arbitrary_future_model_without_pricing_metadata_executes():
-    client = FakeClient()
-    request = _request("google_genai", "future-model-v99")  # no profile, no price anywhere
+    client = AdmittedFakeClient()
+    request = _request(
+        "google_genai", "future-model-v99", logical_operation_id="op-future"
+    )  # no profile, no price anywhere
     with activate_agent_run_state(_state(client, role="narrator")):
         UsageMeteringMiddleware().wrap_model_call(request, lambda _: response())
     assert [p.model for p in client.payloads] == ["future-model-v99"]
@@ -358,9 +536,17 @@ def test_provider_input_limit_is_the_only_context_guard():
 
 
 def test_long_runs_are_never_capped_by_run_state():
-    client = FakeClient()
+    client = AdmittedFakeClient()
+    # Why: Server admission requires logical_operation_id and positive route bounds, while
+    # intentionally omitting profile["max_input_tokens"] so _provider_context_limit_tokens stays None.
+    # How: Attach _DEFAULT_ROUTE_OPTIONS on model.options and supply logical_operation_id="op-long".
+    # Invariant: Run state never caps turns and every invocation receives a unique server invocationId.
     request = SimpleNamespace(
-        model=SimpleNamespace(provider="google_genai", model_name="future-model-v99"),
+        model=SimpleNamespace(
+            provider="google_genai",
+            model_name="future-model-v99",
+            options=dict(_DEFAULT_ROUTE_OPTIONS),
+        ),
         messages=[
             HumanMessage(content="large managed history " * 2000),
             ToolMessage(
@@ -369,6 +555,7 @@ def test_long_runs_are_never_capped_by_run_state():
                 name="read_file",
             ),
         ],
+        logical_operation_id="op-long",
     )
     with activate_agent_run_state(_state(client)):
         for index in range(20):
@@ -393,27 +580,80 @@ class _BindModel:
         return SimpleNamespace(bound=self, kwargs=kwargs)
 
 
-def test_output_cap_settings_use_the_route_output_cap_or_the_code_default():
+def test_output_cap_settings_use_the_route_output_cap_or_fail_closed():
     assert output_cap_settings(_BindModel(profile={"max_output_tokens": 777})) == {"max_tokens": 777}
-    assert output_cap_settings(_BindModel()) == {"max_tokens": DEFAULT_MAX_OUTPUT_TOKENS}
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        output_cap_settings(_BindModel())
     assert output_cap_settings(_BindModel(provider="apx", profile={"max_output_tokens": 55})) == {"max_tokens": 55}
     assert output_cap_settings(_BindModel(provider="google_genai", profile={"max_output_tokens": 9})) == {"max_output_tokens": 9}
 
 
+@pytest.mark.parametrize("bad_cap", [None, False, True, 0, -1, "4096", 12.5])
+def test_output_token_limit_rejects_missing_bool_non_int_and_non_positive_caps(bad_cap):
+    model = SimpleNamespace(profile={"max_output_tokens": bad_cap}, options={})
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        output_token_limit(model)
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        output_cap_settings(model)
+
+
+def test_output_token_limit_falls_back_through_route_options_and_model_options():
+    route = mp.ResolvedModelConfig(
+        role="default",
+        route_id="r1",
+        provider="openai",
+        protocol="openai",
+        model="model-alpha",
+        options={"max_output_tokens": 12345},
+    )
+    model_with_route = mp.attach_model_route(SimpleNamespace(profile={}), route)
+    assert output_token_limit(model_with_route) == 12345
+
+    model_with_options = SimpleNamespace(profile=None, options={"max_output_tokens": 9876})
+    assert output_token_limit(model_with_options) == 9876
+
+
+def test_usage_metering_exports_separated_completion_and_evaluation_state_sets():
+    assert set(PROVIDER_COMPLETION_STATES) == {
+        "COMPLETED",
+        "MAX_TOKENS",
+        "TRUNCATED",
+        "FAILED",
+        "OUTCOME_UNKNOWN",
+    }
+    assert set(OUTPUT_EVALUATION_STATES) == {
+        "ACCEPTED",
+        "SCHEMA_INVALID",
+        "DOMAIN_REJECTED",
+        "NOT_EVALUATED",
+    }
+    assert {"PROVIDER_COMPLETION_STATES", "OUTPUT_EVALUATION_STATES", "output_cap_settings", "output_token_limit"} <= set(
+        usage_metering.__all__
+    )
+
+
 def test_output_cap_preserves_identity_for_usage_reporting():
-    model = _BindModel()
+    model = _BindModel(profile={"max_output_tokens": 8192})
 
     class Request:
         messages = []
         model_settings = {"automatic_function_calling": {"disable": True}}
+        logical_operation_id = "op-cap"
 
         def __init__(self):
             self.model = model
 
         def override(self, *, model_settings):
-            return SimpleNamespace(model=self.model, messages=self.messages, model_settings=model_settings)
+            # Preserve logical_operation_id across _prepare()'s request.override() so
+            # _execute_server_admission receives the caller's operation identity.
+            return SimpleNamespace(
+                model=self.model,
+                messages=self.messages,
+                model_settings=model_settings,
+                logical_operation_id=self.logical_operation_id,
+            )
 
-    client = FakeClient()
+    client = AdmittedFakeClient()
     downstream = []
 
     def provider_handler(request):
@@ -429,13 +669,16 @@ def test_output_cap_preserves_identity_for_usage_reporting():
 
     # The cap rides in model settings next to the existing ones; the model itself is untouched.
     assert downstream[0].model_settings == {
-        "max_tokens": DEFAULT_MAX_OUTPUT_TOKENS,
+        "max_tokens": 8192,
         "automatic_function_calling": {"disable": True},
     }
     assert downstream[0].model is model
     (payload,) = client.payloads
     assert (payload.provider, payload.model) == ("OPENAI", "model-alpha")
-    assert payload.inputTokens is None
+    # Why: extract_provider_usage populates uncached inputTokens == input_tokens when an inclusive
+    # provider omits cached buckets (matching test_extract_provider_usage_preserves_partial_dimensions).
+    # Invariant: Inclusive input tokens with no cached bucket represent uncached billable input tokens.
+    assert payload.inputTokens == "3"
     assert (payload.inputTokensIncludingCache, payload.outputTokens) == ("3", "2")
     assert payload.occurredAt.endswith("Z") and "+00:00" not in payload.occurredAt
 
@@ -446,8 +689,8 @@ def test_output_cap_preserves_identity_for_usage_reporting():
 def test_model_call_telemetry_emits_heartbeat_and_completion(monkeypatch):
     events = _capture_events(monkeypatch)
     monkeypatch.setattr(usage_metering, "_MODEL_CALL_HEARTBEAT_SECONDS", 0.01)
-    client = FakeClient()
-    request = _request("google_genai", "future-model-v99")
+    client = AdmittedFakeClient()
+    request = _request("google_genai", "future-model-v99", logical_operation_id="op-hb")
 
     def slow_provider(_request):
         time.sleep(0.03)
@@ -468,7 +711,7 @@ def test_model_call_telemetry_emits_heartbeat_and_completion(monkeypatch):
 
 def test_model_call_timeout_emits_timeout_event_and_no_usage(monkeypatch):
     events = _capture_events(monkeypatch)
-    client = FakeClient()
+    client = AdmittedFakeClient()
     request = _request("google_genai", "future-model-v99")
 
     with activate_agent_run_state(_state(client)), pytest.raises(TimeoutError):
@@ -498,7 +741,11 @@ def test_request_diagnostic_logs_shape_without_prompt_or_tool_content(monkeypatc
 
     monkeypatch.setattr(usage_metering, "logger", Logger())
     request = SimpleNamespace(
-        model=SimpleNamespace(provider="apx", model_name="model-gamma"),
+        model=SimpleNamespace(
+            provider="apx",
+            model_name="model-gamma",
+            options=dict(_DEFAULT_ROUTE_OPTIONS),
+        ),
         messages=[
             HumanMessage(content="private prompt must not be logged"),
             AIMessage(
@@ -515,9 +762,21 @@ def test_request_diagnostic_logs_shape_without_prompt_or_tool_content(monkeypatc
         ],
         tools=[SimpleNamespace(name="ls")],
         tool_choice={"type": "function", "name": "ls"},
+        logical_operation_id="op-diag-1",
     )
 
-    UsageMeteringMiddleware().wrap_model_call(request, lambda _: response())
+    # Why: Diagnostic logging still runs inside wrap_model_call, which now requires an admitted run context.
+    # How: Activate a lease-bound AgentRunState backed by AdmittedFakeClient (assessment_id=None).
+    # Invariant: Diagnostic payloads never include prompt text, tool args, or secrets.
+    state = _state(
+        AdmittedFakeClient(),
+        role="planner",
+        run_id="run-diag-1",
+        assessment_id=None,
+        execution_lease_token="lease-diag-1",
+    )
+    with activate_agent_run_state(state):
+        UsageMeteringMiddleware().wrap_model_call(request, lambda _: response())
 
     _, fields = next(item for item in events if item[0] == "MODEL_REQUEST_DIAGNOSTIC")
     assert fields["provider"] == "apx"
@@ -558,7 +817,7 @@ def test_key_fallback_failed_attempt_reports_nothing_and_success_reports_once(mo
     from middleware import token_fallback
     from middleware.token_fallback import TokenFallbackMiddleware
 
-    client = FakeClient()
+    client = AdmittedFakeClient()
     attempts = []
     fallback = TokenFallbackMiddleware()
     monkeypatch.setattr(token_fallback, "model_provider", lambda _model: "openai")
@@ -568,7 +827,13 @@ def test_key_fallback_failed_attempt_reports_nothing_and_success_reports_once(mo
     monkeypatch.setattr(
         fallback,
         "_candidate_request",
-        lambda candidate, _p, _t, index: SimpleNamespace(model=candidate.model, key_slot=index),
+        # Preserve logical_operation_id on each fallback candidate so every physical attempt
+        # carries the caller's logical operation identity into server admission.
+        lambda candidate, _p, _t, index: SimpleNamespace(
+            model=candidate.model,
+            key_slot=index,
+            logical_operation_id=getattr(candidate, "logical_operation_id", "op-fb"),
+        ),
     )
 
     def provider_call(candidate):
@@ -579,7 +844,7 @@ def test_key_fallback_failed_attempt_reports_nothing_and_success_reports_once(mo
 
     with activate_agent_run_state(_state(client)):
         fallback.wrap_model_call(
-            _request(),
+            _request(logical_operation_id="op-fb"),
             lambda candidate: UsageMeteringMiddleware().wrap_model_call(candidate, provider_call),
         )
 
@@ -592,9 +857,12 @@ def test_key_fallback_failed_attempt_reports_nothing_and_success_reports_once(mo
 
 
 def _settle(role, provider, model_name):
-    client = FakeClient()
+    client = AdmittedFakeClient()
     with activate_agent_run_state(_state(client, role=role)):
-        UsageMeteringMiddleware().wrap_model_call(_request(provider, model_name), lambda _: response())
+        UsageMeteringMiddleware().wrap_model_call(
+            _request(provider, model_name, logical_operation_id="op-settle"),
+            lambda _: response(),
+        )
     return client.payloads[0]
 
 
@@ -629,6 +897,7 @@ def test_apx_usage_and_activity_keep_canonical_provider_and_route_protocol(
                     "provider": "apx",
                     "protocol": protocol,
                     "model": model_name,
+                    "options": dict(_DEFAULT_ROUTE_OPTIONS),
                 }
             },
             "roles": {"default": "primary"},
@@ -638,8 +907,8 @@ def test_apx_usage_and_activity_keep_canonical_provider_and_route_protocol(
     model = mp.attach_model_route(
         SimpleNamespace(provider=client_provider, model_name=model_name), route
     )
-    request = SimpleNamespace(model=model, messages=[], tools=[])
-    client = FakeClient()
+    request = SimpleNamespace(model=model, messages=[], tools=[], logical_operation_id="op-apx")
+    client = AdmittedFakeClient()
     events = _capture_events(monkeypatch)
 
     with activate_agent_run_state(_state(client)):
@@ -701,9 +970,11 @@ def test_disabled_and_sticky_provider_routes_are_run_scoped():
 
 
 def test_active_role_scopes_the_reported_agent_role_and_run_identity():
-    client = FakeClient()
+    client = AdmittedFakeClient()
     with activate_agent_run_state(_state(client, role="root", run_id="run-9")):
-        UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+        UsageMeteringMiddleware().wrap_model_call(
+            _request(logical_operation_id="op-role-1"), lambda _: response()
+        )
         AgentRoleMiddleware("investigator").wrap_model_call(
             _request(),
             lambda inner: UsageMeteringMiddleware().wrap_model_call(inner, lambda _: response()),
@@ -739,7 +1010,9 @@ def test_failed_usage_post_is_enqueued_logged_and_never_fails_the_model_call(mon
     monkeypatch.setattr(usage_metering, "logger", Logger())
     state = _state(FailingClient())
     with activate_agent_run_state(state):
-        result = UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+        result = UsageMeteringMiddleware().wrap_model_call(
+            _request(logical_operation_id="op-fail-post"), lambda _: response()
+        )
 
     assert result is not None
     # API unavailability leaves both lifecycle callbacks durable; provider work is not repeated.
@@ -749,10 +1022,12 @@ def test_failed_usage_post_is_enqueued_logged_and_never_fails_the_model_call(mon
 
 def test_queued_usage_is_drained_later_exactly_once():
     with activate_agent_run_state(_state(FailingClient())):
-        UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+        UsageMeteringMiddleware().wrap_model_call(
+            _request(logical_operation_id="op-drain-once"), lambda _: response()
+        )
     path = resolve_usage_recovery_store_path()
 
-    recovered = FakeClient()
+    recovered = AdmittedFakeClient()
     assert drain(path, recovered) == 2
     assert len(recovered.payloads) == 1
     assert recovered.payloads[0].inputTokens == "2"
@@ -762,7 +1037,9 @@ def test_queued_usage_is_drained_later_exactly_once():
 
 def test_still_failing_api_keeps_usage_pending_for_the_next_drain():
     with activate_agent_run_state(_state(FailingClient())):
-        UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: response())
+        UsageMeteringMiddleware().wrap_model_call(
+            _request(logical_operation_id="op-still-failing"), lambda _: response()
+        )
     path = resolve_usage_recovery_store_path()
 
     assert drain(path, FailingClient()) == 0
@@ -778,7 +1055,9 @@ def test_recovery_store_failure_prevents_provider_dispatch(monkeypatch):
     from langchain_core.exceptions import ModelError
     dispatched = []
     with activate_agent_run_state(_state(FailingClient())), pytest.raises(ModelError, match="Durable usage commit failed"):
-        UsageMeteringMiddleware().wrap_model_call(_request(), lambda _: dispatched.append(1))
+        UsageMeteringMiddleware().wrap_model_call(
+            _request(logical_operation_id="op-store-fail"), lambda _: dispatched.append(1)
+        )
     assert dispatched == []
 
 
@@ -966,10 +1245,23 @@ def test_usage_keeps_attached_route_options_when_provider_model_protocol_are_sha
     })
     assert mp.route_for_model("google_genai", "shared-model", "google_genai") is None
     route = mp.load_model_routes().config(actual_route, "planner")
-    model = mp.attach_model_route(SimpleNamespace(provider="google_genai", model_name="shared-model"), route)
-    client = FakeClient()
+    # Why: Keep route.options untouched so config_snapshot parity holds while supplying required
+    # server admission bounds via model.profile (without max_input_tokens).
+    # Invariant: Shared provider/protocol/model routes remain ambiguous to route_for_model.
+    model = mp.attach_model_route(
+        SimpleNamespace(
+            provider="google_genai",
+            model_name="shared-model",
+            profile=dict(_DEFAULT_ROUTE_OPTIONS),
+        ),
+        route,
+    )
+    client = AdmittedFakeClient()
     with activate_agent_run_state(_state(client, role="planner")):
-        UsageMeteringMiddleware().wrap_model_call(SimpleNamespace(model=model, messages=[], tools=[]), lambda _: response())
+        UsageMeteringMiddleware().wrap_model_call(
+            SimpleNamespace(model=model, messages=[], tools=[], logical_operation_id="op-shared"),
+            lambda _: response(),
+        )
     expected = mp.config_snapshot(route, "planner")
     expected.pop("role")
     assert client.payloads[0].effectiveRuntimeModel == expected

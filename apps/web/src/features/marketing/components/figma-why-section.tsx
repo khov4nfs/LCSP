@@ -15,24 +15,24 @@ export function FigmaWhySection() {
     1: {
       tag: locale === "vi" ? "Văn bản luật gốc" : "Statutory Article",
       title: locale === "vi" ? "Luật Viễn thông & Nghị định 147/2024/NĐ-CP" : "Telecommunications Act & Decree 147/2024",
-      desc: locale === "vi" 
-        ? "Trích xuất điều 24 khoản 1 mục c: Bắt buộc lưu trữ nhật ký dữ liệu người dùng ít nhất 2 năm." 
+      desc: locale === "vi"
+        ? "Trích xuất điều 24 khoản 1 mục c: Bắt buộc lưu trữ nhật ký dữ liệu người dùng ít nhất 2 năm."
         : "Extracts Article 24 §1(c): Mandatory audit log retention for at least two statutory years.",
       stateBadge: locale === "vi" ? "Yêu cầu nguồn" : "Legal Source",
     },
     2: {
       tag: locale === "vi" ? "Ngữ cảnh mã nguồn" : "Software Context",
       title: "Repository: acme/notice-service",
-      desc: locale === "vi" 
-        ? "Phân tích Abstract Syntax Tree (AST): phát hiện `retention_days = 90` tại `config/retention.py`." 
+      desc: locale === "vi"
+        ? "Phân tích Abstract Syntax Tree (AST): phát hiện `retention_days = 90` tại `config/retention.py`."
         : "Abstract Syntax Tree (AST) parser detected `retention_days = 90` in `config/retention.py`.",
       stateBadge: locale === "vi" ? "Trích xuất AST" : "AST Extracted",
     },
     3: {
       tag: locale === "vi" ? "Kết luận & Phán quyết" : "Verdict & Conclusion",
       title: locale === "vi" ? "Xác thực bằng chứng: Chưa tuân thủ" : "Evidence Verdict: Non-compliant",
-      desc: locale === "vi" 
-        ? "Thời hạn lưu trữ 90 ngày ngắn hơn mức tối thiểu 2 năm theo luật định. Tạo ngay pull request khắc phục." 
+      desc: locale === "vi"
+        ? "Thời hạn lưu trữ 90 ngày ngắn hơn mức tối thiểu 2 năm theo luật định. Tạo ngay pull request khắc phục."
         : "Retention period of 90 days fails statutory 2-year minimum requirement. Generates pull request remediation.",
       stateBadge: locale === "vi" ? "Bằng chứng hoàn chỉnh" : "Verified Proof",
     },
@@ -47,9 +47,9 @@ export function FigmaWhySection() {
       className="relative w-full overflow-hidden bg-[#F4F9F8] py-20 text-[#101C29] scroll-mt-24 border-b border-slate-200/60"
     >
       {/* Vercel subtle grid lines background */}
-      <div 
-        aria-hidden="true" 
-        className="pointer-events-none absolute inset-0 bg-grid-slate opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" 
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-grid-slate opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">

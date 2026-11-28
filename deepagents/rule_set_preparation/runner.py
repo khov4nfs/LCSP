@@ -619,35 +619,33 @@ def run_rule_set_preparation(
                         fingerprint(budget.model_dump(mode="json")),
                     )
 
-            if current_state is None and has_hard_ceiling:
+            # Why: ADR-028 & G-06: Full-source runner must always activate AgentRunState.
+            # Without active run state, UsageMeteringMiddleware has no execution context and fails closed.
+            # Mechanism: Detect modern WorkerApiClient (request_invocation_admission) alongside legacy (post_settled_usage).
+            # When has_hard_ceiling is True, bind the RunAdmission kernel; otherwise run unbounded without hard ceiling.
+            # Invariants: Model calls must never run uncontexted; execution context and admission API client are always bound.
+            admission_api_present = hasattr(api, "request_invocation_admission") or hasattr(api, "post_settled_usage")
+            effective_api_client = api if admission_api_present else None
+
+            if current_state is None:
                 current_state = AgentRunState(
                     run_id=run_id,
                     preparation_run_id=run_id,
-                    agent_role="rule_set_preparation_requested",
-                    api_client=api if hasattr(api, "post_settled_usage") else None,
-                    admission=admission,
+                    agent_role="rule-set-preparation",
+                    api_client=effective_api_client,
+                    admission=admission if has_hard_ceiling else None,
                     bounded=has_hard_ceiling,
                 )
-            elif current_state is not None:
+            else:
                 current_state.run_id = run_id
                 current_state.preparation_run_id = run_id
-                if current_state.api_client is None and hasattr(api, "post_settled_usage"):
-                    current_state.api_client = api
+                if current_state.api_client is None and effective_api_client is not None:
+                    current_state.api_client = effective_api_client
                 if has_hard_ceiling:
                     current_state.admission = admission
                     current_state.bounded = True
 
-            if current_state is not None:
-                with activate_agent_run_state(current_state):
-                    isolated = contextvars.copy_context()
-                    isolated.run(var_child_runnable_config.set, None)
-                    failure_stage = "AGENT_GRAPH"
-                    isolated.run(
-                        agent.invoke,
-                        {"messages": [{"role": "user", "content": "Prepare the Rule Set Draft directly from the pinned corpus. Resume accepted candidates from PostgreSQL. Get the next bounded legal analysis package, account for its source units, submit requirements and genuine repository rules together, validate and activate through the governed tools." if context.direct_draft else _TASK}]},
-                        config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
-                    )
-            else:
+            with activate_agent_run_state(current_state):
                 isolated = contextvars.copy_context()
                 isolated.run(var_child_runnable_config.set, None)
                 failure_stage = "AGENT_GRAPH"
@@ -668,31 +666,42 @@ def run_rule_set_preparation(
             _flush_draft(context)
             raise
         except (AgentRunBudgetExceeded, PaidAdmissionError) as error:
-            raw_reason = getattr(error, "reason", None) or "AGENT_BUDGET_REACHED"
-            if raw_reason in (
-                "DURABILITY",
-                "UNVERIFIED_PROVIDER_BOUNDS",
-                "ATTEMPT_IDENTITY",
-                "UNVERIFIED_POLICY",
-                "MISSING_RUN_BUDGET",
-                "NO_VALID_TOKEN_POLICIES",
-                "BOUNDED_SCOPE_CHANGED",
-                "UNBOUND_MODEL_ROUTE",
-                "FORGED_ROUTE_IDENTITY",
-                "CREDENTIAL_UNVERIFIED",
-                "UNBOUNDED_REQUEST_OPTIONS",
-                "OUTPUT_BOUND_UNVERIFIED",
-                "TEST_REGISTRY_INACTIVE",
-                "POLICY_MISMATCH",
-            ):
-                raise
-            reason_map = {
+            # Rationale (Why):
+            # Only genuine usage quota limit exhaustion (e.g. max tokens or model calls reached)
+            # is allowable for converting an execution run into a retryable PAUSED state.
+            # Security denials, missing capabilities, unbound routes, unobservable transports,
+            # or any other PaidAdmissionError variants (UNBOUND_ACCOUNT, UNOBSERVABLE_TRANSPORT,
+            # SDK_RETRIES_UNBOUNDED, etc.) represent terminal safety/policy failures and must
+            # NEVER be classified as budget pauses.
+            #
+            # Mechanism (How):
+            # Invert exception handling from an error-prone denial allowlist to a strict allowlist
+            # of approved budget quota exhaustion reasons (known_budget_pause_reasons).
+            # If the reason matches an approved quota reason, the runner notifies the API of PAUSED.
+            # Any unlisted reason, as well as any PaidAdmissionError not representing an approved quota
+            # limit, immediately re-raises to fail closed as a terminal failure.
+            #
+            # Invariants & Constraints:
+            # - Security denials and unverified context never convert to retryable budget pause.
+            # - PaidAdmissionError never silently converts to PAUSED unless its reason is a verified quota limit.
+            raw_reason = getattr(error, "reason", None) or (
+                "AGENT_BUDGET_REACHED" if not isinstance(error, PaidAdmissionError) else None
+            )
+            known_budget_pause_reasons = {
                 "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
                 "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
                 "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
                 "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
+                "TOKEN_LIMIT_EXCEEDED": "TOKEN_LIMIT_EXCEEDED",
+                "CALL_LIMIT_EXCEEDED": "CALL_LIMIT_EXCEEDED",
+                "BUDGET_EXHAUSTED": "CALL_LIMIT_EXCEEDED",
+                "AGENT_BUDGET_REACHED": "AGENT_BUDGET_REACHED",
             }
-            pause_reason = reason_map.get(raw_reason, raw_reason)
+            if raw_reason not in known_budget_pause_reasons:
+                _flush_draft(context)
+                raise
+
+            pause_reason = known_budget_pause_reasons[raw_reason]
             context.budget_paused = True
             _flush_draft(context)
             if context.scope_review_paused:
@@ -712,19 +721,31 @@ def run_rule_set_preparation(
                 # already committed PAUSED; never rewrite it as failed.
                 return {"state": "PAUSED", "submission": None, "failureReason": None,
                         "scopeReviewRequired": getattr(context, "scope_review_paused", False), "trace": context.trace}
-            budget_err = error if isinstance(error, (AgentRunBudgetExceeded, PaidAdmissionError)) else (error.__cause__ if isinstance(getattr(error, "__cause__", None), (AgentRunBudgetExceeded, PaidAdmissionError)) else None)
+
+            known_budget_pause_reasons = {
+                "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
+                "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
+                "TOKEN_LIMIT_EXCEEDED": "TOKEN_LIMIT_EXCEEDED",
+                "CALL_LIMIT_EXCEEDED": "CALL_LIMIT_EXCEEDED",
+                "BUDGET_EXHAUSTED": "CALL_LIMIT_EXCEEDED",
+                "AGENT_BUDGET_REACHED": "AGENT_BUDGET_REACHED",
+            }
+            budget_err = error if isinstance(error, (AgentRunBudgetExceeded, PaidAdmissionError)) else (
+                error.__cause__ if isinstance(getattr(error, "__cause__", None), (AgentRunBudgetExceeded, PaidAdmissionError)) else None
+            )
             if budget_err is not None:
-                raw_reason = getattr(budget_err, "reason", None) or "AGENT_BUDGET_REACHED"
-                if raw_reason != "DURABILITY":
-                    reason_map = {
-                        "INPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
-                        "OUTPUT_LIMIT": "TOKEN_LIMIT_EXCEEDED",
-                        "TOKEN_LIMIT": "TOKEN_LIMIT_EXCEEDED",
-                        "CALL_LIMIT": "CALL_LIMIT_EXCEEDED",
-                    }
-                    pause_reason = reason_map.get(raw_reason, raw_reason)
+                raw_reason = getattr(budget_err, "reason", None) or (
+                    "AGENT_BUDGET_REACHED" if not isinstance(budget_err, PaidAdmissionError) else None
+                )
+                if raw_reason in known_budget_pause_reasons:
+                    pause_reason = known_budget_pause_reasons[raw_reason]
                     context.budget_paused = True
                     _flush_draft(context)
+                    if context.scope_review_paused:
+                        return {"state": "PAUSED", "submission": None, "failureReason": None,
+                                "scopeReviewRequired": True, "trace": context.trace}
                     if context.submission is None and context.concluded is None:
                         paused = api.fail_rule_set_preparation(run_id, pause_reason)
                         if not isinstance(paused, dict) or paused.get("executionState") != "PAUSED":

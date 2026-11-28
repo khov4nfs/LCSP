@@ -1,6 +1,6 @@
 # LCSP Domain State Machines
 
-> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+> **Active state overlay.** Assessment history remains preserved; current owner/resource-scoped RBAC and Prompt 8 financial states supersede organization/reservation-era transitions.
 
 ## Purpose
 
@@ -11,7 +11,7 @@ Canonical state transitions for the A-to-Z runnable MVP. Physical enums remain o
 - Every transition requires a guard and material state changes write AuditEvent.
 - Async work uses names from `event-catalog.md`.
 - Completed and failed artifacts are immutable history.
-- Classification requires direct EngineeringRule evaluation with legal-rule provenance and evidence refs.
+- Classification requires a READY VerifiedProfile plus direct EngineeringRule evaluation with legal-rule provenance and evidence refs.
 - Final document requires classification, GapAnalysis, citations, and no unresolved conflict.
 - Manager completion never depends on external collaborator participation.
 - RBAC is the authorization source of truth for all user and service transitions.
@@ -31,7 +31,8 @@ CREATED
 -> SCAN_COMPLETED
 -> TECHNICAL_PROFILE_READY
 -> AI_USAGE_FLOW_READY
--> RECONCILIATION_REQUIRED or ENGINEERING_RULE_ASSESSMENT_REQUESTED
+-> RECONCILIATION_REQUIRED or VERIFIED_PROFILE_READY
+-> ENGINEERING_RULE_ASSESSMENT_REQUESTED
 -> CLASSIFICATION_READY or CLASSIFICATION_BLOCKED
 -> GAP_ANALYSIS_READY or GAP_ANALYSIS_BLOCKED
 -> DOCUMENT_GENERATED or DOCUMENT_BLOCKED
@@ -48,7 +49,7 @@ CREATED
 | TRUSTED_SCAN_TRIGGERED                 | mapping pending                             | required repository/account/assessment mapping missing                | PENDING_MAPPING                                                                    |
 | TRUSTED_SCAN_TRIGGERED                 | mapping blocked                             | ambiguous mapping or unsafe context                                   | BLOCKED_MAPPING                                                                    |
 | TRUSTED_SCAN_TRIGGERED                 | waiting                                     | out-of-order event or incomplete context can safely wait              | WAITING_FOR_CONTEXT                                                                |
-| TRUSTED_SCAN_TRIGGERED                 | snapshot created                            | complete tenant/repository/assessment/branch/commit context exists    | SNAPSHOT_CREATED                                                                   |
+| TRUSTED_SCAN_TRIGGERED                 | snapshot created                            | complete owner/repository/assessment/branch/commit context exists     | SNAPSHOT_CREATED                                                                   |
 | PENDING_MAPPING or WAITING_FOR_CONTEXT | context completed                           | mapping is unique and RBAC allows                                     | SNAPSHOT_CREATED                                                                   |
 | BLOCKED_MAPPING                        | Manager/system correction                   | mapping is resolved and audited                                       | SNAPSHOT_CREATED                                                                   |
 | SNAPSHOT_CREATED                       | scan requested                              | idempotent job/outbox exists                                          | SCAN_REQUESTED                                                                     |
@@ -57,8 +58,10 @@ CREATED
 | SCAN_COMPLETED                         | technical-profile completed                 | profile persisted                                                     | TECHNICAL_PROFILE_READY                                                            |
 | TECHNICAL_PROFILE_READY                | AIUsageFlow completed                       | flow persisted                                                        | AI_USAGE_FLOW_READY                                                                |
 | AI_USAGE_FLOW_READY                    | conflict detected                           | material conflict exists (only possible when WizardProfile is linked) | RECONCILIATION_REQUIRED                                                            |
-| AI_USAGE_FLOW_READY                    | EngineeringRule assessment requested        | no material conflict, or no WizardProfile linked                      | ENGINEERING_RULE_ASSESSMENT_REQUESTED                                              |
-| RECONCILIATION_REQUIRED                | EngineeringRule assessment requested        | Manager resolved all conflicts                                        | ENGINEERING_RULE_ASSESSMENT_REQUESTED                                              |
+| AI_USAGE_FLOW_READY                    | technical-only verification completed       | no WizardProfile linked; evidence/profile gates pass                  | VERIFIED_PROFILE_READY                                                             |
+| AI_USAGE_FLOW_READY                    | reconciled verification completed           | WizardProfile linked and no material conflict                         | VERIFIED_PROFILE_READY                                                             |
+| RECONCILIATION_REQUIRED                | reconciled verification completed           | Manager resolved all conflicts                                        | VERIFIED_PROFILE_READY                                                             |
+| VERIFIED_PROFILE_READY                 | EngineeringRule assessment requested        | VerifiedProfile READY and legal/evidence gates pass                   | ENGINEERING_RULE_ASSESSMENT_REQUESTED                                              |
 | ENGINEERING_RULE_ASSESSMENT_REQUESTED  | classification completed                    | direct result persisted with provenance                               | CLASSIFICATION_READY                                                               |
 | ENGINEERING_RULE_ASSESSMENT_REQUESTED  | classification blocked                      | guard failed                                                          | CLASSIFICATION_BLOCKED                                                             |
 | CLASSIFICATION_READY                   | gap completed                               | GapAnalysis persisted                                                 | GAP_ANALYSIS_READY                                                                 |
@@ -210,6 +213,71 @@ COMPLETED requires usable classification and legal basis. BLOCKED or FAILED prev
 States: `REQUESTED`, `RUNNING`, `GENERATED`, `BLOCKED`, `FAILED`.
 
 Final report requires classification, GapAnalysis, citations, and no conflict. Readiness-only output may exist earlier without a risk level. Artifact publication requires storage reference, hash, and output guard approval.
+
+## Customer Model Tariff
+
+Draft states: `DRAFT`, `PUBLISHED`, `ABANDONED`.
+
+```text
+DRAFT -> PUBLISHED
+DRAFT -> ABANDONED
+```
+
+Publishing atomically creates an immutable `CustomerModelTariffSnapshot`, non-overlapping effective assignment, audit and outbox. A published snapshot never returns to DRAFT or mutates. Assignment read status (`SCHEDULED`, `ACTIVE`, `SUPERSEDED`) derives from database UTC and `[effectiveFrom,effectiveTo)`.
+
+## BillableInvocationAdmission
+
+States: `REQUESTED`, `ADMITTED`, `REJECTED`, `IN_FLIGHT`, `EXPIRED`, `REVOKED`, `DISPATCH_UNKNOWN`, `OUTCOME_UNKNOWN`, `CONFIRMED_NO_USAGE`, `SETTLED`, `BILLING_INTEGRITY_REVIEW`, `COMPENSATED`.
+
+```text
+REQUESTED -> ADMITTED or REJECTED
+ADMITTED -> IN_FLIGHT or EXPIRED or REVOKED
+IN_FLIGHT -> SETTLED or CONFIRMED_NO_USAGE
+IN_FLIGHT -> DISPATCH_UNKNOWN or OUTCOME_UNKNOWN or BILLING_INTEGRITY_REVIEW
+DISPATCH_UNKNOWN -> SETTLED or CONFIRMED_NO_USAGE or BILLING_INTEGRITY_REVIEW
+OUTCOME_UNKNOWN -> SETTLED or CONFIRMED_NO_USAGE or BILLING_INTEGRITY_REVIEW
+CONFIRMED_NO_USAGE -> BILLING_INTEGRITY_REVIEW when late evidence conflicts
+BILLING_INTEGRITY_REVIEW -> SETTLED only through explicit audited reopen
+SETTLED -> COMPENSATED through bounded append-only correction
+```
+
+- `IN_FLIGHT` is owned by NestJS/PostgreSQL CAS and commits before the first provider byte.
+- Retry/fallback creates a new admission/invocation; the same physical invocation is never replayed.
+- `CUSTOMER_WALLET` settlement may create debit/outstanding state; `PLATFORM_SPONSORED` never writes customer financial state.
+- Unknown/ambiguous mapping or over-exposure cannot debit until integrity review resolves it.
+
+## Assessment Payment Checkpoint
+
+Runtime checkpoint states are `PAYMENT_REQUIRED` and `WAITING_FOR_CUSTOMER_CONTINUE`; they do not replace the assessment evidence/classification lifecycle.
+
+```text
+paid admission denied for non-positive spendable balance
+-> PAYMENT_REQUIRED
+confirmed top-up clears outstanding and may create spendable balance
+-> WAITING_FOR_CUSTOMER_CONTINUE
+customer Continue + wallet/run/lease/pricing/runtime guards pass
+-> prior executable assessment state
+```
+
+Top-up never transitions directly back to execution and never clears applicable runtime safety failures. No-progress is not an assessment-blocking state.
+
+## BillingReconciliationCase
+
+States: `OPEN`, `EVIDENCE_PENDING`, `INTEGRITY_REVIEW`, `SETTLED_WITH_USAGE`, `CONFIRMED_NO_USAGE`, `ESCALATED`, `CLOSED`.
+
+All decisions use expected version, immutable evidence refs, structured reason and audit. Late evidence after a no-usage decision enters `INTEGRITY_REVIEW`; it cannot rewrite history or debit without an explicit reopen.
+
+## Model-Usage Rollout
+
+```text
+TELEMETRY_ONLY
+-> SHADOW_PRICING
+-> ADMISSION_REQUIRED
+-> SHADOW_SETTLEMENT
+-> DEBIT_ENABLED
+```
+
+Transitions are server-authoritative and evidence-gated. An audited emergency rollback revokes unconsumed customer admissions; `IN_FLIGHT` work follows the pinned-mode rollback policy and is never re-dispatched.
 
 ## Audit Export
 

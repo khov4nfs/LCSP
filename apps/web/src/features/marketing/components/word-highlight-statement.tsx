@@ -58,16 +58,16 @@ export function WordHighlightStatement({
   const words = statement.split(/\s+/);
 
   return (
-    <section 
+    <section
       data-section="taste-word-highlight"
       className="relative w-full overflow-hidden bg-[#071622] py-24 text-white"
     >
-      <div 
-        aria-hidden="true" 
-        className="pointer-events-none absolute inset-0 bg-radial-hero-glow opacity-40" 
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-radial-hero-glow opacity-40"
       />
 
-      <div 
+      <div
         ref={containerRef}
         className="relative z-10 mx-auto max-w-[1440px] px-8 md:px-[96px]"
       >

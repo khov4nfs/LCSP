@@ -754,4 +754,3 @@ function SettingsLanguageSelect() {
     </DropdownMenu>
   );
 }
-

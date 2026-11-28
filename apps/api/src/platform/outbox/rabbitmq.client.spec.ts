@@ -180,6 +180,77 @@ beforeEach(() => {
 });
 
 describe("RabbitMqClient", () => {
+  it("invalidates a timed-out connection attempt so a later call can reconnect", async () => {
+    jest.useFakeTimers();
+    const channel = makeChannel();
+    const recoveredConnection = makeConnection(channel);
+    connect
+      .mockImplementationOnce(
+        () => new Promise<FakeConnection>(() => undefined),
+      )
+      .mockResolvedValueOnce(recoveredConnection);
+    const client = new RabbitMqClient("amqp://fake", undefined, 5, 5);
+
+    const timedOut = client.ensureConnected();
+    const timedOutExpectation =
+      expect(timedOut).rejects.toThrow("deadline exceeded");
+    await jest.advanceTimersByTimeAsync(10);
+    await timedOutExpectation;
+    await expect(client.ensureConnected()).resolves.toBeUndefined();
+
+    expect(connect).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+
+  it("closes a partially established connection when channel setup times out", async () => {
+    jest.useFakeTimers();
+    const channel = makeChannel();
+    const connection = makeConnection(channel);
+    connection.createConfirmChannel.mockImplementation(
+      () => new Promise<FakeChannel>(() => undefined),
+    );
+    connect.mockResolvedValue(connection);
+    const client = new RabbitMqClient("amqp://fake", undefined, 5, 5);
+
+    const timedOut = client.ensureConnected();
+    const timedOutExpectation =
+      expect(timedOut).rejects.toThrow("deadline exceeded");
+    await jest.advanceTimersByTimeAsync(10);
+    await timedOutExpectation;
+
+    expect(connection.close).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
+  it("invalidates a channel after a lost publish confirmation and reconnects", async () => {
+    jest.useFakeTimers();
+    const stalledChannel = makeChannel();
+    stalledChannel.publish.mockImplementation(() => true);
+    const recoveredChannel = makeChannel();
+    connect
+      .mockResolvedValueOnce(makeConnection(stalledChannel))
+      .mockResolvedValueOnce(makeConnection(recoveredChannel));
+    const client = new RabbitMqClient("amqp://fake", undefined, 5, 5);
+
+    const timedOut = client.publish(
+      "lcsp.events",
+      ASSESSMENT_EVENT_TYPES.createdOutbox,
+      { sequence: 1 },
+    );
+    const timedOutExpectation =
+      expect(timedOut).rejects.toThrow("deadline exceeded");
+    await jest.advanceTimersByTimeAsync(10);
+    await timedOutExpectation;
+    await expect(
+      client.publish("lcsp.events", ASSESSMENT_EVENT_TYPES.createdOutbox, {
+        sequence: 2,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(connect).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+
   it("connects lazily and reuses the same channel across calls", async () => {
     const channel = makeChannel();
     const connection = makeConnection(channel);

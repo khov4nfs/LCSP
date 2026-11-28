@@ -23,3 +23,15 @@ export type RbacContextDenialReason =
   | typeof RBAC_REASON_CODES.sessionInvalid
   | typeof RBAC_REASON_CODES.mfaRequired
   | typeof RBAC_REASON_CODES.loadError;
+
+// Authorization decisions use one canonical AuditEvent type and one local
+// outbox recovery event so API guards, the fallback writer, and the recovery
+// poller cannot diverge on ad-hoc strings.
+export const RBAC_AUDIT_EVENT_TYPES = {
+  authorizationDecision: "AUTHORIZATION_DECISION",
+} as const;
+
+export const RBAC_OUTBOX_EVENT_TYPES = {
+  authorizationDecisionAuditFallback:
+    "event.authorization.decision-audit-fallback.v1",
+} as const;

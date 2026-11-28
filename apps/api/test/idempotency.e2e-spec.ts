@@ -13,7 +13,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
-import type { CreateAssessmentDto } from "../src/modules/assessment/application/contracts/assessment/create-assessment.contract.js";
+import type { AssessmentDetail as CreateAssessmentDto } from "@lcsp/contracts/assessment-domain";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
   TEST_DATABASE_URL,

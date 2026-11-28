@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_AUDIT_MODES,
@@ -539,24 +539,27 @@ describe("AssessmentProvenanceLoader", () => {
     });
   });
 
-  it("permits admin users to load provenance for any owner", async () => {
-    const record = buildValidRecord({ ownerId: "different-owner" });
+  it("rejects admin provenance before hydrating customer content", async () => {
+    const findUnique = jest.fn<() => Promise<unknown>>();
     const prisma = {
       assessment: {
-        findUnique: () => Promise.resolve(record),
+        findUnique,
       },
     } as unknown as PrismaService;
 
     const loader = new AssessmentProvenanceLoader(prisma);
 
-    const result = await loader.load({
-      assessmentId,
-      sessionUserId: "admin-user",
-      subjectRole: AUTH_USER_ROLES.admin,
-      correlationId,
-    });
-
-    expect(result.assessmentId).toBe(assessmentId);
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: "admin-user",
+        subjectRole: AUTH_USER_ROLES.admin,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    // Rejecting before persistence prevents sensitive provenance relations from
+    // entering application memory even if the loader is called outside HTTP guards.
+    expect(findUnique).not.toHaveBeenCalled();
   });
 
   it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if a fact belongs to a foreign assessment", async () => {

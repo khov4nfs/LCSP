@@ -394,7 +394,7 @@ describe("GetRootContextHandler locale authority", () => {
     expect(result.budgetState?.status).toBe("ADMITTED");
   });
 
-  it("evaluates NO_PROGRESS status when configured limit (15) is reached", async () => {
+  it("records consecutiveTurnsWithoutProgress as diagnostic telemetry while keeping status ADMITTED when limit (15) is reached", async () => {
     const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
     process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
     try {
@@ -416,7 +416,7 @@ describe("GetRootContextHandler locale authority", () => {
         result.budgetState?.cumulativeUsage.consecutiveTurnsWithoutProgress,
       ).toBe(15);
       expect(result.budgetState?.limits.noProgressLimit).toBe(15);
-      expect(result.budgetState?.status).toBe("NO_PROGRESS");
+      expect(result.budgetState?.status).toBe("ADMITTED");
     } finally {
       if (originalEnv !== undefined) {
         process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;

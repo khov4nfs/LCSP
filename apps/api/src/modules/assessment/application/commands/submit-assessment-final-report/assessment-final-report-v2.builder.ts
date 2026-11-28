@@ -16,6 +16,7 @@ import type { Prisma } from "@prisma/client";
 import {
   assessmentFinalReportV2Schema,
   ASSESSMENT_REPORT_REFERENCE_ORIGINS,
+  type AssessmentReportReferenceOrigin,
   type AssessmentFinalReportV2,
 } from "@lcsp/contracts/assessment-report";
 import type { AssessmentFinalizationSnapshot } from "../../services/assessment-completion-gate.service.js";
@@ -207,7 +208,7 @@ function sourceRef(
  */
 function references(
   items: RuleDecision["references"],
-  origin: "DECISION" | "CRITERION",
+  origin: AssessmentReportReferenceOrigin,
 ) {
   return items.map((reference) => ({ origin, reference }));
 }

@@ -2,6 +2,7 @@ import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   type AssessmentList,
+  assessmentAdminMetadataListSchema,
 } from "@lcsp/contracts/assessment-domain";
 /**
  * MW-asmt-003: List Assessments Endpoint.
@@ -159,8 +160,9 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     );
   });
 
-  // T05/T06: role-only RBAC permits ADMIN to reach list, then handler fails closed.
-  it("ADMIN sees an empty assessment list", async () => {
+  // Why: ADMIN fleet visibility is an accepted metadata-only read; asserting an empty
+  // list would conceal a regression in that role while broader customer data remains forbidden.
+  it("ADMIN sees only allowlisted metadata for customer-owned assessments", async () => {
     await createAssessment("Customer Owned 1");
     await createAssessment("Customer Owned 2");
 
@@ -174,11 +176,26 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     const result = await httpRequest(app)
       .get("/assessments")
       .set("Authorization", `Bearer ${adminToken}`);
-    const body = successBody<AssessmentList>(result);
+    const body = assessmentAdminMetadataListSchema.parse(successBody(result));
 
     assert.equal(result.status, 200);
-    assert.deepEqual(body.assessments, []);
-    assert.equal(body.total, 0);
+    assert.equal(body.total, 2);
+    assert.equal(body.assessments.length, 2);
+    assert.deepEqual(
+      body.assessments.map((assessment) => assessment.name).sort(),
+      ["Customer Owned 1", "Customer Owned 2"],
+    );
+    for (const assessment of body.assessments) {
+      assert.deepEqual(Object.keys(assessment).sort(), [
+        "assessment_id",
+        "created_at",
+        "execution_state",
+        "lifecycle_state",
+        "name",
+        "owner_id",
+        "updated_at",
+      ]);
+    }
   });
 
   // T07

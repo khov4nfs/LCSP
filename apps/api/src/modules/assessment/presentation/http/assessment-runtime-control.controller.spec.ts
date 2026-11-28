@@ -48,11 +48,15 @@ describe("AssessmentRuntimeControl Controllers RBAC and Workflows", () => {
   };
 
   const commandBusMock = {
-    execute: jest.fn<() => Promise<any>>().mockResolvedValue(mockControlResult),
+    execute: jest
+      .fn<(command?: any) => Promise<any>>()
+      .mockResolvedValue(mockControlResult),
   };
 
   const queryBusMock = {
-    execute: jest.fn<() => Promise<any>>().mockResolvedValue(mockControlResult),
+    execute: jest
+      .fn<(query?: any) => Promise<any>>()
+      .mockResolvedValue(mockControlResult),
   };
 
   beforeAll(async () => {
@@ -74,14 +78,13 @@ describe("AssessmentRuntimeControl Controllers RBAC and Workflows", () => {
           if (!currentRole) {
             return false;
           }
+          // Why: Active authorization uses RBAC with `{ userId, sessionId, role, scope }` only (no PBAC/org).
           req.rbacContext = {
             userId: currentUserId,
-            email: "test@example.com",
+            sessionId: "test-session-id",
             role: currentRole,
-            organizationId: "org-1",
-            membershipStatus: "ACTIVE",
-            resolvedFrom: "TEST",
-          } as unknown as AuthenticatedRequest["rbacContext"];
+            scope: null,
+          };
 
           const handler = context.getHandler();
           const target = context.getClass();
@@ -200,23 +203,33 @@ describe("AssessmentRuntimeControl Controllers RBAC and Workflows", () => {
   describe("POST /assessments/:assessmentId/runtime/extend-budget", () => {
     const validExtension = {
       targetRunId,
+      idempotencyKey: "idem-legacy-1",
+      expectedVersion: 0,
       budgetExtension: {
         version: 1,
         additionalModelCalls: 50,
         additionalTotalTokens: 500_000,
-        overrideNoProgress: false,
         auditReason: "Approved higher quota by security lead",
       },
     };
 
-    it("allows admin to approve and submit budget extension", async () => {
+    it("allows admin to approve and submit budget extension with Deprecation: true header", async () => {
       currentRole = AUTH_USER_ROLES.admin;
       currentUserId = "user-admin";
       const res = await supertest(server)
         .post(`/assessments/${assessmentId}/runtime/extend-budget`)
         .send(validExtension);
       expect(res.status).toBe(HttpStatus.CREATED);
-      expect(commandBusMock.execute).toHaveBeenCalled();
+      expect(res.headers.deprecation).toBe("true");
+      expect(commandBusMock.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assessmentId,
+          targetRunId,
+          idempotencyKey: "idem-legacy-1",
+          expectedVersion: 0,
+          budgetExtension: validExtension.budgetExtension,
+        }),
+      );
     });
 
     it("rejects customer from calling administrative extend-budget", async () => {
@@ -231,22 +244,77 @@ describe("AssessmentRuntimeControl Controllers RBAC and Workflows", () => {
   describe("POST /admin/assessments/:assessmentId/budget-extension", () => {
     const validExtension = {
       targetRunId,
+      idempotencyKey: "idem-admin-1",
+      expectedVersion: 0,
       budgetExtension: {
         version: 1,
         additionalModelCalls: 25,
-        overrideNoProgress: true,
         auditReason: "Admin unblock override",
       },
     };
 
-    it("allows admin to approve budget extension via dedicated admin route", async () => {
+    it("allows admin to approve budget extension via dedicated admin route and forwards idempotencyKey + expectedVersion", async () => {
       currentRole = AUTH_USER_ROLES.admin;
       currentUserId = "user-admin";
       const res = await supertest(server)
         .post(`/admin/assessments/${assessmentId}/budget-extension`)
         .send(validExtension);
       expect(res.status).toBe(HttpStatus.CREATED);
-      expect(commandBusMock.execute).toHaveBeenCalled();
+      expect(commandBusMock.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assessmentId,
+          targetRunId,
+          idempotencyKey: "idem-admin-1",
+          expectedVersion: 0,
+          budgetExtension: validExtension.budgetExtension,
+        }),
+      );
+    });
+
+    it("forwards identical ControlAssessmentRuntimeCommand from canonical admin route and deprecated legacy route", async () => {
+      currentRole = AUTH_USER_ROLES.admin;
+      currentUserId = "user-admin";
+      const sharedPayload = {
+        targetRunId,
+        idempotencyKey: "idem-parity-1",
+        expectedVersion: 1,
+        budgetExtension: {
+          version: 2,
+          additionalModelCalls: 40,
+          auditReason: "Command parity check",
+        },
+      };
+
+      const adminRes = await supertest(server)
+        .post(`/admin/assessments/${assessmentId}/budget-extension`)
+        .set("x-lcsp-locale", "vi")
+        .send(sharedPayload);
+      const legacyRes = await supertest(server)
+        .post(`/assessments/${assessmentId}/runtime/extend-budget`)
+        .set("x-lcsp-locale", "vi")
+        .send(sharedPayload);
+
+      expect(adminRes.status).toBe(HttpStatus.CREATED);
+      expect(legacyRes.status).toBe(HttpStatus.CREATED);
+      expect(legacyRes.headers.deprecation).toBe("true");
+      expect(commandBusMock.execute).toHaveBeenCalledTimes(2);
+      const adminCommand = (
+        commandBusMock.execute.mock.calls[0] as unknown[]
+      )[0];
+      const legacyCommand = (
+        commandBusMock.execute.mock.calls[1] as unknown[]
+      )[0];
+      expect(legacyCommand).toEqual(adminCommand);
+      expect(adminCommand).toEqual(
+        expect.objectContaining({
+          assessmentId,
+          targetRunId,
+          idempotencyKey: "idem-parity-1",
+          expectedVersion: 1,
+          responseLanguage: "vi",
+          budgetExtension: sharedPayload.budgetExtension,
+        }),
+      );
     });
 
     it("rejects customer from accessing dedicated admin budget extension route", async () => {

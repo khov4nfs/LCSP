@@ -1,7 +1,7 @@
 {
   "sellingPrice": {
-    "version": "lcsp-usage-1.8-v1",
-    "multiplier": "1.8",
+    "version": "lcsp-usage-1.2-v1",
+    "multiplier": "1.2",
     "knownSubtotalUsd": "0.0018",
     "estimatedTotalUsd": null
   },

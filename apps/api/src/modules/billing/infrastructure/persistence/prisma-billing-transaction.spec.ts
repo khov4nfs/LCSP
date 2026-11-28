@@ -1,4 +1,6 @@
 import { jest } from "@jest/globals";
+import { CreditLedgerSource as PrismaCreditLedgerSource } from "@prisma/client";
+import { CREDIT_LEDGER_SOURCES } from "@lcsp/contracts/billing";
 
 import { PrismaBillingTransaction } from "./prisma-billing-transaction.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -96,6 +98,91 @@ describe("PrismaBillingTransaction runtime policy repository", () => {
         "already bound",
       );
       expect(rows[0].model).toBe("future-model-v99");
+    });
+  });
+
+  describe("shadow microcredit wallet & ledger persistence", () => {
+    it("maps ledgerSource at the Prisma boundary and conditionally updates balanceMicrocredits", async () => {
+      const createdEntries: Array<Record<string, unknown>> = [];
+      const walletUpdates: Array<Record<string, unknown>> = [];
+
+      const tx = {
+        $executeRaw: jest.fn(() => Promise.resolve(1)),
+        billingWallet: {
+          updateMany: jest.fn((args: Record<string, unknown>) => {
+            walletUpdates.push(args);
+            return Promise.resolve({ count: 1 });
+          }),
+        },
+        creditLedgerEntry: {
+          create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
+            const row = {
+              id: `entry-${createdEntries.length + 1}`,
+              referenceId: null,
+              billingOrderId: null,
+              deltaMicrocredits: null,
+              accountingUnitVersion: 1,
+              ledgerSource: null,
+              ...data,
+            };
+            createdEntries.push(row);
+            return Promise.resolve(row);
+          }),
+          findUnique: jest.fn(() => Promise.resolve(createdEntries[0] ?? null)),
+          findMany: jest.fn(() => Promise.resolve(createdEntries)),
+        },
+      };
+
+      const transaction = new PrismaBillingTransaction({
+        $transaction: <T>(op: (t: typeof tx) => Promise<T>) => op(tx),
+      } as unknown as PrismaService);
+
+      const appended = await transaction.runForUser("u-1", (r) =>
+        r.ledger.append({
+          userId: "u-1",
+          walletId: "w-1",
+          deltaCredits: 5n,
+          deltaMicrocredits: 5_000_000n,
+          accountingUnitVersion: 1,
+          idempotencyKey: "k-1",
+          source: CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,
+          ledgerSource: CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,
+        }),
+      );
+
+      // Why: Inspect the typed mock's persisted row so a loose Jest matcher cannot
+      // hide a wrong ledger unit or source at the Prisma boundary.
+      expect(tx.creditLedgerEntry.create).toHaveBeenCalledTimes(1);
+      expect(createdEntries[0]).toMatchObject({
+        deltaMicrocredits: 5_000_000n,
+        accountingUnitVersion: 1,
+        ledgerSource: PrismaCreditLedgerSource.BILLING_ORDER_CREDIT,
+      });
+      expect(appended.ledgerSource).toBe(
+        CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,
+      );
+
+      await transaction.runForUser("u-1", (r) =>
+        r.wallet.compareAndSetProjection({
+          walletId: "w-1",
+          expectedVersion: 0,
+          availableCredits: 5n,
+          reservedCredits: 0n,
+          balanceMicrocredits: 5_000_000n,
+          accountingUnitVersion: 1,
+        }),
+      );
+
+      expect(walletUpdates[0]).toMatchObject({
+        where: { id: "w-1", version: 0 },
+        data: {
+          availableCredits: 5n,
+          reservedCredits: 0n,
+          balanceMicrocredits: 5_000_000n,
+          accountingUnitVersion: 1,
+          version: { increment: 1 },
+        },
+      });
     });
   });
 });

@@ -230,10 +230,16 @@ def preserved_database(conn, state: dict, *, renamed: bool = False) -> str:
                 row["row"].pop(column, None)
     value["LlmUsageEvent"] = list(conn.execute('SELECT to_jsonb(t)-\'assessmentId\' AS row FROM "LlmUsageEvent" t ORDER BY id'))
     if not renamed:
-        # New nullable telemetry columns must default to NULL without changing old values.
+        # Why: Later telemetry and WP8 billing migrations add nullable columns after this
+        # historical fixture snapshot. How: Give the pre-deploy projection those same
+        # NULL defaults so the digest compares row data rather than schema shape.
+        # Invariant: The post-deploy row is left untouched; non-NULL writes still fail proof.
         for row in value["LlmUsageEvent"]:
             for column in ("attemptStatus", "failureClass", "referenceCostSnapshot", "inputTokensIncludingCache",
-                           "cacheWrite5mTokens", "cacheWrite1hTokens", "visibleOutputTokens"):
+                           "cacheWrite5mTokens", "cacheWrite1hTokens", "visibleOutputTokens", "admissionId",
+                           "appliedMaxOutputTokens", "attemptOrdinal", "chargedMicrocredits", "durationMs",
+                           "finishReason", "logicalOperationId", "modelStep", "operationType", "pricingResolution",
+                           "protocol", "providerCompletionState"):
                 row["row"][column] = None
     value["rootTurns"] = list(conn.execute('SELECT to_jsonb(t) AS row FROM "AssessmentRuntimeTurn" t '
                                          "WHERE boundary='ASSESSMENT_ROOT' ORDER BY id"))

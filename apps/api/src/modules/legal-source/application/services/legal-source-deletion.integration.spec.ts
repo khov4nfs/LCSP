@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   AgentExecutionState,
+  AgentStreamBoundaryType,
   ArtifactLifecycleState,
   AssessmentLifecycleState,
   AuthUserRole,
@@ -144,6 +145,31 @@ database("Legal Source permanent deletion PostgreSQL integration", () => {
         requestedBy: actorId,
         correlationId: randomUUID(),
         executionState: AgentExecutionState.SUCCEEDED,
+      },
+    });
+    // Why: Authorized source deletion must remove a preparation journal even when
+    // the journal contains a rule rejection protected against ordinary tampering.
+    // How: Seed the exact rejected event shape before deleting the parent source.
+    // Invariant: The whole deletion transaction removes this child; UPDATE protection remains separate.
+    await prisma.assessmentRuntimeEvent.create({
+      data: {
+        boundaryType: AgentStreamBoundaryType.RULE_SET_PREPARATION,
+        boundaryId: runId,
+        preparationRunId: runId,
+        runId,
+        correlationId: randomUUID(),
+        sequence: 1,
+        summary: "Rule-authoring rejection evidence",
+        outputSummaryJson: {
+          agentStreamEvent: {
+            eventId: randomUUID(),
+            eventType: "CUSTOM_PROGRESS",
+            boundaryType: "RULE_SET_PREPARATION",
+            preparationRunId: runId,
+            runId,
+            data: { activity_kind: "RULE_AUTHORING_TOOL_REJECTED" },
+          },
+        },
       },
     });
     await prisma.complianceRuleSetVersion.create({
@@ -307,6 +333,11 @@ database("Legal Source permanent deletion PostgreSQL integration", () => {
     ).toBe(0);
     expect(
       await prisma.ruleSetPreparationClaimInventory.count({
+        where: { preparationRunId: runId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.assessmentRuntimeEvent.count({
         where: { preparationRunId: runId },
       }),
     ).toBe(0);

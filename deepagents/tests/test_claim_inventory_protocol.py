@@ -1,6 +1,7 @@
 """Provider-free native-tool protocol tests, including real TypeScript Gate convergence."""
 import json
 from copy import deepcopy
+from contextlib import contextmanager
 
 import pytest
 
@@ -11,6 +12,62 @@ from rule_set_preparation.claim_inventory import claim_id, fingerprint, normaliz
 
 from structural_semantic_fixture import mechanical_arguments
 from claim_protocol_harness import RUN, ScriptedApi, runtime, bridge, call, discover, author
+
+
+class _GovernedPreparationApi:
+    """Test-only server authority for native preparation model turns."""
+
+    def __init__(self, namespace):
+        self.namespace = namespace
+        self.requests = []
+        self.consumes = []
+
+    def request_invocation_admission(self, payload):
+        self.requests.append(payload)
+        ordinal = len(self.requests)
+        return {
+            "admissionId": f"claim-protocol-{self.namespace}-admission-{ordinal}",
+            "invocationId": f"claim-protocol-{self.namespace}-invocation-{ordinal}",
+            "capabilityToken": f"claim-protocol-capability-{ordinal}",
+            "state": "ADMITTED",
+        }
+
+    def consume_invocation_admission(self, payload):
+        self.consumes.append(payload)
+        return {"consumed": True}
+
+    def settle_invocation_usage(self, payload):
+        return {"settled": True, "slotReleased": True, "debitMode": "OFF"}
+
+
+@contextmanager
+def _governed_native_graph(monkeypatch, tmp_path, model):
+    """Bind offline scripted turns to a real run context and test-only admission API."""
+    from conftest import use_model_routes
+    from middleware import usage_metering
+    from middleware.paid_admission import isolated_test_scripted_models, register_test_scripted_model
+    from middleware.usage_metering import AgentRunState, activate_agent_run_state
+
+    # Why: Native graph tests now cross the same server-issued admission boundary as production.
+    # How: Register the scripted route and persist encrypted capability state in a temporary store.
+    # Invariant: Missing context still fails closed; tests never contact localhost or use a real wallet.
+    use_model_routes(monkeypatch, {
+        "routes": {"primary": {"provider": "anthropic", "protocol": "anthropic", "model": "claude-sonnet-4-6", "options": {"max_output_tokens": 4096, "context_window_tokens": 1000000}}},
+        "roles": {"default": "primary", "rule-set-preparation": "primary", "claim-author": "primary"},
+    })
+    monkeypatch.setenv("WORKER_ENVELOPE_ENCRYPTION_KEY", "a" * 64)
+    monkeypatch.setenv("WORKER_RECOVERY_DB_PATH", str(tmp_path / "capability-recovery.sqlite3"))
+    monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(tmp_path / "usage-recovery.sqlite3"))
+    # The scripted model has no native provider transport; identity is vouched for by the
+    # isolated registry, while unrelated models retain the production identity check.
+    original_identity = usage_metering.assert_model_identity
+    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda candidate, response=None: None if candidate is model else original_identity(candidate, response))
+    authority = _GovernedPreparationApi(tmp_path.name)
+    state = AgentRunState(run_id=RUN, agent_role="rule-set-preparation", preparation_run_id=RUN, api_client=authority)
+    with isolated_test_scripted_models():
+        register_test_scripted_model(model, "primary", credential_salt="0" * 64)
+        with activate_agent_run_state(state):
+            yield authority
 
 
 @pytest.fixture(scope="module")
@@ -188,7 +245,6 @@ def test_indexed_review_and_paginated_claim_lookup_at_corpus_scale(seed):
 
 def test_native_managed_agent_uses_same_thread_phase_protocol_without_provider(seed, tmp_path, monkeypatch):
     from langchain_core.messages import AIMessage
-    from middleware import usage_metering
     from rule_set_preparation.agent import create_rule_set_preparation_agent
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
     seed, recorded_ctx, tools, _ = runtime(seed)
@@ -209,10 +265,10 @@ def test_native_managed_agent_uses_same_thread_phase_protocol_without_provider(s
     assert call(current, 'finalize_semantic_claim_inventory')['outcome'] == 'PASSED'
     frozen = deepcopy(ctx.inventory.frozen)
     model = RuleSetPreparationScriptedModel(responses=actions)
-    identity = usage_metering.assert_model_identity
-    monkeypatch.setattr(usage_metering, 'assert_model_identity', lambda m, response=None: None if m is model else identity(m, response))
     agent = create_rule_set_preparation_agent(context=ctx, legal_source_root=tmp_path, model=model)
-    agent.invoke({'messages': [{'role': 'user', 'content': 'Author, validate and submit the committed inventory'}]})
+    with _governed_native_graph(monkeypatch, tmp_path, model) as authority:
+        agent.invoke({'messages': [{'role': 'user', 'content': 'Author, validate and submit the committed inventory'}]})
+    assert authority.requests and len(authority.requests) == len(authority.consumes)
     assert ctx.submission and api.submitted['claimInventory']['revision'] == 1
     assert ctx.inventory.frozen == frozen and ctx.inventory.phase == 'COMPLETION'
     assert 'author_legal_requirement' in {name for names in model.bound_tool_names for name in names}
@@ -237,7 +293,6 @@ def test_typed_tools_convert_for_provider_and_candidate_removal_preserves_freeze
 @pytest.mark.parametrize("parallel_batch", [False, True])
 def test_native_graph_terminates_repeated_inventory_validation_after_feedback(seed, tmp_path, monkeypatch, parallel_batch):
     from langchain_core.messages import AIMessage
-    from middleware import usage_metering
     from rule_set_preparation.agent import create_rule_set_preparation_agent
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
     _, ctx, _, api = runtime(seed)
@@ -245,11 +300,11 @@ def test_native_graph_terminates_repeated_inventory_validation_after_feedback(se
     responses = ([AIMessage(content='', tool_calls=calls[:3]), AIMessage(content='', tool_calls=calls[3:])] if parallel_batch else
         [AIMessage(content='', tool_calls=[c]) for c in calls])
     model = RuleSetPreparationScriptedModel(responses=responses)
-    identity = usage_metering.assert_model_identity
-    monkeypatch.setattr(usage_metering, 'assert_model_identity', lambda m, response=None: None if m is model else identity(m, response))
     agent = create_rule_set_preparation_agent(context=ctx, legal_source_root=tmp_path, model=model)
-    with pytest.raises(NoProgressDetected):
-        agent.invoke({'messages': [{'role': 'user', 'content': 'Finalize without the required coverage'}]})
+    with _governed_native_graph(monkeypatch, tmp_path, model) as authority:
+        with pytest.raises(NoProgressDetected):
+            agent.invoke({'messages': [{'role': 'user', 'content': 'Finalize without the required coverage'}]})
+    assert authority.requests and len(authority.requests) == len(authority.consumes)
     assert ctx.inventory.inventory_validation_calls == 3 and api.submitted is None
     assert ctx.trace[-1]['phase'] == 'CLAIM_INVENTORY_VALIDATION'
 

@@ -54,11 +54,11 @@ def _gemini() -> ChatGoogleGenerativeAI:
 
 
 def _openai() -> ChatOpenAI:
-    return ChatOpenAI(model="gpt-test", api_key="test-key")
+    return ChatOpenAI(model="gpt-test", api_key="test-key", profile={"max_output_tokens": 65536})
 
 
 def _anthropic() -> ChatAnthropic:
-    return ChatAnthropic(model="claude-test", api_key="test-key")
+    return ChatAnthropic(model="claude-test", api_key="test-key", profile={"max_output_tokens": 65536})
 
 
 def _request(model, tools):

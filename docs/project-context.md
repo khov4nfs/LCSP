@@ -1,7 +1,7 @@
 ---
 project_name: "LCSP — Legal Compliance Support Platform"
 user_name: "lcsp-team"
-date: "2026-06-26T10:52:59+07:00"
+date: "2026-11-24T00:00:00+07:00"
 sections_completed: ["technology_stack", "critical_rules"]
 existing_patterns_found: 14
 ---
@@ -30,9 +30,9 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 
 ### 2. RBAC Is the Source of Truth
 
-- RBAC thay RBAC làm authorization source of truth. Role label như `Manager` chỉ là subject attributes hoặc policy templates. [Source: docs/product/prd.md] [Source: docs/specs/functional-requirements.md]
-- Mọi protected action phải evaluate `subject + organization + resource + action + runtime context + policy version + state gate`. [Source: docs/implementation/decisions/rbac-runtime-decision.md]
-- Default là deny. Thiếu policy, thiếu attributes, org mismatch, resource mismatch, cache/evaluator failure, hoặc unavailable state gate đều fail closed. [Source: docs/implementation/decisions/rbac-runtime-decision.md]
+- RBAC là authorization source of truth. Role label như `Manager`, `Customer` hoặc `ADMIN` chỉ là subject attributes, grouping labels hoặc policy templates; role label đứng một mình không cấp quyền. [Source: docs/product/prd.md] [Source: docs/specs/functional-requirements.md]
+- Mọi protected action phải evaluate `authenticated subject + owner/resource scope + action + runtime context + policy version + state gate`. Customer assessment/wallet scope dùng `assessment.ownerId` và `wallet.userId`; active MVP không có organization authorization boundary. [Source: docs/product/prd.md] [Source: docs/implementation/decisions/rbac-runtime-decision.md]
+- Default là deny. Thiếu policy, thiếu attributes, owner/resource mismatch, cache/evaluator failure, hoặc unavailable state gate đều fail closed. Historical organization records không được cấp quyền hiện hành. [Source: docs/implementation/decisions/rbac-runtime-decision.md]
 - UI capability chỉ là hint từ backend projection; không bao giờ là authority.
 
 ### 3. Manager Golden Path Must Stay Intact
@@ -49,7 +49,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 ### 5. Audit Is Mandatory for Material Actions
 
 - Material auth, RBAC, delegation, evidence, trigger, conflict, classification, document, và security events phải audited.
-- Audit record phải chứa actor/service, organization, resource, action, decision/outcome, correlation ID, policy ID/version khi áp dụng, và safe refs only.
+- Audit record phải chứa actor/service, owner/resource scope, action, decision/outcome, correlation ID, policy ID/version khi áp dụng, và safe refs only. Organization identifier chỉ được giữ khi cần diễn giải immutable legacy record và không phải authority hiện hành.
 - Không ghi secret, raw token, raw source, full prompt vào audit. [Source: docs/specs/non-functional-requirements.md] [Source: docs/specs/event-catalog.md]
 
 ### 6. Privacy and Source Handling Are Hard Guardrails

@@ -60,3 +60,4 @@ export type ResultEnvelope<T> =
 - [ ] Run TypeScript typecheck: `pnpm --filter @lcsp/contracts build`
 - [ ] Verify all values use `SCREAMING_SNAKE_CASE` (no camelCase, kebab-case, or PascalCase).
 - [ ] Verify clear explanatory comments exist on all added/modified contract definitions.
+- [ ] When Product changes a planning markup, version and test the informational usage quote across contracts/API/Web fixtures; confirm that admission and settlement still use only published microcredit tariff snapshots.

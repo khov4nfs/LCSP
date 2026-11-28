@@ -18,6 +18,7 @@ type SessionInput = {
   sensitiveActionVerifiedAt?: number | null;
   passwordReauthenticatedAt?: number | null;
   candidateMfaEnrollment?: CandidateMfaEnrollment | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export const SENSITIVE_ACTION_REAUTH_TTL_MS = 5 * 60_000;
@@ -34,6 +35,7 @@ export class Session {
   sensitiveActionVerifiedAt: number | null;
   passwordReauthenticatedAt: number | null;
   candidateMfaEnrollment: CandidateMfaEnrollment | null;
+  readonly metadata: Record<string, unknown> | null;
 
   constructor(input: SessionInput) {
     this.id = randomUUID();
@@ -47,6 +49,7 @@ export class Session {
     this.sensitiveActionVerifiedAt = input.sensitiveActionVerifiedAt ?? null;
     this.passwordReauthenticatedAt = input.passwordReauthenticatedAt ?? null;
     this.candidateMfaEnrollment = input.candidateMfaEnrollment ?? null;
+    this.metadata = input.metadata ?? null;
   }
 
   static rehydrate(input: SessionInput & { id: string }): Session {

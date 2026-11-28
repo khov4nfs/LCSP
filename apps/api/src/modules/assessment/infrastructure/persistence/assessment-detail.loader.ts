@@ -9,13 +9,26 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
+  assessmentAdminMetadataListSchema,
+  assessmentAdminMetadataSchema,
   assessmentDetailSchema,
   assessmentListSchema,
+  type AssessmentAdminMetadata,
+  type AssessmentDetail,
+  type AssessmentReadDetail,
 } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { projectCanonicalAssessment } from "../../../../platform/runtime-events/canonical-assessment-projection.js";
 import { LocalePresentationProjectionService } from "../presentation/locale-presentation-projection.service.js";
+
+type AssessmentDetailLoadInput = {
+  assessmentId: string;
+  sessionUserId: string;
+  subjectRole: AuthUserRole;
+  correlationId: string;
+  locale?: string | null;
+};
 
 /** A consistent, read-only projection of persisted Assessment/Runtime/Case authorities. */
 @Injectable()
@@ -25,6 +38,25 @@ export class AssessmentDetailLoader {
     private readonly projectionService: LocalePresentationProjectionService,
   ) {}
 
+  /**
+   * Business purpose:
+   * Lists assessments using the data projection authorized for the caller's RBAC role.
+   *
+   * Business rules:
+   * CUSTOMER sees only owned assessments with the customer projection; ADMIN sees all
+   * assessments through the strict operational-metadata allowlist and never impersonates an owner.
+   *
+   * Execution flow:
+   * 1. Build the role-appropriate persistence predicate.
+   * 2. Select the ADMIN metadata allowlist or load the CUSTOMER canonical runtime projection.
+   * 3. Count rows in the same repeatable-read transaction and return a validated page.
+   *
+   * Failure cases:
+   * Invalid persisted values fail strict contract parsing; database failures roll back the read transaction.
+   *
+   * Side effects:
+   * Read-only database access and response projection; no assessment state is changed.
+   */
   async list(input: {
     sessionUserId: string;
     subjectRole: AuthUserRole;
@@ -35,20 +67,53 @@ export class AssessmentDetailLoader {
   }) {
     return this.prisma.$transaction(
       async (tx) => {
-        const where = {
-          ownerId: input.sessionUserId,
+        const lifecycleWhere = {
           ...(input.lifecycleState
             ? { lifecycleState: input.lifecycleState }
             : {}),
         };
-        if (input.subjectRole !== AUTH_USER_ROLES.customer)
-          return assessmentListSchema.parse({
-            assessments: [],
-            total: 0,
+
+        if (input.subjectRole === AUTH_USER_ROLES.admin) {
+          // Why: ADMIN needs fleet-level operations metadata, but loading relations would
+          // expose customer content before response validation. How: Prisma selects only
+          // the approved scalar fields plus the runtime execution-state scalar.
+          const [rows, total] = await Promise.all([
+            tx.assessment.findMany({
+              where: lifecycleWhere,
+              select: {
+                id: true,
+                ownerId: true,
+                name: true,
+                lifecycleState: true,
+                runtime: { select: { executionState: true } },
+                createdAt: true,
+                updatedAt: true,
+              },
+              orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+              skip: (input.page - 1) * input.pageSize,
+              take: input.pageSize,
+            }),
+            tx.assessment.count({ where: lifecycleWhere }),
+          ]);
+          return assessmentAdminMetadataListSchema.parse({
+            assessments: rows.map((row) => ({
+              assessment_id: row.id,
+              owner_id: row.ownerId,
+              name: row.name,
+              lifecycle_state: row.lifecycleState,
+              execution_state: row.runtime?.executionState ?? null,
+              created_at: row.createdAt.toISOString(),
+              updated_at: row.updatedAt.toISOString(),
+            })),
+            total,
             page: input.page,
             page_size: input.pageSize,
             correlationId: input.correlationId,
           });
+        }
+
+        // Customer ownership is part of the database predicate, preserving the BOLA boundary.
+        const where = { ownerId: input.sessionUserId, ...lifecycleWhere };
         const [rows, total] = await Promise.all([
           tx.assessment.findMany({
             where,
@@ -85,17 +150,95 @@ export class AssessmentDetailLoader {
     );
   }
 
-  async load(input: {
-    assessmentId: string;
-    sessionUserId: string;
-    subjectRole: AuthUserRole;
-    correlationId: string;
-    locale?: string | null;
-  }) {
+  /**
+   * Loads the assessment view authorized for the caller's RBAC role.
+   *
+   * Business purpose:
+   * Retrieves customer-owned canonical content or ADMIN operational metadata without crossing the customer-content boundary.
+   *
+   * Business rules:
+   * - CUSTOMER callers may only access assessments they own; ownerId is scoped directly at the persistence boundary.
+   * - ADMIN callers receive only the dedicated metadata allowlist and never hydrate case, evidence, report, provenance, usage, or runtime payloads.
+   * - If no row matches or the owner does not match, a masked 404 (ASSESSMENT_NOT_FOUND) must be thrown.
+   * - Both roles use strict response contracts; ADMIN metadata permission never grants mutation authority.
+   *
+   * Execution flow:
+   * 1. For ADMIN, select and return only the metadata allowlist.
+   * 2. For CUSTOMER, query by assessmentId and ownerId with related domain entities.
+   * 3. Validate existence and project canonical assessment state and pinned rule set.
+   * 4. Aggregate owner-scoped LLM token usage and return the customer detail contract.
+   *
+   * Failure cases:
+   * - Assessment missing or foreign-owned for CUSTOMER: throws masked NOT_FOUND with ASSESSMENT_NOT_FOUND.
+   * - Invalid persisted canonical state fails closed through the existing conflict contract.
+   *
+   * Side effects:
+   * - Read-only database query; pure data projection.
+   */
+  // Literal-role overloads retain precise result types for internal callers while
+  // controllers with a runtime role correctly receive the RBAC read union.
+  async load(
+    input: AssessmentDetailLoadInput & {
+      subjectRole: typeof AUTH_USER_ROLES.customer;
+    },
+  ): Promise<AssessmentDetail>;
+  async load(
+    input: AssessmentDetailLoadInput & {
+      subjectRole: typeof AUTH_USER_ROLES.admin;
+    },
+  ): Promise<AssessmentAdminMetadata>;
+  async load(input: AssessmentDetailLoadInput): Promise<AssessmentReadDetail>;
+  async load(input: AssessmentDetailLoadInput): Promise<AssessmentReadDetail> {
     return this.prisma.$transaction(
       async (tx) => {
+        if (input.subjectRole === AUTH_USER_ROLES.admin) {
+          // Why: a response-level omit is too late because sensitive relations would already
+          // be hydrated. How: this branch ends before the customer query and uses a strict
+          // persistence allowlist, preserving metadata-only access as a data-minimization invariant.
+          const row = await tx.assessment.findUnique({
+            where: { id: input.assessmentId },
+            select: {
+              id: true,
+              ownerId: true,
+              name: true,
+              lifecycleState: true,
+              runtime: { select: { executionState: true } },
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+          if (!row) {
+            throw problemException(
+              ASSESSMENT_ERROR_CODES.notFound,
+              input.correlationId,
+              { status: HttpStatus.NOT_FOUND },
+            );
+          }
+          return assessmentAdminMetadataSchema.parse({
+            assessment_id: row.id,
+            owner_id: row.ownerId,
+            name: row.name,
+            lifecycle_state: row.lifecycleState,
+            execution_state: row.runtime?.executionState ?? null,
+            created_at: row.createdAt.toISOString(),
+            updated_at: row.updatedAt.toISOString(),
+            correlationId: input.correlationId,
+          });
+        }
+
+        // Explanatory comment (ASM-06 / ASM-OWNER-02):
+        // Rationale (Why): BOLA prevention (OWASP API1:2023). Enforces tenant/owner isolation directly
+        // at the persistence boundary instead of retrieving foreign data and checking ownership in memory.
+        // Mechanism (How): For CUSTOMER role, the initial findUnique query includes ownerId in the where clause:
+        // { id: input.assessmentId, ownerId: input.sessionUserId }.
+        // Invariants: Strictly RBAC-scoped; foreign records are never loaded from database into application memory.
+        const whereClause: Prisma.AssessmentWhereUniqueInput = {
+          id: input.assessmentId,
+          ownerId: input.sessionUserId,
+        };
+
         const row = await tx.assessment.findUnique({
-          where: { id: input.assessmentId },
+          where: whereClause,
           include: {
             runtime: true,
             domainCase: {
@@ -122,11 +265,7 @@ export class AssessmentDetailLoader {
             },
           },
         });
-        if (
-          !row ||
-          input.subjectRole !== AUTH_USER_ROLES.customer ||
-          row.ownerId !== input.sessionUserId
-        ) {
+        if (!row || row.ownerId !== input.sessionUserId) {
           throw problemException(
             ASSESSMENT_ERROR_CODES.notFound,
             input.correlationId,

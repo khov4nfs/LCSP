@@ -305,6 +305,73 @@ def test_delivery_handler_uses_payload_correlation_id(monkeypatch):
     assert channel.nacked == []
 
 
+def test_missing_correlation_creates_a_distinct_identity_per_delivery():
+    """[RED][ASM-TRACE-01] Malformed deliveries cannot collapse into one shared trace."""
+    first = rabbitmq_consumer._correlation_id({}, {}, "assessment_root_requested")
+    second = rabbitmq_consumer._correlation_id({}, {}, "assessment_root_requested")
+
+    # The fallback is a last-resort delivery identity, never a boundary-wide constant.
+    assert first
+    assert second
+    assert first != second
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    ["", "  ", "bad\r\nheader", "bad\x00header", "café", "x" * 257],
+)
+def test_malformed_ingress_correlation_uses_safe_fallback(invalid):
+    """[RED] Malformed producer trace data cannot reach the worker HTTP header."""
+    resolved = rabbitmq_consumer._correlation_id(
+        {"correlationId": invalid}, {}, "assessment_root_requested"
+    )
+
+    assert resolved.startswith("agent-runtime:assessment_root_requested:")
+    assert resolved != invalid
+
+
+def test_dispatch_persists_fallback_correlation_for_retry_and_timeout_paths(monkeypatch):
+    """[RED] One unidentified delivery must keep its minted ID after dispatch starts."""
+    observed = []
+    monkeypatch.setattr(
+        rabbitmq_consumer,
+        "dispatch_agent_runtime_event",
+        lambda boundary_name, message, correlation_id, timeout_seconds=None: observed.append(correlation_id),
+    )
+    properties = SimpleNamespace(headers={})
+
+    rabbitmq_consumer._dispatch_delivery(
+        "assessment_root_requested",
+        properties,
+        json.dumps({"assessmentId": "assessment-1"}).encode("utf-8"),
+    )
+
+    persisted = properties.headers.get("x-correlation-id")
+    assert observed == [persisted]
+    assert persisted
+    assert rabbitmq_consumer._correlation_id(
+        {"assessmentId": "assessment-1"}, properties.headers, "assessment_root_requested"
+    ) == persisted
+
+
+def test_pre_dispatch_timeout_persists_fallback_for_timeout_telemetry():
+    """[RED] A queued timeout reports the same fallback identity assigned to its delivery."""
+    properties = SimpleNamespace(headers={})
+    settlement = rabbitmq_consumer.DeliverySettlementState(settled=True)
+
+    with pytest.raises(rabbitmq_consumer.BoundaryExecutionTimeout):
+        rabbitmq_consumer._dispatch_delivery(
+            "assessment_root_requested",
+            properties,
+            json.dumps({"assessmentId": "assessment-1"}).encode("utf-8"),
+            settlement_state=settlement,
+        )
+
+    assert properties.headers.get("x-correlation-id", "").startswith(
+        "agent-runtime:assessment_root_requested:"
+    )
+
+
 def test_delivery_handler_nacks_on_dispatch_failure(monkeypatch):
     def fail(_boundary_name, _message, _correlation_id, timeout_seconds=None):
         raise RuntimeError("dispatch failed")

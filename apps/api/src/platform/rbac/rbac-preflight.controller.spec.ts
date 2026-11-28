@@ -5,6 +5,7 @@ import { GUARDS_METADATA } from "@nestjs/common/constants.js";
 
 import { WorkerApiKeyGuard } from "./guards/worker-api-key.guard.js";
 import { RbacPreflightController } from "./rbac-preflight.controller.js";
+import { rbacPreflightSchema } from "./rbac-preflight.dto.js";
 import type { RbacPreflightService } from "./rbac-preflight.service.js";
 
 function makeController(
@@ -125,5 +126,31 @@ describe("RbacPreflightController", () => {
       requiredRoles: [AUTH_USER_ROLES.customer],
       correlationId: "corr-2",
     });
+  });
+
+  it("rejects unsafe worker correlation IDs at the DTO boundary", () => {
+    expect(
+      rbacPreflightSchema.safeParse({
+        user_id: "u",
+        required_roles: [AUTH_USER_ROLES.customer],
+        correlationId: "unsafe\nlog-entry",
+      }).success,
+    ).toBe(false);
+    expect(
+      rbacPreflightSchema.safeParse({ correlationId: "x".repeat(129) }).success,
+    ).toBe(false);
+  });
+
+  it("normalizes missing correlation IDs before worker evaluation", async () => {
+    const { controller, evaluate } = makeController();
+
+    await controller.preflight({
+      user_id: "u",
+      required_roles: [AUTH_USER_ROLES.customer],
+    });
+
+    expect(evaluate.mock.calls[0]?.[0].correlationId).toMatch(
+      /^[A-Za-z0-9._:-]{1,128}$/,
+    );
   });
 });

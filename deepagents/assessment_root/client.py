@@ -19,6 +19,56 @@ WORKER_KEY_HEADER = "x-worker-api-key"
 LEASE_HEADER = "x-assessment-lease"
 CORRELATION_HEADER = "x-correlation-id"
 
+_SENSITIVE_PROBLEM_META_KEYS = frozenset(
+    {
+        "assessmentlease",
+        "leasetoken",
+        "workerapikey",
+        "workerkey",
+        "xassessmentlease",
+        "xworkerapikey",
+    }
+)
+
+
+def _safe_problem_meta(
+    meta: dict[str, Any],
+    *,
+    sensitive_values: tuple[str | None, ...],
+) -> dict[str, Any]:
+    """Business purpose: Preserve safe correction feedback without reflecting worker credentials to callers.
+
+    Business rules:
+    - Retain only scalar metadata used by governed validation feedback.
+    - Reject authentication-shaped keys and values equal to this client's worker key or lease token.
+
+    Execution flow:
+    1. Normalize each metadata key for a format-independent sensitive-name comparison.
+    2. Keep safe scalar entries whose value is not one of the active client credentials.
+
+    Failure cases:
+    - Nested values and secret-shaped entries are omitted instead of serialized or partially exposed.
+
+    Side effects:
+    - Pure filtering only; it does not mutate the upstream problem payload or client credentials.
+    """
+    secrets = {value for value in sensitive_values if value}
+    safe: dict[str, Any] = {}
+    for key, value in meta.items():
+        normalized_key = "".join(character for character in key.lower() if character.isalnum())
+        if any(secret in key for secret in secrets) or normalized_key in _SENSITIVE_PROBLEM_META_KEYS:
+            continue
+        if not isinstance(value, (str, int, float, bool, type(None))):
+            continue
+        # Exact checks are insufficient when an upstream error embeds a credential
+        # inside diagnostic text; omit the complete field rather than partially expose it.
+        if value in secrets or (
+            isinstance(value, str) and any(secret in value for secret in secrets)
+        ):
+            continue
+        safe[key] = value
+    return safe
+
 
 class AssessmentApiError(Exception):
     """A rejected governed call. ``code`` is the stable problem code; ``meta`` is scalar-only."""
@@ -35,19 +85,57 @@ class AssessmentApiError(Exception):
 
 
 class AssessmentRuntimeClient:
-    def __init__(self, base_url: str, worker_key: str, *, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        worker_key: str,
+        *,
+        timeout: float = 30.0,
+        correlation_id: str | None = None,
+    ) -> None:
         self._base = base_url.rstrip("/")
         self._worker_key = worker_key
         self._timeout = timeout
+        if correlation_id is not None and (
+            not isinstance(correlation_id, str)
+            or not correlation_id.strip()
+            or correlation_id != correlation_id.strip()
+            or len(correlation_id) > 256
+            or any(not 0x21 <= ord(character) <= 0x7E for character in correlation_id)
+        ):
+            # Reject producer-controlled values before httpx turns malformed trace data
+            # into an opaque transport failure during claim.
+            raise ValueError("correlation_id must be a non-empty HTTP-safe string of at most 256 characters")
+        # A runtime client is execution-scoped. Keeping this value immutable lets the main
+        # Root flow and heartbeat thread share one trace without a mutable global or lock.
+        self._correlation_id = correlation_id or str(uuid.uuid4())
+        self._claim_started = False
         self.assessment_id: str | None = None
         self.lease_token: str | None = None
 
     # ---- transport -----------------------------------------------------------------------------
 
     def _headers(self, *, with_lease: bool) -> dict[str, str]:
+        """Business purpose: Authenticate one governed worker request while preserving its Root trace identity.
+
+        Business rules:
+        - Every request carries the configured worker key and this execution's immutable correlation ID.
+        - The API-issued lease is included only for operations that require an established claim.
+
+        Execution flow:
+        1. Build worker-authentication and correlation headers from execution-scoped client state.
+        2. Add the current lease when the caller requests it and a lease has been issued.
+
+        Failure cases:
+        - A missing optional lease is not fabricated; the authoritative API rejects calls that require one.
+
+        Side effects:
+        - Returns a new header dictionary without logging or mutating worker, lease, or correlation state.
+        """
         headers = {
             WORKER_KEY_HEADER: self._worker_key,
-            CORRELATION_HEADER: str(uuid.uuid4()),
+            # Transport retries are attempts within the same execution, not new traces.
+            CORRELATION_HEADER: self._correlation_id,
         }
         if with_lease and self.lease_token:
             headers[LEASE_HEADER] = self.lease_token
@@ -76,21 +164,24 @@ class AssessmentRuntimeClient:
 
         Failure cases:
         - Mutation transport failures propagate immediately; read failures propagate after bounded retries.
-        - Invalid response JSON becomes an empty payload, and reported API failures preserve the server-supplied code and dictionary metadata without additional redaction here.
+        - Invalid response JSON becomes an empty payload; reported API failures preserve safe scalar correction metadata while removing worker and lease credentials.
 
         Side effects:
-        - Performs an HTTP request whose domain effects are determined by the selected endpoint; creates a correlation header on each attempt.
+        - Performs an HTTP request whose domain effects are determined by the selected endpoint; reuses the execution correlation header on every attempt.
         """
         url = f"{self._base}/internal/assessment-runtime/{self.assessment_id}{path}"
         max_attempts = 3 if method.upper() in {"GET", "HEAD"} else 1
         for attempt in range(max_attempts):
             try:
+                # Capture the exact credentials sent by this attempt. A concurrent finish
+                # may clear client lease state before the response is parsed.
+                request_headers = self._headers(with_lease=with_lease)
                 response = httpx.request(
                     method,
                     url,
                     json=body,
                     params=params,
-                    headers=self._headers(with_lease=with_lease),
+                    headers=request_headers,
                     timeout=self._timeout,
                 )
                 try:
@@ -99,10 +190,30 @@ class AssessmentRuntimeClient:
                     payload = {}
                 if response.status_code >= 400 or not isinstance(payload, dict) or payload.get("ok") is False:
                     problem = payload.get("problem", {}) if isinstance(payload, dict) else {}
+                    raw_meta = problem.get("meta") if isinstance(problem.get("meta"), dict) else {}
+                    # Problem metadata is an untrusted reflection surface. Filter both known
+                    # credential keys and the live secret values before model-facing handling.
+                    safe_meta = _safe_problem_meta(
+                        raw_meta,
+                        sensitive_values=(self._worker_key, request_headers.get(LEASE_HEADER)),
+                    )
+                    raw_code = str(problem.get("code") or f"HTTP_{response.status_code}")
+                    request_secrets = {
+                        value
+                        for value in (self._worker_key, request_headers.get(LEASE_HEADER))
+                        if value
+                    }
+                    # Problem codes are reflected in exception strings. Replace an invalid
+                    # code that embeds request credentials with the safe HTTP fallback.
+                    safe_code = (
+                        f"HTTP_{response.status_code}"
+                        if any(secret in raw_code for secret in request_secrets)
+                        else raw_code
+                    )
                     err = AssessmentApiError(
                         response.status_code,
-                        str(problem.get("code") or f"HTTP_{response.status_code}"),
-                        problem.get("meta") if isinstance(problem.get("meta"), dict) else {},
+                        safe_code,
+                        safe_meta,
                     )
                     if attempt < max_attempts - 1 and err.retryable:
                         time.sleep(1.0 * (2 ** attempt))
@@ -122,16 +233,23 @@ class AssessmentRuntimeClient:
 
         Business rules:
         - The API validates both physical run and incarnation; an old or missing owner cannot reclaim a replacement lease.
+        - One client can begin only one claim because its trace identity is immutable and execution-scoped.
         Execution flow:
         1. Bind this client to the Assessment and transmit the native execution context.
         2. Retain only the API-issued lease for subsequent Root operations.
         Failure cases:
         - API ownership, capacity and lifecycle problems propagate without starting investigation.
+        - A second claim attempt on the same client fails locally before sending another request.
         Side effects:
         - Requests the existing transactional lease; creates no model call or decision.
         """
         from orchestration.runtime_control import active_runtime_run_id, active_runtime_incarnation_id
 
+        if self._claim_started:
+            # Reusing the instance would carry its immutable correlation ID into a distinct
+            # execution and could also race with heartbeat state from the first claim.
+            raise RuntimeError("AssessmentRuntimeClient is execution-scoped and cannot claim twice")
+        self._claim_started = True
         self.assessment_id = assessment_id
         runtime_run_id = active_runtime_run_id.get()
         body = {"runtimeRunId": runtime_run_id} if runtime_run_id else {}

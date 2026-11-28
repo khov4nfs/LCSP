@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import unicodedata
 from copy import deepcopy
@@ -14,6 +15,35 @@ from jsonschema import Draft7Validator
 from middleware.failure_policy import NoProgressDetected
 from rule_set_preparation.authoring_rejections import AUTHORING_PRECONDITION, REPAIR, SOURCE_BODY, build_envelope, draft_fingerprint
 from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
+
+
+def attach_physical_invocation_to_rejection(
+    recovery_db_path: str | Path, run_id: str, envelope: dict[str, Any],
+) -> dict[str, Any]:
+    """Business purpose: Bind a rule-authoring rejection to its paid physical model origin when proven.
+
+    Business rules:
+    - Add physicalInvocationId only for one unambiguous durable run/tool-call mapping.
+    - Reused or absent provider tool-call IDs leave the rejection unevaluated.
+    Execution flow:
+    1. Read the envelope's exact toolCallId.
+    2. Resolve a unique physical invocation from worker-local durable causation.
+    3. Return a copy enriched only when resolution succeeds.
+    Failure cases:
+    - Missing or ambiguous identity returns the original evidence with no physical marker.
+    Side effects:
+    - Reads worker-local SQLite; does not write billing or change the rejection outcome.
+    """
+    # Why: One provider tool-call ID can recur across two paid invocations in the same run.
+    # How: Publish the server-issued physical ID only when the local durable index has exactly one origin.
+    # Invariant: A later verdict never guesses physical causation from model_turn or toolCallId alone.
+    tool_call_id = envelope.get("toolCallId")
+    if not isinstance(tool_call_id, str) or not tool_call_id:
+        return dict(envelope)
+    from middleware.model_output_causation import find_physical_invocation_for_tool_call
+
+    physical_id = find_physical_invocation_for_tool_call(recovery_db_path, run_id, tool_call_id)
+    return {**envelope, "physicalInvocationId": physical_id} if physical_id else dict(envelope)
 
 DISCOVERY = "CLAIM_DISCOVERY"
 INVENTORY_VALIDATION = "CLAIM_INVENTORY_VALIDATION"
@@ -579,6 +609,14 @@ class ClaimInventory:
             draft_before=self.current_draft_before or context.draft_fp, draft_after=draft_fingerprint(context.draft), draft_revision=context.draft_revision,
             sequence=context.event_sequence + 1, model_turn=context.model_turn, phase=self.phase, tool_call_id=self.current_call_id,
             extra={k: extra.get(k) for k in ("suppliedClaimId", "actualRole", "expectedRole", "expectedField", "suppliedField", "candidateCount")})
+        # Why: Rejection evidence must identify the exact paid physical call before a server verdict is allowed.
+        # How: Resolve the tool call against the durable local mapping; omit the marker on provider ID reuse.
+        # Invariant: Missing causation never blocks billing settlement or invents DOMAIN_REJECTED.
+        envelope = attach_physical_invocation_to_rejection(
+            os.environ.get("WORKER_RECOVERY_DB_PATH", ".data/worker_recovery.db"),
+            context.run_id,
+            envelope,
+        )
         self.last_envelope = envelope
         context.rejection_log.append(envelope)
         del context.rejection_log[:-200]

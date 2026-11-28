@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import type { AppConfig } from "../../config/config.types.js";
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { BillingAccountingKernel } from "./application/shared/billing-accounting.kernel.js";
@@ -38,11 +39,43 @@ import {
   BILLING_USAGE_KERNEL,
   BillingUsageKernel,
 } from "./application/shared/billing-usage.kernel.js";
+import { BillingCutoverService } from "./application/shared/billing-cutover.service.js";
 
 import { AdminUsageController } from "./presentation/http/admin-usage.controller.js";
 import { GetAdminUsageHandler } from "./application/queries/get-admin-usage/get-admin-usage.handler.js";
 import { UsageAnalyticsReader } from "./application/shared/usage-analytics.reader.js";
 import { GetCustomerUsageHandler } from "./application/queries/get-customer-usage/get-customer-usage.handler.js";
+import { AuditModule } from "../../platform/audit/audit.module.js";
+import { BillingAdminPricingController } from "./presentation/http/billing-admin-pricing.controller.js";
+import { BillingAdmissionController } from "./presentation/http/billing-admission.controller.js";
+import { BillingSettlementController } from "./presentation/http/billing-settlement.controller.js";
+import { BillingInternalReconciliationController } from "./presentation/http/billing-internal-reconciliation.controller.js";
+import { MODEL_PRICING_REPOSITORY } from "./domain/repositories/model-pricing.port.js";
+import { PrismaModelPricingRepository } from "./infrastructure/persistence/prisma-model-pricing.repository.js";
+import { RuntimeModelAllowlistService } from "./application/shared/runtime-model-allowlist.service.js";
+import { ModelPricingCalculatorService } from "./application/shared/model-pricing-calculator.service.js";
+import { CreateModelTariffDraftHandler } from "./application/commands/create-model-tariff-draft/create-model-tariff-draft.handler.js";
+import { PublishModelTariffDraftHandler } from "./application/commands/publish-model-tariff-draft/publish-model-tariff-draft.handler.js";
+import { SupersedeModelTariffAssignmentHandler } from "./application/commands/supersede-model-tariff-assignment/supersede-model-tariff-assignment.handler.js";
+import { UpdateModelTariffDraftHandler } from "./application/commands/update-model-tariff-draft/update-model-tariff-draft.handler.js";
+import { RequestBillableInvocationAdmissionHandler } from "./application/commands/request-billable-invocation-admission/request-billable-invocation-admission.handler.js";
+import { ConsumeBillableInvocationAdmissionHandler } from "./application/commands/consume-billable-invocation-admission/consume-billable-invocation-admission.handler.js";
+import { HeartbeatBillableInvocationAdmissionHandler } from "./application/commands/heartbeat-billable-invocation-admission/heartbeat-billable-invocation-admission.handler.js";
+import { CancelBillableInvocationAdmissionHandler } from "./application/commands/cancel-billable-invocation-admission/cancel-billable-invocation-admission.handler.js";
+import { SettleBillableInvocationUsageHandler } from "./application/commands/settle-billable-invocation-usage/settle-billable-invocation-usage.handler.js";
+import { SweepExpiredInvocationLeasesHandler } from "./application/commands/sweep-expired-invocation-leases/sweep-expired-invocation-leases.handler.js";
+import { CompensateBillingDebitHandler } from "./application/commands/compensate-billing-debit/compensate-billing-debit.handler.js";
+import { BillingReconciliationSweeperService } from "./infrastructure/scheduling/billing-reconciliation-sweeper.service.js";
+import { ResolveBillableInvocationNoUsageHandler } from "./application/commands/resolve-billable-invocation-no-usage/resolve-billable-invocation-no-usage.handler.js";
+import { DecideBillingReconciliationCaseHandler } from "./application/commands/decide-billing-reconciliation-case/decide-billing-reconciliation-case.handler.js";
+import { ListBillingReconciliationCasesHandler } from "./application/queries/list-billing-reconciliation-cases/list-billing-reconciliation-cases.handler.js";
+import { GetBillingReconciliationCaseDetailHandler } from "./application/queries/get-billing-reconciliation-case-detail/get-billing-reconciliation-case-detail.handler.js";
+import { GetModelPricingOverviewHandler } from "./application/queries/get-model-pricing-overview/get-model-pricing-overview.handler.js";
+import { GetModelTariffDraftHandler } from "./application/queries/get-model-tariff-draft/get-model-tariff-draft.handler.js";
+import { GetModelTariffSnapshotHandler } from "./application/queries/get-model-tariff-snapshot/get-model-tariff-snapshot.handler.js";
+import { PreviewModelPricingHandler } from "./application/queries/preview-model-pricing/preview-model-pricing.handler.js";
+import { ReconciliationArtifactService } from "./application/shared/reconciliation-artifact.service.js";
+import { BillingRolloutAuthorityService } from "./application/shared/billing-rollout-authority.service.js";
 import { CustomerUsageController } from "./presentation/http/customer-usage.controller.js";
 
 @Module({
@@ -50,6 +83,7 @@ import { CustomerUsageController } from "./presentation/http/customer-usage.cont
     CqrsModule,
     ConfigModule.forRoot({ isGlobal: true }),
     RbacModule,
+    AuditModule,
     OutboxModule,
   ],
   controllers: [
@@ -61,6 +95,10 @@ import { CustomerUsageController } from "./presentation/http/customer-usage.cont
     BillingAdminReconciliationController,
     BillingAdminReportingController,
     BillingAdminController,
+    BillingAdminPricingController,
+    BillingAdmissionController,
+    BillingSettlementController,
+    BillingInternalReconciliationController,
   ],
   providers: [
     PrismaService,
@@ -72,15 +110,48 @@ import { CustomerUsageController } from "./presentation/http/customer-usage.cont
       provide: BILLING_TRANSACTION_PORT,
       useExisting: PrismaBillingTransaction,
     },
+    PrismaModelPricingRepository,
+    {
+      provide: MODEL_PRICING_REPOSITORY,
+      useExisting: PrismaModelPricingRepository,
+    },
+    RuntimeModelAllowlistService,
+    ModelPricingCalculatorService,
+    CreateModelTariffDraftHandler,
+    PublishModelTariffDraftHandler,
+    SupersedeModelTariffAssignmentHandler,
+    UpdateModelTariffDraftHandler,
+    RequestBillableInvocationAdmissionHandler,
+    ConsumeBillableInvocationAdmissionHandler,
+    HeartbeatBillableInvocationAdmissionHandler,
+    CancelBillableInvocationAdmissionHandler,
+    SettleBillableInvocationUsageHandler,
+    SweepExpiredInvocationLeasesHandler,
+    CompensateBillingDebitHandler,
+    BillingReconciliationSweeperService,
+    ResolveBillableInvocationNoUsageHandler,
+    DecideBillingReconciliationCaseHandler,
+    ListBillingReconciliationCasesHandler,
+    GetBillingReconciliationCaseDetailHandler,
+    GetModelPricingOverviewHandler,
+    GetModelTariffDraftHandler,
+    GetModelTariffSnapshotHandler,
+    PreviewModelPricingHandler,
     BillingAccountingKernel,
     BillingPaymentKernel,
+    BillingCutoverService,
     {
       provide: BILLING_USAGE_KERNEL,
       useFactory: (
         transactions: PrismaBillingTransaction,
         prisma: PrismaService,
-      ) => new BillingUsageKernel(transactions, prisma),
-      inject: [BILLING_TRANSACTION_PORT, PrismaService],
+        configService?: ConfigService<AppConfig, true>,
+      ) => new BillingUsageKernel(transactions, prisma, configService),
+      inject: [
+        BILLING_TRANSACTION_PORT,
+        PrismaService,
+        { token: ConfigService, optional: true },
+      ],
     },
     SePayReconciliationConsumer,
     SePayWebhookIngress,
@@ -102,7 +173,15 @@ import { CustomerUsageController } from "./presentation/http/customer-usage.cont
     ResolveBillingPaymentHandler,
     RecordLlmUsageHandler,
     ReconcileAcceptedSePayWebhookHandler,
+    ReconciliationArtifactService,
+    BillingRolloutAuthorityService,
   ],
-  exports: [BillingAccountingKernel, BillingPaymentKernel],
+  exports: [
+    BillingAccountingKernel,
+    BillingPaymentKernel,
+    BillingCutoverService,
+    ReconciliationArtifactService,
+    BillingRolloutAuthorityService,
+  ],
 })
 export class BillingModule {}

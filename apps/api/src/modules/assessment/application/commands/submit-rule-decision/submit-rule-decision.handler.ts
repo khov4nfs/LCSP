@@ -20,7 +20,7 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { validateRuleDecision } from "../../../domain/decision-validator.js";
-import { decisionDependencyIds } from "../../../domain/decision-dependencies.js";
+import { decisionDependencyIds } from "@lcsp/contracts/assessment";
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 

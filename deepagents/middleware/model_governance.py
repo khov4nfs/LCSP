@@ -427,6 +427,191 @@ class _GovernedInternalModelRunnable:
         return self._message(result)
 
 
+class _GovernedTransformModelRunnable:
+    """Runnable for framework-owned transform and localization work through LCSP model governance."""
+
+    def __init__(
+        self,
+        model: Any,
+        *,
+        role: str = "response-transform",
+        operation_type: str = "RESPONSE_TRANSFORM",
+        governance: Sequence[AgentMiddleware] | None = None,
+    ) -> None:
+        """Business purpose: Wrap a transform or localization model in the LCSP governed agent stack.
+
+        Business rules:
+        - The model must execute through create_agent with AgentRoleMiddleware and MODEL_GOVERNANCE_MIDDLEWARE.
+        - Ensures all transform calls acquire server admission and undergo atomic CAS consume before provider dispatch.
+
+        Execution flow:
+        1. Store model, role, and operation_type.
+        2. Construct governed agent without tools using create_agent.
+
+        Failure cases:
+        - Propagation of agent compilation or configuration errors.
+
+        Side effects:
+        - Compiles a tool-free LangGraph agent graph wired with LCSP governance middleware.
+        """
+        # Why: Eliminates unmediated raw provider invocations in response transform and localization.
+        # Mechanism: Wraps model in a tool-free create_agent graph backed by MODEL_GOVERNANCE_MIDDLEWARE.
+        # Invariants: Every transform call acquires server admission and commits capability token to IN_FLIGHT.
+        self.model = model
+        self.role = role
+        self.operation_type = operation_type
+        self._is_governed_runnable = True
+        self._agent = create_agent(
+            model,
+            tools=[],
+            middleware=[
+                AgentRoleMiddleware(role, operation_type=operation_type),
+                *[item for item in (MODEL_GOVERNANCE_MIDDLEWARE if governance is None else governance)
+                  if not isinstance(item, AgentRoleMiddleware)],
+            ],
+            name=f"lcsp-transform-{role}",
+        )
+
+    @property
+    def model_name(self) -> str:
+        """Business purpose: Expose the resolved model identity string for telemetry and routing audits.
+
+        Business rules:
+        - Return the configured underlying model identifier; fallback to lightweight-transform if unset.
+
+        Execution flow:
+        1. Inspect model_name on the underlying model.
+        2. Fallback to model attribute or generic identifier.
+
+        Failure cases:
+        - Pure attribute extraction; cannot fail.
+
+        Side effects:
+        - Read-only property access.
+        """
+        return getattr(self.model, "model_name", None) or getattr(self.model, "model", "lightweight-transform")
+
+    @property
+    def provider(self) -> str:
+        """Business purpose: Expose the canonical provider name for route classification and circuit tracking.
+
+        Business rules:
+        - Return provider attribute matching runtime model routes.
+
+        Execution flow:
+        1. Inspect provider attribute on model; fallback to anthropic.
+
+        Failure cases:
+        - Pure attribute extraction; cannot fail.
+
+        Side effects:
+        - Read-only property access.
+        """
+        return getattr(self.model, "provider", "anthropic")
+
+    def bind(self, **kwargs: Any) -> Any:
+        """Business purpose: Create a new governed runnable with bound model parameters like max_output_tokens.
+
+        Business rules:
+        - Delegate parameter binding to inner chat model and wrap resulting model in governed runnable.
+
+        Execution flow:
+        1. Bind kwargs to underlying model if bind method exists.
+        2. Return new _GovernedTransformModelRunnable with bound model.
+
+        Failure cases:
+        - Propagate binding parameter errors.
+
+        Side effects:
+        - Instantiates a newly configured governed transform runnable.
+        """
+        bound_inner = self.model.bind(**kwargs) if hasattr(self.model, "bind") else self.model
+        return _GovernedTransformModelRunnable(
+            bound_inner,
+            role=self.role,
+            operation_type=self.operation_type,
+        )
+
+    @staticmethod
+    def _extract_ai_message(result: Any) -> AIMessage:
+        """Business purpose: Extract the final AIMessage from a governed transform agent turn.
+
+        Business rules:
+        - Locate the last AIMessage emitted in the agent messages sequence.
+        - Fail closed if no AI message was generated to prevent returning empty translation.
+
+        Execution flow:
+        1. Inspect messages list from agent execution dictionary.
+        2. Scan backwards for first AIMessage.
+        3. Return message or raise RuntimeError.
+
+        Failure cases:
+        - Raises RuntimeError when output contains no AIMessage.
+
+        Side effects:
+        - Pure extraction; no persistent side effects.
+        """
+        messages = result.get("messages", []) if isinstance(result, dict) else []
+        for message in reversed(messages):
+            if isinstance(message, AIMessage):
+                return message
+        raise RuntimeError("Governed transform model call returned no AI message")
+
+    def invoke(self, messages: Any, config: Any = None, **kwargs: Any) -> AIMessage:
+        """Business purpose: Execute synchronous transform inference through the governed agent stack.
+
+        Business rules:
+        - Accepts a sequence of messages or prompt text.
+        - Enforces server admission and CAS consume before provider execution.
+
+        Execution flow:
+        1. Normalize input into a messages list.
+        2. Invoke the compiled agent graph with config.
+        3. Extract and return the final AIMessage.
+
+        Failure cases:
+        - Raises RuntimeError if no AIMessage is returned; propagates admission/governance errors.
+
+        Side effects:
+        - Performs server-admitted model call, records usage and telemetry.
+        """
+        if isinstance(messages, str):
+            payload = [HumanMessage(content=messages)]
+        elif isinstance(messages, (list, tuple)):
+            payload = list(messages)
+        else:
+            payload = [HumanMessage(content=str(messages))]
+        result = self._agent.invoke({"messages": payload}, config=config)
+        return self._extract_ai_message(result)
+
+    async def ainvoke(self, messages: Any, config: Any = None, **kwargs: Any) -> AIMessage:
+        """Business purpose: Execute asynchronous transform inference through the governed agent stack.
+
+        Business rules:
+        - Accepts a sequence of messages or prompt text.
+        - Enforces server admission and CAS consume before async provider execution.
+
+        Execution flow:
+        1. Normalize input into a messages list.
+        2. Await the compiled agent graph with config.
+        3. Extract and return the final AIMessage.
+
+        Failure cases:
+        - Raises RuntimeError if no AIMessage is returned; propagates admission/governance errors.
+
+        Side effects:
+        - Performs server-admitted async model call, records usage and telemetry.
+        """
+        if isinstance(messages, str):
+            payload = [HumanMessage(content=messages)]
+        elif isinstance(messages, (list, tuple)):
+            payload = list(messages)
+        else:
+            payload = [HumanMessage(content=str(messages))]
+        result = await self._agent.ainvoke({"messages": payload}, config=config)
+        return self._extract_ai_message(result)
+
+
 def governed_summarization_middleware(model, *, backend, role: str,
                                      governance: Sequence[AgentMiddleware] | None = None,
                                      system_prompt: str | None = None, receipt_context=None, receipt_sink=None):

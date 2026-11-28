@@ -30,12 +30,15 @@ class AllowanceExhausted(Exception):
 
 
 def configured_fallback_chain(monkeypatch):
+    # Why: Fail-closed output cap resolution requires explicit positive max_output_tokens on each test route (R5/ASM-USAGE-01).
+    # How: Declare options.max_output_tokens=65536 on all four governed routes while keeping credential/fallback assertions intact.
+    # Invariant: Preserves real provider rotation, fallback, and summarization governance behavior without silent 4096 fallback.
     config = {
         "routes": {
-            "primary": {"provider": "miraiapi", "model": "model-gamma"},
-            "inception": {"provider": "inception", "model": "model-delta"},
-            "gemini": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
-            "apx": {"provider": "apx", "protocol": "anthropic", "model": "claude-sonnet-4-6-free"},
+            "primary": {"provider": "miraiapi", "model": "model-gamma", "options": {"max_output_tokens": 65536}},
+            "inception": {"provider": "inception", "model": "model-delta", "options": {"max_output_tokens": 65536}},
+            "gemini": {"provider": "google_genai", "model": "gemini-3.5-flash-lite", "options": {"max_output_tokens": 65536}},
+            "apx": {"provider": "apx", "protocol": "anthropic", "model": "claude-sonnet-4-6-free", "options": {"max_output_tokens": 65536}},
         },
         "roles": {
             "default": "primary",

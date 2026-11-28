@@ -22,6 +22,15 @@ const ruleSetFixture = JSON.parse(
     "utf8",
   ),
 );
+const modelPricingFixture = JSON.parse(
+  await readFile(
+    new URL(
+      "../../../apps/web/src/public/assets/mocks/admin-model-pricing.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 const PORT = Number(process.env.BILLING_E2E_API_PORT ?? 3102);
 
 function readAccount(token) {
@@ -165,6 +174,75 @@ const server = createServer(async (request, response) => {
       preparations: [{ ...run, ...ruleSetFixture.runDetails }],
     };
     return success(response, run, 202);
+  }
+
+  // Why: Provide a deterministic read-only upstream fixture for Playwright `/admin/pricing` E2E tests.
+  // How: Enforce Admin RBAC and 503 error tokens, then filter `admin-model-pricing.json` by query params.
+  // Invariants: Keeps `debitMode` at `OFF` and serves `GET` only.
+  if (
+    request.method === "GET" &&
+    url.pathname === "/admin/billing/model-pricing"
+  ) {
+    if (role !== "ADMIN") return problem(response, 403, "RBAC_DENIED");
+    if (token === "billing-e2e-admin-error") {
+      return problem(response, 503, "BILLING_REPORT_UNAVAILABLE");
+    }
+    const provider = url.searchParams.get("provider")?.trim().toLowerCase() ?? "";
+    const resolvedModel =
+      url.searchParams.get("resolvedModel")?.trim().toLowerCase() ?? "";
+    const scope = url.searchParams.get("scope")?.trim() ?? "";
+    const status = url.searchParams.get("status")?.trim() ?? "";
+
+    const matchesScopeKey = (
+      normalizedScopeKey,
+      rowProvider = null,
+      rowModel = null,
+    ) => {
+      const p = (rowProvider ?? "").toLowerCase();
+      const m = (rowModel ?? "").toLowerCase();
+      const key = normalizedScopeKey.toLowerCase();
+      const providerOk = !provider || p.includes(provider) || key.includes(provider);
+      const modelOk =
+        !resolvedModel || m.includes(resolvedModel) || key.includes(resolvedModel);
+      return providerOk && modelOk;
+    };
+
+    return success(response, {
+      ...modelPricingFixture,
+      coverage: modelPricingFixture.coverage.filter((row) => {
+        if (provider && !row.provider.toLowerCase().includes(provider))
+          return false;
+        if (
+          resolvedModel &&
+          !row.resolvedModel.toLowerCase().includes(resolvedModel)
+        )
+          return false;
+        if (scope && (row.fallbackSource ?? row.resolvedScope) !== scope)
+          return false;
+        return true;
+      }),
+      assignments: modelPricingFixture.assignments.filter((item) => {
+        if (scope && item.scope !== scope) return false;
+        if (status && item.status !== status) return false;
+        return matchesScopeKey(item.normalizedScopeKey);
+      }),
+      drafts: modelPricingFixture.drafts.filter((draft) => {
+        if (scope && draft.scope !== scope) return false;
+        return matchesScopeKey(
+          draft.normalizedScopeKey,
+          draft.provider,
+          draft.resolvedModel,
+        );
+      }),
+      snapshots: modelPricingFixture.snapshots.filter((snapshot) => {
+        if (scope && snapshot.scope !== scope) return false;
+        return matchesScopeKey(
+          snapshot.normalizedScopeKey,
+          snapshot.provider,
+          snapshot.resolvedModel,
+        );
+      }),
+    });
   }
 
   if (request.method === "GET" && url.pathname === "/admin/billing/export") {

@@ -1,5 +1,6 @@
 import type {
   BILLING_ORDER_STATUSES,
+  CreditLedgerSource,
   LlmUsageStatus,
   ModelAttemptStatus,
   ReferenceCostSnapshot,
@@ -10,6 +11,8 @@ export type WalletRecord = {
   userId: string;
   availableCredits: bigint;
   reservedCredits: bigint;
+  balanceMicrocredits?: bigint;
+  accountingUnitVersion?: number;
   version: number;
 };
 export type LedgerRecord = {
@@ -17,10 +20,19 @@ export type LedgerRecord = {
   walletId: string;
   userId: string;
   deltaCredits: bigint;
+  deltaMicrocredits?: bigint | null;
+  accountingUnitVersion?: number;
   idempotencyKey: string;
   source: string;
+  ledgerSource?: CreditLedgerSource | null;
   referenceId: string | null;
   billingOrderId: string | null;
+  // Why: Expose microcredit-only linkage columns so cutover/rollback parity guards can detect
+  // admission-bound debits or compensations even when ledgerSource is absent in legacy mocks.
+  // How: Optional nullable fields preserve backwards compatibility with existing test fixtures.
+  // Invariants: Mirrors CreditLedgerEntry.admissionId and CreditLedgerEntry.originalLedgerEntryId.
+  admissionId?: string | null;
+  originalLedgerEntryId?: string | null;
 };
 /** Held-credit row created before model use stopped debiting; only drained, never created. */
 export type LegacyReservationRecord = {
@@ -98,12 +110,15 @@ export type RuntimeModelPolicyRecord = {
 
 export interface BillingWalletPort {
   findForUser(userId: string): Promise<WalletRecord | null>;
+  findById(walletId: string): Promise<WalletRecord | null>;
   getOrCreateForUser(userId: string): Promise<WalletRecord>;
   compareAndSetProjection(input: {
     walletId: string;
     expectedVersion: number;
     availableCredits: bigint;
     reservedCredits: bigint;
+    balanceMicrocredits?: bigint;
+    accountingUnitVersion?: number;
   }): Promise<boolean>;
 }
 export interface CreditLedgerPort {
@@ -112,12 +127,21 @@ export interface CreditLedgerPort {
     userId: string;
     walletId: string;
     deltaCredits: bigint;
+    deltaMicrocredits?: bigint;
+    accountingUnitVersion?: number;
     idempotencyKey: string;
     source: string;
+    ledgerSource?: CreditLedgerSource;
     referenceId?: string;
     billingOrderId?: string;
   }): Promise<LedgerRecord>;
   listForWallet(walletId: string): Promise<LedgerRecord[]>;
+  listUnmigrated?(batchSize?: number): Promise<LedgerRecord[]>;
+  backfillDeltaMicrocredits?(
+    id: string,
+    deltaMicrocredits: bigint,
+    accountingUnitVersion?: number,
+  ): Promise<boolean>;
 }
 export interface LegacyReservationPort {
   findForUser(
