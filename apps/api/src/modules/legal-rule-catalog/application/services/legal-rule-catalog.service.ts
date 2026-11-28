@@ -1482,6 +1482,7 @@ export class LegalRuleCatalogService {
    * Business purpose: Keep catalog and preparation actions in the existing audit journal.
    * Business rules:
    * - Caller's transaction owns audit atomicity; source text is never copied into audit payloads.
+   * - A supplied idempotency identity preserves one receipt for an identical import replay.
    * Execution flow:
    * 1. Delegate safe identities and scalar metadata to the canonical writer.
    * Failure cases:
@@ -1495,7 +1496,8 @@ export class LegalRuleCatalogService {
     resourceId: string,
     actor: string,
     cid: string,
-    payload: Record<string, string | number>,
+    payload: Record<string, unknown>,
+    idempotencyKey?: string,
   ) {
     await this.audit.writeInTx(
       {
@@ -1506,6 +1508,8 @@ export class LegalRuleCatalogService {
         correlationId: cid,
         decision: AUDIT_DECISIONS.allow,
         payload,
+        // Reuse the audit writer's stable identity for import receipts only.
+        ...(idempotencyKey ? { idempotencyKey } : {}),
       },
       tx,
     );

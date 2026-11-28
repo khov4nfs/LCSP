@@ -628,6 +628,26 @@ export class PreparationRuleService {
             `excludedItems.${reviewRequiredIndex}.reasonCode`,
             E.SCOPE_REVIEW_REQUIRED,
           );
+        // An exclusion cannot contradict an imported item or another decision.
+        const importedIds = new Set(request.items.map((item) => item.ruleId));
+        const excludedIds = new Set(
+          request.excludedItems.map((item) => item.ruleId),
+        );
+        if (
+          excludedIds.size !== request.excludedItems.length ||
+          request.excludedItems.some((item) => importedIds.has(item.ruleId))
+        )
+          catalogFailure(E.INVALID, cid, 422);
+        // Bind every exclusion to the same eligible, content-verified source
+        // snapshot as an included rule. The client reason is not legal approval.
+        const excludedInputs = request.excludedItems.map((item) => {
+          const input = entries.get(item.ruleId)?.input;
+          if (!input) catalogFailure(E.INELIGIBLE, cid);
+          return input;
+        });
+        const hydratedExclusions = excludedInputs.length
+          ? await this.catalogs.hydrate(tx, excludedInputs, cid)
+          : [];
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
           if (!entry) catalogFailure(E.NOT_FOUND, cid, 404);
@@ -812,6 +832,49 @@ export class PreparationRuleService {
                 })),
             },
           });
+        // Keep an idempotent receipt even for exclusion-only or replay-only
+        // imports. Do not manufacture a prepared revision or dispatch a model.
+        if (hydratedExclusions.length) {
+          const exclusions = request.excludedItems.map((item, index) => {
+            const input = hydratedExclusions[index];
+            return {
+              ...item,
+              legalRuleId: input.legalRuleId,
+              inputFingerprint: preparationInputFingerprint(input),
+              indexId: input.indexId,
+              indexContentDigest: input.indexContentHash,
+              citations: input.citations.map(
+                ({ chunkId, documentId, locator, contentSha256 }) => ({
+                  chunkId,
+                  documentId,
+                  locator,
+                  contentSha256,
+                }),
+              ),
+            };
+          });
+          const receipt = {
+            catalogVersionId: catalog.id,
+            catalogRevision: catalog.revision,
+            legalSourceVersionId: catalog.legalSourceVersionId,
+            exclusions,
+            imported: imported.map(({ ruleId, resultId, revision }) => ({
+              ruleId,
+              resultId,
+              revision,
+            })),
+          };
+          const receiptDigest = sha256Hex(canonicalJson(receipt));
+          await this.catalogs.record(
+            tx,
+            EVENTS.IMPORT_EXCLUSIONS_RECORDED,
+            catalog.id,
+            actor,
+            cid,
+            { ...receipt, receiptDigest },
+            `${EVENTS.IMPORT_EXCLUSIONS_RECORDED}:${actor}:${receiptDigest}`,
+          );
+        }
         return {
           catalogVersionId: catalog.id,
           catalogRevision: catalog.revision,
