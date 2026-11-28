@@ -61,6 +61,14 @@ describe("LegalRuleCatalogService.deleteCatalog", () => {
     legalRuleDeleteMany.mockResolvedValue({ count: 5 });
 
     const mockTx = {
+      // Why: Deletion now takes the same catalog row lock as selected-rule submission.
+      // How: Mirror the locked row's presence in the transaction fixture.
+      // Invariant: Missing catalogs still return 404 before any descendant deletion.
+      $queryRaw: jest
+        .fn<() => Promise<Array<{ id: string }>>>()
+        .mockResolvedValue(
+          overrides.catalog === null ? [] : [{ id: catalogId }],
+        ),
       legalRuleCatalogVersion: {
         findUnique: catalogFindUnique,
         delete: catalogDelete,
