@@ -33,6 +33,7 @@ import {
 } from "@/features/workspace/utils/assessment-runtime-formatter";
 import type { RuleSetPreparationListProps } from "../../types/compliance-rule-sets.types";
 import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
+import { isPreparationActivityLive } from "../../utils/rule-set-preparation-activity";
 import { RuleSetPreparationDraft } from "../molecules/rule-set-preparation-draft";
 import { RuleSetPreparationActivity } from "../molecules/rule-set-preparation-activity";
 import { PreparationSourceAnalysisExplorer } from "./preparation-source-analysis-explorer";
@@ -128,8 +129,8 @@ export function RuleSetPreparationList({
   );
   const terminal =
     selectedRun !== undefined &&
-    selectedRun.executionState !== AGENT_EXECUTION_STATES.RUNNING &&
-    selectedRun.executionState !== AGENT_EXECUTION_STATES.QUEUED;
+    // Why: Cancellation is asynchronous; the activity stream must remain open for its final result.
+    !isPreparationActivityLive(selectedRun.executionState);
   const activity = useRuleSetPreparationActivity(activeRunId, terminal);
   const sourceUnits = usePreparationSourceUnitsQuery(
     activeSection === "run-activity" ? activeRunId : null,

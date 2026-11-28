@@ -1490,6 +1490,7 @@ export type PagesMessages = {
     runtimePanelCanonicalExecutionStates: {
       QUEUED: string;
       RUNNING: string;
+      CANCEL_REQUESTED: string;
       INTERRUPTED: string;
       PAUSED: string;
       SUCCEEDED: string;

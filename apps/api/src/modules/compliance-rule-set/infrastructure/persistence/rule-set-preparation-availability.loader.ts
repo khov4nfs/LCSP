@@ -1,9 +1,7 @@
-import {
-  AGENT_EXECUTION_STATES,
-  ARTIFACT_LIFECYCLE_STATES,
-} from "@lcsp/contracts/assessment";
+import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   RULE_SET_PREPARATION_REFUSAL_REASONS,
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
   type RuleSetPreparationAvailability,
 } from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
@@ -12,12 +10,10 @@ import { LegalRetrievalIndexStatus, type Prisma } from "@prisma/client";
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { toRun } from "./compliance-rule-set.mappers.js";
 
-const inProgress = new Set<string>([
-  AGENT_EXECUTION_STATES.QUEUED,
-  AGENT_EXECUTION_STATES.RUNNING,
-  AGENT_EXECUTION_STATES.INTERRUPTED,
-  AGENT_EXECUTION_STATES.PAUSED,
-]);
+// Why: Availability and reactivation must agree on every preparation that can still change authority.
+// How: Use the canonical contract set, including committed cancellation requests.
+// Invariant: A pending native stop still fences reactivation.
+const inProgress = new Set<string>(RULE_SET_PREPARATION_UNRESOLVED_STATES);
 
 /**
  * Business purpose: Explain availability of historical source-wide preparation without conflating selected-rule runs.

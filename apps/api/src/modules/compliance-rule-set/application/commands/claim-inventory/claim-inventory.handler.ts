@@ -29,12 +29,12 @@ import {
   normalizeInventory,
   validateClaimInventory,
 } from "../../../domain/claim-inventory.js";
-import {
-  reviewedFrontierFingerprint,
-  completedReviewStates,
-} from "../../../domain/source-review-frontier.js";
-import { reviewPayload } from "../source-review/source-review.handler.js";
+import { completedReviewStates } from "../../../domain/source-review-frontier.js";
+import { projectCompletedReviewInventory } from "../../../domain/claim-inventory-review-projection.js";
+import { authoringDraftSaveDecision } from "../../../domain/authoring-draft-version.js";
+import { withLockedPreparationRun } from "../../../infrastructure/persistence/locked-preparation-run.js";
 import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
+import { reviewEvidenceForInventory } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
 import { validateComplianceRuleSetPacket } from "../../../domain/compliance-rule-set-integrity.validator.js";
 
@@ -70,14 +70,11 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
     request: input,
     correlationId,
   }: ClaimInventoryCommand): Promise<Record<string, unknown>> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw(
-          Prisma.sql`SELECT id FROM "RuleSetPreparationRun" WHERE id=${input.preparationRunId} FOR UPDATE`,
-        );
-        const run = await tx.ruleSetPreparationRun.findUnique({
-          where: { id: input.preparationRunId },
-        });
+    // The shared adapter locks and reloads the current run before any inventory decision.
+    return withLockedPreparationRun(
+      this.prisma,
+      input.preparationRunId,
+      async (tx, run) => {
         if (!run)
           throw problemException(
             COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
@@ -239,20 +236,24 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           const saved = await tx.ruleSetPreparationAuthoringDraft.findUnique({
             where: draftKey,
           });
-          const version = saved?.draftVersion ?? 0;
-          if (input.draftVersion !== version) {
-            if (
-              saved &&
-              input.draftVersion === version - 1 &&
-              inventoryHash(saved.draft) === inventoryHash(draft)
-            )
-              return {
-                outcome: O.PASSED,
-                phase: P[run.claimPhase],
-                revision: input.revision,
-                draftVersion: version,
-                replayed: true,
-              };
+          // Why: A lost response must replay without creating another draft version.
+          // How: The pure version decision compares the loaded version and canonical content.
+          // Invariant: Stale content cannot overwrite a newer accepted draft.
+          const decision = authoringDraftSaveDecision(
+            saved,
+            input.draftVersion,
+            draft,
+          );
+          const version = decision.currentVersion;
+          if (decision.replayed)
+            return {
+              outcome: O.PASSED,
+              phase: P[run.claimPhase],
+              revision: input.revision,
+              draftVersion: version,
+              replayed: true,
+            };
+          if (decision.stale)
             return {
               ...fail(
                 G.DRAFT_STALE,
@@ -260,7 +261,6 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               ),
               draftVersion: version,
             };
-          }
           await tx.ruleSetPreparationAuthoringDraft.upsert({
             where: draftKey,
             create: {
@@ -405,15 +405,15 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             G.PHASE,
             "Claim discovery must precede inventory validation",
           );
-        const frontier = await tx.ruleSetPreparationReviewFrontier.findUnique({
-          where: {
-            preparationRunId_inventoryRevision: {
-              preparationRunId: run.id,
-              inventoryRevision: input.revision,
-            },
-          },
-        });
-        if (!frontier)
+        // Why: Inventory freeze must use the review rows from its exact locked frontier revision.
+        // How: The persistence adapter reads both tables through this transaction.
+        // Invariant: A missing frontier cannot be followed by review-row reads.
+        const evidence = await reviewEvidenceForInventory(
+          tx,
+          run.id,
+          input.revision,
+        );
+        if (!evidence)
           return {
             ...fail(
               G.INVALID,
@@ -421,13 +421,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             ),
             requiredAction: "read /work/discovery-progress.json",
           };
-        const items = await tx.ruleSetPreparationSourceReview.findMany({
-          where: {
-            preparationRunId: run.id,
-            inventoryRevision: input.revision,
-          },
-          orderBy: { ordinal: "asc" },
-        });
+        const { frontier, items } = evidence;
         const unfinished = items.filter(
           (item) => !completedReviewStates.includes(item.state as never),
         );
@@ -443,36 +437,8 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               .slice(0, 3)
               .map((i) => i.sourceNodeId),
           };
-        const reviewBinding = {
-          revision: frontier.revision,
-          fingerprint: frontier.fingerprint,
-          reviewedFingerprint: reviewedFrontierFingerprint(
-            frontier.fingerprint,
-            items,
-          ),
-        };
-        const payloads = items.map(reviewPayload);
-        const persistentGraph = normalizeInventory({
-          ...graph,
-          reviewFrontier: reviewBinding,
-          claims: payloads.flatMap((p) => p.claims),
-          relations: [
-            ...new Map(
-              payloads
-                .flatMap((p) => p.relations)
-                .map((r) => [r.relationId, r]),
-            ).values(),
-          ],
-          sourceAccounting: items.map((item) => ({
-            sourceNodeId: item.sourceNodeId,
-            claimIds: item.claimIds,
-            nonSemanticReason: item.claimIds.length ? null : item.reason,
-          })),
-          referenceAccounting: payloads.flatMap((p) => p.referenceAccounting),
-        });
-        const persistentIdentities = Object.fromEntries(
-          payloads.flatMap((p) => Object.entries(p.identities)),
-        );
+        const { reviewBinding, persistentGraph, persistentIdentities } =
+          projectCompletedReviewInventory(graph, frontier, items);
         const { snapshot } = await this.source.load(run, {
           legalRequirements: [],
           assessmentRules: [],
@@ -640,7 +606,6 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           coverage: result.coverage,
         };
       },
-      { timeout: 30000 },
     );
   }
 }

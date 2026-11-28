@@ -9,10 +9,9 @@ import {
   sourceReviewOperationSchema,
   claimInventoryOperationSchema,
 } from "@lcsp/contracts/compliance-rule-set";
-import {
-  SourceReviewHandler,
-  StartClaimDiscoveryDiagnosticHandler,
-} from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+import { SourceReviewHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+// The provider-free bridge invokes the independently registered diagnostic command.
+import { StartClaimDiscoveryDiagnosticHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/start-claim-discovery-diagnostic.handler.js";
 import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,
@@ -50,7 +49,13 @@ type BridgeInput = {
   requests?: unknown[];
 };
 const db = new PrismaClient({ adapter: new PrismaPg(url) });
-const service = db as PrismaService;
+// The bridge uses a raw PrismaClient, so bind its guard identity to the same URL as its adapter.
+const service = Object.assign(db, {
+  databaseTarget: {
+    hostname: new URL(url).hostname,
+    pathname: new URL(url).pathname,
+  },
+}) as PrismaService;
 const graphs = new LegalDocumentGraphService(service);
 async function invoke(input: BridgeInput) {
   let result: unknown;

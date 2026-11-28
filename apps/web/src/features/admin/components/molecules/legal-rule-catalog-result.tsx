@@ -37,6 +37,7 @@ import {
 } from "@lcsp/contracts/evidence";
 import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
 import {
+  isPreparationActivityLive,
   projectPreparationActivity,
   preparationTokenUsage,
 } from "../../utils/rule-set-preparation-activity";
@@ -354,8 +355,8 @@ export function LegalRuleResultRevision({
  * - Subscribes to activity event streams for the run.
  */
 export function LegalRuleRunActivity({ result }: { result: ResultRevision }) {
-  const terminal =
-    result.executionState !== A.QUEUED && result.executionState !== A.RUNNING;
+  // Why: A cancellation request still needs live events until the run reaches a terminal state.
+  const terminal = !isPreparationActivityLive(result.executionState);
   const activity = useRuleSetPreparationActivity(
     result.preparationRunId,
     terminal,
@@ -589,9 +590,8 @@ export function LegalRuleResultDialog({
   const current = results.find(
     (row) => row.id === history.data?.currentResultId,
   );
-  const active =
-    results[0]?.executionState === A.QUEUED ||
-    results[0]?.executionState === A.RUNNING;
+  // Why: Keep the catalog's active state aligned with the stream's cancellation lifecycle.
+  const active = results[0] ? isPreparationActivityLive(results[0].executionState) : false;
   return (
     <Dialog
       open

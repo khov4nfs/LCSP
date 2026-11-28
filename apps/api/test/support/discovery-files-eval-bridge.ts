@@ -19,10 +19,9 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import { LegalDocumentGraphService } from "../../src/modules/legal-source/application/services/legal-document-graph.service.js";
-import {
-  SourceReviewHandler,
-  StartClaimDiscoveryDiagnosticHandler,
-} from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+import { SourceReviewHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/source-review.handler.js";
+// Discovery evaluation starts its diagnostic session through the dedicated command handler.
+import { StartClaimDiscoveryDiagnosticHandler } from "../../src/modules/compliance-rule-set/application/commands/source-review/start-claim-discovery-diagnostic.handler.js";
 import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,
@@ -53,7 +52,13 @@ if (
 )
   throw new Error("Database was not created by this evaluator");
 const db = new PrismaClient({ adapter: new PrismaPg(url) });
-const service = db as PrismaService;
+// The bridge uses a raw PrismaClient, so bind its guard identity to the same URL as its adapter.
+const service = Object.assign(db, {
+  databaseTarget: {
+    hostname: new URL(url).hostname,
+    pathname: new URL(url).pathname,
+  },
+}) as PrismaService;
 const graphs = new LegalDocumentGraphService(service);
 const hash = (value: string) =>
   createHash("sha256").update(value).digest("hex");

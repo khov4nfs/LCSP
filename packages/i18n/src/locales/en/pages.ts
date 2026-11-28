@@ -1598,6 +1598,7 @@ export const enPages = {
     runtimePanelCanonicalExecutionStates: {
       QUEUED: "Queued",
       RUNNING: "Running",
+      CANCEL_REQUESTED: "Cancellation requested",
       INTERRUPTED: "Interrupted",
       PAUSED: "Paused",
       SUCCEEDED: "Succeeded",

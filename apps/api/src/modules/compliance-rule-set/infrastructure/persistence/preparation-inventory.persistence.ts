@@ -9,6 +9,38 @@ import { inventoryHash } from "../../domain/claim-inventory.js";
 import type { Prisma } from "@prisma/client";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
+/**
+ * Business purpose: Load the review frontier and its ordered source decisions for one inventory revision.
+ * Business rules:
+ * - Both reads use the caller's transaction after the Preparation run has been locked.
+ * - Review rows are loaded only when the frontier exists; ordinal order defines the durable projection order.
+ * Execution flow:
+ * 1. Read the exact run/revision frontier. 2. If present, read its review rows by ordinal.
+ * Failure cases:
+ * - Missing frontier returns null; database failures propagate to the transaction owner.
+ * Side effects:
+ * - Reads two tables within the caller's transaction; performs no writes.
+ */
+export async function reviewEvidenceForInventory(
+  tx: Prisma.TransactionClient,
+  runId: string,
+  revision: number,
+) {
+  // Why: Inventory freeze must inspect the frontier and reviews from the same locked transaction.
+  // How: Query the exact composite identity first, then load ordered rows only when it exists.
+  // Invariant: No pre-lock or cross-revision review row can enter the persisted inventory projection.
+  const where = { preparationRunId: runId, inventoryRevision: revision };
+  const frontier = await tx.ruleSetPreparationReviewFrontier.findUnique({
+    where: { preparationRunId_inventoryRevision: where },
+  });
+  if (!frontier) return null;
+  const items = await tx.ruleSetPreparationSourceReview.findMany({
+    where,
+    orderBy: { ordinal: "asc" },
+  });
+  return { frontier, items };
+}
+
 export async function frozenInventoryForRun(
   prisma: PrismaService | Prisma.TransactionClient,
   runId: string,

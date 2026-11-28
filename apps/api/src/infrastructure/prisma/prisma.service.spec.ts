@@ -56,6 +56,13 @@ describe("PrismaService & prismaConnectionConfig", () => {
       expect(getSpy).toHaveBeenCalledWith("database", {
         infer: true,
       });
+      expect(service.databaseTarget).toEqual({
+        hostname: "localhost",
+        pathname: "/config_db",
+      });
+      expect(JSON.stringify(service.databaseTarget)).not.toContain(
+        "config-pass",
+      );
     });
   });
 });

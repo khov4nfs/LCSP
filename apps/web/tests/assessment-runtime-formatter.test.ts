@@ -21,4 +21,5 @@ test("assessment runtime label formatters return correct localizations", () => {
   assert.ok(connectionLabel("CONNECTED"));
   assert.ok(canonicalLifecycleLabel("ACTIVE"));
   assert.ok(canonicalExecutionLabel("RUNNING"));
+  assert.equal(canonicalExecutionLabel("CANCEL_REQUESTED"), "Đang yêu cầu hủy");
 });
