@@ -326,6 +326,31 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
   });
 
+  it("holds a selected-rule revision while native cancellation is pending", async () => {
+    for (const dryRun of [true, false]) {
+      const { subject, tx } = setup({
+        id: uuid(7),
+        revision: 1,
+        inputFingerprint: "x",
+        output: null,
+        preparationRun: {
+          executionState: AgentExecutionState.CANCEL_REQUESTED,
+        },
+      });
+      await expect(
+        subject.importAssessmentRules(
+          catalogId,
+          request({ dryRun }),
+          "admin-1",
+          "cancel-pending-test",
+        ),
+      ).rejects.toMatchObject({
+        response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.CONFLICT } },
+      });
+      expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+    }
+  });
+
   it("rejects an excluded item that is not in the catalog", async () => {
     await expect(
       setup().subject.importAssessmentRules(

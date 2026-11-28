@@ -5,6 +5,7 @@ export class CancelRuleSetPreparationCommand extends Command<RuleSetPreparationR
   constructor(
     public readonly preparationRunId: string,
     public readonly correlationId: string,
+    public readonly actorId: string,
   ) {
     super();
   }
