@@ -162,13 +162,13 @@ export class LegalSourceService {
   /**
    * Business purpose: Activate a validated Legal Source Version as the current source for downstream legal retrieval.
    * Business rules:
-   * - Only a DRAFT with a nonempty document corpus and a matching validated retrieval index may become ACTIVE; replay must preserve the original activation authority.
+   * - Only a DRAFT with a nonempty document corpus and a matching validated retrieval index may become ACTIVE; replay must match the persisted version, manifests, scope and comments.
    * Execution flow:
    * 1. Validate request and replay.
    * 2. Lock the lifecycle and target version, then reload and validate corpus and index.
    * 3. Activate, supersede the previous version, and persist audit/outbox records atomically.
    * Failure cases:
-   * - Missing, non-draft, empty or invalid authority rejects activation; transaction failure rolls back all mutations.
+   * - Missing, non-draft, empty or invalid authority rejects activation; a mismatched replay returns 409; transaction failure rolls back all mutations.
    * Side effects:
    * - Updates lifecycle rows and writes activation, audit and outbox records in one serializable transaction.
    */
@@ -189,7 +189,16 @@ export class LegalSourceService {
       include: { legalSourceVersion: true },
     });
     if (replay) {
-      if (replay.legalSourceVersionId !== input.legalSourceVersionId) {
+      // Why: An idempotency key identifies one activation decision, including its pinned evidence and scope.
+      // How: Compare every persisted authority field before returning the original response.
+      // Invariant: A replay cannot silently authorize a changed manifest or scope without a new audit/outbox event.
+      if (
+        replay.legalSourceVersionId !== input.legalSourceVersionId ||
+        replay.integrityManifestRef !== input.integrityManifestRef ||
+        replay.retrievalValidationRef !== input.retrievalValidationRef ||
+        replay.scopeDescription !== input.scopeDescription ||
+        replay.comments !== input.comments
+      ) {
         throw problemException(
           LEGAL_SOURCE_ERROR_CODES.legalSourceVersionAlreadyActivated,
           input.correlationId,
@@ -420,6 +429,19 @@ export class LegalSourceService {
     );
   }
 
+  /**
+   * Business purpose: Register a validated retrieval index for a specific Legal Source version.
+   * Business rules:
+   * - A version key identifies one immutable source, validation manifest, configuration hash and content hash.
+   * - An explicit validation timestamp must match on replay; an omitted timestamp does not constrain the original server timestamp.
+   * Execution flow:
+   * 1. Validate the request and source version.
+   * 2. Return an exact existing registration or create a new VALID index.
+   * Failure cases:
+   * - Missing source returns 404; changed replay fields return 409; database writes propagate failure.
+   * Side effects:
+   * - Creates one retrieval index for a new version key; exact replay is read-only.
+   */
   async registerValidatedRetrievalIndex(input: {
     legalSourceVersionId: string;
     version: string;
@@ -451,12 +473,24 @@ export class LegalSourceService {
         version: true,
         status: true,
         validationManifestRef: true,
+        configHash: true,
+        contentHash: true,
+        validatedAt: true,
       },
     });
     if (existing) {
+      // Why: A VALID index for different bytes or configuration cannot authorize the current request.
+      // How: Compare the stored immutable fields and any caller-supplied validation time.
+      // Invariant: Replaying the key never changes indexed content or its provenance.
       if (
         existing.legalSourceVersionId !== input.legalSourceVersionId ||
-        existing.validationManifestRef !== input.validationManifestRef
+        existing.validationManifestRef !== input.validationManifestRef ||
+        existing.configHash !== input.configHash ||
+        existing.contentHash !== input.contentHash ||
+        (input.validatedAt !== undefined &&
+          input.validatedAt !== null &&
+          existing.validatedAt?.toISOString() !==
+            new Date(input.validatedAt).toISOString())
       ) {
         throw problemException(
           LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
