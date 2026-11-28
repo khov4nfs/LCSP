@@ -811,6 +811,51 @@ export const enPages = {
         candidate: "Potentially relevant for investigation",
         noCandidates:
           "No candidate match found. This does not prove that no rules apply.",
+        progressTitle: "Discovery progress",
+        progressChecks: "{confirmed} of {total} context checks",
+        progressPending: "{count} question(s) await confirmation",
+        progressAllConfirmed: "All context checks confirmed",
+        progressRepoInspected: "Repository inspected",
+        progressScopeSuggested: "Legal scope suggested ({count})",
+        progressNoAi: "No AI use cases detected",
+        progressInterrupted: "Discovery coverage incomplete ({gaps} gaps)",
+        continueToRuleSelection: "Continue to rule selection",
+        reviewDiscovery: "Review discovery",
+        backToDiscovery: "Back to discovery",
+        reviewAnswer: "Review answer",
+        confirmCorrectedAnswer: "Confirm corrected answer",
+        contextQuestionTitle: "Context question",
+        contextConfirmedTitle: "Context confirmed",
+        contextConfirmedBody: "The suggested answer was confirmed.",
+        contextConfirmedHint:
+          "Continue to rule selection to review suggested rules.",
+        contextRejectedTitle: "Correct the suggested answer",
+        contextRejectedBody:
+          "The suggestion was rejected. Provide the correct context before continuing.",
+        contextRejectedHint: "Enter a corrected answer and confirm it.",
+        correctedAnswerLabel: "Corrected answer",
+        correctedAnswerPlaceholder: "Enter corrected context",
+        suggestedAnswerLabel: "Suggested answer:",
+        decisionHint:
+          "Actions depend on authorization and confirmed system state.",
+        continuationBlocked:
+          "Confirm or resolve pending context questions before continuing to rule selection.",
+        suggestedRulesTitle: "Suggested rules",
+        suggestedRulesBadgeSuggested: "Suggested",
+        suggestedRulesBadgeNeedsContext: "Needs context",
+        suggestedRulesBadgeConfirmed: "Confirmed",
+        suggestedRulesBadgeReview: "Review",
+        evidenceProvenanceTitle: "Evidence provenance",
+        evidenceMissing: "No direct source range attached for this item.",
+        noAiTitle: "No AI use cases found in this repository snapshot",
+        noAiBody:
+          "Discovery did not detect AI usage, which does not prove legal non-applicability. You can still select rules manually.",
+        interruptedWarning:
+          "Discovery finished with {gaps} coverage gap(s) or truncated results. Unlisted rules may still be relevant.",
+        staleRevision:
+          "Case context changed elsewhere. Refresh discovery before confirming.",
+        existingFindingsPreserved:
+          "Existing findings stay until a new result is ready.",
       },
       search: "Search assessment rules",
       selectedCount: "Selected {selected}/{total}",
