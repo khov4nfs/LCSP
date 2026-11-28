@@ -4186,7 +4186,12 @@ export const enPages = {
       assessmentActivity: {
         title: "Assessment activity",
         subtitle: "Assessments started per day · last {days} days",
+        started: "Started",
         completed: "completed",
+        userAccounts: "User accounts",
+        userAccountsContext: "Active and operational accounts",
+        assessmentsStarted: "Assessments started",
+        completedInCohort: "{count} completed in cohort",
         emptyTitle: "No assessment activity",
         emptyDescription:
           "There is no assessment activity recorded for the selected period.",
@@ -4338,7 +4343,8 @@ export const enPages = {
         role: "Role",
         status: "Status",
         created: "Created",
-        lastActive: "Last active",
+        // Session creation is the only Admin metric available; do not call it ongoing activity.
+        lastActive: "Last sign in",
         assessments: "Assessments",
         actions: "Actions",
       },
@@ -4377,7 +4383,8 @@ export const enPages = {
         email: "Email",
         role: "Role",
         created: "Created",
-        lastActive: "Last active",
+        // Detail reads the same session issuance timestamp as the user list.
+        lastActive: "Last sign in",
       },
       administrativeActionsCard: {
         title: "Administrative actions",

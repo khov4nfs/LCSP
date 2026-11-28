@@ -100,12 +100,16 @@ describe("Admin CQRS Queries", () => {
         findMany: jest.fn<() => Promise<unknown>>().mockResolvedValueOnce([]),
       },
       assessment: {
-        count: jest
-          .fn<() => Promise<number>>()
-          .mockResolvedValueOnce(20) // total
-          .mockResolvedValueOnce(8), // period completed
-        findMany: jest.fn<() => Promise<unknown>>().mockResolvedValueOnce([]),
+        count: jest.fn<() => Promise<number>>().mockResolvedValueOnce(20), // total
       },
+      // Why: Overview activity is now a bounded database projection, not an Assessment row scan.
+      // How: Return a representative aggregate bucket from the persistence boundary.
+      // Invariant: The summary and chart share the same completion-event count.
+      $queryRaw: jest
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValueOnce([
+          { bucket: 0, startedCount: 3n, completedCount: 8n },
+        ]),
       legalSourceVersion: {
         findFirst: jest
           .fn<() => Promise<unknown>>()
@@ -132,6 +136,7 @@ describe("Admin CQRS Queries", () => {
     expect(result.summary.totalUsers.count).toBe(12);
     expect(result.summary.activeUsers.count).toBe(10);
     expect(result.summary.assessments.totalCount).toBe(20);
+    expect(result.summary.assessments.periodCompletedCount).toBe(8);
     expect(result.summary.currentLegalSource.version).toBe("v1");
   });
 });
