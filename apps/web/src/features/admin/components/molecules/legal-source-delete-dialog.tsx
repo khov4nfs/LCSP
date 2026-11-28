@@ -10,6 +10,7 @@ import { LegalSourceDeletionImpactPanel } from "./legal-source-deletion-impact-p
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import { CopyTextButton } from "@/components/atoms/copy-text-button";
 import {
   Dialog,
   DialogBody,
@@ -115,6 +116,7 @@ export function LegalSourceDeleteDialog({
     !impact.isError &&
     !impact.isFetching;
   const typedSlugMatches = impact.data?.source.slug === confirmationSlug.trim();
+  const expectedSlug = impact.data?.source.slug ?? source.slug;
 
   if (deletion.data)
     return <LegalSourceDeletionResult receipt={deletion.data} />;
@@ -180,11 +182,32 @@ export function LegalSourceDeleteDialog({
             </Button>
             <div className="flex flex-col gap-2">
               <Label htmlFor="legal-source-delete-confirm">
-                {t("pages.legalSources.confirmSourceSlug")}
+                {formatAppMessage("pages.legalLifecycle.confirmQuotedSlug", {
+                  slug: expectedSlug,
+                })}
               </Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="select-all break-all rounded-md bg-muted px-2 py-1 text-sm">
+                  {expectedSlug}
+                </code>
+                <CopyTextButton
+                  key={expectedSlug}
+                  value={expectedSlug}
+                  copyLabel={t("pages.legalLifecycle.copySlug")}
+                  copiedLabel={t("pages.legalLifecycle.slugCopied")}
+                  failureLabel={t("pages.legalLifecycle.slugCopyFailed")}
+                />
+              </div>
+              <p
+                id="legal-source-delete-confirm-help"
+                className="text-xs text-muted-foreground"
+              >
+                {t("pages.legalLifecycle.slugWithoutQuotes")}
+              </p>
               <Input
                 id="legal-source-delete-confirm"
                 autoComplete="off"
+                aria-describedby="legal-source-delete-confirm-help"
                 {...form.register("confirmationSlug")}
               />
               {form.formState.errors.confirmationSlug ? (

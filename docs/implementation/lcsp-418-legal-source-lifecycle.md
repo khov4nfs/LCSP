@@ -16,6 +16,8 @@ Purpose maps to existing `OPERATIVE` / `REFERENCE_ONLY` corpus roles. It travels
 
 Deletion requires an eligible successful impact snapshot, reason and matching source slug. Impact errors/refetches disable submission. Rejected deletion refreshes impact and clears confirmation. Retries of the same payload retain the idempotency key. Only a validated server deletion receipt replaces the source page, preventing further edits to a deleted source.
 
+PM follow-up: the confirmation label now includes the actual server/source slug in double quotes (`Type "{slug}" to confirm`, with Vietnamese copy). A selectable slug and shared CopyTextButton copy only the raw slug, without quotes, and provide success/failure feedback. Copy never fills or submits the confirmation. Chromium verifies exact clipboard content, an initially empty input, clipboard-denial feedback and rejection of a quoted value. See [quoted slug and copy feedback](../implementation-artifacts/lcsp-418/deletion-slug-copy.png).
+
 ## Frame-to-route mapping
 
 All frame IDs below belong to `eQOlQ9FcIGOOjlCqDZEQWd`. Existing routes are preserved; related prototype states are composed as dialogs/sections rather than introducing parallel routes.

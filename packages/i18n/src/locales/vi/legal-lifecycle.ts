@@ -1,4 +1,9 @@
 ﻿export const viLegalLifecycle = {
+  confirmQuotedSlug: 'Nhập "{slug}" để xác nhận',
+  copySlug: "Sao chép slug",
+  slugCopied: "Đã sao chép slug",
+  slugCopyFailed: "Không thể sao chép. Hãy chọn và sao chép slug thủ công.",
+  slugWithoutQuotes: "Nhập slug không bao gồm dấu ngoặc kép.",
   versionDetail: "Chi tiết phiên bản nguồn luật",
   versionDescription:
     "Quản lý bản nháp và phiên bản đang hoạt động, giữ nguyên hồ sơ lịch sử.",

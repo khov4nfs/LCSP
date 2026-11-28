@@ -1,4 +1,9 @@
 export const enLegalLifecycle = {
+  confirmQuotedSlug: 'Type "{slug}" to confirm',
+  copySlug: "Copy slug",
+  slugCopied: "Slug copied",
+  slugCopyFailed: "Could not copy. Select and copy the slug manually.",
+  slugWithoutQuotes: "Enter the slug without the quotation marks.",
   fileInvalid: "Choose a supported, non-empty file up to 25 MB.",
   versionDetail: "Legal Source Version Detail",
   versionDescription:

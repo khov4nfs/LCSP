@@ -66,7 +66,8 @@ test("version lifecycle review, document dialogs, provenance and mobile layout",
   ).toBeVisible();
   await page.screenshot({
     path: `${evidence}/${process.env.LCSP_CAPTURE_BEFORE ? "before" : "after"}-version.png`,
-    fullPage: true, animations: "disabled",
+    fullPage: true,
+    animations: "disabled",
   });
   if (process.env.LCSP_CAPTURE_BEFORE) return;
   await page
@@ -81,7 +82,8 @@ test("version lifecycle review, document dialogs, provenance and mobile layout",
   ).toBeVisible();
   await page.screenshot({
     path: `${evidence}/activation-blocked.png`,
-    fullPage: true, animations: "disabled",
+    fullPage: true,
+    animations: "disabled",
   });
   await activation
     .getByRole("button", { name: "Cancel", exact: true })
@@ -98,7 +100,11 @@ test("version lifecycle review, document dialogs, provenance and mobile layout",
     mimeType: "text/plain",
     buffer: Buffer.from("Non-legal technical transport stub."),
   });
-  await page.screenshot({ path: `${evidence}/upload.png`, fullPage: true, animations: "disabled" });
+  await page.screenshot({
+    path: `${evidence}/upload.png`,
+    fullPage: true,
+    animations: "disabled",
+  });
   await upload
     .getByRole("button", { name: "Upload document", exact: true })
     .click();
@@ -128,7 +134,11 @@ test("version lifecycle review, document dialogs, provenance and mobile layout",
     page.getByText(/Document number, issuing authority/).first(),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: `${evidence}/mobile.png`, fullPage: true, animations: "disabled" });
+  await page.screenshot({
+    path: `${evidence}/mobile.png`,
+    fullPage: true,
+    animations: "disabled",
+  });
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -141,6 +151,7 @@ test("deletion blocks protected references and shows a validated receipt only af
   page,
   context,
 }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await context.addCookies([
     {
       name: "lcsp_session",
@@ -189,13 +200,44 @@ test("deletion blocks protected references and shows a validated receipt only af
   await expect(dialog.getByText(/protected|assessment/i).first()).toBeVisible();
   await page.screenshot({
     path: `${evidence}/deletion-blocked.png`,
-    fullPage: true, animations: "disabled",
+    fullPage: true,
+    animations: "disabled",
   });
   expect(deletes).toBe(0);
   eligible = true;
   await dialog
     .getByRole("button", { name: "Refresh status", exact: true })
     .click();
+  const slugInput = dialog.getByLabel(
+    `Type "${fixture.source.slug}" to confirm`,
+    { exact: true },
+  );
+  await expect(slugInput).toHaveValue("");
+  await dialog.getByRole("button", { name: "Copy slug", exact: true }).click();
+  await expect(dialog.getByText("Slug copied", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    fixture.source.slug,
+  );
+  await expect(slugInput).toHaveValue("");
+  await slugInput.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: `${evidence}/deletion-slug-copy.png`,
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.evaluate(() => {
+    navigator.clipboard.writeText = async () => {
+      throw new Error("Clipboard denied for test");
+    };
+  });
+  await dialog.getByRole("button", { name: "Copy slug", exact: true }).click();
+  await expect(
+    dialog.getByText("Could not copy. Select and copy the slug manually.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await slugInput.fill(`"${fixture.source.slug}"`);
+  await expect(confirm).toBeDisabled();
   await dialog
     .locator("#legal-source-delete-confirm")
     .fill(fixture.source.slug);
@@ -210,7 +252,8 @@ test("deletion blocks protected references and shows a validated receipt only af
   expect(deletes).toBe(1);
   await page.screenshot({
     path: `${evidence}/deletion-receipt.png`,
-    fullPage: true, animations: "disabled",
+    fullPage: true,
+    animations: "disabled",
   });
 });
 
@@ -257,7 +300,8 @@ test("Vietnamese lifecycle copy and keyboard dialog focus", async ({
   ).toBeDisabled();
   await page.screenshot({
     path: `${evidence}/activation-vi.png`,
-    fullPage: true, animations: "disabled",
+    fullPage: true,
+    animations: "disabled",
   });
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
