@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { Search } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -50,7 +50,15 @@ import { AssessmentDiscoveryOverview } from "./assessment-discovery-overview";
  * Failure cases: Catalog or submit errors retain the selection without inventing a result.
  * Side effects: Sends one idempotent audit request and scrolls to a persisted result on demand.
  */
-export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
+export function RuleAuditPicker({
+  assessmentId,
+  paused = false,
+  runtimeControls,
+}: {
+  assessmentId: string;
+  paused?: boolean;
+  runtimeControls?: ReactNode;
+}) {
   const catalog = useRuleAuditCatalogQuery(assessmentId);
   const current = useRuleAuditRequestQuery(
     assessmentId,
@@ -485,6 +493,8 @@ export function RuleAuditPicker({ assessmentId }: { assessmentId: string }) {
                     };
                   })}
                   retrying={retry.isPending}
+                  paused={paused}
+                  runtimeControls={runtimeControls}
                   onViewResult={(decisionId) =>
                     document
                       .getElementById(`decision-${decisionId}`)

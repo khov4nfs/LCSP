@@ -1,5 +1,5 @@
 "use client";
-import { LoaderCircleIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
+import { LoaderCircleIcon, RefreshCwIcon } from "lucide-react";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
@@ -7,7 +7,6 @@ import {
 } from "@lcsp/contracts/assessment";
 import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_AUDIT_MODES } from "@lcsp/contracts/assessment-domain";
-import { ASSESSMENT_RUNTIME_CONTROL_STATES } from "@lcsp/contracts/evidence";
 import { Button } from "@/components/ui/button";
 import { ChatInteractionBar } from "@/components/molecules/chat-interaction-bar";
 import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
@@ -17,8 +16,13 @@ import {
   CUSTOMER_ASSESSMENT_STATES,
   type CustomerAssessmentState,
 } from "../../config/customer-assessment-states";
+import {
+  projectAssessmentRuntimeControl,
+  RUNTIME_CONTROL_PHASES,
+} from "../../utils/assessment-runtime-control-projection";
 import { copy } from "../../utils/conversation-copy";
 import { AssessmentReportActions } from "./assessment-report-actions";
+import { AssessmentRuntimeControls } from "./assessment-runtime-controls";
 
 type AssessmentInteractionBarProps = {
   assessment: AssessmentDetail;
@@ -51,27 +55,16 @@ export function AssessmentInteractionBar({
     },
   );
   const reconcile = useReconcileOrphanedAssessment(assessment.assessment_id);
-  const requested =
-    executionId !== undefined &&
-    control.data?.targetRunId === executionId &&
-    (control.data.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested ||
-      control.data.state === ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested);
-  const stopping =
-    stop.isPending ||
-    (requested &&
-      control.data?.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested);
-  const continuing =
-    resume.isPending ||
-    (requested &&
-      control.data?.state === ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested);
-  const canStop =
-    executionId !== undefined &&
-    assessment.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
-    runtime?.executionState === AGENT_EXECUTION_STATES.RUNNING;
-  const canResume =
-    executionId !== undefined &&
-    assessment.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.PAUSED &&
-    runtime?.executionState === AGENT_EXECUTION_STATES.PAUSED;
+  const projection = projectAssessmentRuntimeControl({
+    lifecycleState: assessment.lifecycle?.state,
+    executionState: runtime?.executionState,
+    targetRunId: executionId,
+    controlResult: control.data,
+    hasOpenHumanRequest: state === CUSTOMER_ASSESSMENT_STATES.WAITING,
+    isStopPending: stop.isPending,
+    isResumePending: resume.isPending,
+  });
+  const stopping = projection.phase === RUNTIME_CONTROL_PHASES.PAUSING;
   const isOrphanedQueued =
     assessment.lifecycle?.state === ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
     assessment.case?.auditMode !== ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED &&
@@ -80,7 +73,7 @@ export function AssessmentInteractionBar({
   const report = assessment.case?.artifacts.find(
     (artifact) => artifact.lifecycleState === ARTIFACT_LIFECYCLE_STATES.ACTIVE,
   );
-  const failed = stop.isError || resume.isError || reconcile.isError;
+  const failed = reconcile.isError;
 
   if (
     state === CUSTOMER_ASSESSMENT_STATES.UNAVAILABLE ||
@@ -119,32 +112,35 @@ export function AssessmentInteractionBar({
                 aria-hidden="true"
                 className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
               />
-              {copy(stopping ? "bar.stopping" : "bar.working")}
+              {copy(stopping ? "bar.pausing" : "bar.working")}
             </p>
-            {canStop ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={stopping}
-                onClick={() => stop.mutate(executionId)}
-                data-runtime-action="stop"
-              >
-                <SquareIcon aria-hidden="true" />
-                {copy(stopping ? "bar.stopping" : "bar.stop")}
-              </Button>
-            ) : null}
+            <AssessmentRuntimeControls
+              assessmentId={assessment.assessment_id}
+              lifecycleState={assessment.lifecycle?.state}
+              executionState={runtime?.executionState}
+              customerState={state}
+              auditMode={assessment.case?.auditMode}
+              targetRunId={executionId}
+              hasOpenHumanRequest={false}
+              onReconcile={onRefresh}
+            />
           </>
         ) : state === CUSTOMER_ASSESSMENT_STATES.PAUSED ? (
-          <Button
-            type="button"
-            className="w-full"
-            disabled={!canResume || continuing}
-            onClick={() => resume.mutate(executionId)}
-            data-runtime-action="continue"
-          >
-            {copy(continuing ? "bar.continuing" : "bar.continue")}
-          </Button>
+          <>
+            <p className="flex-1 text-sm text-muted-foreground">
+              {copy("bar.pausedSummary")}
+            </p>
+            <AssessmentRuntimeControls
+              assessmentId={assessment.assessment_id}
+              lifecycleState={assessment.lifecycle?.state}
+              executionState={runtime?.executionState}
+              customerState={state}
+              auditMode={assessment.case?.auditMode}
+              targetRunId={executionId}
+              hasOpenHumanRequest={false}
+              onReconcile={onRefresh}
+            />
+          </>
         ) : state === CUSTOMER_ASSESSMENT_STATES.WAITING ? (
           <p className="text-sm text-muted-foreground">{copy("bar.waiting")}</p>
         ) : state === CUSTOMER_ASSESSMENT_STATES.COMPLETE ? (

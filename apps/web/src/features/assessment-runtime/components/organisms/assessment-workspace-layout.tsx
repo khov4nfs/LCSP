@@ -37,6 +37,7 @@ export function AssessmentWorkspaceLayout({
   onTabChange,
   openRequestsCount,
   onAuditSelectedRules,
+  runtimeControls,
   children,
   interactionBar,
 }: {
@@ -46,6 +47,7 @@ export function AssessmentWorkspaceLayout({
   onTabChange: (tab: AssessmentWorkspaceTab) => void;
   openRequestsCount: number;
   onAuditSelectedRules?: () => void;
+  runtimeControls?: ReactNode;
   children: ReactNode;
   interactionBar?: ReactNode;
 }) {
@@ -93,18 +95,21 @@ export function AssessmentWorkspaceLayout({
               </div>
             </div>
 
-            {onAuditSelectedRules ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onAuditSelectedRules}
-              >
-                {resolveAppMessage(
-                  "pages.assessmentWorkspace.overview.auditSelectedRules",
-                )}
-              </Button>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {runtimeControls}
+              {onAuditSelectedRules ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onAuditSelectedRules}
+                >
+                  {resolveAppMessage(
+                    "pages.assessmentWorkspace.overview.auditSelectedRules",
+                  )}
+                </Button>
+              ) : null}
+            </div>
           </header>
 
           <div

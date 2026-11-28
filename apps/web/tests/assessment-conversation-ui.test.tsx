@@ -198,9 +198,14 @@ test("Human Resolution is an inline assistant question with a structured control
   assert.ok(question);
   assert.match(question.textContent ?? "", /Is the service publicly accessible\?/);
   assert.equal(view.querySelectorAll("textarea").length, 0);
+  const radios = [...question.querySelectorAll('[role="radio"]')];
+  assert.equal(radios.length, 2);
   const labels = buttons(question).map((button) => button.textContent?.trim());
-  assert.deepEqual(labels, ["Yes", "No", "I don't know"]);
-  click(byText(question, "button", "Yes"));
+  assert.deepEqual(labels, ["Submit answer", "I don't know"]);
+  // Selecting a radio option does not auto-submit.
+  click(radios[0]);
+  assert.equal(answers.length, 0);
+  click(byText(question, "button", "Submit answer"));
   click(byText(question, "button", "I don't know"));
   assert.deepEqual(answers, [{ doesNotKnow: false, answer: "yes" }, { doesNotKnow: true }]);
 });
@@ -216,12 +221,11 @@ test("a free-text request renders a composer-style field, a multi-choice one exp
   const multi = conversation(
     projection({ lifecycle: LIFE.WAITING_FOR_HUMAN, execution: EXEC.PAUSED, events: [...ACTIVITY, events.humanOpened(6, 14)], requests: [request("OPEN", { controlType: "MULTI_SELECT", choices: [{ value: "eu", label: "EU" }, { value: "us", label: "US" }, { value: "vn", label: "VN" }] })] }),
   );
-  const boxes = [...multi.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')];
+  const boxes = [...multi.querySelectorAll('[role="checkbox"]')];
   assert.equal(boxes.length, 3);
-  const submit = byText(multi, "button", "Submit") as HTMLButtonElement | null;
+  const submit = byText(multi, "button", "Submit answer") as HTMLButtonElement | null;
   assert.ok(submit);
   assert.equal(submit.disabled, true, "nothing selected yet");
-  boxes.forEach((box) => assert.equal(box.type, "checkbox"));
 });
 
 test("the accepted answer stays in the thread, coherent after a reload", () => {
@@ -392,7 +396,7 @@ test("PAUSED shows Continue next to the thread, and no spinner", async () => {
     assert.equal(view.querySelectorAll(".animate-spin").length, 0);
     const resume = view.querySelector('[data-runtime-action="continue"]');
     assert.ok(resume);
-    assert.match(resume.textContent ?? "", /Continue assessment/);
+    assert.match(resume.textContent ?? "", /Resume/);
     click(resume);
     await settle();
     assert.match(stub.calls.find((call) => call.method === "POST")?.url ?? "", /\/runtime\/continue$/);
@@ -572,14 +576,17 @@ test("multiple open human requests route submission strictly to their own reques
       />,
     );
 
-    // Click choice A under Question 1
+    // Select choice A under Question 1 and explicitly submit
     const req1El = view.querySelector<HTMLElement>(
       `[data-human-request="${req1Id}"]`,
     );
     assert.ok(req1El, "request 1 container exists");
-    const btn1 = byText<HTMLButtonElement>(req1El, "button", /Choice A/);
-    assert.ok(btn1, "choice button A exists");
-    click(btn1);
+    const radio1 = req1El.querySelector('[role="radio"]');
+    assert.ok(radio1, "choice radio A exists");
+    click(radio1);
+    const submit1 = byText<HTMLButtonElement>(req1El, "button", /Submit answer/);
+    assert.ok(submit1);
+    click(submit1);
 
     assert.equal(submitted.length, 1);
     assert.equal(
@@ -589,14 +596,17 @@ test("multiple open human requests route submission strictly to their own reques
     );
     assert.equal(submitted[0].answer.doesNotKnow, false);
 
-    // Click choice B under Question 2
+    // Select choice B under Question 2 and explicitly submit
     const req2El = view.querySelector<HTMLElement>(
       `[data-human-request="${req2Id}"]`,
     );
     assert.ok(req2El, "request 2 container exists");
-    const btn2 = byText<HTMLButtonElement>(req2El, "button", /Choice B/);
-    assert.ok(btn2, "choice button B exists");
-    click(btn2);
+    const radio2 = req2El.querySelector('[role="radio"]');
+    assert.ok(radio2, "choice radio B exists");
+    click(radio2);
+    const submit2 = byText<HTMLButtonElement>(req2El, "button", /Submit answer/);
+    assert.ok(submit2);
+    click(submit2);
 
     assert.equal(submitted.length, 2);
     assert.equal(
