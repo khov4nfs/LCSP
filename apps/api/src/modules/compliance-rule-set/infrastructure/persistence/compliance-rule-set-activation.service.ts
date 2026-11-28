@@ -250,7 +250,20 @@ export class ComplianceRuleSetActivation {
       );
 
     // Source admission is checked before publication; never publish a new version from a foreign corpus.
+    // Unified legal validation: reject any unresolved LEGAL_REVIEW_REQUIRED marker on publication.
     if (ctx.failures.length === 0) {
+      const hasUnresolvedUncertainty = ctx.packet.legalRequirements.some((req) =>
+        (req.coverage.nonAssessableReason ?? "").startsWith(
+          "LEGAL_REVIEW_REQUIRED:",
+        ),
+      );
+      if (hasUnresolvedUncertainty) {
+        throw problemException(
+          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+          ctx.correlationId,
+          { status: HttpStatus.CONFLICT, meta: { reason: "LEGAL_REVIEW_REQUIRED" } },
+        );
+      }
       await this.authority.requireVersion(
         tx,
         ctx.legalSource.id,

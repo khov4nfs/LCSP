@@ -174,6 +174,26 @@ describe("Reusable selected semantic scope evidence", () => {
 
       changed.assessmentRules[0].criteria[0].statement =
         "Deploy an unrelated control at every site";
+      if (format === 1) {
+        await expect(
+          requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+        ).rejects.toMatchObject({
+          response: { problem: { meta: { path: "output.scopeAuthorization" } } },
+        });
+      } else {
+        await expect(
+          requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+        ).resolves.toBe(selectedScopeKey(input, changed));
+      }
+
+      const changedKey = selectedScopeKey(input, changed);
+      (
+        tx.selectedRuleScopeAuthorization.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        ...row,
+        scopeKey: changedKey,
+        state: PreparationScopeReviewState.REJECTED,
+      } as never);
       await expect(
         requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
       ).rejects.toMatchObject({
@@ -259,8 +279,8 @@ describe("Reusable selected semantic scope evidence", () => {
           decisions[0],
           {
             ...decisions[1],
-            stage: "DEVELOPMENT",
-            technicalDeliverable: "Fake control",
+            stage: "LEGAL_REVIEW_REQUIRED",
+            technicalDeliverable: null,
           },
         ],
         "cid",

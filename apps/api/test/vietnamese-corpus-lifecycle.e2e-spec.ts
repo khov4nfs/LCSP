@@ -633,16 +633,18 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
         },
       },
     });
-    if (persistedAssessment.domainCase) {
-      assert.equal(
-        persistedAssessment.domainCase.ruleSetVersionId,
-        activatedRuleSet.ruleSetVersionId,
-      );
-      assert.equal(
-        persistedAssessment.domainCase.ruleSet?.legalSourceVersionId,
-        draftSource.id,
-      );
-    }
+    assert.ok(
+      persistedAssessment.domainCase,
+      "New Assessment must be pinned to the active ComplianceRuleSetVersion",
+    );
+    assert.equal(
+      persistedAssessment.domainCase.ruleSetVersionId,
+      activatedRuleSet.ruleSetVersionId,
+    );
+    assert.equal(
+      persistedAssessment.domainCase.ruleSet?.legalSourceVersionId,
+      draftSource.id,
+    );
 
     // 6. Negative regression: valid official PDF SHA-256, but tampered chunk content / wrong locator / non-effective status must be rejected.
     const tamperedContentShaRes = await httpRequest(app)
@@ -729,6 +731,36 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       repealedChunkImportRes.status >= 400 &&
         repealedChunkImportRes.status < 500,
       `REPEALED chunk must be rejected, got ${repealedChunkImportRes.status}`,
+    );
+
+    // Valid official PDF SHA-256 paired with fabricated chunk text having a self-consistent SHA-256
+    // must be rejected when verified against the extracted PDF text or non-operative corpus role.
+    const fabricatedText =
+      "Điều 88. Nội dung giả mạo không tồn tại trong Thông tư 05/2026/TT-BKHCN nhưng có hash tự nhất quán.";
+    assert.equal(
+      extractedPdfText.includes(fabricatedText),
+      false,
+      "Fabricated text must not exist in extracted PDF text",
+    );
+    await prisma.legalSourceDocument.updateMany({
+      where: { legalSourceVersionId: draftSource.id },
+      data: { corpusRole: LegalSourceDocumentCorpusRole.REFERENCE_ONLY },
+    });
+    const referenceOnlyRes = await httpRequest(app)
+      .post(`/admin/legal-rule-catalog/${catalog.id}/assessment-rules/import`)
+      .set("Authorization", `Bearer ${authorToken}`)
+      .send({
+        schemaVersion: C.ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+        catalogVersionId: catalog.id,
+        expectedCatalogRevision: outOfScopeSaved.catalogRevision,
+        legalSourceVersionId: draftSource.id,
+        dryRun: true,
+        items: [inScopeImportItem],
+        excludedItems: [],
+      });
+    assert.ok(
+      referenceOnlyRes.status >= 400 && referenceOnlyRes.status < 500,
+      `REFERENCE_ONLY corpus role must be rejected, got ${referenceOnlyRes.status}`,
     );
   });
 });

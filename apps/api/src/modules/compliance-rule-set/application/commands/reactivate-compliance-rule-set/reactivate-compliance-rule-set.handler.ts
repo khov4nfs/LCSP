@@ -7,6 +7,7 @@ import {
   AuthUserRole,
   ComplianceRuleSetValidationOutcome,
   LegalSourceLifecycleStatus,
+  PreparationScopeReviewState,
   Prisma,
   UserAccessStatus,
 } from "@prisma/client";
@@ -250,6 +251,33 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             target.legalSourceVersionId,
             correlationId,
           );
+          if (!target.rules.length) {
+            throw conflict(Errors.TARGET_NOT_ELIGIBLE);
+          }
+          const selectedResults: unknown = target.selectedPreparationResults;
+          const selectedKeys = Array.isArray(selectedResults)
+            ? selectedResults
+                .map((entry) =>
+                  entry &&
+                  typeof entry === "object" &&
+                  "scopeAuthorizationKey" in entry &&
+                  typeof entry.scopeAuthorizationKey === "string"
+                    ? entry.scopeAuthorizationKey
+                    : null,
+                )
+                .filter((key): key is string => Boolean(key))
+            : [];
+          if (selectedKeys.length > 0) {
+            const revoked = await tx.selectedRuleScopeAuthorization.count({
+              where: {
+                scopeKey: { in: selectedKeys },
+                state: PreparationScopeReviewState.REJECTED,
+              },
+            });
+            if (revoked > 0) {
+              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
+            }
+          }
           const id = randomUUID();
           const now = new Date();
           await tx.complianceRuleSetVersion.update({

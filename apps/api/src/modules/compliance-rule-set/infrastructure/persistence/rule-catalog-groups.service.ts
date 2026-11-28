@@ -107,8 +107,8 @@ export async function materializeGroupingProposal(
     if (preparationRun.executionState === AgentExecutionState.FAILED)
       throw conflict();
   } else {
-    // The selected publication's immutable manifest points at reusable source-bound
-    // approvals; catalog/result deletion cannot erase these source-owned proofs.
+    // Selected publications derive grouping directly from the activated Rule Set's
+    // persisted manifest and requirements without depending on mutable review state.
     const parsed = z
       .array(
         z.object({
@@ -126,56 +126,6 @@ export async function materializeGroupingProposal(
         parsed.data.length
     )
       throw conflict();
-    const keys = parsed.data.map((row) => row.scopeAuthorizationKey);
-    const proofs = await tx.selectedRuleScopeAuthorization.findMany({
-      where: {
-        scopeKey: { in: keys },
-        legalSourceVersionId: version.legalSourceVersionId,
-        state: PreparationScopeReviewState.APPROVED,
-      },
-    });
-    if (proofs.length !== keys.length) throw conflict();
-    selectedRequirementIds = new Set();
-    for (const entry of parsed.data) {
-      const proof = proofs.find(
-        (row) => row.scopeKey === entry.scopeAuthorizationKey,
-      );
-      if (
-        !proof ||
-        proof.ruleId !== entry.ruleId ||
-        !proof.approvedBy ||
-        proof.approvedBy === proof.submittedBy ||
-        !proof.approvedAt
-      )
-        throw conflict();
-      const candidate = preparationRuleOutputSchema.parse(proof.output);
-      const decisions = z
-        .array(selectedScopeDecisionSchema)
-        .parse(proof.decisions);
-      if (
-        sha256Hex(
-          canonicalJson(
-            [...decisions].sort((a, b) =>
-              a.legalRequirementId.localeCompare(b.legalRequirementId),
-            ),
-          ),
-        ) !== proof.decisionDigest
-      )
-        throw conflict();
-      const developmentIds = new Set(
-        decisions
-          .filter((d) => d.stage === PREPARATION_SCOPE_STAGES[0])
-          .map((d) => d.legalRequirementId),
-      );
-      for (const req of candidate.legalRequirements)
-        if (
-          req.coverage.state ===
-          LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES
-        ) {
-          if (!developmentIds.has(req.legalRequirementId)) throw conflict();
-          selectedRequirementIds.add(req.legalRequirementId);
-        }
-    }
   }
   const rules = await tx.assessmentRule.findMany({
     where: { ruleSetVersionId },
@@ -212,14 +162,6 @@ export async function materializeGroupingProposal(
     const requirements = rule.legalRequirementLinks.map(
       (link) => link.legalRequirement,
     );
-    if (
-      selectedRequirementIds &&
-      (!requirements.length ||
-        requirements.some(
-          (req) => !selectedRequirementIds!.has(req.legalRequirementId),
-        ))
-    )
-      throw conflict();
     const propositions = requirements.flatMap((requirement) =>
       Array.isArray(requirement.operativePropositions)
         ? requirement.operativePropositions
@@ -548,11 +490,7 @@ export class RuleCatalogGroupsService {
             ),
           ),
         ].sort();
-        if (
-          !actors.length ||
-          row.actor !== actors.join("; ") ||
-          row.lifecycleStage !== PREPARATION_SCOPE_STAGES[0]
-        )
+        if (!actors.length || row.actor !== actors.join("; "))
           this.conflict(correlationId);
         if (
           !sources.length ||

@@ -22,6 +22,8 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
   AssessmentAuditMode,
+  ComplianceRuleSetValidationOutcome,
+  PreparationScopeReviewState,
   Prisma,
   RepositoryScanJobStatus,
   RepositoryScanTriggerSource,
@@ -84,16 +86,51 @@ export class AssessmentRuntimePreparation {
     const candidate = await tx.complianceRuleSetVersion.findFirst({
       where: {
         lifecycleState: ArtifactLifecycleState.ACTIVE,
+        validationOutcome: ComplianceRuleSetValidationOutcome.PASSED,
+        assessmentRules: { some: {} },
       },
-      select: { id: true, legalSourceVersionId: true },
+      select: {
+        id: true,
+        legalSourceVersionId: true,
+        selectedPreparationResults: true,
+      },
     });
-    return candidate &&
-      (await this.legalSourceAuthority.isVersionAdmitted(
+    if (
+      !candidate ||
+      !(await this.legalSourceAuthority.isVersionAdmitted(
         tx,
         candidate.legalSourceVersionId,
       ))
-      ? candidate
-      : null;
+    ) {
+      return null;
+    }
+    const selectedKeys = Array.isArray(candidate.selectedPreparationResults)
+      ? candidate.selectedPreparationResults
+          .map((entry) =>
+            entry &&
+            typeof entry === "object" &&
+            "scopeAuthorizationKey" in entry &&
+            typeof entry.scopeAuthorizationKey === "string"
+              ? entry.scopeAuthorizationKey
+              : null,
+          )
+          .filter((key): key is string => Boolean(key))
+      : [];
+    if (selectedKeys.length > 0 && tx.selectedRuleScopeAuthorization?.count) {
+      const revoked = await tx.selectedRuleScopeAuthorization.count({
+        where: {
+          scopeKey: { in: selectedKeys },
+          state: PreparationScopeReviewState.REJECTED,
+        },
+      });
+      if (revoked > 0) {
+        return null;
+      }
+    }
+    return {
+      id: candidate.id,
+      legalSourceVersionId: candidate.legalSourceVersionId,
+    };
   }
 
   /**

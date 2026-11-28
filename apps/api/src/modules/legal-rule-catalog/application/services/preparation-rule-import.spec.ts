@@ -382,10 +382,16 @@ describe("PreparationRuleService.importAssessmentRules", () => {
   });
 
   it.each([true, false])(
-    "rejects structurally valid but unauthorized import without any writes (dryRun=%s)",
+    "rejects import when scope authorization is REJECTED or DRAFT without any writes (dryRun=%s)",
     async (dryRun) => {
       const { subject, tx, catalogs, enqueue } = setup();
-      tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue(null);
+      const grant = approvedScope();
+      tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue({
+        ...grant,
+        state: PreparationScopeReviewState.DRAFT,
+        approvedBy: null,
+        approvedAt: null,
+      });
       await expect(
         subject.importAssessmentRules(
           catalogId,
@@ -450,14 +456,18 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     );
     expect(catalogs.record).toHaveBeenCalled();
   });
-  it("does not reuse a reviewed result when the legal condition is changed", async () => {
+  it("rejects an import carrying unresolved LEGAL_REVIEW_REQUIRED uncertainty without an approved review", async () => {
     const { subject, tx } = setup();
-    const changed = request();
-    changed.items[0].legalRequirements[0].applicabilityConditions = [
-      "A changed legal condition",
-    ];
+    const uncertain = request();
+    uncertain.items[0].legalRequirements[0].coverage = {
+      state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+      nonAssessableReason:
+        PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX +
+        " ambiguous obligation",
+    };
+    uncertain.items[0].assessmentRules = [];
     await expect(
-      subject.importAssessmentRules(catalogId, changed, "admin-1", "cid"),
+      subject.importAssessmentRules(catalogId, uncertain, "admin-1", "cid"),
     ).rejects.toMatchObject({
       response: {
         problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },

@@ -2,6 +2,7 @@ import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AgentExecutionState as State,
+  ClaimPreparationPhase,
   Prisma,
   RuleSetPreparationFailureReason as PrismaRuleSetPreparationFailureReason,
 } from "@prisma/client";
@@ -82,8 +83,12 @@ export class ResumeRuleSetPreparationHandler implements ICommandHandler<ResumeRu
       const isBudgetPause =
         run.failureReason ===
         PrismaRuleSetPreparationFailureReason.AGENT_BUDGET_REACHED;
+      const isLegacyInventoryPause =
+        run.failureReason === null &&
+        run.claimPhase === ClaimPreparationPhase.CLAIM_INVENTORY_READY;
       const resumable =
-        (run.executionState === State.PAUSED && isBudgetPause) ||
+        (run.executionState === State.PAUSED &&
+          (isBudgetPause || isLegacyInventoryPause)) ||
         (run.executionState === State.FAILED &&
           [R.MODEL_ERROR, R.RUNTIME_ERROR].includes(
             run.failureReason as never,

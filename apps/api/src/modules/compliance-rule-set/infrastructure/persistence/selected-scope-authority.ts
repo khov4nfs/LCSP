@@ -151,28 +151,23 @@ export function validateSelectedScopeDecisions(
     seen.add(decision.legalRequirementId);
     if (decision.stage === unresolved && approving)
       reject(cid, "decisions.stage");
-    if (decision.stage === development) {
+    // Unified eligibility: any system-relevant requirement with COVERED_BY_ASSESSMENT_RULES
+    // (across development, deployment, or operation) may back Assessment Rules,
+    // regardless of whether the legacy stage label is DEVELOPMENT or NON_DEVELOPMENT.
+    if (requirement.coverage.state === covered) {
       if (
-        !decision.technicalDeliverable?.trim() ||
-        requirement.coverage.nonAssessableReason?.startsWith(
-          "OUT_OF_SCOPE_TARGET:",
+        requirement.operativePropositions?.some(
+          (p) => p.modality === LEGAL_OPERATIVE_MODALITIES.PERMISSION,
         )
       )
-        reject(cid, "decisions.technicalDeliverable");
-      if (requirement.coverage.state === covered) {
-        if (
-          requirement.operativePropositions?.some(
-            (p) => p.modality === LEGAL_OPERATIVE_MODALITIES.PERMISSION,
-          )
-        )
-          reject(cid, "decisions.stage");
-        allowedParents.add(requirement.legalRequirementId);
-      }
-    } else if (decision.stage === nonDevelopment) {
+        reject(cid, "decisions.stage");
+      allowedParents.add(requirement.legalRequirementId);
+    } else if (
+      requirement.coverage.state ===
+      LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE
+    ) {
       const reason = requirement.coverage.nonAssessableReason?.trim() ?? "";
       if (
-        requirement.coverage.state !==
-          LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE ||
         !reason ||
         reason.startsWith(PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX)
       )
@@ -316,43 +311,77 @@ export async function requireSelectedScopeAuthorization(
   cid: string,
   authority = new LegalSourceAuthorityService(),
 ): Promise<string> {
-  // Every successful selected result must account for the obligations its source supports.
+  // Unified legal validation across all authoring paths:
+  // 1. Every result must account for at least one sourced LegalRequirement.
   if (!output.legalRequirements.length) reject(cid, "output.legalRequirements");
   const key = selectedScopeKey(input, output);
   const current = await tx.selectedRuleScopeAuthorization.findUnique({
     where: { scopeKey: key },
   });
-  // V1 rows can authorize only the exact reviewed material rule projection.
   const row =
     current ??
     (await tx.selectedRuleScopeAuthorization.findUnique({
       where: { scopeKey: selectedScopeKey(input, output, 1) },
     }));
+
+  // 2. If a review record exists, enforce its state: REJECTED/DRAFT blocks publication;
+  // APPROVED requires independent reviewer and matching digest.
+  if (row) {
+    if (
+      row.state !== PreparationScopeReviewState.APPROVED ||
+      row.legalSourceVersionId !== input.legalSourceVersionId ||
+      row.catalogId !== input.catalogVersionId ||
+      row.ruleId !== input.ruleId ||
+      !row.approvedBy ||
+      row.approvedBy === row.submittedBy ||
+      !row.approvedAt
+    ) {
+      reject(cid, "output.scopeAuthorization");
+    }
+    const reviewedOutput = preparationRuleOutputSchema.safeParse(row.output);
+    const decisions = z
+      .array(selectedScopeDecisionSchema)
+      .safeParse(row.decisions);
+    if (
+      !reviewedOutput.success ||
+      !decisions.success ||
+      selectedScopeKey(input, reviewedOutput.data) !== key ||
+      validateSelectedScopeDecisions(input, output, decisions.data, cid) !==
+        row.decisionDigest
+    ) {
+      reject(cid, "output.scopeAuthorization");
+    }
+    await requireSelectedScopeSource(tx, input, output, cid, authority);
+    return row.scopeKey;
+  }
+
+  // 3. When no review record exists, allow publication without mandatory Scope Approval
+  // as long as there is no genuine legal uncertainty (LEGAL_REVIEW_REQUIRED:) and all
+  // source citations, legal requirements, and assessment rules are valid.
+  const hasLegalUncertainty = output.legalRequirements.some((req) =>
+    (req.coverage.nonAssessableReason ?? "").startsWith(
+      PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+    ),
+  );
+  if (hasLegalUncertainty) {
+    reject(cid, "output.legalRequirements");
+  }
+  const coveredIds = new Set(
+    output.legalRequirements
+      .filter((req) => req.coverage.state === covered)
+      .map((req) => req.legalRequirementId),
+  );
   if (
-    !row ||
-    row.state !== PreparationScopeReviewState.APPROVED ||
-    row.legalSourceVersionId !== input.legalSourceVersionId ||
-    row.catalogId !== input.catalogVersionId ||
-    row.ruleId !== input.ruleId ||
-    !row.approvedBy ||
-    row.approvedBy === row.submittedBy ||
-    !row.approvedAt
-  )
-    reject(cid, "output.scopeAuthorization");
-  const reviewedOutput = preparationRuleOutputSchema.safeParse(row.output);
-  const decisions = z
-    .array(selectedScopeDecisionSchema)
-    .safeParse(row.decisions);
-  if (
-    !reviewedOutput.success ||
-    !decisions.success ||
-    selectedScopeKey(input, reviewedOutput.data) !== key ||
-    validateSelectedScopeDecisions(input, output, decisions.data, cid) !==
-      row.decisionDigest
-  )
-    reject(cid, "output.scopeAuthorization");
+    output.assessmentRules.some(
+      (rule) =>
+        !rule.legalRequirementIds.length ||
+        rule.legalRequirementIds.some((id) => !coveredIds.has(id)),
+    )
+  ) {
+    reject(cid, "output.assessmentRules.legalRequirementIds");
+  }
   await requireSelectedScopeSource(tx, input, output, cid, authority);
-  return row.scopeKey;
+  return key;
 }
 
 /**
