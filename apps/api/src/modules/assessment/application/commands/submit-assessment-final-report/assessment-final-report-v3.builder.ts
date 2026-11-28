@@ -25,6 +25,7 @@ import {
   searchCoverageRecordSchemaV3,
   type AssessmentFinalReportV3,
   type AssessmentReportActionPriority,
+  type AssessmentReportSourceScopeMode,
   type AssessmentReportSourceVisibilityLimitationReason,
   type AssessmentReportSourceVisibilityState,
   type SearchCoverageRecordV3,
@@ -283,6 +284,88 @@ function parseSearchCoverageRecord(
   };
 }
 
+/**
+ * Business purpose: Decide what the report may claim about how much of one repository's source was visible.
+ *
+ * Business rules:
+ * - A pinned source prefix makes the scope a subtree; otherwise the whole repository is in scope.
+ * - Full visibility requires verified, untruncated, gap-free search coverage of the scope root, backed by a
+ *   completed platform scan; anything else is recorded as limited, with the reasons.
+ *
+ * Execution flow:
+ * 1. Choose the scope mode from the pinned prefix.
+ * 2. Check that the repository's own coverage verifies the scope root.
+ * 3. Return full visibility or limited visibility with its limitation reasons.
+ *
+ * Failure cases:
+ * - No coverage evidence yields limited visibility, never full.
+ *
+ * Side effects:
+ * - Pure derivation without persistence.
+ */
+function deriveSourceScope(
+  pinnedPrefix: string | null,
+  searchCoverageItems: ReadonlyArray<{
+    evidenceId: string;
+    searchCoverage: SearchCoverageRecordV3;
+  }>,
+) {
+  const mode =
+    pinnedPrefix !== null
+      ? ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE
+      : ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.WHOLE_REPOSITORY;
+  const searchCoverageEvidenceIds = searchCoverageItems.map(
+    (item) => item.evidenceId,
+  );
+  const expectedRoot = pinnedPrefix === null ? "." : pinnedPrefix;
+  const hasVerifiedRootCoverage =
+    searchCoverageItems.length > 0 &&
+    searchCoverageItems.every(
+      (entry) =>
+        entry.searchCoverage.verifiedCompleteness &&
+        entry.searchCoverage.truncatedQueriesCount === 0 &&
+        entry.searchCoverage.knownGapsCount === 0 &&
+        (entry.searchCoverage.executedQueriesCount >= 1 ||
+          entry.searchCoverage.inspectedEntryPointsCount >= 1),
+    ) &&
+    searchCoverageItems.some((entry) =>
+      entry.searchCoverage.scopes.some(
+        (scope) =>
+          scope.kind === SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY &&
+          scope.path === expectedRoot,
+      ),
+    );
+
+  let visibility: AssessmentReportSourceVisibilityState;
+  const limitationReasons: AssessmentReportSourceVisibilityLimitationReason[] =
+    [];
+  if (hasVerifiedRootCoverage) {
+    visibility = ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL;
+  } else {
+    visibility = ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED;
+    if (
+      searchCoverageItems.some(
+        (item) => item.searchCoverage.truncatedQueriesCount > 0,
+      )
+    ) {
+      limitationReasons.push(
+        ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.SEARCH_TRUNCATED,
+      );
+    }
+    limitationReasons.push(
+      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.PARTIAL_COVERAGE_RECORDED,
+    );
+  }
+  return {
+    mode,
+    visibility,
+    sourcePathPrefix: pinnedPrefix,
+    excludedPaths: [] as never[],
+    limitationReasons,
+    searchCoverageEvidenceIds,
+  };
+}
+
 export interface BuildAssessmentFinalReportV3Input {
   tx: Prisma.TransactionClient;
   assessmentId: string;
@@ -319,7 +402,118 @@ export interface BuildAssessmentFinalReportV3Input {
 export async function buildAssessmentFinalReportV3(
   input: BuildAssessmentFinalReportV3Input,
 ): Promise<AssessmentFinalReportV3> {
-  const { tx, assessmentId, artifactId, request, snapshot } = input;
+  const parts = await buildAssessmentFinalReportParts(input);
+  const { snapshot, request, assessmentId, artifactId } = input;
+  const [only] = parts.repositories;
+  if (parts.multi || !only) {
+    throw new Error("A V3 report describes exactly one repository");
+  }
+  const report = {
+    schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
+    artifactId,
+    assessmentId,
+    kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+    identity: {
+      repositorySnapshotId: snapshot.pins.repositorySnapshotId,
+      repositoryCommit: snapshot.pins.repositoryCommit,
+    },
+    pins: {
+      ruleSetVersionId: parts.ruleSet.id,
+      repositorySnapshotId: snapshot.pins.repositorySnapshotId,
+      repositoryScanJobId: snapshot.pins.repositoryScanJobId,
+      repositoryCommit: snapshot.pins.repositoryCommit,
+      legalSourceVersionId: parts.source.id,
+      legalSourceVersion: parts.source.version,
+      ruleSetVersion: parts.ruleSet.version,
+      ruleSetDigest: parts.ruleSet.ruleSetDigest,
+      sourcePathPrefix: only.sourcePathPrefix,
+    },
+    caseRevision: snapshot.caseRevision,
+    decisionFingerprint: decisionFingerprint(parts.ruleDetails),
+    sourceScope: only.sourceScope,
+    legalRequirements: parts.legalRequirements,
+    ruleDetails: parts.ruleDetails,
+    factIndex: parts.factIndex,
+    evidenceIndex: parts.evidenceIndex,
+    outcomeSummary: parts.outcomeSummary,
+    boundedNarrative: {
+      summary: request.summary,
+      scopeLimitations: only.sourceScope.limitationReasons,
+    },
+    boundedActionPlan: parts.boundedActionPlan,
+    publicationProvenance: {
+      sourceManifestDigest: null,
+      publishedAt: null,
+    },
+  };
+
+  return assessmentFinalReportV3Schema.parse(report);
+}
+
+/** A pinned repository as the report builder receives it (unkeyed for a single-repository report). */
+interface ReportRepositoryPinInput {
+  repositoryKey: string | null;
+  ordinal: number;
+  repositoryFullName: string | null;
+  repositorySnapshotId: string;
+  repositoryScanJobId: string;
+  repositoryCommit: string;
+}
+
+/** A pinned repository with its authoritative source prefix and scan completeness. */
+interface ReportRepositoryState extends ReportRepositoryPinInput {
+  pinnedPrefix: string | null;
+  platformScanSuccess: boolean;
+}
+
+/** One repository of the report with the facts the builder derived from its snapshot and evidence. */
+export interface ReportRepositoryParts {
+  repositoryKey: string | null;
+  repositoryFullName: string | null;
+  ordinal: number;
+  repositorySnapshotId: string;
+  repositoryScanJobId: string;
+  repositoryCommit: string;
+  sourcePathPrefix: string | null;
+  sourceScope: {
+    mode: AssessmentReportSourceScopeMode;
+    visibility: AssessmentReportSourceVisibilityState;
+    sourcePathPrefix: string | null;
+    excludedPaths: never[];
+    limitationReasons: AssessmentReportSourceVisibilityLimitationReason[];
+    searchCoverageEvidenceIds: string[];
+  };
+}
+
+/**
+ * Business purpose: Assemble everything a final report states that does not depend on the report version:
+ * the legal basis, each rule's decision, the fact and evidence indexes, the outcome and action plan, and the
+ * source scope of every pinned repository.
+ *
+ * Business rules:
+ * - A single pinned repository yields one unkeyed repository, which is the V3 shape.
+ * - Several pinned repositories yield one keyed entry each; every repository gets its own source prefix,
+ *   scan-job completeness check and source scope from its own search-coverage evidence.
+ * - Repository evidence must be bound to a pinned repository; evidence of an unknown repository fails the report.
+ * - Only accepted decisions, facts and evidence that can be reloaded from the database are reported.
+ *
+ * Execution flow:
+ * 1. Load the pinned rule set, legal source, rules, requirements and relations.
+ * 2. Load each pinned repository's snapshot scope and scan completeness.
+ * 3. Reload accepted facts and evidence (with search coverage of every repository) and index them.
+ * 4. Derive each repository's source scope and visibility from its own coverage.
+ * 5. Project rule details, the action plan and the outcome summary.
+ *
+ * Failure cases:
+ * - Missing pinned source, unaccepted or unbound evidence, or divergent coverage throws an error.
+ *
+ * Side effects:
+ * - Read-only queries against the transaction.
+ */
+export async function buildAssessmentFinalReportParts(
+  input: BuildAssessmentFinalReportV3Input,
+) {
+  const { tx, assessmentId, request, snapshot } = input;
 
   const ruleSet = await tx.complianceRuleSetVersion.findUnique({
     where: { id: snapshot.pins.ruleSetVersionId },
@@ -348,31 +542,56 @@ export async function buildAssessmentFinalReportV3(
       .map((document) => [document.documentId, document.title.trim()]),
   );
 
-  const snapshotRecord = tx.repositorySnapshot
-    ? await tx.repositorySnapshot.findUnique({
-        where: { id: snapshot.pins.repositorySnapshotId },
-        select: {
-          id: true,
-          sourcePathPrefix: true,
-        },
-      })
-    : null;
-  const pinnedPrefix = snapshotRecord?.sourcePathPrefix ?? null;
-
-  const scanJob = tx.repositoryScanJob
-    ? await tx.repositoryScanJob.findUnique({
-        where: { id: snapshot.pins.repositoryScanJobId },
-        select: {
-          id: true,
-          status: true,
-          blockedReason: true,
-        },
-      })
-    : null;
-  const platformScanSuccess =
-    scanJob !== null &&
-    scanJob.status === RepositoryScanJobStatus.COMPLETED &&
-    !scanJob.blockedReason;
+  const pinnedSet =
+    (snapshot.pins.repositories?.length ?? 0) > 1
+      ? (snapshot.pins.repositories ?? [])
+      : null;
+  const multi = pinnedSet !== null;
+  const pinInputs: ReportRepositoryPinInput[] = pinnedSet ?? [
+    {
+      repositoryKey: null,
+      ordinal: 0,
+      repositoryFullName: null,
+      repositorySnapshotId: snapshot.pins.repositorySnapshotId,
+      repositoryScanJobId: snapshot.pins.repositoryScanJobId,
+      repositoryCommit: snapshot.pins.repositoryCommit,
+    },
+  ];
+  const repositoryStates: ReportRepositoryState[] = await Promise.all(
+    pinInputs.map(async (pin) => {
+      const snapshotRecord = tx.repositorySnapshot
+        ? await tx.repositorySnapshot.findUnique({
+            where: { id: pin.repositorySnapshotId },
+            select: {
+              id: true,
+              sourcePathPrefix: true,
+            },
+          })
+        : null;
+      const scanJob = tx.repositoryScanJob
+        ? await tx.repositoryScanJob.findUnique({
+            where: { id: pin.repositoryScanJobId },
+            select: {
+              id: true,
+              status: true,
+              blockedReason: true,
+            },
+          })
+        : null;
+      return {
+        ...pin,
+        pinnedPrefix: snapshotRecord?.sourcePathPrefix ?? null,
+        platformScanSuccess:
+          scanJob !== null &&
+          scanJob.status === RepositoryScanJobStatus.COMPLETED &&
+          !scanJob.blockedReason,
+      };
+    }),
+  );
+  const stateByKey = new Map(
+    repositoryStates.map((state) => [state.repositoryKey, state]),
+  );
+  const singleState = repositoryStates[0];
 
   const rules = await tx.assessmentRule.findMany({
     where: { ruleSetVersionId: snapshot.pins.ruleSetVersionId },
@@ -506,13 +725,16 @@ export async function buildAssessmentFinalReportV3(
       assessmentId,
       type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
       state: ASSESSMENT_RECORD_STATES.ACCEPTED,
-      repositoryCommit: snapshot.pins.repositoryCommit,
+      repositoryCommit: multi
+        ? { in: repositoryStates.map((state) => state.repositoryCommit) }
+        : snapshot.pins.repositoryCommit,
     },
     select: {
       evidenceId: true,
       type: true,
       state: true,
       repositoryCommit: true,
+      repositoryKey: true,
       contentSha256: true,
       payload: true,
     },
@@ -531,6 +753,7 @@ export async function buildAssessmentFinalReportV3(
       type: true,
       state: true,
       repositoryCommit: true,
+      repositoryKey: true,
       contentSha256: true,
       payload: true,
     },
@@ -560,9 +783,24 @@ export async function buildAssessmentFinalReportV3(
           "Repository evidence is missing a safe canonical locator",
         );
       }
+      const owner = multi
+        ? stateByKey.get(item.repositoryKey ?? null)
+        : singleState;
+      if (
+        multi &&
+        item.type !== ASSESSMENT_EVIDENCE_TYPES.HUMAN_ANSWER &&
+        !owner
+      ) {
+        throw new Error(
+          "Repository evidence is not bound to a pinned repository",
+        );
+      }
       const searchCoverage =
         item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE
-          ? parseSearchCoverageRecord(item.payload, platformScanSuccess)
+          ? parseSearchCoverageRecord(
+              item.payload,
+              owner?.platformScanSuccess ?? false,
+            )
           : null;
       return {
         evidenceId: item.evidenceId,
@@ -571,6 +809,7 @@ export async function buildAssessmentFinalReportV3(
         repositoryCommit: item.repositoryCommit,
         safeLocator: locator,
         ...(searchCoverage !== null ? { searchCoverage } : {}),
+        ...(multi ? { repositoryKey: item.repositoryKey ?? null } : {}),
       };
     });
 
@@ -807,74 +1046,33 @@ export async function buildAssessmentFinalReportV3(
       evidenceIds: fact.evidenceLinks.map((link) => link.evidenceId).sort(),
     }));
 
-  const mode =
-    pinnedPrefix !== null
-      ? ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.SUBTREE
-      : ASSESSMENT_REPORT_SOURCE_SCOPE_MODES.WHOLE_REPOSITORY;
-
-  const searchCoverageItems = evidenceIndex.filter(
-    (
-      item,
-    ): item is typeof item & {
-      searchCoverage: NonNullable<typeof item.searchCoverage>;
-    } =>
-      item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE &&
-      item.searchCoverage !== null &&
-      item.searchCoverage !== undefined,
-  );
-  const searchCoverageEvidenceIds = searchCoverageItems.map(
-    (item) => item.evidenceId,
-  );
-
-  const expectedRoot = pinnedPrefix === null ? "." : pinnedPrefix;
-  const hasVerifiedRootCoverage =
-    searchCoverageItems.length > 0 &&
-    searchCoverageItems.every(
-      (entry) =>
-        entry.searchCoverage.verifiedCompleteness &&
-        entry.searchCoverage.truncatedQueriesCount === 0 &&
-        entry.searchCoverage.knownGapsCount === 0 &&
-        (entry.searchCoverage.executedQueriesCount >= 1 ||
-          entry.searchCoverage.inspectedEntryPointsCount >= 1),
-    ) &&
-    searchCoverageItems.some((entry) =>
-      entry.searchCoverage.scopes.some(
-        (scope) =>
-          scope.kind === SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY &&
-          scope.path === expectedRoot,
-      ),
-    );
-
-  let visibility: AssessmentReportSourceVisibilityState;
-  const limitationReasons: AssessmentReportSourceVisibilityLimitationReason[] =
-    [];
-
-  if (hasVerifiedRootCoverage) {
-    visibility = ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL;
-  } else {
-    visibility = ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_LIMITED;
-    if (
-      searchCoverageItems.some(
-        (item) => item.searchCoverage.truncatedQueriesCount > 0,
-      )
-    ) {
-      limitationReasons.push(
-        ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.SEARCH_TRUNCATED,
+  const repositories: ReportRepositoryParts[] = repositoryStates.map(
+    (state) => {
+      const ownCoverage = evidenceIndex.filter(
+        (
+          item,
+        ): item is typeof item & {
+          searchCoverage: NonNullable<typeof item.searchCoverage>;
+        } =>
+          item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE &&
+          item.searchCoverage !== null &&
+          item.searchCoverage !== undefined &&
+          (!multi ||
+            (item as { repositoryKey?: string | null }).repositoryKey ===
+              state.repositoryKey),
       );
-    }
-    limitationReasons.push(
-      ASSESSMENT_REPORT_SOURCE_VISIBILITY_LIMITATION_REASONS.PARTIAL_COVERAGE_RECORDED,
-    );
-  }
-
-  const sourceScope = {
-    mode,
-    visibility,
-    sourcePathPrefix: pinnedPrefix,
-    excludedPaths: [],
-    limitationReasons,
-    searchCoverageEvidenceIds,
-  };
+      return {
+        repositoryKey: state.repositoryKey,
+        repositoryFullName: state.repositoryFullName,
+        ordinal: state.ordinal,
+        repositorySnapshotId: state.repositorySnapshotId,
+        repositoryScanJobId: state.repositoryScanJobId,
+        repositoryCommit: state.repositoryCommit,
+        sourcePathPrefix: state.pinnedPrefix,
+        sourceScope: deriveSourceScope(state.pinnedPrefix, ownCoverage),
+      };
+    },
+  );
 
   const allHighlightItems: Array<{
     actionId: string;
@@ -940,42 +1138,16 @@ export async function buildAssessmentFinalReportV3(
     },
   );
 
-  const report = {
-    schemaVersion: ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION,
-    artifactId,
-    assessmentId,
-    kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
-    identity: {
-      repositorySnapshotId: snapshot.pins.repositorySnapshotId,
-      repositoryCommit: snapshot.pins.repositoryCommit,
-    },
-    pins: {
-      ...snapshot.pins,
-      legalSourceVersionId: source.id,
-      legalSourceVersion: source.version,
-      ruleSetVersionId: ruleSet.id,
-      ruleSetVersion: ruleSet.version,
-      ruleSetDigest: ruleSet.ruleSetDigest,
-      sourcePathPrefix: pinnedPrefix,
-    },
-    caseRevision: snapshot.caseRevision,
-    decisionFingerprint: decisionFingerprint(ruleDetails),
-    sourceScope,
+  return {
+    multi,
+    source,
+    ruleSet,
+    repositories,
     legalRequirements,
     ruleDetails,
     factIndex,
     evidenceIndex,
     outcomeSummary,
-    boundedNarrative: {
-      summary: request.summary,
-      scopeLimitations: sourceScope.limitationReasons,
-    },
     boundedActionPlan,
-    publicationProvenance: {
-      sourceManifestDigest: null,
-      publishedAt: null,
-    },
   };
-
-  return assessmentFinalReportV3Schema.parse(report);
 }

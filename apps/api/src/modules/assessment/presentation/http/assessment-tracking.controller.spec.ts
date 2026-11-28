@@ -80,6 +80,7 @@ describe("AssessmentTrackingControllers", () => {
           freshnessStatus: TRACKING_FRESHNESS_STATUSES.CURRENT,
           isStale: false,
         },
+        repositories: [],
         ruleSet: {
           ruleSetVersionId: "rule-v1",
           ruleSetName: "1.0.0",

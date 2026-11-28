@@ -59,6 +59,7 @@ const populatedOverview: CustomerTrackingOverview = {
         freshnessStatus: "FRESHNESS_CURRENT",
         isStale: false,
       },
+      repositories: [],
       ruleSet: {
         ruleSetVersionId: "11111111-1111-4111-8111-111111111111",
         ruleSetName: "Decree 13",
@@ -99,6 +100,7 @@ const populatedOverview: CustomerTrackingOverview = {
         freshnessStatus: "FRESHNESS_CURRENT",
         isStale: false,
       },
+      repositories: [],
       ruleSet: {
         ruleSetVersionId: "11111111-1111-4111-8111-111111111111",
         ruleSetName: "Decree 13",

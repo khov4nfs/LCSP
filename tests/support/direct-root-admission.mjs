@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import {
   rootCapacityPolicySchema,
   ROOT_CAPACITY_METRIC_SOURCES,
@@ -27,7 +28,10 @@ export function directRootAdmissionFixture({
   assert.ok(Number(target.port) >= 55432 && Number(target.port) <= 55499);
   // The shared stack also owns create-only lcsp360_final_* databases.
   // Keep both disposable namespaces anchored and reject arbitrary database names.
-  assert.match(target.pathname, /^\/(?:lcsp_[a-z0-9_]+|lcsp360_final_[a-z0-9_]+)$/);
+  assert.match(
+    target.pathname,
+    /^\/(?:lcsp_[a-z0-9_]+|lcsp360_final_[a-z0-9_]+)$/,
+  );
   const identity = {
     hostId: createHash("sha256")
       .update(`provider-free-fixture:${base}`)
@@ -112,7 +116,9 @@ export function directRootAdmissionFixture({
         const { PrismaClient } = requireApi("@prisma/client");
         const { PrismaPg } = requireApi("@prisma/adapter-pg");
         const { AssessmentRootCapacityService } = await import(
-          `${apiDir}/dist/src/modules/assessment/application/services/assessment-root-capacity.service.js`
+          pathToFileURL(
+            `${apiDir}/dist/src/modules/assessment/application/services/assessment-root-capacity.service.js`,
+          ).href
         );
         client = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
         const service = new AssessmentRootCapacityService(client);

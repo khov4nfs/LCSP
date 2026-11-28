@@ -8,6 +8,7 @@ import {
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { REPOSITORY_SET_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
@@ -84,6 +85,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
    *
    * Business rules:
    * - Only the assessment's customer owner may use an active owned repository connection.
+   * - Once the assessment's repository set is pinned no new snapshot may be created (REPOSITORY_SET_IMMUTABLE).
    * - A non-null source prefix must be canonical and is preserved exactly; invalid input never widens to the repository root.
    * - Commit resolution must remain inside the authorized repository.
    *
@@ -103,7 +105,11 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
     const connectionId = clean(command.connectionId);
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: command.assessmentId },
-      select: { id: true, ownerId: true },
+      select: {
+        id: true,
+        ownerId: true,
+        domainCase: { select: { repositoryCount: true } },
+      },
     });
     if (!assessment) {
       await this.auditDenied(
@@ -128,6 +134,16 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         {
           status: HttpStatus.FORBIDDEN,
         },
+      );
+    }
+
+    // The repository set is immutable once pinned; a new snapshot could never join it.
+    if ((assessment.domainCase?.repositoryCount ?? 0) > 0) {
+      await this.auditDenied(command, REPOSITORY_SET_ERROR_CODES.immutable);
+      throw problemException(
+        REPOSITORY_SET_ERROR_CODES.immutable,
+        command.correlationId,
+        { status: HttpStatus.CONFLICT },
       );
     }
 

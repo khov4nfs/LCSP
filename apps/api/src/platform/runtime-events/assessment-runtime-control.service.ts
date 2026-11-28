@@ -240,7 +240,7 @@ export class AssessmentRuntimeControlService {
    *
    * Business rules:
    * - Stop is accepted only when the current execution turn is running, and will pause at the next native checkpoint boundary.
-   * - Resume is accepted only when the current execution is stopped and paused with valid snapshot and pins.
+   * - Resume is accepted only when the current execution is stopped and paused with valid snapshot and pins; every repository pinned to the assessment must still have its exact assessment-owned snapshot.
    * - A PAYMENT_REQUIRED pause can resume only after the owner-bound shared wallet has spendable balance in its authoritative accounting unit; payment itself never resumes work.
    * - Only `ADMIN` actors may supply `budgetExtension`; non-admins are rejected with `403 Forbidden`.
    * - Admin overrides carrying `idempotencyKey` replay cleanly on matching request fingerprints and fail with `409 IDEMPOTENCY_CONFLICT` on mutated fingerprints.
@@ -463,6 +463,32 @@ export class AssessmentRuntimeControlService {
               where: { id: pins.repositorySnapshotId },
             })
           : null;
+        // Resume is allowed only when every pinned repository still has its exact, assessment-owned snapshot.
+        const pinnedRepositories = pins
+          ? await tx.assessmentCaseRepository.findMany({
+              where: { assessmentId: input.assessmentId },
+              select: { repositorySnapshotId: true, repositoryCommit: true },
+            })
+          : [];
+        const otherPins = pinnedRepositories.filter(
+          (pin) => pin.repositorySnapshotId !== pins?.repositorySnapshotId,
+        );
+        const otherSnapshots = otherPins.length
+          ? await tx.repositorySnapshot.findMany({
+              where: { id: { in: otherPins.map((pin) => pin.repositorySnapshotId) } },
+            })
+          : [];
+        const otherPinsValid =
+          otherSnapshots.length === otherPins.length &&
+          otherPins.every((pin) => {
+            const found = otherSnapshots.find(
+              (item) => item.id === pin.repositorySnapshotId,
+            );
+            return (
+              found?.assessmentId === input.assessmentId &&
+              found.commitSha.toLowerCase() === pin.repositoryCommit.toLowerCase()
+            );
+          });
         if (
           assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.PAUSED ||
           assessment.runtime?.executionState !==
@@ -474,6 +500,7 @@ export class AssessmentRuntimeControlService {
           !snapshot ||
           snapshot.assessmentId !== input.assessmentId ||
           snapshot.commitSha !== pins.repositoryCommit ||
+          !otherPinsValid ||
           !pins.ruleSet ||
           ![
             ARTIFACT_LIFECYCLE_STATES.ACTIVE,

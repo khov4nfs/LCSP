@@ -7,6 +7,9 @@ import {
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_ROOT_COMMAND_TYPES,
+  REPOSITORY_SET_ERROR_CODES,
+  computeRepositorySetDigest,
+  deriveRepositoryKey,
 } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_ACTOR_IDS,
@@ -31,6 +34,7 @@ import {
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
+import { currentRepositoryLimit } from "./repository-set-limit.js";
 import { acquireLegalSourceLifecycleLock } from "../../../legal-source/application/services/legal-source.service.js";
 
 export const PREPARATION_RESULTS = {
@@ -106,17 +110,19 @@ export class AssessmentRuntimePreparation {
    * legacy full-scope cases retain their existing whole-catalog coverage.
    * Execution flow:
    * 1. Resolve immutable legal and repository pins and the hydration ticket.
-   * 2. Confirm a nonempty catalog and create legacy coverage when applicable.
+   * 2. Record the chosen repositories as the immutable repository set (primary pin mirrored in the scalar columns) with its set digest.
+   * 3. Confirm a nonempty catalog and create legacy coverage when applicable.
    * Failure cases:
    * - Missing Rule Set returns WAITING; invalid snapshot rejects the transaction.
+   * - A bad selection (empty, duplicated, over the limit) or an unusable snapshot rejects; a different set already pinned to the case rejects with REPOSITORY_SET_IMMUTABLE.
    * Side effects:
-   * - Writes pins, hydration ticket and legacy coverage within the caller's transaction.
+   * - Writes pins, repository-set pin, hydration ticket and legacy coverage within the caller's transaction.
    */
   async pinRuntimeInputsInTx(
     tx: Prisma.TransactionClient,
     input: {
       assessmentId: string;
-      snapshotId: string;
+      snapshotIds: string[];
       correlationId: string;
     },
   ): Promise<{ result: PinResult }> {
@@ -149,46 +155,55 @@ export class AssessmentRuntimePreparation {
       });
     }
 
-    const snapshot = await tx.repositorySnapshot.findFirst({
-      where: {
-        id: input.snapshotId,
-        assessmentId: input.assessmentId,
-        status: RepositorySnapshotStatus.READY,
-      },
-      select: { id: true, commitSha: true },
-    });
-    if (!snapshot || !/^[0-9a-fA-F]{40,64}$/u.test(snapshot.commitSha)) {
-      throw problemException(
-        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
+    const pinnedSnapshots = await this.resolveSnapshotsInTx(tx, input);
     // The scan-job row is the deterministic snapshot-archive ticket for sandbox hydration.
     // It is created without publishing any scan command: nothing scans or reasons here.
-    const ticketKey = `runtime-hydration:${input.assessmentId}:${snapshot.id}`;
-    const ticket = await tx.repositoryScanJob.upsert({
-      where: { idempotencyKey: ticketKey },
-      update: {},
-      create: {
-        id: randomUUID(),
+    const pins: Array<{
+      snapshot: (typeof pinnedSnapshots)[number];
+      ticketId: string;
+    }> = [];
+    for (const snapshot of pinnedSnapshots) {
+      const ticket = await tx.repositoryScanJob.upsert({
+        where: {
+          idempotencyKey: `runtime-hydration:${input.assessmentId}:${snapshot.id}`,
+        },
+        update: {},
+        create: {
+          id: randomUUID(),
+          assessmentId: input.assessmentId,
+          snapshotId: snapshot.id,
+          idempotencyKey: `runtime-hydration:${input.assessmentId}:${snapshot.id}`,
+          triggerSource: RepositoryScanTriggerSource.TRUSTED,
+          status: RepositoryScanJobStatus.QUEUED,
+          correlationId: input.correlationId,
+        },
+        select: { id: true },
+      });
+      pins.push({ snapshot, ticketId: ticket.id });
+    }
+    // Refuse a different set before touching any pin column: the database would otherwise reject the
+    // scalar update with an opaque error instead of REPOSITORY_SET_IMMUTABLE.
+    const alreadyPinned = await this.assertRepositorySetUnchangedInTx(tx, {
+      assessmentId: input.assessmentId,
+      correlationId: input.correlationId,
+      snapshotIds: pins.map((entry) => entry.snapshot.id),
+    });
+    if (!alreadyPinned) {
+      const primary = pins[0]!;
+      await tx.assessmentCase.update({
+        where: { assessmentId: input.assessmentId },
+        data: {
+          repositorySnapshotId: primary.snapshot.id,
+          repositoryScanJobId: primary.ticketId,
+          repositoryCommit: primary.snapshot.commitSha.toLowerCase(),
+        },
+      });
+      await this.pinRepositorySetInTx(tx, {
         assessmentId: input.assessmentId,
-        snapshotId: snapshot.id,
-        idempotencyKey: ticketKey,
-        triggerSource: RepositoryScanTriggerSource.TRUSTED,
-        status: RepositoryScanJobStatus.QUEUED,
         correlationId: input.correlationId,
-      },
-      select: { id: true },
-    });
-    await tx.assessmentCase.update({
-      where: { assessmentId: input.assessmentId },
-      data: {
-        repositorySnapshotId: snapshot.id,
-        repositoryScanJobId: ticket.id,
-        repositoryCommit: snapshot.commitSha.toLowerCase(),
-      },
-    });
+        pins,
+      });
+    }
 
     const rules = await tx.assessmentRule.findMany({
       where: { ruleSetVersionId: ruleSetId },
@@ -212,6 +227,198 @@ export class AssessmentRuntimePreparation {
   }
 
   /**
+   * Business purpose: Load the exact repository snapshots the customer chose for this assessment and refuse
+   * a set that is empty, duplicated, over the product limit or built from snapshots that are not ready.
+   * Business rules:
+   * - Every chosen snapshot must belong to this assessment, be READY and carry a full commit.
+   * - The same snapshot cannot be chosen twice, and the same repository cannot be chosen twice with the same
+   *   source scope; the same repository with different source scopes is allowed (monorepo scopes).
+   * - The set size is capped by the configured repository limit, never above the contract maximum.
+   * Execution flow:
+   * 1. Reject an empty, duplicated or oversized selection.
+   * 2. Read the chosen snapshots and reject any that are missing or not ready.
+   * 3. Return the snapshots in the order the customer chose them (that order becomes the pin order).
+   * Failure cases:
+   * - REPOSITORY_SET_LIMIT_EXCEEDED or REPOSITORY_SET_DUPLICATE (422) for a bad selection; PINS_NOT_READY (409)
+   *   for a missing or unusable snapshot.
+   * Side effects:
+   * - Read-only: it reads snapshots and writes nothing.
+   */
+  private async resolveSnapshotsInTx(
+    tx: Prisma.TransactionClient,
+    input: { assessmentId: string; snapshotIds: string[]; correlationId: string },
+  ) {
+    if (input.snapshotIds.length === 0) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    if (input.snapshotIds.length > currentRepositoryLimit()) {
+      throw problemException(
+        REPOSITORY_SET_ERROR_CODES.limitExceeded,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    if (new Set(input.snapshotIds).size !== input.snapshotIds.length) {
+      throw problemException(
+        REPOSITORY_SET_ERROR_CODES.duplicate,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    const rows = await tx.repositorySnapshot.findMany({
+      where: {
+        id: { in: input.snapshotIds },
+        assessmentId: input.assessmentId,
+        status: RepositorySnapshotStatus.READY,
+      },
+      select: {
+        id: true,
+        commitSha: true,
+        connectionId: true,
+        repositoryId: true,
+        repositoryFullName: true,
+        sourcePathPrefix: true,
+      },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const ordered = input.snapshotIds.map((id) => byId.get(id));
+    const usable = ordered.flatMap((row) =>
+      row && /^[0-9a-fA-F]{40,64}$/u.test(row.commitSha) ? [row] : [],
+    );
+    if (usable.length !== input.snapshotIds.length) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const scopes = new Set(
+      usable.map((row) => `${row.repositoryId}|${row.sourcePathPrefix ?? ""}`),
+    );
+    if (scopes.size !== usable.length) {
+      throw problemException(
+        REPOSITORY_SET_ERROR_CODES.duplicate,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    return usable;
+  }
+
+  /**
+   * Business purpose: Guarantee a case's repository set never changes once recorded, so decisions, evidence and
+   * reports that cite the set digest can never silently refer to different code.
+   * Business rules:
+   * - A case that already has pins accepts only the identical ordered selection (an idempotent retry).
+   * - Any other selection (different, larger, smaller or reordered) is rejected as immutable.
+   * Execution flow:
+   * 1. Read the recorded pins in ordinal order.
+   * 2. Report "not pinned yet", accept the identical selection, or reject anything else.
+   * Failure cases:
+   * - REPOSITORY_SET_IMMUTABLE (409) for a different selection.
+   * Side effects:
+   * - Read-only: it reads the recorded pins and writes nothing.
+   */
+  private async assertRepositorySetUnchangedInTx(
+    tx: Prisma.TransactionClient,
+    input: { assessmentId: string; correlationId: string; snapshotIds: string[] },
+  ): Promise<boolean> {
+    const existing = await tx.assessmentCaseRepository.findMany({
+      where: { assessmentId: input.assessmentId },
+      orderBy: { ordinal: "asc" },
+      select: { repositorySnapshotId: true },
+    });
+    if (existing.length === 0) return false;
+    const same =
+      existing.length === input.snapshotIds.length &&
+      existing.every(
+        (row, index) => row.repositorySnapshotId === input.snapshotIds[index],
+      );
+    if (same) return true;
+    throw problemException(
+      REPOSITORY_SET_ERROR_CODES.immutable,
+      input.correlationId,
+      { status: HttpStatus.CONFLICT },
+    );
+  }
+
+  /**
+   * Business purpose: Record the repositories chosen for the case as its immutable repository set so every
+   * reader works from the same pins and one digest proves the whole set is unchanged.
+   * Business rules:
+   * - Pins are ordered as chosen; the first is the primary pin mirrored in the case's scalar columns.
+   * - Each repository gets a short key derived from its name, unique within the assessment.
+   * - The set digest covers key, snapshot, commit and source scope of every pin and is stored on the case.
+   * - Callers first prove the case has no recorded set (see assertRepositorySetUnchangedInTx).
+   * Execution flow:
+   * 1. Derive a unique key per repository in pin order.
+   * 2. Insert one pin per repository and stamp the case with the digest and repository count.
+   * Failure cases:
+   * - A database rejection (for example inconsistent pins) rolls the whole transaction back.
+   * Side effects:
+   * - Inserts AssessmentCaseRepository rows and updates repositorySetDigest/repositoryCount on the case
+   *   inside the caller's transaction.
+   */
+  private async pinRepositorySetInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      correlationId: string;
+      pins: Array<{
+        ticketId: string;
+        snapshot: {
+          id: string;
+          commitSha: string;
+          connectionId: string;
+          repositoryId: string;
+          repositoryFullName: string;
+          sourcePathPrefix: string | null;
+        };
+      }>;
+    },
+  ): Promise<void> {
+    const keys: string[] = [];
+    const recorded = input.pins.map((entry, ordinal) => {
+      const repositoryKey = deriveRepositoryKey(
+        entry.snapshot.repositoryFullName,
+        keys,
+      );
+      keys.push(repositoryKey);
+      return {
+        repositoryKey,
+        ordinal,
+        repositorySnapshotId: entry.snapshot.id,
+        repositoryCommit: entry.snapshot.commitSha.toLowerCase(),
+        sourcePathPrefix: entry.snapshot.sourcePathPrefix,
+      };
+    });
+    await tx.assessmentCaseRepository.createMany({
+      data: recorded.map((pin, index) => {
+        const entry = input.pins[index]!;
+        return {
+          assessmentId: input.assessmentId,
+          ...pin,
+          connectionId: entry.snapshot.connectionId,
+          repositoryId: entry.snapshot.repositoryId,
+          repositoryFullName: entry.snapshot.repositoryFullName,
+          repositoryScanJobId: entry.ticketId,
+        };
+      }),
+    });
+    await tx.assessmentCase.update({
+      where: { assessmentId: input.assessmentId },
+      data: {
+        repositorySetDigest: computeRepositorySetDigest(recorded),
+        repositoryCount: recorded.length,
+      },
+    });
+  }
+
+  /**
    * Business purpose: Make pinned assessment inputs ready while preserving customer choice as the start authority.
    * Business rules:
    * - Only legacy assessments dispatch Root during setup; new cases await a durable selected request.
@@ -227,7 +434,7 @@ export class AssessmentRuntimePreparation {
     tx: Prisma.TransactionClient,
     input: {
       assessmentId: string;
-      snapshotId: string;
+      snapshotIds: string[];
       correlationId: string;
       responseLanguage?: string | null;
     },

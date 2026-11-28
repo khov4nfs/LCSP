@@ -17,6 +17,7 @@ import {
   RULE_AUDIT_SCOPE_MODES,
   RULE_AUDIT_STATUSES,
 } from "@lcsp/contracts/assessment-domain";
+import { withSingleRepositorySet } from "../../../fixtures/single-repository-set.js";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AssessmentCompletionGate } from "../../services/assessment-completion-gate.service.js";
 import type { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
@@ -32,12 +33,15 @@ it("completes only one validated selected rule without invoking the full-report 
   const repositorySnapshotId = randomUUID();
   const evidenceId = randomUUID();
   const repositoryCommit = "a".repeat(40);
-  const pins = {
+  const pins = withSingleRepositorySet({
     ruleSetVersionId,
     repositorySnapshotId,
     repositoryCommit,
+    repositoryId: "repository-1",
+    repositoryScanJobId: randomUUID(),
+    sourcePathPrefix: null,
     caseRevision: 1,
-  };
+  });
   const reference = {
     type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
     evidenceId,
@@ -177,12 +181,15 @@ it("blocks selected finalization when an open human request covers a selected ru
   const ruleSetVersionId = randomUUID();
   const repositorySnapshotId = randomUUID();
   const repositoryCommit = "a".repeat(40);
-  const pins = {
+  const pins = withSingleRepositorySet({
     ruleSetVersionId,
     repositorySnapshotId,
     repositoryCommit,
+    repositoryId: "repository-1",
+    repositoryScanJobId: randomUUID(),
+    sourcePathPrefix: null,
     caseRevision: 1,
-  };
+  });
 
   const evidenceId = randomUUID();
   const reference = {

@@ -24,6 +24,7 @@ import { validateRuleDecision } from "../../../domain/decision-validator.js";
 import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { humanRequestScopeWhere } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { RequestAssessmentFinalizationCommand } from "./request-assessment-finalization.command.js";
+import { pinnedRepositorySetMatches } from "../../../domain/repository-set-pin.js";
 
 const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
@@ -127,7 +128,10 @@ export class RequestAssessmentFinalizationHandler implements ICommandHandler<Req
             !record ||
             record.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED ||
             record.caseRevision > pins.caseRevision ||
-            record.repositoryCommit !== pins.repositoryCommit ||
+            !pinnedRepositorySetMatches(record, {
+              ...pins,
+              repositoryCount: pins.repositories.length,
+            }) ||
             record.ruleSetVersionId !== auditRequest.ruleSetVersionId
           ) {
             blockers.push({

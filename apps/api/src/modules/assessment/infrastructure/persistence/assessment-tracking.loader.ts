@@ -372,7 +372,14 @@ function ownerCanonicalDecisionEvaluationCte(
                           AND ae."assessmentId" = adc."assessmentId"
                           AND ae."state" = 'ACCEPTED'
                           AND ae."invalidatedAt" IS NULL
-                          AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                          AND (
+                            LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                            OR EXISTS (
+                              SELECT 1 FROM "AssessmentCaseRepository" acr
+                              WHERE acr."assessmentId" = ac."assessmentId"
+                                AND LOWER(acr."repositoryCommit") = LOWER(ae."repositoryCommit")
+                            )
+                          )
                       )
                     )
                   )
@@ -415,7 +422,14 @@ function ownerCanonicalDecisionEvaluationCte(
                                     ae."evidenceId" IS NULL
                                     OR ae."state" <> 'ACCEPTED'
                                     OR ae."invalidatedAt" IS NOT NULL
-                                    OR LOWER(ae."repositoryCommit") <> LOWER(ac."repositoryCommit")
+                                    OR (
+                                      LOWER(ae."repositoryCommit") <> LOWER(ac."repositoryCommit")
+                                      AND NOT EXISTS (
+                                        SELECT 1 FROM "AssessmentCaseRepository" acr
+                                        WHERE acr."assessmentId" = ac."assessmentId"
+                                          AND LOWER(acr."repositoryCommit") = LOWER(ae."repositoryCommit")
+                                      )
+                                    )
                                   )
                               )
                             )
@@ -440,72 +454,196 @@ function ownerCanonicalDecisionEvaluationCte(
 }
 
 /**
+ * Business purpose: Calculate the source freshness of assessments from every repository they are pinned to, so one
+ * outdated repository marks the whole assessment stale instead of being hidden behind a current one.
+ * Business rules:
+ * - Each pinned repository is compared with the latest READY snapshot of the same repository and ref (or branch) that the owner can see; ref falls back to branch.
+ * - A repository with a newer visible snapshot at another commit is STALE; at the same commit it is CURRENT; without a newer snapshot it is UNKNOWN.
+ * - An assessment is STALE when any repository is STALE, else CURRENT when any is CURRENT, else UNKNOWN; its observation time is the latest newer snapshot seen.
+ * - An assessment written before repository sets existed is judged by its single scalar pin.
+ * Execution flow:
+ * 1. Expand each assessment into its recorded pins (or its scalar pin).
+ * 2. Find each pin's latest visible newer snapshot.
+ * 3. Classify each pin, then aggregate per assessment.
+ * Failure cases:
+ * - Missing pins or no newer snapshot give UNKNOWN; database errors propagate to the caller's shared error handling.
+ * Side effects:
+ * - Builds a parameterized read-only SQL select.
+ */
+function pinnedFreshnessSelect(
+  ownerId: string,
+  scopedSource: Prisma.Sql,
+): Prisma.Sql {
+  return Prisma.sql`
+    SELECT
+      per."assessmentId",
+      CASE
+        WHEN bool_or(per."state" = ${TRACKING_FRESHNESS_STATUSES.STALE}) THEN ${TRACKING_FRESHNESS_STATUSES.STALE}
+        WHEN bool_or(per."state" = ${TRACKING_FRESHNESS_STATUSES.CURRENT}) THEN ${TRACKING_FRESHNESS_STATUSES.CURRENT}
+        ELSE ${TRACKING_FRESHNESS_STATUSES.UNKNOWN}
+      END AS "freshnessStatus",
+      MAX(per."observedAt") AS "observedAt"
+    FROM (
+      SELECT
+        scoped."assessmentId",
+        CASE
+          WHEN latest."id" IS NOT NULL
+            AND pinned."id" IS NOT NULL
+            AND latest."id" <> pinned."id"
+            AND latest."createdAt" > pinned."createdAt"
+            AND LOWER(latest."commitSha") = LOWER(COALESCE(pins."commit", pinned."commitSha"))
+            THEN ${TRACKING_FRESHNESS_STATUSES.CURRENT}
+          WHEN latest."id" IS NOT NULL
+            AND pinned."id" IS NOT NULL
+            AND latest."id" <> pinned."id"
+            AND latest."createdAt" > pinned."createdAt"
+            THEN ${TRACKING_FRESHNESS_STATUSES.STALE}
+          ELSE ${TRACKING_FRESHNESS_STATUSES.UNKNOWN}
+        END AS "state",
+        CASE
+          WHEN latest."id" IS NOT NULL
+            AND pinned."id" IS NOT NULL
+            AND latest."id" <> pinned."id"
+            AND latest."createdAt" > pinned."createdAt"
+            THEN latest."createdAt"
+          ELSE NULL
+        END AS "observedAt"
+      FROM ${scopedSource}
+      CROSS JOIN LATERAL (
+        SELECT pin."repositorySnapshotId" AS "snapshotId", pin."repositoryCommit" AS "commit"
+        FROM "AssessmentCaseRepository" pin
+        WHERE pin."assessmentId" = scoped."assessmentId"
+        UNION ALL
+        SELECT scoped."repositorySnapshotId", scoped."repositoryCommit"
+        WHERE NOT EXISTS (
+          SELECT 1 FROM "AssessmentCaseRepository" recorded
+          WHERE recorded."assessmentId" = scoped."assessmentId"
+        )
+      ) pins
+      LEFT JOIN "RepositorySnapshot" pinned
+        ON pinned."id" = pins."snapshotId"
+      LEFT JOIN LATERAL (
+        SELECT candidate."id", candidate."createdAt", candidate."commitSha"
+        FROM "RepositorySnapshot" candidate
+        WHERE candidate."status" = ${REPOSITORY_SNAPSHOT_STATUSES.ready}
+          AND candidate."repositoryFullName" = pinned."repositoryFullName"
+          AND (
+            candidate."ref" = COALESCE(pinned."ref", pinned."branch")
+            OR (
+              candidate."ref" IS NULL
+              AND candidate."branch" = COALESCE(pinned."ref", pinned."branch")
+            )
+          )
+          AND (
+            EXISTS (
+              SELECT 1
+              FROM "Assessment" snapshot_assessment
+              WHERE snapshot_assessment."id" = candidate."assessmentId"
+                AND snapshot_assessment."ownerId" = ${ownerId}
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM "RepositoryConnection" snapshot_connection
+              WHERE snapshot_connection."id" = candidate."connectionId"
+                AND snapshot_connection."userId" = ${ownerId}
+                AND snapshot_connection."status" = ${REPOSITORY_CONNECTION_STATUSES.active}
+            )
+          )
+        ORDER BY candidate."createdAt" DESC, candidate."id" ASC
+        LIMIT 1
+      ) latest ON true
+    ) per
+    GROUP BY per."assessmentId"`;
+}
+
+/**
  * Business purpose: Calculate source freshness for a bounded owner-scoped assessment candidate set.
- * Business rules: Only READY snapshots visible to the authenticated owner or an active owner connection can establish freshness; ref falls back to branch and matching commits are CURRENT.
- * Execution flow: 1. Read pinned snapshots for scoped_assessments. 2. Find the latest visible snapshot for each repository and normalized ref-or-branch key. 3. Return freshness and observation time for each candidate assessment.
+ * Business rules: Freshness follows every pinned repository (one stale repository makes the assessment stale); see pinnedFreshnessSelect.
+ * Execution flow: 1. Take the scoped_assessments candidates. 2. Aggregate the freshness of each candidate's pins.
  * Failure cases: Missing pins or a missing newer snapshot produce FRESHNESS_UNKNOWN; database errors propagate to the caller's shared error handling.
  * Side effects: Builds a parameterized read-only SQL CTE.
  */
 function ownerScopedFreshnessCte(ownerId: string): Prisma.Sql {
-  return Prisma.sql`, freshness AS (
-    SELECT
-      scoped."assessmentId",
-      CASE
-        WHEN latest."id" IS NOT NULL
-          AND pinned."id" IS NOT NULL
-          AND latest."id" <> pinned."id"
-          AND latest."createdAt" > pinned."createdAt"
-          AND LOWER(latest."commitSha") = LOWER(COALESCE(scoped."repositoryCommit", pinned."commitSha"))
-          THEN ${TRACKING_FRESHNESS_STATUSES.CURRENT}
-        WHEN latest."id" IS NOT NULL
-          AND pinned."id" IS NOT NULL
-          AND latest."id" <> pinned."id"
-          AND latest."createdAt" > pinned."createdAt"
-          THEN ${TRACKING_FRESHNESS_STATUSES.STALE}
-        ELSE ${TRACKING_FRESHNESS_STATUSES.UNKNOWN}
-      END AS "freshnessStatus",
-      CASE
-        WHEN latest."id" IS NOT NULL
-          AND pinned."id" IS NOT NULL
-          AND latest."id" <> pinned."id"
-          AND latest."createdAt" > pinned."createdAt"
-          THEN latest."createdAt"
-        ELSE NULL
-      END AS "observedAt"
-    FROM scoped_assessments scoped
-    LEFT JOIN "RepositorySnapshot" pinned
-      ON pinned."id" = scoped."repositorySnapshotId"
-    LEFT JOIN LATERAL (
-      SELECT candidate."id", candidate."createdAt", candidate."commitSha"
-      FROM "RepositorySnapshot" candidate
-      WHERE candidate."status" = ${REPOSITORY_SNAPSHOT_STATUSES.ready}
-        AND candidate."repositoryFullName" = pinned."repositoryFullName"
-        AND (
-          candidate."ref" = COALESCE(pinned."ref", pinned."branch")
-          OR (
-            candidate."ref" IS NULL
-            AND candidate."branch" = COALESCE(pinned."ref", pinned."branch")
-          )
-        )
-        AND (
-          EXISTS (
-            SELECT 1
-            FROM "Assessment" snapshot_assessment
-            WHERE snapshot_assessment."id" = candidate."assessmentId"
-              AND snapshot_assessment."ownerId" = ${ownerId}
-          )
-          OR EXISTS (
-            SELECT 1
-            FROM "RepositoryConnection" snapshot_connection
-            WHERE snapshot_connection."id" = candidate."connectionId"
-              AND snapshot_connection."userId" = ${ownerId}
-              AND snapshot_connection."status" = ${REPOSITORY_CONNECTION_STATUSES.active}
-          )
-        )
-      ORDER BY candidate."createdAt" DESC, candidate."id" ASC
-      LIMIT 1
-    ) latest ON true
-  )`;
+  return Prisma.sql`, freshness AS (${pinnedFreshnessSelect(
+    ownerId,
+    Prisma.sql`scoped_assessments scoped`,
+  )})`;
+}
+
+/** One pinned repository of an assessment judged against the newest snapshot the owner can see. */
+interface TrackingRepositoryView {
+  repositoryKey: string | null;
+  name: string | null;
+  owner: string | null;
+  pinnedCommit: string | null;
+  latestCommit: string | null;
+  observedAt: string | null;
+  freshnessStatus: TrackingFreshnessStatus;
+  isStale: boolean;
+}
+
+/**
+ * Business purpose: Decide whether one pinned repository of an assessment has since moved to another commit.
+ * Business rules:
+ * - Only a newer visible snapshot of the same repository and ref establishes freshness; its commit decides CURRENT or STALE.
+ * - Without a newer snapshot the freshness is UNKNOWN, never an assumption of being current.
+ * - The assessed commit is the one pinned on the case, falling back to the snapshot's own commit.
+ * Execution flow:
+ * 1. Split the repository name into owner and name.
+ * 2. Compare the newest visible snapshot with the pinned one.
+ * 3. Return the commits, observation time and freshness.
+ * Failure cases:
+ * - A snapshot that is not newer than the pinned one yields UNKNOWN with no latest commit.
+ * Side effects:
+ * - Pure calculation without persistence.
+ */
+function judgePinnedRepositoryFreshness(
+  repositoryKey: string | null,
+  pinned: {
+    id: string;
+    repositoryFullName: string;
+    commitSha: string;
+    createdAt: Date;
+  },
+  assessedCommit: string | null,
+  newest: { id: string; commitSha: string; createdAt: Date } | undefined,
+): TrackingRepositoryView {
+  const parts = pinned.repositoryFullName.split("/");
+  const owner = parts.length > 1 ? (parts[0] ?? null) : null;
+  const name =
+    parts.length > 1 ? parts.slice(1).join("/") : pinned.repositoryFullName;
+  const pinnedCommit = assessedCommit ?? pinned.commitSha;
+  if (
+    !newest ||
+    newest.id === pinned.id ||
+    newest.createdAt <= pinned.createdAt
+  ) {
+    return {
+      repositoryKey,
+      name,
+      owner,
+      pinnedCommit,
+      latestCommit: null,
+      observedAt: null,
+      freshnessStatus: TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      isStale: false,
+    };
+  }
+  const isStale =
+    Boolean(pinnedCommit) &&
+    newest.commitSha.toLowerCase() !== pinnedCommit.toLowerCase();
+  return {
+    repositoryKey,
+    name,
+    owner,
+    pinnedCommit,
+    latestCommit: newest.commitSha,
+    observedAt: newest.createdAt.toISOString(),
+    freshnessStatus: isStale
+      ? TRACKING_FRESHNESS_STATUSES.STALE
+      : TRACKING_FRESHNESS_STATUSES.CURRENT,
+    isStale,
+  };
 }
 
 interface DecisionEvaluationParams {
@@ -515,6 +653,8 @@ interface DecisionEvaluationParams {
     caseRevision: number;
     repositoryCommit: string;
     repositorySnapshotId?: string | null;
+    /** Commits of every pinned repository; evidence may come from any of them. */
+    pinnedCommits?: ReadonlyArray<string>;
   };
   coverage: Array<{
     assessmentId: string;
@@ -551,6 +691,29 @@ interface DecisionEvaluationParams {
     string,
     { assessmentId: string; caseRevision: number; state?: string }
   >;
+}
+
+/**
+ * Business purpose: Decide whether evidence cited by a decision was gathered at a commit pinned to the assessment.
+ * Business rules: Evidence qualifies when its commit equals the primary pinned commit or the commit of any other pinned repository.
+ * Execution flow: 1. Compare against the primary commit. 2. Compare against every other pinned commit.
+ * Failure cases: A commit outside the pinned set does not qualify and the citing decision is reported unresolved.
+ * Side effects: Pure comparison; no reads or writes.
+ */
+function evidenceCommitIsPinned(
+  evidenceCommit: string,
+  domainCase: {
+    repositoryCommit: string;
+    pinnedCommits?: ReadonlyArray<string>;
+  },
+): boolean {
+  const commit = evidenceCommit.toLowerCase();
+  return (
+    commit === domainCase.repositoryCommit.toLowerCase() ||
+    (domainCase.pinnedCommits ?? []).some(
+      (pinned) => pinned.toLowerCase() === commit,
+    )
+  );
 }
 
 /**
@@ -668,8 +831,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
             !ev ||
             ev.assessmentId !== params.assessmentId ||
             (ev.state && ev.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) ||
-            ev.repositoryCommit.toLowerCase() !==
-              params.domainCase.repositoryCommit.toLowerCase()
+            !evidenceCommitIsPinned(ev.repositoryCommit, params.domainCase)
           ) {
             refsValid = false;
             break;
@@ -926,6 +1088,14 @@ export class AssessmentTrackingLoader {
             repositorySnapshotId: true,
             repositoryScanJobId: true,
             repositoryCommit: true,
+            repositories: {
+              orderBy: { ordinal: "asc" },
+              select: {
+                repositoryKey: true,
+                repositorySnapshotId: true,
+                repositoryCommit: true,
+              },
+            },
             ruleSet: {
               select: {
                 id: true,
@@ -1669,7 +1839,12 @@ SELECT
     const pagePinnedSnapshotIds = [
       ...new Set(
         assessments
-          .map((a) => a.domainCase?.repositorySnapshotId)
+          .flatMap((a) => [
+            a.domainCase?.repositorySnapshotId,
+            ...(a.domainCase?.repositories ?? []).map(
+              (pin) => pin.repositorySnapshotId,
+            ),
+          ])
           .filter(
             (id): id is string => typeof id === "string" && id.length > 0,
           ),
@@ -1692,7 +1867,7 @@ SELECT
           })
         : [];
 
-    const pinnedSnapshotById = new Map(
+    const pagePinnedSnapshotById = new Map(
       pagePinnedSnapshots.map((s) => [s.id, s]),
     );
 
@@ -1786,54 +1961,60 @@ SELECT
       const asmtCoverage = allCoverageByAssessmentId.get(assessment.id) ?? [];
 
       // 2. Exact Pinned Repository Freshness & Staleness
-      let repoOwner: string | null = null;
-      let repoName: string | null = null;
-      let pinnedCommit: string | null = domainCase?.repositoryCommit ?? null;
-      let latestCommit: string | null = null;
-      let observedAt: string | null = null;
-      let freshnessStatus: TrackingFreshnessStatus =
-        TRACKING_FRESHNESS_STATUSES.UNKNOWN;
-      let isStale = false;
-
-      if (domainCase?.repositorySnapshotId) {
-        const pinned = pinnedSnapshotById.get(domainCase.repositorySnapshotId);
-        if (pinned) {
-          pinnedCommit = domainCase.repositoryCommit ?? pinned.commitSha;
-          const parts = pinned.repositoryFullName.split("/");
-          repoOwner = parts.length > 1 ? parts[0] : null;
-          repoName =
-            parts.length > 1
-              ? parts.slice(1).join("/")
-              : pinned.repositoryFullName;
-
-          const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
-          const foundLatest = latestSnapshotsByRepoRef.get(key);
-
-          // An assessment result was evaluated at pinnedCommit.
-          // Check remote freshness against authorized subsequent observations:
-          if (
-            foundLatest &&
-            foundLatest.id !== pinned.id &&
-            foundLatest.createdAt > pinned.createdAt
-          ) {
-            latestCommit = foundLatest.commitSha;
-            observedAt = foundLatest.createdAt.toISOString();
-            isStale = Boolean(
-              pinnedCommit &&
-              foundLatest.commitSha.toLowerCase() !==
-                pinnedCommit.toLowerCase(),
-            );
-            freshnessStatus = isStale
-              ? TRACKING_FRESHNESS_STATUSES.STALE
-              : TRACKING_FRESHNESS_STATUSES.CURRENT;
-          } else {
-            freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
-            isStale = false;
-            latestCommit = null;
-            observedAt = null;
-          }
-        }
+      const recordedPins = domainCase?.repositories ?? [];
+      const pinsToJudge =
+        recordedPins.length > 0
+          ? recordedPins.map((pin) => ({
+              repositoryKey: pin.repositoryKey as string | null,
+              snapshotId: pin.repositorySnapshotId,
+              commit: pin.repositoryCommit as string | null,
+            }))
+          : domainCase?.repositorySnapshotId
+            ? [
+                {
+                  repositoryKey: null as string | null,
+                  snapshotId: domainCase.repositorySnapshotId,
+                  commit: domainCase.repositoryCommit as string | null,
+                },
+              ]
+            : [];
+      const repositoryViews: TrackingRepositoryView[] = [];
+      for (const pin of pinsToJudge) {
+        const pinned = pagePinnedSnapshotById.get(pin.snapshotId);
+        if (!pinned) continue;
+        repositoryViews.push(
+          judgePinnedRepositoryFreshness(
+            pin.repositoryKey,
+            pinned,
+            pin.commit,
+            latestSnapshotsByRepoRef.get(
+              `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`,
+            ),
+          ),
+        );
       }
+      const primaryView = repositoryViews[0];
+      const repoOwner = primaryView?.owner ?? null;
+      const repoName = primaryView?.name ?? null;
+      const pinnedCommit: string | null =
+        primaryView?.pinnedCommit ?? domainCase?.repositoryCommit ?? null;
+      const latestCommit = primaryView?.latestCommit ?? null;
+      const observedAt =
+        repositoryViews
+          .map((view) => view.observedAt)
+          .filter((value): value is string => value !== null)
+          .sort()
+          .at(-1) ?? null;
+      // One outdated repository makes the whole assessment stale; otherwise one current repository makes it current.
+      const isStale = repositoryViews.some((view) => view.isStale);
+      const freshnessStatus: TrackingFreshnessStatus = isStale
+        ? TRACKING_FRESHNESS_STATUSES.STALE
+        : repositoryViews.some(
+              (view) =>
+                view.freshnessStatus === TRACKING_FRESHNESS_STATUSES.CURRENT,
+            )
+          ? TRACKING_FRESHNESS_STATUSES.CURRENT
+          : TRACKING_FRESHNESS_STATUSES.UNKNOWN;
 
       // Rule set status
       const ruleSetVersionId = domainCase?.ruleSetVersionId ?? null;
@@ -1865,6 +2046,9 @@ SELECT
             caseRevision: domainCase.caseRevision,
             repositoryCommit: domainCase.repositoryCommit,
             repositorySnapshotId: domainCase.repositorySnapshotId,
+            pinnedCommits: domainCase.repositories.map(
+              (pin) => pin.repositoryCommit,
+            ),
           },
           coverage: asmtCoverage,
           decisionsById: allDecisionsById,
@@ -1964,6 +2148,7 @@ SELECT
           freshnessStatus,
           isStale,
         },
+        repositories: repositoryViews,
         ruleSet: {
           ruleSetVersionId,
           ruleSetName,
@@ -2547,53 +2732,15 @@ SELECT
       >(Prisma.sql`
       ${ownerCanonicalDecisionEvaluationCte(input.sessionUserId)},
       /* tracking-obligation-aggregate */
-      owner_freshness AS (
-        SELECT
-          a."id" AS "assessmentId",
-          CASE
-            WHEN latest."id" IS NOT NULL
-              AND pinned."id" IS NOT NULL
-              AND latest."id" <> pinned."id"
-              AND latest."createdAt" > pinned."createdAt"
-              AND LOWER(latest."commitSha") = LOWER(COALESCE(ac."repositoryCommit", pinned."commitSha"))
-              THEN ${TRACKING_FRESHNESS_STATUSES.CURRENT}
-            WHEN latest."id" IS NOT NULL
-              AND pinned."id" IS NOT NULL
-              AND latest."id" <> pinned."id"
-              AND latest."createdAt" > pinned."createdAt"
-              THEN ${TRACKING_FRESHNESS_STATUSES.STALE}
-            ELSE ${TRACKING_FRESHNESS_STATUSES.UNKNOWN}
-          END AS "freshnessStatus"
-        FROM "Assessment" a
-        LEFT JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
-        LEFT JOIN "RepositorySnapshot" pinned ON pinned."id" = ac."repositorySnapshotId"
-        LEFT JOIN LATERAL (
-          SELECT candidate."id", candidate."createdAt", candidate."commitSha"
-          FROM "RepositorySnapshot" candidate
-          WHERE candidate."status" = ${REPOSITORY_SNAPSHOT_STATUSES.ready}
-            AND candidate."repositoryFullName" = pinned."repositoryFullName"
-            AND (
-              candidate."ref" = COALESCE(pinned."ref", pinned."branch")
-              OR (candidate."ref" IS NULL AND candidate."branch" = COALESCE(pinned."ref", pinned."branch"))
-            )
-            AND (
-              EXISTS (
-                SELECT 1 FROM "Assessment" snapshot_assessment
-                WHERE snapshot_assessment."id" = candidate."assessmentId"
-                  AND snapshot_assessment."ownerId" = ${input.sessionUserId}
-              )
-              OR EXISTS (
-                SELECT 1 FROM "RepositoryConnection" snapshot_connection
-                WHERE snapshot_connection."id" = candidate."connectionId"
-                  AND snapshot_connection."userId" = ${input.sessionUserId}
-                  AND snapshot_connection."status" = ${REPOSITORY_CONNECTION_STATUSES.active}
-              )
-            )
-          ORDER BY candidate."createdAt" DESC, candidate."id" ASC
-          LIMIT 1
-        ) latest ON true
-        WHERE a."ownerId" = ${input.sessionUserId}
-      ),
+      owner_freshness AS (${pinnedFreshnessSelect(
+        input.sessionUserId,
+        Prisma.sql`(
+          SELECT a."id" AS "assessmentId", ac."repositorySnapshotId", ac."repositoryCommit"
+          FROM "Assessment" a
+          LEFT JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
+          WHERE a."ownerId" = ${input.sessionUserId}
+        ) scoped`,
+      )}),
       portfolio_evaluation AS (
         SELECT
           COUNT(*) FILTER (WHERE (
@@ -2841,6 +2988,14 @@ SELECT
             repositorySnapshotId: true,
             repositoryScanJobId: true,
             repositoryCommit: true,
+            repositories: {
+              orderBy: { ordinal: "asc" },
+              select: {
+                repositoryKey: true,
+                repositorySnapshotId: true,
+                repositoryCommit: true,
+              },
+            },
             ruleSet: { select: { version: true, validationOutcome: true } },
             coverage: {
               select: {
@@ -2983,7 +3138,12 @@ SELECT
     const pinnedIds = [
       ...new Set(
         assessments
-          .map((item) => item.domainCase?.repositorySnapshotId)
+          .flatMap((item) => [
+            item.domainCase?.repositorySnapshotId,
+            ...(item.domainCase?.repositories ?? []).map(
+              (pin) => pin.repositorySnapshotId,
+            ),
+          ])
           .filter((id): id is string => Boolean(id)),
       ),
     ];
@@ -3085,37 +3245,57 @@ SELECT
         domainCase.repositoryScanJobId &&
         domainCase.repositoryCommit,
       );
-      const pinned = domainCase?.repositorySnapshotId
-        ? pinnedById.get(domainCase.repositorySnapshotId)
-        : undefined;
-      let freshnessStatus: TrackingFreshnessStatus =
-        TRACKING_FRESHNESS_STATUSES.UNKNOWN;
-      let observedAt: string | null = null;
-      let repositoryName: string | null = null;
-      let repositoryOwner: string | null = null;
-      if (pinned) {
-        const parts = pinned.repositoryFullName.split("/");
-        repositoryOwner = parts.length > 1 ? parts[0] : null;
-        repositoryName =
-          parts.length > 1
-            ? parts.slice(1).join("/")
-            : pinned.repositoryFullName;
-        const latest = latestByKey.get(
-          `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`,
+      const recordedPins = domainCase?.repositories ?? [];
+      const pinsToJudge =
+        recordedPins.length > 0
+          ? recordedPins.map((pin) => ({
+              repositoryKey: pin.repositoryKey as string | null,
+              snapshotId: pin.repositorySnapshotId,
+              commit: pin.repositoryCommit as string | null,
+            }))
+          : domainCase?.repositorySnapshotId
+            ? [
+                {
+                  repositoryKey: null as string | null,
+                  snapshotId: domainCase.repositorySnapshotId,
+                  commit: domainCase.repositoryCommit as string | null,
+                },
+              ]
+            : [];
+      const repositoryViews: TrackingRepositoryView[] = [];
+      for (const pin of pinsToJudge) {
+        const pinned = pinnedById.get(pin.snapshotId);
+        if (!pinned) continue;
+        repositoryViews.push(
+          judgePinnedRepositoryFreshness(
+            pin.repositoryKey,
+            pinned,
+            pin.commit,
+            latestByKey.get(
+              `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`,
+            ),
+          ),
         );
-        if (
-          latest &&
-          latest.id !== pinned.id &&
-          latest.createdAt > pinned.createdAt
-        ) {
-          observedAt = latest.createdAt.toISOString();
-          freshnessStatus =
-            latest.commitSha.toLowerCase() ===
-            (domainCase?.repositoryCommit ?? pinned.commitSha).toLowerCase()
-              ? TRACKING_FRESHNESS_STATUSES.CURRENT
-              : TRACKING_FRESHNESS_STATUSES.STALE;
-        }
       }
+      // One outdated repository makes the whole assessment stale; otherwise one current repository makes it current.
+      const freshnessStatus: TrackingFreshnessStatus = repositoryViews.some(
+        (view) => view.isStale,
+      )
+        ? TRACKING_FRESHNESS_STATUSES.STALE
+        : repositoryViews.some(
+              (view) =>
+                view.freshnessStatus === TRACKING_FRESHNESS_STATUSES.CURRENT,
+            )
+          ? TRACKING_FRESHNESS_STATUSES.CURRENT
+          : TRACKING_FRESHNESS_STATUSES.UNKNOWN;
+      const observedAt =
+        repositoryViews
+          .map((view) => view.observedAt)
+          .filter((value): value is string => value !== null)
+          .sort()
+          .at(-1) ?? null;
+      const repositoryName = repositoryViews[0]?.name ?? null;
+      const repositoryOwner = repositoryViews[0]?.owner ?? null;
       const evaluation =
         domainCase?.ruleSetVersionId && domainCase.repositoryCommit
           ? evaluateAssessmentDecisions({
@@ -3125,6 +3305,9 @@ SELECT
                 caseRevision: domainCase.caseRevision,
                 repositoryCommit: domainCase.repositoryCommit,
                 repositorySnapshotId: domainCase.repositorySnapshotId,
+                pinnedCommits: domainCase.repositories.map(
+                  (pin) => pin.repositoryCommit,
+                ),
               },
               coverage: assessmentCoverage,
               decisionsById,

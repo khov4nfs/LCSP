@@ -10,6 +10,7 @@ import {
 import { ChevronDownIcon } from "lucide-react";
 import { AssessmentReportActions } from "@/features/assessment-runtime/components/molecules/assessment-report-actions";
 import { TrackingFact } from "./tracking-fact";
+import { TrackingRepositoryList } from "./tracking-repository-list";
 import {
   TrackingFreshnessBadge,
   TrackingNotEvaluatedBadge,
@@ -39,6 +40,9 @@ export function AssessmentTrackingCard({ item }: AssessmentTrackingCardProps) {
           {item.repository.owner && item.repository.name
             ? `${item.repository.owner}/${item.repository.name}`
             : trackingMessage("repository")}
+          {item.repositories.length > 1
+            ? ` ${trackingMessage("moreRepositories").replace("{count}", String(item.repositories.length - 1))}`
+            : ""}
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -81,6 +85,7 @@ export function AssessmentTrackingCard({ item }: AssessmentTrackingCardProps) {
           </CollapsibleTrigger>
           <CollapsiblePanel>
             <dl className="mt-2 space-y-2 text-xs">
+              <TrackingRepositoryList repositories={item.repositories} />
               <TrackingFact
                 label={trackingMessage("assessedCommit")}
                 value={item.repository.pinnedCommit}

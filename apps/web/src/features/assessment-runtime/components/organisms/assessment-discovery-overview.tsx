@@ -1,10 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import {
-  ASSESSMENT_DISCOVERY_RUN_STATUSES,
-  DISCOVERY_RULE_CANDIDATE_STATES,
-} from "@lcsp/contracts/assessment-domain";
+import { DISCOVERY_RULE_CANDIDATE_STATES } from "@lcsp/contracts/assessment-domain";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,8 +18,14 @@ import {
   useStartAssessmentDiscovery,
 } from "@/lib/api/assessment-discovery-queries";
 
+import { DiscoveryRepositoryProgress } from "../molecules/discovery-repository-progress";
 import { AssessmentDiscoveryInterview } from "./assessment-discovery-interview";
 import { copy } from "../../utils/conversation-copy";
+import {
+  discoveryBatchHasFailure,
+  discoveryBatchIsActive,
+  selectDiscoveryRun,
+} from "../../utils/discovery-runs";
 
 type RuleLabel = {
   assessmentRuleId: string;
@@ -36,8 +39,9 @@ type RuleLabel = {
  * - Preview is bounded; missing and unlisted candidates cannot imply legal non-applicability.
  * - A failed request keeps its stable key for retry; a completed failed run uses a new key.
  * - Suggestions may populate the customer's editable selection only on explicit click after all candidate pages load, never authorize an audit.
+ * - With several pinned repositories each one is scanned and reviewed on its own; the customer picks whose results to view, and suggestions from one repository are added to the selection instead of replacing another's.
  * Execution flow:
- * 1. Restore latest pin-bound run, allowing refresh and server-side polling during a scan.
+ * 1. Restore latest pin-bound batch (one run per repository), allowing refresh and server-side polling while any scan is active.
  * 2. Start discovery only when the user requests it and no selected audit exists.
  * 3. Page the full use-case/question inventory and allow owner-reviewed pre-scope answers without selecting rules.
  * Failure cases:
@@ -56,17 +60,23 @@ export function AssessmentDiscoveryOverview({
   rules: RuleLabel[];
   canDiscover: boolean;
   canChooseCandidates: boolean;
-  onChooseCandidates: (assessmentRuleIds: string[]) => void;
+  onChooseCandidates: (
+    assessmentRuleIds: string[],
+    options: { merge: boolean },
+  ) => void;
 }) {
   const latest = useAssessmentDiscoveryLatestQuery(assessmentId);
   const start = useStartAssessmentDiscovery(assessmentId);
   const retryKey = useRef<string | null>(null);
   const [visibleQuestionCount, setVisibleQuestionCount] = useState(10);
+  const [viewedKey, setViewedKey] = useState<string | null>(null);
   const ruleNames = useMemo(
     () => new Map(rules.map((rule) => [rule.assessmentRuleId, rule.concept])),
     [rules],
   );
-  const run = latest.data?.available ? latest.data.run : null;
+  const runs = latest.data?.available ? latest.data.runs : [];
+  const run = selectDiscoveryRun(runs, viewedKey);
+  const multiRepository = runs.length > 1;
   const candidatePages = useAssessmentDiscoveryCandidatesQuery(
     assessmentId,
     run?.runId ?? null,
@@ -77,9 +87,8 @@ export function AssessmentDiscoveryOverview({
     run?.runId ?? null,
     run?.discovery.available === true,
   );
-  const running =
-    run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.queued ||
-    run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.running;
+  const running = discoveryBatchIsActive(runs);
+  const failed = discoveryBatchHasFailure(runs);
   const available = run?.discovery.available ? run.discovery.discovery : null;
   const visibleCandidates =
     candidatePages.data?.pages.flatMap((page) => page.items) ??
@@ -165,7 +174,7 @@ export function AssessmentDiscoveryOverview({
             onClick={() => void startDiscovery()}
           >
             {copy(
-              run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.failed
+              failed
                 ? "ruleAudit.discovery.retry"
                 : "ruleAudit.discovery.start",
             )}
@@ -183,7 +192,12 @@ export function AssessmentDiscoveryOverview({
             {copy("ruleAudit.discovery.running")}
           </p>
         ) : null}
-        {run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.failed ? (
+        <DiscoveryRepositoryProgress
+          runs={runs}
+          viewedKey={run?.repositoryKey ?? null}
+          onView={setViewedKey}
+        />
+        {failed ? (
           <Alert role="status">
             <AlertDescription>
               {copy("ruleAudit.discovery.failed")}
@@ -192,6 +206,13 @@ export function AssessmentDiscoveryOverview({
         ) : null}
         {available ? (
           <div className="space-y-3 text-sm">
+            {multiRepository ? (
+              <p className="text-muted-foreground">
+                {copy("ruleAudit.discovery.viewingRepository", {
+                  repository: run?.repositoryKey ?? "",
+                })}
+              </p>
+            ) : null}
             <p role="status">
               {copy("ruleAudit.discovery.summary", {
                 useCases: available.aiUseCaseCount,
@@ -294,9 +315,18 @@ export function AssessmentDiscoveryOverview({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onChooseCandidates(selectableCandidateIds)}
+                    onClick={() =>
+                      onChooseCandidates(selectableCandidateIds, {
+                        merge: multiRepository,
+                      })
+                    }
                   >
-                    {copy("ruleAudit.discovery.selectCandidateRules")}
+                    {multiRepository
+                      ? copy(
+                          "ruleAudit.discovery.selectCandidateRulesFromRepository",
+                          { repository: run?.repositoryKey ?? "" },
+                        )
+                      : copy("ruleAudit.discovery.selectCandidateRules")}
                   </Button>
                 ) : null}
                 {candidatePages.hasNextPage ? (

@@ -310,7 +310,9 @@ test("UI-02: each APPLICABLE legal rule produces its own distinct output turn", 
 
 test("UI-03: extractLegalDocumentNumber parses official regulatory document numbers", () => {
   assert.equal(
-    extractLegalDocumentNumber("Nghị định số 147/2024/NĐ-CP về quản lý internet"),
+    extractLegalDocumentNumber(
+      "Nghị định số 147/2024/NĐ-CP về quản lý internet",
+    ),
     "147/2024/NĐ-CP",
   );
   assert.equal(
@@ -436,7 +438,8 @@ test("UI-03 & UI-04: buildLegalRulePresentationModel formats verbatim rule and s
         {
           id: "doc-row-147",
           documentId: "DOC-147",
-          title: "Nghị định số 147/2024/NĐ-CP về quản lý, cung cấp, sử dụng internet",
+          title:
+            "Nghị định số 147/2024/NĐ-CP về quản lý, cung cấp, sử dụng internet",
           sourceUrl: "https://vanban.chinhphu.vn/147-2024-nd-cp",
           sourceEffectStatus: "EFFECTIVE",
           effectiveDate: "2024-12-25",
@@ -467,6 +470,8 @@ test("UI-03 & UI-04: buildLegalRulePresentationModel formats verbatim rule and s
         repositorySnapshotId: SNAPSHOT_ID,
         repositoryScanJobId: "job-1",
         repositoryCommit: COMMIT,
+        repositorySetDigest: null,
+        repositories: [],
         pinnedAt: "2026-10-11T10:00:00.000Z",
       },
       runtime: {
@@ -489,6 +494,7 @@ test("UI-03 & UI-04: buildLegalRulePresentationModel formats verbatim rule and s
           type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
           state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
           repositoryCommit: COMMIT,
+          repositoryKey: null,
           contentSha256: "sha256:abcdef",
           payload: {
             path: "src/services/notice-retention.ts",
@@ -525,10 +531,19 @@ test("UI-03 & UI-04: buildLegalRulePresentationModel formats verbatim rule and s
   assert.ok(model.applicability.nonEquivalenceNote.length > 0);
 
   // Verify Compliance & Obligation
-  assert.equal(model.compliance.outcome, RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT);
-  assert.equal(model.obligation.summary, "Mandatory retention of customer notices for 90 days.");
+  assert.equal(
+    model.compliance.outcome,
+    RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
+  );
+  assert.equal(
+    model.obligation.summary,
+    "Mandatory retention of customer notices for 90 days.",
+  );
   assert.equal(model.obligation.criteria.length, 1);
-  assert.equal(model.obligation.criteria[0]?.outcome, RULE_DECISION_CRITERION_OUTCOMES.NOT_MET);
+  assert.equal(
+    model.obligation.criteria[0]?.outcome,
+    RULE_DECISION_CRITERION_OUTCOMES.NOT_MET,
+  );
 
   // Verify Evidence
   assert.equal(model.evidenceList.length, 1);
@@ -546,153 +561,157 @@ test("UI-03 & UI-04: buildLegalRulePresentationModel formats verbatim rule and s
 
   // Verify no technical jargon is present in the user model
   const serialized = JSON.stringify(model);
-  assert.doesNotMatch(serialized, /Rule Engineer|Preparation Rule|RulePreparationActivity/i);
+  assert.doesNotMatch(
+    serialized,
+    /Rule Engineer|Preparation Rule|RulePreparationActivity/i,
+  );
 });
 
 test("UI-03, UI-05, UI-06, UI-07, UI-09: ConversationDecisionTurn renders the enterprise LegalTech compliance workflow", async () => {
   const baseDetail = detail({ decisions: true });
-    const catalogData = {
-      rules: [
-        {
-          assessmentRuleId: "ER-RET",
-          assessmentRuleVersion: "2026.10",
-          concept: "Notice retention",
-          summary: "Mandatory 90-day retention of notices.",
-          legalRequirements: [
-            {
-              legalRequirementId: "LR-1",
-              title: "Notice retention obligation",
-              sources: [
-                {
-                  documentId: "DOC-147",
-                  locator: "Điều 23, Khoản 2, Điểm b",
-                },
-              ],
-            },
-          ],
-          progress: "RESULT_READY",
-          decisionId: DECISION_ID,
-          membership: null,
-        },
-      ],
-      offset: 0,
-      nextOffset: null,
-      total: 1,
-      localizationFallback: false,
-      localizationState: "READY",
-      groupingState: "APPROVED",
-      groups: [],
-      excludedRuleCount: 0,
-      assessmentId: ASSESSMENT_ID,
-      auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
-      auditRevision: 1,
-      ruleSetVersionId: RULE_SET_ID,
-      ruleSetDigest: "digest-1",
+  const catalogData = {
+    rules: [
+      {
+        assessmentRuleId: "ER-RET",
+        assessmentRuleVersion: "2026.10",
+        concept: "Notice retention",
+        summary: "Mandatory 90-day retention of notices.",
+        legalRequirements: [
+          {
+            legalRequirementId: "LR-1",
+            title: "Notice retention obligation",
+            sources: [
+              {
+                documentId: "DOC-147",
+                locator: "Điều 23, Khoản 2, Điểm b",
+              },
+            ],
+          },
+        ],
+        progress: "RESULT_READY",
+        decisionId: DECISION_ID,
+        membership: null,
+      },
+    ],
+    offset: 0,
+    nextOffset: null,
+    total: 1,
+    localizationFallback: false,
+    localizationState: "READY",
+    groupingState: "APPROVED",
+    groups: [],
+    excludedRuleCount: 0,
+    assessmentId: ASSESSMENT_ID,
+    auditMode: ASSESSMENT_AUDIT_MODES.CUSTOMER_SELECTED,
+    auditRevision: 1,
+    ruleSetVersionId: RULE_SET_ID,
+    ruleSetDigest: "digest-1",
+    repositorySnapshotId: SNAPSHOT_ID,
+    repositoryCommit: COMMIT,
+    latestRequestId: null,
+    latestRequestStatus: null,
+  };
+
+  const provenanceData = {
+    schemaVersion: ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
+    assessmentId: ASSESSMENT_ID,
+    name: "Notice Service Assessment",
+    ownerId: "owner-1",
+    generatedAt: new Date().toISOString(),
+    contentFingerprintSha256: "0".repeat(64),
+    checksumSha256: "0".repeat(64),
+    correlationId: "corr-1",
+    lifecycle: { state: "ACTIVE", assessmentRevision: 1 },
+    pins: {
+      ruleSet: {
+        ruleSetVersionId: RULE_SET_ID,
+        version: "1.0",
+        legalSourceVersion: "1.0",
+        legalRequirementCount: 1,
+        assessmentRuleCount: 1,
+      },
       repositorySnapshotId: SNAPSHOT_ID,
+      repositoryScanJobId: "job-1",
       repositoryCommit: COMMIT,
-      latestRequestId: null,
-      latestRequestStatus: null,
-    };
-
-    const provenanceData = {
-      schemaVersion: ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
-      assessmentId: ASSESSMENT_ID,
-      name: "Notice Service Assessment",
-      ownerId: "owner-1",
-      generatedAt: new Date().toISOString(),
-      contentFingerprintSha256: "0".repeat(64),
-      checksumSha256: "0".repeat(64),
-      correlationId: "corr-1",
-      lifecycle: { state: "ACTIVE", assessmentRevision: 1 },
-      pins: {
-        ruleSet: {
-          ruleSetVersionId: RULE_SET_ID,
-          version: "1.0",
-          legalSourceVersion: "1.0",
-          legalRequirementCount: 1,
-          assessmentRuleCount: 1,
-        },
-        repositorySnapshotId: SNAPSHOT_ID,
-        repositoryScanJobId: "job-1",
+      pinnedAt: new Date().toISOString(),
+    },
+    runtime: {
+      threadId: THREAD_ID,
+      rootAgentVersion: "1.0",
+      checkpointNamespace: ASSESSMENT_ID,
+      checkpointId: null,
+      currentExecutionId: EXECUTION_ID,
+      executionState: "RUNNING",
+      eventSequence: 1,
+      startedAt: new Date().toISOString(),
+      lastResumedAt: null,
+      updatedAt: new Date().toISOString(),
+    },
+    acceptedFacts: [],
+    acceptedEvidence: [
+      {
+        evidenceId: EVIDENCE_ID,
+        assessmentId: ASSESSMENT_ID,
+        type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+        state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
         repositoryCommit: COMMIT,
-        pinnedAt: new Date().toISOString(),
+        contentSha256: `sha256:${"0".repeat(64)}`,
+        payload: {
+          path: "src/retention/policy.ts",
+          startLine: 12,
+          endLine: 28,
+          excerpt: "const retentionDays = 30;",
+          scopes: ["retention-config"],
+          queries: ["retentionDays"],
+        },
+        createdAt: new Date().toISOString(),
       },
-      runtime: {
-        threadId: THREAD_ID,
-        rootAgentVersion: "1.0",
-        checkpointNamespace: ASSESSMENT_ID,
-        checkpointId: null,
-        currentExecutionId: EXECUTION_ID,
-        executionState: "RUNNING",
-        eventSequence: 1,
-        startedAt: new Date().toISOString(),
-        lastResumedAt: null,
-        updatedAt: new Date().toISOString(),
-      },
-      acceptedFacts: [],
-      acceptedEvidence: [
+    ],
+    humanResolutions: [],
+    decisions: [],
+    coverage: [],
+    events: [],
+    artifacts: [],
+  };
+
+  const stub = installFetch({
+    [`GET /api/assessments/${ASSESSMENT_ID}`]: baseDetail,
+    [`GET /api/assessments/${ASSESSMENT_ID}/rules`]: catalogData,
+    [`GET /api/legal-library`]: {
+      versionId: "ver-147",
+      version: "2024.12",
+      sourceName: "National Legal Database",
+      activatedAt: new Date().toISOString(),
+      documents: [
         {
-          evidenceId: EVIDENCE_ID,
-          assessmentId: ASSESSMENT_ID,
-          type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
-          state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
-          repositoryCommit: COMMIT,
-          contentSha256: `sha256:${"0".repeat(64)}`,
-          payload: {
-            path: "src/retention/policy.ts",
-            startLine: 12,
-            endLine: 28,
-            excerpt: "const retentionDays = 30;",
-            scopes: ["retention-config"],
-            queries: ["retentionDays"],
-          },
-          createdAt: new Date().toISOString(),
+          id: "doc-147",
+          documentId: "DOC-147",
+          title: "Nghị định 147/2024/NĐ-CP",
+          sourceUrl: "https://vanban.chinhphu.vn/147",
+          sourceEffectStatus: "EFFECTIVE",
+          effectiveDate: "2024-12-25",
+          chunkCount: 1,
+          mediaType: null,
+          hasOriginal: true,
         },
       ],
-      humanResolutions: [],
-      decisions: [],
-      coverage: [],
-      events: [],
-      artifacts: [],
-    };
-
-    const stub = installFetch({
-      [`GET /api/assessments/${ASSESSMENT_ID}`]: baseDetail,
-      [`GET /api/assessments/${ASSESSMENT_ID}/rules`]: catalogData,
-      [`GET /api/legal-library`]: {
-        versionId: "ver-147",
-        version: "2024.12",
-        sourceName: "National Legal Database",
-        activatedAt: new Date().toISOString(),
-        documents: [
-          {
-            id: "doc-147",
-            documentId: "DOC-147",
-            title: "Nghị định 147/2024/NĐ-CP",
-            sourceUrl: "https://vanban.chinhphu.vn/147",
-            sourceEffectStatus: "EFFECTIVE",
-            effectiveDate: "2024-12-25",
-            chunkCount: 1,
-            mediaType: null,
-            hasOriginal: true,
-          },
-        ],
-      },
-      [`GET /api/legal-sources/doc-147/chunks`]: {
-        chunks: [
-          {
-            chunkId: "chunk-1",
-            documentRowId: "doc-147",
-            locator: "Điều 23, Khoản 2, Điểm b",
-            content: "Doanh nghiệp cung cấp dịch vụ mạng xã hội phải lưu trữ thông tin tối thiểu 90 ngày.",
-          },
-        ],
-        total: 1,
-        page: 1,
-        limit: 50,
-      },
-      [`GET /api/assessments/${ASSESSMENT_ID}/provenance`]: provenanceData,
-    });
+    },
+    [`GET /api/legal-sources/doc-147/chunks`]: {
+      chunks: [
+        {
+          chunkId: "chunk-1",
+          documentRowId: "doc-147",
+          locator: "Điều 23, Khoản 2, Điểm b",
+          content:
+            "Doanh nghiệp cung cấp dịch vụ mạng xã hội phải lưu trữ thông tin tối thiểu 90 ngày.",
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 50,
+    },
+    [`GET /api/assessments/${ASSESSMENT_ID}/provenance`]: provenanceData,
+  });
 
   try {
     const turn = {
@@ -722,7 +741,8 @@ test("UI-03, UI-05, UI-06, UI-07, UI-09: ConversationDecisionTurn renders the en
           legalContextRefs: [],
           applicability: RULE_DECISION_APPLICABILITIES.APPLICABLE,
           compliance: RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
-          rationale: "Deletion is based on draft timestamp instead of receipt timestamp.",
+          rationale:
+            "Deletion is based on draft timestamp instead of receipt timestamp.",
           references: [
             {
               type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
@@ -733,7 +753,8 @@ test("UI-03, UI-05, UI-06, UI-07, UI-09: ConversationDecisionTurn renders the en
             {
               criterionId: "C-1",
               outcome: RULE_DECISION_CRITERION_OUTCOMES.NOT_MET,
-              rationale: "Retention period configured as 30 days instead of required 90 days.",
+              rationale:
+                "Retention period configured as 30 days instead of required 90 days.",
               references: [
                 {
                   type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
@@ -770,27 +791,44 @@ test("UI-03, UI-05, UI-06, UI-07, UI-09: ConversationDecisionTurn renders the en
     assert.match(rawViewer.textContent ?? "", /Điều 23, Khoản 2, Điểm b/);
 
     // 4. Applicability Explanation
-    const applicability = view.querySelector('[data-slot="applicability-explanation"]');
+    const applicability = view.querySelector(
+      '[data-slot="applicability-explanation"]',
+    );
     assert.ok(applicability, "Applicability explanation must be present");
-    assert.match(applicability.textContent ?? "", /Notice retention obligation/);
+    assert.match(
+      applicability.textContent ?? "",
+      /Notice retention obligation/,
+    );
 
     // 5. Compliance Assessment
-    const complianceBadge = view.querySelector('[data-slot="compliance-outcome-badge"]');
+    const complianceBadge = view.querySelector(
+      '[data-slot="compliance-outcome-badge"]',
+    );
     assert.ok(complianceBadge, "Compliance outcome badge must be present");
     assert.match(complianceBadge.textContent ?? "", /Non-compliant/);
 
     // 6. Evidence Relationship Viewer
-    const evidenceViewer = view.querySelector('[data-slot="evidence-relationship-viewer"]');
+    const evidenceViewer = view.querySelector(
+      '[data-slot="evidence-relationship-viewer"]',
+    );
     assert.ok(evidenceViewer, "Evidence relationship viewer must be present");
-    assert.match(evidenceViewer.textContent ?? "", /src\/retention\/policy\.ts/);
+    assert.match(
+      evidenceViewer.textContent ?? "",
+      /src\/retention\/policy\.ts/,
+    );
     assert.match(evidenceViewer.textContent ?? "", /12[–-]28/);
     assert.match(evidenceViewer.textContent ?? "", /const retentionDays = 30;/);
 
     // 7. Reasoning Synthesis (Area F)
-    const synthesis = view.querySelector('[data-slot="compliance-reasoning-summary"]');
+    const synthesis = view.querySelector(
+      '[data-slot="compliance-reasoning-summary"]',
+    );
     assert.ok(synthesis, "Reasoning synthesis must be present");
     assert.match(synthesis.textContent ?? "", /Notice retention obligation/);
-    assert.match(synthesis.textContent ?? "", /Deletion is based on draft timestamp/);
+    assert.match(
+      synthesis.textContent ?? "",
+      /Deletion is based on draft timestamp/,
+    );
 
     // 8. Follow-up Action
     const followUpBtn = view.querySelector('[data-slot="ask-follow-up-rule"]');
@@ -826,11 +864,21 @@ test("UI-15: AssessmentContextPanel provides quick-jump navigation links for all
     );
     await settle();
 
-    const quickJumpList = view.querySelector('[data-slot="applicable-rules-quick-jump"]');
-    assert.ok(quickJumpList, "Quick jump list for applicable rules must be rendered in context panel");
+    const quickJumpList = view.querySelector(
+      '[data-slot="applicable-rules-quick-jump"]',
+    );
+    assert.ok(
+      quickJumpList,
+      "Quick jump list for applicable rules must be rendered in context panel",
+    );
 
-    const quickJumpLink = view.querySelector(`a[href="#decision-${DECISION_ID}"]`);
-    assert.ok(quickJumpLink, `Anchor link to #decision-${DECISION_ID} must be present`);
+    const quickJumpLink = view.querySelector(
+      `a[href="#decision-${DECISION_ID}"]`,
+    );
+    assert.ok(
+      quickJumpLink,
+      `Anchor link to #decision-${DECISION_ID} must be present`,
+    );
     assert.match(quickJumpLink.textContent ?? "", /Notice retention/);
   } finally {
     stub.restore();

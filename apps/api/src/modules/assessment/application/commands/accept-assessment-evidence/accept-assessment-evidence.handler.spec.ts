@@ -3,6 +3,7 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_RECORD_STATES,
+  REPOSITORY_SET_ERROR_CODES,
   SEARCH_COVERAGE_SCOPE_KINDS,
   type AcceptEvidenceRequest,
   type SearchCoverageEvidenceRequest,
@@ -37,7 +38,18 @@ const coverage = (): SearchCoverageEvidenceRequest => ({
   ],
 });
 
-function fixture(prefix: string | null, replayed = false) {
+const pin = (
+  repositoryKey: string,
+  repositoryCommit: string,
+  sourcePathPrefix: string | null,
+  ordinal = 0,
+) => ({ repositoryKey, repositoryCommit, sourcePathPrefix, ordinal });
+
+function fixture(
+  prefix: string | null,
+  replayed = false,
+  repositories = [pin("chatbot-service", commit, prefix)],
+) {
   const accepted = {
     evidenceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
@@ -63,6 +75,8 @@ function fixture(prefix: string | null, replayed = false) {
         caseRevision: 1,
         repositoryCommit: commit,
         sourcePathPrefix: prefix,
+        repositorySetRecorded: true,
+        repositories,
       }),
   } as unknown as AssessmentCaseSupport;
   const appendInTx = jest
@@ -198,5 +212,93 @@ describe("AcceptAssessmentEvidenceHandler immutable source scope", () => {
     request.scopes[0].path = ".";
     await full.run(request);
     expect(full.create).toHaveBeenCalledTimes(1);
+  });
+
+  describe("with several pinned repositories", () => {
+    const otherCommit = "d".repeat(40);
+    const repositories = [
+      pin("web-app", commit, "web", 0),
+      pin("api-service", otherCommit, null, 1),
+    ];
+
+    it("judges evidence against the commit and prefix of the repository it names", async () => {
+      const f = fixture(null, false, repositories);
+      await f.run({
+        ...source("src/main.py"),
+        repositoryKey: "api-service",
+        repositoryCommit: otherCommit,
+      });
+      expect(f.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            repositoryKey: "api-service",
+            repositoryCommit: otherCommit,
+          }),
+        }),
+      );
+    });
+
+    it("rejects a path outside the named repository's own prefix", async () => {
+      const f = fixture(null, false, repositories);
+      await expect(
+        f.run({ ...source("src/main.py"), repositoryKey: "web-app" }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_SOURCE_SCOPE_MISMATCH,
+          },
+        },
+      });
+      expect(f.create).not.toHaveBeenCalled();
+    });
+
+    it("does not let one repository's commit vouch for another", async () => {
+      const f = fixture(null, false, repositories);
+      await expect(
+        f.run({
+          ...source("web/main.py"),
+          repositoryKey: "web-app",
+          repositoryCommit: otherCommit,
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_PIN_MISMATCH,
+          },
+        },
+      });
+    });
+
+    it.each([undefined, "unknown-repo"])(
+      "rejects a missing or unknown repository key (%s)",
+      async (repositoryKey) => {
+        const f = fixture(null, false, repositories);
+        await expect(
+          f.run({ ...source("web/main.py"), repositoryKey }),
+        ).rejects.toMatchObject({
+          response: {
+            problem: { code: REPOSITORY_SET_ERROR_CODES.keyUnknown },
+          },
+        });
+        expect(f.findUnique).not.toHaveBeenCalled();
+        expect(f.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("mints different evidence identities for the same excerpt in different repositories", async () => {
+      const ids: string[] = [];
+      for (const key of ["web-app", "api-service"]) {
+        const f = fixture(null, false, [
+          pin("web-app", commit, null, 0),
+          pin("api-service", commit, null, 1),
+        ]);
+        await f.run({ ...source("src/main.py"), repositoryKey: key });
+        ids.push(
+          (f.create.mock.calls[0]?.[0].data as { evidenceId: string })
+            .evidenceId,
+        );
+      }
+      expect(new Set(ids).size).toBe(2);
+    });
   });
 });

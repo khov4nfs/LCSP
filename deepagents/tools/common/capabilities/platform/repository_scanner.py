@@ -1909,6 +1909,8 @@ def _enrich_repository_discovery_from_graph(
     *,
     execute: Callable[..., Any],
     max_traces: int = DEFAULT_MAX_DISCOVERY_GRAPH_TRACES,
+    graph_project: str | None = None,
+    graph_path_prefix: str = "",
 ) -> dict[str, Any]:
     """Business purpose:
     Reuse the pinned Codebase Memory index to prioritize cross-file callers and callees
@@ -2023,9 +2025,9 @@ def _enrich_repository_discovery_from_graph(
         command = codebase_memory_cli(
             "trace_path",
             {
-                "project": CODEBASE_MEMORY_PROJECT,
+                "project": graph_project or CODEBASE_MEMORY_PROJECT,
                 "function_name": symbol,
-                "file_path": path,
+                "file_path": f"{graph_path_prefix}{path}",
                 "direction": "both",
                 "depth": DEFAULT_DISCOVERY_GRAPH_TRACE_DEPTH,
                 "format": "json",
@@ -2823,6 +2825,9 @@ def ensure_repository_discovery(
     source_path_prefix: str | None = None,
     workspace_path: Path | str = "/workspace/repository",
     graph_index_version: str = "UNAVAILABLE",
+    discovery_path: str = REPOSITORY_DISCOVERY_PATH,
+    graph_project: str | None = None,
+    graph_path_prefix: str = "",
 ) -> dict[str, Any]:
     """Business purpose:
     Reuse or produce a versioned repository discovery artifact inside the guarded repository sandbox.
@@ -2854,7 +2859,7 @@ def ensure_repository_discovery(
 
     if callable(read):
         try:
-            cached_raw = read(REPOSITORY_DISCOVERY_PATH)
+            cached_raw = read(discovery_path)
             cached_str: str | None = None
             if isinstance(cached_raw, str):
                 cached_str = cached_raw
@@ -2931,6 +2936,8 @@ def ensure_repository_discovery(
         discovered = _enrich_repository_discovery_from_graph(
             discovered,
             execute=execute,
+            graph_project=graph_project,
+            graph_path_prefix=graph_path_prefix,
         )
 
     validation_error = validate_repository_discovery_error(
@@ -2945,7 +2952,7 @@ def ensure_repository_discovery(
         raise RuntimeError(f"Repository discovery produced invalid artifact: {validation_error}")
     if callable(write):
         write_result = write(
-            REPOSITORY_DISCOVERY_PATH,
+            discovery_path,
             json.dumps(discovered, ensure_ascii=False, separators=(",", ":"), sort_keys=True),
         )
         write_error = getattr(write_result, "error", None) or (
@@ -3092,6 +3099,7 @@ def ensure_repository_profile(
     commit_sha: str,
     source_path_prefix: str | None = None,
     workspace_path: Path | str = "/workspace/repository",
+    profile_path: str = REPOSITORY_PROFILE_PATH,
 ) -> dict[str, Any]:
     """Business purpose:
     Load or generate the cached deterministic repository profile in the sandbox environment.
@@ -3131,7 +3139,7 @@ def ensure_repository_profile(
     # Check cached profile
     if callable(read):
         try:
-            cached_raw = read(REPOSITORY_PROFILE_PATH)
+            cached_raw = read(profile_path)
             cached_str: str | None = None
             if isinstance(cached_raw, str):
                 cached_str = cached_raw
@@ -3241,7 +3249,7 @@ def ensure_repository_profile(
 
     if callable(write):
         try:
-            write(REPOSITORY_PROFILE_PATH, json.dumps(profile, separators=(",", ":"), sort_keys=True))
+            write(profile_path, json.dumps(profile, separators=(",", ":"), sort_keys=True))
         except Exception:
             pass
 

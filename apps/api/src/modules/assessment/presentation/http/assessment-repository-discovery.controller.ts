@@ -4,10 +4,12 @@ import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   assessmentRootClaimSchema,
   repositoryDiscoveryRangePageQuerySchema,
+  repositoryDiscoverySummaryQuerySchema,
   repositoryDiscoveryDetailPageQuerySchema,
   repositoryDiscoveryExpansionRequestSchema,
   submitRepositoryDiscoverySchema,
   type RepositoryDiscoveryRangePageQuery,
+  type RepositoryDiscoverySummaryQuery,
   type RepositoryDiscoveryDetailPageQuery,
   type RepositoryDiscoveryExpansionRequest,
   type SubmitRepositoryDiscovery,
@@ -121,6 +123,8 @@ export class AssessmentRepositoryDiscoveryController {
     )
     assessmentId: string,
     @Headers(ASSESSMENT_LEASE_HEADER) leaseToken: string,
+    @Query(requestPipe(repositoryDiscoverySummaryQuerySchema))
+    query: RepositoryDiscoverySummaryQuery,
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
@@ -128,6 +132,7 @@ export class AssessmentRepositoryDiscoveryController {
         assessmentId,
         leaseToken,
         correlationId: this.correlation(request),
+        ...query,
       }),
     );
   }

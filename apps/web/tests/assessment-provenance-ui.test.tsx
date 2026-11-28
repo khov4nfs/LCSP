@@ -42,6 +42,8 @@ const mockProvenance: AssessmentProvenanceArtifact = {
     repositorySnapshotId: "snap-123",
     repositoryScanJobId: "job-123",
     repositoryCommit: "0123456789abcdef0123456789abcdef01234567",
+    repositorySetDigest: null,
+    repositories: [],
     pinnedAt: "2026-10-17T11:00:00.000Z",
   },
   runtime: {
@@ -76,6 +78,7 @@ const mockProvenance: AssessmentProvenanceArtifact = {
       type: "REPOSITORY_SOURCE",
       state: "ACCEPTED",
       repositoryCommit: "0123456789abcdef0123456789abcdef01234567",
+      repositoryKey: null,
       contentSha256:
         "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       payload: { path: "server.conf" },
@@ -271,4 +274,57 @@ test("AssessmentProvenanceView renders populated provenance with cryptographic c
   // Facts & Evidence
   assert.match(html, /TLS 1\.3 enforced on all external endpoints\./);
   assert.match(html, /EVIDENCE_CITED/);
+});
+
+test("AssessmentProvenanceView lists every pinned repository with its commit, prefix and evidence repository", () => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const digest = `sha256:${"5".repeat(64)}`;
+  const apiCommit = "fedcba9876543210fedcba9876543210fedcba98";
+  queryClient.setQueryData(assessmentDomainKeys.provenance(assessmentId), {
+    ...mockProvenance,
+    pins: {
+      ...mockProvenance.pins!,
+      repositorySetDigest: digest,
+      repositories: [
+        {
+          repositoryKey: "web",
+          ordinal: 0,
+          repositoryFullName: "acme/web-app",
+          repositorySnapshotId: "snap-web",
+          repositoryCommit: "0123456789abcdef0123456789abcdef01234567",
+          sourcePathPrefix: null,
+        },
+        {
+          repositoryKey: "billing-api",
+          ordinal: 1,
+          repositoryFullName: "acme/billing-api",
+          repositorySnapshotId: "snap-api",
+          repositoryCommit: apiCommit,
+          sourcePathPrefix: "services/billing",
+        },
+      ],
+    },
+    acceptedEvidence: mockProvenance.acceptedEvidence.map((evidence) => ({
+      ...evidence,
+      repositoryKey: "billing-api",
+    })),
+  } satisfies AssessmentProvenanceArtifact);
+
+  const html = renderToStaticMarkup(
+    React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      React.createElement(AssessmentProvenanceView, { assessmentId }),
+    ),
+  );
+
+  assert.match(html, new RegExp(digest));
+  assert.match(html, /web ·[\s\S]*acme\/web-app/);
+  assert.match(html, /billing-api ·[\s\S]*acme\/billing-api/);
+  assert.match(html, new RegExp(apiCommit));
+  assert.match(html, /services\/billing/);
+  // The evidence card names the repository the evidence belongs to.
+  assert.match(html, /data-slot="badge"[^>]*>billing-api</);
 });

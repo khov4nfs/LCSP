@@ -8,7 +8,19 @@ export function ConversationOpeningTurn({ turn }: { turn: OpeningTurn }) {
   return (
     <ChatMessage role={CHAT_MESSAGE_ROLES.agent} author={copy("agentName")}>
       <p>{copy("opening")}</p>
-      {turn.repositoryFullName && commit ? (
+      {turn.repositories.length > 1 ? (
+        <p className="mt-1 text-muted-foreground">
+          {copy("openingRepositories", {
+            repositories: turn.repositories
+              .map((repository) =>
+                repository.commit
+                  ? `${repository.fullName} (${repository.commit.slice(0, 7)})`
+                  : repository.fullName,
+              )
+              .join(", "),
+          })}
+        </p>
+      ) : turn.repositoryFullName && commit ? (
         <p className="mt-1 text-muted-foreground">
           {copy("openingRepository", {
             repository: turn.repositoryFullName,

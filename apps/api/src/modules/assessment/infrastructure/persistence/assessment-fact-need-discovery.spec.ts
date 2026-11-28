@@ -23,11 +23,19 @@ const repositorySnapshotId = "snapshot-1";
 const repositoryCommit = "a".repeat(40);
 const rangeId = sha("3");
 
-function discovery(): RepositoryDiscovery {
-  const base = {
+function discovery(
+  coordinates: {
+    repositoryId: string;
+    commitSha: string;
+    sourcePathPrefix: string | null;
+  } = {
     repositoryId: "repository-1",
     commitSha: repositoryCommit,
     sourcePathPrefix: "apps/api",
+  },
+): RepositoryDiscovery {
+  const base = {
+    ...coordinates,
     scannerVersion: REPOSITORY_SCANNER_VERSIONS.v1,
     discoveryVersion: REPOSITORY_DISCOVERY_VERSIONS.v1,
     scannerSignature: sha("1"),
@@ -85,7 +93,10 @@ function discovery(): RepositoryDiscovery {
   return { ...withCache, contentDigest, discoveryId: contentDigest };
 }
 
-function transaction(payload: RepositoryDiscovery | null) {
+function transaction(
+  payload: RepositoryDiscovery | null,
+  snapshotId = repositorySnapshotId,
+) {
   return {
     assessmentRepositoryDiscovery: {
       findMany: jest.fn(() =>
@@ -96,6 +107,7 @@ function transaction(payload: RepositoryDiscovery | null) {
                   recordId,
                   contentDigest: payload.contentDigest,
                   payload,
+                  repositorySnapshotId: snapshotId,
                 },
               ]
             : [],
@@ -149,5 +161,53 @@ describe("FactNeed discovery provenance", () => {
         investigatedRangeIds: [rangeId],
       }),
     ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it("judges a record against the pinned repository of its own snapshot", async () => {
+    const second = {
+      repositorySnapshotId: "snapshot-2",
+      repositoryCommit: "b".repeat(40),
+      sourcePathPrefix: "services/billing",
+    };
+    const payload = discovery({
+      repositoryId: "repository-2",
+      commitSha: second.repositoryCommit,
+      sourcePathPrefix: second.sourcePathPrefix,
+    });
+    const input = {
+      assessmentId,
+      repositorySnapshotId,
+      repositoryCommit,
+      sourcePathPrefix: "apps/api",
+      investigationDiscoveryRefs: [
+        { recordId, contentDigest: payload.contentDigest },
+      ],
+      investigatedRangeIds: [rangeId],
+      correlationId: "correlation-set",
+    };
+    const bothRepositories = [
+      { repositorySnapshotId, repositoryCommit, sourcePathPrefix: "apps/api" },
+      second,
+    ];
+    await expect(
+      validateFactNeedDiscoveryProvenanceInTx(
+        transaction(payload, "snapshot-2"),
+        { ...input, repositories: bothRepositories },
+      ),
+    ).resolves.toEqual([{ recordId, contentDigest: payload.contentDigest }]);
+    // Without the set the second repository's record is foreign to the single scalar pin.
+    await expect(
+      validateFactNeedDiscoveryProvenanceInTx(
+        transaction(payload, "snapshot-2"),
+        input,
+      ),
+    ).rejects.toThrow();
+    // A record stored under one snapshot but carrying another repository's coordinates is tampered.
+    await expect(
+      validateFactNeedDiscoveryProvenanceInTx(transaction(payload), {
+        ...input,
+        repositories: bothRepositories,
+      }),
+    ).rejects.toThrow();
   });
 });

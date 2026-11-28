@@ -23,6 +23,7 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import { sanitizeAgentStreamValue } from "../../../../platform/runtime-events/agent-stream-sanitizer.js";
 import { projectCanonicalAssessment } from "../../../../platform/runtime-events/canonical-assessment-projection.js";
 import { toAssessmentEvent } from "../../../../platform/runtime-events/canonical-assessment-event.mapper.js";
+import { evidenceBelongsToPinnedSet } from "../../domain/decision-validator.js";
 
 /**
  * Loads the canonical Assessment Provenance Audit Trail and validates all references fail-closed.
@@ -78,6 +79,7 @@ export class AssessmentProvenanceLoader {
         runtime: true,
         domainCase: {
           include: {
+            repositories: { orderBy: { ordinal: "asc" } },
             ruleSet: {
               include: {
                 legalSourceVersion: true,
@@ -197,7 +199,10 @@ export class AssessmentProvenanceLoader {
         }
         if (
           domainCase.repositoryCommit &&
-          evidence.repositoryCommit !== domainCase.repositoryCommit
+          !evidenceBelongsToPinnedSet(evidence, {
+            repositoryCommit: domainCase.repositoryCommit,
+            repositories: domainCase.repositories,
+          })
         ) {
           throw problemException(
             ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
@@ -523,6 +528,15 @@ export class AssessmentProvenanceLoader {
           repositorySnapshotId: domainCase.repositorySnapshotId,
           repositoryScanJobId: domainCase.repositoryScanJobId,
           repositoryCommit: domainCase.repositoryCommit,
+          repositorySetDigest: domainCase.repositorySetDigest ?? null,
+          repositories: (domainCase.repositories ?? []).map((pin) => ({
+            repositoryKey: pin.repositoryKey,
+            ordinal: pin.ordinal,
+            repositoryFullName: pin.repositoryFullName,
+            repositorySnapshotId: pin.repositorySnapshotId,
+            repositoryCommit: pin.repositoryCommit,
+            sourcePathPrefix: pin.sourcePathPrefix,
+          })),
           pinnedAt: domainCase.pinnedAt
             ? domainCase.pinnedAt.toISOString()
             : null,
@@ -552,6 +566,7 @@ export class AssessmentProvenanceLoader {
         type: evidence.type,
         state: evidence.state,
         repositoryCommit: evidence.repositoryCommit,
+        repositoryKey: evidence.repositoryKey ?? null,
         contentSha256: evidence.contentSha256,
         payload: sanitizedPayload,
         createdAt: evidence.createdAt.toISOString(),

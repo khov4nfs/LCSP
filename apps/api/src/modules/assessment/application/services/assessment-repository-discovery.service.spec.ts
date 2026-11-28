@@ -23,6 +23,9 @@ import {
   type SubmitRepositoryDiscovery,
 } from "@lcsp/contracts/assessment-domain";
 
+import { computeRepositorySetDigest } from "@lcsp/contracts/assessment-domain";
+
+import { withSingleRepositorySet } from "../../fixtures/single-repository-set.js";
 import { AssessmentRepositoryDiscoveryService } from "./assessment-repository-discovery.service.js";
 import type { DiscoveryRuleMatchRule } from "./repository-discovery-rule-matcher.js";
 
@@ -33,7 +36,7 @@ const repositoryId = "repository-1";
 const repositoryCommit = "a".repeat(40);
 const acceptedFactId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
-const pins = {
+const pins = withSingleRepositorySet({
   assessmentId,
   caseRevision: 0,
   ruleSetVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -42,7 +45,7 @@ const pins = {
   repositoryScanJobId: "scan-job-1",
   repositoryCommit,
   sourcePathPrefix: "apps/api",
-};
+});
 
 function discovery(
   overrides: Partial<SubmitRepositoryDiscovery> = {},
@@ -1095,5 +1098,232 @@ describe("AssessmentRepositoryDiscoveryService", () => {
       }),
     ).rejects.toThrow();
     expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("AssessmentRepositoryDiscoveryService repository sets", () => {
+  const apiCommit = "b".repeat(40);
+  const apiPin = {
+    repositoryKey: "api",
+    ordinal: 1,
+    connectionId: "connection-2",
+    repositoryId: "repository-2",
+    repositoryFullName: "acme/api",
+    repositorySnapshotId: "snapshot-2",
+    repositoryScanJobId: "scan-job-2",
+    repositoryCommit: apiCommit,
+    sourcePathPrefix: "services/billing",
+  };
+  const repositories = [...pins.repositories, apiPin];
+  const pairPins = {
+    ...pins,
+    repositories,
+    repositorySetDigest: computeRepositorySetDigest(repositories),
+  };
+  const apiArtifact = () =>
+    discovery({
+      repositoryId: "repository-2",
+      commitSha: apiCommit,
+      sourcePathPrefix: "services/billing",
+      sourceRanges: [],
+      aiUseCases: [],
+      resourceLedger: {
+        budget: { maxFiles: 100, maxBytes: 1_000_000, maxRanges: 100 },
+        usage: { filesScanned: 1, bytesInspected: 100, rangesProduced: 0 },
+        remaining: { files: 99, bytes: 999_900, ranges: 100 },
+        coverageImpact: {
+          knownGapCount: 0,
+          unresolvedCallCount: 1,
+          unsupportedLanguageCount: 1,
+          truncated: false,
+        },
+        expansionHistory: [],
+      },
+    });
+
+  it("stores an artifact under the pinned repository its own coordinates identify", async () => {
+    const { service, support, tx } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-second-repo",
+      discovery: apiArtifact(),
+    });
+    expect(receipt.replayed).toBe(false);
+    expect(tx.assessmentRepositoryDiscovery.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            repositorySnapshotId: "snapshot-2",
+            repositoryId: "repository-2",
+            repositoryCommit: apiCommit,
+            sourcePathPrefix: "services/billing",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("still stores the primary repository artifact under the primary pin", async () => {
+    const { service, support, tx } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-primary",
+      discovery: discovery(),
+    });
+    expect(tx.assessmentRepositoryDiscovery.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            repositorySnapshotId,
+            sourcePathPrefix: "apps/api",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("rejects an artifact that matches no pinned repository without persisting it", async () => {
+    const { service, support, tx } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-foreign-repo",
+        discovery: discovery({ repositoryId: "repository-9" }),
+      }),
+    ).rejects.toThrow();
+    // The pinned repository at another source scope is just as foreign.
+    await expect(
+      service.save({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-wrong-scope",
+        discovery: discovery({
+          repositoryId: "repository-2",
+          commitSha: apiCommit,
+          sourcePathPrefix: null,
+        }),
+      }),
+    ).rejects.toThrow();
+    expect(tx.assessmentRepositoryDiscovery.createMany).not.toHaveBeenCalled();
+  });
+
+  it("binds a run to its own repository even when the artifact names another pinned one", async () => {
+    const { service, support, tx } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    await expect(
+      service.saveAuthorizedInTx(tx as never, {
+        assessmentId,
+        correlationId: "corr-key-mismatch",
+        discovery: apiArtifact(),
+        repositoryKey: "web",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      service.saveAuthorizedInTx(tx as never, {
+        assessmentId,
+        correlationId: "corr-key-ok",
+        discovery: apiArtifact(),
+        repositoryKey: "api",
+      }),
+    ).resolves.toMatchObject({ replayed: false });
+  });
+
+  it("reads a record pages under the repository the record belongs to", async () => {
+    const { service, support, tx, rows } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-record-pin",
+      discovery: apiArtifact(),
+    });
+    const page = await service.getRangePage({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-range",
+      recordId: receipt.recordId,
+      offset: 0,
+      limit: 10,
+    });
+    expect(page.recordId).toBe(receipt.recordId);
+    expect(tx.assessmentRepositoryDiscovery.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          recordId: receipt.recordId,
+          repositorySnapshotId: "snapshot-2",
+          sourcePathPrefix: "services/billing",
+        }),
+      }),
+    );
+    // A record of a repository that is no longer part of the pinned set is invisible.
+    support.loadPins.mockResolvedValue(pins);
+    await expect(
+      service.getRangePage({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-range-unpinned",
+        recordId: receipt.recordId,
+        offset: 0,
+        limit: 10,
+      }),
+    ).rejects.toThrow();
+    expect(rows.size).toBe(1);
+  });
+
+  it("summarizes the requested repository and defaults to the primary one", async () => {
+    const { service, support, tx } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    const receipt = await service.save({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-summary-save",
+      discovery: apiArtifact(),
+    });
+    const summary = await service.getSummary({
+      assessmentId,
+      leaseToken: randomUUID(),
+      correlationId: "corr-summary",
+      repositoryKey: "api",
+    });
+    expect(summary.discovery?.recordId).toBe(receipt.recordId);
+    expect(summary.discovery?.repositoryKey).toBe("api");
+    expect(tx.assessmentRepositoryDiscovery.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ repositorySnapshotId: "snapshot-2" }),
+      }),
+    );
+    // The primary repository has no stored discovery in this fixture's latest row, so only the
+    // coordinates of the query are asserted here.
+    await service
+      .getSummary({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-summary-primary",
+      })
+      .catch(() => undefined);
+    expect(tx.assessmentRepositoryDiscovery.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ repositorySnapshotId }),
+      }),
+    );
+  });
+
+  it("rejects a summary for a repository key that is not pinned", async () => {
+    const { service, support } = fixture();
+    support.loadPins.mockResolvedValue(pairPins);
+    await expect(
+      service.getSummary({
+        assessmentId,
+        leaseToken: randomUUID(),
+        correlationId: "corr-summary-unknown",
+        repositoryKey: "mobile",
+      }),
+    ).rejects.toThrow();
   });
 });

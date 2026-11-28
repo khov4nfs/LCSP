@@ -360,14 +360,15 @@ class AssessmentRuntimeClient:
         """
         return self._call("GET", "/legal-source/search", params={"query": query})
 
-    def repository_discovery_summary(self) -> dict[str, Any]:
+    def repository_discovery_summary(self, repository_key: str | None = None) -> dict[str, Any]:
         """Business purpose: Load the bounded metadata summary of the discovery artifact pinned to this assessment.
 
         Business rules:
         - The current worker lease scopes the read; absence remains explicit and never proves no AI use.
+        - Without a repository key the primary repository answers; with several repositories a key selects which one.
 
         Execution flow:
-        1. Request the governed discovery summary endpoint.
+        1. Request the governed discovery summary endpoint, for the selected repository when one is named.
         2. Return its availability and bounded counts/resource coverage.
 
         Failure cases:
@@ -376,7 +377,9 @@ class AssessmentRuntimeClient:
         Side effects:
         - Read-only HTTP retrieval; no discovery, evidence, fact or decision is changed.
         """
-        return self._call("GET", "/discovery")
+        if repository_key is None:
+            return self._call("GET", "/discovery")
+        return self._call("GET", "/discovery", params={"repositoryKey": repository_key})
 
     def repository_discovery_ranges(
         self, record_id: str, *, offset: int = 0, limit: int = 25

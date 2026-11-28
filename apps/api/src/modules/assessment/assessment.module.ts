@@ -50,6 +50,7 @@ import { AcceptAssessmentEvidenceHandler } from "./application/commands/accept-a
 import { AcceptAssessmentFactHandler } from "./application/commands/accept-assessment-fact/accept-assessment-fact.handler.js";
 import { ClaimAssessmentRootHandler } from "./application/commands/claim-assessment-root/claim-assessment-root.handler.js";
 import { CompleteRepositorySetupHandler } from "./application/commands/complete-repository-setup/complete-repository-setup.handler.js";
+import { RemoveAssessmentRepositoryHandler } from "./application/commands/remove-assessment-repository/remove-assessment-repository.handler.js";
 import { CreateAssessmentHandler } from "./application/commands/create-assessment/create-assessment.handler.js";
 import { DeleteAssessmentHandler } from "./application/commands/delete-assessment/delete-assessment.handler.js";
 import { FinishAssessmentRootHandler } from "./application/commands/finish-assessment-root/finish-assessment-root.handler.js";
@@ -184,6 +185,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     CreateAssessmentHandler,
     TransitionAssessmentLifecycleHandler,
     CompleteRepositorySetupHandler,
+    RemoveAssessmentRepositoryHandler,
     DeleteAssessmentHandler,
     ReconcileOrphanedAssessmentHandler,
     AgentServerAssessmentErasure,

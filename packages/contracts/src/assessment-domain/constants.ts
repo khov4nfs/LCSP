@@ -88,6 +88,9 @@ export const ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION =
   "ASSESSMENT_FINAL_REPORT_V2" as const;
 export const ASSESSMENT_FINAL_REPORT_V3_SCHEMA_VERSION =
   "ASSESSMENT_FINAL_REPORT_V3" as const;
+/** Report of an assessment pinned to two or more repositories; single-repository assessments keep V3. */
+export const ASSESSMENT_FINAL_REPORT_V4_SCHEMA_VERSION =
+  "ASSESSMENT_FINAL_REPORT_V4" as const;
 
 export const ASSESSMENT_COMPLETION_BLOCKER_CODES = {
   ASSESSMENT_NOT_ACTIVE: "ASSESSMENT_NOT_ACTIVE",

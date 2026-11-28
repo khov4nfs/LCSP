@@ -29,6 +29,7 @@ import {
 import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { ReportUnresolvableHumanFactCommand } from "./report-unresolvable-human-fact.command.js";
+import { evidenceBelongsToPinnedSet } from "../../../domain/decision-validator.js";
 
 /** The Root decides permanent obtainability; the API verifies request, revision and evidence. */
 @CommandHandler(ReportUnresolvableHumanFactCommand)
@@ -111,7 +112,7 @@ export class ReportUnresolvableHumanFactHandler implements ICommandHandler<Repor
         evidence.some(
           (item) =>
             item.state !== ASSESSMENT_RECORD_STATES.ACCEPTED ||
-            item.repositoryCommit !== pins.repositoryCommit,
+            !evidenceBelongsToPinnedSet(item, pins),
         )
       )
         throw reject(ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_REFERENCE_INVALID);

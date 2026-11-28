@@ -1,0 +1,84 @@
+{
+  "digestVectors": [
+    {
+      "name": "single-repo-no-prefix",
+      "pins": [
+        {
+          "repositoryKey": "notice-service",
+          "ordinal": 0,
+          "repositorySnapshotId": "snap-1",
+          "repositoryCommit": "132B5D796B32BF2F4454990B64DF7D0435E28161",
+          "sourcePathPrefix": null
+        }
+      ],
+      "digest": "sha256:9d024cb1d16233daa1b934f4767b71b3544c6b0147f06236c7ee143539cdc49e"
+    },
+    {
+      "name": "two-repos-with-prefix",
+      "pins": [
+        {
+          "repositoryKey": "web",
+          "ordinal": 0,
+          "repositorySnapshotId": "snap-a",
+          "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "sourcePathPrefix": "apps/web"
+        },
+        {
+          "repositoryKey": "api",
+          "ordinal": 1,
+          "repositorySnapshotId": "snap-b",
+          "repositoryCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "sourcePathPrefix": null
+        }
+      ],
+      "digest": "sha256:6f23148c658136cd9c701da58faa0ab19c305a54f30c823747b497c7a053904a"
+    },
+    {
+      "name": "unicode-prefix",
+      "pins": [
+        {
+          "repositoryKey": "docs",
+          "ordinal": 0,
+          "repositorySnapshotId": "snap-u",
+          "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+          "sourcePathPrefix": "tài-liệu/é"
+        }
+      ],
+      "digest": "sha256:72cd18cf512f7c640b5a0e117028834270c68f63ff37c411183c0659638bad1a"
+    }
+  ],
+  "keyVectors": [
+    {
+      "fullName": "acme/Notice_Service",
+      "existing": [],
+      "key": "notice-service"
+    },
+    {
+      "fullName": "acme/notice-service",
+      "existing": [
+        "notice-service"
+      ],
+      "key": "notice-service-2"
+    },
+    {
+      "fullName": "group/sub/api",
+      "existing": [
+        "api",
+        "api-2"
+      ],
+      "key": "api-3"
+    },
+    {
+      "fullName": "acme/___",
+      "existing": [],
+      "key": "repo"
+    },
+    {
+      "fullName": "acme/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "existing": [
+        "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      ],
+      "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-2"
+    }
+  ]
+}

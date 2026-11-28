@@ -1,3 +1,4 @@
+import { computeRepositorySetDigest } from "@lcsp/contracts/assessment-domain";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { ServiceUnavailableException } from "@nestjs/common";
@@ -628,6 +629,201 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     ]);
     expect(staleDetails.items[0].freshnessStatus).toBe(
       TRACKING_FRESHNESS_STATUSES.STALE,
+    );
+  }, 120_000);
+
+  it("judges freshness from every pinned repository so one stale repository makes the assessment stale", async () => {
+    const rule = await prisma.assessmentRule.findFirstOrThrow({
+      where: { ruleSetVersionId, assessmentRuleId: "RULE-1" },
+      select: { assessmentRuleVersion: true },
+    });
+    const baseTime = Date.now();
+    const newerCommit = "c0000000000000000000000000000000000000003";
+    const cases = [
+      // The primary repository is unchanged but the second one moved to another commit.
+      { name: "second-stale", secondLatestCommit: newerCommit },
+      // The second repository has a newer snapshot at the very commit that was assessed.
+      { name: "second-current", secondLatestCommit: commitSha },
+    ];
+    const ids: Record<string, string> = {};
+
+    for (const scenario of cases) {
+      const assessmentId = randomUUID();
+      ids[scenario.name] = assessmentId;
+      await prisma.assessment.create({
+        data: {
+          id: assessmentId,
+          ownerId: userId,
+          name: `Two repositories ${scenario.name}`,
+          lifecycleState: "ACTIVE",
+          lifecycleRevision: 1,
+        },
+      });
+      const primary = await seedPinnedRepository(
+        assessmentId,
+        `org/web-${scenario.name}`,
+      );
+      const second = await seedPinnedRepository(
+        assessmentId,
+        `org/api-${scenario.name}`,
+      );
+      for (const seeded of [primary, second]) {
+        await prisma.repositorySnapshot.update({
+          where: { id: seeded.snapshotId },
+          data: { createdAt: new Date(baseTime - 60_000) },
+        });
+      }
+      await prisma.assessmentCase.create({
+        data: {
+          assessmentId,
+          caseRevision: 1,
+          ruleSetVersionId,
+          repositoryCommit: commitSha,
+          repositorySnapshotId: primary.snapshotId,
+          repositoryScanJobId: primary.scanJobId,
+          pinnedAt: new Date(),
+        },
+      });
+      const pins = [
+        {
+          key: "web",
+          ordinal: 0,
+          seeded: primary,
+          name: `org/web-${scenario.name}`,
+        },
+        {
+          key: "api",
+          ordinal: 1,
+          seeded: second,
+          name: `org/api-${scenario.name}`,
+        },
+      ];
+      const digest = computeRepositorySetDigest(
+        pins.map((pin) => ({
+          repositoryKey: pin.key,
+          ordinal: pin.ordinal,
+          repositorySnapshotId: pin.seeded.snapshotId,
+          repositoryCommit: commitSha,
+          sourcePathPrefix: null,
+        })),
+      );
+      for (const pin of pins) {
+        await prisma.assessmentCaseRepository.create({
+          data: {
+            assessmentId,
+            repositoryKey: pin.key,
+            ordinal: pin.ordinal,
+            connectionId: pin.seeded.connectionId,
+            repositoryId: `repo-${pin.seeded.connectionId}`,
+            repositoryFullName: pin.name,
+            repositorySnapshotId: pin.seeded.snapshotId,
+            repositoryScanJobId: pin.seeded.scanJobId,
+            repositoryCommit: commitSha,
+            sourcePathPrefix: null,
+          },
+        });
+      }
+      await prisma.assessmentCase.update({
+        where: { assessmentId },
+        data: { repositoryCount: 2, repositorySetDigest: digest },
+      });
+      await prisma.assessmentDecisionCoverage.create({
+        data: {
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId,
+          assessmentRuleVersion: rule.assessmentRuleVersion,
+          resolutionState: "PENDING",
+        },
+      });
+      await prisma.repositorySnapshot.create({
+        data: {
+          id: randomUUID(),
+          assessmentId,
+          connectionId: second.connectionId,
+          repositoryId: `repo-${second.connectionId}`,
+          repositoryFullName: `org/api-${scenario.name}`,
+          branch: "main",
+          ref: "refs/heads/main",
+          commitSha: scenario.secondLatestCommit,
+          providerMetadata: { source: "test" },
+          actorId: userId,
+          status: "READY",
+          createdAt: new Date(baseTime - 30_000),
+        },
+      });
+    }
+
+    // SQL aggregate (filters and obligation groups).
+    const aggregate = await loader.loadCustomerObligations({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-two-repo-aggregate-${randomUUID()}`,
+    });
+    const group = aggregate.items.find(
+      (item) =>
+        item.ruleSetVersionId === ruleSetVersionId &&
+        item.assessmentRuleId === "RULE-1",
+    );
+    const byAssessment = Object.fromEntries(
+      group?.assessments.map((item) => [
+        item.assessmentId,
+        item.freshnessStatus,
+      ]) ?? [],
+    );
+    expect(byAssessment[ids["second-stale"]!]).toBe(
+      TRACKING_FRESHNESS_STATUSES.STALE,
+    );
+    expect(byAssessment[ids["second-current"]!]).toBe(
+      TRACKING_FRESHNESS_STATUSES.CURRENT,
+    );
+
+    // The overview page item agrees with the SQL aggregate and lists both repositories.
+    const overview = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-two-repo-overview-${randomUUID()}`,
+    });
+    const stale = overview.assessments.find(
+      (item) => item.assessmentId === ids["second-stale"],
+    );
+    const current = overview.assessments.find(
+      (item) => item.assessmentId === ids["second-current"],
+    );
+    expect(stale?.repository.freshnessStatus).toBe(
+      TRACKING_FRESHNESS_STATUSES.STALE,
+    );
+    expect(stale?.repository.isStale).toBe(true);
+    expect(
+      stale?.repositories.map((entry) => [
+        entry.repositoryKey,
+        entry.freshnessStatus,
+      ]),
+    ).toEqual([
+      ["web", TRACKING_FRESHNESS_STATUSES.UNKNOWN],
+      ["api", TRACKING_FRESHNESS_STATUSES.STALE],
+    ]);
+    expect(stale?.repositories[1]?.latestCommit).toBe(newerCommit);
+    expect(current?.repository.freshnessStatus).toBe(
+      TRACKING_FRESHNESS_STATUSES.CURRENT,
+    );
+    expect(current?.repository.isStale).toBe(false);
+    expect(current?.repositories).toHaveLength(2);
+
+    // The freshness filter keeps working on the aggregate.
+    const staleOnly = await loader.loadCustomerObligationAssessments({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      ruleSetVersionId,
+      assessmentRuleId: "RULE-1",
+      outcome: TRACKING_RULE_OUTCOMES.UNRESOLVED,
+      freshness: TRACKING_FRESHNESS_STATUSES.STALE,
+    });
+    expect(staleOnly.items.map((item) => item.assessmentId)).toContain(
+      ids["second-stale"],
+    );
+    expect(staleOnly.items.map((item) => item.assessmentId)).not.toContain(
+      ids["second-current"],
     );
   }, 120_000);
 

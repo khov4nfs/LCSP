@@ -29,6 +29,7 @@ import type { PrismaService } from "../../../../infrastructure/prisma/prisma.ser
 import type { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import type { AssessmentRepositoryDiscoveryService } from "./assessment-repository-discovery.service.js";
 import type { AssessmentEvidenceInvalidation } from "./assessment-evidence-invalidation.service.js";
+import { sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentDiscoveryInterviewService } from "./assessment-discovery-interview.service.js";
 
 const assessmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -40,7 +41,9 @@ const question = "Is the chatbot deployed to production in Vietnam?";
 const commit = "a".repeat(40);
 const sha = (hex: string) => `sha256:${hex.repeat(64)}`;
 
-function discovery(): SubmitRepositoryDiscovery {
+function discovery(
+  overrides: Partial<SubmitRepositoryDiscovery> = {},
+): SubmitRepositoryDiscovery {
   const base = {
     repositoryId: "repository-1",
     commitSha: commit,
@@ -108,12 +111,18 @@ function discovery(): SubmitRepositoryDiscovery {
     scannedFileCount: 1,
     generatedAt: "2026-11-17T00:00:00.000Z",
   } satisfies Omit<SubmitRepositoryDiscovery, "discoveryId" | "contentDigest">;
-  const cacheIdentity = computeRepositoryDiscoveryCacheIdentity(base);
+  const merged = { ...base, ...overrides };
+  const cacheIdentity = computeRepositoryDiscoveryCacheIdentity(merged);
   const contentDigest = computeRepositoryDiscoveryDigest({
-    ...base,
+    ...merged,
     cacheIdentity,
   });
-  return { ...base, cacheIdentity, contentDigest, discoveryId: contentDigest };
+  return {
+    ...merged,
+    cacheIdentity,
+    contentDigest,
+    discoveryId: contentDigest,
+  };
 }
 
 type Proposal = {
@@ -145,7 +154,7 @@ function fixture() {
   const evidence: Array<Record<string, unknown>> = [];
   const facts: Array<Record<string, unknown>> = [];
   let sourceQuestionValid = true;
-  const artifact = discovery();
+  let artifact = discovery();
   const run = {
     runId,
     assessmentId,
@@ -165,6 +174,21 @@ function fixture() {
     repositoryScanJobId: "scan-job-1",
     repositoryCommit: commit,
     sourcePathPrefix: null,
+    repositorySetDigest: `sha256:${"1".repeat(64)}`,
+    repositorySetRecorded: true,
+    repositories: [
+      {
+        repositoryKey: "web",
+        ordinal: 0,
+        connectionId: "connection-1",
+        repositoryId: "repository-1",
+        repositoryFullName: "acme/web",
+        repositorySnapshotId: "snapshot-1",
+        repositoryScanJobId: "scan-job-1",
+        repositoryCommit: commit,
+        sourcePathPrefix: null as string | null,
+      },
+    ],
   };
   const tx = {
     assessment: {
@@ -200,6 +224,7 @@ function fixture() {
             recordId: discoveryRecordId,
             contentDigest: artifact.contentDigest,
             payload: artifact,
+            repositorySnapshotId: run.repositorySnapshotId,
           },
         ]),
       ),
@@ -380,7 +405,9 @@ function fixture() {
     loadPins: jest.fn(() => Promise.resolve({ ...pins, caseRevision })),
   };
   const discoveries = {
-    verifyInterviewQuestionInTx: jest.fn(() => {
+    verifyInterviewQuestionInTx: jest.fn((tx: unknown, input: unknown) => {
+      void tx;
+      void input;
       if (!sourceQuestionValid)
         return Promise.reject(new Error("UNVERIFIED_SOURCE_QUESTION"));
       return Promise.resolve({
@@ -415,6 +442,35 @@ function fixture() {
     tx,
     support,
     discoveries,
+    /** Pin a second repository and make the discovery run belong to it. */
+    useSecondRepository: () => {
+      const second = {
+        repositoryKey: "api",
+        ordinal: 1,
+        connectionId: "connection-2",
+        repositoryId: "repository-2",
+        repositoryFullName: "acme/api",
+        repositorySnapshotId: "snapshot-2",
+        repositoryScanJobId: "scan-job-2",
+        repositoryCommit: "b".repeat(40),
+        sourcePathPrefix: "services/billing" as string | null,
+      };
+      pins.repositories.push(second);
+      artifact = discovery({
+        repositoryId: second.repositoryId,
+        commitSha: second.repositoryCommit,
+        sourcePathPrefix: second.sourcePathPrefix,
+      });
+      Object.assign(run, {
+        repositorySnapshotId: second.repositorySnapshotId,
+        repositoryId: second.repositoryId,
+        repositoryCommit: second.repositoryCommit,
+        sourcePathPrefix: second.sourcePathPrefix,
+      });
+    },
+    dropSecondRepository: () => {
+      pins.repositories.pop();
+    },
     setOwner: (value: string) => {
       owner = value;
     },
@@ -595,5 +651,37 @@ describe("Pre-scope Discovery Context Interview", () => {
     expect(page.total).toBe(1);
     expect(page.caseRevision).toBe(0);
     expect(page.items).toHaveLength(1);
+  });
+});
+
+describe("Pre-scope Discovery Context Interview with a repository set", () => {
+  it("verifies the question against the repository the run scanned, not the primary one", async () => {
+    const f = fixture();
+    f.useSecondRepository();
+    await f.service.submit(submit());
+    expect(f.discoveries.verifyInterviewQuestionInTx).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        pins: expect.objectContaining({
+          repositoryKey: "api",
+          repositorySnapshotId: "snapshot-2",
+          repositoryId: "repository-2",
+          repositoryCommit: "b".repeat(40),
+          sourcePathPrefix: "services/billing",
+        }),
+      }),
+    );
+    // The customer question is scoped to that repository, so the same question about another repository stays a distinct need.
+    expect(JSON.stringify([...f.needs.values()])).toContain(
+      sha256Hex("repository-2").slice(0, 32),
+    );
+  });
+
+  it("refuses a run of a repository that is no longer pinned", async () => {
+    const f = fixture();
+    f.useSecondRepository();
+    f.dropSecondRepository();
+    await expect(f.service.submit(submit())).rejects.toThrow();
+    expect(f.discoveries.verifyInterviewQuestionInTx).not.toHaveBeenCalled();
   });
 });

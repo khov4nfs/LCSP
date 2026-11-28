@@ -787,6 +787,15 @@ export const viPages = {
         allCandidates: "Đã tải đủ {total} quy tắc gợi ý (chỉ phục vụ điều tra)",
         selectCandidateRules:
           "Chọn các quy tắc gợi ý (kiểm tra lại trước khi đánh giá)",
+        repositories: "Repository",
+        showRepository: "Xem kết quả của {repository}",
+        viewingRepository: "Đang xem kết quả của {repository}",
+        statusQueued: "Đang chờ",
+        statusRunning: "Đang quét…",
+        statusCompleted: "Hoàn tất",
+        statusFailed: "Thất bại",
+        selectCandidateRulesFromRepository:
+          "Thêm các quy tắc gợi ý từ {repository} (kiểm tra lại trước khi đánh giá)",
         loadMore: "Xem thêm quy tắc gợi ý",
         // Câu hỏi Discovery làm rõ hành vi được thiết kế cho tính năng.
         contextQuestions: "Câu hỏi về tính năng AI",
@@ -852,6 +861,7 @@ export const viPages = {
     userName: "Bạn",
     opening: "Tôi bắt đầu đánh giá của bạn.",
     openingRepository: "Kho mã: {repository} tại {commit}.",
+    openingRepositories: "Các kho mã được đánh giá cùng nhau: {repositories}.",
     openingRuleSet:
       "Bộ quy tắc tuân thủ {version} đã được ghim cho đánh giá này.",
     work: {
@@ -1077,6 +1087,7 @@ export const viPages = {
     context: {
       title: "Ngữ cảnh đánh giá",
       repository: "Kho mã",
+      repositories: "Các kho mã",
       ruleSet: "Bộ quy tắc tuân thủ",
       ruleSetSummary: "{requirements} yêu cầu · {rules} quy tắc đánh giá",
       ruleSetWaiting: "Đang chờ bộ quy tắc đang hoạt động",
@@ -1165,6 +1176,11 @@ export const viPages = {
         compliantResult: "Tuân thủ",
         nonCompliantResult: "Không tuân thủ",
         publishedResult: "Đã phát hành và xác minh toàn vẹn",
+        repositories: "Các kho mã được đánh giá cùng nhau",
+        repositorySetDigest: "Mã băm tập kho mã",
+        repositoryKey: "Kho mã",
+        repositoryScope: "Phạm vi và độ khả kiến",
+        repositoryEvidence: "Bằng chứng trích dẫn từ kho mã này",
       },
       v1Compatibility:
         "Báo cáo V1 lịch sử — chỉ hiển thị các trường có trong artifact gốc.",
@@ -1184,6 +1200,8 @@ export const viPages = {
       ruleSetRuleCount: "Số quy tắc trong Bộ quy tắc đã ghim",
       selectedScope: "Phạm vi đánh giá quy tắc đã chọn",
       repository: "Kho mã nguồn",
+      repositories: "Các kho mã",
+      repositorySetDigest: "Mã băm tập kho mã",
       lineage: "Dòng thực thi runtime",
       facts: "Các sự thật đã chấp nhận",
       evidence: "Bằng chứng đã chấp nhận",
@@ -2520,6 +2538,8 @@ export const viPages = {
       freshness: "Độ mới của nguồn",
       trust: "Trạng thái kết quả",
       repository: "Repository",
+      repositories: "Các kho mã",
+      moreRepositories: "+{count} kho mã khác",
       assessedCommit: "Commit đã đánh giá",
       latestObservedCommit: "Commit quan sát gần nhất",
       observedAt: "Lần quan sát gần nhất",
@@ -3510,6 +3530,16 @@ export const viPages = {
     configureProvider: "Cấu hình kết nối bảo mật",
     repositoryPlaceholder: "Dán URL repository để tiếp tục...",
     repositoryDisabledPlaceholder: "Kết nối provider để tiếp tục...",
+    repositoriesTitle: "Repository cần đánh giá ({count}/{limit})",
+    addRepositoryHint:
+      "Dán URL repository khác để thêm, hoặc bắt đầu phân tích với các repository ở trên.",
+    repositoryLimitReached:
+      "Một assessment có thể đánh giá tối đa {limit} repository.",
+    removeRepository: "Xóa {repository}",
+    startAnalysis: "Bắt đầu phân tích",
+    startingAnalysis: "Đang bắt đầu phân tích...",
+    addRepository: "Thêm repository khác",
+    multiRepositoryName: "{name} +{count}",
     providers: {
       github: "GitHub",
       gitlab: "GitLab",
@@ -3521,6 +3551,7 @@ export const viPages = {
       connectedDescription:
         "Repository đã kết nối. Assessment này được khóa theo repository và commit đã chọn.",
       pinnedCommit: "commit đã pin {commit}",
+      sourceScope: "phạm vi {path}",
       pending: "Đang chờ",
       loadingState: "Đang tải trạng thái repository...",
     },
@@ -3531,6 +3562,12 @@ export const viPages = {
       createAssessment: "Không thể tạo assessment. Vui lòng thử lại.",
       repositorySetup:
         "Hãy kiểm tra provider credential và quyền truy cập repository, sau đó thử lại.",
+      duplicateRepository: "Repository này đã có trong danh sách.",
+      repositoryLimit:
+        "Đã đạt giới hạn số repository của một assessment.",
+      repositorySetImmutable:
+        "Không thể thay đổi repository sau khi hoàn tất thiết lập.",
+      removeRepository: "Không thể xóa repository. Vui lòng thử lại.",
     },
     setupPageTitle: "Hoàn tất thiết lập assessment",
     setupPageSubtitle:
@@ -3596,6 +3633,7 @@ export const viPages = {
         "Nhánh mặc định HEAD (tự động cố định khi kết nối)",
       connectAction: "Kết nối repository",
       connectingAction: "Đang kết nối repository...",
+      addAction: "Thêm repository",
     },
     actions: {
       continue: "Tiếp tục",

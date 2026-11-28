@@ -50,6 +50,8 @@ export type LegalRuleCompliance = {
 export type LegalRuleEvidenceItem = {
   evidenceId: string;
   type: string;
+  /** Repository the evidence belongs to; null for evidence not bound to one repository. */
+  repositoryKey: string | null;
   path: string | null;
   startLine: number | null;
   endLine: number | null;

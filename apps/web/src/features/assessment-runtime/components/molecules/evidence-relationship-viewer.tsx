@@ -105,6 +105,16 @@ export function EvidenceRelationshipViewer({
                     <span>{copy(isSource ? "decision.evidenceTypeRepo" : item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE ? "decision.evidenceTypeInspection" : "decision.evidence")}</span>
                   </Badge>
 
+                  {item.repositoryKey ? (
+                    <Badge
+                      variant="secondary"
+                      className="font-mono text-xs"
+                      data-slot="evidence-repository"
+                    >
+                      {item.repositoryKey}
+                    </Badge>
+                  ) : null}
+
                   {item.path ? (
                     <span className="font-mono text-xs font-semibold text-foreground break-all">
                       {item.path}

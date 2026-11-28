@@ -431,6 +431,74 @@ describe("AssessmentProvenanceLoader", () => {
     ).not.toThrow();
   });
 
+  it("lists the whole pinned repository set with its digest, and tags evidence with its repository", async () => {
+    const record = buildValidRecord();
+    const digest = `sha256:${"4".repeat(64)}`;
+    Object.assign(record.domainCase, {
+      repositorySetDigest: digest,
+      repositories: [
+        {
+          repositoryKey: "web",
+          ordinal: 0,
+          repositoryFullName: "acme/web",
+          repositorySnapshotId: snapshotId,
+          repositoryCommit: commitSha,
+          sourcePathPrefix: null,
+        },
+        {
+          repositoryKey: "api",
+          ordinal: 1,
+          repositoryFullName: "acme/api",
+          repositorySnapshotId: "snapshot-api",
+          repositoryCommit: commitSha,
+          sourcePathPrefix: "services/billing",
+        },
+      ],
+    });
+    Object.assign(record.domainCase.evidence[0], { repositoryKey: "web" });
+    const loader = new AssessmentProvenanceLoader({
+      assessment: { findUnique: () => Promise.resolve(record) },
+    } as unknown as PrismaService);
+
+    const result = await loader.load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId,
+    });
+
+    expect(result.pins?.repositorySetDigest).toBe(digest);
+    expect(
+      result.pins?.repositories.map((pin) => [
+        pin.repositoryKey,
+        pin.repositoryFullName,
+        pin.sourcePathPrefix,
+      ]),
+    ).toEqual([
+      ["web", "acme/web", null],
+      ["api", "acme/api", "services/billing"],
+    ]);
+    expect(result.acceptedEvidence[0]?.repositoryKey).toBe("web");
+    expect(() =>
+      assessmentProvenanceArtifactSchema.parse(result),
+    ).not.toThrow();
+  });
+
+  it("reads a case written before repository sets as a provenance with no listed set", async () => {
+    const record = buildValidRecord();
+    const loader = new AssessmentProvenanceLoader({
+      assessment: { findUnique: () => Promise.resolve(record) },
+    } as unknown as PrismaService);
+    const result = await loader.load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId,
+    });
+    expect(result.pins?.repositories).toEqual([]);
+    expect(result.pins?.repositorySetDigest).toBeNull();
+  });
+
   it("labels customer-selected provenance as partial without deciding unrequested rules", async () => {
     const record = buildValidRecord();
     Object.assign(record.domainCase, {

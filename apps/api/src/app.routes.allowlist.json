@@ -4,6 +4,7 @@
   "DELETE /admin/legal-source-versions/:versionId/documents/:documentRowId",
   "DELETE /admin/legal-sources/:sourceId",
   "DELETE /assessments/:assessmentId",
+  "DELETE /assessments/:assessmentId/repository-setup/repositories/:snapshotId",
   "DELETE /auth/mfa",
   "DELETE /auth/sessions",
   "DELETE /auth/sessions/:sessionId",

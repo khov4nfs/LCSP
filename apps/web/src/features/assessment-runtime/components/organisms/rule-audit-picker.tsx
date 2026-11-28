@@ -188,6 +188,10 @@ export function RuleAuditPicker({
       ruleSetDigest: data!.ruleSetDigest,
       repositorySnapshotId: data!.repositorySnapshotId,
       repositoryCommit: data!.repositoryCommit,
+      // With several repositories the digest of the pinned set is what the API checks; one repository omits it.
+      ...(data!.repositorySetDigest
+        ? { repositorySetDigest: data!.repositorySetDigest }
+        : {}),
       scopeMode,
       rules: scopeMode === RULE_AUDIT_SCOPE_MODES.FULL_RULE_SET ? [] : chosen,
     };
@@ -308,7 +312,7 @@ export function RuleAuditPicker({
             rules={rules}
             canDiscover={!data.latestRequestId}
             canChooseCandidates={canStart}
-            onChooseCandidates={(assessmentRuleIds) => {
+            onChooseCandidates={(assessmentRuleIds, { merge }) => {
               const eligible = new Set(
                 rules
                   .filter(
@@ -317,11 +321,13 @@ export function RuleAuditPicker({
                   )
                   .map((rule) => rule.assessmentRuleId),
               );
+              // Suggestions of one repository are added to what the customer already chose from another.
+              const chosen = merge
+                ? [...form.getValues("selectedRuleIds"), ...assessmentRuleIds]
+                : assessmentRuleIds;
               form.setValue(
                 "selectedRuleIds",
-                [...new Set(assessmentRuleIds)].filter((id) =>
-                  eligible.has(id),
-                ),
+                [...new Set(chosen)].filter((id) => eligible.has(id)),
                 { shouldDirty: true, shouldValidate: true },
               );
             }}

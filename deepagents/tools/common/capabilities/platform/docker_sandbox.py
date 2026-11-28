@@ -29,6 +29,8 @@ from deepagents.backends.protocol import (
 
 
 REPOSITORY_ROOT = "/workspace/repository"
+# Side-by-side layout of an assessment that pins several repositories (one directory per repository key).
+REPOSITORIES_ROOT = "/workspace/repositories"
 RUNTIME_ROOT = "/workspace/runtime"
 SANDBOX_LABEL = "lcsp.repository-sandbox"
 THREAD_LABEL = "lcsp.thread-id"
@@ -242,7 +244,7 @@ class DockerSandboxBackend(SandboxBackendProtocol):
 
         Business rules:
         - Automatically creates parent directories when writing.
-        - Confined to authorized sandbox roots (/workspace/repository, /workspace/runtime, /tmp).
+        - Confined to authorized sandbox roots (/workspace/repository, /workspace/repositories, /workspace/runtime, /tmp).
         - Executes with isolated Python to prevent malicious repository module shadowing.
 
         Execution flow:
@@ -609,8 +611,25 @@ def sandbox_spec_from_config(config: object | None) -> DockerSandboxSpec:
 
 
 def _create_container_args(spec: DockerSandboxSpec) -> list[str]:
+    """Business purpose: Build the arguments of the isolated container that holds one assessment thread repositories.
+
+    Business rules:
+    - The container is unprivileged, network-restricted and resource-bounded.
+    - The single-repository root and the multi-repository root are separate in-memory mounts, the latter sized for twice the single-repository budget.
+    - Runtime state lives in its own mount.
+
+    Execution flow:
+    1. Compose the startup command that prepares every sandbox root.
+    2. Add the isolation, environment and mount arguments.
+
+    Failure cases:
+    - No failure path: the arguments are plain data validated by the container runtime.
+
+    Side effects:
+    - Pure computation: it reads no sandbox state and writes nothing.
+    """
     command = (
-        f"mkdir -p {shlex.quote(REPOSITORY_ROOT)} {shlex.quote(RUNTIME_ROOT)} "
+        f"mkdir -p {shlex.quote(REPOSITORY_ROOT)} {shlex.quote(REPOSITORIES_ROOT)} {shlex.quote(RUNTIME_ROOT)} "
         f"{shlex.quote(RUNTIME_ROOT + '/home')} "
         f"{shlex.quote(RUNTIME_ROOT + '/cache')} "
         f"{shlex.quote(RUNTIME_ROOT + '/codebase-memory')} /tmp "
@@ -658,6 +677,9 @@ def _create_container_args(spec: DockerSandboxSpec) -> list[str]:
         f"/workspace/runtime:rw,nosuid,nodev,mode=1777,size={spec.runtime_tmpfs}",
         "--tmpfs",
         "/workspace/repository:rw,nosuid,nodev,mode=1777,size=2048m",
+        "--tmpfs",
+        # A set of repositories may use up to twice the single-repository budget (decision D5).
+        f"{REPOSITORIES_ROOT}:rw,nosuid,nodev,mode=1777,size=4096m",
         "--entrypoint",
         "bash",
         spec.image,
@@ -733,6 +755,22 @@ def _parse_docker_timestamp(value: str) -> datetime | None:
 
 
 def _sandbox_path(path: str) -> str:
+    """Business purpose: Confine every file operation to the sandbox roots.
+
+    Business rules:
+    - Only the repository roots (single and multi-repository), the runtime root and temporary storage are addressable.
+    - Traversal and home-directory components are refused; any other path is resolved inside the single-repository root.
+
+    Execution flow:
+    1. Reject escaping components.
+    2. Normalise the path and return it when it already lies in an allowed root, otherwise resolve it under the repository root.
+
+    Failure cases:
+    - A path that tries to escape the workspace raises ValueError before any container command runs.
+
+    Side effects:
+    - Pure computation: it reads no sandbox state and writes nothing.
+    """
     value = path.strip() or "/"
     pure = PurePosixPath(value)
     parts = pure.parts[1:] if pure.is_absolute() else pure.parts
@@ -745,7 +783,7 @@ def _sandbox_path(path: str) -> str:
         return REPOSITORY_ROOT
     if normalized == "/tmp" or normalized.startswith("/tmp/"):
         return normalized
-    for allowed_root in (REPOSITORY_ROOT, RUNTIME_ROOT):
+    for allowed_root in (REPOSITORY_ROOT, REPOSITORIES_ROOT, RUNTIME_ROOT):
         if normalized == allowed_root or normalized.startswith(f"{allowed_root}/"):
             return normalized
     return posixpath.normpath(posixpath.join(REPOSITORY_ROOT, normalized.lstrip("/")))
@@ -802,6 +840,7 @@ __all__ = [
     "DockerSandboxBackend",
     "DockerSandboxManager",
     "DockerSandboxSpec",
+    "REPOSITORIES_ROOT",
     "REPOSITORY_ROOT",
     "RUNTIME_ROOT",
     "sandbox_spec_from_config",

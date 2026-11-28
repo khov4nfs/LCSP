@@ -33,6 +33,7 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import { inspectHumanFactAnswer } from "../commands/answer-human-request/human-fact-integrity.js";
 import { normalizeFactNeedAnswer } from "../commands/answer-human-request/normalize-fact-need-answer.js";
 import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
+import { pinsForRepository } from "../../domain/repository-set-pin.js";
 import {
   AssessmentCaseSupport,
   type PinnedCase,
@@ -55,6 +56,8 @@ type AuthorizedDiscovery = {
     sourcePathPrefix: string | null;
   };
   pins: PinnedCase;
+  /** The pins viewed through the repository the run scanned; discovery checks use these, never the primary's. */
+  repository: PinnedCase;
 };
 
 /**
@@ -96,7 +99,7 @@ export class AssessmentDiscoveryInterviewService {
   }): Promise<DiscoveryInterviewProposal> {
     const record = await this.prisma.$transaction(async (tx) => {
       await this.support.lockCase(tx, input.assessmentId);
-      const { run, pins } = await this.authorizedRunInTx(tx, input, true);
+      const { run, repository } = await this.authorizedRunInTx(tx, input, true);
       if (!run.discoveryRecordId) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
@@ -140,7 +143,7 @@ export class AssessmentDiscoveryInterviewService {
       const investigation = await this.discoveries.verifyInterviewQuestionInTx(
         tx,
         {
-          pins,
+          pins: repository,
           recordId: run.discoveryRecordId,
           useCaseId: input.answer.useCaseId,
           question: input.answer.question,
@@ -150,16 +153,16 @@ export class AssessmentDiscoveryInterviewService {
       const factNeed = await resolveAssessmentFactNeedInTx(tx, {
         assessmentId: input.assessmentId,
         tenantOwnerId: input.ownerId,
-        repositorySnapshotId: pins.repositorySnapshotId,
-        repositoryCommit: pins.repositoryCommit,
-        sourcePathPrefix: pins.sourcePathPrefix,
+        repositorySnapshotId: repository.repositorySnapshotId,
+        repositoryCommit: repository.repositoryCommit,
+        sourcePathPrefix: repository.sourcePathPrefix,
         factNeed: {
           subject: {
             kind: FACT_NEED_SUBJECT_KINDS.useCase,
             key: `usecase.${input.answer.useCaseId.slice(7)}`,
           },
           predicate: `discovery.question.${sha256Hex(input.answer.question)}`,
-          operationalScope: `repository.${sha256Hex(pins.repositoryId).slice(0, 32)}`,
+          operationalScope: `repository.${sha256Hex(repository.repositoryId).slice(0, 32)}`,
           environment: {
             kind: FACT_NEED_ENVIRONMENTS.unknown,
             deploymentKey: null,
@@ -281,7 +284,11 @@ export class AssessmentDiscoveryInterviewService {
   }): Promise<DiscoveryInterviewProposal> {
     const record = await this.prisma.$transaction(async (tx) => {
       await this.support.lockCase(tx, input.assessmentId);
-      const { pins, run } = await this.authorizedRunInTx(tx, input, true);
+      const { pins, run, repository } = await this.authorizedRunInTx(
+        tx,
+        input,
+        true,
+      );
       const proposal = await tx.assessmentDiscoveryInterviewProposal.findUnique(
         {
           where: { proposalId: input.proposalId },
@@ -434,7 +441,7 @@ export class AssessmentDiscoveryInterviewService {
       }
       const refreshed =
         await this.discoveries.refreshCandidateRecommendationsInTx(tx, {
-          pins,
+          pins: repository,
           recordId: run.discoveryRecordId!,
           correlationId: input.correlationId,
         });
@@ -574,15 +581,18 @@ export class AssessmentDiscoveryInterviewService {
     const run = await tx.assessmentDiscoveryRun.findUnique({
       where: { runId: input.runId },
     });
+    const repository = run
+      ? pinsForRepository(pins, { snapshotId: run.repositorySnapshotId })
+      : null;
     if (
       !run ||
+      !repository ||
       run.assessmentId !== input.assessmentId ||
       run.status !== AssessmentDiscoveryRunStatus.COMPLETED ||
       !run.discoveryRecordId ||
-      run.repositorySnapshotId !== pins.repositorySnapshotId ||
-      run.repositoryId !== pins.repositoryId ||
-      run.repositoryCommit !== pins.repositoryCommit.toLowerCase() ||
-      run.sourcePathPrefix !== pins.sourcePathPrefix
+      run.repositoryId !== repository.repositoryId ||
+      run.repositoryCommit !== repository.repositoryCommit.toLowerCase() ||
+      run.sourcePathPrefix !== repository.sourcePathPrefix
     ) {
       throw problemException(
         ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
@@ -592,7 +602,7 @@ export class AssessmentDiscoveryInterviewService {
         },
       );
     }
-    return { run, pins };
+    return { run, pins, repository };
   }
 
   /**

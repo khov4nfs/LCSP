@@ -49,6 +49,7 @@ import {
   humanRequestDependenciesOf,
 } from "../../../infrastructure/persistence/assessment-human-request-dependencies.js";
 import { OpenHumanRequestsBatchCommand } from "./open-human-requests-batch.command.js";
+import { evidenceBelongsToPinnedSet } from "../../../domain/decision-validator.js";
 
 @CommandHandler(OpenHumanRequestsBatchCommand)
 export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanRequestsBatchCommand> {
@@ -256,6 +257,7 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
                 repositorySnapshotId: pins.repositorySnapshotId,
                 repositoryCommit: pins.repositoryCommit,
                 sourcePathPrefix: pins.sourcePathPrefix,
+                repositories: pins.repositories,
                 factNeed: request.factNeed,
                 controlType: request.controlType,
                 choices: request.choices,
@@ -327,7 +329,7 @@ export class OpenHumanRequestsBatchHandler implements ICommandHandler<OpenHumanR
                 evidence.type !== ASSESSMENT_EVIDENCE_TYPES.HUMAN_ANSWER ||
                 evidence.assessmentId !== input.assessmentId ||
                 evidence.state !== ASSESSMENT_RECORD_STATES.ACCEPTED ||
-                evidence.repositoryCommit !== pins.repositoryCommit,
+                !evidenceBelongsToPinnedSet(evidence, pins),
             )
           ) {
             throw invalid(

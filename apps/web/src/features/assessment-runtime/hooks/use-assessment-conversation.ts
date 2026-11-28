@@ -7,6 +7,7 @@ import {
   useRepositorySetupQuery,
 } from "@/lib/api/assessment-domain-queries";
 import { projectConversation } from "../utils/conversation-projection";
+import { repositoryPinViews } from "../utils/repository-pins";
 
 type AssessmentConversation = {
   detail: ReturnType<typeof useAssessmentDetailQuery>;
@@ -49,6 +50,10 @@ export function useAssessmentConversation(
               commit: setup.data.snapshot?.commitSha ?? null,
             }
           : null,
+        repositories: repositoryPinViews(setup.data).map((repository) => ({
+          fullName: repository.fullName,
+          commit: repository.commit,
+        })),
       }),
     [assessmentId, events.data, detail.data, requests.data, setup.data],
   );

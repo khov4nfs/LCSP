@@ -93,6 +93,8 @@ export type OpeningTurn = TurnBase & {
   kind: typeof CONVERSATION_TURN_KINDS.OPENING;
   repositoryFullName: string | null;
   commit: string | null;
+  /** Every pinned repository; the two fields above describe the primary one. */
+  repositories: Array<{ fullName: string; commit: string | null }>;
   ruleSetVersion: string | null;
 };
 export type WorkTurn = TurnBase & {
@@ -156,6 +158,8 @@ export type ConversationInput = {
   detail: AssessmentDetail | null;
   requests: readonly AssessmentHumanRequestView[];
   repository: { fullName: string | null; commit: string | null } | null;
+  /** Every pinned repository, in pin order (empty before the set is known). */
+  repositories?: ReadonlyArray<{ fullName: string; commit: string | null }>;
 };
 
 export type ConversationProjection = {

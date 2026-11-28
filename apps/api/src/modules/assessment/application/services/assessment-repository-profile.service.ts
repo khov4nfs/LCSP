@@ -9,6 +9,7 @@ import {
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { pinsForRepository } from "../../domain/repository-set-pin.js";
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 
 /**
@@ -99,12 +100,25 @@ export class AssessmentRepositoryProfileService {
       );
     }
 
-    const pins = await this.support.loadPins(
+    const set = await this.support.loadPins(
       tx,
       input.assessmentId,
       input.correlationId,
       true,
     );
+    // A profile describes one repository of the pinned set; its own coordinates pick the pin it is judged
+    // against, and a profile that matches none is judged against the primary pin and rejected below.
+    const own = set.repositories.find(
+      (pin) =>
+        pin.repositoryId === profile.repositoryId &&
+        pin.repositoryCommit.toLowerCase() ===
+          profile.commitSha.toLowerCase() &&
+        (pin.sourcePathPrefix ?? null) === (profile.sourcePathPrefix ?? null),
+    );
+    const pins =
+      (own
+        ? pinsForRepository(set, { repositoryKey: own.repositoryKey })
+        : null) ?? set;
 
     if (
       profile.commitSha.toLowerCase() !== pins.repositoryCommit.toLowerCase()
@@ -160,14 +174,20 @@ export class AssessmentRepositoryProfileService {
     input: {
       assessmentId: string;
       correlationId: string;
+      /** The pinned repository to read; absent means the primary one. */
+      repositoryKey?: string;
     },
   ): Promise<RepositoryProfile | null> {
-    const pins = await this.support.loadPins(
+    const set = await this.support.loadPins(
       tx,
       input.assessmentId,
       input.correlationId,
       true,
     );
+    const pins = input.repositoryKey
+      ? pinsForRepository(set, { repositoryKey: input.repositoryKey })
+      : set;
+    if (!pins) return null;
 
     const snapshot = await tx.repositorySnapshot.findUnique({
       where: { id: pins.repositorySnapshotId },

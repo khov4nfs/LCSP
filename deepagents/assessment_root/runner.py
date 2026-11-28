@@ -256,7 +256,8 @@ def _review_checkpoint_recovery_authorized(agent: Any, saved: Any, claim: dict[s
     provenance = {"assessment_id": run.assessment_id, "assessment_root_audit_request_id": audit_request_id,
                   "rule_set_version_id": run.pins["ruleSetVersionId"],
                   "repository_snapshot_id": run.pins["repositorySnapshotId"],
-                  "repository_commit": run.pins["repositoryCommit"], "source_path_prefix": run.source_path_prefix}
+                  "repository_commit": run.pins["repositoryCommit"], "source_path_prefix": run.source_path_prefix,
+                  **({"repository_set_digest": run.repository_set_digest} if run.repository_set_digest else {})}
     current = saved
     visited: set[str] = set()
     bound_seen = False
@@ -422,6 +423,7 @@ def run_assessment_root(
                          "rule_set_version_id": run.pins["ruleSetVersionId"],
                          "repository_snapshot_id": run.pins["repositorySnapshotId"],
                          "repository_commit": run.pins["repositoryCommit"], "source_path_prefix": run.source_path_prefix,
+                         **({"repository_set_digest": run.repository_set_digest} if run.repository_set_digest else {}),
                          "case_revision": run.case_revision},
             "callbacks": [run.trace, TaskLineage(client, run.execution_id), *(extra_callbacks or [])],
         })

@@ -9,11 +9,29 @@ import {
   ASSESSMENT_DISCOVERY_RUN_STATUSES,
   DISCOVERY_DETAIL_COLLECTIONS,
   repositoryDiscoveryDetailPageSchema,
+  assessmentDiscoveryBatchViewSchema,
   assessmentDiscoveryLatestRunSchema,
-  assessmentDiscoveryRunViewSchema,
 } from "@lcsp/contracts/assessment-domain";
 
 import { apiValidated } from "./api-request";
+
+/**
+ * Business purpose: Recognize a repository scan that has not settled yet.
+ * Business rules:
+ * - Only queued and running runs are active; completed and failed runs are terminal.
+ * Execution flow:
+ * 1. Compare the run status with the active statuses.
+ * Failure cases:
+ * - None; pure predicate.
+ * Side effects:
+ * - None; pure calculation.
+ */
+function isActiveRun(run: { status: string }): boolean {
+  return (
+    run.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.queued ||
+    run.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.running
+  );
+}
 
 export const assessmentDiscoveryKeys = {
   /**
@@ -77,11 +95,8 @@ export function useAssessmentDiscoveryLatestQuery(id: string) {
      */
     refetchInterval: (query) => {
       const view = query.state.data;
-      return view?.available &&
-        (view.run.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.queued ||
-          view.run.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.running)
-        ? 3_000
-        : false;
+      // A batch keeps polling until every repository's scan has settled.
+      return view?.available && view.runs.some(isActiveRun) ? 3_000 : false;
     },
   });
 }
@@ -91,8 +106,8 @@ export function useAssessmentDiscoveryLatestQuery(id: string) {
  * Business rules:
  * - Caller supplies a stable UUID per retry; the API controls owner, snapshot and concurrency.
  * Execution flow:
- * 1. POST one idempotent discovery command.
- * 2. Make the persisted new run visible in the same assessment cache.
+ * 1. POST one idempotent discovery command; the API scans every pinned repository.
+ * 2. Make the persisted new batch (one run per repository) visible in the same assessment cache.
  * Failure cases:
  * - Failed command leaves prior results intact and preserves retry identity at the caller.
  * Side effects:
@@ -115,7 +130,7 @@ export function useStartAssessmentDiscovery(id: string) {
     mutationFn: (idempotencyKey: string) =>
       apiValidated(
         `/api/assessments/${encodeURIComponent(id)}/discovery-runs`,
-        assessmentDiscoveryRunViewSchema,
+        assessmentDiscoveryBatchViewSchema,
         {
           method: "POST",
           body: JSON.stringify({ idempotencyKey }),
@@ -132,10 +147,11 @@ export function useStartAssessmentDiscovery(id: string) {
      * Side effects:
      * - Mutates the local query cache; no additional audit request is created.
      */
-    onSuccess: async (run) => {
+    onSuccess: async (batch) => {
       client.setQueryData(assessmentDiscoveryKeys.latest(id), {
         available: true,
-        run,
+        run: batch.run,
+        runs: batch.runs,
       });
       await client.invalidateQueries({
         queryKey: assessmentDiscoveryKeys.latest(id),

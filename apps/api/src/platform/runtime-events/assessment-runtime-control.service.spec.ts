@@ -135,6 +135,9 @@ describe("runtime control registration", () => {
               accountingUnitVersion,
             }),
         },
+        assessmentCaseRepository: {
+          findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
+        },
         repositorySnapshot: {
           findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
             id: "snap-1",
@@ -440,6 +443,9 @@ describe("runtime control registration", () => {
           },
         }),
       },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
+      },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
           id: "snap-1",
@@ -535,6 +541,9 @@ describe("runtime control registration", () => {
           },
         }),
         update: updateAssessment,
+      },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -640,6 +649,9 @@ describe("runtime control registration", () => {
           },
         }),
         update: updateAssessment,
+      },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -780,6 +792,9 @@ describe("runtime control registration", () => {
           },
         }),
       },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
+      },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
           id: "snap-1",
@@ -882,6 +897,9 @@ describe("runtime control registration", () => {
             ruleSet: { lifecycleState: "ACTIVE" },
           },
         }),
+      },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -1006,6 +1024,9 @@ describe("runtime control registration", () => {
           },
         }),
         update: updateAssessment,
+      },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -1146,6 +1167,9 @@ describe("runtime control registration", () => {
           },
         })),
         update: updateAssessment,
+      },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
@@ -1296,6 +1320,9 @@ describe("runtime control registration", () => {
           },
         ),
       },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
+      },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
           id: "snap-1",
@@ -1421,6 +1448,9 @@ describe("runtime control registration", () => {
           },
         }),
         update: updateAssessment,
+      },
+      assessmentCaseRepository: {
+        findMany: jest.fn<() => Promise<any[]>>().mockResolvedValue([]),
       },
       repositorySnapshot: {
         findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({

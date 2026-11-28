@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   DISCOVERY_DETAIL_COLLECTIONS,
+  REPOSITORY_SET_ERROR_CODES,
   REPOSITORY_DISCOVERY_VERSIONS,
   REPOSITORY_SCANNER_VERSIONS,
   computeRepositoryDiscoveryCacheIdentity,
@@ -38,6 +39,7 @@ import {
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { canonicalJson } from "../../domain/domain-ids.js";
+import { pinsForRepository } from "../../domain/repository-set-pin.js";
 import {
   AssessmentCaseSupport,
   type PinnedCase,
@@ -172,6 +174,8 @@ export class AssessmentRepositoryDiscoveryService {
       assessmentId: string;
       correlationId: string;
       discovery: SubmitRepositoryDiscovery;
+      /** The pinned repository the artifact must describe; absent means it is matched by its own coordinates. */
+      repositoryKey?: string;
     },
   ): Promise<RepositoryDiscoverySaveResult> {
     const parsed = submitRepositoryDiscoverySchema.safeParse(input.discovery);
@@ -197,11 +201,15 @@ export class AssessmentRepositoryDiscoveryService {
         { status: HttpStatus.UNPROCESSABLE_ENTITY },
       );
     }
-    const pins = await this.support.loadPins(
-      tx,
-      input.assessmentId,
-      input.correlationId,
-      true,
+    const pins = this.pinsForArtifact(
+      await this.support.loadPins(
+        tx,
+        input.assessmentId,
+        input.correlationId,
+        true,
+      ),
+      discovery,
+      input.repositoryKey,
     );
     this.assertArtifactPins(discovery, pins, input.correlationId);
     const [rules, acceptedFacts, resolvedQuestions] = await Promise.all([
@@ -360,11 +368,11 @@ export class AssessmentRepositoryDiscoveryService {
         correlationId: input.correlationId,
         requireActive: false,
       });
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-      );
+      const pins = await this.pinsForRecordInTx(tx, {
+        assessmentId: input.assessmentId,
+        recordId: expansion.recordId,
+        correlationId: input.correlationId,
+      });
       const discoveryRow = await tx.assessmentRepositoryDiscovery.findFirst({
         where: {
           recordId: expansion.recordId,
@@ -498,17 +506,16 @@ export class AssessmentRepositoryDiscoveryService {
     assessmentId: string;
     leaseToken: string;
     correlationId: string;
+    repositoryKey?: string;
   }): Promise<RepositoryDiscoverySummary> {
     return this.prisma.$transaction(async (tx) => {
       await this.authority.authorizeInTx(tx, {
-        ...input,
+        assessmentId: input.assessmentId,
+        leaseToken: input.leaseToken,
+        correlationId: input.correlationId,
         requireActive: false,
       });
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-      );
+      const pins = await this.pinsForKeyInTx(tx, input);
       return this.summaryForPinsInTx(tx, pins, input.correlationId);
     });
   }
@@ -537,6 +544,7 @@ export class AssessmentRepositoryDiscoveryService {
     ownerId: string;
     correlationId: string;
     recordId?: string;
+    repositoryKey?: string;
   }): Promise<RepositoryDiscoverySummary> {
     return this.prisma.$transaction(async (tx) => {
       const assessment = await tx.assessment.findUnique({
@@ -550,11 +558,14 @@ export class AssessmentRepositoryDiscoveryService {
           { status: HttpStatus.NOT_FOUND },
         );
       }
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-      );
+      // An exact record names its repository itself; otherwise the caller picks a key (default: primary).
+      const pins = input.recordId
+        ? await this.pinsForRecordInTx(tx, {
+            assessmentId: input.assessmentId,
+            recordId: input.recordId,
+            correlationId: input.correlationId,
+          })
+        : await this.pinsForKeyInTx(tx, input);
       return this.summaryForPinsInTx(
         tx,
         pins,
@@ -613,6 +624,7 @@ export class AssessmentRepositoryDiscoveryService {
       available: true,
       discovery: {
         recordId: row.recordId,
+        repositoryKey: this.keyOf(pins),
         repositorySnapshotId: row.repositorySnapshotId,
         repositoryId: row.repositoryId,
         repositoryCommit: row.repositoryCommit,
@@ -722,11 +734,7 @@ export class AssessmentRepositoryDiscoveryService {
         correlationId: input.correlationId,
         requireActive: false,
       });
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-      );
+      const pins = await this.pinsForRecordInTx(tx, input);
       const row = await tx.assessmentRepositoryDiscovery.findFirst({
         where: {
           recordId: input.recordId,
@@ -803,11 +811,7 @@ export class AssessmentRepositoryDiscoveryService {
         correlationId: input.correlationId,
         requireActive: false,
       });
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-      );
+      const pins = await this.pinsForRecordInTx(tx, input);
       return this.detailForPinsInTx(tx, pins, input);
     });
   }
@@ -846,11 +850,7 @@ export class AssessmentRepositoryDiscoveryService {
           { status: HttpStatus.NOT_FOUND },
         );
       }
-      const pins = await this.support.loadPins(
-        tx,
-        input.assessmentId,
-        input.correlationId,
-      );
+      const pins = await this.pinsForRecordInTx(tx, input);
       return this.detailForPinsInTx(tx, pins, input);
     });
   }
@@ -1053,6 +1053,168 @@ export class AssessmentRepositoryDiscoveryService {
         ]),
       ].slice(0, 500),
     };
+  }
+
+  /**
+   * Business purpose: Judge a stored discovery record against the pinned repository it describes, so a record of
+   * one repository of the set is never accepted or shown under another repository's snapshot, commit or scope.
+   *
+   * Business rules:
+   * - The record must belong to this assessment; its snapshot decides which pinned repository it is checked against.
+   * - A record whose snapshot is not part of the pinned set is treated as absent.
+   *
+   * Execution flow:
+   * 1. Load the verified pin set of the assessment.
+   * 2. Read the record's own snapshot id.
+   * 3. Return the pins viewed through that repository.
+   *
+   * Failure cases:
+   * - Records that are foreign, missing or no longer pinned raise PROVENANCE_NOT_FOUND (404).
+   *
+   * Side effects:
+   * - Read-only queries.
+   */
+  private async pinsForRecordInTx(
+    tx: Prisma.TransactionClient,
+    input: { assessmentId: string; recordId: string; correlationId: string },
+  ) {
+    const pins = await this.support.loadPins(
+      tx,
+      input.assessmentId,
+      input.correlationId,
+    );
+    const record = await tx.assessmentRepositoryDiscovery.findFirst({
+      where: { recordId: input.recordId, assessmentId: input.assessmentId },
+      select: { repositorySnapshotId: true },
+    });
+    const scoped = record
+      ? pinsForRepository(pins, { snapshotId: record.repositorySnapshotId })
+      : null;
+    if (!scoped) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_NOT_FOUND,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    return scoped;
+  }
+
+  /**
+   * Business purpose: Select the pinned repository a summary request is about.
+   *
+   * Business rules:
+   * - Without a key the primary repository answers, which keeps single-repository assessments unchanged.
+   * - A key must name a repository pinned to the assessment.
+   *
+   * Execution flow:
+   * 1. Load the verified pin set.
+   * 2. Return the pins viewed through the requested (or primary) repository.
+   *
+   * Failure cases:
+   * - An unknown key raises REPOSITORY_KEY_UNKNOWN (422).
+   *
+   * Side effects:
+   * - Read-only queries.
+   */
+  private async pinsForKeyInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      correlationId: string;
+      repositoryKey?: string;
+    },
+  ) {
+    const pins = await this.support.loadPins(
+      tx,
+      input.assessmentId,
+      input.correlationId,
+    );
+    const key = input.repositoryKey ?? pins.repositories[0]?.repositoryKey;
+    const scoped = key ? pinsForRepository(pins, { repositoryKey: key }) : null;
+    if (!scoped) {
+      throw problemException(
+        REPOSITORY_SET_ERROR_CODES.keyUnknown,
+        input.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    return scoped;
+  }
+
+  /**
+   * Business purpose: Decide which pinned repository a submitted discovery artifact is meant for.
+   *
+   * Business rules:
+   * - An explicit key (a run bound to one repository) wins.
+   * - Otherwise the artifact's own repository, commit and source scope identify the pin; nothing matching
+   *   falls back to the primary repository so the standard pin-mismatch rejection applies.
+   *
+   * Execution flow:
+   * 1. Use the explicit key when given.
+   * 2. Match the artifact coordinates against every pin.
+   * 3. Fall back to the primary pin.
+   *
+   * Failure cases:
+   * - None here; assertArtifactPins rejects the chosen pin when the artifact does not match it.
+   *
+   * Side effects:
+   * - Pure selection.
+   */
+  private pinsForArtifact(
+    pins: PinnedCase,
+    discovery: RepositoryDiscovery,
+    repositoryKey: string | undefined,
+  ) {
+    const byKey = repositoryKey
+      ? pinsForRepository(pins, { repositoryKey })
+      : null;
+    if (repositoryKey) return byKey ?? this.primaryPins(pins);
+    const own = pins.repositories.find(
+      (pin) =>
+        pin.repositoryId === discovery.repositoryId &&
+        pin.repositoryCommit.toLowerCase() ===
+          discovery.commitSha.toLowerCase() &&
+        pin.sourcePathPrefix === discovery.sourcePathPrefix,
+    );
+    return (
+      (own
+        ? pinsForRepository(pins, { repositoryKey: own.repositoryKey })
+        : null) ?? this.primaryPins(pins)
+    );
+  }
+
+  /**
+   * Business purpose: View the pins through the primary repository, the default target of single-repository callers.
+   * Business rules:
+   * - The primary repository is ordinal 0 of the verified set.
+   * Execution flow:
+   * 1. Project the primary pin into the scalar fields.
+   * Failure cases:
+   * - A set without members cannot occur; the pins would already have been rejected as not ready.
+   * Side effects:
+   * - Pure projection.
+   */
+  private primaryPins(pins: PinnedCase) {
+    return {
+      ...pins,
+      repositoryKey: pins.repositories[0]?.repositoryKey ?? "",
+    };
+  }
+
+  /**
+   * Business purpose: Name the pinned repository a summary describes.
+   * Business rules:
+   * - The key belongs to the pins the summary was verified against.
+   * Execution flow:
+   * 1. Read the key when the pins were selected for one repository, else the primary repository's key.
+   * Failure cases:
+   * - Pins without any repository yield null, which the summary schema accepts for unrecorded legacy sets.
+   * Side effects:
+   * - Pure projection.
+   */
+  private keyOf(pins: PinnedCase & { repositoryKey?: string }): string | null {
+    return pins.repositoryKey ?? pins.repositories[0]?.repositoryKey ?? null;
   }
 
   /**

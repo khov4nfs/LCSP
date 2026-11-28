@@ -13,7 +13,10 @@ import {
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
 } from "@lcsp/contracts/github-integration";
-import type { AssessmentRepositorySetup } from "@lcsp/contracts/assessment-domain";
+import {
+  REPOSITORY_SET_ERROR_CODES,
+  type AssessmentRepositorySetup,
+} from "@lcsp/contracts/assessment-domain";
 import {
   connectAssessmentRepository,
   getRepositorySetupState,
@@ -74,6 +77,10 @@ function setup(
     connection,
     snapshot,
     scanJob: null,
+    repositories: [],
+    repositorySetDigest: null,
+    repositoryLimit: 5,
+    setupCompleted: false,
     ...overrides,
   });
 }
@@ -222,7 +229,7 @@ test("shared parsers preserve supported repository URL forms", () => {
 
 test("resume completes a saved snapshot and reports activation without repinning", async (t) => {
   const api = server(t, setup());
-  const result = await startRepositoryAnalysis(assessmentId, input);
+  const result = await startRepositoryAnalysis(assessmentId, [input]);
   assert.deepEqual(
     writes(api).map((request) => request.path.split("/").slice(-2).join("/")),
     ["repository-setup/complete"],
@@ -234,7 +241,7 @@ test("resume completes a saved snapshot and reports activation without repinning
 
 test("new setup pins only when no persisted snapshot exists", async (t) => {
   const api = server(t, setup({ snapshot: null }));
-  await startRepositoryAnalysis(assessmentId, input);
+  await startRepositoryAnalysis(assessmentId, [input]);
   assert.equal(
     writes(api).filter((request) => request.path.endsWith("/snapshots")).length,
     1,
@@ -246,7 +253,7 @@ test("completion reports PREPARING while compliance rules are unavailable", asyn
   const api = server(t, setup());
   api.completionCreatesScan = false;
   api.completionState = ASSESSMENT_LIFECYCLE_STATES.PREPARING;
-  const result = await startRepositoryAnalysis(assessmentId, input);
+  const result = await startRepositoryAnalysis(assessmentId, [input]);
   assert.deepEqual(result, {
     snapshotId: snapshot.id,
     commitSha: originalCommit,
@@ -265,7 +272,7 @@ test("a cancelled assessment with a snapshot cannot complete setup", async (t) =
       },
     }),
   );
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
+  await assert.rejects(startRepositoryAnalysis(assessmentId, [input]), {
     message: ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
   });
   assert.equal(writes(api).length, 0);
@@ -273,30 +280,45 @@ test("a cancelled assessment with a snapshot cannot complete setup", async (t) =
 
 test("new Web setup explicitly pins full-repository scope", async (t) => {
   const api = server(t, setup({ snapshot: null }));
-  await startRepositoryAnalysis(assessmentId, input);
+  await startRepositoryAnalysis(assessmentId, [input]);
   const snapshotWrite = writes(api).find((request) =>
     request.path.endsWith("/snapshots"),
   );
   assert.equal(snapshotWrite?.body.source_path_prefix, null);
 });
 
-test("Web resume fails closed for a subtree-scoped snapshot it cannot represent", async (t) => {
-  const api = server(
-    t,
-    setup({ snapshot: { ...snapshot, sourcePathPrefix: "services/chatbot" } }),
+test("a scoped snapshot is never resumed as a whole-repository one", async (t) => {
+  const scoped = { ...snapshot, sourcePathPrefix: "services/chatbot" };
+  const api = server(t, setup({ snapshot: scoped }));
+  // The caller asks for the whole repository; the saved scoped snapshot must not satisfy that request.
+  const result = await startRepositoryAnalysis(assessmentId, [input]);
+  const snapshotWrites = writes(api).filter((request) =>
+    request.path.endsWith("/snapshots"),
   );
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
-    message: GITHUB_INTEGRATION_ERROR_CODES.sourcePathPrefixInvalid,
-  });
-  assert.equal(writes(api).length, 0);
+  assert.equal(snapshotWrites.length, 1);
+  assert.equal(snapshotWrites[0]?.body.source_path_prefix, null);
+  assert.notEqual(api.state.snapshot?.sourcePathPrefix, "services/chatbot");
+  assert.equal(result.commitSha, originalCommit);
+});
+
+test("resuming with the scope read back from the saved snapshot reuses it", async (t) => {
+  const scoped = { ...snapshot, sourcePathPrefix: "services/chatbot" };
+  const api = server(t, setup({ snapshot: scoped }));
+  await startRepositoryAnalysis(assessmentId, [
+    { ...input, sourcePathPrefix: "services/chatbot" },
+  ]);
+  assert.equal(
+    writes(api).some((request) => request.path.endsWith("/snapshots")),
+    false,
+  );
 });
 
 test("completion retry retains snapshot and commit even if the branch head moves", async (t) => {
   const api = server(t, setup());
   api.failures.add("complete-before-commit");
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input));
+  await assert.rejects(startRepositoryAnalysis(assessmentId, [input]));
   api.branchHead = "b".repeat(40);
-  const result = await startRepositoryAnalysis(assessmentId, input);
+  const result = await startRepositoryAnalysis(assessmentId, [input]);
   assert.equal(result.commitSha, originalCommit);
   assert.equal(
     writes(api).some((request) => request.path.endsWith("/snapshots")),
@@ -312,10 +334,10 @@ for (const stage of ["snapshot-response", "completion-response"]) {
       setup({ snapshot: stage === "snapshot-response" ? null : snapshot }),
     );
     api.failures.add(stage);
-    await assert.rejects(startRepositoryAnalysis(assessmentId, input));
+    await assert.rejects(startRepositoryAnalysis(assessmentId, [input]));
     const before = writes(api).length;
     api.branchHead = "b".repeat(40);
-    const result = await startRepositoryAnalysis(assessmentId, input);
+    const result = await startRepositoryAnalysis(assessmentId, [input]);
     assert.equal(result.commitSha, originalCommit);
     const retriedWrites = writes(api).slice(before);
     assert.equal(
@@ -338,7 +360,7 @@ test("a setup that is no longer PREPARING and has no snapshot fails before any m
       },
     }),
   );
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
+  await assert.rejects(startRepositoryAnalysis(assessmentId, [input]), {
     message: ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
   });
   assert.equal(writes(api).length, 0);
@@ -361,14 +383,33 @@ test("lost connection response is recovered without deleting or connecting again
   assert.equal(writes(api).length, 1);
 });
 
-test("an existing connection cannot be silently switched to another repository", async (t) => {
+test("a different repository is added as another connection within the limit", async (t) => {
   const api = server(t, setup());
+  const added = await connectAssessmentRepository(
+    assessmentId,
+    "https://github.com/acme/another",
+  );
+  // The mock server answers every connection request with the fixture connection.
+  assert.equal(added.connectionId, connection.connectionId);
+  assert.equal(writes(api).length, 1);
+  assert.ok(writes(api)[0]?.path.endsWith("/repository-connection"));
+});
+
+test("the same repository is never connected twice", async (t) => {
+  const api = server(t, setup());
+  const again = await connectAssessmentRepository(
+    assessmentId,
+    "https://github.com/ACME/payments.git",
+  );
+  assert.equal(again.connectionId, connection.connectionId);
+  assert.equal(writes(api).length, 0);
+});
+
+test("connecting beyond the repository limit is refused before any write", async (t) => {
+  const api = server(t, setup({ repositoryLimit: 1 }));
   await assert.rejects(
-    connectAssessmentRepository(
-      assessmentId,
-      "https://github.com/acme/another",
-    ),
-    { message: GITHUB_INTEGRATION_ERROR_CODES.connectionAlreadyExists },
+    connectAssessmentRepository(assessmentId, "https://github.com/acme/another"),
+    { message: REPOSITORY_SET_ERROR_CODES.limitExceeded },
   );
   assert.equal(writes(api).length, 0);
 });
@@ -389,7 +430,7 @@ for (const status of [
         scanJob: makeJob(status),
       }),
     );
-    const result = await startRepositoryAnalysis(assessmentId, input);
+    const result = await startRepositoryAnalysis(assessmentId, [input]);
     assert.equal(result.lifecycleState, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
     assert.equal(api.state.scanJob?.status, status);
     assert.equal(writes(api).length, 0);
@@ -398,8 +439,8 @@ for (const status of [
 
 test("concurrent client submissions share one resume operation", async (t) => {
   const api = server(t, setup());
-  const first = startRepositoryAnalysis(assessmentId, input);
-  const second = startRepositoryAnalysis(assessmentId, input);
+  const first = startRepositoryAnalysis(assessmentId, [input]);
+  const second = startRepositoryAnalysis(assessmentId, [input]);
   assert.equal(first, second);
   await Promise.all([first, second]);
   assert.equal(writes(api).length, 1);
@@ -420,14 +461,14 @@ test("unreadable or mismatched checkpoints fail before any mutation", async (t) 
   await assert.rejects(getRepositorySetupState(assessmentId), {
     message: ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
   });
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input));
+  await assert.rejects(startRepositoryAnalysis(assessmentId, [input]));
   assert.ok(requests.every((method) => method === "GET"));
 });
 
 test("completion with a different snapshot is rejected", async (t) => {
   const api = server(t, setup());
   api.completionMismatch = true;
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
+  await assert.rejects(startRepositoryAnalysis(assessmentId, [input]), {
     message: GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
   });
 });

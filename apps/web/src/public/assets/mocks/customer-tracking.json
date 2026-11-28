@@ -57,8 +57,8 @@
           "pinnedCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "latestCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "observedAt": "2026-11-18T00:00:00.000Z",
-          "freshnessStatus": "FRESHNESS_CURRENT",
-          "isStale": false
+          "freshnessStatus": "FRESHNESS_STALE",
+          "isStale": true
         },
         "ruleSet": {
           "ruleSetVersionId": "11111111-1111-4111-8111-111111111111",
@@ -84,7 +84,29 @@
           "isReady": true
         },
         "pendingActionCount": 1,
-        "updatedAt": "2026-11-18T01:00:00.000Z"
+        "updatedAt": "2026-11-18T01:00:00.000Z",
+        "repositories": [
+          {
+            "repositoryKey": "checkout-service",
+            "name": "checkout-service",
+            "owner": "enterprise-org",
+            "pinnedCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "latestCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "observedAt": "2026-11-18T00:00:00.000Z",
+            "freshnessStatus": "FRESHNESS_CURRENT",
+            "isStale": false
+          },
+          {
+            "repositoryKey": "payments-api",
+            "name": "payments-api",
+            "owner": "enterprise-org",
+            "pinnedCommit": "cccccccccccccccccccccccccccccccccccccccc",
+            "latestCommit": "dddddddddddddddddddddddddddddddddddddddd",
+            "observedAt": "2026-11-19T00:00:00.000Z",
+            "freshnessStatus": "FRESHNESS_STALE",
+            "isStale": true
+          }
+        ]
       },
       {
         "assessmentId": "22222222-2222-4222-8222-222222222222",
@@ -124,7 +146,19 @@
           "isReady": false
         },
         "pendingActionCount": 0,
-        "updatedAt": "2026-11-18T02:00:00.000Z"
+        "updatedAt": "2026-11-18T02:00:00.000Z",
+        "repositories": [
+          {
+            "repositoryKey": null,
+            "name": "auth-service",
+            "owner": "enterprise-org",
+            "pinnedCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "latestCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-11-18T02:00:00.000Z",
+            "freshnessStatus": "FRESHNESS_CURRENT",
+            "isStale": false
+          }
+        ]
       }
     ],
     "pagination": {

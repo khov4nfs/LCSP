@@ -29,6 +29,7 @@ import {
   AcceptAssessmentFactCommand,
   type AcceptAssessmentFactResult,
 } from "./accept-assessment-fact.command.js";
+import { evidenceBelongsToPinnedSet } from "../../../domain/decision-validator.js";
 
 @CommandHandler(AcceptAssessmentFactCommand)
 export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssessmentFactCommand> {
@@ -40,6 +41,25 @@ export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssess
     private readonly invalidation: AssessmentEvidenceInvalidation,
   ) {}
 
+  /**
+   * Business purpose: Record a confirmed case fact only when every piece of evidence behind it is current, accepted
+   * and gathered from a repository this assessment is pinned to.
+   * Business rules:
+   * - The current Root lease and the case pins authorize the write; evidence IDs are de-duplicated and ordered so the same
+   *   fact always gets the same identity.
+   * - Each cited evidence must be ACCEPTED and belong to the pinned repository set (its commit, and its repository key when
+   *   it is bound to one), so a fact can rest on code from any pinned repository but never from an unpinned commit.
+   * - A replay of an identical fact returns the existing record instead of writing a second one.
+   * Execution flow:
+   * 1. Authorize the Root, load the pins and derive the deterministic fact identity.
+   * 2. Lock the case, read the cited evidence and reject anything that is missing, not accepted or outside the set.
+   * 3. Persist the fact with its evidence links and append the audit event.
+   * Failure cases:
+   * - Invalid lease or pins, a stale case revision or unusable evidence rejects with the matching assessment problem
+   *   (for example EVIDENCE_REFERENCE_INVALID) and writes nothing.
+   * Side effects:
+   * - Writes one fact row, its evidence links and one audit event in a single transaction; a replay writes nothing.
+   */
   async execute(
     input: AcceptAssessmentFactCommand,
   ): Promise<AcceptAssessmentFactResult> {
@@ -89,12 +109,17 @@ export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssess
           assessmentId: input.assessmentId,
           evidenceId: { in: evidenceIds },
         },
-        select: { evidenceId: true, state: true, repositoryCommit: true },
+        select: {
+          evidenceId: true,
+          state: true,
+          repositoryCommit: true,
+          repositoryKey: true,
+        },
       });
       const accepted = evidence.filter(
         (row) =>
           row.state === ASSESSMENT_RECORD_STATES.ACCEPTED &&
-          row.repositoryCommit === pins.repositoryCommit,
+          evidenceBelongsToPinnedSet(row, pins),
       );
       if (accepted.length !== evidenceIds.length) {
         throw problemException(

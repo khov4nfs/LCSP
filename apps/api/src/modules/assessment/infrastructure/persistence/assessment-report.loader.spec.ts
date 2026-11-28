@@ -18,6 +18,13 @@ import { AssessmentReportLoader } from "./assessment-report.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { ArtifactStorageService } from "../../../../platform/storage/artifact-storage.service.js";
 import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
+import { buildAssessmentFinalReportV4 } from "../../application/commands/submit-assessment-final-report/assessment-final-report-v4.builder.js";
+import {
+  api as fixtureApi,
+  assessmentId as fixtureAssessmentId,
+  id as fixtureId,
+  twoRepositoryReportEnvironment,
+} from "../../fixtures/two-repository-final-report.js";
 
 describe("AssessmentReportLoader locale read projection", () => {
   const assessmentId = "11111111-1111-4111-8111-111111111111";
@@ -586,6 +593,123 @@ describe("AssessmentReportLoader historical compatibility", () => {
     });
     expect(result.content.toString("utf8")).toBe(raw);
     expect(result.contentSha256).toBe(hash);
+  });
+
+  describe("multi-repository (V4) report", () => {
+    /** A stored V4 artifact, its database row and the loader that reads it. */
+    async function stored(
+      overrides: {
+        artifactSetDigest?: string;
+        caseSetDigest?: string;
+        apiPrefix?: string | null;
+      } = {},
+    ) {
+      const { tx, snapshot, request } = twoRepositoryReportEnvironment();
+      const report = await buildAssessmentFinalReportV4({
+        tx,
+        assessmentId: fixtureAssessmentId,
+        artifactId: fixtureId(),
+        request,
+        snapshot,
+      });
+      const raw = canonicalJson(report);
+      const hash = sha256Hex(raw);
+      const [primary] = report.pins.repositories;
+      if (!primary) throw new Error("fixture has no repositories");
+      const row = {
+        artifactId: report.artifactId,
+        assessmentId: fixtureAssessmentId,
+        kind: "FINAL_REPORT",
+        lifecycleState: "ACTIVE",
+        ruleSetVersionId: report.pins.ruleSetVersionId,
+        repositorySnapshotId: primary.repositorySnapshotId,
+        repositoryCommit: primary.repositoryCommit,
+        repositorySetDigest:
+          overrides.artifactSetDigest ?? report.pins.repositorySetDigest,
+        caseRevision: report.caseRevision,
+        schemaVersion: report.schemaVersion,
+        contentSha256: `sha256:${hash}`,
+        sizeBytes: Buffer.byteLength(raw),
+        storageRef: JSON.stringify({
+          artifact_id: report.artifactId,
+          total_size: Buffer.byteLength(raw),
+          hash,
+          chunks: ["chunk-0"],
+        }),
+        assessmentCase: {
+          caseRevision: report.caseRevision,
+          ruleSetVersionId: report.pins.ruleSetVersionId,
+          repositorySnapshotId: primary.repositorySnapshotId,
+          repositoryScanJobId: primary.repositoryScanJobId,
+          repositoryCommit: primary.repositoryCommit,
+          repositorySetDigest:
+            overrides.caseSetDigest ?? report.pins.repositorySetDigest,
+          assessment: { lifecycleState: "COMPLETE", ownerId: "owner-1" },
+        },
+      };
+      const apiPrefix =
+        overrides.apiPrefix === undefined
+          ? "services/billing"
+          : overrides.apiPrefix;
+      const loader = new AssessmentReportLoader(
+        {
+          assessmentArtifact: { findFirst: () => row },
+          complianceRuleSetVersion: {
+            findUnique: () => ({
+              id: report.pins.ruleSetVersionId,
+              version: report.pins.ruleSetVersion,
+              ruleSetDigest: report.pins.ruleSetDigest,
+              legalSourceVersion: {
+                id: report.pins.legalSourceVersionId,
+                version: report.pins.legalSourceVersion,
+              },
+            }),
+          },
+          repositorySnapshot: {
+            findUnique: ({ where }: { where: { id: string } }) => ({
+              sourcePathPrefix:
+                where.id === fixtureApi.repositorySnapshotId ? apiPrefix : null,
+            }),
+            // A multi-repository report has no single provider link, so no canonical source is resolved.
+            findFirst: () => Promise.resolve(null),
+          },
+        } as never,
+        { readAndReconstruct: () => raw } as never,
+        authoredLocalizationFixture().projection,
+      );
+      const load = () =>
+        loader.load({
+          assessmentId: fixtureAssessmentId,
+          artifactId: report.artifactId,
+          sessionUserId: "owner-1",
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: randomUUID(),
+        });
+      return { load, raw, hash };
+    }
+
+    it("serves the stored bytes when the set digest and every snapshot scope still match", async () => {
+      const { load, raw, hash } = await stored();
+      const result = await load();
+      expect(result.content.toString("utf8")).toBe(raw);
+      expect(result.contentSha256).toBe(hash);
+    });
+
+    it("refuses a report whose set digest differs from the one recorded on the artifact or the case", async () => {
+      const other = `sha256:${"9".repeat(64)}`;
+      await expect(
+        (await stored({ artifactSetDigest: other })).load(),
+      ).rejects.toMatchObject({ status: 409 });
+      await expect(
+        (await stored({ caseSetDigest: other })).load(),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it("refuses a report once a pinned snapshot's source scope no longer matches", async () => {
+      await expect(
+        (await stored({ apiPrefix: "services/other" })).load(),
+      ).rejects.toMatchObject({ status: 409 });
+    });
   });
 
   it("blocks artifact downloads with 403 when user capability artifactsEnabled is false", async () => {

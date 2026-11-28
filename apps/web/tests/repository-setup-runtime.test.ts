@@ -5,7 +5,7 @@ import {
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
 } from "@lcsp/contracts/github-integration";
-import { repositorySetupSchema } from "../src/features/assessment-flow/schemas/repository-setup.schema";
+import { repositoryEntrySchema } from "../src/features/assessment-flow/schemas/repository-setup.schema";
 
 const samples = [
   "https://github.com/acme/project",
@@ -30,7 +30,11 @@ for (const repositoryUrl of samples) {
           ? parseGitHubRepositoryUrl
           : parseGitLabRepositoryUrl;
       assert.equal(
-        repositorySetupSchema.safeParse({ provider, repositoryUrl }).success,
+        repositoryEntrySchema.safeParse({
+          provider,
+          repositoryUrl,
+          sourcePathPrefix: null,
+        }).success,
         parse(repositoryUrl) !== null,
       );
     }

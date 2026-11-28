@@ -545,7 +545,7 @@ export async function runPython(
     executable = python,
   } = {},
 ) {
-  const admission = ["scripted_root.py", "hitl_root.py", "root_control.py"].includes(path.basename(script))
+  const admission = ["scripted_root.py", "scripted_root_multi_repository.py", "hitl_root.py", "root_control.py"].includes(path.basename(script))
     ? directRootFixtures.get(args[0]) : null;
   const prepared = admission ? await admission.prepare(args[2]) : null;
   try {

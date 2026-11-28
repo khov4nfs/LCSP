@@ -6,4 +6,6 @@ export const ASSESSMENT_EVENT_TYPES = {
   renamed: "ASSESSMENT_RENAMED",
   deleted: "ASSESSMENT_DELETED",
   repositorySetupCompleted: "ASSESSMENT_REPOSITORY_SETUP_COMPLETED",
+  repositoryAdded: "ASSESSMENT_REPOSITORY_ADDED",
+  repositoryRemoved: "ASSESSMENT_REPOSITORY_REMOVED",
 } as const;

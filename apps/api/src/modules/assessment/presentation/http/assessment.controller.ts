@@ -3,12 +3,14 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   claimAssessmentRootRequestSchema,
+  completeAssessmentRepositorySetupRequestSchema,
   createAssessmentSchema,
   renameAssessmentSchema,
   assessmentEventsQuerySchema,
   assessmentListQuerySchema,
   type AssessmentEventsQuery,
   type AssessmentListQuery,
+  type CompleteAssessmentRepositorySetupRequest,
 } from "@lcsp/contracts/assessment-domain";
 import type { z } from "zod";
 import {
@@ -31,6 +33,7 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
 import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
+import { RemoveAssessmentRepositoryCommand } from "../../application/commands/remove-assessment-repository/remove-assessment-repository.command.js";
 import { DeleteAssessmentCommand } from "../../application/commands/delete-assessment/delete-assessment.command.js";
 import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
@@ -80,6 +83,8 @@ export class AssessmentController {
   async completeRepositorySetup(
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() request: AuthenticatedRequest,
+    @Body(pipe(completeAssessmentRepositorySetupRequestSchema.default({})))
+    body: CompleteAssessmentRepositorySetupRequest,
   ) {
     const locale =
       (request.headers?.["x-lcsp-locale"] as string | undefined) ?? null;
@@ -90,6 +95,26 @@ export class AssessmentController {
           request.rbacContext.userId,
           request.correlationId || randomUUID(),
           locale,
+          body.snapshotIds,
+        ),
+      ),
+    );
+  }
+
+  @Delete(":assessmentId/repository-setup/repositories/:snapshotId")
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async removeRepository(
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Param("snapshotId") snapshotId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new RemoveAssessmentRepositoryCommand(
+          assessmentId,
+          snapshotId,
+          request.rbacContext.userId,
+          request.correlationId || randomUUID(),
         ),
       ),
     );

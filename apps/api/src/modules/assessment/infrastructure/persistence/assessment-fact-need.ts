@@ -152,6 +152,43 @@ function canonicalDiscoveryRefs(value: unknown): FactNeedDiscoveryRef[] {
   );
 }
 
+/** The coordinates of one pinned repository a FactNeed may reference. */
+export type FactNeedPinnedRepository = {
+  repositorySnapshotId: string;
+  repositoryCommit: string;
+  sourcePathPrefix: string | null;
+};
+
+/**
+ * Business purpose: Decide which pinned repositories a FactNeed's discovery and evidence references may belong to.
+ * Business rules:
+ * - A caller that supplies the whole pinned set may reference any repository of it.
+ * - A caller that supplies only the scalar pin (single repository, or a repository-scoped flow) is limited to it.
+ * Execution flow:
+ * 1. Use the supplied set when present.
+ * 2. Otherwise build a set of one from the scalar pin.
+ * Failure cases:
+ * - None; pure selection.
+ * Side effects:
+ * - Pure calculation without persistence.
+ */
+function pinnedRepositoriesOf(input: {
+  repositorySnapshotId: string;
+  repositoryCommit: string;
+  sourcePathPrefix: string | null;
+  repositories?: readonly FactNeedPinnedRepository[];
+}): readonly FactNeedPinnedRepository[] {
+  return input.repositories && input.repositories.length > 0
+    ? input.repositories
+    : [
+        {
+          repositorySnapshotId: input.repositorySnapshotId,
+          repositoryCommit: input.repositoryCommit,
+          sourcePathPrefix: input.sourcePathPrefix,
+        },
+      ];
+}
+
 /**
  * Business purpose: Prove that source ranges claimed in a FactNeed came from immutable Discovery records at the assessment's current repository pins.
  *
@@ -179,6 +216,8 @@ export async function validateFactNeedDiscoveryProvenanceInTx(
     repositorySnapshotId: string;
     repositoryCommit: string;
     sourcePathPrefix: string | null;
+    /** Every repository a discovery record may belong to; absent means only the scalar repository above. */
+    repositories?: readonly FactNeedPinnedRepository[];
     investigationDiscoveryRefs?: readonly FactNeedDiscoveryRef[];
     investigatedRangeIds: readonly string[];
     correlationId: string;
@@ -196,18 +235,32 @@ export async function validateFactNeedDiscoveryProvenanceInTx(
   }
   if (refs.length === 0) return [];
 
+  const pinned = pinnedRepositoriesOf(input);
   const rows = await tx.assessmentRepositoryDiscovery.findMany({
     where: {
       assessmentId: input.assessmentId,
-      repositorySnapshotId: input.repositorySnapshotId,
-      repositoryCommit: input.repositoryCommit.toLowerCase(),
-      sourcePathPrefix: input.sourcePathPrefix,
-      OR: refs.map((ref) => ({
-        recordId: ref.recordId,
-        contentDigest: ref.contentDigest,
-      })),
+      AND: [
+        {
+          OR: pinned.map((pin) => ({
+            repositorySnapshotId: pin.repositorySnapshotId,
+            repositoryCommit: pin.repositoryCommit.toLowerCase(),
+            sourcePathPrefix: pin.sourcePathPrefix,
+          })),
+        },
+        {
+          OR: refs.map((ref) => ({
+            recordId: ref.recordId,
+            contentDigest: ref.contentDigest,
+          })),
+        },
+      ],
     },
-    select: { recordId: true, contentDigest: true, payload: true },
+    select: {
+      recordId: true,
+      contentDigest: true,
+      payload: true,
+      repositorySnapshotId: true,
+    },
   });
   if (rows.length !== refs.length) throw fail();
 
@@ -218,12 +271,18 @@ export async function validateFactNeedDiscoveryProvenanceInTx(
   for (const row of rows) {
     if (!expectedRefs.has(`${row.recordId}:${row.contentDigest}`)) throw fail();
     const parsed = repositoryDiscoverySchema.safeParse(row.payload);
+    // The record is judged against the pinned repository of its own snapshot, never another repository's.
+    const pin = pinned.find(
+      (candidate) =>
+        candidate.repositorySnapshotId === row.repositorySnapshotId,
+    );
     if (
+      !pin ||
       !parsed.success ||
       parsed.data.contentDigest !== row.contentDigest ||
       parsed.data.discoveryId !== row.contentDigest ||
-      parsed.data.commitSha !== input.repositoryCommit.toLowerCase() ||
-      parsed.data.sourcePathPrefix !== input.sourcePathPrefix ||
+      parsed.data.commitSha !== pin.repositoryCommit.toLowerCase() ||
+      parsed.data.sourcePathPrefix !== pin.sourcePathPrefix ||
       computeRepositoryDiscoveryDigest(parsed.data) !== row.contentDigest
     ) {
       throw fail();
@@ -403,6 +462,8 @@ export async function resolveAssessmentFactNeedInTx(
     repositorySnapshotId: string;
     repositoryCommit: string;
     sourcePathPrefix: string | null;
+    /** Every pinned repository a referenced discovery record or accepted evidence may belong to. */
+    repositories?: readonly FactNeedPinnedRepository[];
     factNeed: FactNeedInput;
     controlType: string;
     choices: readonly { value: string }[];
@@ -415,6 +476,7 @@ export async function resolveAssessmentFactNeedInTx(
     repositorySnapshotId: input.repositorySnapshotId,
     repositoryCommit: input.repositoryCommit,
     sourcePathPrefix: input.sourcePathPrefix,
+    repositories: input.repositories,
     investigationDiscoveryRefs: input.factNeed.investigationDiscoveryRefs,
     investigatedRangeIds: input.factNeed.investigatedRangeIds,
     correlationId: input.correlationId,
@@ -426,7 +488,9 @@ export async function resolveAssessmentFactNeedInTx(
         assessmentId: input.assessmentId,
         evidenceId: { in: evidenceIds },
         state: AssessmentRecordState.ACCEPTED,
-        repositoryCommit: input.repositoryCommit,
+        repositoryCommit: {
+          in: pinnedRepositoriesOf(input).map((pin) => pin.repositoryCommit),
+        },
       },
     });
     if (accepted !== evidenceIds.length) {

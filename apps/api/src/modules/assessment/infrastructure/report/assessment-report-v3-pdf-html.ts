@@ -2,7 +2,10 @@ import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_COMPLIANCE_OUTCOMES,
 } from "@lcsp/contracts/assessment";
-import type { AssessmentReportV3Presentation } from "@lcsp/contracts/assessment-report";
+import type {
+  AssessmentReportV3Presentation,
+  AssessmentReportV4Presentation,
+} from "@lcsp/contracts/assessment-report";
 import {
   ASSESSMENT_REPORT_ACTION_PRIORITIES,
   ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES,
@@ -18,6 +21,10 @@ import {
   renderReportSourceLocator,
   type RepositoryReportSource,
 } from "./assessment-report-source-link.js";
+
+/** The V3 layout also renders the multi-repository (V4) model, which adds the pinned set to the same sections. */
+export type ReportModel =
+  AssessmentReportV3Presentation | AssessmentReportV4Presentation;
 
 type RenderOptions = {
   preview?: boolean;
@@ -55,7 +62,7 @@ const priorityBadge = (priority: string) => {
   return badge("Ưu tiên thấp", "neutral");
 };
 
-function buildV3ReferenceIndex(model: AssessmentReportV3Presentation) {
+function buildV3ReferenceIndex(model: ReportModel) {
   const ruleIds = [
     ...new Set(model.obligationDetails.map((item) => item.assessmentRuleId)),
   ];
@@ -121,24 +128,43 @@ function buildV3ReferenceIndex(model: AssessmentReportV3Presentation) {
  * - Pure function: creates an in-memory HTML document string.
  */
 export function assessmentReportV3Html(
-  model: AssessmentReportV3Presentation,
+  model: ReportModel,
   options: RenderOptions = {},
 ): string {
   const refs = buildV3ReferenceIndex(model);
 
+  const repositories =
+    "repositories" in model.header ? model.header.repositories : null;
   const scope = model.header.sourceScope;
-  const isLimited =
-    scope.visibility !==
-      ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL ||
-    scope.limitationReasons.length > 0;
+  // Each repository declares its own scope; a limited one limits the whole report and is named in the warning.
+  const declaredScopes = repositories
+    ? repositories.map((repository) => ({
+        label: repository.repositoryKey as string | null,
+        declared: repository.sourceScope,
+      }))
+    : [{ label: null as string | null, declared: scope }];
+  const limitedScopes = declaredScopes.filter(
+    ({ declared }) =>
+      declared.visibility !==
+        ASSESSMENT_REPORT_SOURCE_VISIBILITY_STATES.KNOWN_FULL ||
+      declared.limitationReasons.length > 0,
+  );
+  const limitationReasons = [
+    ...new Set(
+      limitedScopes.flatMap(({ declared }) => declared.limitationReasons),
+    ),
+  ];
 
-  const scopeBanner = isLimited
-    ? `<div class="scope-warning-banner"><strong>CẢNH BÁO PHẠM VI MÃ NGUỒN:</strong> Báo cáo này được thực hiện trong phạm vi khảo sát giới hạn (${inline(
-        scope.mode,
-      )} · ${inline(scope.visibility)}). ${
-        scope.limitationReasons.length
+  const scopeBanner = limitedScopes.length
+    ? `<div class="scope-warning-banner"><strong>CẢNH BÁO PHẠM VI MÃ NGUỒN:</strong> Báo cáo này được thực hiện trong phạm vi khảo sát giới hạn (${limitedScopes
+        .map(
+          ({ label, declared }) =>
+            `${label ? `<code>${inline(label)}</code>: ` : ""}${inline(declared.mode)} · ${inline(declared.visibility)}`,
+        )
+        .join("; ")}). ${
+        limitationReasons.length
           ? `<br><span class="muted">Lý do giới hạn: ${inline(
-              scope.limitationReasons.join("; "),
+              limitationReasons.join("; "),
             )}</span>`
           : ""
       }</div>`
@@ -176,10 +202,15 @@ export function assessmentReportV3Html(
           .map((e) => {
             const evRef = refs.evidenceReference(e.evidenceId);
             const refLabel = evRef ? `[${inline(evRef)}] ` : "";
+            const repositoryKey = (e as { repositoryKey?: string | null })
+              .repositoryKey;
+            const repositoryLabel = repositoryKey
+              ? `<code>${inline(repositoryKey)}</code> `
+              : "";
             const locator = e.safeLocator
               ? `<br>${e.type === ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE ? renderReportSourceLocator(e.safeLocator, options.repositorySource) : `<code>${inline(e.safeLocator)}</code>`}`
               : "";
-            return `<div>${refLabel}${inline(localizedEvidenceType(e.type))}${locator}</div>`;
+            return `<div>${refLabel}${repositoryLabel}${inline(localizedEvidenceType(e.type))}${locator}</div>`;
           })
           .join("")
       : '<span class="muted">Không có bằng chứng kiểm chứng.</span>';
@@ -294,6 +325,43 @@ export function assessmentReportV3Html(
     ]),
   );
 
+  const repositorySection = repositories
+    ? `<h2>Kho mã nguồn được đánh giá</h2><p>Hồ sơ này đánh giá đồng thời ${repositories.length} kho mã nguồn như một hệ thống thống nhất; mỗi bằng chứng ghi rõ kho mã mà nó thuộc về.</p>${table(
+        [
+          "Mã kho",
+          "Kho mã",
+          "Commit",
+          "Thư mục con",
+          "Phạm vi (Mode · Visibility)",
+        ],
+        repositories.map((repository) => [
+          inline(repository.repositoryKey),
+          inline(repository.repositoryFullName),
+          `<code>${inline(repository.repositoryCommit)}</code>`,
+          inline(repository.sourcePathPrefix ?? "Toàn bộ kho mã"),
+          inline(
+            `${repository.sourceScope.mode} · ${repository.sourceScope.visibility}`,
+          ),
+        ]),
+        "compact",
+      )}`
+    : "";
+  const repositoryTraceRows = repositories
+    ? repositories.flatMap((repository) => [
+        [
+          `Kho mã ${inline(repository.repositoryKey)}`,
+          `${inline(repository.repositoryFullName)} · ${inline(repository.repositorySnapshotId)} · <code>${inline(repository.repositoryCommit)}</code>`,
+        ],
+        [
+          `Phạm vi kho ${inline(repository.repositoryKey)}`,
+          `${inline(repository.sourceScope.mode)} · ${inline(repository.sourceScope.visibility)} · ${inline(repository.sourcePathPrefix ?? "toàn bộ kho mã")}${
+            repository.sourceScope.limitationReasons.length
+              ? ` · ${inline(repository.sourceScope.limitationReasons.join("; "))}`
+              : ""
+          }`,
+        ],
+      ])
+    : [];
   const publicationText = options.preview
     ? "Bản xem trước; chưa phát hành"
     : "Đã phát hành";
@@ -304,12 +372,14 @@ export function assessmentReportV3Html(
 
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none';style-src 'unsafe-inline';font-src 'self' data:;img-src 'none';script-src 'none';connect-src 'none'"><style>
 @page{size:A4;margin:15mm 16mm 17mm}*{box-sizing:border-box}body{font-family:"Noto Sans",Arial,sans-serif;color:#40586b;font-size:9.5pt;line-height:1.42;margin:0}h1{font-size:24pt;line-height:1.08;color:#19364c;margin:4mm 0}h2{font-size:14pt;color:#19364c;border-left:4px solid #187985;padding-left:9px;margin:8mm 0 3mm;break-after:avoid}h3{font-size:11pt;color:#19364c;margin:4mm 0 2mm;break-after:avoid}p{margin:2mm 0 3mm}small,.muted{font-size:8pt;color:#607989}.eyebrow{color:#187985;font-size:8pt;text-transform:uppercase;letter-spacing:.04em}.preview-banner{border:1px solid #cf8a24;background:#fff5df;color:#744e10;padding:8px 10px;font-weight:700;margin:0 0 5mm}.scope-warning-banner{border:1px solid #d99a9a;background:#fff0ee;color:#9a2c2c;padding:8px 10px;border-radius:4px;margin:4mm 0}.lead{font-size:10pt;color:#354f63}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px}.meta-card{border:1px solid #cbd9e0;border-radius:4px;background:#edf3f6;padding:8px;min-width:0}.meta-card strong{display:block;color:#187985;font-size:7.5pt;text-transform:uppercase;margin-bottom:2px}.status-summary{border:1px solid #9dcac5;background:#edf8f6;border-radius:4px;padding:10px;margin:4mm 0;color:#19364c}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:4mm 0}.kpi{border:1px solid #cbd9e0;background:#f5f8fa;text-align:center;padding:7px 3px;border-radius:4px}.kpi strong{display:block;font-size:17pt;color:#19364c}.kpi span{font-size:7.3pt}.note{border-left:3px solid #187985;padding:6px 9px;background:#f2f7f9}.badge{display:inline-block;border:1px solid;border-radius:12px;padding:3px 8px;font-size:8pt;font-weight:700;white-space:normal}.badge.positive{color:#17665f;border-color:#88c5b7;background:#eaf7f3}.badge.negative{color:#9a2c2c;border-color:#d99a9a;background:#fff0ee}.badge.warning{color:#8a5600;border-color:#e0be82;background:#fff8eb}.badge.neutral{color:#5b6570;border-color:#b8c3ca;background:#f4f6f7}table{width:100%;border-collapse:collapse;margin:3mm 0 5mm;table-layout:fixed;break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}th{background:#187985;color:#fff;font-size:8pt;text-align:left;padding:6px}td{border:1px solid #cbd9e0;padding:6px;vertical-align:top;overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f6f9fa}ul{margin:1mm 0 2mm 5mm;padding-left:4mm}li{margin:1mm 0}.appendix{break-before:auto}.appendix h2{margin-top:0}.appendix h3{font-size:9.5pt;background:#edf3f6;padding:5px 7px}.compact{font-size:7.5pt;margin:2mm 0 4mm}.compact th,.compact td{padding:4px}code{font-family:Consolas,"Courier New",monospace;font-size:8pt;overflow-wrap:anywhere}
-</style></head><body>${previewBanner}<div class="eyebrow">LCSP · Báo cáo đánh giá nghĩa vụ pháp lý V3</div><h1>Báo cáo đánh giá nghĩa vụ pháp lý</h1><p class="lead">Kết quả đánh giá V3 tuân thủ chuẩn xác định danh và ràng buộc phạm vi khảo sát bất biến.</p>${scopeBanner}<div class="meta"><div class="meta-card"><strong>Phạm vi khảo sát</strong>${inline(
-    scope.mode,
-  )} (${inline(scope.visibility)})${
-    model.header.sourcePathPrefix
-      ? ` · Thư mục con: ${inline(model.header.sourcePathPrefix)}`
-      : ""
+</style></head><body>${previewBanner}<div class="eyebrow">LCSP · Báo cáo đánh giá nghĩa vụ pháp lý V3</div><h1>Báo cáo đánh giá nghĩa vụ pháp lý</h1><p class="lead">Kết quả đánh giá V3 tuân thủ chuẩn xác định danh và ràng buộc phạm vi khảo sát bất biến.</p>${scopeBanner}<div class="meta"><div class="meta-card"><strong>Phạm vi khảo sát</strong>${
+    repositories
+      ? `${repositories.length} kho mã nguồn (xem bảng bên dưới)`
+      : `${inline(scope.mode)} (${inline(scope.visibility)})${
+          model.header.sourcePathPrefix
+            ? ` · Thư mục con: ${inline(model.header.sourcePathPrefix)}`
+            : ""
+        }`
   }</div><div class="meta-card"><strong>Tổng quy tắc</strong>${model.summary.totalRules} nghĩa vụ đã ghi nhận</div><div class="meta-card"><strong>Nguồn đánh giá</strong>Bộ quy tắc: ${inline(
     model.header.ruleSetVersion,
   )} · Nguồn: ${inline(model.header.legalSourceVersion)}</div><div class="meta-card"><strong>Trạng thái báo cáo</strong>${inline(
@@ -326,7 +396,7 @@ export function assessmentReportV3Html(
     model.summary.applicableNonCompliant
   }</strong><span>Áp dụng · Chưa đáp ứng</span></div><div class="kpi"><strong>${
     model.summary.notApplicable
-  }</strong><span>Không áp dụng</span></div></div><h2>01 — KẾT QUẢ ĐÁNH GIÁ</h2><p>${inline(
+  }</strong><span>Không áp dụng</span></div></div>${repositorySection}<h2>01 — KẾT QUẢ ĐÁNH GIÁ</h2><p>${inline(
     model.summary.applicableNonCompliant
       ? "Danh sách các nghĩa vụ chưa đáp ứng được xếp theo độ ưu tiên giải quyết."
       : "Chưa ghi nhận nghĩa vụ không đáp ứng trong phạm vi khảo sát.",
@@ -369,25 +439,40 @@ export function assessmentReportV3Html(
         "Phiên bản bộ quy tắc",
         `${inline(model.scopeTraceability.ruleSetVersion)} (${inline(model.scopeTraceability.ruleSetVersionId)})`,
       ],
-      [
-        "Bản chụp kho mã nguồn",
-        inline(model.scopeTraceability.repositorySnapshotId),
-      ],
-      ["Commit kho mã", inline(model.scopeTraceability.repositoryCommit)],
-      [
-        "Tiền tố thư mục con (sourcePathPrefix)",
-        inline(
-          model.scopeTraceability.sourcePathPrefix ?? "Toàn bộ kho mã (null)",
-        ),
-      ],
-      [
-        "Chế độ phạm vi (Mode)",
-        inline(model.scopeTraceability.sourceScope.mode),
-      ],
-      [
-        "Độ khả kiến (Visibility)",
-        inline(model.scopeTraceability.sourceScope.visibility),
-      ],
+      ...(repositories
+        ? [
+            [
+              "Mã băm tập kho mã",
+              inline(
+                "repositorySetDigest" in model.scopeTraceability
+                  ? model.scopeTraceability.repositorySetDigest
+                  : "",
+              ),
+            ],
+            ...repositoryTraceRows,
+          ]
+        : [
+            [
+              "Bản chụp kho mã nguồn",
+              inline(model.scopeTraceability.repositorySnapshotId),
+            ],
+            ["Commit kho mã", inline(model.scopeTraceability.repositoryCommit)],
+            [
+              "Tiền tố thư mục con (sourcePathPrefix)",
+              inline(
+                model.scopeTraceability.sourcePathPrefix ??
+                  "Toàn bộ kho mã (null)",
+              ),
+            ],
+            [
+              "Chế độ phạm vi (Mode)",
+              inline(model.scopeTraceability.sourceScope.mode),
+            ],
+            [
+              "Độ khả kiến (Visibility)",
+              inline(model.scopeTraceability.sourceScope.visibility),
+            ],
+          ]),
     ],
     "compact",
   )}${
