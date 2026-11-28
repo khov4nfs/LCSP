@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "XTRAREG_PINNED_LEGAL_SOURCE_V1",
+  "legalSourceVersionId": "gdpr-pinned-v1.0.0",
+  "title": "EU Data Protection Regulation — Pinned Evaluation Corpus (XTRAREG Study)",
+  "jurisdiction": "EU",
+  "pinnedAt": "2026-11-28T00:00:00Z",
+  "nodes": [
+    {
+      "nodeId": "gdpr::art-5-1-a",
+      "article": "art-5",
+      "locator": "art-5::cl-1::pt-a",
+      "text": "Controllers must process personal data lawfully, fairly, and transparently with respect to the data subject."
+    },
+    {
+      "nodeId": "gdpr::art-5-1-b",
+      "article": "art-5",
+      "locator": "art-5::cl-1::pt-b",
+      "text": "Controllers must collect personal data only for specified, explicit, and legitimate purposes and must not further process it in an incompatible manner, except for archiving in the public interest, scientific, historical, or statistical purposes."
+    },
+    {
+      "nodeId": "gdpr::art-5-1-c",
+      "article": "art-5",
+      "locator": "art-5::cl-1::pt-c",
+      "text": "Controllers must ensure personal data is adequate, relevant, and limited to what is necessary for the processing purposes."
+    },
+    {
+      "nodeId": "gdpr::art-5-1-e",
+      "article": "art-5",
+      "locator": "art-5::cl-1::pt-e",
+      "text": "Controllers must not retain personal data in identifiable form longer than necessary for the processing purposes, except for public-interest archiving, scientific, historical, or statistical purposes subject to safeguards."
+    },
+    {
+      "nodeId": "gdpr::art-5-1-f",
+      "article": "art-5",
+      "locator": "art-5::cl-1::pt-f",
+      "text": "Controllers must process personal data using appropriate technical or organizational measures ensuring security, integrity, and confidentiality."
+    },
+    {
+      "nodeId": "gdpr::art-6-1",
+      "article": "art-6",
+      "locator": "gdpr::art-6-1",
+      "text": "Controllers must not process personal data unless at least one lawful basis applies, such as consent, contract necessity, legal obligation, vital interests, public task, or legitimate interests."
+    },
+    {
+      "nodeId": "gdpr::art-7-1",
+      "article": "art-7",
+      "locator": "art-7::cl-1",
+      "text": "Where processing relies on consent, the controller must be able to demonstrate that the data subject consented to the processing."
+    },
+    {
+      "nodeId": "gdpr::art-7-3",
+      "article": "art-7",
+      "locator": "art-7::cl-3",
+      "text": "Data subjects may withdraw consent at any time, and the controller must make withdrawing consent as easy as giving it."
+    },
+    {
+      "nodeId": "gdpr::art-12-1",
+      "article": "art-12",
+      "locator": "art-12::cl-1",
+      "text": "Controllers must provide required privacy notices and communications in concise, transparent, intelligible, and easily accessible form using clear and plain language."
+    },
+    {
+      "nodeId": "gdpr::art-13-1",
+      "article": "art-13",
+      "locator": "art-13::cl-1",
+      "text": "When collecting personal data directly from a data subject, the controller must provide controller identity, contact details, processing purposes, and legal basis at collection time, unless the data subject already has that information."
+    },
+    {
+      "nodeId": "gdpr::art-15-1",
+      "article": "art-15",
+      "locator": "art-15::cl-1",
+      "text": "Upon request, the controller must confirm whether personal data is processed and grant the data subject access to the data and processing metadata."
+    },
+    {
+      "nodeId": "gdpr::art-17-1",
+      "article": "art-17",
+      "locator": "art-17::cl-1",
+      "text": "Upon request, the controller must erase personal data without undue delay when the data is no longer necessary, consent is withdrawn without another legal basis, or processing is unlawful."
+    },
+    {
+      "nodeId": "gdpr::art-17-3",
+      "article": "art-17",
+      "locator": "art-17::cl-3",
+      "text": "Erasure duties under Article 17(1) do not apply where processing is necessary for freedom of expression, compliance with a legal obligation, public health, archiving, or legal claims."
+    },
+    {
+      "nodeId": "gdpr::art-22-1",
+      "article": "art-22",
+      "locator": "art-22::cl-1",
+      "text": "Controllers must not subject data subjects to decisions based solely on automated processing that produce legal or similarly significant effects."
+    },
+    {
+      "nodeId": "gdpr::art-22-2",
+      "article": "art-22",
+      "locator": "art-22::cl-2",
+      "text": "The automated-decision prohibition does not apply if the decision is necessary for a contract, authorized by law with safeguards, or based on explicit consent."
+    },
+    {
+      "nodeId": "gdpr::art-24-1",
+      "article": "art-24",
+      "locator": "art-24::cl-1",
+      "text": "Taking into account nature, scope, context, and risk, the controller must implement appropriate technical and organizational measures and demonstrate compliance."
+    },
+    {
+      "nodeId": "gdpr::art-25-1",
+      "article": "art-25",
+      "locator": "art-25::cl-1",
+      "text": "Controllers must implement data protection by design and by default at design and processing time, including pseudonymization and data minimization."
+    },
+    {
+      "nodeId": "gdpr::art-28-3",
+      "article": "art-28",
+      "locator": "art-28::cl-3",
+      "text": "Processors must process personal data only on documented instructions from the controller, unless required to do so by Union or Member State law."
+    },
+    {
+      "nodeId": "gdpr::art-28-3-b",
+      "article": "art-28",
+      "locator": "art-28::cl-3::pt-b",
+      "text": "Processors must ensure that persons authorized to process personal data have committed themselves to confidentiality or are under an appropriate statutory obligation of confidentiality."
+    },
+    {
+      "nodeId": "gdpr::art-30-1",
+      "article": "art-30",
+      "locator": "art-30::cl-1",
+      "text": "Controllers must maintain a record of processing activities under their responsibility, unless the organization has fewer than 250 employees and the processing is occasional, non-high-risk, and excludes special-category data."
+    },
+    {
+      "nodeId": "gdpr::art-32-1",
+      "article": "art-32",
+      "locator": "art-32::cl-1",
+      "text": "Controllers and processors must implement appropriate technical and organizational security measures such as encryption, pseudonymization, resilience, and regular security testing."
+    },
+    {
+      "nodeId": "gdpr::art-33-1",
+      "article": "art-33",
+      "locator": "art-33::cl-1",
+      "text": "In the case of a personal data breach, the controller must notify the competent supervisory authority without undue delay and within 72 hours where feasible, unless the breach is unlikely to result in a risk to individuals."
+    },
+    {
+      "nodeId": "gdpr::art-34-1",
+      "article": "art-34",
+      "locator": "art-34::cl-1",
+      "text": "When a personal data breach is likely to result in a high risk to individuals, the controller must communicate the breach to affected data subjects without undue delay, unless encryption or subsequent mitigation removes the high risk."
+    },
+    {
+      "nodeId": "gdpr::art-35-1",
+      "article": "art-35",
+      "locator": "art-35::cl-1",
+      "text": "Where processing using new technologies is likely to result in a high risk to individuals, the controller must carry out a data protection impact assessment prior to processing."
+    }
+  ]
+}

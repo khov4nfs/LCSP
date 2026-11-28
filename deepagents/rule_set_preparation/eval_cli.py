@@ -15,6 +15,7 @@ from math import isfinite
 
 from rule_set_preparation.eval_semantics import evaluate_preparation_semantics
 from rule_set_preparation.reviewed_eval_gate import reviewed_eval_preflight, reviewed_case_package_preflight, paired_eval_preflight, reviewed_cases_in_aggregate_gold
+from rule_set_preparation.xtrareg_eval import compare_direct_draft_vs_preparation, evaluate_xtrareg_chain
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,7 +49,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--baseline", type=Path, help="Frozen baseline output scored with the same gold and holdout")
     parser.add_argument("--baseline-run-manifest", type=Path)
     parser.add_argument("--billing-evidence-dir", type=Path, help="Immutable provider usage/billing JSON receipts named by their actual SHA-256")
+    parser.add_argument("--xtrareg-gold", type=Path, help="XTRAREG gold annotation JSON (>= 30 atomic obligations)")
+    parser.add_argument("--xtrareg-source", type=Path, help="XTRAREG pinned legal source JSON")
+    parser.add_argument("--xtrareg-candidate", type=Path, help="Frozen Preparation output for XTRAREG chain scoring")
+    parser.add_argument("--xtrareg-direct-draft", type=Path, help="Optional Direct Draft output for paired comparison")
     args = parser.parse_args(argv)
+    if args.xtrareg_gold is not None or args.xtrareg_source is not None or args.xtrareg_candidate is not None:
+        if args.xtrareg_gold is None or args.xtrareg_source is None or args.xtrareg_candidate is None:
+            parser.error("--xtrareg-gold, --xtrareg-source, and --xtrareg-candidate are all required together")
+        x_gold = json.loads(args.xtrareg_gold.read_text(encoding="utf-8"))
+        x_source = json.loads(args.xtrareg_source.read_text(encoding="utf-8"))
+        x_candidate = json.loads(args.xtrareg_candidate.read_text(encoding="utf-8"))
+        if args.xtrareg_direct_draft is not None:
+            x_direct = json.loads(args.xtrareg_direct_draft.read_text(encoding="utf-8"))
+            x_report = compare_direct_draft_vs_preparation(x_gold, x_source, x_direct, x_candidate)
+            passed = x_report["fullPreparation"]["passedCriticalGate"]
+        else:
+            x_report = evaluate_xtrareg_chain(x_gold, x_source, x_candidate)
+            passed = x_report["passedCriticalGate"]
+        print(json.dumps(x_report, indent=2, ensure_ascii=False))
+        return 0 if passed else 2
     review_package = None
     package_errors = []
     if args.review_package is not None:
