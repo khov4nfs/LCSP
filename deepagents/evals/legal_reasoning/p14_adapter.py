@@ -4,22 +4,37 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
-from evals.benchmark_runner import load_benchmark_cases, load_manual_reviews
+from evals.benchmark_runner import (
+    DEEPAGENTS_ROOT,
+    _hash_repo_fixture_tree,
+    load_benchmark_cases,
+    load_manual_reviews,
+)
 from evals.benchmark_schema import BenchmarkCase, ManualReviewRecord, TrialOutcome
+from evals.legal_reasoning.p14_cohort import (
+    cohort_digest,
+    fixture_fingerprints,
+    load_cohort,
+)
+from evals.legal_reasoning.review_overlay import (
+    REVIEW_OVERLAY_PATH,
+    merge_review_overlay,
+)
+from evals.legal_reasoning.scorer import _assessment_domain_labels, _canonical_sha256
+from evals.legal_reasoning.splits import load_split_manifest, validate_split_membership
+from evals.legal_reasoning.validation import PACKAGE_ROOT, load_dataset
 from evals.run_manifest import stable_hash
 from evals.scorer import (
     build_trial_metadata_map,
     score_manual_reviews,
     validate_run_artifacts_for_scoring,
 )
-from evals.legal_reasoning.scorer import _canonical_sha256, score_dataset
-from evals.legal_reasoning.review_overlay import REVIEW_OVERLAY_PATH, merge_review_overlay
-from evals.legal_reasoning.validation import PACKAGE_ROOT, load_dataset
 
-MAPPING_VERSION = "LCSP-400-P14-CASE-MAP-V1"
+MAPPING_VERSION = "LCSP-400-P14-CASE-MAP-V2"
 ASSESSMENT_VERDICT_MAP = {
     "APPLICABLE_COMPLIANT": (
         "APPLICABLE", "COMPLIANT", "APPLICABLE", "SUPPORTED_COMPLIANCE"
@@ -46,6 +61,8 @@ def integrate_p14_artifacts(
     review_overlay_path: str | Path | None = None,
     rubric_path: str | Path | None = None,
     source_pins_path: str | Path | None = None,
+    shared_cohort_path: str | Path | None = None,
+    split_manifest_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Business purpose: Validate saved P14 execution artifacts and score only exact LCSP-400 mappings.
 
@@ -67,7 +84,7 @@ def integrate_p14_artifacts(
 
     Failure cases:
     - Stale hashes, malformed mappings, duplicate reviews, foreign run/trial/output bindings, or invalid P14
-      artifacts raise ValueError before rubric metrics are produced.
+      artifacts raise a validation exception before rubric metrics are produced.
 
     Side effects:
     - Reads explicit local evaluation artifacts only; performs no model calls and writes no files.
@@ -85,6 +102,12 @@ def integrate_p14_artifacts(
     source_pins = _read_json(
         Path(source_pins_path) if source_pins_path else PACKAGE_ROOT / "source-pins.v1.json"
     )
+    shared_cohort = load_cohort(
+        shared_cohort_path or PACKAGE_ROOT / "p14-shared-cohort.v1.json"
+    )
+    split_manifest = load_split_manifest(
+        split_manifest_path or PACKAGE_ROOT / "evaluation-splits.v1.json"
+    )
     mapping = _read_json(Path(case_mapping_path))
     effective_candidate_cases = merge_review_overlay(
         candidate_cases,
@@ -93,8 +116,20 @@ def integrate_p14_artifacts(
         source_pins,
     )
 
+    expected_inventory = manifest.get("expectedTrialInventory") or []
+    observed_keys = {
+        (row.case_id, row.trial_index, row.stage) for row in raw_outcomes
+    }
+    missing_inventory = [
+        row
+        for row in expected_inventory
+        if (row["caseId"], int(row["trialIndex"]), row["stage"]) not in observed_keys
+    ]
     validate_run_artifacts_for_scoring(
-        manifest, raw_outcomes, base_dir=Path(trials_path).parent
+        manifest,
+        raw_outcomes,
+        base_dir=Path(trials_path).parent,
+        allow_incomplete=bool(missing_inventory),
     )
     mapping_inventory = validate_case_mapping(
         mapping,
@@ -102,6 +137,14 @@ def integrate_p14_artifacts(
         p14_cases=p14_cases,
         manifest=manifest,
         source_pins=source_pins,
+        shared_cohort=shared_cohort,
+        split_manifest=split_manifest,
+    )
+    split_membership = validate_split_membership(
+        split_manifest,
+        candidate_cases,
+        shared_cohort,
+        [case.model_dump() for case in p14_cases],
     )
     reviews = load_manual_reviews(Path(reviews_path) if reviews_path else None)
     _validate_unique_review_trials(reviews)
@@ -117,23 +160,72 @@ def integrate_p14_artifacts(
     }
 
     normalized_by_trial: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
+    execution_records: list[dict[str, Any]] = []
     trial_metadata = build_trial_metadata_map(manifest, raw_outcomes)
     outcomes_by_case_stage: dict[tuple[str, str], list[TrialOutcome]] = {}
     for outcome in raw_outcomes:
         outcomes_by_case_stage.setdefault((outcome.case_id, outcome.stage), []).append(outcome)
-    candidate_by_id = {row["caseId"]: row for row in effective_candidate_cases}
+    cohort_by_id = {row["cohortCaseId"]: row for row in shared_cohort["cases"]}
     for entry in mapping["caseMappings"]:
-        candidate = candidate_by_id[entry["candidateCaseId"]]
+        cohort_case = cohort_by_id[entry["cohortCaseId"]]
         p14_case = p14_case_by_id[entry["p14CaseId"]]
-        for outcome in outcomes_by_case_stage.get(
+        matching_outcomes = outcomes_by_case_stage.get(
             (p14_case.case_id, entry["lifecycleStage"]), []
-        ):
+        )
+        expected_target_trials = [
+            row for row in expected_inventory
+            if row["caseId"] == p14_case.case_id and row["stage"] == entry["lifecycleStage"]
+        ]
+        present_target_trials = {row.trial_index for row in matching_outcomes}
+        for expected_trial in expected_target_trials:
+            if int(expected_trial["trialIndex"]) not in present_target_trials:
+                execution_records.append(
+                    {
+                        "cohortCaseId": cohort_case["cohortCaseId"],
+                        "p14CaseId": p14_case.case_id,
+                        "lifecycleStage": entry["lifecycleStage"],
+                        "trialIndex": int(expected_trial["trialIndex"]),
+                        "executionStatus": "NOT_EXECUTED",
+                        "scoringStatus": "NOT_SCORED",
+                    }
+                )
+        if not expected_target_trials:
+            execution_records.append(
+                {
+                    "cohortCaseId": cohort_case["cohortCaseId"],
+                    "p14CaseId": p14_case.case_id,
+                    "lifecycleStage": entry["lifecycleStage"],
+                    "executionStatus": "NOT_EXECUTED",
+                    "scoringStatus": "NOT_SCORED",
+                }
+            )
+        for outcome in matching_outcomes:
             meta = trial_metadata[(outcome.case_id, outcome.stage, outcome.trial_index)]
             trace_path = _resolve_trace(Path(trials_path).parent, outcome.trace_path)
-            trace_doc = json.loads(trace_path.read_text(encoding="utf-8"))
-            output = trace_doc.get("output")
-            if not isinstance(output, dict):
-                raise ValueError(f"P14_TRACE_OUTPUT_MISSING:{outcome.case_id}:{outcome.trial_index}")
+            trace_bytes = trace_path.read_bytes()
+            trace_doc = json.loads(trace_bytes.decode("utf-8"))
+            if not outcome.trace_sha256 or _sha256_bytes(trace_bytes) != outcome.trace_sha256:
+                raise ValueError(f"P14_TRACE_BYTE_DIGEST_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+            output = _observed_output_from_trace(
+                trace_doc,
+                outcome=outcome,
+                p14_case=p14_case,
+                mapping_entry=entry,
+                outcomes_by_case_stage=outcomes_by_case_stage,
+            )
+            if output is None:
+                execution_records.append(
+                    {
+                        "cohortCaseId": cohort_case["cohortCaseId"],
+                        "p14CaseId": outcome.case_id,
+                        "lifecycleStage": outcome.stage,
+                        "trialIndex": outcome.trial_index,
+                        "executionStatus": "EXECUTED_MISSING_OUTPUT",
+                        "traceSha256": outcome.trace_sha256,
+                        "scoringStatus": "NOT_SCORED",
+                    }
+                )
+                continue
             output_digest = _canonical_sha256(output)
             binding = _binding_for(
                 manifest=manifest,
@@ -144,11 +236,25 @@ def integrate_p14_artifacts(
                 trace_digest=outcome.trace_sha256 or "",
                 metadata=meta,
             )
-            applicability, compliance, normalized_applicability, normalized_compliance = _normalize_assessment_verdict(
-                outcome.actual_verdict
+            decision = output.get("actualAssessmentDecision") or {}
+            decision_body = decision.get("decision", decision) if isinstance(decision, dict) else {}
+            raw_dimensions = {
+                field: decision_body[field]
+                for field in ("applicability", "compliance")
+                if field in decision_body
+            }
+            normalized_applicability, normalized_compliance = _assessment_domain_labels(
+                raw_dimensions
             )
+            if outcome.actual_verdict == "UNRESOLVED":
+                if normalized_applicability is None:
+                    normalized_applicability = "UNRESOLVED"
+                if normalized_compliance is None:
+                    normalized_compliance = "UNRESOLVED"
+            applicability = raw_dimensions.get("applicability")
+            compliance = raw_dimensions.get("compliance")
             review_key = (
-                candidate["caseId"], outcome.case_id, outcome.stage, outcome.trial_index
+                cohort_case["cohortCaseId"], outcome.case_id, outcome.stage, outcome.trial_index
             )
             dimension_review = dimension_review_by_key.pop(review_key, None)
             human_judgments = (
@@ -156,82 +262,124 @@ def integrate_p14_artifacts(
                 if dimension_review is not None
                 else {}
             )
+            prediction = {
+                "caseId": cohort_case["cohortCaseId"],
+                "p14CaseId": outcome.case_id,
+                "stage": "ASSESSMENT_ROOT",
+                "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+                "observationKind": "GENERATED_LCSP_OUTPUT",
+                "rawActualVerdict": outcome.actual_verdict,
+                "dimensionPredictions": {
+                    "applicability": applicability,
+                    "compliance": compliance,
+                },
+                "normalizationSource": "P14_SAVED_ARTIFACTS",
+                "evaluationLabelPredictions": {
+                    "applicability": normalized_applicability,
+                    "compliance": normalized_compliance,
+                },
+                "humanJudgments": human_judgments,
+                "p14Binding": binding,
+                "targetBinding": binding,
+                "observedOutputSha256": output_digest,
+                "traceSha256": outcome.trace_sha256,
+                "assessmentDecision": output.get("actualAssessmentDecision"),
+                "evidenceReferences": output.get("evidenceReferences", []),
+                "hitl": output.get("hitl", {}),
+                "reviewPayload": output,
+                "lifecycleStage": outcome.stage,
+                "trialIndex": outcome.trial_index,
+                "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+            }
             normalized_by_trial.setdefault(
-                (candidate["evaluationTarget"], outcome.stage, outcome.trial_index), []
-            ).append(
+                ("ACTUAL_ASSESSMENT_OUTPUT", outcome.stage, outcome.trial_index), []
+            ).append(prediction)
+            execution_records.append(
                 {
-                    "caseId": candidate["caseId"],
-                    "stage": candidate["stage"],
-                    "evaluationTarget": candidate["evaluationTarget"],
-                    "observationKind": "GENERATED_LCSP_OUTPUT",
-                    "dimensionPredictions": {
-                        "applicability": applicability,
-                        "compliance": compliance,
-                    },
-                    "normalizationSource": "P14_SAVED_ARTIFACTS",
-                    "evaluationLabelPredictions": {
-                        "applicability": normalized_applicability,
-                        "compliance": normalized_compliance,
-                    },
-                    "humanJudgments": human_judgments,
-                    "p14Binding": binding,
+                    "cohortCaseId": cohort_case["cohortCaseId"],
+                    "p14CaseId": outcome.case_id,
+                    "lifecycleStage": outcome.stage,
+                    "trialIndex": outcome.trial_index,
+                    "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+                    "traceSha256": outcome.trace_sha256,
+                    "observedOutputSha256": output_digest,
+                    "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
                 }
             )
 
     if dimension_review_by_key:
         raise ValueError("P14_DIMENSION_REVIEW_TARGET_NOT_FOUND")
 
-    executed_candidate_ids = {
-        row["caseId"] for rows in normalized_by_trial.values() for row in rows
+    mapped_case_ids = {row["cohortCaseId"] for row in mapping["caseMappings"]}
+    executed_case_ids = {
+        row["cohortCaseId"]
+        for row in execution_records
+        if row["executionStatus"] != "NOT_EXECUTED"
     }
-    mapping_inventory["executableCaseCount"] = len(executed_candidate_ids)
+    mapping_inventory["executableCaseCount"] = len(executed_case_ids)
     mapping_inventory["mappedTrialCount"] = sum(
-        len(rows) for rows in normalized_by_trial.values()
+        1 for row in execution_records
+        if row["executionStatus"] in {"EXECUTED_MISSING_OUTPUT", "EXECUTED_OUTPUT_AVAILABLE"}
     )
-    mapping_inventory["mappedCaseWithoutTrialCount"] = max(
-        0, mapping_inventory["mappedCaseCount"] - len(executed_candidate_ids)
+    mapping_inventory["mappedCaseWithoutTrialCount"] = sum(
+        not any(
+            row["cohortCaseId"] == case_id
+            and row["executionStatus"] != "NOT_EXECUTED"
+            for row in execution_records
+        )
+        for case_id in mapped_case_ids
+    )
+    mapping_inventory["notExecutedTrialCount"] = sum(
+        row["executionStatus"] == "NOT_EXECUTED" for row in execution_records
+    )
+    mapping_inventory["notExecutedCaseCount"] = mapping_inventory["mappedCaseWithoutTrialCount"]
+    mapping_inventory["executedMissingOutputCount"] = sum(
+        row["executionStatus"] == "EXECUTED_MISSING_OUTPUT" for row in execution_records
+    )
+    mapping_inventory["outputAvailableCount"] = sum(
+        row["executionStatus"] == "EXECUTED_OUTPUT_AVAILABLE" for row in execution_records
+    )
+    mapping_inventory["scoringEligibleCaseCount"] = 0
+    mapping_inventory["expectedExecutionCount"] = sum(
+        1 for row in execution_records
+        if row.get("trialIndex") is not None
     )
 
-    rubric_reports = []
-    actual_targets = ("ACTUAL_ASSESSMENT_OUTPUT", "RULE_SET_PREPARATION_OUTPUT")
-    trial_groups = sorted(normalized_by_trial)
-    if not trial_groups:
-        trial_groups = [(target, "NO_MAPPED_LIFECYCLE_STAGE", -1) for target in actual_targets]
-    for target, lifecycle_stage, trial_index in trial_groups:
-        rows = normalized_by_trial.get((target, lifecycle_stage, trial_index), [])
-        normalized = {
-            "predictionVersion": "LCSP-400-NORMALIZED-PREDICTIONS-V1",
-            "evaluationTarget": target,
-            "sourceKind": "P14_SAVED_ARTIFACTS",
-            "syntheticOnly": False,
-            "runMetadata": {
-                "runId": manifest["runId"],
-                "manifestSha256": manifest["manifestSha256"],
-                "mode": manifest.get("runConfig", {}).get("mode"),
-                "lifecycleStage": lifecycle_stage,
-                "trialIndex": trial_index,
-                "repositoryCommitSha": manifest.get("gitCommitSha"),
-                "casesDatasetSha256": manifest.get("sourcePins", {}).get("casesDatasetSha256"),
-            },
-            "casePredictions": rows,
+    rubric_reports = [
+        {
+            "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+            "scoringStatus": "NOT_SCORED",
+            "reason": "SHARED_COHORT_HAS_NO_HUMAN_REVIEWED_LEGAL_GOLD",
+            "denominator": 0,
+            "macroF1": None,
+            "falsePositives": None,
+            "falseNegatives": None,
         }
-        report = score_dataset(effective_candidate_cases, normalized, rubric, source_pins)
-        report["p14LifecycleStage"] = lifecycle_stage
-        report["trialIndex"] = trial_index
-        rubric_reports.append(report)
+    ]
 
     p14_mode = raw_outcomes[0].mode if raw_outcomes else manifest.get("runConfig", {}).get("mode", "UNKNOWN")
     seeded_review_count = p14_review_diagnostics["seededUnverified"]["totalReviewed"]
     p14_expert_flagged_count = p14_review_diagnostics["expertVerified"]["totalReviewed"]
     return {
         "integrationReportVersion": "LCSP-400-P14-INTEGRATION-REPORT-V1",
-        "artifactValidationStatus": "VALIDATED",
-        "artifactClassification": "P14_OFFLINE_OR_SCRIPTED_FIXTURE" if p14_mode != "LIVE" else "P14_LIVE_RUN_ARTIFACTS",
+        "artifactValidationStatus": "INCOMPLETE_EXECUTION" if missing_inventory else "VALIDATED",
+        "artifactProvenanceStatus": "VALIDATED_P14_ARTIFACT_BYTES"
+        if not missing_inventory
+        else "VALIDATED_P14_ARTIFACT_BYTES_WITH_INCOMPLETE_EXECUTION",
+        "verifiedArtifactReport": True,
+        "verifiedSemanticMetrics": False,
+        "artifactClassification": {
+            "OFFLINE_FIXTURE": "P14_OFFLINE_FIXTURE_ARTIFACTS",
+            "SCRIPTED": "P14_SCRIPTED_EXECUTION_ARTIFACTS",
+            "LIVE": "P14_LIVE_RUN_ARTIFACTS",
+        }.get(p14_mode, "P14_UNKNOWN_MODE_ARTIFACTS"),
         "pinnedInputs": {
             "caseMappingSha256": _canonical_sha256(mapping),
             "candidateDatasetSha256": mapping["pinnedInputs"]["candidateDatasetSha256"],
             "sourcePinsSha256": mapping["pinnedInputs"]["sourcePinsSha256"],
             "p14CasesDatasetSha256": mapping["pinnedInputs"]["p14CasesDatasetSha256"],
+            "sharedCohortSha256": mapping["pinnedInputs"]["sharedCohortSha256"],
+            "splitManifestSha256": mapping["pinnedInputs"]["splitManifestSha256"],
         },
         "runMetadata": {
             "runId": manifest.get("runId"),
@@ -249,8 +397,51 @@ def integrate_p14_artifacts(
             },
             "evaluationBudgetAndUsage": manifest.get("usage", {}),
             "sourcePins": manifest.get("sourcePins", {}),
+            "splitManifestSha256": split_manifest["splitDigest"],
         },
         "caseMapping": mapping_inventory,
+        "executionCohort": {
+            "mappingStatus": "MAPPED" if mapped_case_ids else "NO_EXECUTABLE_MAPPING",
+            "mappedCaseCount": len(mapped_case_ids),
+            "executedCaseCount": len(executed_case_ids),
+            "notExecutedCaseCount": mapping_inventory["notExecutedCaseCount"],
+            "expectedTrialCount": mapping_inventory["expectedExecutionCount"],
+            "executedTrialCount": mapping_inventory["mappedTrialCount"],
+            "notExecutedTrialCount": mapping_inventory["notExecutedTrialCount"],
+            "executedMissingOutputCount": mapping_inventory["executedMissingOutputCount"],
+            "outputAvailableCount": mapping_inventory["outputAvailableCount"],
+            "scoringEligibleCaseCount": mapping_inventory["scoringEligibleCaseCount"],
+            "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION",
+        },
+        "caseExecutionRecords": sorted(
+            execution_records,
+            key=lambda row: (row["cohortCaseId"], row.get("lifecycleStage", ""), row.get("trialIndex", -1)),
+        ),
+        "missingExpectedTrialCount": len(missing_inventory),
+        "missingExpectedTrials": sorted(
+            missing_inventory,
+            key=lambda row: (row["caseId"], row["stage"], row["trialIndex"]),
+        ),
+        "normalizedObservedOutputs": [
+            row
+            for key in sorted(normalized_by_trial)
+            for row in sorted(
+                normalized_by_trial[key],
+                key=lambda item: (item["caseId"], item["trialIndex"]),
+            )
+        ],
+        "splitInventory": {
+            "splitDigest": split_manifest["splitDigest"],
+            "caseCounts": split_manifest["splitCaseCounts"],
+            "groupCounts": split_manifest["splitGroupCounts"],
+            "currentP14CaseMembership": {
+                case_id: split_membership[
+                    next(row["cohortCaseId"] for row in shared_cohort["cases"] if row["p14CaseId"] == case_id)
+                ]
+                for case_id in sorted(row.case_id for row in p14_cases)
+            },
+            "generalizationClaim": "NOT_SUPPORTED_BY_SMALL_SHARED_SCRIPTED_COHORT",
+        },
         "mappedTrialBindings": sorted(
             (
                 {
@@ -285,15 +476,16 @@ def integrate_p14_artifacts(
             "note": "P14's binary verdict review fields do not constitute LCSP-400 dimension judgments. The separate dimension-review contract checks structure and trace binding, not reviewer authenticity.",
         },
         "rubricReportsByTargetAndTrial": rubric_reports,
-        "scoringStatus": "SCORED"
-        if any(row["scoringStatus"] == "SCORED" for row in rubric_reports)
-        else "NOT_SCORED",
-        "humanReviewedQualityMetrics": "NOT_SCORED"
-        if not any(row["coverage"]["humanReviewedAnnotationCount"] for row in rubric_reports)
+        "scoringStatus": "NOT_SCORED"
+        if mapping_inventory["scoringEligibleCaseCount"] == 0
         else "SCORED",
-        "actualExecutionBaseline": "NOT_RUN"
-        if p14_mode != "LIVE" or mapping_inventory["executableCaseCount"] == 0
-        else "REVIEW_GATED",
+        "humanReviewedQualityMetrics": "NOT_SCORED",
+        "reviewedGoldDenominator": 0,
+        "scoringReason": "NO_REVIEWED_LEGAL_GOLD_FOR_EXACT_EXECUTION_COHORT",
+        "scriptedExecutionVerification": "PASS"
+        if p14_mode == "SCRIPTED" and mapping_inventory["outputAvailableCount"] > 0
+        else "NOT_VERIFIED",
+        "actualExecutionBaseline": "NOT_RUN",
     }
 
 
@@ -304,33 +496,38 @@ def validate_case_mapping(
     p14_cases: Sequence[BenchmarkCase],
     manifest: dict[str, Any],
     source_pins: dict[str, Any],
+    shared_cohort: dict[str, Any],
+    split_manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    """Business purpose: Reject stale or approximate crosswalks between LCSP and P14 cases.
+    """Business purpose: Validate exact identity reuse for the shared P14 engineering cohort.
 
     Business rules:
-    - Mapping headers pin candidate annotations, LCSP legal source pins, and P14 case corpus snapshots.
-    - Each mapping must name an Assessment Root case, a distinct lifecycle stage, an exact P14 rule and
-      legal provision, and the pinned P14 repository/corpus/rule-set versions.
-    - Fixed-claim diagnostics and Rule Set Preparation cases cannot be mapped onto P14 lifecycle stages.
+    - No GDPR-to-Vietnam or other legal crosswalk is asserted; each cohort row reuses one exact
+      synthetic P14 fixture object and is excluded from legal-gold metrics.
+    - Legal source/provision, proposition/rule, scenario/HITL, repository tree, lifecycle stage, and
+      complete P14 case content are cross-bound by recomputed fingerprints, not keywords or titles.
+    - Only synthetic P14 fixtures are allowed, and their jurisdiction marker is explicitly fixture-only.
+    - The P14 manifest pins the exact split digest and case snapshot used by the run.
 
     Execution flow:
-    1. Verify mapping version and all content hashes against the loaded files and run manifest.
-    2. Resolve IDs exactly and reject duplicates or missing case/rule/provision references.
-    3. Compare stage, legal-source, repository, corpus, and rule-set fields byte-for-byte by value.
-    4. Return executable and unsupported inventory without inventing a semantic crosswalk.
+    1. Verify candidate, source-pin, cohort, split, and exact P14 case snapshot digests.
+    2. Require a one-to-one mapping from each shared cohort ID to its exact P14 case/rule/stage tuple.
+    3. Recompute legal text, proposition, scenario, repository-tree, and whole-case fingerprints.
+    4. Return separate canonical-candidate and shared-execution inventories.
 
     Failure cases:
-    - Any stale hash, unsupported stage, unknown ID, duplicate, or field mismatch raises ValueError.
+    - Any source, content, rule, scenario, repository, stage, split, lifecycle, or digest mismatch raises
+      a stable ValueError before normalization or reporting.
 
     Side effects:
-    - None: validates local mapping and artifact metadata only.
+    - Reads the exact local P14 repository fixture trees to verify their saved manifest pins.
     """
     if not isinstance(mapping, dict) or mapping.get("mappingVersion") != MAPPING_VERSION:
         raise ValueError("P14_CASE_MAPPING_VERSION_INVALID")
     mapping_rows = mapping.get("caseMappings")
     pinned_inputs = mapping.get("pinnedInputs")
     if not isinstance(mapping_rows, list) or not isinstance(pinned_inputs, dict):
-        raise ValueError("P14_CASE_MAPPING_STRUCTURE_INVALID")
+        raise TypeError("P14_CASE_MAPPING_STRUCTURE_INVALID")
     p14_case_list = list(p14_cases)
     candidate_digest = _canonical_sha256(candidate_cases)
     p14_digest = stable_hash([case.model_dump() for case in p14_case_list])
@@ -344,75 +541,97 @@ def validate_case_mapping(
         raise ValueError("P14_CASE_MAPPING_SOURCE_PINS_STALE")
     if manifest.get("sourcePins", {}).get("casesDatasetSha256") != p14_digest:
         raise ValueError("P14_MANIFEST_CASE_SNAPSHOT_MISMATCH")
+    if expected_pins.get("sharedCohortSha256") != cohort_digest(shared_cohort):
+        raise ValueError("P14_CASE_MAPPING_COHORT_SNAPSHOT_STALE")
+    if expected_pins.get("splitManifestSha256") != split_manifest.get("splitDigest"):
+        raise ValueError("P14_CASE_MAPPING_SPLIT_SNAPSHOT_STALE")
+    if manifest.get("sourcePins", {}).get("caseSplitManifestSha256") != split_manifest.get("splitDigest"):
+        raise ValueError("P14_MANIFEST_SPLIT_SNAPSHOT_MISMATCH")
 
-    candidate_by_id = {row["caseId"]: row for row in candidate_cases}
     p14_by_id = {case.case_id: case for case in p14_case_list}
-    seen_candidate: set[str] = set()
+    cohort_by_id = {row["cohortCaseId"]: row for row in shared_cohort["cases"]}
+    if set(p14_by_id) != {row["p14CaseId"] for row in shared_cohort["cases"]}:
+        raise ValueError("P14_CASE_MAPPING_COHORT_CASE_INVENTORY_MISMATCH")
+    seen_cohort: set[str] = set()
     seen_p14: set[str] = set()
+    repo_tree_pins: dict[str, dict[str, str]] = {}
     for entry in mapping_rows:
-        if not isinstance(entry, dict):
+        if not isinstance(entry, dict) or set(entry) != {
+            "cohortCaseId", "p14CaseId", "evaluationStage", "lifecycleStage", "p14RuleId"
+        }:
             raise ValueError("P14_CASE_MAPPING_ENTRY_INVALID")
-        candidate_id = entry.get("candidateCaseId")
+        cohort_id = entry["cohortCaseId"]
         p14_id = entry.get("p14CaseId")
-        if candidate_id in seen_candidate or p14_id in seen_p14:
+        if cohort_id in seen_cohort or p14_id in seen_p14:
             raise ValueError("P14_CASE_MAPPING_DUPLICATE_ID")
-        seen_candidate.add(candidate_id)
+        seen_cohort.add(cohort_id)
         seen_p14.add(p14_id)
-        candidate = candidate_by_id.get(candidate_id)
+        cohort_row = cohort_by_id.get(cohort_id)
         p14_case = p14_by_id.get(p14_id)
-        if candidate is None or p14_case is None:
+        if cohort_row is None or p14_case is None:
             raise ValueError("P14_CASE_MAPPING_CASE_NOT_FOUND")
-        if candidate["evaluationTarget"] != "ACTUAL_ASSESSMENT_OUTPUT" or candidate["stage"] != "ASSESSMENT_ROOT":
-            raise ValueError(f"P14_CASE_MAPPING_EVALUATION_STAGE_UNSUPPORTED:{candidate_id}")
-        if entry.get("evaluationStage") != candidate["stage"]:
-            raise ValueError(f"P14_CASE_MAPPING_EVALUATION_STAGE_MISMATCH:{candidate_id}")
-        if entry.get("evaluationTarget") != candidate["evaluationTarget"]:
-            raise ValueError(f"P14_CASE_MAPPING_EVALUATION_TARGET_MISMATCH:{candidate_id}")
+        if (
+            entry["p14CaseId"] != cohort_row["p14CaseId"]
+            or entry["evaluationStage"] != cohort_row["evaluationStage"]
+            or entry["lifecycleStage"] != cohort_row["lifecycleStage"]
+            or entry["p14RuleId"] != cohort_row["targetRuleId"]
+            or entry["evaluationStage"] != "ASSESSMENT_ROOT"
+        ):
+            raise ValueError(f"P14_CASE_MAPPING_COHORT_BINDING_MISMATCH:{cohort_id}")
         lifecycle = entry.get("lifecycleStage")
         if lifecycle not in {stage.stage for stage in p14_case.gold_rubric.stages}:
-            raise ValueError(f"P14_CASE_MAPPING_LIFECYCLE_STAGE_MISMATCH:{candidate_id}")
+            raise ValueError(f"P14_CASE_MAPPING_LIFECYCLE_STAGE_MISMATCH:{cohort_id}")
         p14_rule = next(
             (rule for rule in p14_case.rule_definitions if rule.rule_id == entry.get("p14RuleId")),
             None,
         )
         if p14_rule is None:
-            raise ValueError(f"P14_CASE_MAPPING_RULE_MISMATCH:{candidate_id}")
-        source = candidate["legalSource"]
-        if entry.get("candidateLegalSource") != {
-            "sourceId": source["sourceId"],
-            "sourceVersion": source["sourceVersion"],
-            "provisionRefs": source["provisionRefs"],
-            "citations": source["citations"],
-        }:
-            raise ValueError(f"P14_CASE_MAPPING_CANDIDATE_SOURCE_MISMATCH:{candidate_id}")
-        p14_provision = next(
-            (provision for provision in p14_case.legal_provisions if provision.document_id == entry.get("p14DocumentId")),
-            None,
-        )
-        if p14_provision is None or (
-            entry.get("p14ProvisionLocator") != p14_provision.locator
-            or entry.get("p14ProvisionSha256") != p14_provision.content_sha256
-            or entry.get("p14CorpusId") != p14_case.corpus_pin.corpus_id
-            or entry.get("p14CorpusVersion") != p14_case.corpus_pin.version
-        ):
-            raise ValueError(f"P14_CASE_MAPPING_LEGAL_PIN_MISMATCH:{candidate_id}")
-        if p14_provision.source_kind != "OFFICIAL_PINNED_LAW":
-            raise ValueError(f"P14_CASE_MAPPING_NON_OFFICIAL_LAW:{candidate_id}")
-        repo = p14_case.repo_pin
+            raise ValueError(f"P14_CASE_MAPPING_RULE_MISMATCH:{cohort_id}")
+        provision = p14_case.legal_provisions[0] if len(p14_case.legal_provisions) == 1 else None
         if (
-            repo.snapshot_kind != "GIT_COMMIT"
-            or len(repo.commit_sha) not in {40, 64}
-            or any(char not in "0123456789abcdef" for char in repo.commit_sha.lower())
+            provision is None
+            or cohort_row.get("jurisdiction") != "VN_FIXTURE_LABEL_ONLY"
+            or not p14_case.corpus_pin.corpus_id.startswith("vn-")
+            or provision.source_kind != "SYNTHETIC_PINNED_LAW"
+            or cohort_row.get("sourceKind") != provision.source_kind
+            or cohort_row.get("corpusId") != p14_case.corpus_pin.corpus_id
+            or cohort_row.get("corpusVersion") != p14_case.corpus_pin.version
+            or cohort_row.get("documentId") != provision.document_id
+            or cohort_row.get("provisionLocator") != provision.locator
         ):
-            raise ValueError(f"P14_CASE_MAPPING_REPOSITORY_SNAPSHOT_NOT_PINNED:{candidate_id}")
-        if entry.get("p14RepositorySnapshot") != {
-            "repoId": repo.repo_id,
+            raise ValueError(f"P14_CASE_MAPPING_LEGAL_SOURCE_CROSSBIND_MISMATCH:{cohort_id}")
+        if cohort_row.get("fixtureFingerprints") != fixture_fingerprints(
+            p14_case, lifecycle, p14_rule.rule_id
+        ):
+            raise ValueError(f"P14_CASE_MAPPING_FIXTURE_CROSSBIND_MISMATCH:{cohort_id}")
+        if p14_rule.rule_id not in p14_case.rule_set_pin.rule_ids:
+            raise ValueError(f"P14_CASE_MAPPING_RULESET_CROSSBIND_MISMATCH:{cohort_id}")
+        repo = p14_case.repo_pin
+        repo_tree_pins[repo.repo_id] = {
             "snapshotKind": repo.snapshot_kind,
             "commitSha": repo.commit_sha,
-        }:
-            raise ValueError(f"P14_CASE_MAPPING_REPOSITORY_PIN_MISMATCH:{candidate_id}")
-        if entry.get("p14RuleSetVersionId") != p14_case.rule_set_pin.rule_set_version_id:
-            raise ValueError(f"P14_CASE_MAPPING_RULESET_PIN_MISMATCH:{candidate_id}")
+            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / repo.fixture_dir).resolve()),
+        }
+        if cohort_row.get("split") != p14_case.split or cohort_row.get("split") not in {"DEV", "HOLDOUT"}:
+            raise ValueError(f"P14_CASE_MAPPING_SPLIT_MISMATCH:{cohort_id}")
+    for p14_case in p14_case_list:
+        repo = p14_case.repo_pin
+        repo_tree_pins[repo.repo_id] = {
+            "snapshotKind": repo.snapshot_kind,
+            "commitSha": repo.commit_sha,
+            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / repo.fixture_dir).resolve()),
+        }
+    if stable_hash(repo_tree_pins) != manifest.get("sourcePins", {}).get("repoPinsSha256"):
+        raise ValueError("P14_CASE_MAPPING_REPOSITORY_TREE_SNAPSHOT_MISMATCH")
+
+    split_members = {
+        case_id: group["split"]
+        for group in split_manifest["groups"]
+        for case_id in group["caseIds"]
+    }
+    for cohort_row in shared_cohort["cases"]:
+        if split_members.get(cohort_row["cohortCaseId"]) != cohort_row["split"]:
+            raise ValueError(f"P14_CASE_MAPPING_SPLIT_GROUP_MISMATCH:{cohort_row['cohortCaseId']}")
 
     target_counts = Counter(row["evaluationTarget"] for row in candidate_cases)
     fixed_diagnostic_count = target_counts.get("FIXED_CLAIM_DIAGNOSTIC", 0)
@@ -422,16 +641,18 @@ def validate_case_mapping(
     return {
         "candidateCaseCount": len(candidate_cases),
         "p14BenchmarkCaseCount": len(p14_case_list),
+        "sharedExecutableCandidateCount": len(shared_cohort["cases"]),
         "mappedCaseCount": mapped,
-        "mappedCaseDefinitionCount": mapped,
+        "mappedSharedExecutableCaseCount": mapped,
+        "mappedCandidateLegalGoldCaseCount": 0,
         "fixedOutputDiagnosticCaseCount": fixed_diagnostic_count,
-        "unsupportedCaseCount": rsp_output_count + assessment_output_count - mapped,
+        "unsupportedCaseCount": rsp_output_count + assessment_output_count,
         "excludedDiagnosticCaseCount": fixed_diagnostic_count,
         "assessmentOutputCandidateCount": assessment_output_count,
         "ruleSetPreparationCandidateCount": rsp_output_count,
-        "mappingPolicy": "EXACT_ID_SOURCE_RULE_STAGE_AND_SNAPSHOT_ONLY",
+        "mappingPolicy": "EXACT_SHARED_P14_FIXTURE_IDENTITY_ONLY_NO_LEGAL_CROSSWALK",
         "unmappedReasonCounts": {
-            "NO_EXACT_P14_CASE_MAPPING": assessment_output_count - mapped,
+            "NO_EXACT_P14_CASE_MAPPING": assessment_output_count,
             "P14_DOES_NOT_EXECUTE_RULE_SET_PREPARATION": rsp_output_count,
             "FIXED_CLAIM_DIAGNOSTIC_NOT_GENERATED_OUTPUT": fixed_diagnostic_count,
         },
@@ -692,11 +913,13 @@ def _binding_for(
     Side effects:
     - None: returns metadata without modifying artifacts.
     """
-    pins = entry["candidateLegalSource"]
+    provision = p14_case.legal_provisions[0]
+    source_id = p14_case.corpus_pin.corpus_id
+    source_version = p14_case.corpus_pin.version
     return {
         "runId": outcome.run_id,
         "manifestSha256": manifest["manifestSha256"],
-        "candidateCaseId": entry["candidateCaseId"],
+        "candidateCaseId": entry.get("cohortCaseId", entry.get("candidateCaseId")),
         "p14CaseId": outcome.case_id,
         "evaluationStage": entry["evaluationStage"],
         "lifecycleStage": outcome.stage,
@@ -710,12 +933,176 @@ def _binding_for(
         "ruleSetVersionId": p14_case.rule_set_pin.rule_set_version_id,
         "modelRoute": metadata.get("modelRoute", ""),
         "instructionBundleDigest": metadata.get("instructionBundleDigest", ""),
-        "legalSourceId": pins["sourceId"],
-        "legalSourceVersion": pins["sourceVersion"],
-        "legalProvisionRefs": ",".join(sorted(pins["provisionRefs"])),
-        "legalCitations": "|".join(sorted(pins["citations"])),
+        "legalSourceId": source_id,
+        "legalSourceVersion": source_version,
+        "legalProvisionRefs": f"{provision.document_id}#{provision.locator}",
+        "legalCitations": provision.locator,
         "p14RuleId": entry["p14RuleId"],
     }
+
+
+def _observed_output_from_trace(
+    trace_doc: dict[str, Any],
+    *,
+    outcome: TrialOutcome,
+    p14_case: BenchmarkCase,
+    mapping_entry: dict[str, Any],
+    outcomes_by_case_stage: dict[tuple[str, str], list[TrialOutcome]],
+) -> dict[str, Any] | None:
+    """Business purpose: Extract only digest-verified reviewer evidence from a saved P14 trace.
+
+    Business rules:
+    - SCRIPTED/LIVE require the runner's complete observedOutput snapshot and its canonical digest.
+    - OFFLINE_FIXTURE retains its existing fixture output under a distinct non-live classification.
+    - Runtime decisions, source fixtures, repository pins, lifecycle, HITL, and outcome identity must agree
+      with the saved case and TrialOutcome; no conclusion is reconstructed from tool-call hints.
+
+    Execution flow:
+    1. Validate trace/run/trial/stage identity and the exact trace outcome binding.
+    2. Select the mode-specific saved output and verify its digest and source/rule/repository content.
+    3. Verify evidence references, HITL state, target rule, and linked lifecycle trace identities.
+    4. Return the output, or None when a valid execution lacks a reviewer-usable semantic output.
+
+    Failure cases:
+    - Tampered identity, output/trace digest, binding, fixture content, or HITL data raises a validation exception.
+    - A missing or semantically empty actual output returns None for explicit missing-output accounting.
+
+    Side effects:
+    - None: reads validated in-memory P14 artifacts only.
+    """
+    identity = {
+        "runId": outcome.run_id,
+        "caseId": outcome.case_id,
+        "trialIndex": outcome.trial_index,
+        "threadId": outcome.thread_id,
+        "stage": outcome.stage,
+        "mode": outcome.mode,
+    }
+    if any(trace_doc.get(key) != value for key, value in identity.items()):
+        raise ValueError(f"P14_TRACE_IDENTITY_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+    root_binding = trace_doc.get("outcomeBinding")
+    if not isinstance(root_binding, dict) or any(
+        root_binding.get(key) != value
+        for key, value in {
+            "passed": outcome.passed,
+            "actualVerdict": outcome.actual_verdict,
+            "lifecycleState": outcome.lifecycle_state,
+        }.items()
+    ):
+        raise ValueError(f"P14_TRACE_OUTCOME_BINDING_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+
+    if outcome.mode == "OFFLINE_FIXTURE":
+        fixture_output = trace_doc.get("output")
+        return fixture_output if isinstance(fixture_output, dict) else None
+    if outcome.mode not in {"SCRIPTED", "LIVE"}:
+        raise ValueError(f"P14_TRACE_MODE_UNSUPPORTED:{outcome.mode}")
+    output = trace_doc.get("observedOutput")
+    if not isinstance(output, dict):
+        return None
+    if trace_doc.get("observedOutputSha256") != _canonical_sha256(output):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_DIGEST_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+    output_identity = {
+        "runId": outcome.run_id,
+        "caseId": outcome.case_id,
+        "trialIndex": outcome.trial_index,
+        "threadId": outcome.thread_id,
+        "lifecycleStage": outcome.stage,
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "actualVerdict": outcome.actual_verdict,
+        "lifecycleState": outcome.lifecycle_state,
+    }
+    if any(output.get(key) != value for key, value in output_identity.items()):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_IDENTITY_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+    nested_binding = output.get("outcomeBinding")
+    if not isinstance(nested_binding, dict) or any(
+        nested_binding.get(key) != value
+        for key, value in {
+            "runId": outcome.run_id,
+            "caseId": outcome.case_id,
+            "trialIndex": outcome.trial_index,
+            "threadId": outcome.thread_id,
+            "stage": outcome.stage,
+            "actualVerdict": outcome.actual_verdict,
+            "lifecycleState": outcome.lifecycle_state,
+            "passed": outcome.passed,
+        }.items()
+    ):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_OUTCOME_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+    if (
+        output.get("ruleSetVersionId") != p14_case.rule_set_pin.rule_set_version_id
+        or output.get("targetRuleIds") != list(p14_case.rule_set_pin.rule_ids)
+        or _canonical_sha256(output.get("legalProvisions"))
+        != _canonical_sha256([row.model_dump() for row in p14_case.legal_provisions])
+        or _canonical_sha256(output.get("ruleDefinitions"))
+        != _canonical_sha256([row.model_dump() for row in p14_case.rule_definitions])
+        or output.get("repositorySnapshot") != p14_case.repo_pin.model_dump()
+        or output.get("corpusPin") != p14_case.corpus_pin.model_dump()
+        or mapping_entry.get("p14RuleId") not in output.get("targetRuleIds", [])
+    ):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_SOURCE_OR_RULE_MISMATCH:{outcome.case_id}")
+    decisions = output.get("assessmentDecisions")
+    evidence = output.get("evidenceRecords")
+    facts = output.get("facts")
+    refs = output.get("evidenceReferences")
+    hitl = output.get("hitl")
+    if not isinstance(decisions, list) or not isinstance(evidence, dict) or not isinstance(facts, list):
+        raise TypeError(f"P14_OBSERVED_OUTPUT_CONTENT_INVALID:{outcome.case_id}")
+    known_refs = set(evidence) | {
+        row.get("factId") for row in facts if isinstance(row, dict) and isinstance(row.get("factId"), str)
+    }
+    if not isinstance(refs, list) or any(not isinstance(ref, str) or ref not in known_refs for ref in refs):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_EVIDENCE_REFERENCE_INVALID:{outcome.case_id}")
+    if not isinstance(hitl, dict) or hitl.get("state") not in {"NONE", "OPEN", "RESOLVED"}:
+        raise ValueError(f"P14_OBSERVED_OUTPUT_HITL_INVALID:{outcome.case_id}")
+    if hitl["state"] == "OPEN" and not hitl.get("openRequestIds"):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_HITL_OPEN_REQUEST_MISSING:{outcome.case_id}")
+    if hitl["state"] == "RESOLVED" and not hitl.get("resolvedRequests"):
+        raise ValueError(f"P14_OBSERVED_OUTPUT_HITL_RESOLUTION_MISSING:{outcome.case_id}")
+    for decision in decisions:
+        body = decision.get("decision", decision) if isinstance(decision, dict) else {}
+        if body.get("assessmentRuleId") not in output["targetRuleIds"]:
+            raise ValueError(f"P14_OBSERVED_OUTPUT_DECISION_RULE_INVALID:{outcome.case_id}")
+    history = output.get("lifecycleHistory")
+    if not isinstance(history, list):
+        raise TypeError(f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_INVALID:{outcome.case_id}")
+    for prior in history:
+        if not isinstance(prior, dict):
+            raise TypeError(f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_INVALID:{outcome.case_id}")
+        matching = outcomes_by_case_stage.get((outcome.case_id, prior.get("stage")), [])
+        if not any(
+            item.trial_index == outcome.trial_index
+            and item.trace_sha256 == prior.get("traceSha256")
+            and item.actual_verdict == prior.get("actualVerdict")
+            and item.lifecycle_state == prior.get("lifecycleState")
+            for item in matching
+        ):
+            raise ValueError(f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_MISMATCH:{outcome.case_id}")
+    if output.get("runResult", {}).get("state") != "SUCCEEDED" or not decisions:
+        return None
+    selected = output.get("actualAssessmentDecision")
+    if selected != decisions[-1]:
+        raise ValueError(f"P14_OBSERVED_OUTPUT_DECISION_SNAPSHOT_MISMATCH:{outcome.case_id}")
+    return output
+
+
+def _sha256_bytes(value: bytes) -> str:
+    """Business purpose: Recompute a trace's exact persisted-byte digest for human-review binding.
+
+    Business rules:
+    - Trace reviews bind to the file bytes written by P14, including formatting and line endings.
+
+    Execution flow:
+    1. Hash the saved bytes with SHA-256.
+
+    Failure cases:
+    - None: all byte strings have a digest.
+
+    Side effects:
+    - None: pure byte hashing.
+    """
+    from hashlib import sha256
+
+    return sha256(value).hexdigest()
 
 
 def _manifest_instruction_digest(manifest: dict[str, Any]) -> str | None:

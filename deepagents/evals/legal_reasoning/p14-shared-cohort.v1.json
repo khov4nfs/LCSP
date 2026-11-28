@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "cohortCaseId": "p14-case-01-initial",
+      "corpusId": "vn-pdpl-2025",
+      "corpusVersion": "2025.1",
+      "documentId": "vn-pdpl-2025",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "fixtureFingerprints": {
+        "legalSourceSha256": "488f37dd8c744d1440cddd35387f20f03d3fbdf99dc43e5ff84f15c4e1d4d14e",
+        "p14CaseSha256": "8904e8e23c976dd1d40b684b23f2836ae35819b2f670fc39c1fcb788626c591a",
+        "provisionContentSha256": "949304d5bbefc4018e957f1d21efe66e6bacdc90333db21f9eeb98fdd2e0b352",
+        "repositorySnapshotSha256": "04649d347ac2930fb2a1a7ad6fd60d4eb1970ea157078e109c96de7f3a4e85d0",
+        "scenarioSha256": "77437f6afb8d5b4f6411f934bccdb0d4eca195cd52b9d521056fdb9eb33ec123",
+        "targetPropositionSha256": "949304d5bbefc4018e957f1d21efe66e6bacdc90333db21f9eeb98fdd2e0b352",
+        "targetRuleSha256": "74006f5db42a86e772951b0631710af87aee90a49311bdcbbaf7fed152078307"
+      },
+      "jurisdiction": "VN_FIXTURE_LABEL_ONLY",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "CASE-01",
+      "provisionLocator": "art-11",
+      "sourceKind": "SYNTHETIC_PINNED_LAW",
+      "split": "DEV",
+      "splitGroupId": "shared-p14-scripted-engineering-slice",
+      "targetRuleId": "ER-DEMO-01"
+    },
+    {
+      "cohortCaseId": "p14-case-17-initial",
+      "corpusId": "vn-pdpl-2025",
+      "corpusVersion": "2025.1",
+      "documentId": "vn-pdpl-2025",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "fixtureFingerprints": {
+        "legalSourceSha256": "428375b3ef9015fcfa2db5a205cf141d9285a76633b2860e811f79434612f5a0",
+        "p14CaseSha256": "dac630bcd290fc9ebdd2b6c37c5c7ff727b61c4d8b3970d4f114ab22dad53134",
+        "provisionContentSha256": "2a1c3014740973844ed9ca52e068cea8c232c6c8571b00aee5b7308e2b1b82c9",
+        "repositorySnapshotSha256": "416bff8433e1ce68db1cd0c6456602e448039b3ed27a908eca75dd74b2317a04",
+        "scenarioSha256": "9d721205e242442de88204730513e59c7389fd48a312ae261619ba77f4afa977",
+        "targetPropositionSha256": "2a1c3014740973844ed9ca52e068cea8c232c6c8571b00aee5b7308e2b1b82c9",
+        "targetRuleSha256": "2bd93a75a5c9379945974503f4b5ec53938c1b2e4afc33955ccbb38b45c4fb6f"
+      },
+      "jurisdiction": "VN_FIXTURE_LABEL_ONLY",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "CASE-17",
+      "provisionLocator": "art-26",
+      "sourceKind": "SYNTHETIC_PINNED_LAW",
+      "split": "DEV",
+      "splitGroupId": "shared-p14-scripted-engineering-slice",
+      "targetRuleId": "ER-DEMO-01"
+    },
+    {
+      "cohortCaseId": "p14-case-02-resume-final",
+      "corpusId": "vn-pdpl-2025",
+      "corpusVersion": "2025.1",
+      "documentId": "vn-pdpl-2025",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "fixtureFingerprints": {
+        "legalSourceSha256": "8fa1b97c2ac2471d733bce274f39977c94f14c84642eb470997ae6977439b053",
+        "p14CaseSha256": "991851b4293123fd9c9cd647b13026cbe4b21d5205582ffa2698a0efd37d18ec",
+        "provisionContentSha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+        "repositorySnapshotSha256": "6bddf66765511223a4c5ee75a827fc3f3af4f30d317f74418b970422107d037d",
+        "scenarioSha256": "60ba3b719390546995bdd8a4c55147ef1bba8242c31932201a6490165f3eb72e",
+        "targetPropositionSha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+        "targetRuleSha256": "dee02e0be69776f28330c76fa2ba4dad06f6783467fadb750925006a53c2d3cf"
+      },
+      "jurisdiction": "VN_FIXTURE_LABEL_ONLY",
+      "lifecycleStage": "RESUME_FINAL",
+      "p14CaseId": "CASE-02",
+      "provisionLocator": "art-28",
+      "sourceKind": "SYNTHETIC_PINNED_LAW",
+      "split": "DEV",
+      "splitGroupId": "shared-p14-scripted-engineering-slice",
+      "targetRuleId": "ER-DEMO-02"
+    }
+  ],
+  "cohortKind": "SYNTHETIC_P14_FIXTURE_ENGINEERING_ONLY",
+  "cohortSha256": "301a2dad69dff58ff58cddde43aa35a09809184beb44e831e111735087b1588a",
+  "cohortVersion": "LCSP-400-P14-SHARED-COHORT-V1",
+  "description": "Exact same-object P14 case reuse for offline SCRIPTED artifact integration. Synthetic pinned-law snippets and synthetic repositories are engineering fixtures only; no legal crosswalk or legal gold is asserted."
+}

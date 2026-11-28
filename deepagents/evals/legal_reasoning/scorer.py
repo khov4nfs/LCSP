@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,15 @@ SEMANTIC_DIMENSIONS = (
     "UNSUPPORTED_CONCLUSION",
 )
 EVIDENCE_DIMENSIONS = ("EVIDENCE_SUFFICIENCY",)
+PREPARATION_BINDING_FIELDS = {
+    "bindingKind", "candidateCaseId", "runId", "manifestSha256", "sourceId",
+    "sourceVersion", "provisionRefs", "claimId", "claimSha256", "outputSha256",
+    "instructionBundleDigest", "skillVersionDigest",
+}
+FIXED_CLAIM_BINDING_FIELDS = {
+    "bindingKind", "candidateCaseId", "candidateDatasetSha256", "claimSha256",
+    "rubricVersion", "sourcePinsSha256",
+}
 
 
 def score_dataset(
@@ -122,7 +132,12 @@ def score_dataset(
                 "observedClaim"
             ) != record_by_id[case_id].get("claimUnderReview"):
                 raise ValueError(f"PREDICTION_FIXED_CLAIM_BINDING_MISMATCH:{case_id}")
-        prediction_by_id[case_id] = row
+        normalized_row = dict(row)
+        if evaluation_target == "FIXED_CLAIM_DIAGNOSTIC" and case_id in record_by_id:
+            normalized_row["_expectedTargetBinding"] = _fixed_claim_binding(
+                record_by_id[case_id], records, rubric, source_pins
+            )
+        prediction_by_id[case_id] = normalized_row
 
     all_counts = _review_counts(records, allow_synthetic=not synthetic_test_mode)
     per_dimension: dict[str, Any] = {}
@@ -155,6 +170,9 @@ def score_dataset(
         )
     return {
         "reportVersion": "LCSP-400-SCORER-REPORT-V1",
+        "reportClassification": "STANDALONE_DIAGNOSTIC_UNVERIFIED",
+        "executionProvenanceStatus": "UNVERIFIED",
+        "verifiedExecutionMetrics": False,
         "evaluationTarget": evaluation_target,
         "datasetVersion": rubric["datasetVersion"],
         "rubricVersion": rubric["rubricVersion"],
@@ -460,6 +478,21 @@ def _prediction_label(
             ):
                 return UNKNOWN
             value = normalized_labels.get(_field_name(dimension))
+            if value in {None, "UNRESOLVED"}:
+                human_judgments = prediction.get("humanJudgments", {})
+                judgment = (
+                    human_judgments.get(_field_name(dimension))
+                    if isinstance(human_judgments, dict)
+                    else None
+                )
+                if _valid_human_judgment(
+                    judgment,
+                    dimension=dimension,
+                    spec=spec,
+                    prediction=prediction,
+                    synthetic_test_mode=synthetic_test_mode,
+                ):
+                    value = judgment["label"]
         else:
             applicability, compliance = _assessment_domain_labels(raw_dimensions)
             value = applicability if dimension == "APPLICABILITY" else compliance
@@ -496,6 +529,126 @@ def _prediction_label(
     if value is None:
         return None
     return value if isinstance(value, str) and value in set(spec["labels"]) else UNKNOWN
+
+
+def _fixed_claim_binding(
+    record: dict[str, Any],
+    records: list[dict[str, Any]],
+    rubric: dict[str, Any],
+    source_pins: dict[str, Any],
+) -> dict[str, Any]:
+    """Business purpose: Bind a fixed-claim judgment to one exact candidate, claim, source pin, and rubric.
+
+    Business rules:
+    - Fixed-claim diagnostics have no P14 execution and must not borrow a P14 review binding.
+    - Candidate records, claim text, rubric version, and legal source pins define the review target.
+
+    Execution flow:
+    1. Read the exact predefined claim and candidate case identity.
+    2. Compute dataset, claim, and source-pin digests.
+    3. Return the required FIXED_CLAIM_DIAGNOSTIC binding.
+
+    Failure cases:
+    - Missing claim text raises ValueError before a review can be treated as bound.
+
+    Side effects:
+    - None: hashes supplied evaluation metadata only.
+    """
+    claim = record.get("claimUnderReview")
+    if not isinstance(claim, str) or not claim:
+        raise ValueError(f"FIXED_CLAIM_TEXT_MISSING:{record.get('caseId')}")
+    return {
+        "bindingKind": "FIXED_CLAIM_DIAGNOSTIC",
+        "candidateCaseId": record["caseId"],
+        "candidateDatasetSha256": _canonical_sha256(records),
+        "claimSha256": sha256(claim.encode("utf-8")).hexdigest(),
+        "rubricVersion": rubric["rubricVersion"],
+        "sourcePinsSha256": _canonical_sha256(source_pins),
+    }
+
+
+def _valid_review_target_binding(binding: Any, prediction: dict[str, Any]) -> bool:
+    """Business purpose: Validate review provenance according to the declared evaluation target.
+
+    Business rules:
+    - Assessment Root requires a complete P14 binding to one run, trial, trace, and observed output.
+    - Preparation requires a distinct frozen-output/manifest/source/claim binding.
+    - Fixed-claim diagnostics require the scorer-computed exact candidate and claim binding.
+    - Structural validity is not reviewer authentication or artifact-byte verification.
+
+    Execution flow:
+    1. Read the explicit prediction target and target-specific binding.
+    2. Validate the exact field set, case ID, SHA-256 values, and fixed-claim binding where available.
+    3. Return False for cross-target, stale, incomplete, or malformed records.
+
+    Failure cases:
+    - Returns False for unknown targets, wrong binding types, malformed hashes, stale output fields, or target mismatch.
+
+    Side effects:
+    - None: checks local review metadata only.
+    """
+    target = prediction.get("evaluationTarget")
+    if target is None and isinstance(prediction.get("p14Binding"), dict):
+        target = "ACTUAL_ASSESSMENT_OUTPUT"
+    if target == "ACTUAL_ASSESSMENT_OUTPUT":
+        observed_binding = prediction.get("p14Binding")
+        if not _valid_p14_binding(binding) or binding != observed_binding:
+            return False
+        return all(
+            binding.get(binding_field) == prediction.get(prediction_field)
+            for binding_field, prediction_field in (
+                ("candidateCaseId", "caseId"),
+                ("p14CaseId", "p14CaseId"),
+                ("evaluationStage", "stage"),
+                ("lifecycleStage", "lifecycleStage"),
+                ("trialIndex", "trialIndex"),
+                ("traceSha256", "traceSha256"),
+                ("observedOutputSha256", "observedOutputSha256"),
+            )
+            if prediction_field in prediction
+        )
+    if not isinstance(binding, dict):
+        return False
+    if target == "RULE_SET_PREPARATION_OUTPUT":
+        if set(binding) != PREPARATION_BINDING_FIELDS or binding.get("bindingKind") != target:
+            return False
+        if binding.get("candidateCaseId") != prediction.get("caseId"):
+            return False
+        for field in ("manifestSha256", "claimSha256", "outputSha256", "skillVersionDigest"):
+            if not isinstance(binding.get(field), str) or not re.fullmatch(r"[a-f0-9]{64}", binding[field]):
+                return False
+        if not isinstance(binding.get("instructionBundleDigest"), str) or not binding["instructionBundleDigest"].strip():
+            return False
+        if not all(isinstance(binding.get(field), str) and binding[field].strip() for field in ("runId", "sourceId", "sourceVersion", "claimId")):
+            return False
+        if not isinstance(binding.get("provisionRefs"), list) or not binding["provisionRefs"] or any(not isinstance(row, str) or not row for row in binding["provisionRefs"]):
+            return False
+        prediction_fields = {
+            "runId": "runId",
+            "manifestSha256": "manifestSha256",
+            "sourceId": "sourceId",
+            "sourceVersion": "sourceVersion",
+            "provisionRefs": "provisionRefs",
+            "claimId": "claimId",
+            "claimSha256": "claimSha256",
+            "outputSha256": "outputSha256",
+            "instructionBundleDigest": "instructionBundleDigest",
+            "skillVersionDigest": "skillVersionDigest",
+        }
+        return all(
+            prediction.get(prediction_field) == binding[binding_field]
+            for binding_field, prediction_field in prediction_fields.items()
+        )
+    if target == "FIXED_CLAIM_DIAGNOSTIC":
+        expected = prediction.get("_expectedTargetBinding")
+        return (
+            set(binding) == FIXED_CLAIM_BINDING_FIELDS
+            and binding.get("bindingKind") == target
+            and binding.get("candidateCaseId") == prediction.get("caseId")
+            and isinstance(expected, dict)
+            and binding == expected
+        )
+    return False
 
 
 def _is_synthetic_test_execution(
@@ -767,11 +920,8 @@ def _valid_human_judgment(
             if dimension not in resolved or resolved[dimension].get("label") != judgment["label"]:
                 return False
         if not synthetic_test_mode:
-            binding = prediction.get("p14Binding")
-            if (
-                not _valid_p14_binding(binding)
-                or judgment.get("targetBinding") != binding
-            ):
+            binding = prediction.get("targetBinding", prediction.get("p14Binding"))
+            if not _valid_review_target_binding(binding, prediction) or judgment.get("targetBinding") != binding:
                 return False
         return True
     except (AttributeError, KeyError, TypeError, ValueError):

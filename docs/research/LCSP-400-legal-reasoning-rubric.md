@@ -126,58 +126,109 @@ The report fingerprints canonical annotations, predictions, rubric, and source p
 
 ## P14 integration and reproducibility
 
-The thin adapter is [`p14_adapter.py`](../../deepagents/evals/legal_reasoning/p14_adapter.py), exposed as the P14 CLI subcommand `legal-score`. It consumes P14's actual saved manifest, `trials.jsonl`, trace files, benchmark cases, and review records through P14's existing loaders and validators. Its output retains run/manifest identity, evaluation mode, P14 dataset digest, repository commit, model route, prompt and instruction/skill fingerprints, usage, source pins, lifecycle stage, trial identity, output digest, and trace digest. Each repeated trial is reported separately; no best-of or averaging policy is applied.
+### R3 PM review resolution
 
-The explicit case map is [`p14-case-map.v1.json`](../../deepagents/evals/legal_reasoning/p14-case-map.v1.json). Its pins cover the immutable candidate snapshot, legal source pins, and exact P14 corpus snapshot. It currently maps zero of the 30 candidates: 21 Assessment Root cases have no exact source/rule/repository crosswalk, 4 Rule Set Preparation cases cannot execute in this Assessment Root harness, and 5 fixed-claim diagnostics are not generated-output cases. These are unsupported/excluded from current end-to-end execution metrics, not merely unmapped by case ID. Current P14 stages (`INITIAL`, `WAITING_FOR_HUMAN`, `RESUME_FINAL`, `FAULT_RECOVERY`) remain lifecycle stages and are never treated as LCSP evaluation stages.
+| Finding | Resolution |
+|---|---|
+| PM01 — SCRIPTED/LIVE trace contract | P14 writes a digest-bound `observedOutput` snapshot into its actual trace artifact. The adapter verifies trace bytes, nested run/case/trial/outcome identities, observed-output digest, and reviewer-required content. |
+| PM02 — candidate/P14 cross-binding | V2 mapping requires exact shared case, source/provision, proposition/rule, scenario, repository, stage/lifecycle, trial target, and frozen split fingerprints. Independent pins do not establish correspondence. |
+| PM03 — insufficient evidence | The rubric may record an output-bound human `INSUFFICIENT_EVIDENCE` judgment separately from the raw production verdict. It cannot overwrite an explicit categorical verdict. |
+| PM04 — review target binding | P14 output reviews bind to saved execution artifacts; Preparation reviews bind to frozen output/source/claim metadata; fixed-claim diagnostics bind to the immutable candidate and claim digest. Bindings cannot cross targets. |
+| PM05 — execution cohort accounting | Reports separate mapped, expected, executed, output-available, and scoring-eligible counts. Unexecuted targets are `NOT_EXECUTED`; executed outputs that are absent or invalid are visible missing-output errors; zero execution stays `NOT_SCORED`. |
+| PM06 — frozen split | The versioned split sidecar groups related provisions and counterfactuals before deterministic assignment and binds the split digest into the P14 manifest. Its small cohort cannot support generalization claims. |
+| PM07 — standalone provenance | Standalone arithmetic is always `STANDALONE_DIAGNOSTIC_UNVERIFIED`. Verified artifact reporting is only reachable through the P14 adapter after it validates saved manifest, trace, output, and outcome bytes. Artifact integrity does not authenticate a reviewer or establish legal quality. |
 
-Reproduce the saved offline P14 integration verification from `deepagents/` without model calls. Generate the run using the current P14 case snapshot, then score those saved artifacts:
+Regression coverage for these findings is in `tests/test_legal_reasoning_p14_integration.py` and `tests/test_legal_reasoning_r2_hardening.py`. The exact offline commands are below; the checked-in SCRIPTED report records artifact verification only, not reviewed legal metrics.
+
+The thin adapter is [`p14_adapter.py`](../../deepagents/evals/legal_reasoning/p14_adapter.py), exposed through P14's existing `legal-score` command. It validates the saved manifest, `trials.jsonl`, exact trace bytes, benchmark case snapshot, outcome bindings, repository fixture trees, and the explicit case map with P14's existing loaders and validators. Each mapped trial remains separate. The report carries the run and manifest identities, source/split pins, repository commit, model route, prompt/skill fingerprints, lifecycle stage, trial identity, trace digest, and digest-bound observed output. It does not run a model or score free text.
+
+### Targets and executable coverage
+
+The 30 GDPR candidates remain unchanged and have **zero exact P14 mappings**. The five fixed-claim negative controls are diagnostics about supplied claims, not gold labels for generated outputs. The four Rule Set Preparation output cases cannot execute in P14's current Assessment Root runner. The remaining 21 GDPR Assessment Root candidates have no source, rule, scenario, and repository identity crosswalk to P14 fixtures. Their counts remain reported as unsupported rather than missing predictions.
+
+[`p14-shared-cohort.v1.json`](../../deepagents/evals/legal_reasoning/p14-shared-cohort.v1.json) and [`p14-case-map.v2.json`](../../deepagents/evals/legal_reasoning/p14-case-map.v2.json) define a separate three-case SCRIPTED engineering slice reused from the exact checked-in P14 case objects (`CASE-01/INITIAL`, `CASE-17/INITIAL`, and `CASE-02/RESUME_FINAL`). These cases use synthetic pinned-law snippets and synthetic repository fixtures labelled `VN_FIXTURE_LABEL_ONLY`; they assert no Vietnamese legal rule and make no GDPR/Vietnam crosswalk. The merged LCSP-402 public source corpus was inspected, but its provisions and target rules do not match these P14 demo rules, so it is not used to invent a correspondence. No legal gold or legal-quality metric is attached to the engineering slice.
+
+The P14 lifecycle values `INITIAL`, `WAITING_FOR_HUMAN`, `RESUME_FINAL`, and `FAULT_RECOVERY` remain lifecycle values, not LCSP evaluation stages. The map requires an exact P14 case, rule, legal source/provision bytes, target proposition, rule-set pin, scenario/HITL facts, repository fixture tree, stage, and split identity. Recomputed fingerprints reject stale or cross-bound rows; hashes prove identity only and do not decide legal equivalence.
+
+P14 `SCRIPTED` and `LIVE` trace files now carry an `observedOutput` snapshot of the actual runtime assessment decisions, facts, evidence records and references, source/rule pins, HITL requests and resolution state, lifecycle history, run/case/trial identity, and outcome binding. The adapter verifies the exact saved trace bytes, observed-output digest, all identity bindings, and required review content. A missing snapshot is reported as `EXECUTED_MISSING_OUTPUT`; corrupted digests or bindings fail closed. `OFFLINE_FIXTURE`, `SCRIPTED`, and `LIVE` remain distinct classifications. A validated SCRIPTED artifact report is not a live model baseline or a human-reviewed semantic result.
+
+### Frozen split
+
+[`evaluation-splits.v1.json`](../../deepagents/evals/legal_reasoning/evaluation-splits.v1.json) pins split version, digest, groups, and memberships. Counterfactual pair IDs and related GDPR provision families are joined before assignment. The 30 GDPR candidates divide into 29 DEV and 1 HOLDOUT case; the three P14 engineering cases share one DEV group. The resulting 32 DEV / 1 HOLDOUT combined inventory is too small and too heterogeneous for generalization claims. P14 manifests bind to the split digest with `--evaluation-split-manifest`; the adapter recomputes group membership from the candidate and cohort snapshots and rejects drift.
+
+### SCRIPTED integration reproduction
+
+Run these PowerShell commands from `deepagents/`. They generate a derived case subset from exact checked-in P14 fixture objects, execute the real P14 runner in offline `SCRIPTED` mode, then validate and normalize its saved artifacts. No live or paid model route is used.
 
 ```powershell
+$work = Join-Path $env:TEMP "lcsp400-pm-review-r3"
+New-Item -ItemType Directory -Force $work | Out-Null
+uv run python -m evals.legal_reasoning.p14_cohort `
+  --source-cases evals/fixtures/benchmark/cases.json `
+  --cohort evals/legal_reasoning/p14-shared-cohort.v1.json `
+  --output "$work/p14-cases.json"
 uv run python -m evals.cli run `
-  --cases evals/fixtures/benchmark/cases.json `
-  --mode OFFLINE_FIXTURE --split ALL --trials 1 --k 1 `
-  --run-id lcsp400-p14-offline-v1 `
-  --output-dir evals/reports
+  --cases "$work/p14-cases.json" --mode SCRIPTED --split ALL --trials 2 --k 1 `
+  --run-id lcsp400-pm-review-r3-scripted `
+  --output-dir "$work/runs" `
+  --evaluation-split-manifest evals/legal_reasoning/evaluation-splits.v1.json
 uv run python -m evals.cli legal-score `
-  --manifest evals/reports/lcsp400-p14-offline-v1/manifest.json `
-  --trials evals/reports/lcsp400-p14-offline-v1/trials.jsonl `
-  --p14-cases evals/fixtures/benchmark/cases.json `
+  --manifest "$work/runs/lcsp400-pm-review-r3-scripted/manifest.json" `
+  --trials "$work/runs/lcsp400-pm-review-r3-scripted/trials.jsonl" `
+  --p14-cases "$work/p14-cases.json" `
+  --candidate-cases evals/legal_reasoning/candidate-cases.v1.jsonl `
+  --case-map evals/legal_reasoning/p14-case-map.v2.json `
+  --shared-cohort evals/legal_reasoning/p14-shared-cohort.v1.json `
+  --evaluation-split-manifest evals/legal_reasoning/evaluation-splits.v1.json `
   --review-overlay evals/legal_reasoning/review-overlay.v1.json `
-  --output evals/legal_reasoning/reports/p14-integration-verification.v1.json
+  --output "$work/legal-reasoning.json"
 ```
 
-The current command validates P14's artifact inventory and trace hashes, reports zero exact mappings, zero LCSP-400 output judgments, `NOT_SCORED`, and `actualExecutionBaseline: NOT_RUN`. The checked-in P14 binary review fixture is bound to the archived `pilot-v1` run; it is not passed to a different run, and its seeded-unverified records never become LCSP-400 gold. The adapter may map explicit categorical Assessment Root verdicts only after a future case mapping is exact; P14 `UNRESOLVED` stays distinct from missing and invalid values in `evaluationLabelPredictions`, while production fields remain as recorded. Actor, conditions, exceptions, and evidence quality always need separately recorded judgments bound to the observed output. Each dimension judgment's `targetBinding` must exactly equal the review row's `p14Binding`.
+The reproducible checked-in report is [`reports/r3/p14-scripted-integration.v1.json`](../../deepagents/evals/legal_reasoning/reports/r3/p14-scripted-integration.v1.json). It records three mapped/executed cases, six mapped trials (two trials per exact mapped lifecycle target), output and trace digests, `NOT_SCORED`, zero reviewed-gold denominator, and `actualExecutionBaseline: NOT_RUN`. The complete SCRIPTED run artifacts used to produce it are retained next to the report under `reports/r3/p14-scripted-run/`. The legacy R2 zero-mapping report remains historical and is not the current integration evidence.
 
-Before an authorized future baseline, add and review compatible P14 cases and exact mappings, verify legal-gold annotations in the overlay, and obtain approval for live execution. From `deepagents/`, the P14 run command is:
+### Negative controls and scoring commands
+
+The integration tests retain the zero-mapping case (including a test-only simulated review overlay), a one-case partial mapping, absent trial outcomes, present trials with missing output, repeated trials, and tampered trace/output/outcome digests. Run them with:
 
 ```powershell
-$approvedModelRoute = "replace-with-approved-model-route"
+uv run pytest tests/test_legal_reasoning_p14_integration.py -q
+```
+
+The deterministic scorer remains usable for standalone arithmetic and diagnostic checks. Such output is always marked `STANDALONE_DIAGNOSTIC_UNVERIFIED`, even if a caller supplies plausible hashes or a `P14_RUN_ARTIFACT` label. Only `legal-score` validates P14 artifact bytes; that validation still does not authenticate human reviewers or produce legal accuracy without reviewed gold. Reproduce the standalone fabricated-provenance negative control and the R1 synthetic scorer verification with:
+
+```powershell
+uv run pytest tests/test_legal_reasoning_r2_hardening.py::test_standalone_scoring_cannot_promote_fabricated_p14_provenance_to_verified -q
+uv run python -m evals.legal_reasoning.reporting --output-dir "$env:TEMP/lcsp400-scorer-diagnostic"
+```
+
+The second command writes candidate lifecycle diagnostics and a clearly marked synthetic arithmetic verification. It invokes no model and must not be described as Deep Agent accuracy.
+
+### Human review and future authorized baseline
+
+Reviewers use [`candidate-cases.v1.jsonl`](../../deepagents/evals/legal_reasoning/candidate-cases.v1.jsonl) as the immutable legal-gold candidate snapshot and [`review-overlay.v1.json`](../../deepagents/evals/legal_reasoning/review-overlay.v1.json) as the single versioned review lifecycle record. They must review the legal source/citation and expected legal facts first, then separately review each observed LCSP output and create a dimension-review row bound to that exact manifest, run, case, trial, stage, lifecycle, target rule, trace bytes, and observed-output digest. A second reviewer records independent labels; an adjudicator must independently resolve each disputed dimension. Until genuine metadata exists, all candidate labels remain provisional for evaluation purposes. The structural validator cannot authenticate a person's identity; a responsible human owner must verify review references. P14 seeded reviews and test-only overlay states are never gold.
+
+For future authorized execution, first supply compatible legally reviewed executable cases and matching candidate-to-P14 cross-bindings. Then use the exact run-to-report sequence below from `deepagents/`; `LIVE` requires a separately authorized model route. Use the same split manifest used during review and do not tune against HOLDOUT.
+
+```powershell
+$work = "evals/reports/lcsp400-authorized-baseline"
+$runId = "replace-with-unique-approved-run-id"
+$approvedModelRoute = "replace-with-authorized-model-route"
 uv run python -m evals.cli run `
-  --cases evals/fixtures/benchmark/cases.json `
-  --mode LIVE --split DEV --trials 3 --k 1 3 `
-  --model-route $approvedModelRoute --allow-live `
-  --output-dir evals/reports/lcsp400-authorized-baseline
-```
-
-Use the `runId` printed by P14 to score and normalize the saved artifacts:
-
-```powershell
-$runId = "paste-run-id-printed-by-p14"
-uv run python -m evals.cli score `
-  --manifest "evals/reports/lcsp400-authorized-baseline/$runId/manifest.json" `
-  --trials "evals/reports/lcsp400-authorized-baseline/$runId/trials.jsonl" `
-  --reviews evals/fixtures/benchmark/manual_reviews_p15.json `
-  --output-dir "evals/reports/lcsp400-authorized-baseline/$runId"
+  --cases evals/fixtures/benchmark/cases.json --mode LIVE --split DEV `
+  --trials 3 --k 1 3 --model-route $approvedModelRoute --allow-live `
+  --run-id $runId --output-dir $work `
+  --evaluation-split-manifest evals/legal_reasoning/evaluation-splits.v1.json
 uv run python -m evals.cli legal-score `
-  --manifest "evals/reports/lcsp400-authorized-baseline/$runId/manifest.json" `
-  --trials "evals/reports/lcsp400-authorized-baseline/$runId/trials.jsonl" `
+  --manifest "$work/$runId/manifest.json" `
+  --trials "$work/$runId/trials.jsonl" `
   --p14-cases evals/fixtures/benchmark/cases.json `
-  --reviews evals/fixtures/benchmark/manual_reviews_p15.json `
-  --dimension-reviews path/to/lcsp400-observed-output-reviews.v1.json `
+  --candidate-cases evals/legal_reasoning/candidate-cases.v1.jsonl `
+  --case-map evals/legal_reasoning/p14-case-map.v2.json `
+  --shared-cohort evals/legal_reasoning/p14-shared-cohort.v1.json `
+  --evaluation-split-manifest evals/legal_reasoning/evaluation-splits.v1.json `
+  --dimension-reviews path/to/genuine-output-reviews.v1.json `
   --review-overlay evals/legal_reasoning/review-overlay.v1.json `
-  --output "evals/reports/lcsp400-authorized-baseline/$runId/legal-reasoning.json"
+  --output "$work/$runId/legal-reasoning.json"
 ```
 
-These are reproducibility templates only; no live or paid model evaluation has been authorized or run in R2. The current benchmark has no executable exact mapping, so a future run must not be reported as an LCSP-400 baseline until the map is updated and validation succeeds.
-
-Reproducibility records must preserve source snapshot, repository commit, P14 manifest, dataset and overlay hashes, rubric version, model configuration, prompt/skill versions, metrics, errors, budget, token usage, and cost where available. P14 `run`/`score` remains responsible for orchestration, traces, budget tracking, and generic reporting; LCSP-400 adds only the mapping, human-review validation, and legal rubric scoring layer.
+This is a future command template only. No genuine human-reviewed annotation, qualified expert review, or authorized live execution artifact is available in R3. Therefore reviewed semantic metrics and the actual LCSP execution baseline remain `NOT_SCORED` / `NOT_RUN`. Reproducibility metadata must preserve the source snapshot, repository commit, P14 manifest and case digest, legal source/rule-set version, dataset and review-overlay digests, rubric/split versions and digests, model configuration, prompt/instruction/skill versions, every trial/output/trace identity, metrics, errors, budget, token usage, and cost where available. R1 GDPR gold cases and the separate synthetic P14 engineering cohort cannot be combined into one score.

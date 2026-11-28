@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from evals.benchmark_runner import (
     build_benchmark_manifest,
@@ -60,6 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_manifest.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_manifest.add_argument("--locale", choices=["en", "vi"], default="en")
     p_manifest.add_argument("--model-route", default="offline-scripted")
+    p_manifest.add_argument("--evaluation-split-manifest", type=Path, default=None)
     p_manifest.add_argument("--output", type=Path, required=True)
 
     p_run = sub.add_parser("run", help="Run benchmark trials and export pass^k JSON/CSV reports")
@@ -72,6 +73,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_run.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_run.add_argument("--locale", choices=["en", "vi"], default="en")
     p_run.add_argument("--model-route", default="offline-scripted")
+    p_run.add_argument("--evaluation-split-manifest", type=Path, default=None)
     p_run.add_argument("--allow-live", action="store_true")
     p_run.add_argument("--output-dir", type=Path, required=True)
 
@@ -116,7 +118,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--candidate-cases", type=Path, default=eval_root / "legal_reasoning" / "candidate-cases.v1.jsonl"
     )
     p_legal_score.add_argument(
-        "--case-map", type=Path, default=eval_root / "legal_reasoning" / "p14-case-map.v1.json"
+        "--case-map", type=Path, default=eval_root / "legal_reasoning" / "p14-case-map.v2.json"
+    )
+    p_legal_score.add_argument(
+        "--shared-cohort", type=Path, default=eval_root / "legal_reasoning" / "p14-shared-cohort.v1.json"
+    )
+    p_legal_score.add_argument(
+        "--evaluation-split-manifest", type=Path, default=eval_root / "legal_reasoning" / "evaluation-splits.v1.json"
     )
     p_legal_score.add_argument(
         "--reviews", type=Path, default=None,
@@ -151,6 +159,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             p14_cases_path=args.p14_cases,
             candidate_cases_path=args.candidate_cases,
             case_mapping_path=args.case_map,
+            shared_cohort_path=args.shared_cohort,
+            split_manifest_path=args.evaluation_split_manifest,
             reviews_path=args.reviews,
             dimension_reviews_path=args.dimension_reviews,
             review_overlay_path=args.review_overlay,
@@ -174,6 +184,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "manifest":
+        from evals.legal_reasoning.splits import load_split_manifest
+
         config = RunConfig(
             mode=args.mode,
             split=args.split,
@@ -181,6 +193,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             k_values=tuple(args.k),
             locale=args.locale,
             model_route=args.model_route,
+            case_split_manifest_sha256=(
+                load_split_manifest(args.evaluation_split_manifest)["splitDigest"]
+                if args.evaluation_split_manifest
+                else None
+            ),
         )
         cases = load_benchmark_cases(args.cases, split=args.split)
         manifest = build_benchmark_manifest(run_id=args.run_id, cases=cases, config=config)
@@ -189,6 +206,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "run":
+        from evals.legal_reasoning.splits import load_split_manifest
+
         config = RunConfig(
             mode=args.mode,
             split=args.split,
@@ -197,6 +216,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             locale=args.locale,
             model_route=args.model_route,
             allow_live=args.allow_live,
+            case_split_manifest_sha256=(
+                load_split_manifest(args.evaluation_split_manifest)["splitDigest"]
+                if args.evaluation_split_manifest
+                else None
+            ),
         )
         cases = load_benchmark_cases(args.cases, split=args.split)
         reviews = load_manual_reviews(args.reviews)

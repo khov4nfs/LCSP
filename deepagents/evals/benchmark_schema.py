@@ -6,10 +6,10 @@ reproducibility and contract integrity across offline, scripted, and live runs.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 
 # Canonical execution modes; offline CI only permits OFFLINE_FIXTURE and SCRIPTED.
 ExecutionMode = Literal["OFFLINE_FIXTURE", "SCRIPTED", "LIVE"]
@@ -255,6 +255,7 @@ class RunConfig(BaseModel):
     model_route: str = "offline-scripted"
     allow_live: bool = False
     include_fault_injection: bool = True
+    case_split_manifest_sha256: str | None = None
 
     @field_validator("k_values")
     @classmethod
@@ -276,3 +277,26 @@ class RunConfig(BaseModel):
         if not value or any(k < 1 for k in value):
             raise ValueError("INVALID_K_VALUES")
         return tuple(sorted(set(value)))
+
+    @field_validator("case_split_manifest_sha256")
+    @classmethod
+    def _validate_case_split_manifest_sha256(cls, value: str | None) -> str | None:
+        """Business purpose: Keep an optional frozen evaluation split attached to its P14 run.
+
+        Business rules:
+        - A supplied split identity must be a lowercase SHA-256 digest.
+        - An absent digest preserves existing non-LCSP-400 benchmark behavior.
+
+        Execution flow:
+        1. Accept null when the run has no split-manifest binding.
+        2. Validate the exact digest format when a binding is supplied.
+
+        Failure cases:
+        - Malformed split digests fail RunConfig validation before execution.
+
+        Side effects:
+        - None: validates immutable run configuration.
+        """
+        if value is not None and not re.fullmatch(r"[a-f0-9]{64}", value):
+            raise ValueError("INVALID_CASE_SPLIT_MANIFEST_SHA256")
+        return value

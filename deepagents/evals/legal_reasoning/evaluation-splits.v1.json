@@ -1,0 +1,95 @@
+{
+  "splitVersion": "LCSP-400-DEV-HOLDOUT-SPLIT-V1",
+  "splitId": "lcsp400-legal-reasoning-v1-frozen",
+  "assignmentRule": "SHA256(groupId)[0:8] mod 5 == 0 => HOLDOUT; otherwise DEV; shared SCRIPTED engineering cohort => DEV",
+  "candidateDatasetSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
+  "sharedCohortSha256": "301a2dad69dff58ff58cddde43aa35a09809184beb44e831e111735087b1588a",
+  "candidateCaseCount": 30,
+  "sharedCohortCaseCount": 3,
+  "groups": [
+    {
+      "groupId": "EU_GDPR_2016_679_OJ:FAMILY:GDPR_BREACH_RESPONSE",
+      "split": "DEV",
+      "caseIds": [
+        "gdpr-ar-missing-artifact-not-proof-of-violation",
+        "gdpr-ar-processor-determines-purpose",
+        "gdpr-ar-processor-notifies-controller",
+        "gdpr-breach-controller-late-no-reasons",
+        "gdpr-breach-controller-notifies-within-72h",
+        "gdpr-breach-encryption-applied-to-affected-data",
+        "gdpr-breach-encryption-not-applied",
+        "gdpr-breach-high-risk-no-data-subject-notice",
+        "gdpr-breach-no-timing-evidence",
+        "gdpr-breach-processor-prompt-controller-notice",
+        "gdpr-breach-subsequent-measures-remove-high-risk",
+        "gdpr-breach-unlikely-risk-no-authority-notice",
+        "gdpr-evidence-contradictory-timestamps",
+        "gdpr-evidence-irrelevant-filename",
+        "gdpr-evidence-policy-no-event-proof",
+        "gdpr-evidence-unresolved-provenance-screenshot",
+        "gdpr-rsp-controller-processor-distinct-notice-actors",
+        "gdpr-rsp-preserve-breach-notice-conditions",
+        "gdpr-rsp-preserve-data-subject-exceptions",
+        "gdpr-rsp-processor-notice-duty-actor"
+      ]
+    },
+    {
+      "groupId": "EU_GDPR_2016_679_OJ:FAMILY:GDPR_TERRITORIAL_SCOPE",
+      "split": "DEV",
+      "caseIds": [
+        "gdpr-ar-unsupported-site-scope",
+        "gdpr-scope-accessible-site-not-targeted",
+        "gdpr-scope-material-facts-unknown",
+        "gdpr-scope-nonunion-no-union-subjects",
+        "gdpr-scope-nonunion-offer-to-union",
+        "gdpr-scope-union-establishment"
+      ]
+    },
+    {
+      "groupId": "EU_GDPR_2016_679_OJ:GDPR_ART_2_2_C",
+      "split": "DEV",
+      "caseIds": [
+        "gdpr-scope-household-exclusion"
+      ]
+    },
+    {
+      "groupId": "EU_GDPR_2016_679_OJ:GDPR_ART_30_5",
+      "split": "HOLDOUT",
+      "caseIds": [
+        "gdpr-rsp-under-250-records-carveouts"
+      ]
+    },
+    {
+      "groupId": "EU_GDPR_2016_679_OJ:GDPR_ART_32_1",
+      "split": "DEV",
+      "caseIds": [
+        "gdpr-rsp-invented-universal-encryption-duty"
+      ]
+    },
+    {
+      "groupId": "EU_GDPR_2016_679_OJ:GDPR_ART_35_1",
+      "split": "DEV",
+      "caseIds": [
+        "gdpr-ar-unverified-dpia-filename"
+      ]
+    },
+    {
+      "groupId": "shared-p14-scripted-engineering-slice",
+      "split": "DEV",
+      "caseIds": [
+        "p14-case-01-initial",
+        "p14-case-02-resume-final",
+        "p14-case-17-initial"
+      ]
+    }
+  ],
+  "splitCaseCounts": {
+    "DEV": 32,
+    "HOLDOUT": 1
+  },
+  "splitGroupCounts": {
+    "DEV": 6,
+    "HOLDOUT": 1
+  },
+  "splitDigest": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef"
+}

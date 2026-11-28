@@ -1,0 +1,35 @@
+{
+  "caseMappings": [
+    {
+      "cohortCaseId": "p14-case-01-initial",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "CASE-01",
+      "p14RuleId": "ER-DEMO-01"
+    },
+    {
+      "cohortCaseId": "p14-case-17-initial",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "CASE-17",
+      "p14RuleId": "ER-DEMO-01"
+    },
+    {
+      "cohortCaseId": "p14-case-02-resume-final",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "RESUME_FINAL",
+      "p14CaseId": "CASE-02",
+      "p14RuleId": "ER-DEMO-02"
+    }
+  ],
+  "mappingNote": "These are three exact P14 synthetic-fixture identities for SCRIPTED artifact plumbing only. They do not map to the 30 GDPR legal candidate annotations and do not assert Vietnamese law or any legal crosswalk. No legal semantic metrics are eligible from this engineering-only cohort.",
+  "mappingPolicy": "EXACT_SHARED_P14_FIXTURE_IDENTITY_ONLY_NO_LEGAL_CROSSWALK",
+  "mappingVersion": "LCSP-400-P14-CASE-MAP-V2",
+  "pinnedInputs": {
+    "candidateDatasetSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
+    "p14CasesDatasetSha256": "9772c405eb8f5d0d56a76453c3d5d7419f505e6313f4562f61a112889517eb79",
+    "sharedCohortSha256": "301a2dad69dff58ff58cddde43aa35a09809184beb44e831e111735087b1588a",
+    "sourcePinsSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14",
+    "splitManifestSha256": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef"
+  }
+}

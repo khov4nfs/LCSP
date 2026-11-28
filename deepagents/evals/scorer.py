@@ -8,11 +8,12 @@ and fail-closed P15 review binding.
 from __future__ import annotations
 
 import csv
-from hashlib import sha256
 import json
 import math
+from collections.abc import Iterable, Mapping, Sequence
+from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from evals.benchmark_schema import (
     GoldEvidenceCriterion,
@@ -627,8 +628,9 @@ def validate_run_artifacts_for_scoring(
     outcomes: Sequence[TrialOutcome],
     *,
     base_dir: Path | None = None,
+    allow_incomplete: bool = False,
 ) -> None:
-    """Business purpose: Verify manifest integrity, complete trial inventory, modes, and trace digests (P1).
+    """Business purpose: Verify manifest integrity, trial inventory, modes, and trace digests (P1).
 
     Business rules:
     - Manifest SHA-256 must match its payload.
@@ -636,15 +638,16 @@ def validate_run_artifacts_for_scoring(
       have a unique (case_id, trial_index, stage) key.
     - Every outcome must include trace_path and trace_sha256, and the trace file
       must exist on disk (resolved portably via base_dir) with matching SHA-256.
-    - Observed (case_id, trial_index, stage, mode) must exactly match expectedTrialInventory.
+    - Observed outcomes must match expectedTrialInventory; an adapter may explicitly tolerate absent
+      outcomes for NOT_EXECUTED reporting, but unexpected or malformed outcomes always fail.
 
     Execution flow:
     1. Recompute manifestSha256 and compare with stored digest.
     2. Check run_id, duplicate keys, trace presence, and on-disk trace SHA-256.
-    3. Verify complete trial inventory including per-trial mode match.
+    3. Verify trial inventory and per-trial mode; incomplete mode only tolerates absent outcomes.
 
     Failure cases:
-    - Raises ValueError on tampering, missing trace, mode mismatch, or incomplete inventory.
+    - Raises ValueError on tampering, missing trace, mode mismatch, unexpected trials, or strict-mode gaps.
 
     Side effects:
     - Reads on-disk trace files.
@@ -679,13 +682,13 @@ def validate_run_artifacts_for_scoring(
             for row in expected_inv
         }
         missing = set(expected_map) - seen
-        if missing:
+        if missing and not allow_incomplete:
             raise ValueError(f"SCORING_INCOMPLETE_TRIAL_INVENTORY:missing={len(missing)}")
         extra = seen - set(expected_map)
         if extra:
             raise ValueError(f"SCORING_UNEXPECTED_TRIALS:extra={len(extra)}")
         for key, exp_mode in expected_map.items():
-            if exp_mode and observed_modes.get(key) != exp_mode:
+            if exp_mode and key in observed_modes and observed_modes[key] != exp_mode:
                 raise ValueError(f"SCORING_MODE_MISMATCH:{key}:{observed_modes.get(key)}!={exp_mode}")
 
     for item in outcomes:

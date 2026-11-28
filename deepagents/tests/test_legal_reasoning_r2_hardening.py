@@ -8,16 +8,18 @@ from pathlib import Path
 
 import pytest
 
+from evals.legal_reasoning.p14_adapter import _normalize_assessment_verdict
 from evals.legal_reasoning.scorer import (
     MISSING,
     UNKNOWN,
     _calculate_metric,
     _expected_for_target,
+    _fixed_claim_binding,
     _prediction_label,
     _valid_human_judgment,
+    _valid_review_target_binding,
     score_dataset,
 )
-from evals.legal_reasoning.p14_adapter import _normalize_assessment_verdict
 from evals.legal_reasoning.validation import load_dataset, validate_dataset
 
 DEEPAGENTS = Path(__file__).resolve().parents[1]
@@ -344,7 +346,6 @@ def test_missing_null_and_invalid_assessment_compliance_are_distinct():
 
 
 def test_p14_unresolved_and_unknown_verdicts_remain_distinct_from_missing():
-    _, rubric, _ = _inputs()
     assert _normalize_assessment_verdict("NOT_APPLICABLE") == (
         "NOT_APPLICABLE", None, "NOT_APPLICABLE", "NOT_APPLICABLE"
     )
@@ -354,6 +355,181 @@ def test_p14_unresolved_and_unknown_verdicts_remain_distinct_from_missing():
     assert _normalize_assessment_verdict("UNEXPECTED_VERDICT") == (
         "UNEXPECTED_VERDICT", "UNEXPECTED_VERDICT", "UNEXPECTED_VERDICT", "UNEXPECTED_VERDICT"
     )
+
+
+def _compliance_review(label: str, binding: dict) -> dict:
+    return {
+        "label": label,
+        "reviewStatus": "REVIEWED",
+        "reviewerDisagreements": [],
+        "reviewers": [
+            {
+                "reviewerType": "HUMAN",
+                "reviewerId": "reviewer-compliance-r3",
+                "identityVerificationRef": "https://reviews.acme.com/records/compliance-r3",
+                "reviewedAt": "2026-12-01T10:00:00Z",
+                "decision": "CONFIRM",
+                "dimensionsReviewed": ["COMPLIANCE"],
+                "dimensionJudgments": [
+                    {
+                        "dimension": "COMPLIANCE",
+                        "label": label,
+                        "rationale": "The output-bound review records the evidence gap.",
+                    }
+                ],
+            }
+        ],
+        "targetBinding": deepcopy(binding),
+    }
+
+
+def test_insufficient_evidence_requires_a_valid_bound_review_and_cannot_rewrite_a_wrong_verdict():
+    _, rubric, _ = _inputs()
+    binding = _actual_output_review()[1]["p14Binding"]
+    prediction = {
+        "caseId": binding["candidateCaseId"],
+        "p14CaseId": binding["p14CaseId"],
+        "stage": "ASSESSMENT_ROOT",
+        "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+        "lifecycleStage": binding["lifecycleStage"],
+        "trialIndex": binding["trialIndex"],
+        "traceSha256": binding["traceSha256"],
+        "observedOutputSha256": binding["observedOutputSha256"],
+        "normalizationSource": "P14_SAVED_ARTIFACTS",
+        "p14Binding": binding,
+        "targetBinding": binding,
+        "dimensionPredictions": {"applicability": "APPLICABLE", "compliance": None},
+        "evaluationLabelPredictions": {
+            "applicability": "APPLICABLE",
+            "compliance": "UNRESOLVED",
+        },
+        "humanJudgments": {"compliance": _compliance_review("INSUFFICIENT_EVIDENCE", binding)},
+    }
+    spec = rubric["dimensions"]["COMPLIANCE"]
+
+    assert _prediction_label("COMPLIANCE", prediction, spec) == "INSUFFICIENT_EVIDENCE"
+
+    wrong_categorical = deepcopy(prediction)
+    wrong_categorical["dimensionPredictions"]["compliance"] = "NON_COMPLIANT"
+    wrong_categorical["evaluationLabelPredictions"]["compliance"] = "SUPPORTED_NON_COMPLIANCE"
+    assert _prediction_label("COMPLIANCE", wrong_categorical, spec) == "SUPPORTED_NON_COMPLIANCE"
+
+    stale_review = deepcopy(prediction)
+    stale_review["observedOutputSha256"] = "e" * 64
+    assert _prediction_label("COMPLIANCE", stale_review, spec) == "UNRESOLVED"
+
+
+def test_review_bindings_are_target_specific_and_reject_stale_or_cross_target_records():
+    records = load_dataset(PACKAGE / "candidate-cases.v1.jsonl")
+    rubric = _inputs()[1]
+    pins = _inputs()[2]
+    rsp_values = {
+        "runId": "rsp-run-r3",
+        "manifestSha256": "a" * 64,
+        "sourceId": "gdpr-source",
+        "sourceVersion": "GDPR-2016-679-pinned-v1",
+        "provisionRefs": ["GDPR_ART_30_5"],
+        "claimId": "claim-r3",
+        "claimSha256": "b" * 64,
+        "outputSha256": "c" * 64,
+        "instructionBundleDigest": "instruction-r3",
+        "skillVersionDigest": "d" * 64,
+    }
+    rsp_binding = {
+        "bindingKind": "RULE_SET_PREPARATION_OUTPUT",
+        "candidateCaseId": "rsp-case-r3",
+        **rsp_values,
+    }
+    rsp_prediction = {
+        "caseId": "rsp-case-r3",
+        "evaluationTarget": "RULE_SET_PREPARATION_OUTPUT",
+        **rsp_values,
+    }
+    assert _valid_review_target_binding(rsp_binding, rsp_prediction)
+    assert not _valid_review_target_binding(
+        {**rsp_binding, "outputSha256": "e" * 64}, rsp_prediction
+    )
+    assert not _valid_review_target_binding(
+        rsp_binding, {**rsp_prediction, "evaluationTarget": "FIXED_CLAIM_DIAGNOSTIC"}
+    )
+
+    fixed_case = next(row for row in records if row["evaluationTarget"] == "FIXED_CLAIM_DIAGNOSTIC")
+    fixed_binding = _fixed_claim_binding(fixed_case, records, rubric, pins)
+    fixed_prediction = {
+        "caseId": fixed_case["caseId"],
+        "evaluationTarget": "FIXED_CLAIM_DIAGNOSTIC",
+        "_expectedTargetBinding": fixed_binding,
+    }
+    assert _valid_review_target_binding(fixed_binding, fixed_prediction)
+    assert not _valid_review_target_binding(
+        {**fixed_binding, "claimSha256": "e" * 64}, fixed_prediction
+    )
+
+    p14_binding = _actual_output_review()[1]["p14Binding"]
+    p14_prediction = {
+        "caseId": p14_binding["candidateCaseId"],
+        "p14CaseId": p14_binding["p14CaseId"],
+        "stage": "ASSESSMENT_ROOT",
+        "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+        "lifecycleStage": p14_binding["lifecycleStage"],
+        "trialIndex": p14_binding["trialIndex"],
+        "traceSha256": p14_binding["traceSha256"],
+        "observedOutputSha256": p14_binding["observedOutputSha256"],
+        "p14Binding": p14_binding,
+    }
+    assert _valid_review_target_binding(p14_binding, p14_prediction)
+    assert not _valid_review_target_binding(rsp_binding, p14_prediction)
+    assert not _valid_review_target_binding(
+        p14_binding, {**p14_prediction, "observedOutputSha256": "e" * 64}
+    )
+
+
+def test_standalone_scoring_cannot_promote_fabricated_p14_provenance_to_verified():
+    record = _reviewed_candidate()
+    _, rubric, pins = _inputs()
+    binding = _actual_output_review()[1]["p14Binding"]
+    binding["candidateCaseId"] = record["caseId"]
+    dimensions = {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_COMPLIANCE",
+    }
+    prediction = {
+        "caseId": record["caseId"],
+        "p14CaseId": binding["p14CaseId"],
+        "stage": record["stage"],
+        "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+        "observationKind": "GENERATED_LCSP_OUTPUT",
+        "sourceKind": "P14_RUN_ARTIFACT",
+        "artifactValidationStatus": "VALIDATED",
+        "verifiedExecutionMetrics": True,
+        "normalizationSource": "P14_SAVED_ARTIFACTS",
+        "p14Binding": binding,
+        "targetBinding": binding,
+        "lifecycleStage": binding["lifecycleStage"],
+        "trialIndex": binding["trialIndex"],
+        "traceSha256": binding["traceSha256"],
+        "observedOutputSha256": binding["observedOutputSha256"],
+        "dimensionPredictions": dimensions,
+        "evaluationLabelPredictions": dimensions,
+        "humanJudgments": {},
+    }
+    report = score_dataset(
+        [record],
+        {
+            "predictionVersion": "LCSP-400-NORMALIZED-PREDICTIONS-V1",
+            "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+            "sourceKind": "P14_RUN_ARTIFACT",
+            "artifactValidationStatus": "VALIDATED",
+            "verifiedExecutionMetrics": True,
+            "casePredictions": [prediction],
+        },
+        rubric,
+        pins,
+    )
+
+    assert report["reportClassification"] == "STANDALONE_DIAGNOSTIC_UNVERIFIED"
+    assert report["executionProvenanceStatus"] == "UNVERIFIED"
+    assert report["verifiedExecutionMetrics"] is False
 
     _, p14_binding = _actual_output_review()
     p14_prediction = {
