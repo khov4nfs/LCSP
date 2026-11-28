@@ -1,0 +1,15 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": true,
+  "scenario": "Dịch vụ cung cấp miễn phí và công bố video giả lập, có công cụ đánh dấu công khai đã được chạy xác minh.",
+  "dossierSystemVersion": {"status": "EXPLICITLY_ABSENT"},
+  "interactionDisclosure": {"status": "UNVERIFIED"},
+  "openMarkingCapability": {"status": "VERIFIED_PRESENT", "route": "PUBLIC_ENABLEMENT_VERIFIED"},
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2026-06-01",
+  "mediumOrHighRisk": true
+}

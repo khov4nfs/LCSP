@@ -489,7 +489,18 @@ jobs:
           cache-dependency-path: deepagents/pyproject.toml
 
       - name: Install dependencies
-        run: python -m pip install -e ".[dev]"
+        # Replay the verified legal extraction with the PDF parser version in uv.lock.
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+          import tomllib
+
+          with open("uv.lock", "rb") as lockfile:
+              packages = tomllib.load(lockfile)["package"]
+          pdf_parser = next(package["version"] for package in packages if package["name"] == "pypdf")
+          subprocess.run([sys.executable, "-m", "pip", "install", "-e", ".[dev]", f"pypdf=={pdf_parser}"], check=True)
+          PY
 
       # Python/API parity tests run the API's TypeScript domain code through `pnpm exec tsx`.
       - uses: pnpm/action-setup@v4
@@ -542,6 +553,18 @@ jobs:
 
       - name: Test Python workers
         run: pytest
+
+      # Publish the local-only P14 smoke evidence tied to this exact CI revision.
+      - name: Generate Vietnamese policy baseline and P14 smoke artifacts
+        run: python -m evals.cli policy-baseline --output-dir "$RUNNER_TEMP/lcsp-policy-baseline"
+
+      - name: Upload policy baseline and P14 smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcsp-policy-baseline-${{ github.sha }}
+          path: ${{ runner.temp }}/lcsp-policy-baseline/
+          if-no-files-found: error
+          retention-days: 30
 
   docker-sandbox-e2e:
     name: Docker sandbox E2E

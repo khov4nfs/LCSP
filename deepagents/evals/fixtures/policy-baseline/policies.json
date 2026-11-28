@@ -1,0 +1,114 @@
+{
+  "version": "LCSP-402 Công báo Việt Nam v1",
+  "applicability": "Development Activity Scope theo LCSP-424. Kiểm tra chủ thể và điều kiện riêng của mỗi nghĩa vụ. Đối chiếu assessedOn và firstOperatedOn với Điều 34–35 Luật 134 và Điều 45 Nghị định 142. Đối với hệ thống hoạt động trước ngày 01/03/2026, dùng sector để xác định mốc chuyển tiếp 12 hoặc 18 tháng. Khi thời hạn chưa đến, chỉ ghi nhận không áp dụng tại ngày đánh giá.",
+  "common_context": [
+    "law-1",
+    "law-2",
+    "law-3",
+    "law-34",
+    "law-35",
+    "decree-45"
+  ],
+  "policies": [
+    {
+      "id": "VN-AI-RISK-VERSION",
+      "type": "RISK_DOSSIER",
+      "locator": "decree-12",
+      "context": [
+        "law-10"
+      ],
+      "field": "dossierSystemVersion",
+      "criterion": "Đối với hệ thống rủi ro trung bình hoặc cao, hồ sơ phân loại trước khi đưa vào sử dụng phải nêu phiên bản hệ thống.",
+      "conditions": {
+        "isProvider": true,
+        "mediumOrHighRisk": true
+      },
+      "limit": "Chỉ kiểm tra trường phiên bản đã đối chiếu trong hồ sơ tương ứng hoặc tài liệu tương đương được phép. Không kết luận về thành phần hồ sơ khác.",
+      "exceptions": []
+    },
+    {
+      "id": "VN-AI-INTERACTION-DISCLOSURE",
+      "type": "INTERACTION_TRANSPARENCY",
+      "locator": "law-11",
+      "context": [
+        "decree-16"
+      ],
+      "field": "interactionDisclosure",
+      "criterion": "Nhà cung cấp bảo đảm người dùng nhận biết khi tương tác trực tiếp với hệ thống trí tuệ nhân tạo.",
+      "conditions": {
+        "isProvider": true,
+        "interactsDirectly": true,
+        "otherInteractionException": false
+      },
+      "limit": "Chỉ kiểm tra kết quả quan sát trực tiếp được xác nhận trong ca cho điểm tương tác liên quan, không suy từ mã frontend hoặc chất lượng thông báo.",
+      "exceptions": [
+        "Trường hợp pháp luật có quy định khác theo khoản 1 Điều 11."
+      ]
+    },
+    {
+      "id": "VN-AI-MEDIA-MARK",
+      "type": "TECHNICAL_MARKING",
+      "locator": "decree-17",
+      "context": [
+        "law-11",
+        "decree-16"
+      ],
+      "field": "machineReadableMark",
+      "criterion": "Nhà cung cấp bảo đảm dấu máy đọc trên đầu ra âm thanh, hình ảnh hoặc video do hệ thống tạo ra.",
+      "conditions": {
+        "isProvider": true,
+        "generatesAudiovisual": true,
+        "openOrFreeDistribution": false
+      },
+      "limit": "Kiểm tra dấu đã được xác nhận bằng máy đọc trong đầu ra mẫu và xác nhận dấu nói nội dung do AI tạo hoặc chỉnh sửa. Các dạng dấu hợp pháp khác không bị loại chỉ vì định dạng.",
+      "exceptions": [
+        "Hệ thống nguồn mở hoặc cung cấp miễn phí được đánh giá theo cơ chế riêng tại khoản 5 Điều 17."
+      ]
+    },
+    {
+      "id": "VN-AI-OPEN-MARK-ENABLEMENT",
+      "type": "TECHNICAL_MARKING",
+      "locator": "decree-17",
+      "context": [
+        "law-11",
+        "decree-16"
+      ],
+      "field": "openMarkingCapability",
+      "criterion": "Nhà cung cấp hệ thống nguồn mở hoặc miễn phí có đầu ra âm thanh, hình ảnh hoặc video thực hiện nghĩa vụ thông qua chức năng tích hợp hoặc phương tiện kỹ thuật công khai cho bên triển khai cấu hình và vận hành.",
+      "conditions": {
+        "isProvider": true,
+        "generatesAudiovisual": true,
+        "openOrFreeDistribution": true
+      },
+      "limit": "Chỉ đánh giá hai con đường tại khoản 5 Điều 17. Công cụ công khai cần đã được kiểm tra có thể cấu hình và vận hành dấu. Nghĩa vụ bên triển khai khi cung cấp nội dung ra công cộng nằm ngoài check này.",
+      "exceptions": []
+    }
+  ],
+  "excluded": [
+    {
+      "type": "RISK_CLASSIFICATION",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 6–9",
+      "reason": "Không tự phân loại rủi ro từ repository; cần phạm vi, trường hợp sử dụng và ngữ cảnh triển khai."
+    },
+    {
+      "type": "TRANSPARENCY_QUALITY",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 18 khoản 3",
+      "reason": "Sự hiện diện hoặc thời điểm của dấu không chứng minh mức độ dễ hiểu trong tất cả bối cảnh tiếp nhận."
+    },
+    {
+      "type": "RISK_NOTIFICATION",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 14",
+      "reason": "Thời điểm nộp thông báo là thủ tục hành chính của nhà cung cấp. Hồ sơ phân loại kỹ thuật được đánh giá riêng."
+    },
+    {
+      "type": "PUBLIC_TRANSPARENCY",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 18 khoản 1 và 3",
+      "reason": "Thời điểm công bố thuộc hoạt động của bên triển khai."
+    },
+    {
+      "type": "PUBLIC_TRANSPARENCY",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 18 khoản 2–6",
+      "reason": "Cách gắn nhãn khi phát hành thuộc trách nhiệm của bên triển khai. Bằng chứng về khả năng kỹ thuật đánh dấu máy đọc tiếp tục được đánh giá theo Điều 17."
+    }
+  ]
+}

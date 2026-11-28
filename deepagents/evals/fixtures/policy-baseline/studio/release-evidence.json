@@ -1,0 +1,15 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "scenario": "Nhà cung cấp dịch vụ trả phí và trực tiếp phát hành video giả lập, hồ sơ xác minh thiếu ở một số điểm.",
+  "dossierSystemVersion": {"status": "MISSING"},
+  "interactionDisclosure": {"status": "EXPLICITLY_ABSENT"},
+  "machineReadableMark": {"status": "EXPLICITLY_ABSENT"},
+  "assessedOn": "2027-10-01",
+  "firstOperatedOn": "2026-06-01",
+  "mediumOrHighRisk": true
+}
