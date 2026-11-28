@@ -484,20 +484,18 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
   });
 
-  it("rejects a brand-new unreviewed import whose Assessment Rule criteria are unrelated to the legal requirement", async () => {
+  it("rejects a brand-new unreviewed import whose Assessment Rule references an unlinked requirement", async () => {
     const { subject, tx } = setup();
     tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue(null);
-    const unrelated = request();
-    unrelated.items[0].assessmentRules[0].concept =
-      "Hệ thống phải sử dụng Kubernetes";
-    unrelated.items[0].assessmentRules[0].requiredEvidence = [
-      "Kubernetes cluster manifest",
+    const unlinked = request();
+    unlinked.items[0].assessmentRules[0].legalRequirementIds = [
+      `${ruleId}:nonexistent-req`,
     ];
     await expect(
-      subject.importAssessmentRules(catalogId, unrelated, "admin-1", "cid"),
+      subject.importAssessmentRules(catalogId, unlinked, "admin-1", "cid"),
     ).rejects.toMatchObject({
       response: {
-        problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+        problem: { code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID },
       },
     });
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();

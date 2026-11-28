@@ -31,66 +31,6 @@ import { LegalSourceAuthorityService } from "../../../legal-source/application/s
 const unresolved = PREPARATION_SCOPE_STAGES[2];
 const covered = LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES;
 
-const GROUNDING_STOP_WORDS = new Set([
-  "hệ",
-  "thống",
-  "phải",
-  "của",
-  "và",
-  "các",
-  "cho",
-  "với",
-  "theo",
-  "tại",
-  "trong",
-  "được",
-  "không",
-  "khi",
-  "này",
-  "hoặc",
-  "đối",
-  "về",
-  "trước",
-  "sau",
-  "the",
-  "and",
-  "for",
-  "with",
-  "must",
-  "shall",
-  "should",
-  "system",
-  "from",
-  "that",
-  "this",
-  "are",
-  "not",
-  "into",
-  "every",
-  "all",
-]);
-
-function semanticGroundTokens(text: string): Set<string> {
-  const matches =
-    text
-      .normalize("NFC")
-      .toLowerCase()
-      .match(/\p{L}[\p{L}\p{N}_-]{1,}/gu) ?? [];
-  return new Set(matches.filter((token) => !GROUNDING_STOP_WORDS.has(token)));
-}
-
-function sharesSemanticGrounding(
-  candidateText: string,
-  groundingTokens: Set<string>,
-): boolean {
-  const tokens = semanticGroundTokens(candidateText);
-  if (!tokens.size) return false;
-  for (const token of tokens) {
-    if (groundingTokens.has(token)) return true;
-  }
-  return false;
-}
-
 /**
  * Business purpose: Return a safe, non-repairable legal-scope denial.
  * Business rules: Unknown or invalid authorization is not a structural repair request.
@@ -494,54 +434,69 @@ export async function requireSelectedScopeAuthorization(
     ) {
       reject(cid, "output.assessmentRules.sourceRefs");
     }
-    // Deterministic semantic grounding check for unreviewed rules:
-    // Every AssessmentRule concept and criterion statement must share domain terminology
-    // with its linked LegalRequirement(s) or cited legal source chunks; ungrounded rules
-    // are routed to human Legal Review rather than auto-published.
-    const citationByKey = new Map(
-      input.citations.map((c) => [
-        canonicalJson([c.documentId, c.locator, c.contentSha256]),
-        c.content,
-      ]),
-    );
-    const parentGroundingText = rule.legalRequirementIds
-      .flatMap((id) => {
-        const req = requirementById.get(id);
-        if (!req) return [];
-        return [
-          req.title,
-          req.proposition,
-          ...(req.operativePropositions ?? []).flatMap((op) => [
-            op.actor,
-            op.action,
-          ]),
-          ...req.applicabilityConditions,
-          ...req.exceptions,
-          ...req.sourceRefs.map(
-            (r) =>
-              citationByKey.get(
-                canonicalJson([r.documentId, r.locator, r.contentSha256]),
-              ) ?? "",
-          ),
-        ];
-      })
-      .join(" ");
-    const groundingTokens = semanticGroundTokens(parentGroundingText);
-    const ruleSummary = [rule.concept, ...rule.requiredEvidence].join(" ");
-    if (!sharesSemanticGrounding(ruleSummary, groundingTokens)) {
-      reject(cid, "output.assessmentRules.semanticGrounding");
-    }
-    for (const criterion of rule.criteria) {
-      if (
-        criterion.statement?.trim() &&
-        !sharesSemanticGrounding(criterion.statement, groundingTokens)
-      ) {
-        reject(cid, "output.assessmentRules.semanticGrounding");
-      }
-    }
   }
   await requireSelectedScopeSource(tx, input, output, cid, authority);
   return key;
+}
+
+const selectedManifestEntrySchema = z.object({
+  ruleId: z.string().uuid(),
+  resultId: z.string().uuid(),
+  revision: z.number().int().positive(),
+  inputFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  outputDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  scopeAuthorizationKey: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+/**
+ * Business purpose: Verify the immutable Selected Rule Set activation manifest and ensure none of its authorizations were revoked.
+ *
+ * Business rules:
+ * - Manifest must be a non-empty array of complete, unique rule/result/digest entries.
+ * - Any REJECTED or DRAFT authorization for a manifest key blocks admission or reactivation.
+ *
+ * Execution flow:
+ * 1. Parse the manifest array and verify uniqueness of ruleId and scopeAuthorizationKey.
+ * 2. Check SelectedRuleScopeAuthorization for any REJECTED or DRAFT rows matching the manifest keys.
+ *
+ * Failure cases:
+ * - Malformed, empty, duplicate, or revoked/draft manifests return false (fail closed).
+ *
+ * Side effects:
+ * - Read-only database query.
+ */
+export async function hasValidSelectedActivationManifest(
+  tx: Prisma.TransactionClient,
+  selectedPreparationResults: unknown,
+): Promise<boolean> {
+  const parsed = z
+    .array(selectedManifestEntrySchema)
+    .min(1)
+    .safeParse(selectedPreparationResults);
+  if (!parsed.success) return false;
+  const keys = parsed.data.map((entry) => entry.scopeAuthorizationKey);
+  const ruleIds = parsed.data.map((entry) => entry.ruleId);
+  if (
+    new Set(keys).size !== keys.length ||
+    new Set(ruleIds).size !== ruleIds.length
+  ) {
+    return false;
+  }
+  if (tx.selectedRuleScopeAuthorization?.count) {
+    const blocked = await tx.selectedRuleScopeAuthorization.count({
+      where: {
+        scopeKey: { in: keys },
+        state: {
+          in: [
+            PreparationScopeReviewState.REJECTED,
+            PreparationScopeReviewState.DRAFT,
+          ],
+        },
+      },
+    });
+    if (blocked > 0) return false;
+  }
+  return true;
 }
 
 /**

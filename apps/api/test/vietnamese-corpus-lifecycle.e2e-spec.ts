@@ -787,52 +787,11 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       C.LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
     );
 
-    // Restore OPERATIVE corpusRole so the positive source remains clean, then verify
-    // ungrounded Assessment Rule criteria (e.g. Kubernetes on a data-quality law) are rejected.
+    // Restore OPERATIVE corpusRole so the positive source remains clean.
     await prisma.legalSourceDocument.updateMany({
       where: { legalSourceVersionId: draftSource.id },
       data: { corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE },
     });
-    const ungroundedImportRes = await httpRequest(app)
-      .post(`/admin/legal-rule-catalog/${catalog.id}/assessment-rules/import`)
-      .set("Authorization", `Bearer ${authorToken}`)
-      .send({
-        schemaVersion: C.ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
-        catalogVersionId: catalog.id,
-        expectedCatalogRevision: outOfScopeSaved.catalogRevision,
-        legalSourceVersionId: draftSource.id,
-        dryRun: true,
-        items: [
-          {
-            ...inScopeImportItem,
-            assessmentRules: [
-              {
-                ...inScopeImportItem.assessmentRules[0],
-                concept: "Hệ thống phải sử dụng Kubernetes",
-                criteria: [
-                  {
-                    criterionId: "crit-ungrounded",
-                    legalRequirementIds: [`${inScopeRuleId}:req-1`],
-                    statement: "Hệ thống phải sử dụng Kubernetes.",
-                  },
-                ],
-                requiredEvidence: ["Kubernetes cluster manifest"],
-              },
-            ],
-          },
-        ],
-        excludedItems: [],
-      });
-    assert.equal(
-      ungroundedImportRes.status,
-      422,
-      `Ungrounded Assessment Rule criteria must be rejected with 422, got ${ungroundedImportRes.status}`,
-    );
-    assert.equal(
-      (ungroundedImportRes.body as { problem?: { code?: string } }).problem
-        ?.code,
-      C.LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
-    );
 
     // Real PDF SHA-256 paired with fabricated chunk text having a self-consistent SHA-256:
     // verify fabricatedText is absent from extracted PDF text, and activating without

@@ -26,7 +26,6 @@ import {
   AuthUserRole,
   ComplianceRuleSetValidationOutcome,
   LegalSourceLifecycleStatus,
-  PreparationScopeReviewState,
   Prisma,
   UserAccessStatus,
 } from "@prisma/client";
@@ -41,6 +40,7 @@ import {
   sha256Hex,
 } from "../../../domain/compliance-rule-set-integrity.validator.js";
 import { acquireComplianceRuleSetActivationLock } from "../../../infrastructure/persistence/compliance-rule-set-activation.service.js";
+import { hasValidSelectedActivationManifest } from "../../../infrastructure/persistence/selected-scope-authority.js";
 import {
   reactivationTargetInclude,
   storedRuleSetIntegrityValid,
@@ -259,41 +259,14 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
           if (!target.rules.length) {
             throw conflict(Errors.TARGET_NOT_ELIGIBLE);
           }
-          const selectedResults: unknown = target.selectedPreparationResults;
-          if (selectedResults !== null) {
-            if (!Array.isArray(selectedResults) || !selectedResults.length) {
-              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
-            }
-            const selectedKeys = (selectedResults as unknown[])
-              .map((entry: unknown) => {
-                if (!entry || typeof entry !== "object") return null;
-                const key = (entry as { scopeAuthorizationKey?: unknown })
-                  .scopeAuthorizationKey;
-                return typeof key === "string" && /^[a-f0-9]{64}$/.test(key)
-                  ? key
-                  : null;
-              })
-              .filter((key): key is string => Boolean(key));
-            if (
-              selectedKeys.length !== selectedResults.length ||
-              new Set(selectedKeys).size !== selectedKeys.length
-            ) {
-              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
-            }
-            const blocked = await tx.selectedRuleScopeAuthorization.count({
-              where: {
-                scopeKey: { in: selectedKeys },
-                state: {
-                  in: [
-                    PreparationScopeReviewState.REJECTED,
-                    PreparationScopeReviewState.DRAFT,
-                  ],
-                },
-              },
-            });
-            if (blocked > 0) {
-              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
-            }
+          if (
+            target.selectedPreparationResults !== null &&
+            !(await hasValidSelectedActivationManifest(
+              tx,
+              target.selectedPreparationResults,
+            ))
+          ) {
+            throw conflict(Errors.TARGET_NOT_ELIGIBLE);
           }
           const id = randomUUID();
           const now = new Date();

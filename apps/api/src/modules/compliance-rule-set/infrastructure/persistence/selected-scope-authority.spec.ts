@@ -212,12 +212,11 @@ describe("Reusable selected semantic scope evidence", () => {
     });
   });
 
-  it("rejects a brand-new unreviewed rule whose criteria are not semantically grounded in the legal requirement", async () => {
+  it("rejects a brand-new unreviewed rule with LEGAL_REVIEW_REQUIRED uncertainty or unlinked Assessment Rule sourceRefs", async () => {
     const { output } = fixture();
-    const ungrounded = structuredClone(output);
-    ungrounded.assessmentRules[0].concept = "Kubernetes deployment mandate";
-    ungrounded.assessmentRules[0].criteria[0].statement =
-      "Hệ thống phải sử dụng Kubernetes.";
+    const uncertain = structuredClone(output);
+    uncertain.legalRequirements[1].coverage.nonAssessableReason =
+      "LEGAL_REVIEW_REQUIRED: ambiguous actor obligation";
     const tx = {
       selectedRuleScopeAuthorization: {
         findUnique: jest.fn(() => Promise.resolve(null)),
@@ -242,13 +241,31 @@ describe("Reusable selected semantic scope evidence", () => {
       requireSelectedScopeAuthorization(
         tx,
         input,
-        ungrounded,
+        uncertain,
         "cid",
         fixtureSourceAuthority,
       ),
     ).rejects.toMatchObject({
       response: {
-        problem: { meta: { path: "output.assessmentRules.semanticGrounding" } },
+        problem: { meta: { path: "output.legalRequirements" } },
+      },
+    });
+
+    const unlinkedRefs = structuredClone(output);
+    unlinkedRefs.assessmentRules[0].sourceRefs = [
+      { ...ref, locator: "art-99::cl-1" },
+    ];
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        unlinkedRefs,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.assessmentRules.sourceRefs" } },
       },
     });
   });

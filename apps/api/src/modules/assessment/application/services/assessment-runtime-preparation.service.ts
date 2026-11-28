@@ -23,12 +23,12 @@ import {
   ArtifactLifecycleState,
   AssessmentAuditMode,
   ComplianceRuleSetValidationOutcome,
-  PreparationScopeReviewState,
   Prisma,
   RepositoryScanJobStatus,
   RepositoryScanTriggerSource,
   RepositorySnapshotStatus,
 } from "@prisma/client";
+import { hasValidSelectedActivationManifest } from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
@@ -108,55 +108,14 @@ export class AssessmentRuntimePreparation {
     ) {
       return null;
     }
-    if (candidate.selectedPreparationResults !== null) {
-      if (
-        !Array.isArray(candidate.selectedPreparationResults) ||
-        candidate.selectedPreparationResults.length === 0
-      ) {
-        return null;
-      }
-      const selectedKeys: string[] = [];
-      for (const entry of candidate.selectedPreparationResults) {
-        if (
-          !entry ||
-          typeof entry !== "object" ||
-          !("ruleId" in entry) ||
-          typeof entry.ruleId !== "string" ||
-          !("scopeAuthorizationKey" in entry) ||
-          typeof entry.scopeAuthorizationKey !== "string" ||
-          !/^[a-f0-9]{64}$/.test(entry.scopeAuthorizationKey) ||
-          ("resultId" in entry &&
-            entry.resultId !== undefined &&
-            typeof entry.resultId !== "string") ||
-          ("revision" in entry &&
-            entry.revision !== undefined &&
-            (typeof entry.revision !== "number" ||
-              !Number.isInteger(entry.revision) ||
-              entry.revision <= 0))
-        ) {
-          return null;
-        }
-        selectedKeys.push(entry.scopeAuthorizationKey);
-      }
-      if (new Set(selectedKeys).size !== selectedKeys.length) {
-        return null;
-      }
-      if (tx.selectedRuleScopeAuthorization?.count) {
-        const blocked = await tx.selectedRuleScopeAuthorization.count({
-          where: {
-            scopeKey: { in: selectedKeys },
-            state: {
-              in: [
-                PreparationScopeReviewState.REJECTED,
-                PreparationScopeReviewState.DRAFT,
-              ],
-            },
-          },
-        });
-        if (blocked > 0) {
-          return null;
-        }
-      }
+    if (
+      candidate.selectedPreparationResults !== null &&
+      !(await hasValidSelectedActivationManifest(
+        tx,
+        candidate.selectedPreparationResults,
+      ))
+    ) {
+      return null;
     }
     return {
       id: candidate.id,
