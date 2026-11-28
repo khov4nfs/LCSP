@@ -1,0 +1,21 @@
+{
+  "runId": "pilot-v1",
+  "caseId": "CASE-35",
+  "trialIndex": 4,
+  "threadId": "ddaa7e56-5a0c-4688-bc46-cd2526cc4420",
+  "mode": "OFFLINE_FIXTURE",
+  "stage": "FAULT_RECOVERY",
+  "output": {
+    "lifecycleState": "COMPLETE",
+    "verdict": "NOT_APPLICABLE",
+    "evidenceRefs": [
+      "ev-case-35-1"
+    ],
+    "hitlState": "NONE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "authorityViolation": false
+  }
+}

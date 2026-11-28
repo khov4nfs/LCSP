@@ -1,0 +1,21 @@
+{
+  "runId": "pilot-v1",
+  "caseId": "CASE-10",
+  "trialIndex": 1,
+  "threadId": "982e6b02-c343-43ce-b12c-59b50ea4c28e",
+  "mode": "OFFLINE_FIXTURE",
+  "stage": "INITIAL",
+  "output": {
+    "lifecycleState": "PAUSED",
+    "verdict": "UNRESOLVED",
+    "evidenceRefs": [
+      "ev-case-10-1"
+    ],
+    "hitlState": "NONE",
+    "persistedState": {
+      "lifecycleState": "PAUSED",
+      "openHumanRequests": 0
+    },
+    "authorityViolation": false
+  }
+}

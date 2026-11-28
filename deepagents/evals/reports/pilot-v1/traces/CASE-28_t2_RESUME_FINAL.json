@@ -1,0 +1,22 @@
+{
+  "runId": "pilot-v1",
+  "caseId": "CASE-28",
+  "trialIndex": 2,
+  "threadId": "fd93d4e6-e802-4062-bde0-12875cb1e068",
+  "mode": "OFFLINE_FIXTURE",
+  "stage": "RESUME_FINAL",
+  "output": {
+    "lifecycleState": "COMPLETE",
+    "verdict": "APPLICABLE_COMPLIANT",
+    "evidenceRefs": [
+      "ev-case-28-1",
+      "fact-case-28-1"
+    ],
+    "hitlState": "RESOLVED",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "authorityViolation": false
+  }
+}

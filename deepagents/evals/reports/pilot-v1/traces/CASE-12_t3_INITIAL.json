@@ -1,0 +1,21 @@
+{
+  "runId": "pilot-v1",
+  "caseId": "CASE-12",
+  "trialIndex": 3,
+  "threadId": "f59355ec-ba44-482f-8c0b-eab94430a6f8",
+  "mode": "OFFLINE_FIXTURE",
+  "stage": "INITIAL",
+  "output": {
+    "lifecycleState": "BLOCKED",
+    "verdict": "BLOCKED",
+    "evidenceRefs": [
+      "ev-case-12-1"
+    ],
+    "hitlState": "NONE",
+    "persistedState": {
+      "lifecycleState": "BLOCKED",
+      "openHumanRequests": 0
+    },
+    "authorityViolation": false
+  }
+}

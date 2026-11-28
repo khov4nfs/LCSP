@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "LCSP_P15_REVIEWS_V1",
+  "reviews": [
+    {
+      "case_id": "CASE-01",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-02",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-03",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "BLOCKED",
+      "agent_verdict": "BLOCKED",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-04",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "UNRESOLVED",
+      "agent_verdict": "UNRESOLVED",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-05",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-06",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-07",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "UNRESOLVED",
+      "agent_verdict": "UNRESOLVED",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-08",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "UNRESOLVED",
+      "agent_verdict": "UNRESOLVED",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-09",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-10",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "UNRESOLVED",
+      "agent_verdict": "UNRESOLVED",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-11",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-12",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "BLOCKED",
+      "agent_verdict": "BLOCKED",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-13",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_NON_COMPLIANT",
+      "agent_verdict": "APPLICABLE_NON_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-14",
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    },
+    {
+      "case_id": "CASE-15",
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "human_verdict": "APPLICABLE_COMPLIANT",
+      "agent_verdict": "APPLICABLE_COMPLIANT",
+      "evidence_acceptable": true,
+      "authority_respected": true,
+      "notes": "P15 pilot manual semantic review"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "runId": "pilot-v1",
+  "caseId": "CASE-15",
+  "trialIndex": 0,
+  "threadId": "d07d242d-dba7-4193-a394-b72bc12bf3e1",
+  "mode": "OFFLINE_FIXTURE",
+  "stage": "WAITING_FOR_HUMAN",
+  "output": {
+    "lifecycleState": "WAITING_FOR_HUMAN",
+    "verdict": "WAITING_FOR_HUMAN",
+    "evidenceRefs": [
+      "ev-case-15-1"
+    ],
+    "hitlState": "OPEN",
+    "persistedState": {
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "openHumanRequests": 1
+    },
+    "authorityViolation": false
+  }
+}
