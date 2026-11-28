@@ -1,5 +1,4 @@
 import { sourceReviewPayloadSchema } from "@lcsp/contracts/compliance-rule-set";
-import type { RuleSetPreparationSourceReview } from "@prisma/client";
 
 /**
  * Business purpose: Read a persisted source review through its shared contract before using its claims.
@@ -12,7 +11,7 @@ import type { RuleSetPreparationSourceReview } from "@prisma/client";
  * Side effects:
  * - None; parses data in memory.
  */
-export function reviewPayload(item: RuleSetPreparationSourceReview) {
+export function reviewPayload(item: { payload: unknown }) {
   // Why: Both source review and claim inventory must interpret persisted evidence identically.
   // How: Parse once at the shared domain boundary rather than importing one command handler from another.
   // Invariant: Malformed stored reviews cannot silently influence inventory or authoring decisions.

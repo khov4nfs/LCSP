@@ -48,6 +48,7 @@ import {
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
 import { reviewPayload } from "../../../domain/source-review-payload.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
+import { withLockedPreparationRun } from "../../../infrastructure/persistence/locked-preparation-run.js";
 import { sourceSupportFailures } from "../../../domain/source-completeness.js";
 import {
   claimEndpointFingerprint,
@@ -200,15 +201,11 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
   }: SourceReviewCommand): Promise<Record<string, unknown>> {
     if (input.payload)
       input = { ...input, payload: normalizeReviewPayload(input.payload) };
-    // One row lock serializes scheduling, unit completion, freeze and explicit reopening.
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw(
-          Prisma.sql`SELECT id FROM "RuleSetPreparationRun" WHERE id=${input.preparationRunId} FOR UPDATE`,
-        );
-        const run = await tx.ruleSetPreparationRun.findUnique({
-          where: { id: input.preparationRunId },
-        });
+    // One adapter owns the row-lock boundary for review and inventory; business validation stays here.
+    return withLockedPreparationRun(
+      this.prisma,
+      input.preparationRunId,
+      async (tx, run) => {
         /**
          * Business purpose: Return one source-review action failure with its required next operation.
          *
@@ -1728,7 +1725,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           "Unsupported source review action",
         );
       },
-      { timeout: 30000 },
     );
   }
 }

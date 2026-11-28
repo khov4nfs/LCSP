@@ -1,7 +1,7 @@
 # Kế hoạch refactor module `compliance-rule-set`
 
 **Ngày lập:** 2026-11-28
-**Trạng thái:** Đang triển khai. Luồng hủy bền vững và chặn reactivation đã qua unit test; suite PostgreSQL riêng cho Admin preparation đạt 18/18 khi chạy trên container test tạm. Hai handler lớn mới được tách parser dùng chung, chưa hoàn tất refactor persistence.
+**Trạng thái:** Đang triển khai. Luồng hủy bền vững và chặn reactivation đã qua unit test; suite PostgreSQL riêng cho Admin preparation đạt 18/18 khi chạy trên container test tạm. Hai handler lớn đã dùng chung ranh giới khóa run và parser; Claim Inventory đã tách phép dựng inventory từ review thành hàm domain thuần. Các thao tác persistence còn lại chưa được tách hết.
 **Phạm vi:** Sửa luồng hủy preparation, chặn reactivation khi còn run chưa giải quyết, rồi tách hai handler lớn theo ranh giới Clean Architecture. Không viết lại toàn bộ module.
 
 ## 1. Mục tiêu và hiện trạng đã kiểm chứng
@@ -75,4 +75,5 @@ Thực hiện **sau khi các lỗi hành vi đã GREEN**, theo từng bước nh
 - Đã thêm `CANCEL_REQUESTED` vào contracts, Prisma enum và migration. Admin cancel ghi trạng thái và audit actor trong cùng transaction; poller chỉ gọi Agent Server sau commit và chỉ đóng run khi native status đã kết thúc. Native HTTP 404, status lạ hoặc response vẫn `running` giữ yêu cầu ở trạng thái chờ. Poller quét theo batch có cursor để các yêu cầu lỗi đầu hàng không chặn các yêu cầu phía sau.
 - Reactivation và availability dùng cùng tập trạng thái chưa giải quyết, gồm `PAUSED`, `INTERRUPTED` và `CANCEL_REQUESTED`. Parser source review đã chuyển sang domain để `ClaimInventoryHandler` không import từ handler khác.
 - 6 suite unit liên quan đạt 34/34; contracts đạt 252/252; suite Admin preparation PostgreSQL đạt 18/18 trên database tạm `lcsp_admin_prepare_test` tại loopback cổng 55496 sau khi áp dụng 194 migrations. Container test đã dừng và xóa sau khi chạy. API typecheck, ESLint, import policy, business-logic-docs và `git diff --check` đạt.
-- **Còn lại:** tách tiếp persistence và pure logic khỏi `SourceReviewHandler` và `ClaimInventoryHandler`; mở rộng integration cho reactivation trên DB test; review độc lập các thay đổi trước khi đóng refactor. Không commit hoặc push.
+- Đã gom transaction, khóa dòng `RuleSetPreparationRun` và lần đọc trạng thái sau khóa vào `withLockedPreparationRun`; cả Source Review và Claim Inventory dùng cùng adapter, giữ timeout 30 giây và transaction owner cũ. Đã đưa phép dựng inventory từ các review hoàn tất vào `projectCompletedReviewInventory`, đồng thời bỏ phụ thuộc Prisma khỏi parser domain. Unit scoped đạt 12/12; integration Source Review và Claim Inventory đạt 22/22 trên database test tạm `lcsp_review_frontier_test` tại cổng 55497 sau 194 migrations. API typecheck, ESLint file đổi, import policy, business-logic-docs và `git diff --check` đạt.
+- **Còn lại:** tách tiếp các truy cập Prisma và nhánh quyết định nghiệp vụ còn nằm trong hai handler lớn; mở rộng integration cho reactivation trên DB test; review độc lập các thay đổi trước khi đóng refactor. PR tiếp tục ở trạng thái draft.
