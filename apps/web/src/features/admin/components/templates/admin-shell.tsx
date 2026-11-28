@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
 import { PanelLeftIcon } from "lucide-react";
 import { LCSPLogo } from "@/components/atoms/lcsp-logo";
 import {
@@ -18,30 +17,26 @@ import {
 } from "@/components/ui/sheet";
 import { resolveAppMessage } from "@/lib/i18n";
 import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
-import { cn } from "@/lib/utils";
 import { useAdminDesktop } from "../../hooks/use-admin-desktop";
 import type { AdminShellProps } from "../../types/admin-shell.types";
 import { AdminSidebar } from "./admin-sidebar";
 
 export function AdminShell({ children }: AdminShellProps) {
-  const pathname = usePathname();
   const locale = useSyncExternalStore(
     subscribeToAppLocale,
     getAppLocaleSnapshot,
     getAppLocaleSnapshot,
   );
-  const isBillingRoute = Boolean(pathname?.startsWith("/admin/billing"));
   const desktop = useAdminDesktop();
   const [navigationOpen, setNavigationOpen] = useState(false);
 
   return (
+    // Inherit the active ThemeProvider mode uniformly across all admin routes;
+    // never force a route-local `.dark` class on /admin/billing.
     <div
-      className={cn(
-        "flex h-dvh w-full overflow-hidden bg-background text-foreground antialiased selection:bg-primary/20",
-        isBillingRoute && "dark",
-      )}
+      className="flex h-dvh w-full overflow-hidden bg-background text-foreground antialiased selection:bg-primary/20"
       data-admin-shell
-      data-admin-theme={isBillingRoute ? "billing-dark" : "default"}
+      data-admin-theme="default"
       data-locale={locale}
     >
       {desktop ? <AdminSidebar /> : null}
@@ -89,19 +84,9 @@ export function AdminShell({ children }: AdminShellProps) {
         <main
           key={locale}
           data-admin-content
-          className={cn(
-            "flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10 lg:py-8",
-            isBillingRoute && "2xl:px-11.5 2xl:py-9",
-          )}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10 lg:py-8"
         >
-          <div
-            className={cn(
-              "mx-auto w-full max-w-[1192px] shrink-0",
-              isBillingRoute && "2xl:max-w-7xl",
-            )}
-          >
-            {children}
-          </div>
+          <div className="mx-auto w-full max-w-298 shrink-0">{children}</div>
         </main>
       </div>
     </div>

@@ -306,4 +306,69 @@ describe("Admin Billing UI components (Frames 47-49, 86)", () => {
     });
     assert.equal(nextPage, 2);
   });
+
+  it("contains long customer email and order code with right-aligned monetary cells", () => {
+    const longRow = makePaymentRow(
+      "VERY-LONG-ORDER-REFERENCE-2026-000123456",
+      PAYMENT_RECONCILIATION_STATUSES.MATCHED,
+      BILLING_ORDER_STATUSES.CREDITED,
+    );
+    longRow.account = {
+      userId: "acc-long",
+      email: "very.long.enterprise.billing.account+2026@subdomain.example.com",
+      displayName: null,
+    };
+    const el = renderNode(
+      createElement(AdminPaymentTable, {
+        items: [longRow],
+        tableAriaLabel: "Billing payments",
+        columns: {
+          order: "Order",
+          customer: "Customer account",
+          amount: "Amount",
+          credits: "Credits",
+          gateway: "Gateway",
+          webhook: "Webhook",
+          status: "Status",
+          action: "Action",
+        },
+        unknownOrderLabel: "Unknown order",
+        unknownAccountLabel: "Unknown account",
+        sepayNameLabel: "SePay",
+        viewActionLabel: "View",
+        reviewActionLabel: "Review",
+        formatVnd: (v) => (v ? `₫${v}` : "—"),
+        getWebhookStatusLabel: (r) => r.reconciliationStatus,
+        getOrderStatusLabel: (r) => r.order?.status ?? "PENDING",
+        onSelectPayment: () => {},
+      }),
+    );
+
+    const cells = [...el.querySelectorAll("tbody td")];
+    const orderCell = cells[0];
+    const customerCell = cells[1];
+    const amountCell = cells[2];
+    const creditsCell = cells[3];
+    const headers = [...el.querySelectorAll("thead th")];
+
+    assert.ok(orderCell?.className.includes("overflow-hidden"));
+    assert.ok(customerCell?.className.includes("overflow-hidden"));
+    assert.ok(customerCell?.querySelector(".truncate"));
+    assert.equal(customerCell?.querySelector("[title]"), null);
+    assert.ok(headers[2]?.className.includes("text-right"));
+    assert.ok(headers[3]?.className.includes("text-right"));
+    assert.ok(amountCell?.className.includes("text-right"));
+    assert.ok(creditsCell?.className.includes("text-right"));
+  });
+
+  it("does not force dark mode or billing-dark attribute in AdminShell", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const shellSource = readFileSync(
+      resolve("apps/web/src/features/admin/components/templates/admin-shell.tsx"),
+      "utf8",
+    );
+    assert.equal(shellSource.includes('isBillingRoute && "dark"'), false);
+    assert.equal(shellSource.includes("billing-dark"), false);
+  });
 });
