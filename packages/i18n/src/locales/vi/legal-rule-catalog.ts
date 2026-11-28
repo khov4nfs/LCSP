@@ -304,4 +304,6 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   scopeAuthActorLabel: "Chủ thể",
   scopeAuthModalityLabel: "Tính chất",
   scopeAuthActionLabel: "Nghĩa vụ",
+  scopeAuthSubmitCandidateAction: "Gửi bản nháp để duyệt pháp lý",
+  scopeAuthRegenerateAction: "Tạo lại quy tắc",
 };

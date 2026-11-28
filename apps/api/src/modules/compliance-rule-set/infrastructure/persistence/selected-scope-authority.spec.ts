@@ -104,6 +104,20 @@ function fixture() {
         sourceRefs: [ref],
       },
     ],
+    semanticValidation: {
+      status: "PASSED",
+      verifier: "DEEP_AGENT_SEMANTIC_VALIDATOR",
+      checks: [
+        {
+          assessmentRuleId: `${input.ruleId}:rule`,
+          legalRequirementId: dev.legalRequirementId,
+          verdict: "GROUNDED",
+          rationale:
+            "Assessment rule directly verifies the design protection duty in the cited legal requirement.",
+          sourceRefs: [ref],
+        },
+      ],
+    },
   });
   const decisions: SelectedScopeDecision[] = [dev, ops].map((r, i) => ({
     legalRequirementId: r.legalRequirementId,
@@ -266,6 +280,53 @@ describe("Reusable selected semantic scope evidence", () => {
     ).rejects.toMatchObject({
       response: {
         problem: { meta: { path: "output.assessmentRules.sourceRefs" } },
+      },
+    });
+
+    const missingSemanticValidation = structuredClone(output);
+    delete missingSemanticValidation.semanticValidation;
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        missingSemanticValidation,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.semanticValidation" } },
+      },
+    });
+
+    const ungroundedSemantic = structuredClone(output);
+    ungroundedSemantic.semanticValidation!.checks[0].verdict = "UNGROUNDED";
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        ungroundedSemantic,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.semanticValidation" } },
+      },
+    });
+
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        output,
+        "cid",
+        fixtureSourceAuthority,
+        { requireReviewedAuthorization: true },
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.scopeAuthorization" } },
       },
     });
   });

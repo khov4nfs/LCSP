@@ -20,12 +20,18 @@ import {
 } from "@/components/ui/select";
 import {
   useApproveScopeAuthorization,
+  useLegalRuleCommand,
+  usePreparationRuleHistory,
   useRevokeScopeAuthorization,
   useRuleScopeAuthorizations,
   useScopeAuthorization,
+  useSubmitScopeAuthorization,
 } from "@/lib/api/legal-rule-catalog-queries";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { SELECTED_SCOPE_AUTHORIZATION_STATES } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  preparationRuleBatchSchema,
+  SELECTED_SCOPE_AUTHORIZATION_STATES,
+} from "@lcsp/contracts/legal-rule-catalog";
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import {
@@ -54,6 +60,7 @@ export function SelectedScopeAuthorizationDialog({
   catalogRevision,
   ruleId,
   initialScopeKey = "",
+  onRegenerated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +68,7 @@ export function SelectedScopeAuthorizationDialog({
   catalogRevision: number;
   ruleId: string;
   initialScopeKey?: string;
+  onRegenerated?: (batchId: string) => void;
 }) {
   const [activeKey, setActiveKey] = useState(
     /^[a-f0-9]{64}$/.test(initialScopeKey) ? initialScopeKey : "",
@@ -76,6 +84,7 @@ export function SelectedScopeAuthorizationDialog({
     },
   });
   const list = useRuleScopeAuthorizations(catalogId, ruleId);
+  const history = usePreparationRuleHistory(ruleId);
   const effectiveKey =
     activeKey || list.data?.authorizations[0]?.scopeKey || "";
 
@@ -93,8 +102,77 @@ export function SelectedScopeAuthorizationDialog({
   });
 
   const detail = useScopeAuthorization(catalogId, effectiveKey);
+  const submitCandidate = useSubmitScopeAuthorization(catalogId);
   const approve = useApproveScopeAuthorization(catalogId);
   const revoke = useRevokeScopeAuthorization(catalogId);
+  const regenerate = useLegalRuleCommand(
+    `/rules/${ruleId}/regenerate`,
+    preparationRuleBatchSchema,
+  );
+  const latestDraft = history.data?.results?.[0];
+
+  /**
+   * Business purpose: Submit the latest Preparation draft as a Legal Review candidate when no authorization exists yet.
+   * Business rules:
+   * - Derives initial sourceSupport from the pinned rule citations and preserves requirement coverage rationale.
+   * Execution flow: 1. Build submit payload from latestDraft. 2. Submit candidate and select its scopeKey.
+   * Failure cases: Missing draft or citations is guarded before dispatch; API errors surface in alert.
+   * Side effects: Persists a DRAFT SelectedRuleScopeAuthorization record.
+   */
+  async function handleSubmitCandidate() {
+    if (!latestDraft?.output || !latestDraft.input.citations.length) return;
+    setStatusMessage(null);
+    const citation = latestDraft.input.citations[0];
+    const submitted = await submitCandidate.mutateAsync({
+      ruleId,
+      expectedCatalogRevision: catalogRevision,
+      expectedReviewRevision: 0,
+      output: latestDraft.output,
+      decisions: latestDraft.output.legalRequirements.map((req) => ({
+        legalRequirementId: req.legalRequirementId,
+        stage:
+          req.coverage.state === "COVERED_BY_ASSESSMENT_RULES"
+            ? "DEVELOPMENT"
+            : "NON_DEVELOPMENT",
+        rationale:
+          req.coverage.nonAssessableReason ??
+          req.proposition ??
+          "Legal review candidate",
+        technicalDeliverable:
+          req.coverage.state === "COVERED_BY_ASSESSMENT_RULES"
+            ? req.title
+            : null,
+        sourceSupport: [
+          {
+            chunkId: citation.chunkId,
+            startOffset: 0,
+            endOffset: Math.max(1, citation.content.length),
+            contentSha256: citation.contentSha256.replace(/^sha256:/u, ""),
+          },
+        ],
+      })),
+    });
+    setActiveKey(submitted.scopeKey);
+    setStatusMessage(t("scopeAuthSuccess"));
+  }
+
+  /**
+   * Business purpose: Trigger single-rule regeneration after Legal Review approval.
+   * Business rules: Uses an idempotent request key and closes the review dialog once queued.
+   * Execution flow: 1. POST /rules/:ruleId/regenerate. 2. Forward batch ID and close.
+   * Failure cases: API errors surface in the dialog alert.
+   * Side effects: Queues a selected-rule regeneration batch.
+   */
+  async function handleRegenerate() {
+    setStatusMessage(null);
+    const batch = await regenerate.mutateAsync({
+      idempotencyKey: crypto.randomUUID(),
+      expectedCatalogRevision: catalogRevision,
+      useLatestSources: false,
+    });
+    onOpenChange(false);
+    onRegenerated?.(batch.id);
+  }
 
   /**
    * Business purpose: Independently approve a loaded DRAFT semantic authorization candidate.
@@ -139,7 +217,12 @@ export function SelectedScopeAuthorizationDialog({
     void detail.refetch();
   }
 
-  const busy = approve.isPending || revoke.isPending || detail.isFetching;
+  const busy =
+    approve.isPending ||
+    revoke.isPending ||
+    submitCandidate.isPending ||
+    regenerate.isPending ||
+    detail.isFetching;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -175,7 +258,18 @@ export function SelectedScopeAuthorizationDialog({
               </div>
             ) : null
           ) : (
-            <p className="text-sm text-muted-foreground">{t("noResult")}</p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">{t("noResult")}</p>
+              {latestDraft?.output ? (
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleSubmitCandidate()}
+                >
+                  {t("scopeAuthSubmitCandidateAction")}
+                </Button>
+              ) : null}
+            </div>
           )}
 
           {detail.data ? (
@@ -395,12 +489,24 @@ export function SelectedScopeAuthorizationDialog({
                   >
                     {t("scopeAuthRevokeAction")}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void handleRegenerate()}
+                  >
+                    {t("scopeAuthRegenerateAction")}
+                  </Button>
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          {detail.isError || approve.isError || revoke.isError ? (
+          {detail.isError ||
+          approve.isError ||
+          revoke.isError ||
+          submitCandidate.isError ||
+          regenerate.isError ? (
             <Alert variant="destructive">
               <AlertDescription>{t("scopeAuthError")}</AlertDescription>
             </Alert>

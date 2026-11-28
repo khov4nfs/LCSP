@@ -836,18 +836,32 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       });
     assert.equal(fabricatedDraftRes.status, 201);
     const fabricatedDraft = successBody<{ id: string }>(fabricatedDraftRes);
+    // Register a retrieval index whose contentHash reflects the real PDF text rather than the fabricated chunk.
+    const mismatchedRetrievalRes = await httpRequest(app)
+      .post(
+        `/internal/legal-sources/${fabricatedDraft.id}/retrieval-indexes/validated`,
+      )
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        version: `vn-05-2026-fabricated-idx-${randomUUID().slice(0, 8)}`,
+        configHash: sha256("vn-05-2026-config"),
+        contentHash: sha256(extractedPdfText),
+        validationManifestRef: "retrieval-validation:fabricated-mismatch",
+        validatedAt: new Date().toISOString(),
+      });
+    assert.equal(mismatchedRetrievalRes.status, 201);
     const activateFabricatedRes = await httpRequest(app)
       .post(`/internal/legal-sources/${fabricatedDraft.id}/activate-validated`)
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         integrityManifestRef: "integrity-manifest:fabricated",
-        retrievalValidationRef: "retrieval-validation:fabricated",
+        retrievalValidationRef: "retrieval-validation:fabricated-mismatch",
         idempotencyKey: randomUUID(),
         scopeDescription: "Fabricated chunk negative regression",
       });
     assert.ok(
       activateFabricatedRes.status >= 400 && activateFabricatedRes.status < 500,
-      `Draft without retrieval validation / official extraction must be rejected, got ${activateFabricatedRes.status}`,
+      `Fabricated chunk whose content differs from the verified PDF/retrieval hash must be rejected, got ${activateFabricatedRes.status}`,
     );
   });
 });

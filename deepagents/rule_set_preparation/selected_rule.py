@@ -136,14 +136,33 @@ def _reject_unresolved_scope(output: dict[str, Any]) -> None:
     - Pure validation; no model or API call.
     """
     requirements = output.get("legalRequirements")
-    if not isinstance(requirements, list):
-        return
-    for requirement in requirements:
-        coverage = requirement.get("coverage") if isinstance(requirement, dict) else None
-        reason = coverage.get("nonAssessableReason") if isinstance(coverage, dict) else None
-        if isinstance(reason, str) and reason.strip().startswith("LEGAL_REVIEW_REQUIRED:"):
+    if isinstance(requirements, list):
+        for requirement in requirements:
+            coverage = requirement.get("coverage") if isinstance(requirement, dict) else None
+            reason = coverage.get("nonAssessableReason") if isinstance(coverage, dict) else None
+            if isinstance(reason, str) and reason.strip().startswith("LEGAL_REVIEW_REQUIRED:"):
+                raise WorkerCallbackError(
+                    "Legal scope requires review", status_code=422,
+                    error_code=SELECTED_RULE_SCOPE_REVIEW_REQUIRED,
+                )
+    rules = output.get("assessmentRules")
+    if isinstance(rules, list) and len(rules) > 0:
+        sv = output.get("semanticValidation")
+        checks = sv.get("checks") if isinstance(sv, dict) else None
+        if (
+            not isinstance(sv, dict)
+            or sv.get("status") != "PASSED"
+            or sv.get("verifier") != "DEEP_AGENT_SEMANTIC_VALIDATOR"
+            or not isinstance(checks, list)
+            or not checks
+            or any(
+                not isinstance(c, dict) or c.get("verdict") != "GROUNDED"
+                for c in checks
+            )
+        ):
             raise WorkerCallbackError(
-                "Legal scope requires review", status_code=422,
+                "Semantic validation failed or requires legal review",
+                status_code=422,
                 error_code=SELECTED_RULE_SCOPE_REVIEW_REQUIRED,
             )
 

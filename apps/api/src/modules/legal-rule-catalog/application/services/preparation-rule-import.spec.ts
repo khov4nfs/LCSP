@@ -484,6 +484,20 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
   });
 
+  it("rejects an unreviewed JSON import because model-free imports require approved legal review", async () => {
+    const { subject, tx } = setup();
+    tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue(null);
+    const unreviewed = request();
+    await expect(
+      subject.importAssessmentRules(catalogId, unreviewed, "admin-1", "cid"),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+      },
+    });
+    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+  });
+
   it("rejects a brand-new unreviewed import whose Assessment Rule references an unlinked requirement", async () => {
     const { subject, tx } = setup();
     tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue(null);

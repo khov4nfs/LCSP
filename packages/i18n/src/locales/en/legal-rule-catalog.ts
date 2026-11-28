@@ -306,6 +306,8 @@ export const enLegalRuleCatalog = {
   scopeAuthActorLabel: "Actor",
   scopeAuthModalityLabel: "Modality",
   scopeAuthActionLabel: "Obligation",
+  scopeAuthSubmitCandidateAction: "Submit Draft for Legal Review",
+  scopeAuthRegenerateAction: "Regenerate Rule",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;

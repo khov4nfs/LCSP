@@ -167,6 +167,7 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
         });
 
         // Validate semantic approval before the first write in both dry run and import.
+        // Why: JSON Import is model-free, so unreviewed imported rules must never be treated as legally verified.
         for (const { input, output } of prepared)
           await requireSelectedScopeAuthorization(
             tx,
@@ -174,6 +175,7 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
             output,
             cid,
             this.authority,
+            { requireReviewedAuthorization: true },
           );
         if (request.dryRun) {
           // Preview only: report what an import would record, using reads alone.

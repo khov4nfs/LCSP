@@ -254,13 +254,52 @@ export const preparationRuleInputSchema = z.strictObject({
     .max(64),
 });
 export type PreparationRuleInput = z.infer<typeof preparationRuleInputSchema>;
+
+export const SEMANTIC_VALIDATION_STATUSES = {
+  passed: "PASSED",
+  failed: "FAILED",
+} as const;
+export type SemanticValidationStatus =
+  (typeof SEMANTIC_VALIDATION_STATUSES)[keyof typeof SEMANTIC_VALIDATION_STATUSES];
+
+export const SEMANTIC_VALIDATION_VERDICTS = {
+  grounded: "GROUNDED",
+  ungrounded: "UNGROUNDED",
+  contradictory: "CONTRADICTORY",
+  uncertain: "UNCERTAIN",
+} as const;
+export type SemanticValidationVerdict =
+  (typeof SEMANTIC_VALIDATION_VERDICTS)[keyof typeof SEMANTIC_VALIDATION_VERDICTS];
+
+export const semanticValidationCheckSchema = z.strictObject({
+  assessmentRuleId: z.string().min(1).max(256),
+  legalRequirementId: z.string().min(1).max(256),
+  verdict: z.enum([
+    SEMANTIC_VALIDATION_VERDICTS.grounded,
+    SEMANTIC_VALIDATION_VERDICTS.ungrounded,
+    SEMANTIC_VALIDATION_VERDICTS.contradictory,
+    SEMANTIC_VALIDATION_VERDICTS.uncertain,
+  ]),
+  rationale: text.min(1).max(4000),
+  sourceRefs: legalRequirementSchema.shape.sourceRefs.unwrap().min(1).max(64),
+});
+
+export const semanticValidationSchema = z.strictObject({
+  status: z.enum([
+    SEMANTIC_VALIDATION_STATUSES.passed,
+    SEMANTIC_VALIDATION_STATUSES.failed,
+  ]),
+  verifier: z.literal("DEEP_AGENT_SEMANTIC_VALIDATOR"),
+  checks: z.array(semanticValidationCheckSchema).min(1).max(256),
+});
+
 /**
  * Business purpose: Apply the existing downstream authoring contract to one selected LegalRule result.
  * Business rules:
  * - Derived assessment prose comes from canonical parent bindings; coverage and context retain existing validation.
  * Execution flow:
  * 1. Parse the downstream packet with its shared contract.
- * 2. Forward validation issues or return the normalized packet with the analysis.
+ * 2. Forward validation issues or return the normalized packet with the analysis and optional semanticValidation.
  * Failure cases:
  * - Invalid coverage or malformed downstream artifacts become schema issues rather than fabricated output.
  * Side effects:
@@ -272,10 +311,11 @@ function normalizeSelectedRuleOutput(
     legalRequirements: unknown[];
     assessmentRules: unknown[];
     contextRelations: unknown[];
+    semanticValidation?: z.infer<typeof semanticValidationSchema>;
   },
   ctx: z.RefinementCtx,
 ) {
-  const { analysis, ...packet } = payload;
+  const { analysis, semanticValidation, ...packet } = payload;
   const parsed = complianceRuleSetPacketSchema.safeParse(packet);
   if (!parsed.success) {
     for (const issue of parsed.error.issues)
@@ -286,7 +326,11 @@ function normalizeSelectedRuleOutput(
       });
     return z.NEVER;
   }
-  return { analysis, ...parsed.data };
+  return {
+    analysis,
+    ...(semanticValidation ? { semanticValidation } : {}),
+    ...parsed.data,
+  };
 }
 export const preparationRuleOutputSchema = z
   .strictObject({
@@ -301,6 +345,7 @@ export const preparationRuleOutputSchema = z
       .array(legalContextRelationSchema)
       .max(LEGAL_RULE_LIMITS.preparedArtifacts)
       .default([]),
+    semanticValidation: semanticValidationSchema.optional(),
   })
   .transform(normalizeSelectedRuleOutput);
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;

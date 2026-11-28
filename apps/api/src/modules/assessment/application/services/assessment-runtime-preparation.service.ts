@@ -113,6 +113,7 @@ export class AssessmentRuntimePreparation {
       !(await hasValidSelectedActivationManifest(
         tx,
         candidate.selectedPreparationResults,
+        { legalSourceVersionId: candidate.legalSourceVersionId },
       ))
     ) {
       return null;

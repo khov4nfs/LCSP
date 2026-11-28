@@ -54,7 +54,7 @@ def test_scope_skills_and_overlay_keep_development_source_authority():
         assert "không" in source.lower()
     overlay = (ROOT / "instructions/candidates/r1/preparation.development-overlay.txt").read_text(encoding="utf-8")
     assert overlay == (ROOT / "rule_set_preparation/instructions-development.md").read_text(encoding="utf-8")
-    assert "Administrative supervision versus developer controls" in overlay
+    assert "Administrative supervision versus system controls" in overlay
 
 
 def test_supervision_examples_leave_outputs_empty_only_for_procedure_without_duty():

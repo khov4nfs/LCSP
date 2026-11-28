@@ -8,6 +8,8 @@ import {
   ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS,
   preparationRuleOutputSchema,
+  SEMANTIC_VALIDATION_STATUSES,
+  SEMANTIC_VALIDATION_VERDICTS,
   selectedScopeDecisionSchema,
   type PreparationRuleInput,
   type PreparationRuleOutput,
@@ -15,6 +17,7 @@ import {
 } from "@lcsp/contracts/legal-rule-catalog";
 import { HttpStatus } from "@nestjs/common";
 import {
+  AgentExecutionState as PrismaAgentExecutionState,
   LegalEffectStatus,
   LegalSourceDocumentCorpusRole,
   PreparationScopeReviewState,
@@ -310,6 +313,7 @@ export async function requireSelectedScopeAuthorization(
   output: PreparationRuleOutput,
   cid: string,
   authority = new LegalSourceAuthorityService(),
+  options: { requireReviewedAuthorization?: boolean } = {},
 ): Promise<string> {
   // Unified legal validation across all authoring paths:
   // 1. Every result must account for at least one sourced LegalRequirement.
@@ -355,7 +359,12 @@ export async function requireSelectedScopeAuthorization(
     return row.scopeKey;
   }
 
-  // 3. When no exact-key review record exists, ensure this rule has not already been
+  // 3. Model-free JSON Import must never treat unreviewed external input as legally verified.
+  if (options.requireReviewedAuthorization) {
+    reject(cid, "output.scopeAuthorization");
+  }
+
+  // 4. When no exact-key review record exists, ensure this rule has not already been
   // reviewed or revoked under another material key (preventing hash-change bypass).
   if (tx.selectedRuleScopeAuthorization?.findFirst) {
     const priorForRule = await tx.selectedRuleScopeAuthorization.findFirst({
@@ -371,8 +380,9 @@ export async function requireSelectedScopeAuthorization(
     }
   }
 
-  // 4. For brand-new unreviewed rules, allow publication without mandatory Scope Approval
-  // only when there is no genuine legal uncertainty (LEGAL_REVIEW_REQUIRED:) and all
+  // 5. For brand-new unreviewed rules from Deep Agent Preparation, allow publication
+  // only when there is no LEGAL_REVIEW_REQUIRED marker, all source/structural provenance
+  // checks pass, AND Deep Agent semanticValidation proves every rule-to-requirement pair is GROUNDED.
   // source citations, legal requirements, and assessment-rule criteria are grounded.
   const hasLegalUncertainty = output.legalRequirements.some((req) =>
     (req.coverage.nonAssessableReason ?? "").startsWith(
@@ -435,6 +445,51 @@ export async function requireSelectedScopeAuthorization(
       reject(cid, "output.assessmentRules.sourceRefs");
     }
   }
+  // Why: Structural link checks alone cannot prove an Assessment Rule criterion
+  // is semantically grounded in its cited Legal Requirement.
+  // How: Require Deep Agent semanticValidation evidence (status=PASSED, every
+  // (assessmentRuleId, legalRequirementId) pair verified GROUNDED with sourceRefs
+  // matching the parent LegalRequirement).
+  if (output.assessmentRules.length > 0) {
+    const sv = output.semanticValidation;
+    if (
+      !sv ||
+      sv.status !== SEMANTIC_VALIDATION_STATUSES.passed ||
+      sv.verifier !== "DEEP_AGENT_SEMANTIC_VALIDATOR" ||
+      sv.checks.some((c) => c.verdict !== SEMANTIC_VALIDATION_VERDICTS.grounded)
+    ) {
+      reject(cid, "output.semanticValidation");
+    }
+    const checkByPair = new Map(
+      sv.checks.map((c) => [
+        `${c.assessmentRuleId}::${c.legalRequirementId}`,
+        c,
+      ]),
+    );
+    for (const rule of output.assessmentRules) {
+      for (const reqId of rule.legalRequirementIds) {
+        const check = checkByPair.get(`${rule.assessmentRuleId}::${reqId}`);
+        if (!check) {
+          reject(cid, "output.semanticValidation");
+        }
+        const reqSourceKeys = new Set(
+          (requirementById.get(reqId)?.sourceRefs ?? []).map((r) =>
+            canonicalJson([r.documentId, r.locator, r.contentSha256]),
+          ),
+        );
+        if (
+          check.sourceRefs.some(
+            (r) =>
+              !reqSourceKeys.has(
+                canonicalJson([r.documentId, r.locator, r.contentSha256]),
+              ),
+          )
+        ) {
+          reject(cid, "output.semanticValidation");
+        }
+      }
+    }
+  }
   await requireSelectedScopeSource(tx, input, output, cid, authority);
   return key;
 }
@@ -468,6 +523,11 @@ const selectedManifestEntrySchema = z.object({
 export async function hasValidSelectedActivationManifest(
   tx: Prisma.TransactionClient,
   selectedPreparationResults: unknown,
+  context?: {
+    legalSourceVersionId?: string;
+    expectedRuleSetDigest?: string;
+    actualRuleSetDigest?: string;
+  },
 ): Promise<boolean> {
   const parsed = z
     .array(selectedManifestEntrySchema)
@@ -476,11 +536,67 @@ export async function hasValidSelectedActivationManifest(
   if (!parsed.success) return false;
   const keys = parsed.data.map((entry) => entry.scopeAuthorizationKey);
   const ruleIds = parsed.data.map((entry) => entry.ruleId);
+  const resultIds = parsed.data.map((entry) => entry.resultId);
   if (
     new Set(keys).size !== keys.length ||
-    new Set(ruleIds).size !== ruleIds.length
+    new Set(ruleIds).size !== ruleIds.length ||
+    new Set(resultIds).size !== resultIds.length
   ) {
     return false;
+  }
+  if (
+    context?.expectedRuleSetDigest &&
+    context?.actualRuleSetDigest &&
+    context.expectedRuleSetDigest !== context.actualRuleSetDigest
+  ) {
+    return false;
+  }
+  // Why: Manifest shape alone cannot prove the manifest corresponds to persisted,
+  // succeeded PreparationRuleResult rows or their immutable output digests.
+  // How: When preparationRuleResult is available on tx, verify every entry's resultId,
+  // revision, ruleId, executionState, legalSourceVersionId, inputFingerprint, and outputDigest.
+  if (tx.preparationRuleResult?.findMany) {
+    const rows = await tx.preparationRuleResult.findMany({
+      where: { id: { in: resultIds } },
+      select: {
+        id: true,
+        revision: true,
+        inputFingerprint: true,
+        output: true,
+        preparationRule: { select: { legalRuleId: true } },
+        preparationRun: {
+          select: {
+            executionState: true,
+            legalSourceVersionId: true,
+          },
+        },
+      },
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    for (const entry of parsed.data) {
+      const row = byId.get(entry.resultId);
+      if (
+        !row ||
+        row.revision !== entry.revision ||
+        row.preparationRule.legalRuleId !== entry.ruleId ||
+        row.preparationRun.executionState !==
+          PrismaAgentExecutionState.SUCCEEDED ||
+        row.inputFingerprint !== entry.inputFingerprint ||
+        !row.output ||
+        (context?.legalSourceVersionId &&
+          row.preparationRun.legalSourceVersionId !==
+            context.legalSourceVersionId)
+      ) {
+        return false;
+      }
+      const parsedOutput = preparationRuleOutputSchema.safeParse(row.output);
+      if (
+        !parsedOutput.success ||
+        sha256Hex(canonicalJson(parsedOutput.data)) !== entry.outputDigest
+      ) {
+        return false;
+      }
+    }
   }
   if (tx.selectedRuleScopeAuthorization?.count) {
     const blocked = await tx.selectedRuleScopeAuthorization.count({

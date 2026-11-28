@@ -1042,6 +1042,7 @@ export function LegalRuleCatalogWorkflow({
           catalogId={catalogId}
           catalogRevision={rules.data.catalogRevision}
           ruleId={scopeAuthRuleId}
+          onRegenerated={showBatch}
         />
       ) : null}
     </section>
