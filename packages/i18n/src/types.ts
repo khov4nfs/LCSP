@@ -3765,7 +3765,13 @@ export type PagesMessages = {
       assessmentActivity: {
         title: string;
         subtitle: string;
+        // Admin activity and KPI copy must resolve from the same locale as the chart.
+        started: string;
         completed: string;
+        userAccounts: string;
+        userAccountsContext: string;
+        assessmentsStarted: string;
+        completedInCohort: string;
         emptyTitle: string;
         emptyDescription: string;
         errorTitle: string;

@@ -119,3 +119,4 @@ export async function requestUpstreamApi(path: string, options: RequestInit) {
 - [ ] For role-separated customer/ADMIN routes, stop rendering on profile verification failure and reject unknown role strings instead of treating them as an authenticated customer.
 - [ ] For PAT dialog changes, verify dismissal during step-up prevents a later write and a failed post-save read retries only the status read.
 - [ ] For nested Settings confirmation dialogs at narrow or enlarged text sizes, verify child content remains readable inside the scroll body and Escape restores focus to a mounted parent control.
+- [ ] For Admin dashboards, render real zero metrics and empty charts as zero/empty; never substitute fixture totals through truthy fallbacks. Match every displayed metric label to its persisted source.
