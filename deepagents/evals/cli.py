@@ -38,7 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     - Persists immutable manifests, all trial outcomes (including failures), and JSON/CSV reports.
 
     Execution flow:
-    1. Parse subcommand (manifest | run | score | rag-b1 | legal-score).
+    1. Parse the benchmark, repository-retrieval, or legal-score subcommand.
     2. Load validated cases/reviews or trials.jsonl and verify integrity.
     3. Execute requested action and print bounded JSON summary.
 
@@ -94,6 +94,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_b1.add_argument("--allow-live", action="store_true")
     p_b1.add_argument("--output-dir", type=Path, required=True)
 
+    # Keep the offline repository ablation on the existing evaluation entry point.
+    p_repo = sub.add_parser(
+        "repository-retrieval",
+        help="Compare scanner, graph and hybrid retrieval on pinned fixtures",
+    )
+    p_repo.add_argument("--graph-binary", type=Path, required=True)
+    p_repo.add_argument("--output-dir", type=Path, required=True)
+
     eval_root = Path(__file__).resolve().parent
     p_legal_score = sub.add_parser(
         "legal-score",
@@ -126,6 +134,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_legal_score.add_argument("--output", type=Path, required=True)
 
     args = parser.parse_args(argv)
+
+    if args.command == "repository-retrieval":
+        from evals.repository_retrieval import run_repository_retrieval
+
+        report = run_repository_retrieval(args.graph_binary, args.output_dir)
+        print(json.dumps({key: report[key] for key in ("manifestSha256", "caseCount", "summary")}))
+        return 0
 
     if args.command == "legal-score":
         from evals.legal_reasoning.p14_adapter import integrate_p14_artifacts

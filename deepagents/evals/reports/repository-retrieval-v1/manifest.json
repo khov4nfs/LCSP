@@ -1,0 +1,42 @@
+{
+  "adapterSha256": "91f978501fed1f0567c38e0ac1e3a3f317a061dad9ebc9c6759249a3c285155c",
+  "casesSha256": "5f6c7e08d710127fcbca2e511fa3fda5ec72af302f93aba62c2b06b5cd7b1625",
+  "engine": "codebase-memory-mcp 0.11.0",
+  "engineSha256": "ce11c141431aeadd788506c3a7e6942db8fd438dec369d0707a39ec9fd8c6510",
+  "locale": "en",
+  "manifestSha256": "728d505f8ffa9d7064f84d98dcd9462919d1bfcc4d8282f0d276a273d1e72066",
+  "mode": "OFFLINE_RETRIEVAL",
+  "model": null,
+  "pilotManifestSha256": "d36ca95b2cc28c58e75d184506f26a9ccb44087397ba0e48e424962f3cb0ec96",
+  "prompt": null,
+  "retrieval": {
+    "graphMemoryBudgetMb": 256,
+    "indexMode": "full",
+    "k": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "maxChars": 12000,
+    "maxFileBytes": 64000,
+    "maxFiles": 100,
+    "maxLinesPerSpan": 24,
+    "maxSourceBytes": 512000,
+    "nativeRssSampleSeconds": 0.01,
+    "traceDepth": 3
+  },
+  "scannerSha256": "3b906f08eb0bc1353bf6893df656ec1c0f22f2409ac3217b9fbfe384e04ca5a8",
+  "skill": null,
+  "sourcePins": {
+    "repo-01-consent-app": "16e21ad3807f8d5c990e37ffffd75860949b0d32bca02f43179c0dc8ffb28ae2",
+    "repo-02-audit-gap": "e697ed5e29c907b87b79eb3fdeb4fec2918f9a4db892178372b16eb09e4cd2b2",
+    "repo-03-internal-cli": "e10f3784e4114fc3430e4e43eb9d847ae2e48a2d3f9290b53c4ac1b825b4f112",
+    "repo-04-hitl-retention": "de4b5964d365f97e32fc722be785c8b57f86d7c3c3e79153be346a24864e18e5",
+    "repo-05-test-only-evidence": "2a9be529e4d98a2f422f3e6cb524e3c308fccdcda5c71f4672cdd3107231fe17",
+    "repo-06-prompt-injection": "9320b152a50ea0075a5ad8bb815399840e5b1788013494bd901122093191ab6e",
+    "repo-07-cross-border": "514f09d5ab84fae90e6597703502060f2ff16554180d7df969dc0b432863a7db",
+    "repo-08-breach-sla": "1058f7c84f5cf357d13b8189b78b39533b9261f58daf0017154df6467723e46d",
+    "repo-09-cross-file": "6eb19750cac17af528a5b0516dc9a3f137e8bc40da1d9c536adf1f88821be866"
+  }
+}
