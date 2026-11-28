@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-21",
-  "trialIndex": 3,
-  "threadId": "fb0a2760-7183-4ffc-a30a-b6061855b031",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "INITIAL",
   "output": {
-    "lifecycleState": "COMPLETE",
-    "verdict": "APPLICABLE_COMPLIANT",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-21-1": {
+        "end_line": 1,
+        "path": "src/consent.py",
+        "repositoryId": "repo-01-consent-app",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-21-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
     "persistedState": {
       "lifecycleState": "COMPLETE",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "29cd04a5-5dc4-46e5-9dba-978ad00d2ccb",
+  "trialIndex": 3
 }

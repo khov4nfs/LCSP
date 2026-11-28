@@ -26,11 +26,13 @@ CaseVerdict = Literal[
 
 
 class RepoSnapshotPin(BaseModel):
-    """Pinned repository snapshot reference; untrusted code execution is always forbidden."""
+    """Pinned repository snapshot reference; synthetic fixtures are explicitly marked."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     repo_id: str = Field(min_length=1)
+    # Explicitly distinguish synthetic fixtures from checked-out Git commits.
+    snapshot_kind: Literal["SYNTHETIC_FIXTURE", "GIT_COMMIT"] = "SYNTHETIC_FIXTURE"
     commit_sha: str = Field(min_length=7, max_length=64)
     fixture_dir: str = Field(min_length=1)
     # Safety invariant: benchmark runner never executes untrusted repository code.
@@ -113,17 +115,20 @@ class BenchmarkCase(BaseModel):
     rule_set_pin: RuleSetPin
     hitl_answers: tuple[HitlFixtureAnswer, ...] = ()
     gold_rubric: GoldRubric
-    # Pre-baked offline fixture output used in OFFLINE_FIXTURE mode (never paid LLM).
+    # Pre-baked offline fixture output used ONLY in OFFLINE_FIXTURE mode (never SCRIPTED/LIVE).
     offline_fixture_output: dict[str, Any] | None = None
 
 
 class TrialUsage(BaseModel):
-    """Observed resource usage and cost for one trial; unknown values remain None."""
+    """Observed resource usage; physical_attempts defaults to 0 (telemetry-only)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    physical_attempts: int = Field(ge=0, default=1)
+    # Physical provider model calls observed by telemetry (0 in OFFLINE_FIXTURE/SCRIPTED).
+    physical_attempts: int = Field(ge=0, default=0)
     failed_attempts: int = Field(ge=0, default=0)
+    # Distinguish scripted/logical invocations from physical provider attempts.
+    scripted_invocations: int = Field(ge=0, default=0)
     input_tokens: int | None = Field(ge=0, default=None)
     cached_input_tokens: int | None = Field(ge=0, default=None)
     output_tokens: int | None = Field(ge=0, default=None)
@@ -151,6 +156,10 @@ class TrialOutcome(BaseModel):
     hitl_match: bool
     persisted_state_match: bool
     authority_violation: bool = False
+    graph_executed: bool = False
+    checkpoint_id: str | None = None
+    injected_fault_observed: bool = False
+    recovery_observed: bool = False
     lifecycle_state: str = Field(min_length=1)
     actual_verdict: str = Field(min_length=1)
     error_code: str | None = None
@@ -158,15 +167,24 @@ class TrialOutcome(BaseModel):
     latency_ms: float = Field(ge=0.0)
     usage: TrialUsage = Field(default_factory=TrialUsage)
     trace_path: str | None = None
+    trace_sha256: str | None = None
     persisted_state_snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
 class ManualReviewRecord(BaseModel):
-    """P15 manual semantic review entry for deterministic agreement/precision metrics."""
+    """P15 manual semantic review bound to a specific run, trial, trace, and config."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    run_id: str = Field(min_length=1)
     case_id: str = Field(min_length=1)
+    trial_index: int = Field(ge=0, default=0)
+    thread_id: str = Field(min_length=1)
+    trace_sha256: str = Field(min_length=64, max_length=64)
+    model_route: str = Field(min_length=1)
+    instruction_bundle_digest: str = Field(min_length=1)
+    rule_set_version_id: str = Field(min_length=1)
+    review_status: Literal["EXPERT_VERIFIED", "SEEDED_UNVERIFIED"] = "SEEDED_UNVERIFIED"
     reviewer: str = Field(min_length=1)
     reviewed_at: str = Field(min_length=1)
     human_verdict: CaseVerdict

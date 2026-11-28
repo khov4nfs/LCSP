@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-30",
-  "trialIndex": 3,
-  "threadId": "6c3b1a6c-f677-4485-a101-ff7ea033a15e",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "INITIAL",
   "output": {
-    "lifecycleState": "BLOCKED",
-    "verdict": "BLOCKED",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-30-1": {
+        "end_line": 1,
+        "path": "src/transfer.py",
+        "repositoryId": "repo-07-cross-border",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-30-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "BLOCKED",
     "persistedState": {
       "lifecycleState": "BLOCKED",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "BLOCKED"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "701a9910-cb33-4b14-a839-9026b0b67579",
+  "trialIndex": 3
 }

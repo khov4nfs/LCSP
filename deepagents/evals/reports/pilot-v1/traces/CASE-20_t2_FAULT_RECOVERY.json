@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-20",
-  "trialIndex": 2,
-  "threadId": "088b2051-e788-4d43-85c5-62a82962db18",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "FAULT_RECOVERY",
   "output": {
-    "lifecycleState": "COMPLETE",
-    "verdict": "APPLICABLE_COMPLIANT",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-20-1": {
+        "end_line": 1,
+        "path": "src/breach.py",
+        "repositoryId": "repo-08-breach-sla",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-20-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
     "persistedState": {
       "lifecycleState": "COMPLETE",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "FAULT_RECOVERY",
+  "threadId": "24f90da0-bd69-42e5-b8bc-a988e01dfe0f",
+  "trialIndex": 2
 }

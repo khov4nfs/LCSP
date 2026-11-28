@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-17",
-  "trialIndex": 0,
-  "threadId": "e40f7ce7-38eb-4e92-8d97-999c63cf028b",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "INITIAL",
   "output": {
-    "lifecycleState": "COMPLETE",
-    "verdict": "APPLICABLE_NON_COMPLIANT",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-17-1": {
+        "end_line": 1,
+        "path": "src/audit_log.py",
+        "repositoryId": "repo-02-audit-gap",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-17-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
     "persistedState": {
       "lifecycleState": "COMPLETE",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "APPLICABLE_NON_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "66ff9437-d781-428f-a77a-7366b8e0f7ef",
+  "trialIndex": 0
 }

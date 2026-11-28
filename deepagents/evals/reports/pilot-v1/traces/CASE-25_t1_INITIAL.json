@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-25",
-  "trialIndex": 1,
-  "threadId": "ef39c12a-3a4b-4197-9b97-5d658caac287",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "INITIAL",
   "output": {
-    "lifecycleState": "COMPLETE",
-    "verdict": "NOT_APPLICABLE",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-25-1": {
+        "end_line": 1,
+        "path": "src/cli.py",
+        "repositoryId": "repo-03-internal-cli",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-25-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
     "persistedState": {
       "lifecycleState": "COMPLETE",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "NOT_APPLICABLE"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "55f4059b-89dd-4238-81cd-465623ecaaeb",
+  "trialIndex": 1
 }

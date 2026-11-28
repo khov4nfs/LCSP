@@ -37,16 +37,20 @@
       "costCurrencies": [],
       "failedAttempts": 0,
       "inputTokens": null,
+      "logicalTrials": 20,
       "outputTokens": null,
-      "physicalAttempts": 20,
-      "providerCost": null
+      "physicalAttempts": 0,
+      "providerCost": null,
+      "scriptedInvocations": 0
     }
   },
-  "manifestSha256": "5d7ebd1360771d07852cb5e7f0498ca9fabcdfbd413216a107178305d5c82831",
+  "manifestSha256": "9455bd7cec575dcaef38d0d0ff0da7c039805aadba64a04ece2060bc8f4eec23",
   "manualSemanticReviewP15": {
     "authorityRespectedRate": 1.0,
     "evidenceAcceptableRate": 1.0,
+    "expertVerifiedCount": 0,
     "overallSemanticPassRate": 1.0,
+    "seededUnverifiedCount": 15,
     "totalReviewed": 15,
     "verdictAgreementRate": 1.0
   },
@@ -92,9 +96,11 @@
         "costCurrencies": [],
         "failedAttempts": 0,
         "inputTokens": null,
+        "logicalTrials": 110,
         "outputTokens": null,
-        "physicalAttempts": 110,
-        "providerCost": null
+        "physicalAttempts": 0,
+        "providerCost": null,
+        "scriptedInvocations": 0
       }
     },
     "holdout": {
@@ -135,9 +141,11 @@
         "costCurrencies": [],
         "failedAttempts": 0,
         "inputTokens": null,
+        "logicalTrials": 70,
         "outputTokens": null,
-        "physicalAttempts": 70,
-        "providerCost": null
+        "physicalAttempts": 0,
+        "providerCost": null,
+        "scriptedInvocations": 0
       }
     },
     "negativeControls": {
@@ -145,7 +153,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.001,
+        "maxMs": 0.002,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -178,9 +186,11 @@
         "costCurrencies": [],
         "failedAttempts": 0,
         "inputTokens": null,
+        "logicalTrials": 90,
         "outputTokens": null,
-        "physicalAttempts": 90,
-        "providerCost": null
+        "physicalAttempts": 0,
+        "providerCost": null,
+        "scriptedInvocations": 0
       }
     },
     "overall": {
@@ -221,9 +231,11 @@
         "costCurrencies": [],
         "failedAttempts": 0,
         "inputTokens": null,
+        "logicalTrials": 180,
         "outputTokens": null,
-        "physicalAttempts": 180,
-        "providerCost": null
+        "physicalAttempts": 0,
+        "providerCost": null,
+        "scriptedInvocations": 0
       }
     }
   }

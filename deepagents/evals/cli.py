@@ -20,7 +20,12 @@ from evals.benchmark_runner import (
 )
 from evals.benchmark_schema import RunConfig, TrialOutcome
 from evals.run_manifest import save_runtime_manifest
-from evals.scorer import build_benchmark_report, export_report_csv, export_report_json
+from evals.scorer import (
+    build_benchmark_report,
+    export_report_csv,
+    export_report_json,
+    validate_run_artifacts_for_scoring,
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -122,6 +127,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for line in args.trials.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+        validate_run_artifacts_for_scoring(manifest, outcomes)
         reviews = load_manual_reviews(args.reviews)
         report = build_benchmark_report(
             run_id=manifest["runId"],

@@ -1,22 +1,36 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-11",
-  "trialIndex": 2,
-  "threadId": "108c4a26-9067-4c25-96de-9c274737c4c1",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "RESUME_FINAL",
   "output": {
-    "lifecycleState": "COMPLETE",
-    "verdict": "APPLICABLE_COMPLIANT",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-11-1": {
+        "end_line": 1,
+        "path": "src/retention.py",
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 1
+      },
+      "fact-case-11-1": {
+        "end_line": 1,
+        "path": "src/retention.py",
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-11-1",
       "fact-case-11-1"
     ],
     "hitlState": "RESOLVED",
+    "lifecycleState": "COMPLETE",
     "persistedState": {
       "lifecycleState": "COMPLETE",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "RESUME_FINAL",
+  "threadId": "7f8ad791-aba6-4228-9a10-cfad663a61d8",
+  "trialIndex": 2
 }

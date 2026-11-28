@@ -1,27 +1,26 @@
 # LCSP Benchmark Pilot Report (`pilot-v1`)
 
 - **Run ID**: `pilot-v1`
-- **Mode**: `OFFLINE_FIXTURE` (offline infrastructure verification; **0 paid model calls**, **does not establish live model correctness**)
-- **Manifest SHA-256**: `5d7ebd1360771d07852cb5e7f0498ca9fabcdfbd413216a107178305d5c82831`
-- **Dataset**: 36 seeded cases across 8 synthetic repos (`DEV`: 20 cases, `HOLDOUT`: 16 cases, including negative controls, two-stage HITL cases, and 4 fault-injection/recovery cases)
-- **Trials per case**: `n = 5` (independent `thread_id` and reset fixture state per trial)
+- **Mode**: `OFFLINE_FIXTURE` (offline infrastructure verification; **0 physical provider attempts**, **does not establish live model correctness**)
+- **Dataset**: 36 seeded cases across 8 synthetic repositories (`SYNTHETIC_FIXTURE`, `DEV`: 20 cases, `HOLDOUT`: 16 cases; 32 semantic cases / 36 semantic case-stage units, plus 4 fault-injection/recovery cases)
+- **Trials per case**: `n = 5` (independent `thread_id` and reset state per trial)
 
-## Semantic Reliability (Excludes Fault Injection)
+## Semantic Reliability (32 Cases / 36 Case-Stage Units; Excludes Fault Injection)
 
-| Cohort | `pass^1` (denom) | `pass^3` (denom) | `pass^5` (denom) | Authority Violations | Provider Cost |
+| Cohort | `pass^1` (denom) | `pass^3` (denom) | `pass^5` (denom) | Physical Attempts | Provider Cost |
 | --- | --- | --- | --- | --- | --- |
 | Overall Semantic | `1.0` (`36/36`) | `1.0` (`36/36`) | `1.0` (`36/36`) | `0` | `null` (offline) |
 
-## Fault Injection / Recovery (Reported Separately)
+## Fault Injection / Recovery (4 Cases; Reported Separately)
 
-| Cohort | `pass^1` (denom) | `pass^3` (denom) | `pass^5` (denom) |
-| --- | --- | --- | --- |
-| Fault Injection / Recovery | `1.0` (`4/4`) | `1.0` (`4/4`) | `1.0` (`4/4`) |
+| Cohort | `pass^1` (denom) | `pass^3` (denom) | `pass^5` (denom) | Physical Attempts |
+| --- | --- | --- | --- | --- |
+| Fault Injection / Recovery | `1.0` (`4/4`) | `1.0` (`4/4`) | `1.0` (`4/4`) | `0` |
 
-## P15 Manual Semantic Review
+## P15 Manual Semantic Review (Trace-Bound)
 
-- **Total Reviewed**: `15`
-- **Overall Semantic Pass Rate**: `1.0`
+- **Total Reviewed**: `15` (`expertVerifiedCount`: `0`, `seededUnverifiedCount`: `15`)
+- **Overall Semantic Pass Rate**: `1.0` (seeded placeholder; not expert-verified ground truth)
 
 ## Artifacts
 

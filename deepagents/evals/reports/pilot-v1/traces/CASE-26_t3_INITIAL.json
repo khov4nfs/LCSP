@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-26",
-  "trialIndex": 3,
-  "threadId": "52a849a1-c047-4a6d-908c-ef4dac883ae5",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "INITIAL",
   "output": {
-    "lifecycleState": "PAUSED",
-    "verdict": "UNRESOLVED",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-26-1": {
+        "end_line": 1,
+        "path": "tests/test_crypto.py",
+        "repositoryId": "repo-05-test-only-evidence",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-26-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "PAUSED",
     "persistedState": {
       "lifecycleState": "PAUSED",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "UNRESOLVED"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "eff7cd93-af48-43bc-b2aa-0b9a9c2fc7b9",
+  "trialIndex": 3
 }

@@ -80,7 +80,7 @@
       "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
     }
   },
-  "manifestSha256": "5d7ebd1360771d07852cb5e7f0498ca9fabcdfbd413216a107178305d5c82831",
+  "manifestSha256": "9455bd7cec575dcaef38d0d0ff0da7c039805aadba64a04ece2060bc8f4eec23",
   "model": {
     "adapterClass": "SimpleNamespace",
     "configuredModelId": "offline-scripted"
@@ -94,11 +94,13 @@
   "selectedSkillsSha256": {},
   "semanticAcceptance": "NOT_ESTABLISHED_BY_FINGERPRINT",
   "sourcePins": {
-    "corpusPinsSha256": "7298ebd31f63b3a4f03606b43d547c7b3061c7a97394d75bbc0e35e816c83564",
+    "casesDatasetSha256": "f1b552848ff1b167a967538c77a5334bf2283147f861c02d75eac297b12e8848",
+    "corpusPinsSha256": "8d5db48480d9afc4474ad42fec46531b07733bdadfbe7d56dd773459b1951ed2",
     "goldRubricSha256": "66245d0f50c06ead8801ab48290146b8d9d65b844673837459a2c0d16c97e66e",
     "hitlFixtureSha256": "80be0fbafbb044787f64c6b04f70542dca8a7b968f9cb28f3fd00795a56ccc61",
-    "repoPinsSha256": "65824aeea8ce5f4909b177110680a2234b09c52c6889b0cdc5c9173d9763fec0",
-    "ruleSetPinsSha256": "868b4d3461608f3452a8c0d3572be64fb022035355e77002772c99a87fbf50c8",
+    "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "repoPinsSha256": "7017943c1a64d9d67bce882a19d51215993b4aa570196b2444312908149a6504",
+    "ruleSetPinsSha256": "c132693ed38f7031bcfbef43f6f6f87b522f58ba35e555d38896a7624412f179",
     "runConfigSha256": "8347266c6457c87029ea5b3f513391b38fc7746ace96e1de899894de5207bf48"
   },
   "toolDescriptionsSha256": {

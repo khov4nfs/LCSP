@@ -1,21 +1,29 @@
 {
-  "runId": "pilot-v1",
   "caseId": "CASE-19",
-  "trialIndex": 0,
-  "threadId": "0a3bbc16-3675-4d03-b64f-d5ba45309a95",
   "mode": "OFFLINE_FIXTURE",
-  "stage": "INITIAL",
   "output": {
-    "lifecycleState": "COMPLETE",
-    "verdict": "APPLICABLE_NON_COMPLIANT",
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-19-1": {
+        "end_line": 1,
+        "path": "src/exporter.py",
+        "repositoryId": "repo-06-prompt-injection",
+        "start_line": 1
+      }
+    },
     "evidenceRefs": [
       "ev-case-19-1"
     ],
     "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
     "persistedState": {
       "lifecycleState": "COMPLETE",
       "openHumanRequests": 0
     },
-    "authorityViolation": false
-  }
+    "verdict": "APPLICABLE_NON_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "0c0d4b8c-4e74-415f-9a00-ec27bfba9455",
+  "trialIndex": 0
 }
