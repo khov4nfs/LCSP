@@ -1,6 +1,8 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
+import { isRecord } from "@lcsp/contracts/shared";
+import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
@@ -22,6 +24,19 @@ export class OfficialSourceSnapshotService {
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Business purpose: Preserve an immutable official-source snapshot together with its required audit evidence.
+   * Business rules:
+   * - One snapshot reference identifies one exact immutable payload; an identical concurrent registration may replay the winner.
+   * Execution flow:
+   * 1. Validate the worker payload and check for an existing identical snapshot.
+   * 2. Insert the snapshot and audit in one transaction.
+   * 3. On a snapshot-reference unique race, reload and compare the committed winner.
+   * Failure cases:
+   * - Invalid input or conflicting payload is rejected; audit failure rolls back the snapshot; unrelated database errors propagate.
+   * Side effects:
+   * - Creates one snapshot and its AuditEvent atomically, or reads an existing matching snapshot without new writes.
+   */
   async register(
     input: RegisterOfficialSourceSnapshotRequest,
     correlationId: string,
@@ -42,47 +57,73 @@ export class OfficialSourceSnapshotService {
       return this.toRecord(existing);
     }
 
-    const created = await this.prisma.legalSourceSnapshot.create({
-      data: {
-        snapshotRef: input.snapshotRef,
-        snapshotId: snapshotIdFromRef(input.snapshotRef),
-        catalogSourceRef: input.catalogSourceRef,
-        adminCatalogVersion: input.adminCatalogVersion,
-        documentId: input.documentId,
-        documentNumber: normalizeOptional(input.documentNumber),
-        sourceUrl: input.sourceUrl,
-        finalUrl: normalizeOptional(input.finalUrl),
-        contentType: input.contentType,
-        byteLength: input.byteLength,
-        contentSha256: input.contentSha256,
-        snapshotObjectKey: input.snapshotObjectKey,
-        provenanceRef: input.provenanceRef,
-        retrievedAt: new Date(input.retrievedAt),
-        sourceEffectStatus: normalizeOptional(input.sourceEffectStatus),
-        normalizationSource: normalizeOptional(input.normalizationSource),
-        identityVerified: input.documentIdentityVerified,
-        correlationId,
-      },
-    });
-
-    await this.auditWriter.write({
-      eventType: "LEGAL_SOURCE_SNAPSHOT_STORED",
-      actorId: null,
-      resourceType: null,
-      resourceId: created.snapshotRef,
-      decision: AUDIT_DECISIONS.allow,
-      correlationId,
-      payload: {
-        snapshotRef: created.snapshotRef,
-        snapshotId: created.snapshotId,
-        documentId: created.documentId,
-        contentSha256: created.contentSha256,
-        snapshotObjectKey: created.snapshotObjectKey,
-        catalogSourceRef: created.catalogSourceRef,
-      },
-    });
-
-    return this.toRecord(created);
+    try {
+      // Why: An audit outage must not leave a durable official snapshot without provenance of its registration.
+      // How: The snapshot insert and audit write share one PostgreSQL commit boundary.
+      // Invariant: A rollback leaves neither row committed.
+      const created = await this.prisma.$transaction(async (tx) => {
+        const snapshot = await tx.legalSourceSnapshot.create({
+          data: {
+            snapshotRef: input.snapshotRef,
+            snapshotId: snapshotIdFromRef(input.snapshotRef),
+            catalogSourceRef: input.catalogSourceRef,
+            adminCatalogVersion: input.adminCatalogVersion,
+            documentId: input.documentId,
+            documentNumber: normalizeOptional(input.documentNumber),
+            sourceUrl: input.sourceUrl,
+            finalUrl: normalizeOptional(input.finalUrl),
+            contentType: input.contentType,
+            byteLength: input.byteLength,
+            contentSha256: input.contentSha256,
+            snapshotObjectKey: input.snapshotObjectKey,
+            provenanceRef: input.provenanceRef,
+            retrievedAt: new Date(input.retrievedAt),
+            sourceEffectStatus: normalizeOptional(input.sourceEffectStatus),
+            normalizationSource: normalizeOptional(input.normalizationSource),
+            identityVerified: input.documentIdentityVerified,
+            correlationId,
+          },
+        });
+        await this.auditWriter.writeInTx(
+          {
+            eventType: "LEGAL_SOURCE_SNAPSHOT_STORED",
+            actorId: null,
+            resourceType: null,
+            resourceId: snapshot.snapshotRef,
+            decision: AUDIT_DECISIONS.allow,
+            correlationId,
+            payload: {
+              snapshotRef: snapshot.snapshotRef,
+              snapshotId: snapshot.snapshotId,
+              documentId: snapshot.documentId,
+              contentSha256: snapshot.contentSha256,
+              snapshotObjectKey: snapshot.snapshotObjectKey,
+              catalogSourceRef: snapshot.catalogSourceRef,
+            },
+          },
+          tx,
+        );
+        return snapshot;
+      });
+      return this.toRecord(created);
+    } catch (error) {
+      if (!isSnapshotReferenceUniqueRace(error)) throw error;
+      // Why: Two workers can race after both observe no snapshot.
+      // How: Read the committed winner outside the failed transaction and compare all immutable fields.
+      // Invariant: A changed payload or missing winner never inherits the other worker's authority.
+      const winner = await this.prisma.legalSourceSnapshot.findUnique({
+        where: { snapshotRef: input.snapshotRef },
+      });
+      if (!winner) throw error;
+      if (!matchesExisting(winner, input)) {
+        throw problemException(
+          LEGAL_SOURCE_ERROR_CODES.sourceSnapshotConflict,
+          correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      return this.toRecord(winner);
+    }
   }
 
   async get(
@@ -153,6 +194,52 @@ export class OfficialSourceSnapshotService {
       createdAt: snapshot.createdAt.toISOString(),
     };
   }
+}
+
+/**
+ * Business purpose: Recognize only the unique race for an official snapshot reference.
+ * Business rules:
+ * - Other Prisma uniqueness failures remain persistence errors and cannot authorize replay.
+ * Execution flow:
+ * 1. Match Prisma's known P2002 error.
+ * 2. Match the exact snapshot-reference target in array or constraint-name form.
+ * Failure cases:
+ * - Missing or unrelated target returns false and the caller propagates the original error.
+ * Side effects:
+ * - Pure error classification with no database access.
+ */
+function isSnapshotReferenceUniqueRace(error: unknown): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== "P2002"
+  ) {
+    return false;
+  }
+  // Why: A matching field name from another model is not this snapshot's unique race.
+  // How: Reject an explicit non-snapshot model before inspecting compatible target shapes.
+  // Invariant: An audit or unrelated table failure cannot be mistaken for idempotent registration.
+  const modelName = error.meta?.modelName;
+  if (typeof modelName === "string" && modelName !== "LegalSourceSnapshot") {
+    return false;
+  }
+  const target = error.meta?.target;
+  if (Array.isArray(target)) {
+    return target.length === 1 && target[0] === "snapshotRef";
+  }
+  if (target === "LegalSourceSnapshot_snapshotRef_key") return true;
+  // Why: Prisma 7's PostgreSQL adapter reports the exact unique index in nested driver metadata.
+  // How: Match the model, violation kind and index name instead of parsing a database error message.
+  // Invariant: A different unique constraint cannot trigger snapshot replay.
+  const meta = error.meta;
+  if (!isRecord(meta) || meta.modelName !== "LegalSourceSnapshot") return false;
+  const adapter = meta.driverAdapterError;
+  if (!isRecord(adapter) || !isRecord(adapter.cause)) return false;
+  const cause = adapter.cause;
+  return (
+    cause.kind === "UniqueConstraintViolation" &&
+    isRecord(cause.constraint) &&
+    cause.constraint.index === "LegalSourceSnapshot_snapshotRef_key"
+  );
 }
 
 function validateRegisterInput(

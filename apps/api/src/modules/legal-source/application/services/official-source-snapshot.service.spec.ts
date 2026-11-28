@@ -34,11 +34,15 @@ describe("OfficialSourceSnapshotService", () => {
         findUnique: jest
           .fn<(args?: unknown) => Promise<Record<string, unknown> | null>>()
           .mockResolvedValue(null),
-        create,
       },
+      // Why: Registration now requires its audit in the same commit boundary.
+      // How: Drive the create through a transaction delegate in this focused unit test.
+      // Invariant: The test still asserts one snapshot and one audit event, not a particular root-client write path.
+      $transaction: async (work: (tx: object) => Promise<unknown>) =>
+        work({ legalSourceSnapshot: { create } }),
     };
     const auditWriter = {
-      write: jest
+      writeInTx: jest
         .fn<(entry?: unknown) => Promise<void>>()
         .mockResolvedValue(undefined),
     };
@@ -73,7 +77,7 @@ describe("OfficialSourceSnapshotService", () => {
 
     expect(create).toHaveBeenCalledTimes(1);
     expect(result.snapshotRef).toBe("snapshot:LAW-71-2025-QH15:abcd1234ef56");
-    expect(auditWriter.write).toHaveBeenCalledTimes(1);
+    expect(auditWriter.writeInTx).toHaveBeenCalledTimes(1);
   });
 
   it("returns existing record for identical replay", async () => {
