@@ -1,16 +1,11 @@
-import { HttpStatus } from "@nestjs/common";
-import {
-  LegalEffectStatus,
-  LegalSourceDocumentCorpusRole,
-  PreparationScopeReviewState,
-  type Prisma,
-} from "@prisma/client";
 import {
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
   PREPARATION_SCOPE_STAGES,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
+  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS,
   preparationRuleOutputSchema,
   selectedScopeDecisionSchema,
@@ -18,12 +13,19 @@ import {
   type PreparationRuleOutput,
   type SelectedScopeDecision,
 } from "@lcsp/contracts/legal-rule-catalog";
+import { HttpStatus } from "@nestjs/common";
+import {
+  LegalEffectStatus,
+  LegalSourceDocumentCorpusRole,
+  PreparationScopeReviewState,
+  type Prisma,
+} from "@prisma/client";
 import { z } from "zod";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import {
   canonicalJson,
   sha256Hex,
 } from "../../../assessment/domain/domain-ids.js";
-import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 
 const [development, nonDevelopment, unresolved] = PREPARATION_SCOPE_STAGES;
@@ -167,12 +169,12 @@ export function validateSelectedScopeDecisions(
         allowedParents.add(requirement.legalRequirementId);
       }
     } else if (decision.stage === nonDevelopment) {
+      const reason = requirement.coverage.nonAssessableReason?.trim() ?? "";
       if (
         requirement.coverage.state !==
           LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE ||
-        !(requirement.coverage.nonAssessableReason ?? "").startsWith(
-          "OUT_OF_SCOPE_TARGET:",
-        )
+        !reason ||
+        reason.startsWith(PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX)
       )
         reject(cid, "decisions.stage");
     }
@@ -351,4 +353,84 @@ export async function requireSelectedScopeAuthorization(
     reject(cid, "output.scopeAuthorization");
   await requireSelectedScopeSource(tx, input, output, cid, authority);
   return row.scopeKey;
+}
+
+/**
+ * Business purpose: Verify that an excluded import rule has an independent, approved NON_DEVELOPMENT semantic authorization.
+ * Business rules:
+ * - Reuses SelectedRuleScopeAuthorization rather than introducing a separate approval table.
+ * - An exclusion is only valid when approved by a separate reviewer with zero assessment rules and every requirement classified NON_DEVELOPMENT.
+ * - OUT_OF_SCOPE exclusions must carry the OUT_OF_SCOPE_TARGET: prefix on every requirement's nonAssessableReason.
+ * Execution flow: 1. Query approved authorizations for the rule. 2. Validate key, digest, non-development decisions, and source support. 3. Reject if none match.
+ * Failure cases: Unreviewed, revoked, self-approved, or mismatched exclusions fail with SCOPE_REVIEW_REQUIRED.
+ * Side effects: Read-only database access.
+ */
+export async function requireSelectedExclusionAuthorization(
+  tx: Prisma.TransactionClient,
+  input: PreparationRuleInput,
+  reasonCode: string,
+  cid: string,
+  authority = new LegalSourceAuthorityService(),
+): Promise<string> {
+  if (reasonCode === ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW) {
+    reject(cid, "excludedItems.reasonCode");
+  }
+  const rows = await tx.selectedRuleScopeAuthorization.findMany({
+    where: {
+      legalSourceVersionId: input.legalSourceVersionId,
+      catalogId: input.catalogVersionId,
+      ruleId: input.ruleId,
+      state: PreparationScopeReviewState.APPROVED,
+    },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+  for (const row of rows) {
+    if (
+      !row.approvedBy ||
+      row.approvedBy === row.submittedBy ||
+      !row.approvedAt
+    ) {
+      continue;
+    }
+    const reviewedOutput = preparationRuleOutputSchema.safeParse(row.output);
+    const decisions = z
+      .array(selectedScopeDecisionSchema)
+      .safeParse(row.decisions);
+    if (!reviewedOutput.success || !decisions.success) {
+      continue;
+    }
+    const output = reviewedOutput.data;
+    if (output.assessmentRules.length > 0 || !output.legalRequirements.length) {
+      continue;
+    }
+    if (
+      selectedScopeKey(input, output) !== row.scopeKey &&
+      selectedScopeKey(input, output, 1) !== row.scopeKey
+    ) {
+      continue;
+    }
+    if (decisions.data.some((decision) => decision.stage !== nonDevelopment)) {
+      continue;
+    }
+    if (
+      reasonCode === ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE &&
+      output.legalRequirements.some(
+        (req) =>
+          !(req.coverage.nonAssessableReason ?? "").startsWith(
+            "OUT_OF_SCOPE_TARGET:",
+          ),
+      )
+    ) {
+      continue;
+    }
+    if (
+      validateSelectedScopeDecisions(input, output, decisions.data, cid) !==
+      row.decisionDigest
+    ) {
+      continue;
+    }
+    await requireSelectedScopeSource(tx, input, output, cid, authority);
+    return row.scopeKey;
+  }
+  reject(cid, "excludedItems.scopeAuthorization");
 }

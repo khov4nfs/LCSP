@@ -2,13 +2,13 @@ import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
-import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   type RuleSetPreparationRun,
 } from "@lcsp/contracts/compliance-rule-set";
+import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 import {
   buildOutboxMessageInput,
@@ -17,20 +17,20 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
-  AgentExecutionState as PrismaAgentExecutionState,
   PreparationExecutionContract,
   Prisma,
+  AgentExecutionState as PrismaAgentExecutionState,
 } from "@prisma/client";
 
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
-import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
+import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 import {
-  isUniqueViolation,
   isRetryable,
+  isUniqueViolation,
   toRun,
 } from "../../../infrastructure/persistence/compliance-rule-set.mappers.js";
 import { StartRuleSetPreparationCommand } from "./start-rule-set-preparation.command.js";
@@ -57,7 +57,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
    * Business rules:
    * - A start key can create only one run and may be replayed only for the same source version.
    * - Only an ACTIVE Legal Source Version with admitted official originals may produce a new shared Rule Set.
-   * - Every new run requests Development scope review regardless of the legacy request field.
+   * - Scope Review is only requested when explicitly required (e.g. unverified obligations or semantic changes), not forced on every routine run.
    * - Run creation and its outbox request are one transaction, preventing an unqueued or duplicate preparation.
    *
    * Execution flow:
@@ -135,8 +135,9 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 idempotencyKey,
                 executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
                 targetDate: new Date(),
-                // Freeze the whole inventory for coverage review before projecting Development claims.
-                scopeReviewRequested: true,
+                // Only pause for manual Scope Review when FULL_SOURCE is requested; routine DEVELOPMENT_ONLY runs proceed without forcing manual review.
+                scopeReviewRequested:
+                  input.request.targetActivityScope === "FULL_SOURCE",
                 legalSourceVersionId: source.id,
                 requestedBy: input.requestedBy,
                 correlationId: input.correlationId,

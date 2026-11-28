@@ -1,49 +1,47 @@
-import { randomUUID } from "node:crypto";
-import { Injectable, Optional } from "@nestjs/common";
-import { CommandBus } from "@nestjs/cqrs";
-import {
-  Prisma,
-  AgentExecutionState as A,
-  PreparationExecutionContract,
-  RuleSetPreparationFailureReason,
-  PreparationScopeReviewState,
-} from "@prisma/client";
-import { z } from "zod";
-import {
-  LEGAL_RULE_CATALOG_ERRORS as E,
-  LEGAL_RULE_CATALOG_EVENTS as EVENTS,
-  LEGAL_RULE_SELECTION_MODES,
-  preparationRuleInputSchema,
-  preparationRuleOutputSchema,
-  preparationInstructionReceiptSchema,
-  selectedScopeDecisionSchema,
-  type SelectedScopeAuthorizationSubmit,
-  type SelectedScopeAuthorizationApprove,
-  type PreparationRuleInput,
-  type PreparationRuleComplete,
-  // Shared contracts type activation, output collection, and rule validation.
-  type LegalRuleActivationRequest,
-  type LegalRuleActivationResult,
-  type AssessmentRuleImportRequest,
-  type AssessmentRuleImportResult,
-  type PreparationRuleValidate,
-} from "@lcsp/contracts/legal-rule-catalog";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
 import {
   COMPLIANCE_RULE_SET_EVENT_TYPES,
-  LEGAL_REQUIREMENT_COVERAGE_STATES,
-  declaresApplicabilityScope,
-  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
   RULE_SET_PREPARATION_UNRESOLVED_STATES,
 } from "@lcsp/contracts/compliance-rule-set";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
+  LEGAL_RULE_CATALOG_ERRORS as E,
+  LEGAL_RULE_CATALOG_EVENTS as EVENTS,
+  LEGAL_RULE_SELECTION_MODES,
+  preparationInstructionReceiptSchema,
+  preparationRuleInputSchema,
+  preparationRuleOutputSchema,
+  selectedScopeDecisionSchema,
+  type AssessmentRuleImportRequest,
+  type AssessmentRuleImportResult,
+  // Shared contracts type activation, output collection, and rule validation.
+  type LegalRuleActivationRequest,
+  type LegalRuleActivationResult,
+  type PreparationRuleComplete,
+  type PreparationRuleInput,
+  type PreparationRuleValidate,
+  type SelectedScopeAuthorizationApprove,
+  type SelectedScopeAuthorizationRevoke,
+  type SelectedScopeAuthorizationSubmit,
+} from "@lcsp/contracts/legal-rule-catalog";
+import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { Injectable, Optional } from "@nestjs/common";
+import { CommandBus } from "@nestjs/cqrs";
+import {
+  AgentExecutionState as A,
+  PreparationExecutionContract,
+  PreparationScopeReviewState,
+  Prisma,
+  RuleSetPreparationFailureReason,
+} from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import {
@@ -52,26 +50,26 @@ import {
 } from "../../../assessment/domain/domain-ids.js";
 import { ComplianceRuleSetActivation } from "../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { LegalSourceSnapshotLoader } from "../../../compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
-import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 import {
   requireSelectedScopeAuthorization,
   requireSelectedScopeSource,
   selectedScopeKey,
   validateSelectedScopeDecisions,
 } from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 
 import { CancelRuleSetPreparationCommand } from "../../../compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
-import { ActivatePreparedRulesHandler } from "../commands/activate-prepared-rules/activate-prepared-rules.handler.js";
 import { ActivatePreparedRulesCommand } from "../commands/activate-prepared-rules/activate-prepared-rules.command.js";
-import { ImportAssessmentRulesHandler } from "../commands/import-assessment-rules/import-assessment-rules.handler.js";
+import { ActivatePreparedRulesHandler } from "../commands/activate-prepared-rules/activate-prepared-rules.handler.js";
 import { ImportAssessmentRulesCommand } from "../commands/import-assessment-rules/import-assessment-rules.command.js";
-import { validateSelectedOutput } from "./selected-output-validation.js";
+import { ImportAssessmentRulesHandler } from "../commands/import-assessment-rules/import-assessment-rules.handler.js";
 import {
-  LegalRuleCatalogService,
   catalogFailure,
+  LegalRuleCatalogService,
   preparationInputFingerprint,
   type CatalogClient,
 } from "./legal-rule-catalog.service.js";
+import { validateSelectedOutput } from "./selected-output-validation.js";
 
 const batchItemSchema = z.strictObject({
   ruleId: z.string().uuid(),
@@ -691,6 +689,73 @@ export class PreparationRuleService {
         decisionDigest: approved.decisionDigest,
         revision: approved.revision,
         state: approved.state,
+      };
+    });
+  }
+
+  /**
+   * Business purpose: Revoke a previously approved semantic authorization so flawed interpretations cannot authorize new publications or imports.
+   * Business rules:
+   * - Only an APPROVED authorization belonging to this catalog at the expected review revision may be revoked.
+   * - Historical published Rule Sets and prior audit records remain intact; revocation only transitions the authorization to REJECTED.
+   * Execution flow: 1. Lock the catalog revision. 2. Verify the target authorization is APPROVED and matches expectedReviewRevision. 3. Transition state to REJECTED, increment revision, and write an attributed audit event.
+   * Failure cases:
+   * - Stale catalog/review revisions, missing rows, or non-APPROVED rows reject with CONFLICT.
+   * Side effects:
+   * - Updates SelectedRuleScopeAuthorization.state to REJECTED and appends a SCOPE_AUTHORIZATION_REVOKED audit record.
+   */
+  async revokeScopeAuthorization(
+    catalogId: string,
+    request: SelectedScopeAuthorizationRevoke,
+    actor: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.catalogs.lock(
+        tx,
+        catalogId,
+        request.expectedCatalogRevision,
+        cid,
+      );
+      const row = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey: request.scopeKey },
+      });
+      if (
+        !row ||
+        row.catalogId !== catalogId ||
+        row.revision !== request.expectedReviewRevision ||
+        row.state !== PreparationScopeReviewState.APPROVED
+      )
+        catalogFailure(E.CONFLICT, cid);
+      // Preserve approvedBy, approvedAt, output, and decisions on the row for historical traceability
+      // while blocking any new publication or import from reusing this authority.
+      const revoked = await tx.selectedRuleScopeAuthorization.update({
+        where: { scopeKey: row.scopeKey },
+        data: {
+          state: PreparationScopeReviewState.REJECTED,
+          revision: { increment: 1 },
+        },
+      });
+      await this.catalogs.record(
+        tx,
+        EVENTS.SCOPE_AUTHORIZATION_REVOKED,
+        row.scopeKey,
+        actor,
+        cid,
+        {
+          scopeAuthorizationId: row.scopeKey,
+          decisionDigest: row.decisionDigest,
+          previousRevision: row.revision,
+          revision: revoked.revision,
+          reason: request.reason,
+          previousApprovedBy: row.approvedBy,
+        },
+      );
+      return {
+        scopeKey: revoked.scopeKey,
+        decisionDigest: revoked.decisionDigest,
+        revision: revoked.revision,
+        state: revoked.state,
       };
     });
   }

@@ -274,4 +274,23 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   importErrorIneligible: "Một rule trong file không đủ điều kiện chuẩn bị.",
   importErrorNotFound: "Một rule trong file không thuộc catalog này.",
   importErrorGeneric: "Yêu cầu import thất bại.",
+  scopeAuthAction: "Duyệt phạm vi",
+  scopeAuthTitle: "Phê duyệt ngữ nghĩa phạm vi",
+  scopeAuthDescription:
+    "Kiểm tra, phê duyệt hoặc thu hồi quyết định ngữ nghĩa gắn nguồn pháp lý cho Legal Rule này.",
+  scopeAuthKeyLabel: "Mã Scope Key (64 ký tự hex)",
+  scopeAuthLoad: "Tải bản nháp",
+  scopeAuthStateLabel: "Trạng thái",
+  scopeAuthRevisionLabel: "Phiên bản",
+  scopeAuthAuthorLabel: "Người gửi",
+  scopeAuthReviewerLabel: "Người phê duyệt",
+  scopeAuthApproveConfirm:
+    "Tôi đã kiểm tra độc lập diễn giải pháp lý này với trích dẫn nguồn đã ghim.",
+  scopeAuthApproveAction: "Phê duyệt",
+  scopeAuthRevokeReasonLabel: "Lý do thu hồi",
+  scopeAuthRevokeConfirm:
+    "Xác nhận thu hồi phê duyệt này khỏi các lần xuất bản mới.",
+  scopeAuthRevokeAction: "Thu hồi phê duyệt",
+  scopeAuthError: "Thao tác phê duyệt phạm vi thất bại.",
+  scopeAuthSuccess: "Đã cập nhật trạng thái phê duyệt phạm vi.",
 };

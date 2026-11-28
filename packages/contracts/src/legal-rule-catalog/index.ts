@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.ts";
-import { LEGAL_REFERENCE_RESOLUTION_STATES } from "../legal-source/document-graph.ts";
-import { PREPARATION_SCOPE_STAGES } from "../compliance-rule-set/scope-review.ts";
 import {
-  legalRequirementSchema,
-  assessmentRuleSchema,
   assessmentRuleAuthoringSchema,
   assessmentRuleCriterionSchema,
-  legalContextRelationSchema,
+  assessmentRuleSchema,
   complianceRuleSetPacketSchema,
+  legalContextRelationSchema,
+  legalRequirementSchema,
 } from "../compliance-rule-set/schemas.ts";
+import { PREPARATION_SCOPE_STAGES } from "../compliance-rule-set/scope-review.ts";
+import { LEGAL_REFERENCE_RESOLUTION_STATES } from "../legal-source/document-graph.ts";
 
 export const LEGAL_RULE_PREPARATION_STATES = {
   NOT_PREPARED: "NOT_PREPARED",
@@ -58,6 +58,8 @@ export const LEGAL_RULE_CATALOG_EVENTS = {
     "event.legal-rule-catalog.scope-authorization-submitted.v1",
   SCOPE_AUTHORIZATION_APPROVED:
     "event.legal-rule-catalog.scope-authorization-approved.v1",
+  SCOPE_AUTHORIZATION_REVOKED:
+    "event.legal-rule-catalog.scope-authorization-revoked.v1",
   DELETED: "event.legal-rule-catalog.deleted.v1",
 } as const;
 export const LEGAL_RULE_INELIGIBILITY_REASONS = {
@@ -343,12 +345,56 @@ export const selectedScopeAuthorizationApproveSchema = z.strictObject({
   decisionDigest: scopeHash,
   confirmsLegalReview: z.literal(true),
 });
+export const selectedScopeAuthorizationRevokeSchema = z.strictObject({
+  expectedCatalogRevision: z.number().int().positive(),
+  scopeKey: scopeHash,
+  expectedReviewRevision: z.number().int().positive(),
+  reason: text.max(2000),
+  confirmsRevocation: z.literal(true),
+});
+export const SELECTED_SCOPE_AUTHORIZATION_STATES = {
+  DRAFT: "DRAFT",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+export const selectedScopeAuthorizationSummarySchema = z.object({
+  scopeKey: scopeHash,
+  decisionDigest: scopeHash,
+  revision: z.number().int().positive(),
+  state: z.enum(SELECTED_SCOPE_AUTHORIZATION_STATES),
+});
+export const selectedScopeAuthorizationDetailSchema = z.object({
+  scopeKey: scopeHash,
+  ruleId: id,
+  state: z.enum(SELECTED_SCOPE_AUTHORIZATION_STATES),
+  revision: z.number().int().positive(),
+  catalogRevision: z.number().int().positive(),
+  decisionDigest: scopeHash,
+  submittedBy: z.string().min(1),
+  approvedBy: z.string().nullable(),
+  approvedAt: z.coerce.date().nullable(),
+  legalSourceVersionId: id,
+  output: preparationRuleOutputSchema,
+  decisions: z.array(selectedScopeDecisionSchema),
+  citations: z.array(
+    z.object({
+      chunkId: z.string().min(1),
+      documentId: z.string().min(1),
+      locator: z.string().min(1),
+      contentSha256: z.string().min(1),
+      content: z.string(),
+    }),
+  ),
+});
 export type SelectedScopeDecision = z.infer<typeof selectedScopeDecisionSchema>;
 export type SelectedScopeAuthorizationSubmit = z.infer<
   typeof selectedScopeAuthorizationSubmitSchema
 >;
 export type SelectedScopeAuthorizationApprove = z.infer<
   typeof selectedScopeAuthorizationApproveSchema
+>;
+export type SelectedScopeAuthorizationRevoke = z.infer<
+  typeof selectedScopeAuthorizationRevokeSchema
 >;
 
 /** Version of the externally authored Assessment Rule Import document. */

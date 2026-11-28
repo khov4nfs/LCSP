@@ -1,11 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { Injectable } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
-  Prisma,
-  AgentExecutionState as A,
-  PreparationExecutionContract,
-} from "@prisma/client";
+import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
 import {
   ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
   LEGAL_RULE_CATALOG_ERRORS as E,
@@ -13,26 +6,36 @@ import {
   LEGAL_RULE_SELECTION_MODES,
   type AssessmentRuleImportResult,
 } from "@lcsp/contracts/legal-rule-catalog";
-import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
+import { Injectable } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import {
+  AgentExecutionState as A,
+  PreparationExecutionContract,
+  Prisma,
+} from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import {
   canonicalJson,
   sha256Hex,
 } from "../../../../assessment/domain/domain-ids.js";
-import { LegalRuleCatalogService } from "../../services/legal-rule-catalog.service.js";
+import {
+  requireSelectedExclusionAuthorization,
+  requireSelectedScopeAuthorization,
+} from "../../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
-import { requireSelectedScopeAuthorization } from "../../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
-import { ImportAssessmentRulesCommand } from "./import-assessment-rules.command.js";
+import {
+  catalogFailure,
+  preparationInputFingerprint,
+} from "../../services/legal-rule-catalog-shared.js";
+import { LegalRuleCatalogService } from "../../services/legal-rule-catalog.service.js";
 import {
   isIdenticalCurrentResult,
   normalizeImportItem,
   rejectSelectedOutput,
   validateSelectedOutput,
 } from "../../services/selected-output-validation.js";
-import {
-  catalogFailure,
-  preparationInputFingerprint,
-} from "../../services/legal-rule-catalog-shared.js";
+import { ImportAssessmentRulesCommand } from "./import-assessment-rules.command.js";
 
 // Why: Import writes a full preparation revision and must remain atomic across all selected rules.
 // How: This handler validates before writing and locks artifacts in stable order inside one transaction.
@@ -130,6 +133,17 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
         const hydratedExclusions = excludedInputs.length
           ? await this.catalogs.hydrate(tx, excludedInputs, cid)
           : [];
+        // Every excluded rule must also have positive semantic approval (e.g. NON_DEVELOPMENT)
+        // in SelectedRuleScopeAuthorization before dry-run or persistence.
+        for (const [index, excluded] of request.excludedItems.entries()) {
+          await requireSelectedExclusionAuthorization(
+            tx,
+            hydratedExclusions[index],
+            excluded.reasonCode,
+            cid,
+            this.authority,
+          );
+        }
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
           if (!entry) catalogFailure(E.NOT_FOUND, cid, 404);
@@ -152,7 +166,13 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
 
         // Validate semantic approval before the first write in both dry run and import.
         for (const { input, output } of prepared)
-          await requireSelectedScopeAuthorization(tx, input, output, cid, this.authority);
+          await requireSelectedScopeAuthorization(
+            tx,
+            input,
+            output,
+            cid,
+            this.authority,
+          );
         if (request.dryRun) {
           // Preview only: report what an import would record, using reads alone.
           const preview: AssessmentRuleImportResult["imported"] = [];

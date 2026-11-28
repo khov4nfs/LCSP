@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import * as C from "@lcsp/contracts/legal-rule-catalog";
 import {
   Body,
   Controller,
@@ -13,15 +14,14 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import * as C from "@lcsp/contracts/legal-rule-catalog";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { LegalRuleCatalogService } from "../../application/services/legal-rule-catalog.service.js";
 import { PreparationRuleService } from "../../application/services/preparation-rule.service.js";
 
@@ -264,6 +264,31 @@ export class LegalRuleCatalogController {
   ) {
     return resultEnvelope(
       await this.preparation.approveScopeAuthorization(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Revoke a previously approved semantic authorization so it can no longer authorize new publications.
+   * Business rules: Authenticated Admin only; preserves historical records while marking the authorization REJECTED.
+   * Execution flow: 1. Validate the revocation payload. 2. Delegate to PreparationRuleService and return the updated state.
+   * Failure cases: Stale revisions or non-approved authorizations return CONFLICT.
+   * Side effects: Transitions authorization to REJECTED and appends an audit event.
+   */
+  @Post(":catalogId/scope-authorizations/revoke")
+  @HttpCode(200)
+  async revokeScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.selectedScopeAuthorizationRevokeSchema))
+    request: C.SelectedScopeAuthorizationRevoke,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.revokeScopeAuthorization(
         catalogId,
         request,
         req.rbacContext.userId,

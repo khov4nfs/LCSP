@@ -1,19 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
-  AgentExecutionState,
-  LegalEffectStatus,
-  LegalSourceDocumentCorpusRole,
-  PreparationScopeReviewState,
-} from "@prisma/client";
-import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
-import {
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
-  ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
   ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
+  ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_CATALOG_EVENTS,
   LEGAL_RULE_VALIDATION_ISSUES,
@@ -21,18 +14,25 @@ import {
   preparationRuleOutputSchema,
   type AssessmentRuleImportRequest,
 } from "@lcsp/contracts/legal-rule-catalog";
-import { PreparationRuleService } from "./preparation-rule.service.js";
-import { normalizeImportItem } from "./selected-output-validation.js";
+import {
+  AgentExecutionState,
+  LegalEffectStatus,
+  LegalSourceDocumentCorpusRole,
+  PreparationScopeReviewState,
+} from "@prisma/client";
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
+import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import {
+  canonicalJson,
+  sha256Hex,
+} from "../../../assessment/domain/domain-ids.js";
 import {
   selectedScopeKey,
   validateSelectedScopeDecisions,
 } from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 import { preparationInputFingerprint } from "./legal-rule-catalog.service.js";
-import {
-  canonicalJson,
-  sha256Hex,
-} from "../../../assessment/domain/domain-ids.js";
-import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { PreparationRuleService } from "./preparation-rule.service.js";
+import { normalizeImportItem } from "./selected-output-validation.js";
 
 const uuid = (n: number) =>
   `${String(n).repeat(8)}-1111-4111-8111-111111111111`;
@@ -160,6 +160,65 @@ function approvedScope() {
   };
 }
 
+function approvedExclusionScope() {
+  const excludedInput = {
+    ...input,
+    ruleId: excludedRuleId,
+    legalRuleId: `${excludedRuleId}:legal-rule`,
+  };
+  const excludedOutput = preparationRuleOutputSchema.parse({
+    analysis: "Excluded as non-development obligation.",
+    legalRequirements: [
+      {
+        ...request().items[0].legalRequirements[0],
+        legalRequirementId: `${excludedRuleId}:req-1`,
+        coverage: {
+          state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+          nonAssessableReason: "OUT_OF_SCOPE_TARGET: Operator-only duty",
+        },
+      },
+    ],
+    contextRelations: [],
+    assessmentRules: [],
+  });
+  const decisions = [
+    {
+      legalRequirementId: `${excludedRuleId}:req-1`,
+      stage: "NON_DEVELOPMENT" as const,
+      technicalDeliverable: null,
+      rationale: "Operator-only duty outside repository code scope",
+      sourceSupport: [
+        {
+          chunkId: "chunk-1",
+          startOffset: 0,
+          endOffset: legalText.length,
+          contentSha256: sha256Hex(legalText),
+        },
+      ],
+    },
+  ];
+  const scopeKey = selectedScopeKey(excludedInput, excludedOutput);
+  return {
+    scopeKey,
+    legalSourceVersionId: sourceId,
+    catalogId,
+    ruleId: excludedRuleId,
+    state: PreparationScopeReviewState.APPROVED,
+    revision: 1,
+    output: excludedOutput,
+    decisions,
+    decisionDigest: validateSelectedScopeDecisions(
+      excludedInput,
+      excludedOutput,
+      decisions,
+      "fixture",
+    ),
+    submittedBy: "author-fixture",
+    approvedBy: "reviewer-fixture",
+    approvedAt: new Date(0),
+  };
+}
+
 type Call = (...args: unknown[]) => Promise<unknown>;
 const resolves = (value: unknown) => jest.fn<Call>().mockResolvedValue(value);
 
@@ -170,6 +229,7 @@ function setup(
   },
 ) {
   const grant = approvedScope();
+  const exclusionGrant = approvedExclusionScope();
   const tx = {
     selectedRuleScopeAuthorization: {
       findUnique: jest
@@ -177,6 +237,7 @@ function setup(
         .mockImplementation(async (args) =>
           args.where.scopeKey === grant.scopeKey ? grant : null,
         ),
+      findMany: resolves([exclusionGrant]),
       create: resolves(grant),
       update: resolves(grant),
     },
@@ -258,6 +319,68 @@ function setup(
 }
 
 describe("PreparationRuleService.importAssessmentRules", () => {
+  it("revokes an approved authorization to block new reuse while preserving audit history", async () => {
+    const { subject, tx, catalogs } = setup();
+    const grant = approvedScope();
+    let currentState: PreparationScopeReviewState = grant.state;
+    tx.selectedRuleScopeAuthorization.findUnique.mockImplementation(
+      async (args: { where: { scopeKey: string } }) =>
+        args.where.scopeKey === grant.scopeKey
+          ? { ...grant, state: currentState }
+          : null,
+    );
+    tx.selectedRuleScopeAuthorization.update.mockImplementation(async () => {
+      currentState = PreparationScopeReviewState.REJECTED;
+      return { ...grant, state: currentState, revision: grant.revision + 1 };
+    });
+
+    await expect(
+      subject.revokeScopeAuthorization(
+        catalogId,
+        {
+          expectedCatalogRevision: 3,
+          scopeKey: grant.scopeKey,
+          expectedReviewRevision: grant.revision,
+          reason: "Misinterpreted obligation scope",
+          confirmsRevocation: true,
+        },
+        "reviewer-2",
+        "cid-revoke",
+      ),
+    ).resolves.toMatchObject({
+      scopeKey: grant.scopeKey,
+      revision: 2,
+      state: PreparationScopeReviewState.REJECTED,
+    });
+
+    expect(catalogs.record).toHaveBeenCalledWith(
+      tx,
+      LEGAL_RULE_CATALOG_EVENTS.SCOPE_AUTHORIZATION_REVOKED,
+      grant.scopeKey,
+      "reviewer-2",
+      "cid-revoke",
+      expect.objectContaining({
+        scopeAuthorizationId: grant.scopeKey,
+        previousRevision: 1,
+        revision: 2,
+        reason: "Misinterpreted obligation scope",
+      }),
+    );
+
+    await expect(
+      subject.importAssessmentRules(
+        catalogId,
+        request(),
+        "admin-1",
+        "cid-after",
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+      },
+    });
+  });
+
   it.each([true, false])(
     "rejects structurally valid but unauthorized import without any writes (dryRun=%s)",
     async (dryRun) => {
@@ -669,6 +792,40 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     expect(catalogs.record).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
   });
+
+  it.each([true, false])(
+    "rejects excluded items without approved NON_DEVELOPMENT semantic authority (dryRun=%s)",
+    async (dryRun) => {
+      const { subject, tx, catalogs, enqueue } = setup();
+      tx.selectedRuleScopeAuthorization.findMany.mockResolvedValue([]);
+      await expect(
+        subject.importAssessmentRules(
+          catalogId,
+          request({
+            dryRun,
+            items: [],
+            excludedItems: [
+              {
+                ruleId: excludedRuleId,
+                reasonCode:
+                  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE,
+                reason: "Operator-only activity",
+              },
+            ],
+          }),
+          "admin-1",
+          "cid",
+        ),
+      ).rejects.toMatchObject({
+        response: {
+          problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+        },
+      });
+      expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+      expect(catalogs.record).not.toHaveBeenCalled();
+      expect(enqueue).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects a rule that is both included and excluded", async () => {
     const { subject, tx, catalogs } = setup();

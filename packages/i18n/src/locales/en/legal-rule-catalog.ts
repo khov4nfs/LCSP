@@ -276,6 +276,25 @@ export const enLegalRuleCatalog = {
     "A rule in this document is not eligible for preparation.",
   importErrorNotFound: "A rule in this document is not in this catalog.",
   importErrorGeneric: "The import request failed.",
+  scopeAuthAction: "Scope Review",
+  scopeAuthTitle: "Semantic Scope Authorization",
+  scopeAuthDescription:
+    "Inspect, approve, or revoke a source-backed semantic scope decision for this Legal Rule.",
+  scopeAuthKeyLabel: "Scope Key (64-hex)",
+  scopeAuthLoad: "Load Candidate",
+  scopeAuthStateLabel: "Review State",
+  scopeAuthRevisionLabel: "Revision",
+  scopeAuthAuthorLabel: "Submitted By",
+  scopeAuthReviewerLabel: "Approved By",
+  scopeAuthApproveConfirm:
+    "I have independently verified this legal interpretation against the pinned source citations.",
+  scopeAuthApproveAction: "Approve Authorization",
+  scopeAuthRevokeReasonLabel: "Revocation Reason",
+  scopeAuthRevokeConfirm:
+    "Confirm revoking this approved authorization for future publications.",
+  scopeAuthRevokeAction: "Revoke Authorization",
+  scopeAuthError: "Scope authorization action failed.",
+  scopeAuthSuccess: "Scope authorization updated.",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;

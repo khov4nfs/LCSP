@@ -8,9 +8,9 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { CommandBus, CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
-  AgentExecutionState as PrismaAgentExecutionState,
   LegalSourceLifecycleStatus,
   Prisma,
+  AgentExecutionState as PrismaAgentExecutionState,
 } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -164,7 +164,7 @@ export class RetryRuleSetPreparationHandler implements ICommandHandler<RetryRule
             attempts + 1,
           ),
           ...(run.scopeReviewRequested
-            ? { targetActivityScope: "DEVELOPMENT_ONLY" as const }
+            ? { targetActivityScope: "FULL_SOURCE" as const }
             : {}),
         },
         input.requestedBy,

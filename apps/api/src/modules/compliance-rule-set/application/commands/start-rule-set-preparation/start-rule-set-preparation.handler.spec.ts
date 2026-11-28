@@ -1,12 +1,12 @@
-import { fixtureSourceAuthority } from "../../../../../../test/support/fixture-source-authority.js";
 import { describe, expect, it, jest } from "@jest/globals";
 import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
-import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import {
   AgentExecutionState,
   LegalSourceLifecycleStatus,
   Prisma,
 } from "@prisma/client";
+import { fixtureSourceAuthority } from "../../../../../../test/support/fixture-source-authority.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
@@ -115,7 +115,7 @@ function createHarness(
 }
 
 describe("StartRuleSetPreparationHandler serialization retry", () => {
-  it("starts canonical scope review when the request omits an activity scope", async () => {
+  it("defaults scopeReviewRequested to false when omitted and enables it only for FULL_SOURCE", async () => {
     const harness = createHarness(() => ({
       id: "run",
       legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
@@ -124,6 +124,27 @@ describe("StartRuleSetPreparationHandler serialization retry", () => {
     await harness.handler.execute(harness.command);
     expect(
       harness.transactions[0].ruleSetPreparationRun.create,
+    ).toHaveBeenCalledWith({
+      data: expect.objectContaining({ scopeReviewRequested: false }),
+    });
+
+    const reviewHarness = createHarness(() => ({
+      id: "run-review",
+      legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
+      executionState: AgentExecutionState.QUEUED,
+    }));
+    await reviewHarness.handler.execute(
+      new StartRuleSetPreparationCommand(
+        {
+          ...harness.command.request,
+          targetActivityScope: "FULL_SOURCE",
+        },
+        "owner-admin",
+        "cid-review",
+      ),
+    );
+    expect(
+      reviewHarness.transactions[0].ruleSetPreparationRun.create,
     ).toHaveBeenCalledWith({
       data: expect.objectContaining({ scopeReviewRequested: true }),
     });

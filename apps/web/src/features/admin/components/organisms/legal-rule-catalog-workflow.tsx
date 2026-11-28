@@ -59,6 +59,7 @@ import {
 import { LegalRuleCatalogBatch } from "./legal-rule-catalog-batch";
 import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
 import { AssessmentRuleImportDialog } from "./assessment-rule-import-dialog";
+import { SelectedScopeAuthorizationDialog } from "./selected-scope-authorization-dialog";
 
 /**
  * Business purpose: Build a Preparation Rule Set from explicitly selected canonical rules after chunking.
@@ -115,6 +116,7 @@ export function LegalRuleCatalogWorkflow({
   const [snapshot, setSnapshot] = useState<ReturnType<
     typeof legalRuleSelectionResultSchema.parse
   > | null>(null);
+  const [scopeAuthRuleId, setScopeAuthRuleId] = useState<string | null>(null);
   const submissionKey = useRef("");
   const activationSubmissionKey = useRef("");
   const ruleSetHistory = useComplianceRuleSetHistoryQuery();
@@ -743,6 +745,13 @@ export function LegalRuleCatalogWorkflow({
                           {t("viewResult")}
                         </Button>
                       ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setScopeAuthRuleId(rule.id)}
+                      >
+                        {t("scopeAuthAction")}
+                      </Button>
                     </div>
                   </div>
                 </li>
@@ -1017,6 +1026,17 @@ export function LegalRuleCatalogWorkflow({
             void rules.refetch();
             void catalogs.refetch();
           }}
+        />
+      ) : null}
+      {scopeAuthRuleId && catalogId && rules.data ? (
+        <SelectedScopeAuthorizationDialog
+          open={Boolean(scopeAuthRuleId)}
+          onOpenChange={(open) => {
+            if (!open) setScopeAuthRuleId(null);
+          }}
+          catalogId={catalogId}
+          catalogRevision={rules.data.catalogRevision}
+          ruleId={scopeAuthRuleId}
         />
       ) : null}
     </section>
