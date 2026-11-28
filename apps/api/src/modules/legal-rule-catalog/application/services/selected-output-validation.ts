@@ -3,6 +3,7 @@ import { Prisma, AgentExecutionState as A } from "@prisma/client";
 import { z } from "zod";
 import {
   LEGAL_RULE_CATALOG_ERRORS as E,
+  LEGAL_RULE_VALIDATION_ISSUES as ISSUE,
   ASSESSMENT_RULE_IMPORT_DEFAULT_ANALYSIS,
   preparationRuleOutputSchema,
   type AssessmentRuleImportItem,
@@ -21,20 +22,35 @@ import { validateAssessmentRuleBindings } from "../../../compliance-rule-set/dom
 // How: Keep normalization, replay comparison, and structural checks in one pure module.
 // Invariant: No handler can bypass source-reference and parent-binding validation.
 /**
- * Business purpose: Identify the structural field that prevented a selected result from being recorded.
+ * Business purpose: Categorize an invalid selected result without disclosing the authoring schema.
  * Business rules:
- * - Report only schema field paths supplied by the validation code; authored data and citation values stay private.
+ * - Only canonical public issue codes leave the API; exact paths and authored values stay private.
  * Execution flow:
- * 1. Return the catalog result rejection with the field path and request correlation.
+ * 1. Map a server-side validation path to a bounded public issue category.
+ * 2. Return the catalog result rejection with that category and request correlation.
  * Failure cases:
  * - Always rejects settlement with HTTP 422 so the worker can record a failed attempt.
  * Side effects:
  * - Throws a typed problem without changing run state.
  */
 function rejectSelectedOutput(cid: string, issues: string): never {
+  // Why: Nested paths reveal the shape and positions of internal AI output collections.
+  // How: Collapse field paths into stable, allowlisted contract categories before creating the problem.
+  // Invariant: The response never includes the raw path, array index, or submitted value.
+  const issueCode = /sourceRefs|toSourceRef/u.test(issues)
+    ? ISSUE.SOURCE_REFERENCE_INVALID
+    : /legalRequirementIds|fromLegalRequirementId|toLegalRequirementId/u.test(
+          issues,
+        )
+      ? ISSUE.REQUIREMENT_LINK_INVALID
+      : /applicabilityConditions|applicabilityMode/u.test(issues)
+        ? ISSUE.APPLICABILITY_INVALID
+        : /legalRequirementId|assessmentRuleId|relationId/u.test(issues)
+          ? ISSUE.IDENTITY_INVALID
+          : ISSUE.OUTPUT_INVALID;
   throw problemException(E.RESULT_INVALID, cid, {
     status: HttpStatus.UNPROCESSABLE_ENTITY,
-    meta: { issues },
+    meta: { issueCode },
   });
 }
 
@@ -47,7 +63,7 @@ function rejectSelectedOutput(cid: string, issues: string): never {
  * 1. Fill the fixed analysis note and empty investigation hints.
  * 2. Parse through the shared output contract, which derives intent, guidance and context relations.
  * Failure cases:
- * - A contract violation is rejected as RESULT_INVALID with the item index and structural field path only; authored values are never echoed.
+ * - A contract violation is rejected as RESULT_INVALID with a public issue category; authored values and paths are never echoed.
  * Side effects:
  * - Pure normalization; nothing is persisted.
  */
@@ -120,7 +136,7 @@ export function isIdenticalCurrentResult(
  * 1. Parse canonical downstream contracts
  * 2. Verify unique identities, source allowlist and parent links.
  * Failure cases:
- * - Invalid structure, duplicates, foreign sources or missing/non-assessable parents return RESULT_INVALID with a safe field path.
+ * - Invalid structure, duplicates, foreign sources or missing/non-assessable parents return RESULT_INVALID with an allowlisted issue category.
  * Side effects:
  * - Pure validation; no semantic decision, publication or model work.
  */

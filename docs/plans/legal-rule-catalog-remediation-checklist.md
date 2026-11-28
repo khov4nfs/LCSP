@@ -1,6 +1,6 @@
 # Kế hoạch chi tiết tái cấu trúc & khắc phục Module `legal-rule-catalog`
 
-> **Trạng thái**: Giai đoạn 1–2 hoàn thành; Giai đoạn 3 đang chờ thực hiện.
+> **Trạng thái**: Giai đoạn 1–3 hoàn thành.
 > **Nguyên tắc**: Thực hiện từng tác vụ đơn lẻ, chạy kiểm thử xác nhận (TDD / Regression tests) trước khi đánh dấu hoàn thành và chuyển sang việc tiếp theo. Không thực hiện dồn một lần.
 
 ---
@@ -15,10 +15,10 @@
   - [x] **Task 2.1**: Trích xuất Domain logic phân tích quy phạm văn bản pháp lý ra file riêng (Vấn đề R-02)
   - [x] **Task 2.2**: Gỡ bỏ Circular Dependency và gom helpers/types dùng chung (Vấn đề R-03)
   - [x] **Task 2.3**: Tách các Use-case Handlers từ 2 God Services >1500 dòng (Vấn đề R-01)
-- [ ] **Giai đoạn 3: Tối ưu tải 10.000 Rules & Tăng cường Bảo mật Production** (0/3 hoàn thành)
-  - [ ] **Task 3.1**: Tối ưu hóa phân trang danh sách 10.000 Rules (Vấn đề A-01)
-  - [ ] **Task 3.2**: Giới hạn batch size và chống giữ transaction connection DB 60s (Vấn đề A-03)
-  - [ ] **Task 3.3**: Chuẩn hóa mã lỗi và bảo vệ schema nội bộ trong response 422 (Vấn đề S-02)
+- [x] **Giai đoạn 3: Tối ưu tải 10.000 Rules & Tăng cường Bảo mật Production** (3/3 hoàn thành)
+  - [x] **Task 3.1**: Tối ưu hóa phân trang danh sách 10.000 Rules (Vấn đề A-01)
+  - [x] **Task 3.2**: Giới hạn batch size và chống giữ transaction connection DB 60s (Vấn đề A-03)
+  - [x] **Task 3.3**: Chuẩn hóa mã lỗi và bảo vệ schema nội bộ trong response 422 (Vấn đề S-02)
 
 ---
 
@@ -126,8 +126,8 @@
   1. Phân tích các điều kiện lọc `state`: `PREPARED`, `RUNNING`, `STALE`, `INELIGIBLE`.
   2. Xây dựng câu query đếm và phân trang trực tiếp ở database bằng Prisma hoặc Raw SQL có kết hợp subquery kiểm tra trạng thái run mới nhất.
   3. Chỉ áp dụng tính toán chi tiết cho đúng số lượng item của trang hiện tại (`pageSize = 20/50`).
-- **Tiêu chí nghiệm thu**: Hàm `list` không còn gọi `take: 10000`, thời gian phản hồi API giảm mạnh, RAM duy trì ổn định.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Tiêu chí nghiệm thu**: Hàm `list` không còn giữ toàn bộ 10.000 rule projections trong RAM; tổng số, `eligibleTotal`, thứ tự và bộ lọc derived state vẫn chính xác. Đo latency/bộ nhớ trên PostgreSQL với catalog lớn trước khi chọn DB read model hoặc đóng task.
+- **Trạng thái**: [x] DONE — truy vấn không lọc đếm tại PostgreSQL rồi chỉ project trang được yêu cầu; bộ lọc derived state quét theo lô tối đa 2.000 rules trong snapshot `RepeatableRead` và chỉ giữ trang kết quả. Test PostgreSQL 10.000 rules xác nhận trang đầu/cuối, `total`, `eligibleTotal` và bộ lọc; phép đo gần nhất: 90,5 ms so với 232,2 ms khi project toàn bộ. Bộ lọc derived state vẫn tính chính xác bằng phép quét theo lô, chưa chuyển hoàn toàn thành SQL read model.
 
 ---
 
@@ -138,7 +138,7 @@
   1. Thêm validation chặn số lượng item tối đa trong một lần import (ví dụ: tối đa 100 items/request).
   2. Giảm transaction timeout xuống mức an toàn (ví dụ: 15-20s thay vì 60s).
 - **Tiêu chí nghiệm thu**: Không có transaction nào giữ lock quá lâu, kiểm thử import với file lớn bị từ chối hợp lệ bằng mã lỗi 422 rõ ràng.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE — contract chặn trên 100 items/request; HTTP import trả problem 422 trước transaction; timeout transaction giảm từ 60 giây còn 20 giây. Unit test kiểm tra ngưỡng, status và timeout.
 
 ---
 
@@ -149,7 +149,7 @@
   1. Định nghĩa bảng ánh xạ từ Zod path sang mã lỗi an toàn (ví dụ: `INVALID_REQUIREMENT_LINK`, `FOREIGN_SOURCE_REF`).
   2. Chỉ trả về mã lỗi an toàn trong `problem.meta`.
 - **Tiêu chí nghiệm thu**: Response khi validation fail trả về lỗi rõ nghĩa nhưng không rò rỉ cấu trúc cây domain nội bộ.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE — lỗi selected output trả `meta.issueCode` từ danh sách mã lỗi dùng chung, không trả JSON path; giao diện Admin hiển thị thông báo bản địa hóa theo mã và bỏ qua metadata cũ chứa path. Unit test khóa việc không phản chiếu path.
 
 ---
 

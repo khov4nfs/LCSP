@@ -14,7 +14,6 @@ import {
   LEGAL_RULE_INELIGIBILITY_REASONS as R,
   LEGAL_RULE_SELECTION_MODES as MODES,
   LEGAL_RULE_LIMITS,
-  LEGAL_RULE_SOURCE_PROVISION_LEVELS,
   LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS,
   legalRuleCitationSchema,
   legalRuleListItemSchema,
@@ -24,16 +23,13 @@ import {
   type LegalRuleList,
   type LegalRuleSelection,
   type PreparationRuleInput,
-  type LegalRuleSourceProvision,
   type LegalRuleSourceProvisionImport,
-  type LegalRuleSourceProvisionLimitation,
   type LegalRuleSourceProvisionQuery,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { AUDIT_RESOURCE_TYPES, AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 import { attachLegalRuleReferenceContext } from "./legal-rule-reference-context.js";
 import {
@@ -51,6 +47,12 @@ import {
   preparationInputFingerprint,
   type CatalogClient,
 } from "./legal-rule-catalog-shared.js";
+import type { LegalRuleProjectionWindow } from "../types/legal-rule-projection-window.js";
+
+// Why: Each list projection must cap retained rule and citation state while preserving exact totals.
+// How: Process at most 2,000 ordered rules per database read inside one snapshot.
+// Invariant: The shared 10,000-rule catalog cap is still checked across all batches.
+const LIST_PROJECTION_BATCH_SIZE = 2000;
 
 export {
   composeLegalSourceProvisions,
@@ -560,7 +562,12 @@ export class LegalRuleCatalogService {
    * Side effects:
    * - Read-only transaction queries.
    */
-  async entries(tx: CatalogClient, catalogId: string, cid: string) {
+  async entries(
+    tx: CatalogClient,
+    catalogId: string,
+    cid: string,
+    window?: LegalRuleProjectionWindow,
+  ) {
     const catalog = await tx.legalRuleCatalogVersion.findUnique({
       where: { id: catalogId },
       include: {
@@ -579,7 +586,8 @@ export class LegalRuleCatalogService {
         },
         rules: {
           orderBy: { legalRuleId: "asc" },
-          take: LEGAL_RULE_LIMITS.catalogRules + 1,
+          skip: window?.skip,
+          take: window?.take ?? LEGAL_RULE_LIMITS.catalogRules + 1,
           include: {
             preparation: {
               include: {
@@ -595,7 +603,7 @@ export class LegalRuleCatalogService {
       },
     });
     if (!catalog) catalogFailure(E.NOT_FOUND, cid, 404);
-    if (catalog.rules.length > LEGAL_RULE_LIMITS.catalogRules)
+    if (!window && catalog.rules.length > LEGAL_RULE_LIMITS.catalogRules)
       catalogFailure(E.TOO_LARGE, cid);
     const source = catalog.legalSourceVersion;
     const index = source.retrievalIndexes[0];
@@ -727,35 +735,121 @@ export class LegalRuleCatalogService {
   /**
    * Business purpose: Page searchable rule eligibility on the server, independently of browser selection.
    * Business rules:
-   * - Filtering never changes a previously persisted selection. Derived state requires the complete bounded catalog projection.
+   * - Filtering never changes a previously persisted selection. Unfiltered totals use database counts; derived state and filtered totals are accumulated across bounded windows in one snapshot.
    * Execution flow:
-   * 1. Read consistent entries
-   * 2. Apply search/state filters
-   * 3. Return one bounded page and exact totals.
+   * 1. For ordinary browsing, count catalog and eligible rules in PostgreSQL and project the requested page.
+   * 2. For derived filters, read ordered catalog rules in bounded windows under RepeatableRead and count matching rows.
+   * 3. Retain only the requested page and return exact totals.
    * Failure cases:
    * - Missing/oversized catalogs reject without an invented empty result.
    * Side effects:
    * - Read-only repeatable-read transaction.
    */
   async list(catalogId: string, query: LegalRuleList, cid: string) {
-    // shortcut: derived-state filtering scans a catalog capped at 10,000 rules; move it into a read projection before raising that cap.
+    // Why: State and eligibility depend on source pins and output fingerprints that cannot safely be counted by a plain SQL predicate.
+    // How: Fold fixed-size ordered projections into totals and retain only the requested page.
+    // Invariant: RepeatableRead prevents catalog changes from shifting offset windows during one response.
     return this.prisma.$transaction(
       async (tx) => {
-        const { catalog, items } = await this.entries(tx, catalogId, cid);
-        const matching = this.filter(items, query);
+        if (!query.search && !query.state && !query.withAssessmentRules) {
+          // Why: Browsing without a derived-state filter does not need to hydrate every rule to count them.
+          // How: Count catalog membership and source/citation eligibility in PostgreSQL, then project only the requested page.
+          // Invariant: The same pinned source, VALID index and EFFECTIVE/UNKNOWN chunk rules decide eligibility as entries().
+          const total = await tx.legalRule.count({
+            where: { catalogVersionId: catalogId },
+          });
+          if (total > LEGAL_RULE_LIMITS.catalogRules)
+            catalogFailure(E.TOO_LARGE, cid);
+          const page = await this.entries(tx, catalogId, cid, {
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+          });
+          const eligibleRows = await tx.$queryRaw<Array<{ eligible: bigint }>>(
+            Prisma.sql`
+              SELECT COUNT(*)::bigint AS eligible
+              FROM "LegalRule" AS rule
+              JOIN "LegalRuleCatalogVersion" AS catalog ON catalog."id" = rule."catalogVersionId"
+              JOIN "LegalSourceVersion" AS source ON source."id" = catalog."legalSourceVersionId"
+              WHERE catalog."id" = ${catalogId}
+                AND source."status"::text IN (${LegalSourceLifecycleStatus.ACTIVE}, ${LegalSourceLifecycleStatus.SUPERSEDED})
+                AND EXISTS (
+                  SELECT 1 FROM "LegalRetrievalIndex" AS index_row
+                  WHERE index_row."legalSourceVersionId" = source."id"
+                    AND index_row."status"::text = ${LegalRetrievalIndexStatus.VALID}
+                    AND index_row."validatedAt" IS NOT NULL
+                    AND index_row."validationManifestRef" IS NOT NULL
+                )
+                AND jsonb_typeof(rule."citationLocatorRefs") = 'array'
+                AND jsonb_array_length(
+                  CASE WHEN jsonb_typeof(rule."citationLocatorRefs") = 'array'
+                    THEN rule."citationLocatorRefs" ELSE '[]'::jsonb END
+                ) > 0
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(rule."citationLocatorRefs") = 'array'
+                      THEN rule."citationLocatorRefs" ELSE '[]'::jsonb END
+                  ) AS citation(ref)
+                  WHERE NOT EXISTS (
+                    SELECT 1 FROM "LegalDocumentChunk" AS chunk
+                    WHERE chunk."legalSourceVersionId" = source."id"
+                      AND chunk."documentId" = citation.ref->>'documentId'
+                      AND chunk."locator" = citation.ref->>'locator'
+                      AND chunk."legalEffectStatus"::text IN (${LegalEffectStatus.EFFECTIVE}, ${LegalEffectStatus.UNKNOWN})
+                  )
+                )
+            `,
+          );
+          return {
+            catalogVersionId: page.catalog.id,
+            catalogVersion: page.catalog.version,
+            catalogRevision: page.catalog.revision,
+            legalSourceVersionId: page.catalog.legalSourceVersionId,
+            total,
+            eligibleTotal: Number(eligibleRows[0]?.eligible ?? 0),
+            page: query.page,
+            limit: query.limit,
+            items: page.items.map((item) =>
+              legalRuleListItemSchema.parse(item),
+            ),
+          };
+        }
+        let catalog: Awaited<
+          ReturnType<LegalRuleCatalogService["entries"]>
+        >["catalog"];
+        let scanned = 0;
+        let total = 0;
+        let eligibleTotal = 0;
+        const pageItems: ReturnType<LegalRuleCatalogService["filter"]> = [];
+        const pageStart = (query.page - 1) * query.limit;
+        while (true) {
+          const batch = await this.entries(tx, catalogId, cid, {
+            skip: scanned,
+            take: LIST_PROJECTION_BATCH_SIZE,
+          });
+          catalog = batch.catalog;
+          scanned += batch.items.length;
+          if (scanned > LEGAL_RULE_LIMITS.catalogRules)
+            catalogFailure(E.TOO_LARGE, cid);
+          const matching = this.filter(batch.items, query);
+          for (const item of matching) {
+            if (!item.ineligibleReason) eligibleTotal += 1;
+            if (total >= pageStart && pageItems.length < query.limit)
+              pageItems.push(item);
+            total += 1;
+          }
+          if (batch.items.length < LIST_PROJECTION_BATCH_SIZE) break;
+        }
         return {
           catalogVersionId: catalog.id,
           catalogVersion: catalog.version,
           catalogRevision: catalog.revision,
           legalSourceVersionId: catalog.legalSourceVersionId,
-          total: matching.length,
-          eligibleTotal: matching.filter((item) => !item.ineligibleReason)
-            .length,
+          total,
+          eligibleTotal,
           page: query.page,
           limit: query.limit,
-          items: matching
-            .slice((query.page - 1) * query.limit, query.page * query.limit)
-            .map((item) => legalRuleListItemSchema.parse(item)),
+          items: pageItems.map((item) => legalRuleListItemSchema.parse(item)),
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
@@ -935,7 +1029,9 @@ export class LegalRuleCatalogService {
           // Why: Windows CRLF and Unix LF newlines must produce identical hash verification to avoid false rejections.
           // How: Normalize carriage returns (\r\n to \n) before computing sha256Hex for chunk verification.
           // Invariant: Pinned canonical source hashes remain compatible across OS environments.
-          const normalizedContent = chunk ? chunk.content.replace(/\r\n/gu, "\n") : "";
+          const normalizedContent = chunk
+            ? chunk.content.replace(/\r\n/gu, "\n")
+            : "";
           const expectedHash = ref.contentSha256.replace(/^sha256:/u, "");
           const matchesHash =
             chunk &&
