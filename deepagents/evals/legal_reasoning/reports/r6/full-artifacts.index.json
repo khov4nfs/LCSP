@@ -1,0 +1,418 @@
+{
+  "archive": "full-artifacts.zip",
+  "archiveSha256": "2f709f2bb3b0e9f34008f4e2b420adce7f941547148217ca560d416dfa6f9196",
+  "classification": "SCRIPTED_ONLY_ZERO_REVIEWED_GOLD",
+  "fileCount": 82,
+  "files": [
+    {
+      "path": "lcsp400-r6-ALL/legal-reasoning.json",
+      "sha256": "dfa84892c3da6cae6c7c1c19a4ff5b64858322deb76c5fc1335f8906839d19d4",
+      "bytes": 1079478
+    },
+    {
+      "path": "lcsp400-r6-ALL/manifest.json",
+      "sha256": "3e457356b6edcd561cbc5e9f6ea241b6a58f21bb81eb4056dbcbf27611ba800d",
+      "bytes": 14459
+    },
+    {
+      "path": "lcsp400-r6-ALL/report.csv",
+      "sha256": "3902206e4552f5ebb5ddc45c795e5d346822d2bbb31bfb965b176cac22dbf9fd",
+      "bytes": 2898
+    },
+    {
+      "path": "lcsp400-r6-ALL/report.json",
+      "sha256": "37d806a2b181bc1fd4ff95b047dc53abea2fb26bc7c2989054c609a5bb6e05d5",
+      "bytes": 5717
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/archive-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "117c1fd86f682d9040b0fab31f31e35de2061a85b66f37b6ce596f3546f3d628",
+      "bytes": 22646
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/archive-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "b8d8ca9de6aedab123fa63fca803d04013f0cfbc8de823c8cc3d7c171042168f",
+      "bytes": 26056
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/archive-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "17aa80812a696560b9cd8fc4ad50d68a80b8a1c446df547956590a9a852c5375",
+      "bytes": 23755
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/assist-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "e0921513628155c0c90f46549805d4d0e441720caa1584423489074faf69a624",
+      "bytes": 22627
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/assist-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "7cca88464643055dbc60dbb8e8c5e93ad7eddfa281cc66811f25694507d85406",
+      "bytes": 26037
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/assist-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "1ae4da9eeb8f0cf92acf29ea0f9863fed822ec1b762fd08cf66e3fdf6fb93c37",
+      "bytes": 26475
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/assist-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "057500014245cc8a124b43af0a784f00a4fe87ce0a95838b342f5480b6027039",
+      "bytes": 23736
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/bulletin-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "0e82b479c17e72ecd4967130170c15efb931381f46912eafcb60ea52f516e2e2",
+      "bytes": 22663
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/bulletin-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "178a7be9b680a5e59af04b599c23362c1d1aab0a435f7049e47e070d7dfa5a03",
+      "bytes": 26073
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/bulletin-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "fc63e6ede53906fe5b61fe23074c0958d6864c57e3918166c62a76de92f1559f",
+      "bytes": 26509
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/bulletin-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "6cdc40c1486f8baf04c53bb3b2e917b7ec9f1f3bd96cd2efc121263a442a97ef",
+      "bytes": 23772
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/capture-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "bdcf547d58db9d28ebfa6004ab49aee66b6e91936aa356ed509eef6c01aef6bf",
+      "bytes": 22646
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/capture-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "4dc20b522f10b1cdca5c731779ba7fc7940b9e33a1804c6a0d7b709bf0327959",
+      "bytes": 26056
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/capture-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "eb9eca6fdbe1e6db158799d3757eef026fe8a5209eb1eedb9aa451be46cd1a0d",
+      "bytes": 26490
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/capture-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "ac0dc5f7288921645b4c3c786998af4d1c4a75c9038166aeb9fdb36ebc936bba",
+      "bytes": 23755
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/lattice-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "81972f856658318a884ca0bf2720d7fd1f2ba8aa30ab25a1bf99f9285b0c72c6",
+      "bytes": 22646
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/lattice-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "4e5ec50e9ed7f45c740142b3f5a0c5abaccf910634abec27cfa82a823d37288a",
+      "bytes": 26056
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/lattice-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "ba9b1569cc5c247e4862654583496e9a334ddfb010ba52d7435a06be4538f162",
+      "bytes": 26492
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/lattice-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "c9147bc9d8ffccb3c94fb429c0c25477036c9ea65c2d0a6147b9e6b2b270cb85",
+      "bytes": 23755
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/prototype-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "0f979059661aead7761ebae62c182a25abf465f16acc5751705889d9165e649f",
+      "bytes": 22680
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/prototype-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "f34fa439c4be8554c6246d3c3ac6f25e08b717a3c687bff586844979ee0ae7cd",
+      "bytes": 26090
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/prototype-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "a90c16caed45d456b152e02c68f0249fd490f5a9f47a2e1223c0900b552035a5",
+      "bytes": 23789
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/studio-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "ddcd19a405714dba5748fa43e2c0ffc67e4df75d8005c32e2df295d5cd426574",
+      "bytes": 22629
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/studio-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "39a23e62e3a9bb918665565ff403941b182971cbf504e08f1984faf8c19099df",
+      "bytes": 26039
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/studio-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "d3ec33d85eaa50b5ca2f08068ae1723f13a478bb8ff93c8d35694faa08a3d58d",
+      "bytes": 26475
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/studio-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "dd6fedb0e7ed04373dedf105d153352250d90eda98bc351dee286e821b987950",
+      "bytes": 23738
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/workbench-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "239e8cc1207000f9d174a303a69938fa3ab9494fd4ae5b2a5732b67d5f889e26",
+      "bytes": 22678
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/workbench-VN-AI-MEDIA-MARK_t0_WAITING_FOR_HUMAN.json",
+      "sha256": "2fb48224558a8afd619aed44a01e05a50f4a4e96c29ab8f505315ee8395cddda",
+      "bytes": 26120
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/workbench-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "213c326aa593756f504c95c18bea86bd134b826f74c5edbc88b22942ad8b3b89",
+      "bytes": 26526
+    },
+    {
+      "path": "lcsp400-r6-ALL/traces/workbench-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "cef82ba0e042e8dd6b763c6e02bc9f140a72922488f61cb83a784d7f5d821db8",
+      "bytes": 23787
+    },
+    {
+      "path": "lcsp400-r6-ALL/trials.jsonl",
+      "sha256": "fb98740057254d01f092c8392eed433a4446b78d42e8a444a9e68fd923d67d8a",
+      "bytes": 37551
+    },
+    {
+      "path": "lcsp400-r6-DEV/legal-reasoning.json",
+      "sha256": "392f7f637350b2306b3bd8253e6cfe0531f5a68189b5e1866ed094bb9d919ffd",
+      "bytes": 851874
+    },
+    {
+      "path": "lcsp400-r6-DEV/manifest.json",
+      "sha256": "9399296da1d35e67888fae2afc06dbe6e0a4fa22d03b4444897c9760679f882f",
+      "bytes": 13312
+    },
+    {
+      "path": "lcsp400-r6-DEV/report.csv",
+      "sha256": "240e645eec949290c29a0f5d68045e8230bbc4a24a57e1cdd30b376afceb1be3",
+      "bytes": 2114
+    },
+    {
+      "path": "lcsp400-r6-DEV/report.json",
+      "sha256": "8abfba26a28b3b04e3f229851c7ddc2ba80e5bae7d97ef952d9b35c820813abd",
+      "bytes": 5667
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/archive-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "6928a0f67a7d29837f367b531308f280133ecc13016223bca1ce8374ae2f34a5",
+      "bytes": 26056
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/archive-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "8fc37536c2eebb14593e149fe937a5108a69257d8b1c7b193ba86f5f4cfe1c76",
+      "bytes": 23755
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/assist-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "b81409bc8ee2d5c7870ab4d9b10d9e25986c12391a4ce048db9d356a3dca6203",
+      "bytes": 26037
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/assist-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "1c51e548e5024ea772dc82bf803feb86ed741b208fc3d89b06c36b5170d372fa",
+      "bytes": 26475
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/assist-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "6b719135d2cda78ac00152cc5460e4956ffa90bd2c1472a2a7979626c7375944",
+      "bytes": 23736
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/bulletin-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "5b5d847fb570920269d3f14fbf1196a36693cd658a18058df7a869bfee072b5f",
+      "bytes": 26073
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/bulletin-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "0b3e09667d0a4485286a4fa8a6c94f735affcee7a7904da69385cb203c365db6",
+      "bytes": 26509
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/bulletin-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "72c0c7ab90b17af7d950bf7b9510e23ce21b31c10d964da7b3295a64ba087b78",
+      "bytes": 23772
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/capture-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "c6de26f556909bc1181919e62bf02b550e65fa68b4289a6401c405b0c7c71bcb",
+      "bytes": 26056
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/capture-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "de36d9b36c14e0099b844ec0166f94f24d653a6ec6cc5217216e45ea95cdb22d",
+      "bytes": 26490
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/capture-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "cbbb1dee4f6f7102cf0c026ce8b817cab9bbe32a99314d06ed82a28841380e87",
+      "bytes": 23755
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/lattice-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "51954d0b187ccf558606cbfb29d3202ea34215e5832ffe399698ee2255aa5b0b",
+      "bytes": 26056
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/lattice-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "2ddf8c1775827744f4f2800cf335f0e2878b31973b9bf62386bfef49b6ed3eb8",
+      "bytes": 26492
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/lattice-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "90e7044d1194c5e42c5ae071634df8d264026076345ca5f6ef99a43e4a919f7d",
+      "bytes": 23755
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/prototype-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "17a5ed6b1ab623ce3b362babdfc30d2673161afe8895d83c6a2b76a29d16a8c7",
+      "bytes": 26090
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/prototype-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "be8e22d3f470bcf86edb69c27ae956e269b6263381441d3bc23bd72985320866",
+      "bytes": 23789
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/studio-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "f11e763fbcc5398d09b5488e1d9a6e51c4d8faaa0137f56336bdb49e317a969a",
+      "bytes": 26039
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/studio-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "42c185a65a45aedd454ed36bd466bfdca23462bf0dd69942892a6ea54e712ae5",
+      "bytes": 26475
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/studio-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "e62642f53ab5b284f196dc342b33a50ee45e90426205341628f7916c7de92cd4",
+      "bytes": 23738
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/workbench-VN-AI-MEDIA-MARK_t0_WAITING_FOR_HUMAN.json",
+      "sha256": "6c5cd594fd7aefe5c41a2fa82f4d4d1b8187b70d5115a8548488628e44e31b07",
+      "bytes": 26120
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/workbench-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "d1b0a046b79497fce4b8a4335817ee0e5a50604fe0d36a6b5a7984c22807e946",
+      "bytes": 26526
+    },
+    {
+      "path": "lcsp400-r6-DEV/traces/workbench-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "215ad06f2cf56b3c54f24400f9384f7f99762858396778d26414aca31427403f",
+      "bytes": 23787
+    },
+    {
+      "path": "lcsp400-r6-DEV/trials.jsonl",
+      "sha256": "e4c7de66b4253ec3bee11dccb4c7d9fc9ec92cae9c872189803e604fc7c17438",
+      "bytes": 27368
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/legal-reasoning.json",
+      "sha256": "8f8169a3d158ac274791cc1f3ad7286ecfa4fac041d5a701f242bbf377850286",
+      "bytes": 317223
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/manifest.json",
+      "sha256": "f6a37c280f20ce1de46ff31f997528003705f3ff6ae09a7fcc064cc6b6811f0c",
+      "bytes": 11492
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/report.csv",
+      "sha256": "24f6c7cfc6915e53873a070ce5d98db502810ef79c4d3b8111808ac0a7584d94",
+      "bytes": 1013
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/report.json",
+      "sha256": "7af492a03de1c082bba441568cd072d27983828f7dfd78cbf02c72aa7ee599ae",
+      "bytes": 5640
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/archive-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "49cd77be033ea624714c469ec2e79943b2e7d0b3b9a058fd0f94747cb6f1330d",
+      "bytes": 22658
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/assist-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "e0f1eb83590421a36a931805dab97333e91550369c5ffb669d4186a06e2df229",
+      "bytes": 22639
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/bulletin-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "d8647a5f7787197f7973c5ea9c0fb7075cfe4d7e79e691cdd99b520bfe7953bb",
+      "bytes": 22675
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/capture-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "95580a1fc13eb88e7e4f3c999ed2ea7acd0473c251b0e185a983dcf1b9473e9f",
+      "bytes": 22658
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/lattice-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "2a301d5c0cb0b6f8ee26819f0ad68e6ee0e1d4c3f4161b55c30040cf44892324",
+      "bytes": 22658
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/prototype-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "417a8bd38ae1d6d83e07fc627e1d3c7656ed723d12da85b5c3953ce10f98d7d3",
+      "bytes": 22692
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/studio-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "fbd92847006cfe9ffdd3fd0d90e290171ad4601de5e557b5a8d986ace9cc8440",
+      "bytes": 22641
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/traces/workbench-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "df62bad453a796dd22da453557dd64769a384292801f778845cd4d310769a51d",
+      "bytes": 22690
+    },
+    {
+      "path": "lcsp400-r6-HOLDOUT/trials.jsonl",
+      "sha256": "3a18e588a5b1e544914e72a4c84a4795b67ccaca93c390eeb8c09c920782cd4b",
+      "bytes": 10213
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/legal-reasoning.json",
+      "sha256": "452bb8d775f5340962c4151562036a0e60055a50c9cda19fac67a7e34b6d84a7",
+      "bytes": 246521
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/manifest.json",
+      "sha256": "cfc72a5eac7426b5fd3f01d629980f3d8dab667661149f8f621e720c654a7b27",
+      "bytes": 10644
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/report.csv",
+      "sha256": "125ddc39a3e405ffeb6968f4dabf3cd66793239e9028dee5095f7b0cf66e16d4",
+      "bytes": 430
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/report.json",
+      "sha256": "df18105ef8892de427fbf0767f95a21277decb546f0d9ca83b2bd3ba6e960690",
+      "bytes": 5518
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/traces/vn-official-mark-verification-hitl_t0_RESUME_FINAL.json",
+      "sha256": "6f9767040ac40611469075b623069a86cd80d1886c4d985e1f2aa4cbcf6fa2d5",
+      "bytes": 31358
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/traces/vn-official-mark-verification-hitl_t0_WAITING_FOR_HUMAN.json",
+      "sha256": "a399b9ce006145c20f578fd22c2d6059ce29ec42970be549aa862576f41dbb2f",
+      "bytes": 23420
+    },
+    {
+      "path": "lcsp400-r6-official-hitl/trials.jsonl",
+      "sha256": "c5246945b6a585b2ce493681a25fadfff10731af85c2b5da6c4d75c0672092bd",
+      "bytes": 2603
+    }
+  ]
+}

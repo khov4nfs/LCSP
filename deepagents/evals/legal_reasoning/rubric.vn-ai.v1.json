@@ -1,0 +1,266 @@
+{
+  "datasetVersion": "LCSP-400-VIETNAM-AI-CANDIDATES-V1",
+  "dimensions": {
+    "ACTOR": {
+      "annotationDecisionRules": [
+        "Record the expected actor as source-language role labels and judge role identity, not surface wording.",
+        "Use MULTIPLE_DISTINCT when separate duties have separate actors and all are represented distinctly.",
+        "Do not assume that a contractual allocation changes the statutory actor unless the cited law supports that result."
+      ],
+      "correctExamples": [
+        "Preserving the provider as the actor where the cited provision assigns the duty to the provider."
+      ],
+      "definition": "Whether each obligation is attributed to the legally responsible actor stated in the pinned source, including distinct concurrent duties and role changes supported by facts.",
+      "domainMapping": "Rule Set Preparation claim files carry an actor in the operative semantic frame; packet-schema LegalRequirement/AssessmentRule retains source-bound actor conditions. Assessment Root references legal contexts and records a rationale, but its RuleDecision does not expose a canonical actor field, so actor correctness requires a human judgment rather than inferred text matching.",
+      "incorrectExamples": [
+        "Assigning the provider's Article 17 duty to a deployer because the deployer publishes output."
+      ],
+      "labels": [
+        "CORRECT",
+        "INCORRECT",
+        "MISSING",
+        "MULTIPLE_DISTINCT"
+      ],
+      "metricEligibility": "Both stages. Predictions require human judgment because actor identity is semantic and is not safely determined by string matching.",
+      "metricGroup": "SEMANTIC_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": true
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    },
+    "APPLICABILITY": {
+      "annotationDecisionRules": [
+        "Annotate APPLICABLE or NOT_APPLICABLE only when material scope facts are established.",
+        "Use UNRESOLVED when a legally material fact remains unknown; do not turn missing evidence into a negative fact.",
+        "Keep source-scope extraction at Rule Set Preparation separate from scenario-level application at Assessment Root."
+      ],
+      "correctExamples": [
+        "Provider and triggering facts place a medium/high-risk system within the cited classification scope."
+      ],
+      "definition": "Whether a specific pinned legal obligation governs the scenario after applying its stated scope, territorial/material reach, actor, triggering conditions, exclusions, and established facts.",
+      "domainMapping": "Assessment Root exposes APPLICABLE and NOT_APPLICABLE. Missing material facts do not create a third production status: preserve the open human-resolution request and annotate UNRESOLVED for evaluation. Rule Set Preparation authors the source rule and scope; it does not decide scenario applicability.",
+      "incorrectExamples": [
+        "Applying a provider duty to a deployer when the case states the organization is not the provider."
+      ],
+      "labels": [
+        "APPLICABLE",
+        "NOT_APPLICABLE",
+        "UNRESOLVED"
+      ],
+      "metricEligibility": "Score only for Assessment Root cases with REVIEWED or ADJUDICATED labels and a reviewed observed prediction. No Rule Set Preparation applicability metric is emitted.",
+      "metricGroup": "SEMANTIC_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": false
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    },
+    "COMPLIANCE": {
+      "annotationDecisionRules": [
+        "Use SUPPORTED_COMPLIANCE or SUPPORTED_NON_COMPLIANCE only where the relevant condition and facts support the conclusion.",
+        "Use INSUFFICIENT_EVIDENCE where evidence does not establish whether the obligation was met.",
+        "Use UNRESOLVED when a material human fact remains unanswered; use NOT_APPLICABLE only when applicability is explicitly false."
+      ],
+      "correctExamples": [
+        "A verified, applicable record supports only the particular statutory element it documents."
+      ],
+      "definition": "Whether known facts establish that an applicable obligation was met or not met, without enlarging the obligation or converting an evidence gap into a violation.",
+      "domainMapping": "Assessment Root compliance maps COMPLIANT to SUPPORTED_COMPLIANCE and NON_COMPLIANT to SUPPORTED_NON_COMPLIANCE. NOT_APPLICABLE is inferred only from an explicit NOT_APPLICABLE decision with null compliance, matching the contract invariant. The other labels are evaluation-only; missing facts remain an open human resolution rather than a production compliance enum.",
+      "incorrectExamples": [
+        "Treating an incomplete or unverified record as proof of non-compliance."
+      ],
+      "labels": [
+        "SUPPORTED_COMPLIANCE",
+        "SUPPORTED_NON_COMPLIANCE",
+        "INSUFFICIENT_EVIDENCE",
+        "UNRESOLVED",
+        "NOT_APPLICABLE"
+      ],
+      "metricEligibility": "Assessment Root only; reviewed labels and separately reviewed output judgments are required. Insufficient evidence and unresolved labels remain distinct classes.",
+      "metricGroup": "SEMANTIC_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": false
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    },
+    "CONDITIONS": {
+      "annotationDecisionRules": [
+        "List every material condition supported by the cited provisions; separate legal predicates from scenario facts.",
+        "Use PARTIAL when at least one material condition is present but another is omitted.",
+        "Use INCORRECT when a condition is contradicted, materially broadened, or narrowed; MISSING when no condition is represented."
+      ],
+      "correctExamples": [
+        "Preserving provider status, risk level, timing, and the separate direct-interaction or audiovisual trigger."
+      ],
+      "definition": "Whether material triggers, scope limitations, thresholds, timing rules, qualifiers, and factual predicates are preserved and applied without strengthening or dropping them.",
+      "domainMapping": "Rule Set Preparation source claims use CONDITION, SCOPE, QUALIFIER and typed semanticFrame fields such as trigger, scope, modality and temporal conditions. Assessment Root LegalRequirement and RuleDecision criteria/confirmed facts represent requirements and their evidence. Labels are evaluation-only.",
+      "incorrectExamples": [
+        "Dropping a statutory trigger and applying a duty to every AI system."
+      ],
+      "labels": [
+        "COMPLETE",
+        "PARTIAL",
+        "INCORRECT",
+        "MISSING",
+        "NOT_APPLICABLE"
+      ],
+      "metricEligibility": "Both stages; output comparisons need recorded human judgments unless a structured typed claim can be normalized without interpretation.",
+      "metricGroup": "SEMANTIC_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": true
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    },
+    "EVIDENCE_SUFFICIENCY": {
+      "annotationDecisionRules": [
+        "Judge evidence separately from legal reasoning; strong reasoning with weak evidence must remain distinguishable.",
+        "Use PARTIAL when evidence supports some but not all material facts; CONTRADICTORY when reliable evidence conflicts with the claimed fact.",
+        "Use INVALID_OR_UNRESOLVED_PROVENANCE when source identity, version, integrity, or chain of custody is not established."
+      ],
+      "correctExamples": [
+        "A digest-bound release-evidence file supports only the fields it actually contains."
+      ],
+      "definition": "Whether evidence is relevant, sufficient, temporally and contextually matched, and supported by valid provenance for the factual proposition and conclusion it is offered to support.",
+      "domainMapping": "Assessment Root references evidence through ASSESSMENT_EVIDENCE IDs and confirmed facts through CONFIRMED_FACT references. Deterministic integrity checks validate reference shape and identity; human review judges substantive sufficiency. Rule Set Preparation source pin/hash integrity remains a contract check, not an evidence-quality semantic score.",
+      "incorrectExamples": [
+        "Using a missing or unverified field as conclusive proof of a violation."
+      ],
+      "labels": [
+        "SUFFICIENT",
+        "PARTIAL",
+        "MISSING",
+        "IRRELEVANT",
+        "CONTRADICTORY",
+        "INVALID_OR_UNRESOLVED_PROVENANCE"
+      ],
+      "metricEligibility": "Assessment Root only. A human reviewer must judge the observed evidence use; no keyword or file-name heuristic is allowed.",
+      "metricGroup": "EVIDENCE_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": false
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    },
+    "EXCEPTIONS": {
+      "annotationDecisionRules": [
+        "Record every material exception predicate and the obligation it qualifies.",
+        "Use COMPLETE when the exception and its trigger are preserved, PARTIAL when some but not all predicates are, and INCORRECT when applied despite a failed predicate.",
+        "Use NOT_APPLICABLE only when the cited obligation has no relevant exception in the scenario."
+      ],
+      "correctExamples": [
+        "Preserving the Article 11(1) legal exception and the separate Article 17(5) open/free-system route."
+      ],
+      "definition": "Whether each source-stated exception, exclusion, or safe harbor is linked to the obligation it qualifies and applied only when its predicates are established.",
+      "domainMapping": "Rule Set Preparation represents source exceptions with EXCEPTION claims and typed semantic frames/context relations. Assessment Root applies them through legal-context conditions and supported facts; no production exception enum is added.",
+      "incorrectExamples": [
+        "Applying Article 17(5) without facts that establish an open/free system and audiovisual output."
+      ],
+      "labels": [
+        "COMPLETE",
+        "PARTIAL",
+        "INCORRECT",
+        "MISSING",
+        "NOT_APPLICABLE"
+      ],
+      "metricEligibility": "Both stages; observed free-text exception treatment requires a separate human judgment.",
+      "metricGroup": "SEMANTIC_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": true
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    },
+    "UNSUPPORTED_CONCLUSION": {
+      "annotationDecisionRules": [
+        "Classify the primary unsupported claim and cite the exact missing legal or factual support.",
+        "Use NONE only when conclusions stay within the source, facts, and evidence.",
+        "Distinguish legal overreach from misreading repository evidence and from relying on unverified hints."
+      ],
+      "correctExamples": [
+        "Limiting a conclusion to the pinned Vietnamese provision and established scenario facts."
+      ],
+      "definition": "Whether an output asserts an obligation or legal/factual conclusion beyond the pinned authority, scenario facts, or admissible evidence, including treating search hints as verified support.",
+      "domainMapping": "Rule Set Preparation separates LEGAL_NORMATIVE claims from definitions, context, and guidance and anchors claims to sourceNodeIds. Assessment Root RuleDecision references legal contexts and evidence IDs; neither contract alone establishes whether prose overclaims, so human semantic judgment is required.",
+      "incorrectExamples": [
+        "Inventing a universal encryption obligation from the cited AI-law provisions."
+      ],
+      "labels": [
+        "NONE",
+        "INVENTED_OBLIGATION",
+        "UNSUPPORTED_APPLICABILITY",
+        "UNSUPPORTED_COMPLIANCE",
+        "REPOSITORY_EVIDENCE_MISINTERPRETED",
+        "UNVERIFIED_HINT_OR_ASSUMPTION"
+      ],
+      "metricEligibility": "Both stages; only separately human-judged observed output is scored.",
+      "metricGroup": "SEMANTIC_QUALITY",
+      "stageApplicability": {
+        "ASSESSMENT_ROOT": true,
+        "RULE_SET_PREPARATION": true
+      },
+      "uncertainAndExcludedCases": "Keep uncertain any issue depending on an unpinned rule, transition date, actor role, or material fact; exclude issues requiring an external legal interpretation."
+    }
+  },
+  "domainContractSources": [
+    "Law 134/2025/QH15, Articles 10, 11, 34 and 35 (official Công báo PDF pin)",
+    "Decree 142/2026/NĐ-CP, Articles 12, 16, 17 and 45 (official Công báo PDF pin)",
+    "LCSP-402 pinned policy fixture references; candidate labels require independent legal review"
+  ],
+  "labelNormalization": {
+    "APPLICABILITY": {
+      "APPLICABLE": "APPLICABLE",
+      "NOT_APPLICABLE": "NOT_APPLICABLE",
+      "UNRESOLVED": "UNRESOLVED"
+    },
+    "COMPLIANCE": {
+      "COMPLIANT": "SUPPORTED_COMPLIANCE",
+      "INSUFFICIENT_EVIDENCE": "INSUFFICIENT_EVIDENCE",
+      "NON_COMPLIANT": "SUPPORTED_NON_COMPLIANCE",
+      "NOT_APPLICABLE": "NOT_APPLICABLE",
+      "UNRESOLVED": "UNRESOLVED"
+    },
+    "note": "UNRESOLVED, INSUFFICIENT_EVIDENCE and evaluation classifications are rubric labels, not production statuses. An unresolved Assessment Root fact is represented by no final decision plus an open HumanResolutionRequest. Absence of evidence alone never maps to NON_COMPLIANT."
+  },
+  "methodologyReference": "LegalBench: A Collaboratively Built Benchmark for Measuring Legal Reasoning in Large Language Models, NeurIPS 2023. Used as an evaluation-methodology reference only; no LegalBench task or labels are copied.",
+  "reviewEligibility": {
+    "agentAuthoredData": "CANDIDATE by default; no identity, approval, reviewer, or consensus may be fabricated.",
+    "eligibleStatuses": [
+      "REVIEWED",
+      "ADJUDICATED"
+    ],
+    "requiredForAdjudicated": [
+      "eligible human reviewer records",
+      "adjudicator id",
+      "reviewEvidenceRef",
+      "outcome",
+      "rationale",
+      "adjudicatedAt"
+    ],
+    "requiredForReviewed": [
+      "reviewerId",
+      "reviewerType=HUMAN",
+      "identityVerificationRef",
+      "reviewedAt",
+      "decision",
+      "dimensionsReviewed"
+    ],
+    "unresolvedDisagreement": "Never eligible until an independent human adjudicator records an outcome; model agreement is not adjudication."
+  },
+  "rubricId": "LCSP-400-HUMAN-REVIEWED-VIETNAM-AI-LEGAL-REASONING",
+  "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-VN-AI-V1",
+  "scoringContract": {
+    "confusionMatrixOrientation": "Rows are gold labels; columns are predictions.",
+    "determinism": "Stable case, stage, dimension, class, and JSON key ordering; six decimal precision; no clocks or model calls.",
+    "emptyEligibleSet": "NOT_SCORED with null macro-F1 and zero denominator, plus explicit coverage counts.",
+    "excludedGold": "Excluded from quality metric denominator and counted separately.",
+    "macroF1": "Arithmetic mean of per-class F1 for labels with gold or prediction support; labels absent from both are omitted.",
+    "missingPrediction": "Included in denominator under __MISSING__; counted in missingPredictionCount and generates false negatives for the gold class.",
+    "nonApplicableDimension": "Omitted from that dimension's denominator; applicability remains visible in applicableCaseCount.",
+    "provisionalGold": "Excluded from quality metric denominator and counted in review coverage.",
+    "unknownPrediction": "Included in denominator under __UNKNOWN__; counted in invalidPredictionCount and is not silently dropped.",
+    "zeroDenominator": "Null, never 0 or 1."
+  }
+}

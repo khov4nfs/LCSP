@@ -539,7 +539,7 @@ def run_repository_retrieval(binary: Path, output_dir: Path) -> dict:
         if repo.repo_id not in pilot_pins:
             if repo.snapshot_kind != "SYNTHETIC_FIXTURE":
                 raise ValueError("Host retrieval benchmark requires trusted synthetic fixtures")
-            source = DEEPAGENTS_ROOT / repo.fixture_dir
+            source = DEEPAGENTS_ROOT / repo.portable_fixture_dir
             if source.is_symlink() or not source.resolve().is_relative_to((_FIXTURES / "repos").resolve()):
                 raise ValueError("P14 source must be a checked-in fixture directory")
             _source_files(source)
@@ -554,7 +554,7 @@ def run_repository_retrieval(binary: Path, output_dir: Path) -> dict:
         if case.pilotCaseId:
             pilot = pilot_cases[case.pilotCaseId]
             pin = pilot_pins[pilot.repo_pin.repo_id]["treeSha256"]
-            source = DEEPAGENTS_ROOT / pilot.repo_pin.fixture_dir
+            source = DEEPAGENTS_ROOT / pilot.repo_pin.portable_fixture_dir
         else:
             pin = fixture["fixtureSha256"]
             source = _FIXTURES / "repos" / fixture["fixture"]

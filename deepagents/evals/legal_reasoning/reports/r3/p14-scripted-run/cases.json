@@ -1,0 +1,459 @@
+{
+  "schemaVersion": "LCSP_BENCHMARK_CASES_V1",
+  "cases": [
+    {
+      "case_id": "CASE-01",
+      "title": "Context wizard READY with pinned artifacts",
+      "task_category": "context_wizard_ready",
+      "split": "DEV",
+      "is_negative_control": false,
+      "is_fault_injection": false,
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "locale": "en",
+      "repo_pin": {
+        "repo_id": "repo-01-consent-app",
+        "commit_sha": "synthetic-16e21ad3807f",
+        "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
+        "untrusted_code_execution_allowed": false,
+        "snapshot_kind": "SYNTHETIC_FIXTURE"
+      },
+      "corpus_pin": {
+        "corpus_id": "vn-pdpl-2025",
+        "version": "2025.1",
+        "digest_sha256": "e6edef2476d0fea459c3f13eb7f175e1b50037aff9ce9a11b8e11983618ca67f"
+      },
+      "rule_set_pin": {
+        "rule_set_version_id": "rs-demo-v1",
+        "rule_ids": [
+          "ER-DEMO-01"
+        ],
+        "digest_sha256": "6bd786da479c7fae5889095c5c908e1678b348ae732b67e9eec847aeac6f6a47"
+      },
+      "hitl_answers": [],
+      "gold_rubric": {
+        "gold_revision": "gold-pilot-r1",
+        "stages": [
+          {
+            "stage": "INITIAL",
+            "expected_lifecycle_state": "COMPLETE",
+            "expected_verdict": "APPLICABLE_COMPLIANT",
+            "required_evidence_refs": [
+              "ev-case-01-1"
+            ],
+            "expected_hitl_state": "NONE",
+            "expected_persisted_state": {
+              "lifecycleState": "COMPLETE",
+              "openHumanRequests": 0
+            },
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "opt_in: bool",
+                  "Explicit opt-in"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
+          }
+        ],
+        "notes": "Seeded benchmark gold for context_wizard_ready"
+      },
+      "offline_fixture_output": {
+        "stages": {
+          "INITIAL": {
+            "lifecycleState": "COMPLETE",
+            "verdict": "APPLICABLE_COMPLIANT",
+            "evidenceRefs": [
+              "ev-case-01-1"
+            ],
+            "hitlState": "NONE",
+            "persistedState": {
+              "lifecycleState": "COMPLETE",
+              "openHumanRequests": 0
+            },
+            "authorityViolation": false,
+            "evidenceRecords": {
+              "ev-case-01-1": {
+                "evidenceType": "REPOSITORY_SOURCE",
+                "repositoryId": "repo-01-consent-app",
+                "commitSha": "synthetic-16e21ad3807f",
+                "path": "src/consent.py",
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
+              }
+            }
+          }
+        }
+      },
+      "legal_provisions": [
+        {
+          "document_id": "vn-pdpl-2025",
+          "locator": "art-11",
+          "title": "Consent before personal data processing (CASE-01)",
+          "content": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+          "content_sha256": "949304d5bbefc4018e957f1d21efe66e6bacdc90333db21f9eeb98fdd2e0b352",
+          "source_kind": "SYNTHETIC_PINNED_LAW"
+        }
+      ],
+      "rule_definitions": [
+        {
+          "rule_id": "ER-DEMO-01",
+          "concept": "context_wizard_ready",
+          "legal_requirement_id": "LR-CASE-01",
+          "requirement_title": "Consent before personal data processing — Context wizard READY with pinned artifacts",
+          "requirement_proposition": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+          "applicability_conditions": [
+            "Processes personal data of natural persons",
+            "Not an internal-only developer utility"
+          ],
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "Consent capture enforces non-empty purpose and explicit opt-in status."
+            }
+          ],
+          "exceptions": [
+            "Statutory emergency exemption"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "CASE-17",
+      "title": "Audit log gap yields APPLICABLE_NON_COMPLIANT with source citation",
+      "task_category": "investigator_production_evidence",
+      "split": "DEV",
+      "is_negative_control": false,
+      "is_fault_injection": false,
+      "reviewer": "legal-qa-reviewer-1",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "locale": "en",
+      "repo_pin": {
+        "repo_id": "repo-02-audit-gap",
+        "commit_sha": "synthetic-e697ed5e29c9",
+        "fixture_dir": "evals/fixtures/benchmark/repos/repo-02-audit-gap",
+        "untrusted_code_execution_allowed": false,
+        "snapshot_kind": "SYNTHETIC_FIXTURE"
+      },
+      "corpus_pin": {
+        "corpus_id": "vn-pdpl-2025",
+        "version": "2025.1",
+        "digest_sha256": "377806c61c14f1f5e8e58e6f07002af153bd73079e0f2f51971360b5391055b0"
+      },
+      "rule_set_pin": {
+        "rule_set_version_id": "rs-demo-v1",
+        "rule_ids": [
+          "ER-DEMO-01"
+        ],
+        "digest_sha256": "29796840e2013a77938a8c17765b45f18301bd76373fea607244e081b3795daf"
+      },
+      "hitl_answers": [],
+      "gold_rubric": {
+        "gold_revision": "gold-pilot-r1",
+        "stages": [
+          {
+            "stage": "INITIAL",
+            "expected_lifecycle_state": "COMPLETE",
+            "expected_verdict": "APPLICABLE_NON_COMPLIANT",
+            "required_evidence_refs": [
+              "ev-case-17-1"
+            ],
+            "expected_hitl_state": "NONE",
+            "expected_persisted_state": {
+              "lifecycleState": "COMPLETE",
+              "openHumanRequests": 0
+            },
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
+          }
+        ],
+        "notes": "Seeded benchmark gold for investigator_production_evidence"
+      },
+      "offline_fixture_output": {
+        "stages": {
+          "INITIAL": {
+            "lifecycleState": "COMPLETE",
+            "verdict": "APPLICABLE_NON_COMPLIANT",
+            "evidenceRefs": [
+              "ev-case-17-1"
+            ],
+            "hitlState": "NONE",
+            "persistedState": {
+              "lifecycleState": "COMPLETE",
+              "openHumanRequests": 0
+            },
+            "authorityViolation": false,
+            "evidenceRecords": {
+              "ev-case-17-1": {
+                "evidenceType": "REPOSITORY_SOURCE",
+                "repositoryId": "repo-02-audit-gap",
+                "commitSha": "synthetic-e697ed5e29c9",
+                "path": "src/audit_log.py",
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
+              }
+            }
+          }
+        }
+      },
+      "legal_provisions": [
+        {
+          "document_id": "vn-pdpl-2025",
+          "locator": "art-26",
+          "title": "Access logging and retention enforcement (CASE-17)",
+          "content": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+          "content_sha256": "2a1c3014740973844ed9ca52e068cea8c232c6c8571b00aee5b7308e2b1b82c9",
+          "source_kind": "SYNTHETIC_PINNED_LAW"
+        }
+      ],
+      "rule_definitions": [
+        {
+          "rule_id": "ER-DEMO-01",
+          "concept": "investigator_production_evidence",
+          "legal_requirement_id": "LR-CASE-17",
+          "requirement_title": "Access logging and retention enforcement — Audit log gap yields APPLICABLE_NON_COMPLIANT with source citation",
+          "requirement_proposition": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+          "applicability_conditions": [
+            "System processes or stores personal data"
+          ],
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "Access logs include actor, action, and enforceable retention policy."
+            }
+          ],
+          "exceptions": [
+            "Anonymized aggregate telemetry"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "CASE-02",
+      "title": "Context wizard NEEDS_INPUT on missing business fact",
+      "task_category": "context_wizard_needs_input",
+      "split": "DEV",
+      "is_negative_control": false,
+      "is_fault_injection": false,
+      "reviewer": "legal-qa-reviewer-2",
+      "reviewed_at": "2026-11-28T00:00:00Z",
+      "locale": "en",
+      "repo_pin": {
+        "repo_id": "repo-04-hitl-retention",
+        "commit_sha": "synthetic-de4b5964d365",
+        "fixture_dir": "evals/fixtures/benchmark/repos/repo-04-hitl-retention",
+        "untrusted_code_execution_allowed": false,
+        "snapshot_kind": "SYNTHETIC_FIXTURE"
+      },
+      "corpus_pin": {
+        "corpus_id": "vn-pdpl-2025",
+        "version": "2025.1",
+        "digest_sha256": "82c98cfaa9f2366a24a3d0b253e507ccaddea781e6fa64b1cf63fafc10005bff"
+      },
+      "rule_set_pin": {
+        "rule_set_version_id": "rs-demo-v1",
+        "rule_ids": [
+          "ER-DEMO-02"
+        ],
+        "digest_sha256": "49f66093ff7f95849fe28fca7dd1310e93c542ef4055222ff0c530f4066b1a97"
+      },
+      "hitl_answers": [
+        {
+          "request_key": "notification_owner",
+          "question_pattern": "owner|retention|operator",
+          "answer": "Data Protection Office owns retention and notification.",
+          "control_type": "FREE_TEXT",
+          "resolves_fact": true
+        }
+      ],
+      "gold_rubric": {
+        "gold_revision": "gold-pilot-r1",
+        "stages": [
+          {
+            "stage": "WAITING_FOR_HUMAN",
+            "expected_lifecycle_state": "WAITING_FOR_HUMAN",
+            "expected_verdict": "WAITING_FOR_HUMAN",
+            "required_evidence_refs": [
+              "ev-case-02-1"
+            ],
+            "expected_hitl_state": "OPEN",
+            "expected_persisted_state": {
+              "lifecycleState": "WAITING_FOR_HUMAN",
+              "openHumanRequests": 1
+            },
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              }
+            ]
+          },
+          {
+            "stage": "RESUME_FINAL",
+            "expected_lifecycle_state": "COMPLETE",
+            "expected_verdict": "APPLICABLE_COMPLIANT",
+            "required_evidence_refs": [
+              "ev-case-02-1",
+              "fact-case-02-1"
+            ],
+            "expected_hitl_state": "RESOLVED",
+            "expected_persisted_state": {
+              "lifecycleState": "COMPLETE",
+              "openHumanRequests": 0
+            },
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              },
+              {
+                "evidence_type": "HUMAN_CONFIRMED_FACT",
+                "required_text_substrings": [
+                  "Data Protection Office"
+                ],
+                "fact_to_prove": "Organizational owner confirmed via HITL"
+              }
+            ]
+          }
+        ],
+        "notes": "Seeded benchmark gold for context_wizard_needs_input"
+      },
+      "offline_fixture_output": {
+        "stages": {
+          "WAITING_FOR_HUMAN": {
+            "lifecycleState": "WAITING_FOR_HUMAN",
+            "verdict": "WAITING_FOR_HUMAN",
+            "evidenceRefs": [
+              "ev-case-02-1"
+            ],
+            "hitlState": "OPEN",
+            "persistedState": {
+              "lifecycleState": "WAITING_FOR_HUMAN",
+              "openHumanRequests": 1
+            },
+            "authorityViolation": false,
+            "evidenceRecords": {
+              "ev-case-02-1": {
+                "evidenceType": "REPOSITORY_SOURCE",
+                "repositoryId": "repo-04-hitl-retention",
+                "commitSha": "synthetic-de4b5964d365",
+                "path": "src/retention.py",
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
+              }
+            }
+          },
+          "RESUME_FINAL": {
+            "lifecycleState": "COMPLETE",
+            "verdict": "APPLICABLE_COMPLIANT",
+            "evidenceRefs": [
+              "ev-case-02-1",
+              "fact-case-02-1"
+            ],
+            "hitlState": "RESOLVED",
+            "persistedState": {
+              "lifecycleState": "COMPLETE",
+              "openHumanRequests": 0
+            },
+            "authorityViolation": false,
+            "evidenceRecords": {
+              "ev-case-02-1": {
+                "evidenceType": "REPOSITORY_SOURCE",
+                "repositoryId": "repo-04-hitl-retention",
+                "commitSha": "synthetic-de4b5964d365",
+                "path": "src/retention.py",
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
+              },
+              "fact-case-02-1": {
+                "evidenceType": "HUMAN_CONFIRMED_FACT",
+                "requestId": "hr-case-02-1",
+                "answer": "Data Protection Office owns retention and notification.",
+                "caseRevision": 1,
+                "status": "RESOLVED"
+              }
+            }
+          }
+        }
+      },
+      "legal_provisions": [
+        {
+          "document_id": "vn-pdpl-2025",
+          "locator": "art-28",
+          "title": "Organizational ownership and retention accountability (CASE-02)",
+          "content": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+          "content_sha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+          "source_kind": "SYNTHETIC_PINNED_LAW"
+        }
+      ],
+      "rule_definitions": [
+        {
+          "rule_id": "ER-DEMO-02",
+          "concept": "context_wizard_needs_input",
+          "legal_requirement_id": "LR-CASE-02",
+          "requirement_title": "Organizational ownership and retention accountability — Context wizard NEEDS_INPUT on missing business fact",
+          "requirement_proposition": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+          "applicability_conditions": [
+            "Operates personal data retention workflow"
+          ],
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "Confirm designated organizational owner and retention period."
+            }
+          ],
+          "exceptions": [
+            "Exempted archival records"
+          ]
+        }
+      ]
+    }
+  ]
+}

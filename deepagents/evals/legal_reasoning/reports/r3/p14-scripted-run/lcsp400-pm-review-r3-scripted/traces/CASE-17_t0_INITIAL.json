@@ -1,0 +1,296 @@
+{
+  "assessmentId": "d5b32274-b4fb-4bc2-a59a-50f2fadb1263",
+  "authorityViolations": [],
+  "caseId": "CASE-17",
+  "checkpointId": null,
+  "clientCalls": [
+    "claim",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "context",
+    "rule_set",
+    "context",
+    "context",
+    "context",
+    "legal_text",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "decision",
+    "context",
+    "context",
+    "context",
+    "finalization",
+    "context",
+    "context",
+    "context",
+    "final_report",
+    "context",
+    "context",
+    "finish"
+  ],
+  "injectedFaultObserved": false,
+  "mode": "SCRIPTED",
+  "observedOutput": {
+    "actualAssessmentDecision": {
+      "decision": {
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "ER-DEMO-01",
+        "assessmentRuleVersion": "v1",
+        "caseRevision": 0,
+        "compliance": "NON_COMPLIANT",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "outcome": "NOT_MET",
+            "rationale": "Gap observed.",
+            "references": [
+              {
+                "evidenceId": "ev-case-17-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ]
+          }
+        ],
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-CASE-17"
+          }
+        ],
+        "rationale": "Observed gap in pinned repository source.",
+        "references": [
+          {
+            "evidenceId": "ev-case-17-1",
+            "type": "ASSESSMENT_EVIDENCE"
+          }
+        ],
+        "repositoryCommit": "synthetic-e697ed5e29c9",
+        "repositorySnapshotId": "snap-repo-02-audit-gap",
+        "ruleSetVersionId": "rs-demo-v1",
+        "scopeId": "ASSESSMENT"
+      },
+      "expectedDecisionRevision": 0,
+      "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
+    },
+    "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+    "assessmentDecisions": [
+      {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-01",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "NON_COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "NOT_MET",
+              "rationale": "Gap observed.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-17-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-17"
+            }
+          ],
+          "rationale": "Observed gap in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-17-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "synthetic-e697ed5e29c9",
+          "repositorySnapshotId": "snap-repo-02-audit-gap",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
+      }
+    ],
+    "assessmentId": "d5b32274-b4fb-4bc2-a59a-50f2fadb1263",
+    "authorityViolations": [],
+    "caseId": "CASE-17",
+    "corpusPin": {
+      "corpus_id": "vn-pdpl-2025",
+      "digest_sha256": "377806c61c14f1f5e8e58e6f07002af153bd73079e0f2f51971360b5391055b0",
+      "version": "2025.1"
+    },
+    "evaluationStage": "ASSESSMENT_ROOT",
+    "evidenceRecords": {
+      "ev-case-17-1": {
+        "commitSha": "synthetic-e697ed5e29c9",
+        "contentSha256": "9586eb3eca47c31790998fcc69b0e13a1c415ea20cb039a54da8ff48e495a858",
+        "end_line": 6,
+        "evidenceId": "ev-case-17-1",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/audit_log.py",
+        "payload": {
+          "contentSha256": "9586eb3eca47c31790998fcc69b0e13a1c415ea20cb039a54da8ff48e495a858",
+          "endLine": 6,
+          "path": "src/audit_log.py",
+          "startLine": 1
+        },
+        "repositoryId": "repo-02-audit-gap",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      }
+    },
+    "evidenceReferences": [
+      "ev-case-17-1"
+    ],
+    "facts": [],
+    "finalReport": {
+      "findings": [
+        {
+          "assessmentRuleId": "ER-DEMO-01",
+          "recommendations": [],
+          "summary": "Gap."
+        }
+      ],
+      "kind": "FINAL_REPORT",
+      "summary": "Non-compliant finding."
+    },
+    "hitl": {
+      "openRequestIds": [],
+      "requests": [],
+      "resolvedRequests": [],
+      "state": "NONE"
+    },
+    "legalProvisions": [
+      {
+        "content": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+        "content_sha256": "2a1c3014740973844ed9ca52e068cea8c232c6c8571b00aee5b7308e2b1b82c9",
+        "document_id": "vn-pdpl-2025",
+        "locator": "art-26",
+        "source_kind": "SYNTHETIC_PINNED_LAW",
+        "title": "Access logging and retention enforcement (CASE-17)"
+      }
+    ],
+    "lifecycleHistory": [],
+    "lifecycleStage": "INITIAL",
+    "lifecycleState": "COMPLETE",
+    "outcomeBinding": {
+      "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+      "caseId": "CASE-17",
+      "lifecycleState": "COMPLETE",
+      "passed": true,
+      "runId": "lcsp400-pm-review-r3-scripted",
+      "stage": "INITIAL",
+      "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+      "trialIndex": 0
+    },
+    "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+    "repositorySnapshot": {
+      "commit_sha": "synthetic-e697ed5e29c9",
+      "fixture_dir": "evals/fixtures/benchmark/repos/repo-02-audit-gap",
+      "repo_id": "repo-02-audit-gap",
+      "snapshot_kind": "SYNTHETIC_FIXTURE",
+      "untrusted_code_execution_allowed": false
+    },
+    "ruleDefinitions": [
+      {
+        "applicability_conditions": [
+          "System processes or stores personal data"
+        ],
+        "concept": "investigator_production_evidence",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Access logs include actor, action, and enforceable retention policy."
+          }
+        ],
+        "exceptions": [
+          "Anonymized aggregate telemetry"
+        ],
+        "legal_requirement_id": "LR-CASE-17",
+        "requirement_proposition": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+        "requirement_title": "Access logging and retention enforcement — Audit log gap yields APPLICABLE_NON_COMPLIANT with source citation",
+        "rule_id": "ER-DEMO-01"
+      }
+    ],
+    "ruleSetVersionId": "rs-demo-v1",
+    "runId": "lcsp400-pm-review-r3-scripted",
+    "runResult": {
+      "checkpointId": null,
+      "errorType": null,
+      "executionId": "c1e160f4-edf9-4b7f-887e-7ae9a0947700",
+      "promptManifestSha256": "b1421d96c3642e0e0bb3baa706fe33ac8e0949c0559ad741e7ebe0e8f70d2e3b",
+      "state": "SUCCEEDED",
+      "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e"
+    },
+    "targetRuleIds": [
+      "ER-DEMO-01"
+    ],
+    "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+    "trialIndex": 0
+  },
+  "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "recoveryObserved": false,
+  "runId": "lcsp400-pm-review-r3-scripted",
+  "runResult": {
+    "checkpointId": null,
+    "errorType": null,
+    "executionId": "c1e160f4-edf9-4b7f-887e-7ae9a0947700",
+    "promptManifestSha256": "b1421d96c3642e0e0bb3baa706fe33ac8e0949c0559ad741e7ebe0e8f70d2e3b",
+    "state": "SUCCEEDED",
+    "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e"
+  },
+  "stage": "INITIAL",
+  "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+  "toolCalls": [
+    {
+      "input": "{}",
+      "tool": "get_assessment_context"
+    },
+    {
+      "input": "{}",
+      "tool": "get_pinned_rule_set"
+    },
+    {
+      "input": "{'document_id': 'vn-pdpl-2025', 'locator': 'art-26'}",
+      "tool": "read_legal_source"
+    },
+    {
+      "input": "{'path': 'src\\\\audit_log.py', 'start_line': 1, 'end_line': 6}",
+      "tool": "cite_repository_source"
+    },
+    {
+      "input": "{'assessment_rule_id': 'ER-DEMO-01', 'applicability': 'APPLICABLE', 'rationale': 'Observed gap in pinned repository source.', 'legal_context_ids': ['LR-CASE-17'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-case-17-1'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'NOT_MET', 'rationale': 'Gap observed.', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-case-17-1'}]}], 'compliance': 'NON_COMPLIANT'}",
+      "tool": "submit_rule_decision"
+    },
+    {
+      "input": "{}",
+      "tool": "request_finalization"
+    },
+    {
+      "input": "{'summary': 'Non-compliant finding.', 'findings': [{'assessment_rule_id': 'ER-DEMO-01', 'summary': 'Gap.'}]}",
+      "tool": "submit_final_report"
+    }
+  ],
+  "trialIndex": 0
+}

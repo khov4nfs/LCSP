@@ -1,0 +1,108 @@
+{
+  "jurisdiction": "VIETNAM",
+  "officialCorpus": {
+    "corpusDigestSha256": "cec5d841167332a08ab6a656d0e90f44f866e39cacb65ae1189df4bd66dfae4f",
+    "corpusId": "lcsp-402-vn-cong-bao-v1",
+    "ingestionReceiptSha256": "feea78dc7455b3d3717a5f98e56a88750108aa83e779a88468d9c51422dfa5c3",
+    "manifestSha256": "76492fce4246d206d4bcaaecfdd1933016654e26db2c35dfd0f41473c9a18145",
+    "selectorsSha256": "2c15ef2ea538fe7ad3279e9a751590164633f84bd63b920ac43e09e7486e642c",
+    "version": "LCSP-402 Công báo Việt Nam v1"
+  },
+  "sourcePinsVersion": "LCSP-400-VIETNAM-OFFICIAL-SOURCE-PINS-V1",
+  "sources": [
+    {
+      "documentNumber": "142-2026-ND-CP",
+      "effectiveDate": "2026-05-01",
+      "jurisdiction": "VIETNAM",
+      "pdfSha256": "b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18",
+      "provisions": {
+        "article-12": {
+          "citation": "Điều 12",
+          "contentSha256": "8e9a9d22a2ebc704f13ffa633136d77488ea4d6f847c6b4298db938904a09108",
+          "locator": "Điều 12",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-16": {
+          "citation": "Điều 16",
+          "contentSha256": "b8e3d655f6c2e8a6a77e72f41e497e61ed9f318c5877ade863726d2ca87d7eb9",
+          "locator": "Điều 16",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-17": {
+          "citation": "Điều 17",
+          "contentSha256": "e90045c61c8afaeceba1c9cbcfcc33f62d03ebc0d9974db93aebf52366b4266b",
+          "locator": "Điều 17",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-45": {
+          "citation": "Điều 45",
+          "contentSha256": "e8a869627301db5b598c48d581386a87a36f2cfd6413066b425734b91c8c0656",
+          "locator": "Điều 45",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        }
+      },
+      "sourceId": "VN_DECREE_142_2026_ND_CP",
+      "sourceKind": "OFFICIAL_PINNED_LAW",
+      "sourceName": "2026_278_142/2026/NĐ-CP.pdf",
+      "sourceUrl": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-142-2026-nd-cp-469480.htm",
+      "sourceVersion": "142-2026-ND-CP@pdf-sha256:b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18",
+      "versionPinBasis": "Official Công báo PDF bytes SHA-256 b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18; receipt and extracted provisions are independently checked."
+    },
+    {
+      "documentNumber": "134-2025-QH15",
+      "effectiveDate": "2026-03-01",
+      "jurisdiction": "VIETNAM",
+      "pdfSha256": "181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b",
+      "provisions": {
+        "article-1": {
+          "citation": "Điều 1",
+          "contentSha256": "8585aa8330e7ede21c22707ea297bd82653b944b8aa66a3af77b54428d1f5c71",
+          "locator": "Điều 1",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-10": {
+          "citation": "Điều 10",
+          "contentSha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+          "locator": "Điều 10",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-11": {
+          "citation": "Điều 11",
+          "contentSha256": "759a6979df1239a058545b8834431ff2ace96a4dc3a8088d99bfcac4ae99e07f",
+          "locator": "Điều 11",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-2": {
+          "citation": "Điều 2",
+          "contentSha256": "6f84549c207fba872d3fb62cd5042aa2070b589ad8486e5318e522296ad28261",
+          "locator": "Điều 2",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-3": {
+          "citation": "Điều 3",
+          "contentSha256": "c513e53befd4dce36f65e9cc35b06fc7d54afdf86e410210c8ce24e936bfb984",
+          "locator": "Điều 3",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-34": {
+          "citation": "Điều 34",
+          "contentSha256": "82c2c09c439ef4f98a599d9f966036f6a250561bf7224277160f7604d0608c8c",
+          "locator": "Điều 34",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        },
+        "article-35": {
+          "citation": "Điều 35",
+          "contentSha256": "604afc6dd8bc9bbce8ca946f87c3b6e56e544322ffe1681ea18deff106da92b7",
+          "locator": "Điều 35",
+          "referenceNote": "Exact provision text rebuilt from the official Công báo PDF and validated LCSP-402 extraction receipt."
+        }
+      },
+      "sourceId": "VN_LAW_134_2025_QH15",
+      "sourceKind": "OFFICIAL_PINNED_LAW",
+      "sourceName": "2026_40_134/2025/QH15.pdf",
+      "sourceUrl": "https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694/61695.htm",
+      "sourceVersion": "134-2025-QH15@pdf-sha256:181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b",
+      "versionPinBasis": "Official Công báo PDF bytes SHA-256 181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b; receipt and extracted provisions are independently checked."
+    }
+  ]
+}

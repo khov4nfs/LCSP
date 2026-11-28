@@ -134,7 +134,9 @@ describe("Rule Set Preparation ownership", () => {
       /PrismaService|prisma\.|StartRuleSetPreparationCommand|commands\.execute/u,
     );
     const all = sourceFiles(SRC);
+    // Both writers belong to the catalog: direct import and queued preparation.
     expect(withMatch(all, /preparationRuleResult\.create/u)).toEqual([
+      "modules/legal-rule-catalog/application/commands/import-assessment-rules/import-assessment-rules.handler.ts",
       "modules/legal-rule-catalog/application/services/preparation-rule.service.ts",
     ]);
   });

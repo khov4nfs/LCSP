@@ -6,14 +6,15 @@ in SCRIPTED and LIVE modes. Gold rubrics are never exposed to the runtime.
 """
 from __future__ import annotations
 
-from hashlib import sha256
 import json
 import re
 import time
 import uuid
+from collections.abc import Callable, Sequence
+from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Sequence
+from typing import Any
 
 from evals.benchmark_schema import (
     BenchmarkCase,
@@ -37,7 +38,6 @@ from evals.scorer import (
     export_report_json,
     grade_trial,
 )
-
 
 DEEPAGENTS_ROOT = Path(__file__).resolve().parent.parent
 
@@ -146,6 +146,7 @@ def build_benchmark_manifest(
       fingerprints come from the single authoritative production helper.
     - Hashes actual repository fixture file trees, legal provisions, rule definitions,
       full case payloads, manual reviews, and expected trial inventory.
+    - Retains runConfig bytes and its digest for downstream split and trial verification.
     - In LIVE mode, resolves the actual configured model identity for the manifest.
 
     Execution flow:
@@ -184,7 +185,7 @@ def build_benchmark_manifest(
         c.repo_pin.repo_id: {
             "snapshotKind": c.repo_pin.snapshot_kind,
             "commitSha": c.repo_pin.commit_sha,
-            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.fixture_dir).resolve()),
+            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.portable_fixture_dir).resolve()),
         }
         for c in cases
     }
@@ -226,6 +227,8 @@ def build_benchmark_manifest(
         "expectedInventorySha256": stable_hash(expected_inventory),
         "governanceMode": "PRODUCTION_DEFAULT" if config.mode == "LIVE" else "OFFLINE_TEST_BYPASS",
     }
+    if config.case_split_manifest_sha256 is not None:
+        pins["caseSplitManifestSha256"] = config.case_split_manifest_sha256
     gold_revisions = sorted({c.gold_rubric.gold_revision for c in cases})
     base_manifest = build_runtime_manifest(
         run_id=run_id,
@@ -240,6 +243,9 @@ def build_benchmark_manifest(
     )
     payload = {k: v for k, v in base_manifest.items() if k != "manifestSha256"}
     payload["expectedTrialInventory"] = expected_inventory
+    payload["runConfig"] = config.model_dump()
+    if config.git_commit_sha is not None:
+        payload["gitCommitSha"] = config.git_commit_sha
     return {**payload, "manifestSha256": stable_hash(payload)}
 
 
@@ -319,7 +325,7 @@ class _BenchmarkRuntimeClient:
         self.thread_id = thread_id
         self.assessment_id = assessment_id
         self.locale = locale
-        self.repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+        self.repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
         self.execution_counter = 0
         self.execution_id = str(uuid.uuid4())
         self.lease_token = f"lease-{self.execution_id[:8]}"
@@ -1024,7 +1030,7 @@ def _build_scripted_model_for_case(
 
     rule_id = case.rule_set_pin.rule_ids[0]
     prov = case.legal_provisions[0]
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     total_lines = len((repo_root / first_file).read_text(encoding="utf-8").splitlines()) if (repo_root / first_file).is_file() else 1
     cite_start, cite_end = 1, max(1, total_lines)
 
@@ -1165,7 +1171,7 @@ def _build_scripted_model_for_case(
         steps.append(lambda _m: _call("open_human_request", {
             "assessment_rule_id": rule_id,
             "criterion_ids": ["C-1"],
-            "question": f"Who owns the {case.hitl_answers[0].request_key} duty for {case.task_category}?",
+            "question": f"Provide the missing {case.hitl_answers[0].request_key} fact for {case.task_category}.",
             "unresolved_fact": case.hitl_answers[0].request_key,
             "decision_impact": ["Determines operational duty."],
             "resolution_attempts": ["Checked pinned repository source."],
@@ -1365,7 +1371,7 @@ def _run_offline_fixture_stage(
     latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
 
     trace_path = trace_dir / f"{case.case_id}_t{trial_index}_{expectation.stage}.json"
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     if not isinstance(stage_out, dict):
         outcome = grade_trial(
             run_id=run_id,
@@ -1471,6 +1477,7 @@ def _run_real_root_trial(
     from deepagents.backends import FilesystemBackend
     from langchain_core.callbacks import BaseCallbackHandler
     from langgraph.checkpoint.memory import InMemorySaver
+
     from assessment_root.runner import run_assessment_root
 
     class _BenchmarkTelemetryCallback(BaseCallbackHandler):
@@ -1546,7 +1553,7 @@ def _run_real_root_trial(
     thread_id = str(uuid.uuid4())
     assessment_id = str(uuid.uuid4())
     client = _BenchmarkRuntimeClient(case, thread_id, assessment_id, locale=config.locale)
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     saver = InMemorySaver()
     outcomes: list[TrialOutcome] = []
 
@@ -1695,6 +1702,57 @@ def _run_real_root_trial(
             trace_path=f"traces/{trace_path.name}",
             trace_sha256=None,
         )
+        observed_output = {
+            "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+            "runId": run_id,
+            "caseId": case.case_id,
+            "trialIndex": trial_index,
+            "threadId": thread_id,
+            "assessmentId": assessment_id,
+            "evaluationStage": "ASSESSMENT_ROOT",
+            "lifecycleStage": expectation.stage,
+            "targetRuleIds": list(case.rule_set_pin.rule_ids),
+            "ruleSetVersionId": case.rule_set_pin.rule_set_version_id,
+            "ruleDefinitions": [rule.model_dump() for rule in case.rule_definitions],
+            "legalProvisions": [provision.model_dump() for provision in case.legal_provisions],
+            "repositorySnapshot": case.repo_pin.model_dump(),
+            "corpusPin": case.corpus_pin.model_dump(),
+            "assessmentDecisions": list(client.decisions),
+            "actualAssessmentDecision": client.decisions[-1] if client.decisions else None,
+            "actualVerdict": outcome.actual_verdict,
+            "evidenceReferences": sorted(observed_refs),
+            "evidenceRecords": observed_evidence_records,
+            "facts": list(client.facts),
+            "hitl": {
+                "state": observed_hitl,
+                "requests": list(client.human_requests),
+                "openRequestIds": list(client.open_requests),
+                "resolvedRequests": list(client.resolved_requests),
+            },
+            "finalReport": client.final_report,
+            "lifecycleState": client.lifecycle_state,
+            "runResult": run_result,
+            "lifecycleHistory": [
+                {
+                    "stage": prior.stage,
+                    "traceSha256": prior.trace_sha256,
+                    "actualVerdict": prior.actual_verdict,
+                    "lifecycleState": prior.lifecycle_state,
+                }
+                for prior in outcomes
+            ],
+            "authorityViolations": list(client.authority_violations),
+            "outcomeBinding": {
+                "passed": outcome.passed,
+                "actualVerdict": outcome.actual_verdict,
+                "lifecycleState": outcome.lifecycle_state,
+                "stage": outcome.stage,
+                "trialIndex": outcome.trial_index,
+                "threadId": outcome.thread_id,
+                "runId": outcome.run_id,
+                "caseId": outcome.case_id,
+            },
+        }
         trace_sha = _write_trace(trace_path, {
             "runId": run_id,
             "caseId": case.case_id,
@@ -1710,6 +1768,8 @@ def _run_real_root_trial(
             "authorityViolations": list(client.authority_violations),
             "toolCalls": review_trace.tools,
             "clientCalls": [c[0] for c in client.calls],
+            "observedOutput": observed_output,
+            "observedOutputSha256": stable_hash(observed_output),
             "outcomeBinding": {
                 "passed": outcome.passed,
                 "actualVerdict": outcome.actual_verdict,

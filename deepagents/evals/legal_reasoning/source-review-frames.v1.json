@@ -1,0 +1,722 @@
+{
+  "version": "LCSP-400-SOURCE-REVIEW-FRAMES-V1",
+  "jurisdiction": "VIETNAM",
+  "businessBoundary": "Analyze the complete admitted source; retain relevant development, deployment, production and operational evidence.",
+  "corpusPins": {
+    "manifestSha256": "76492fce4246d206d4bcaaecfdd1933016654e26db2c35dfd0f41473c9a18145",
+    "selectorsSha256": "2c15ef2ea538fe7ad3279e9a751590164633f84bd63b920ac43e09e7486e642c",
+    "ingestionReceiptSha256": "feea78dc7455b3d3717a5f98e56a88750108aa83e779a88468d9c51422dfa5c3",
+    "documents": {
+      "134-2025-QH15": {
+        "url": "https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694/61695.htm",
+        "pdfSha256": "181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b",
+        "ingestionArtifactSha256": "36036084b9267ccd34d76d9c69fb944192822693e7e92f65d5a83f7803e124d1"
+      },
+      "142-2026-ND-CP": {
+        "url": "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-142-2026-nd-cp-469480.htm",
+        "pdfSha256": "b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18",
+        "ingestionArtifactSha256": "39cc37eb340a76b345b068a141578d79f570d1410ff9213c4b823044fb46d246"
+      }
+    }
+  },
+  "temporalFrame": {
+    "asOf": "2027-10-01",
+    "lawEffectiveDate": "2026-03-01",
+    "decreeEffectiveDate": "2026-05-01",
+    "sourceReferences": {
+      "law-34": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 34",
+        "title": "134-2025-QH15 · Công báo PDF trang 19–19",
+        "content": "Điều 34. Hiệu lực thi hành\nLuật này có hiệu lực thi hành từ ngày 01 tháng 3 năm 2026, trừ các nội dung\nliên quan quy định tại Điều 35 của Luật này.",
+        "content_sha256": "82c2c09c439ef4f98a599d9f966036f6a250561bf7224277160f7604d0608c8c",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "law-35": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 35",
+        "title": "134-2025-QH15 · Công báo PDF trang 19–20",
+        "content": "Điều 35. Điều khoản chuyển tiếp\n\n1. Đối với các h ệ thống trí tu ệ nhân tạo đã đư ợc đưa vào ho ạt động trước\nngày Lu ật này có hi ệu lự c thi hành, nhà cung c ấp và bên tri ển khai có trách\nnhiệm thực hiện các nghĩa vụ tuân thủ theo quy định của Luật này trong thời hạn\nsau đây:\n\na) 18 tháng kể từ ngày Luật này có hiệu lực thi hành đối với hệ thống trí tuệ\nnhân tạo trong lĩnh vực y tế, giáo dục và tài chính;\n\nb) 12 tháng kể từ ngày Luật này có hi ệu lực thi hành đ ối với các hệ thống\nCÔNG BÁO/Số 40/Ngày 22-01-2026 24\ntrí tuệ nhân tạo không thuộc trường hợp quy định tại điểm a khoản này.\n\n2. Trong thời hạn quy đị nh tại khoản 1 Điều này, hệ thống trí tuệ nhân tạo\nđược tiếp tục hoạt động, trừ trường hợp cơ quan quản lý nhà nước về trí tuệ nhân\ntạo xác định hệ thống có nguy cơ gây thiệt hại nghiêm trọng thì có quyền yêu cầu\ntạm dừng hoặc chấm dứt hoạt động.\nLuật này được Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam khóa XV,\nKỳ họp thứ 10 thông qua ngày 10 tháng 12 năm 2025.\nCHỦ TỊCH QUỐC HỘI\nTrần Thanh Mẫn",
+        "content_sha256": "604afc6dd8bc9bbce8ca946f87c3b6e56e544322ffe1681ea18deff106da92b7",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "decree-45": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 45",
+        "title": "142-2026-ND-CP · Công báo PDF trang 44–44",
+        "content": "Điều 45. Hiệu lực thi hành\nNghị định này có hiệu lực thi hành từ ngày 01 tháng 5 năm 2026.",
+        "content_sha256": "e8a869627301db5b598c48d581386a87a36f2cfd6413066b425734b91c8c0656",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      }
+    },
+    "decision": "Review first operation date, sector, transitional deadlines and any suspension facts per scenario; asOf alone does not decide applicability.",
+    "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW"
+  },
+  "frames": [
+    {
+      "frameId": "classification-before-use",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 10",
+        "title": "134-2025-QH15 · Công báo PDF trang 5–6",
+        "content": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử\ndụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ\nphân loại kèm theo.\n\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách\nnhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường\nhợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi\nro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà\ncung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông\nqua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng.\nKhuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp\ncông khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị\nBộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\n\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có\ndấu hiệu vi phạm;\n\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo\ncáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nCÔNG BÁO/Số 40/Ngày 22-01-2026 10\n\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự\ncố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không\ncần thiết cho tổ chức, cá nhân.\n\n6. Trên cơ sở kết quả kiểm tra, giám sát quy đ ịnh tại khoản 5 Điều này, khi\nphát hiện sai lệch hoặc khai báo không trung thự c, cơ quan có th ẩm quyền yêu\ncầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo\nquy định của pháp luật.\n\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự , thủ tục\nthông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+        "content_sha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "1",
+      "actorSourceAnchor": "Nhà cung cấp",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Classify before first use",
+      "materialConditionOrLimit": "actor",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 10, clause 1 in original Vietnamese. Preserve the declared actor and actor; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "classification-before-use-pair",
+        "changedFact": "actor",
+        "scenarios": [
+          {
+            "caseId": "classification-before-use-trigger",
+            "facts": "provider before first use",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "classification-before-use-counterfactual",
+            "facts": "organization is solely deployer",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "classification-dossier",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 10",
+        "title": "134-2025-QH15 · Công báo PDF trang 5–6",
+        "content": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử\ndụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ\nphân loại kèm theo.\n\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách\nnhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường\nhợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi\nro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà\ncung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông\nqua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng.\nKhuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp\ncông khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị\nBộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\n\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có\ndấu hiệu vi phạm;\n\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo\ncáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nCÔNG BÁO/Số 40/Ngày 22-01-2026 10\n\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự\ncố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không\ncần thiết cho tổ chức, cá nhân.\n\n6. Trên cơ sở kết quả kiểm tra, giám sát quy đ ịnh tại khoản 5 Điều này, khi\nphát hiện sai lệch hoặc khai báo không trung thự c, cơ quan có th ẩm quyền yêu\ncầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo\nquy định của pháp luật.\n\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự , thủ tục\nthông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+        "content_sha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "1",
+      "actorSourceAnchor": "Nhà cung cấp",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Keep classification dossier for medium/high risk",
+      "materialConditionOrLimit": "risk level",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 10, clause 1 in original Vietnamese. Preserve the declared actor and risk level; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "classification-dossier-pair",
+        "changedFact": "risk level",
+        "scenarios": [
+          {
+            "caseId": "classification-dossier-trigger",
+            "facts": "provider with medium-risk system",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "classification-dossier-counterfactual",
+            "facts": "provider with low-risk system",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "deployer-integrity",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 10",
+        "title": "134-2025-QH15 · Công báo PDF trang 5–6",
+        "content": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử\ndụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ\nphân loại kèm theo.\n\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách\nnhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường\nhợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi\nro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà\ncung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông\nqua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng.\nKhuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp\ncông khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị\nBộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\n\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có\ndấu hiệu vi phạm;\n\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo\ncáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nCÔNG BÁO/Số 40/Ngày 22-01-2026 10\n\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự\ncố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không\ncần thiết cho tổ chức, cá nhân.\n\n6. Trên cơ sở kết quả kiểm tra, giám sát quy đ ịnh tại khoản 5 Điều này, khi\nphát hiện sai lệch hoặc khai báo không trung thự c, cơ quan có th ẩm quyền yêu\ncầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo\nquy định của pháp luật.\n\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự , thủ tục\nthông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+        "content_sha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "2",
+      "actorSourceAnchor": "Bên triển khai",
+      "expectedActor": "Bên triển khai",
+      "requiredAction": "Preserve system safety and integrity during use",
+      "materialConditionOrLimit": "actor",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 10, clause 2 in original Vietnamese. Preserve the declared actor and actor; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "deployer-integrity-pair",
+        "changedFact": "actor",
+        "scenarios": [
+          {
+            "caseId": "deployer-integrity-trigger",
+            "facts": "deployer operating the system",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "deployer-integrity-counterfactual",
+            "facts": "organization does not deploy or use the system",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "material-change-reclassification",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 10",
+        "title": "134-2025-QH15 · Công báo PDF trang 5–6",
+        "content": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử\ndụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ\nphân loại kèm theo.\n\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách\nnhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường\nhợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi\nro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà\ncung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông\nqua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng.\nKhuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp\ncông khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị\nBộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\n\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có\ndấu hiệu vi phạm;\n\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo\ncáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nCÔNG BÁO/Số 40/Ngày 22-01-2026 10\n\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự\ncố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không\ncần thiết cho tổ chức, cá nhân.\n\n6. Trên cơ sở kết quả kiểm tra, giám sát quy đ ịnh tại khoản 5 Điều này, khi\nphát hiện sai lệch hoặc khai báo không trung thự c, cơ quan có th ẩm quyền yêu\ncầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo\nquy định của pháp luật.\n\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự , thủ tục\nthông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+        "content_sha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "2",
+      "actorSourceAnchor": "Bên triển khai",
+      "expectedActor": "Bên triển khai phối hợp nhà cung cấp",
+      "requiredAction": "Coordinate reclassification with provider after changes causing new or higher risk",
+      "materialConditionOrLimit": "material change",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 10, clause 2 in original Vietnamese. Preserve the declared actor and material change; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "material-change-reclassification-pair",
+        "changedFact": "material change",
+        "scenarios": [
+          {
+            "caseId": "material-change-reclassification-trigger",
+            "facts": "deployer modifies functionality creating higher risk",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "material-change-reclassification-counterfactual",
+            "facts": "deployer makes no change creating new or higher risk",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "classification-notification",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 10",
+        "title": "134-2025-QH15 · Công báo PDF trang 5–6",
+        "content": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử\ndụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ\nphân loại kèm theo.\n\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách\nnhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường\nhợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi\nro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà\ncung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông\nqua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng.\nKhuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp\ncông khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị\nBộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\n\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có\ndấu hiệu vi phạm;\n\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo\ncáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nCÔNG BÁO/Số 40/Ngày 22-01-2026 10\n\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự\ncố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không\ncần thiết cho tổ chức, cá nhân.\n\n6. Trên cơ sở kết quả kiểm tra, giám sát quy đ ịnh tại khoản 5 Điều này, khi\nphát hiện sai lệch hoặc khai báo không trung thự c, cơ quan có th ẩm quyền yêu\ncầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo\nquy định của pháp luật.\n\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự , thủ tục\nthông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+        "content_sha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "3",
+      "actorSourceAnchor": "nhà cung cấp",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Notify classification before use for medium/high risk",
+      "materialConditionOrLimit": "risk level",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 10, clause 3 in original Vietnamese. Preserve the declared actor and risk level; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "classification-notification-pair",
+        "changedFact": "risk level",
+        "scenarios": [
+          {
+            "caseId": "classification-notification-trigger",
+            "facts": "provider with high-risk system before use",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "classification-notification-counterfactual",
+            "facts": "provider with low-risk system",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "direct-interaction-disclosure",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 11",
+        "title": "134-2025-QH15 · Công báo PDF trang 6–6",
+        "content": "Điều 11. Trách nhiệm minh bạch\n\n1. Nhà cung c ấp bảo đảm h ệ thống trí tuệ nhân tạo tương tác tr ực tiếp với\ncon người được thiết kế và vận hành để người sử dụng nhận biết khi đang tương\ntác với hệ thống, trừ trường hợp pháp luật có quy định khác.\n\n2. Nhà cung cấp bảo đảm các nội dung âm thanh, hình ảnh, video do hệ thống\ntrí tuệ nhân tạo tạo ra đư ợc đánh d ấu ở định dạng máy đ ọc theo quy đị nh của\nChính phủ.\n\n3. Bên triển khai có trách nhiệm thông báo rõ ràng khi cung cấp ra công cộng\nvăn bản, âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí\ntuệ nhân tạo nếu nội dung đó có khả năng gây nhầm lẫn về tính xác thực của sự\nkiện, nhân vật, trừ trường hợp pháp luật có quy định khác.\n\n4. Bên triển khai có trách nhiệ m bảo đảm âm thanh, hình ảnh, video được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nhằm mô phỏng, giả lập ngoại\nhình, giọng nói của người thật hoặc tái hiện sự kiện thực tế phải được gắn nhãn\ndễ nhận biết để phân biệt với nội dung thật.\nĐối với sản phẩm là tác phẩm điện ảnh, nghệ thuật hoặc sáng tạo, việc gắn\nnhãn quy định tại khoản này được thực hiện theo phương thức phù hợp, bảo đảm\nkhông làm cản trở việc hiển thị, trình diễn hoặc thưởng thức tác phẩm.\n\n5. Nhà cung cấp và bên triển khai có trách nhiệm duy trì thông tin minh bạch\ntheo quy định tại Điều này trong suốt quá trình cung cấp hệ thống, sản phẩm hoặc\nnội dung cho người sử dụng.\n\n6. Chính phủ quy định chi tiết hình thức thông báo, gắn nhãn.",
+        "content_sha256": "759a6979df1239a058545b8834431ff2ace96a4dc3a8088d99bfcac4ae99e07f",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "1",
+      "actorSourceAnchor": "Nhà cung",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Enable recognition of direct AI interaction",
+      "materialConditionOrLimit": "trigger",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 11, clause 1 in original Vietnamese. Preserve the declared actor and trigger; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "direct-interaction-disclosure-pair",
+        "changedFact": "trigger",
+        "scenarios": [
+          {
+            "caseId": "direct-interaction-disclosure-trigger",
+            "facts": "direct interaction with no established statutory exception",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "direct-interaction-disclosure-counterfactual",
+            "facts": "no direct human interaction",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "public-authenticity-disclosure",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 11",
+        "title": "134-2025-QH15 · Công báo PDF trang 6–6",
+        "content": "Điều 11. Trách nhiệm minh bạch\n\n1. Nhà cung c ấp bảo đảm h ệ thống trí tuệ nhân tạo tương tác tr ực tiếp với\ncon người được thiết kế và vận hành để người sử dụng nhận biết khi đang tương\ntác với hệ thống, trừ trường hợp pháp luật có quy định khác.\n\n2. Nhà cung cấp bảo đảm các nội dung âm thanh, hình ảnh, video do hệ thống\ntrí tuệ nhân tạo tạo ra đư ợc đánh d ấu ở định dạng máy đ ọc theo quy đị nh của\nChính phủ.\n\n3. Bên triển khai có trách nhiệm thông báo rõ ràng khi cung cấp ra công cộng\nvăn bản, âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí\ntuệ nhân tạo nếu nội dung đó có khả năng gây nhầm lẫn về tính xác thực của sự\nkiện, nhân vật, trừ trường hợp pháp luật có quy định khác.\n\n4. Bên triển khai có trách nhiệ m bảo đảm âm thanh, hình ảnh, video được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nhằm mô phỏng, giả lập ngoại\nhình, giọng nói của người thật hoặc tái hiện sự kiện thực tế phải được gắn nhãn\ndễ nhận biết để phân biệt với nội dung thật.\nĐối với sản phẩm là tác phẩm điện ảnh, nghệ thuật hoặc sáng tạo, việc gắn\nnhãn quy định tại khoản này được thực hiện theo phương thức phù hợp, bảo đảm\nkhông làm cản trở việc hiển thị, trình diễn hoặc thưởng thức tác phẩm.\n\n5. Nhà cung cấp và bên triển khai có trách nhiệm duy trì thông tin minh bạch\ntheo quy định tại Điều này trong suốt quá trình cung cấp hệ thống, sản phẩm hoặc\nnội dung cho người sử dụng.\n\n6. Chính phủ quy định chi tiết hình thức thông báo, gắn nhãn.",
+        "content_sha256": "759a6979df1239a058545b8834431ff2ace96a4dc3a8088d99bfcac4ae99e07f",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "3",
+      "actorSourceAnchor": "Bên triển khai",
+      "expectedActor": "Bên triển khai",
+      "requiredAction": "Clearly disclose public AI-created/edited content capable of misleading about authenticity",
+      "materialConditionOrLimit": "public release",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 11, clause 3 in original Vietnamese. Preserve the declared actor and public release; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "public-authenticity-disclosure-pair",
+        "changedFact": "public release",
+        "scenarios": [
+          {
+            "caseId": "public-authenticity-disclosure-trigger",
+            "facts": "deployer publishes misleading AI-created content publicly",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "public-authenticity-disclosure-counterfactual",
+            "facts": "same content remains private internal evidence",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "impersonation-visible-label",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 11",
+        "title": "134-2025-QH15 · Công báo PDF trang 6–6",
+        "content": "Điều 11. Trách nhiệm minh bạch\n\n1. Nhà cung c ấp bảo đảm h ệ thống trí tuệ nhân tạo tương tác tr ực tiếp với\ncon người được thiết kế và vận hành để người sử dụng nhận biết khi đang tương\ntác với hệ thống, trừ trường hợp pháp luật có quy định khác.\n\n2. Nhà cung cấp bảo đảm các nội dung âm thanh, hình ảnh, video do hệ thống\ntrí tuệ nhân tạo tạo ra đư ợc đánh d ấu ở định dạng máy đ ọc theo quy đị nh của\nChính phủ.\n\n3. Bên triển khai có trách nhiệm thông báo rõ ràng khi cung cấp ra công cộng\nvăn bản, âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí\ntuệ nhân tạo nếu nội dung đó có khả năng gây nhầm lẫn về tính xác thực của sự\nkiện, nhân vật, trừ trường hợp pháp luật có quy định khác.\n\n4. Bên triển khai có trách nhiệ m bảo đảm âm thanh, hình ảnh, video được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nhằm mô phỏng, giả lập ngoại\nhình, giọng nói của người thật hoặc tái hiện sự kiện thực tế phải được gắn nhãn\ndễ nhận biết để phân biệt với nội dung thật.\nĐối với sản phẩm là tác phẩm điện ảnh, nghệ thuật hoặc sáng tạo, việc gắn\nnhãn quy định tại khoản này được thực hiện theo phương thức phù hợp, bảo đảm\nkhông làm cản trở việc hiển thị, trình diễn hoặc thưởng thức tác phẩm.\n\n5. Nhà cung cấp và bên triển khai có trách nhiệm duy trì thông tin minh bạch\ntheo quy định tại Điều này trong suốt quá trình cung cấp hệ thống, sản phẩm hoặc\nnội dung cho người sử dụng.\n\n6. Chính phủ quy định chi tiết hình thức thông báo, gắn nhãn.",
+        "content_sha256": "759a6979df1239a058545b8834431ff2ace96a4dc3a8088d99bfcac4ae99e07f",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "4",
+      "actorSourceAnchor": "Bên triển khai",
+      "expectedActor": "Bên triển khai",
+      "requiredAction": "Recognizably label imitation of real people or events; artistic presentation has a suitable-method qualifier",
+      "materialConditionOrLimit": "trigger",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 11, clause 4 in original Vietnamese. Preserve the declared actor and trigger; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "impersonation-visible-label-pair",
+        "changedFact": "trigger",
+        "scenarios": [
+          {
+            "caseId": "impersonation-visible-label-trigger",
+            "facts": "deployer publishes impersonating audiovisual content",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "impersonation-visible-label-counterfactual",
+            "facts": "content does not simulate a real person or actual event",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "ongoing-transparency",
+      "source": {
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 11",
+        "title": "134-2025-QH15 · Công báo PDF trang 6–6",
+        "content": "Điều 11. Trách nhiệm minh bạch\n\n1. Nhà cung c ấp bảo đảm h ệ thống trí tuệ nhân tạo tương tác tr ực tiếp với\ncon người được thiết kế và vận hành để người sử dụng nhận biết khi đang tương\ntác với hệ thống, trừ trường hợp pháp luật có quy định khác.\n\n2. Nhà cung cấp bảo đảm các nội dung âm thanh, hình ảnh, video do hệ thống\ntrí tuệ nhân tạo tạo ra đư ợc đánh d ấu ở định dạng máy đ ọc theo quy đị nh của\nChính phủ.\n\n3. Bên triển khai có trách nhiệm thông báo rõ ràng khi cung cấp ra công cộng\nvăn bản, âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí\ntuệ nhân tạo nếu nội dung đó có khả năng gây nhầm lẫn về tính xác thực của sự\nkiện, nhân vật, trừ trường hợp pháp luật có quy định khác.\n\n4. Bên triển khai có trách nhiệ m bảo đảm âm thanh, hình ảnh, video được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nhằm mô phỏng, giả lập ngoại\nhình, giọng nói của người thật hoặc tái hiện sự kiện thực tế phải được gắn nhãn\ndễ nhận biết để phân biệt với nội dung thật.\nĐối với sản phẩm là tác phẩm điện ảnh, nghệ thuật hoặc sáng tạo, việc gắn\nnhãn quy định tại khoản này được thực hiện theo phương thức phù hợp, bảo đảm\nkhông làm cản trở việc hiển thị, trình diễn hoặc thưởng thức tác phẩm.\n\n5. Nhà cung cấp và bên triển khai có trách nhiệm duy trì thông tin minh bạch\ntheo quy định tại Điều này trong suốt quá trình cung cấp hệ thống, sản phẩm hoặc\nnội dung cho người sử dụng.\n\n6. Chính phủ quy định chi tiết hình thức thông báo, gắn nhãn.",
+        "content_sha256": "759a6979df1239a058545b8834431ff2ace96a4dc3a8088d99bfcac4ae99e07f",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "5",
+      "actorSourceAnchor": "Nhà cung cấp và bên triển khai",
+      "expectedActor": "Nhà cung cấp và bên triển khai",
+      "requiredAction": "Maintain transparency information throughout provision to users",
+      "materialConditionOrLimit": "duration",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 134-2025-QH15, Điều 11, clause 5 in original Vietnamese. Preserve the declared actor and duration; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "ongoing-transparency-pair",
+        "changedFact": "duration",
+        "scenarios": [
+          {
+            "caseId": "ongoing-transparency-trigger",
+            "facts": "provider and deployer continue supplying content to users",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "ongoing-transparency-counterfactual",
+            "facts": "supply has ended and no ongoing provision is asserted",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "third-party-access-limit",
+      "source": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 12",
+        "title": "142-2026-ND-CP · Công báo PDF trang 9–10",
+        "content": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo\ncó rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống\nvào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\n\n2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung\ncấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:\n\na) Thông tin nhận diện hệ thống, bao gồm: tên hệ thống; phiên bản; mã định\ndanh nội bộ hoặc mã định danh do cơ quan nhà nước có thẩm quyền cấp; tên, địa chỉ\nvà thông tin liên hệ của nhà cung cấp;\n\nb) Mô tả hệ thống và bối cảnh sử dụng: mục đích sử dụng; chức năng chính;\nkiến trúc hệ thống ở mức chức năng, nghiệp vụ; phạm vi triển khai; nhóm người sử\ndụng và người bị ảnh hưởng;\n\nc) Thông tin về dữ liệu: Mô tả khái quát loại dữ liệu đầu vào chủ yếu được sử\ndụng để vận hành hệ thống;\nCÔNG BÁO/Số 278/Ngày 18-05-2026 11\n\nd) Nội dung quản lý rủi ro: Tóm tắt các biện pháp quản lý rủi ro, bảo đảm an\ntoàn và tính minh bạch của hệ thống.\n\n3. Trường hợp nhà cung cấp phát triển hệ thống trí tuệ nhân tạo dựa trên nền\ntảng, mô hình hoặc dịch vụ trí tuệ nhân tạo của bên thứ ba, nhà cung cấp chỉ phải\ncung cấp thông tin kỹ thuật và thông tin về dữ liệu trong phạm vi quyền tiếp cận và\nkiểm soát hợp pháp của mình.\n\n4. Việc lập, cung cấp và quản lý hồ sơ phân loại rủi ro không bắt buộc nhà cung\ncấp phải tiết lộ mã nguồn, bộ tham số mô hình, thuật toán chi tiết, dữ liệu huấn luyện\nthô hoặc các thông tin thuộc danh mục bí mật nhà nước, bí mật kinh doanh, bí mật\ncông nghệ theo quy định tại điểm e khoản 1 Điều 14 của Luật Trí tuệ nhân tạo, trừ\ntrường hợp pháp luật có quy định khác.\n\n5. Nhà cung cấp có quyền sử dụng tài liệu mô tả kỹ thuật mô hình hoặc tài liệu\nkỹ thuật tương đương được lập theo tiêu chuẩn quốc tế để đáp ứng các thành phần hồ\nsơ quy định tại khoản 2 và khoản 3 Điều này, với điều kiện các tài liệu đó đáp ứng đầy\nđủ các nội dung thông tin theo yêu cầu của Nghị định này.\n\n6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong\nsuốt thời gian hệ thống hoạt động.\n\n7. Trường hợp hệ thống trí tuệ nhân tạo có sử dụng dữ liệu cá nhân, nhà cung\ncấp được sử dụng Hồ sơ đánh giá tác động xử lý dữ liệu cá nhân theo quy định của\npháp luật về bảo vệ dữ liệu cá nhân để thay thế hoặc tích hợp làm thành phần của Hồ\nsơ phân loại rủi ro, nhằm giảm thiểu chi phí tuân thủ hành chính.",
+        "content_sha256": "8e9a9d22a2ebc704f13ffa633136d77488ea4d6f847c6b4298db938904a09108",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "3",
+      "actorSourceAnchor": "nhà cung cấp",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Limit third-party technical/data information to lawful access and control",
+      "materialConditionOrLimit": "access limit",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 142-2026-ND-CP, Điều 12, clause 3 in original Vietnamese. Preserve the declared actor and access limit; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "third-party-access-limit-pair",
+        "changedFact": "access limit",
+        "scenarios": [
+          {
+            "caseId": "third-party-access-limit-trigger",
+            "facts": "third-party model information is within lawful access/control",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "third-party-access-limit-counterfactual",
+            "facts": "requested third-party internals are outside lawful access/control",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "source-code-exclusion",
+      "source": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 12",
+        "title": "142-2026-ND-CP · Công báo PDF trang 9–10",
+        "content": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo\ncó rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống\nvào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\n\n2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung\ncấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:\n\na) Thông tin nhận diện hệ thống, bao gồm: tên hệ thống; phiên bản; mã định\ndanh nội bộ hoặc mã định danh do cơ quan nhà nước có thẩm quyền cấp; tên, địa chỉ\nvà thông tin liên hệ của nhà cung cấp;\n\nb) Mô tả hệ thống và bối cảnh sử dụng: mục đích sử dụng; chức năng chính;\nkiến trúc hệ thống ở mức chức năng, nghiệp vụ; phạm vi triển khai; nhóm người sử\ndụng và người bị ảnh hưởng;\n\nc) Thông tin về dữ liệu: Mô tả khái quát loại dữ liệu đầu vào chủ yếu được sử\ndụng để vận hành hệ thống;\nCÔNG BÁO/Số 278/Ngày 18-05-2026 11\n\nd) Nội dung quản lý rủi ro: Tóm tắt các biện pháp quản lý rủi ro, bảo đảm an\ntoàn và tính minh bạch của hệ thống.\n\n3. Trường hợp nhà cung cấp phát triển hệ thống trí tuệ nhân tạo dựa trên nền\ntảng, mô hình hoặc dịch vụ trí tuệ nhân tạo của bên thứ ba, nhà cung cấp chỉ phải\ncung cấp thông tin kỹ thuật và thông tin về dữ liệu trong phạm vi quyền tiếp cận và\nkiểm soát hợp pháp của mình.\n\n4. Việc lập, cung cấp và quản lý hồ sơ phân loại rủi ro không bắt buộc nhà cung\ncấp phải tiết lộ mã nguồn, bộ tham số mô hình, thuật toán chi tiết, dữ liệu huấn luyện\nthô hoặc các thông tin thuộc danh mục bí mật nhà nước, bí mật kinh doanh, bí mật\ncông nghệ theo quy định tại điểm e khoản 1 Điều 14 của Luật Trí tuệ nhân tạo, trừ\ntrường hợp pháp luật có quy định khác.\n\n5. Nhà cung cấp có quyền sử dụng tài liệu mô tả kỹ thuật mô hình hoặc tài liệu\nkỹ thuật tương đương được lập theo tiêu chuẩn quốc tế để đáp ứng các thành phần hồ\nsơ quy định tại khoản 2 và khoản 3 Điều này, với điều kiện các tài liệu đó đáp ứng đầy\nđủ các nội dung thông tin theo yêu cầu của Nghị định này.\n\n6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong\nsuốt thời gian hệ thống hoạt động.\n\n7. Trường hợp hệ thống trí tuệ nhân tạo có sử dụng dữ liệu cá nhân, nhà cung\ncấp được sử dụng Hồ sơ đánh giá tác động xử lý dữ liệu cá nhân theo quy định của\npháp luật về bảo vệ dữ liệu cá nhân để thay thế hoặc tích hợp làm thành phần của Hồ\nsơ phân loại rủi ro, nhằm giảm thiểu chi phí tuân thủ hành chính.",
+        "content_sha256": "8e9a9d22a2ebc704f13ffa633136d77488ea4d6f847c6b4298db938904a09108",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "4",
+      "actorSourceAnchor": "nhà cung",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Dossier does not by itself mandate source code/parameters/raw training data disclosure; preserve statutory override",
+      "materialConditionOrLimit": "exclusion",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 142-2026-ND-CP, Điều 12, clause 4 in original Vietnamese. Preserve the declared actor and exclusion; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "source-code-exclusion-pair",
+        "changedFact": "exclusion",
+        "scenarios": [
+          {
+            "caseId": "source-code-exclusion-trigger",
+            "facts": "dossier requests ordinary identification information",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "source-code-exclusion-counterfactual",
+            "facts": "same dossier demand expands to protected source code without a statutory override",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "equivalent-technical-documents",
+      "source": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 12",
+        "title": "142-2026-ND-CP · Công báo PDF trang 9–10",
+        "content": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo\ncó rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống\nvào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\n\n2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung\ncấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:\n\na) Thông tin nhận diện hệ thống, bao gồm: tên hệ thống; phiên bản; mã định\ndanh nội bộ hoặc mã định danh do cơ quan nhà nước có thẩm quyền cấp; tên, địa chỉ\nvà thông tin liên hệ của nhà cung cấp;\n\nb) Mô tả hệ thống và bối cảnh sử dụng: mục đích sử dụng; chức năng chính;\nkiến trúc hệ thống ở mức chức năng, nghiệp vụ; phạm vi triển khai; nhóm người sử\ndụng và người bị ảnh hưởng;\n\nc) Thông tin về dữ liệu: Mô tả khái quát loại dữ liệu đầu vào chủ yếu được sử\ndụng để vận hành hệ thống;\nCÔNG BÁO/Số 278/Ngày 18-05-2026 11\n\nd) Nội dung quản lý rủi ro: Tóm tắt các biện pháp quản lý rủi ro, bảo đảm an\ntoàn và tính minh bạch của hệ thống.\n\n3. Trường hợp nhà cung cấp phát triển hệ thống trí tuệ nhân tạo dựa trên nền\ntảng, mô hình hoặc dịch vụ trí tuệ nhân tạo của bên thứ ba, nhà cung cấp chỉ phải\ncung cấp thông tin kỹ thuật và thông tin về dữ liệu trong phạm vi quyền tiếp cận và\nkiểm soát hợp pháp của mình.\n\n4. Việc lập, cung cấp và quản lý hồ sơ phân loại rủi ro không bắt buộc nhà cung\ncấp phải tiết lộ mã nguồn, bộ tham số mô hình, thuật toán chi tiết, dữ liệu huấn luyện\nthô hoặc các thông tin thuộc danh mục bí mật nhà nước, bí mật kinh doanh, bí mật\ncông nghệ theo quy định tại điểm e khoản 1 Điều 14 của Luật Trí tuệ nhân tạo, trừ\ntrường hợp pháp luật có quy định khác.\n\n5. Nhà cung cấp có quyền sử dụng tài liệu mô tả kỹ thuật mô hình hoặc tài liệu\nkỹ thuật tương đương được lập theo tiêu chuẩn quốc tế để đáp ứng các thành phần hồ\nsơ quy định tại khoản 2 và khoản 3 Điều này, với điều kiện các tài liệu đó đáp ứng đầy\nđủ các nội dung thông tin theo yêu cầu của Nghị định này.\n\n6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong\nsuốt thời gian hệ thống hoạt động.\n\n7. Trường hợp hệ thống trí tuệ nhân tạo có sử dụng dữ liệu cá nhân, nhà cung\ncấp được sử dụng Hồ sơ đánh giá tác động xử lý dữ liệu cá nhân theo quy định của\npháp luật về bảo vệ dữ liệu cá nhân để thay thế hoặc tích hợp làm thành phần của Hồ\nsơ phân loại rủi ro, nhằm giảm thiểu chi phí tuân thủ hành chính.",
+        "content_sha256": "8e9a9d22a2ebc704f13ffa633136d77488ea4d6f847c6b4298db938904a09108",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "5",
+      "actorSourceAnchor": "Nhà cung cấp",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "International-standard technical documents may satisfy dossier components only if required information is complete",
+      "materialConditionOrLimit": "condition",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 142-2026-ND-CP, Điều 12, clause 5 in original Vietnamese. Preserve the declared actor and condition; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "equivalent-technical-documents-pair",
+        "changedFact": "condition",
+        "scenarios": [
+          {
+            "caseId": "equivalent-technical-documents-trigger",
+            "facts": "equivalent documents contain every required information component",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "equivalent-technical-documents-counterfactual",
+            "facts": "equivalent documents omit a required component",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "dossier-retention",
+      "source": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 12",
+        "title": "142-2026-ND-CP · Công báo PDF trang 9–10",
+        "content": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo\ncó rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống\nvào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\n\n2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung\ncấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:\n\na) Thông tin nhận diện hệ thống, bao gồm: tên hệ thống; phiên bản; mã định\ndanh nội bộ hoặc mã định danh do cơ quan nhà nước có thẩm quyền cấp; tên, địa chỉ\nvà thông tin liên hệ của nhà cung cấp;\n\nb) Mô tả hệ thống và bối cảnh sử dụng: mục đích sử dụng; chức năng chính;\nkiến trúc hệ thống ở mức chức năng, nghiệp vụ; phạm vi triển khai; nhóm người sử\ndụng và người bị ảnh hưởng;\n\nc) Thông tin về dữ liệu: Mô tả khái quát loại dữ liệu đầu vào chủ yếu được sử\ndụng để vận hành hệ thống;\nCÔNG BÁO/Số 278/Ngày 18-05-2026 11\n\nd) Nội dung quản lý rủi ro: Tóm tắt các biện pháp quản lý rủi ro, bảo đảm an\ntoàn và tính minh bạch của hệ thống.\n\n3. Trường hợp nhà cung cấp phát triển hệ thống trí tuệ nhân tạo dựa trên nền\ntảng, mô hình hoặc dịch vụ trí tuệ nhân tạo của bên thứ ba, nhà cung cấp chỉ phải\ncung cấp thông tin kỹ thuật và thông tin về dữ liệu trong phạm vi quyền tiếp cận và\nkiểm soát hợp pháp của mình.\n\n4. Việc lập, cung cấp và quản lý hồ sơ phân loại rủi ro không bắt buộc nhà cung\ncấp phải tiết lộ mã nguồn, bộ tham số mô hình, thuật toán chi tiết, dữ liệu huấn luyện\nthô hoặc các thông tin thuộc danh mục bí mật nhà nước, bí mật kinh doanh, bí mật\ncông nghệ theo quy định tại điểm e khoản 1 Điều 14 của Luật Trí tuệ nhân tạo, trừ\ntrường hợp pháp luật có quy định khác.\n\n5. Nhà cung cấp có quyền sử dụng tài liệu mô tả kỹ thuật mô hình hoặc tài liệu\nkỹ thuật tương đương được lập theo tiêu chuẩn quốc tế để đáp ứng các thành phần hồ\nsơ quy định tại khoản 2 và khoản 3 Điều này, với điều kiện các tài liệu đó đáp ứng đầy\nđủ các nội dung thông tin theo yêu cầu của Nghị định này.\n\n6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong\nsuốt thời gian hệ thống hoạt động.\n\n7. Trường hợp hệ thống trí tuệ nhân tạo có sử dụng dữ liệu cá nhân, nhà cung\ncấp được sử dụng Hồ sơ đánh giá tác động xử lý dữ liệu cá nhân theo quy định của\npháp luật về bảo vệ dữ liệu cá nhân để thay thế hoặc tích hợp làm thành phần của Hồ\nsơ phân loại rủi ro, nhằm giảm thiểu chi phí tuân thủ hành chính.",
+        "content_sha256": "8e9a9d22a2ebc704f13ffa633136d77488ea4d6f847c6b4298db938904a09108",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "6",
+      "actorSourceAnchor": "Nhà cung cấp, bên triển khai",
+      "expectedActor": "Nhà cung cấp và bên triển khai",
+      "requiredAction": "Provider and deployer retain dossier throughout system operation",
+      "materialConditionOrLimit": "duration",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 142-2026-ND-CP, Điều 12, clause 6 in original Vietnamese. Preserve the declared actor and duration; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "dossier-retention-pair",
+        "changedFact": "duration",
+        "scenarios": [
+          {
+            "caseId": "dossier-retention-trigger",
+            "facts": "provider and deployer continue operating the system",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "dossier-retention-counterfactual",
+            "facts": "system is no longer operating; other retention obligations are outside this target",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "technical-mark-preservation",
+      "source": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 17",
+        "title": "142-2026-ND-CP · Công báo PDF trang 14–15",
+        "content": "Điều 17. Đánh dấu kỹ thuật đối với nội dung do hệ thống trí tuệ nhân tạo tạo ra\n\n1. Nhà cung cấp hệ thống trí tuệ nhân tạo phải áp dụng giải pháp kỹ thuật để\nnội dung đầu ra là âm thanh, hình ảnh hoặc video được đánh dấu ở định dạng máy\nđọc theo quy định tại khoản 2 Điều 11 của Luật Trí tuệ nhân tạo. Nhà cung cấp\nkhông bắt buộc phải th ực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội\ndung đầu ra là văn bản, trừ trường hợp pháp luật có quy định khác.\n\n2. Việc đánh dấu kỹ thuật quy định tại khoản 1 Điều này phải bảo đảm khả\nnăng nhận diện bằng máy đọc và có thể được thực hiện bằng một trong các biện\npháp sau đây:\nCÔNG BÁO/Số 278/Ngày 18-05-2026 16\n\na) Tích hợp dấu hiệu nhận biết vào cấu trúc tệp tin hoặc dữ liệu nội dung;\n\nb) Tích hợp dấu hiệu nhận biết vào siêu dữ liệu của tệp tin;\n\nc) Sử dụng chữ ký số, chữ ký điện tử hoặc phương thức xác thực kỹ thuật tương đương;\n\nd) Áp dụng giải pháp kỹ thuật khác bảo đảm khả năng nhận diện nội dung được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo.\n\n3. Dấu hiệu nhận biết ở định dạng máy đọc phải thể hiện thông tin xác nhận nội\ndung được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo. Nhà cung cấp có thể\ntích hợp thêm thông tin về nhà cung cấp, hệ thống trí tuệ nhân tạo hoặc thời điểm\ntạo, chỉnh sửa nội dung nếu giải pháp kỹ thuật cho phép, nhằm phục vụ việc xác thực\nnguồn gốc và truy vết nội dung.\n\n4. Nhà cung cấp phải bảo đảm chức năng đánh dấu kỹ thuật được duy trì trong\nquá trình tạo, xuất và cung cấp nội dung trong phạm vi các chức năng do hệ thống\nkiểm soát.\n\n5. Trường hợp hệ thống trí tuệ nhân tạo được cung cấp dưới dạng mã nguồn\nmở hoặc cung cấp miễn phí, nhà cung cấp được coi là đã thực hiện nghĩa vụ quy\nđịnh tại khoản 1 Điều này khi:\n\na) Tích hợp sẵn chức năng đánh dấu kỹ thuật; hoặc\n\nb) Công bố công khai công cụ, cấu hình tiêu chuẩn, giao diện lập trình ứng dụng\nhoặc tài liệu kỹ thuật cho phép bên triển khai cấu hình và vận hành chức năng đánh dấu.\nBên triển khai khi sử dụng hệ thống này để cung cấp nội dung ra công cộng\nphải áp dụng giải pháp kỹ thuật để thực hiện việc đánh dấu nội dung đầu ra.\n\n6. Bộ Khoa học và Công nghệ công bố và cập nhật danh mục tiêu chuẩn, quy\nchuẩn kỹ thuật hoặc hướng dẫn kỹ thuật tham chiếu phục vụ việc thực hiện đánh dấu\nkỹ thuật quy định tại Điều này. Việc công bố quy định tại khoản này không làm phát\nsinh thủ tục hành chính, điều kiện đầu tư kinh doanh hoặc nghĩa vụ ngoài quy định\ncủa Nghị định này.",
+        "content_sha256": "e90045c61c8afaeceba1c9cbcfcc33f62d03ebc0d9974db93aebf52366b4266b",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "4",
+      "actorSourceAnchor": "Nhà cung cấp",
+      "expectedActor": "Nhà cung cấp",
+      "requiredAction": "Maintain marking during generation/export/provision within controlled system functions",
+      "materialConditionOrLimit": "control boundary",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 142-2026-ND-CP, Điều 17, clause 4 in original Vietnamese. Preserve the declared actor and control boundary; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "technical-mark-preservation-pair",
+        "changedFact": "control boundary",
+        "scenarios": [
+          {
+            "caseId": "technical-mark-preservation-trigger",
+            "facts": "provider controls the export function",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "technical-mark-preservation-counterfactual",
+            "facts": "the relevant function is outside provider system control",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    },
+    {
+      "frameId": "open-system-deployer-marking",
+      "source": {
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 17",
+        "title": "142-2026-ND-CP · Công báo PDF trang 14–15",
+        "content": "Điều 17. Đánh dấu kỹ thuật đối với nội dung do hệ thống trí tuệ nhân tạo tạo ra\n\n1. Nhà cung cấp hệ thống trí tuệ nhân tạo phải áp dụng giải pháp kỹ thuật để\nnội dung đầu ra là âm thanh, hình ảnh hoặc video được đánh dấu ở định dạng máy\nđọc theo quy định tại khoản 2 Điều 11 của Luật Trí tuệ nhân tạo. Nhà cung cấp\nkhông bắt buộc phải th ực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội\ndung đầu ra là văn bản, trừ trường hợp pháp luật có quy định khác.\n\n2. Việc đánh dấu kỹ thuật quy định tại khoản 1 Điều này phải bảo đảm khả\nnăng nhận diện bằng máy đọc và có thể được thực hiện bằng một trong các biện\npháp sau đây:\nCÔNG BÁO/Số 278/Ngày 18-05-2026 16\n\na) Tích hợp dấu hiệu nhận biết vào cấu trúc tệp tin hoặc dữ liệu nội dung;\n\nb) Tích hợp dấu hiệu nhận biết vào siêu dữ liệu của tệp tin;\n\nc) Sử dụng chữ ký số, chữ ký điện tử hoặc phương thức xác thực kỹ thuật tương đương;\n\nd) Áp dụng giải pháp kỹ thuật khác bảo đảm khả năng nhận diện nội dung được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo.\n\n3. Dấu hiệu nhận biết ở định dạng máy đọc phải thể hiện thông tin xác nhận nội\ndung được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo. Nhà cung cấp có thể\ntích hợp thêm thông tin về nhà cung cấp, hệ thống trí tuệ nhân tạo hoặc thời điểm\ntạo, chỉnh sửa nội dung nếu giải pháp kỹ thuật cho phép, nhằm phục vụ việc xác thực\nnguồn gốc và truy vết nội dung.\n\n4. Nhà cung cấp phải bảo đảm chức năng đánh dấu kỹ thuật được duy trì trong\nquá trình tạo, xuất và cung cấp nội dung trong phạm vi các chức năng do hệ thống\nkiểm soát.\n\n5. Trường hợp hệ thống trí tuệ nhân tạo được cung cấp dưới dạng mã nguồn\nmở hoặc cung cấp miễn phí, nhà cung cấp được coi là đã thực hiện nghĩa vụ quy\nđịnh tại khoản 1 Điều này khi:\n\na) Tích hợp sẵn chức năng đánh dấu kỹ thuật; hoặc\n\nb) Công bố công khai công cụ, cấu hình tiêu chuẩn, giao diện lập trình ứng dụng\nhoặc tài liệu kỹ thuật cho phép bên triển khai cấu hình và vận hành chức năng đánh dấu.\nBên triển khai khi sử dụng hệ thống này để cung cấp nội dung ra công cộng\nphải áp dụng giải pháp kỹ thuật để thực hiện việc đánh dấu nội dung đầu ra.\n\n6. Bộ Khoa học và Công nghệ công bố và cập nhật danh mục tiêu chuẩn, quy\nchuẩn kỹ thuật hoặc hướng dẫn kỹ thuật tham chiếu phục vụ việc thực hiện đánh dấu\nkỹ thuật quy định tại Điều này. Việc công bố quy định tại khoản này không làm phát\nsinh thủ tục hành chính, điều kiện đầu tư kinh doanh hoặc nghĩa vụ ngoài quy định\ncủa Nghị định này.",
+        "content_sha256": "e90045c61c8afaeceba1c9cbcfcc33f62d03ebc0d9974db93aebf52366b4266b",
+        "source_kind": "OFFICIAL_PINNED_LAW"
+      },
+      "clause": "5",
+      "actorSourceAnchor": "Bên triển khai",
+      "expectedActor": "Bên triển khai",
+      "requiredAction": "Deployer of open/free system marks outputs supplied to the public; provider enablement is a distinct obligation",
+      "materialConditionOrLimit": "actor and public release",
+      "interpretationStatus": "CANDIDATE_REQUIRES_INDEPENDENT_LEGAL_REVIEW",
+      "reviewStatus": "CANDIDATE",
+      "reviewers": [],
+      "rationale": "Review 142-2026-ND-CP, Điều 17, clause 5 in original Vietnamese. Preserve the declared actor and actor and public release; compare the two stated facts, not repository names or fixture verdicts.",
+      "scenarioPair": {
+        "pairId": "open-system-deployer-marking-pair",
+        "changedFact": "actor and public release",
+        "scenarios": [
+          {
+            "caseId": "open-system-deployer-marking-trigger",
+            "facts": "deployer of an open/free system supplies audiovisual output publicly",
+            "proposedTargetTreatment": "ASSESS_STATED_TARGET_AND_LIMITS"
+          },
+          {
+            "caseId": "open-system-deployer-marking-counterfactual",
+            "facts": "same deployer uses output internally without public supply",
+            "proposedTargetTreatment": "REASSESS_MATERIAL_LIMIT_DO_NOT_TRANSFER_PRIOR_CONCLUSION"
+          }
+        ]
+      },
+      "reviewDimensions": [
+        "ACTOR",
+        "CONDITIONS",
+        "EXCEPTIONS",
+        "EVIDENCE_SUFFICIENCY",
+        "UNSUPPORTED_CONCLUSION"
+      ],
+      "annotationDecision": "Record independently justified labels; no quality label is derived from an applicability/compliance fixture verdict."
+    }
+  ],
+  "frameCount": 15,
+  "counterfactualScenarioCount": 30,
+  "metricEligibility": "NOT_SCORED_REVIEW_REQUIREMENTS_ONLY",
+  "actualPreparationOutputCount": 0,
+  "packageSha256": "6cbe0309db72456da156545ef4c5f0f1543289ee42e2e63bc4208add27062eb9"
+}

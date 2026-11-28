@@ -1,0 +1,383 @@
+{
+  "archive": "full-artifacts.zip",
+  "archiveSha256": "104d8874a57eda2d2c2a6bf7e3f77c6fbf508138b04a5283bdf7b05e7147c70e",
+  "classification": "SCRIPTED_ONLY_ZERO_REVIEWED_GOLD",
+  "fileCount": 75,
+  "files": [
+    {
+      "path": "lcsp400-split-all/legal-reasoning.json",
+      "sha256": "f03f241db5815a7e9a62b4def13d7af5cb30e7e55845b41d273b98c01c5658c1",
+      "bytes": 1120491
+    },
+    {
+      "path": "lcsp400-split-all/manifest.json",
+      "sha256": "582b864cc43a3bc8a64b5fa9fde0e9c057ff54c069d651fefea2b4738dcbc46e",
+      "bytes": 14462
+    },
+    {
+      "path": "lcsp400-split-all/report.csv",
+      "sha256": "9d76c23fed49aee4beed99c8ea7e19ff5aabe507b6e8b9de7f4b57f3adb5f2d1",
+      "bytes": 2893
+    },
+    {
+      "path": "lcsp400-split-all/report.json",
+      "sha256": "056adbdf3303964b0df1fbde20cc95fe4325a943eb2f3a94ef27587936831215",
+      "bytes": 5717
+    },
+    {
+      "path": "lcsp400-split-all/traces/archive-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "9b89b8c19cfeab9428166d17f61acd4883399ebbd95731ea07d6b8686b7ba9e1",
+      "bytes": 22880
+    },
+    {
+      "path": "lcsp400-split-all/traces/archive-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "81902ac96ec90b9a83b1d2f1f76c1b53b20992ea3f9c62011e328d3cc5c12796",
+      "bytes": 26290
+    },
+    {
+      "path": "lcsp400-split-all/traces/archive-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "a9ff887f42fc2d3cac949974fbcee2f4aa4204664ebb70be831b61fa28cb1288",
+      "bytes": 23989
+    },
+    {
+      "path": "lcsp400-split-all/traces/assist-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "958127c4b128541035cadc48ce5835837c6529e1eff740cd4f78f2979961cb75",
+      "bytes": 22861
+    },
+    {
+      "path": "lcsp400-split-all/traces/assist-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "87684311c8e882d4c0819be04e864a25f414c4c26822968ee5a599d3bfea84af",
+      "bytes": 26271
+    },
+    {
+      "path": "lcsp400-split-all/traces/assist-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "20897422dfdb7f57d489682f472dc18e76ab91b9c7deacbcc3b7c62b3538faf2",
+      "bytes": 26709
+    },
+    {
+      "path": "lcsp400-split-all/traces/assist-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "08a0b7aea56fa933795f624e388afbc1b9abbece1232ee8080852b1f9b8d447a",
+      "bytes": 23970
+    },
+    {
+      "path": "lcsp400-split-all/traces/bulletin-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "d78eef3920b1d975427799a0b9cb997d76d4378e1f805bc6b4f4ef5a3a77b3cd",
+      "bytes": 22897
+    },
+    {
+      "path": "lcsp400-split-all/traces/bulletin-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "3ff70c1aa114768b3fc5f15696f3a1341c9dee183e7298a6d4e0b2f33f398d8d",
+      "bytes": 26307
+    },
+    {
+      "path": "lcsp400-split-all/traces/bulletin-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "476fcb6c0c739945081ab13e3df97796944d99f0542ca8e4aae287025845778e",
+      "bytes": 26743
+    },
+    {
+      "path": "lcsp400-split-all/traces/bulletin-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "4592cb8258b5a0f0ef31b3920c2edf23afe4d60f10110889a4b37f3c2afd45a1",
+      "bytes": 24006
+    },
+    {
+      "path": "lcsp400-split-all/traces/capture-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "595b6898a108d58546c5f9b8feceb9f5e498858c37779fb04eadd4838037d0c7",
+      "bytes": 22880
+    },
+    {
+      "path": "lcsp400-split-all/traces/capture-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "0a2ce4934f4dd01a2d466f4f1d4a09df5a26b966c1481707e350c9c916a6e0c8",
+      "bytes": 26290
+    },
+    {
+      "path": "lcsp400-split-all/traces/capture-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "7c70ae3fc2126f25ffc612af36f82534fba7f686cf1d39a4a5199a23652592f0",
+      "bytes": 26724
+    },
+    {
+      "path": "lcsp400-split-all/traces/capture-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "d34b9b1740bba58534f12b77df70c22d4d23235b09e987216921b6a6d823721f",
+      "bytes": 23989
+    },
+    {
+      "path": "lcsp400-split-all/traces/lattice-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "5cc8175a401d65caf024baa2ccef9603cdd4f9348cb09929c4d2bc10f78ed62e",
+      "bytes": 22880
+    },
+    {
+      "path": "lcsp400-split-all/traces/lattice-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "a2a71173a25217ad3a0dbdf2b1f7a90f30dbb68cd3b5dc7f32e107131828acb9",
+      "bytes": 26290
+    },
+    {
+      "path": "lcsp400-split-all/traces/lattice-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "d9d7429c4fca05b4708743796bc7b9b560b1dcbb5123fb318ce7ac9ea0fd1f7a",
+      "bytes": 26726
+    },
+    {
+      "path": "lcsp400-split-all/traces/lattice-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "8953bc5bb350fc87a8123c9ee9db43157a759757b79c5a1e480fb492fe16203d",
+      "bytes": 23989
+    },
+    {
+      "path": "lcsp400-split-all/traces/prototype-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "192a58a3507437ab515c73304f0ff8834a4f97a46839f23e1458e7c5b07d1106",
+      "bytes": 22914
+    },
+    {
+      "path": "lcsp400-split-all/traces/prototype-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "a2db7cf581e2785b3c2923f5b5830417d4582075de0e772c7468f6c77c330957",
+      "bytes": 26324
+    },
+    {
+      "path": "lcsp400-split-all/traces/prototype-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "603a08133ab49daba02c68b26ae1edd1b01b7c69407329ceb8868d4969552f2c",
+      "bytes": 24023
+    },
+    {
+      "path": "lcsp400-split-all/traces/studio-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "f6cfceceebd940d4882b98ab635872645fb646fe256c54cbde5329ba209afb15",
+      "bytes": 22863
+    },
+    {
+      "path": "lcsp400-split-all/traces/studio-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "c333403bc35f56bb7c17134f1c967034df7c92f1eddb92a5033461ea4b27bad4",
+      "bytes": 26273
+    },
+    {
+      "path": "lcsp400-split-all/traces/studio-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "dc9b8367c47695f2e394f8cf8e59741faad9f21b1c3a5c54cf16b0d812ec025f",
+      "bytes": 26709
+    },
+    {
+      "path": "lcsp400-split-all/traces/studio-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "58144340da2330d2335bc027611fd815114777b577e48f43c10b902735ed6e18",
+      "bytes": 23972
+    },
+    {
+      "path": "lcsp400-split-all/traces/workbench-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "83c69fe06a78e6c9b0ff5092f38cb00de6a8c5b37088baca685df304552deaef",
+      "bytes": 22912
+    },
+    {
+      "path": "lcsp400-split-all/traces/workbench-VN-AI-MEDIA-MARK_t0_WAITING_FOR_HUMAN.json",
+      "sha256": "1acbfe0e5f40afd1f9b0052c6ce007d2af3d194b407234c43b91df8be74a297b",
+      "bytes": 26354
+    },
+    {
+      "path": "lcsp400-split-all/traces/workbench-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "142c3905455387f6b563920f805b02a223e4a4307028f2f5b9bf3e4e55cc93dc",
+      "bytes": 26760
+    },
+    {
+      "path": "lcsp400-split-all/traces/workbench-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "30962d2952b64d413072a09c01c58dfa0f2d3c0fc981176498f6e79ec56c8c17",
+      "bytes": 24021
+    },
+    {
+      "path": "lcsp400-split-all/trials.jsonl",
+      "sha256": "1229da190dc2078959f8600bf909c945cdcc87dbb176dbe86b74453fc1f5f3d9",
+      "bytes": 37636
+    },
+    {
+      "path": "lcsp400-split-dev/legal-reasoning.json",
+      "sha256": "fd65840f321a04a0f1219d90f64a90407705135833468f6f45c44966013065a6",
+      "bytes": 883637
+    },
+    {
+      "path": "lcsp400-split-dev/manifest.json",
+      "sha256": "76dff7d7e586f2d00914f42372caa0512c2ea249b5a896fb3eb7047f8e5430df",
+      "bytes": 13315
+    },
+    {
+      "path": "lcsp400-split-dev/report.csv",
+      "sha256": "322350372f835b430339d512f4f295310b5a1f524026fbf18dfc430cf490f2cd",
+      "bytes": 2113
+    },
+    {
+      "path": "lcsp400-split-dev/report.json",
+      "sha256": "3e57317e0c30eff16082e3ad61d2b97008fa52adbb75e003ed2a7c2d224c688d",
+      "bytes": 5670
+    },
+    {
+      "path": "lcsp400-split-dev/traces/archive-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "1cfcc7315b29a04bfba77243fb058c269a570c92cb0a528e617fa6d9d7d0dd46",
+      "bytes": 26290
+    },
+    {
+      "path": "lcsp400-split-dev/traces/archive-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "92d9d4cc4f699fe3878d883cd636b6b4510359afc0b79149f1888fedb446be01",
+      "bytes": 23989
+    },
+    {
+      "path": "lcsp400-split-dev/traces/assist-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "5cfdee8ed983963aabafd9e368dcc83d75fb0faaff7dd02524f53491e9f7a0e7",
+      "bytes": 26271
+    },
+    {
+      "path": "lcsp400-split-dev/traces/assist-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "5455de5dd6538a484e1fefd2d6fbda83668e031ab77ce1077dd926a2661736b3",
+      "bytes": 26709
+    },
+    {
+      "path": "lcsp400-split-dev/traces/assist-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "cf2f0ce83ce24d99ef04d0fa8f9de41f6a1cd0ce17a955a2e426569de3ed4717",
+      "bytes": 23970
+    },
+    {
+      "path": "lcsp400-split-dev/traces/bulletin-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "cd4537f6207f68a7f26f9c5c3f500f883774662c75a599833b8bed434b368234",
+      "bytes": 26307
+    },
+    {
+      "path": "lcsp400-split-dev/traces/bulletin-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "1ea10963299f516aab211b4a29fd96806b267633b377e4b384d6f018b1d45cee",
+      "bytes": 26743
+    },
+    {
+      "path": "lcsp400-split-dev/traces/bulletin-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "a7973a1ef73f087b79314c137d8c1a60aa1c7cc4692ad3d7a4b0a9ab62f07c00",
+      "bytes": 24006
+    },
+    {
+      "path": "lcsp400-split-dev/traces/capture-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "9cf0c9a91dd410f5ef5522607c472ad84f9b4f3002a2c0d75523e27ac0bf5db4",
+      "bytes": 26290
+    },
+    {
+      "path": "lcsp400-split-dev/traces/capture-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "9675d6611e3f9b5599fd0cd01923dadb8a8800bbcac2160438b6b7399da4e68c",
+      "bytes": 26724
+    },
+    {
+      "path": "lcsp400-split-dev/traces/capture-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "40713144df54b78ccd8aa9f47768917fb42606d054e0a19674c7a657c8299171",
+      "bytes": 23989
+    },
+    {
+      "path": "lcsp400-split-dev/traces/lattice-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "ab4dd53de50a00aa8e37be92241ae1f7f1f8de4836838e3306668e8e10b615cb",
+      "bytes": 26290
+    },
+    {
+      "path": "lcsp400-split-dev/traces/lattice-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "4d594445ae90a13d0ca1a5938da06d51849be4a5de2fcc3771fd596357d414d1",
+      "bytes": 26726
+    },
+    {
+      "path": "lcsp400-split-dev/traces/lattice-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "edda86212a4666a646155d425bd8b49f6132385929efcc049168dc34935dda1b",
+      "bytes": 23989
+    },
+    {
+      "path": "lcsp400-split-dev/traces/prototype-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "0c1237989a5ae001fafc93ae26bc6643a09516751a7c0ffbec57128ad7af6697",
+      "bytes": 26324
+    },
+    {
+      "path": "lcsp400-split-dev/traces/prototype-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "36c45c33af37c66eff838c1ffee4c8d628bab01d4e166b7db8269b92dbb2923a",
+      "bytes": 24023
+    },
+    {
+      "path": "lcsp400-split-dev/traces/studio-VN-AI-MEDIA-MARK_t0_INITIAL.json",
+      "sha256": "6f5457628502d72581c8d3abf901269d3bbf74b16786a711d52d1b31f2534989",
+      "bytes": 26273
+    },
+    {
+      "path": "lcsp400-split-dev/traces/studio-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "37603db31ef14b54127b37ea8f626426ac49e879c203b9a316a50945e84f1251",
+      "bytes": 26709
+    },
+    {
+      "path": "lcsp400-split-dev/traces/studio-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "bf89afc2c55d7a87100f70622e9e346f43d1c481b35d7ae4b4089887297e2dab",
+      "bytes": 23972
+    },
+    {
+      "path": "lcsp400-split-dev/traces/workbench-VN-AI-MEDIA-MARK_t0_WAITING_FOR_HUMAN.json",
+      "sha256": "6765868985bc1302c16c87c33259bbdb5d5b2950cbca4bf357be4915ee0e6fdc",
+      "bytes": 26354
+    },
+    {
+      "path": "lcsp400-split-dev/traces/workbench-VN-AI-OPEN-MARK-ENABLEMENT_t0_INITIAL.json",
+      "sha256": "df597b7992be7733c6273a85368fdb0e5f6f194bc572b39ea8aec94d67aaa8f8",
+      "bytes": 26760
+    },
+    {
+      "path": "lcsp400-split-dev/traces/workbench-VN-AI-RISK-VERSION_t0_INITIAL.json",
+      "sha256": "5a587b7d3e237acc5c1e92e84ca57d3f6d011f4fc9d0f16e9b3d786586f899f5",
+      "bytes": 24021
+    },
+    {
+      "path": "lcsp400-split-dev/trials.jsonl",
+      "sha256": "91229e19da6614ac9058d73c355f53545e045246db3b6b4979da0e030dfa4851",
+      "bytes": 27433
+    },
+    {
+      "path": "lcsp400-split-holdout/legal-reasoning.json",
+      "sha256": "4edffb4bbfb9178084f0838a28f85625a3594be04cd092a8cc51a5ac7866f0e3",
+      "bytes": 333827
+    },
+    {
+      "path": "lcsp400-split-holdout/manifest.json",
+      "sha256": "cf76bb4ff4238ac57c603528cd11006195dbf482dca3a69f97eb1ab126779585",
+      "bytes": 11495
+    },
+    {
+      "path": "lcsp400-split-holdout/report.csv",
+      "sha256": "ac5c957d3f3082a5985422f93862f08a220fe4f527309b0b039ba3abf4773d96",
+      "bytes": 1014
+    },
+    {
+      "path": "lcsp400-split-holdout/report.json",
+      "sha256": "96106212c4d90170e119857daf80ef2f6ce88781d9efd0a1b94f2fb563e1b31f",
+      "bytes": 5646
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/archive-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "6d6a9b93f14ee2f6b97bdfe5c90193b6363cfa7657bdd426ca7b9cf1f64d5332",
+      "bytes": 22892
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/assist-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "3a2b6d41c46fa9a8d1812685447b04a3b10065f152e7d719c536ed4e5fa136da",
+      "bytes": 22873
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/bulletin-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "8f25d42e6fb606596e09eaaba39c54c28a3db62f85b33dc700afb8fce5d79ba3",
+      "bytes": 22909
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/capture-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "bedd9bd66023f71ab9eb2d334fa86478a3db4d1d36024f99df9aa87c6750fee1",
+      "bytes": 22892
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/lattice-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "6788cd3970aadac4b26eb2420ef7696e58244638dde69fb93dc4d4e68565c2ea",
+      "bytes": 22892
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/prototype-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "69b24dda3caec2409ec11d1a4fd89d0338f6b8f8389c226f903eaead36e77684",
+      "bytes": 22926
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/studio-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "d6ce018752412f0b010961b422154c7086104b8a1d9c8768059bb07d1a94f9d1",
+      "bytes": 22875
+    },
+    {
+      "path": "lcsp400-split-holdout/traces/workbench-VN-AI-INTERACTION-DISCLOSURE_t0_INITIAL.json",
+      "sha256": "f7fdea50a35bd61ffaae693b7abfd68894bc3b5fedbc2bf687ed949548d28b2f",
+      "bytes": 22924
+    },
+    {
+      "path": "lcsp400-split-holdout/trials.jsonl",
+      "sha256": "1203e8209bae320223af6d76f6d365aa11f06681dab58b2f12b6820208e78ad9",
+      "bytes": 10238
+    }
+  ]
+}

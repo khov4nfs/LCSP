@@ -1,0 +1,121 @@
+{
+  "rubricId": "LCSP-400-HUMAN-REVIEWED-LEGAL-REASONING",
+  "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+  "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+  "methodologyReference": "LegalBench: A Collaboratively Built Benchmark for Measuring Legal Reasoning in Large Language Models, NeurIPS 2023. Used as an evaluation-methodology reference only; no LegalBench task or labels are copied.",
+  "domainContractSources": [
+    "packages/contracts/src/assessment/agentic-runtime.ts: RULE_DECISION_APPLICABILITIES, RULE_DECISION_COMPLIANCE_OUTCOMES, RULE_DECISION_CRITERION_OUTCOMES, RULE_DECISION_REFERENCE_TYPES, HumanResolutionRequest",
+    "deepagents/rule_set_preparation/claim-file.schema.json: DUTY, PROHIBITION, PERMISSION, DEFINITION, SCOPE, QUALIFIER, EXCEPTION, CROSS_REFERENCE, CONDITION and source-bound claims",
+    "deepagents/rule_set_preparation/packet-schema.json: semanticGraph, LegalRequirement/AssessmentRule source references and semantic frame fields"
+  ],
+  "labelNormalization": {
+    "APPLICABILITY": {"APPLICABLE": "APPLICABLE", "NOT_APPLICABLE": "NOT_APPLICABLE", "UNRESOLVED": "UNRESOLVED"},
+    "COMPLIANCE": {"COMPLIANT": "SUPPORTED_COMPLIANCE", "NON_COMPLIANT": "SUPPORTED_NON_COMPLIANCE", "INSUFFICIENT_EVIDENCE": "INSUFFICIENT_EVIDENCE", "UNRESOLVED": "UNRESOLVED", "NOT_APPLICABLE": "NOT_APPLICABLE"},
+    "note": "UNRESOLVED, INSUFFICIENT_EVIDENCE and evaluation classifications are rubric labels, not production statuses. An unresolved Assessment Root fact is represented by no final decision plus an open HumanResolutionRequest. Absence of evidence alone never maps to NON_COMPLIANT."
+  },
+  "dimensions": {
+    "APPLICABILITY": {
+      "definition": "Whether a specific pinned legal obligation governs the scenario after applying its stated scope, territorial/material reach, actor, triggering conditions, exclusions, and established facts.",
+      "labels": ["APPLICABLE", "NOT_APPLICABLE", "UNRESOLVED"],
+      "domainMapping": "Assessment Root exposes APPLICABLE and NOT_APPLICABLE. Missing material facts do not create a third production status: preserve the open human-resolution request and annotate UNRESOLVED for evaluation. Rule Set Preparation authors the source rule and scope; it does not decide scenario applicability.",
+      "correctExamples": ["A controller has an establishment in the Union and processes personal data in the context of its activity: APPLICABLE under GDPR Article 3(1).", "A natural person processes information only for a purely personal or household activity: NOT_APPLICABLE under Article 2(2)(c), subject to reviewer confirmation of the facts."],
+      "incorrectExamples": ["Applying Article 3(2) to a non-Union company solely because its public website can be opened in the Union, without goods/services targeting or behavior monitoring.", "Declaring NOT_APPLICABLE because the repository has no file about the processing location."],
+      "annotationDecisionRules": ["Annotate APPLICABLE or NOT_APPLICABLE only when material scope facts are established.", "Use UNRESOLVED when a legally material fact remains unknown; do not turn missing evidence into a negative fact.", "Keep source-scope extraction at Rule Set Preparation separate from scenario-level application at Assessment Root."],
+      "uncertainAndExcludedCases": "Exclude a case if the provision's territorial or material scope requires unresolved external legal interpretation; mark UNCERTAIN if facts do not establish the relevant activity or personal-data status.",
+      "metricEligibility": "Score only for Assessment Root cases with REVIEWED or ADJUDICATED labels and a reviewed observed prediction. No Rule Set Preparation applicability metric is emitted.",
+      "stageApplicability": {"RULE_SET_PREPARATION": false, "ASSESSMENT_ROOT": true},
+      "metricGroup": "SEMANTIC_QUALITY"
+    },
+    "COMPLIANCE": {
+      "definition": "Whether known facts establish that an applicable obligation was met or not met, without enlarging the obligation or converting an evidence gap into a violation.",
+      "labels": ["SUPPORTED_COMPLIANCE", "SUPPORTED_NON_COMPLIANCE", "INSUFFICIENT_EVIDENCE", "UNRESOLVED", "NOT_APPLICABLE"],
+      "domainMapping": "Assessment Root compliance maps COMPLIANT to SUPPORTED_COMPLIANCE and NON_COMPLIANT to SUPPORTED_NON_COMPLIANCE. NOT_APPLICABLE is inferred only from an explicit NOT_APPLICABLE decision with null compliance, matching the contract invariant. The other labels are evaluation-only; missing facts remain an open human resolution rather than a production compliance enum.",
+      "correctExamples": ["A verified notification record within the applicable deadline supports compliance with the notification timing criterion.", "A verified controller notification more than 72 hours after awareness, with no delay reasons, may support non-compliance under Article 33(1)."],
+      "incorrectExamples": ["Calling an organization non-compliant only because its repository snapshot contains no notification log.", "Calling an obligation satisfied from a policy setting without evidence of the required event or control operation."],
+      "annotationDecisionRules": ["Use SUPPORTED_COMPLIANCE or SUPPORTED_NON_COMPLIANCE only where the relevant condition and facts support the conclusion.", "Use INSUFFICIENT_EVIDENCE where evidence does not establish whether the obligation was met.", "Use UNRESOLVED when a material human fact remains unanswered; use NOT_APPLICABLE only when applicability is explicitly false."],
+      "uncertainAndExcludedCases": "Exclude conclusions that require unpinned national law, disputed legal tests, or material facts outside the packet. Preserve uncertainty instead of selecting a binary outcome.",
+      "metricEligibility": "Assessment Root only; reviewed labels and separately reviewed output judgments are required. Insufficient evidence and unresolved labels remain distinct classes.",
+      "stageApplicability": {"RULE_SET_PREPARATION": false, "ASSESSMENT_ROOT": true},
+      "metricGroup": "SEMANTIC_QUALITY"
+    },
+    "ACTOR": {
+      "definition": "Whether each obligation is attributed to the legally responsible actor stated in the pinned source, including distinct concurrent duties and role changes supported by facts.",
+      "labels": ["CORRECT", "INCORRECT", "MISSING", "MULTIPLE_DISTINCT"],
+      "domainMapping": "Rule Set Preparation claim files carry an actor in the operative semantic frame; packet-schema LegalRequirement/AssessmentRule retains source-bound actor conditions. Assessment Root references legal contexts and records a rationale, but its RuleDecision does not expose a canonical actor field, so actor correctness requires a human judgment rather than inferred text matching.",
+      "correctExamples": ["Article 33(1) assigns supervisory-authority notification to the controller; Article 33(2) separately assigns prompt notice to the processor toward the controller.", "A case correctly retains different actors for different duties instead of collapsing them into one owner."],
+      "incorrectExamples": ["Assigning Article 33(1)'s authority notification duty to a processor merely because it detected the breach.", "Omitting the controller when the source assigns the duty to the controller."],
+      "annotationDecisionRules": ["Record the expected actor as source-language role labels and judge role identity, not surface wording.", "Use MULTIPLE_DISTINCT when separate duties have separate actors and all are represented distinctly.", "Do not assume that a contractual allocation changes the statutory actor unless the cited law supports that result."],
+      "uncertainAndExcludedCases": "Mark uncertain when the source uses a disputed role concept or facts do not establish controller/processor role; exclude multi-jurisdiction role conflicts that require external law.",
+      "metricEligibility": "Both stages. Predictions require human judgment because actor identity is semantic and is not safely determined by string matching.",
+      "stageApplicability": {"RULE_SET_PREPARATION": true, "ASSESSMENT_ROOT": true},
+      "metricGroup": "SEMANTIC_QUALITY"
+    },
+    "CONDITIONS": {
+      "definition": "Whether material triggers, scope limitations, thresholds, timing rules, qualifiers, and factual predicates are preserved and applied without strengthening or dropping them.",
+      "labels": ["COMPLETE", "PARTIAL", "INCORRECT", "MISSING", "NOT_APPLICABLE"],
+      "domainMapping": "Rule Set Preparation source claims use CONDITION, SCOPE, QUALIFIER and typed semanticFrame fields such as trigger, scope, modality and temporal conditions. Assessment Root LegalRequirement and RuleDecision criteria/confirmed facts represent requirements and their evidence. Labels are evaluation-only.",
+      "correctExamples": ["Preserving both breach awareness as the 72-hour clock trigger and the risk threshold in Article 33(1).", "Preserving Article 35(1)'s likely-high-risk condition and before-processing timing."],
+      "incorrectExamples": ["Dropping 'where feasible' or the low-risk exception from Article 33(1).", "Treating any breach as requiring data-subject communication without the high-risk condition in Article 34(1)."],
+      "annotationDecisionRules": ["List every material condition supported by the cited provisions; separate legal predicates from scenario facts.", "Use PARTIAL when at least one material condition is present but another is omitted.", "Use INCORRECT when a condition is contradicted, materially broadened, or narrowed; MISSING when no condition is represented."],
+      "uncertainAndExcludedCases": "Mark uncertain when multiple cross-referenced provisions leave condition interaction unresolved or the source text is ambiguous without authoritative interpretation.",
+      "metricEligibility": "Both stages; output comparisons need recorded human judgments unless a structured typed claim can be normalized without interpretation.",
+      "stageApplicability": {"RULE_SET_PREPARATION": true, "ASSESSMENT_ROOT": true},
+      "metricGroup": "SEMANTIC_QUALITY"
+    },
+    "EXCEPTIONS": {
+      "definition": "Whether each source-stated exception, exclusion, or safe harbor is linked to the obligation it qualifies and applied only when its predicates are established.",
+      "labels": ["COMPLETE", "PARTIAL", "INCORRECT", "MISSING", "NOT_APPLICABLE"],
+      "domainMapping": "Rule Set Preparation represents source exceptions with EXCEPTION claims and typed semantic frames/context relations. Assessment Root applies them through legal-context conditions and supported facts; no production exception enum is added.",
+      "correctExamples": ["Article 34(3)(a)'s protection must have been applied to the personal data affected by the breach before the communication exception is used.", "Article 30(5)'s fewer-than-250 exception remains conditional on all stated risk, frequency, and data-category carve-outs."],
+      "incorrectExamples": ["Treating configured encryption as sufficient when the affected data were not encrypted.", "Applying Article 30(5) solely from employee count while ignoring its listed exceptions."],
+      "annotationDecisionRules": ["Record every material exception predicate and the obligation it qualifies.", "Use COMPLETE when the exception and its trigger are preserved, PARTIAL when some but not all predicates are, and INCORRECT when applied despite a failed predicate.", "Use NOT_APPLICABLE only when the cited obligation has no relevant exception in the scenario."],
+      "uncertainAndExcludedCases": "Mark uncertain when an exception depends on an external risk assessment or technical fact not present in the scenario; do not infer satisfaction from policy text alone.",
+      "metricEligibility": "Both stages; observed free-text exception treatment requires a separate human judgment.",
+      "stageApplicability": {"RULE_SET_PREPARATION": true, "ASSESSMENT_ROOT": true},
+      "metricGroup": "SEMANTIC_QUALITY"
+    },
+    "EVIDENCE_SUFFICIENCY": {
+      "definition": "Whether evidence is relevant, sufficient, temporally and contextually matched, and supported by valid provenance for the factual proposition and conclusion it is offered to support.",
+      "labels": ["SUFFICIENT", "PARTIAL", "MISSING", "IRRELEVANT", "CONTRADICTORY", "INVALID_OR_UNRESOLVED_PROVENANCE"],
+      "domainMapping": "Assessment Root references evidence through ASSESSMENT_EVIDENCE IDs and confirmed facts through CONFIRMED_FACT references. Deterministic integrity checks validate reference shape and identity; human review judges substantive sufficiency. Rule Set Preparation source pin/hash integrity remains a contract check, not an evidence-quality semantic score.",
+      "correctExamples": ["A signed notification record with event and awareness timestamps can support timing; a policy document alone does not prove an actual notification.", "A source snapshot explicitly outside production behavior is not evidence of production enforcement."],
+      "incorrectExamples": ["Treating a file name containing '72-hour notification' as proof that notice occurred.", "Ignoring a contrary incident log or accepting evidence from an unverified or mismatched snapshot."],
+      "annotationDecisionRules": ["Judge evidence separately from legal reasoning; strong reasoning with weak evidence must remain distinguishable.", "Use PARTIAL when evidence supports some but not all material facts; CONTRADICTORY when reliable evidence conflicts with the claimed fact.", "Use INVALID_OR_UNRESOLVED_PROVENANCE when source identity, version, integrity, or chain of custody is not established."],
+      "uncertainAndExcludedCases": "Exclude inaccessible or private material unless access is authorized; mark uncertain when the evidence package cannot establish provenance or scope.",
+      "metricEligibility": "Assessment Root only. A human reviewer must judge the observed evidence use; no keyword or file-name heuristic is allowed.",
+      "stageApplicability": {"RULE_SET_PREPARATION": false, "ASSESSMENT_ROOT": true},
+      "metricGroup": "EVIDENCE_QUALITY"
+    },
+    "UNSUPPORTED_CONCLUSION": {
+      "definition": "Whether an output asserts an obligation or legal/factual conclusion beyond the pinned authority, scenario facts, or admissible evidence, including treating search hints as verified support.",
+      "labels": ["NONE", "INVENTED_OBLIGATION", "UNSUPPORTED_APPLICABILITY", "UNSUPPORTED_COMPLIANCE", "REPOSITORY_EVIDENCE_MISINTERPRETED", "UNVERIFIED_HINT_OR_ASSUMPTION"],
+      "domainMapping": "Rule Set Preparation separates LEGAL_NORMATIVE claims from definitions, context, and guidance and anchors claims to sourceNodeIds. Assessment Root RuleDecision references legal contexts and evidence IDs; neither contract alone establishes whether prose overclaims, so human semantic judgment is required.",
+      "correctExamples": ["Describing Article 32 as risk-appropriate security measures without asserting an unconditional encryption mandate.", "Keeping a repository coverage gap as unknown rather than concluding that a real-world control was absent."],
+      "incorrectExamples": ["Inventing an unconditional statutory encryption duty where the cited provision is risk-based.", "Declaring violation from a search snippet, file name, keyword, or absent artifact without verifying source and fact provenance."],
+      "annotationDecisionRules": ["Classify the primary unsupported claim and cite the exact missing legal or factual support.", "Use NONE only when conclusions stay within the source, facts, and evidence.", "Distinguish legal overreach from misreading repository evidence and from relying on unverified hints."],
+      "uncertainAndExcludedCases": "Mark uncertain if source coverage is incomplete or a legal interpretation is genuinely disputed; exclude claims that cannot be compared to the pinned legal version.",
+      "metricEligibility": "Both stages; only separately human-judged observed output is scored.",
+      "stageApplicability": {"RULE_SET_PREPARATION": true, "ASSESSMENT_ROOT": true},
+      "metricGroup": "SEMANTIC_QUALITY"
+    }
+  },
+  "reviewEligibility": {
+    "eligibleStatuses": ["REVIEWED", "ADJUDICATED"],
+    "requiredForReviewed": ["reviewerId", "reviewerType=HUMAN", "identityVerificationRef", "reviewedAt", "decision", "dimensionsReviewed"],
+    "requiredForAdjudicated": ["eligible human reviewer records", "adjudicator id", "reviewEvidenceRef", "outcome", "rationale", "adjudicatedAt"],
+    "unresolvedDisagreement": "Never eligible until an independent human adjudicator records an outcome; model agreement is not adjudication.",
+    "agentAuthoredData": "CANDIDATE by default; no identity, approval, reviewer, or consensus may be fabricated."
+  },
+  "scoringContract": {
+    "confusionMatrixOrientation": "Rows are gold labels; columns are predictions.",
+    "macroF1": "Arithmetic mean of per-class F1 for labels with gold or prediction support; labels absent from both are omitted.",
+    "zeroDenominator": "Null, never 0 or 1.",
+    "missingPrediction": "Included in denominator under __MISSING__; counted in missingPredictionCount and generates false negatives for the gold class.",
+    "unknownPrediction": "Included in denominator under __UNKNOWN__; counted in invalidPredictionCount and is not silently dropped.",
+    "provisionalGold": "Excluded from quality metric denominator and counted in review coverage.",
+    "excludedGold": "Excluded from quality metric denominator and counted separately.",
+    "nonApplicableDimension": "Omitted from that dimension's denominator; applicability remains visible in applicableCaseCount.",
+    "emptyEligibleSet": "NOT_SCORED with null macro-F1 and zero denominator, plus explicit coverage counts.",
+    "determinism": "Stable case, stage, dimension, class, and JSON key ordering; six decimal precision; no clocks or model calls."
+  }
+}

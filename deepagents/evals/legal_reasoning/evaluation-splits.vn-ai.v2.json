@@ -1,0 +1,98 @@
+{
+  "assignmentRule": "SHA256(groupId)[0:8] mod 5 == 0 => HOLDOUT; otherwise DEV; mapped P14 execution cases inherit their candidate group",
+  "candidateCaseCount": 30,
+  "candidateDatasetSha256": "aa35124bb96c169ce237d9194c6a9f9bc8e22e86f9b3e303e214841ed2074a5d",
+  "groups": [
+    {
+      "caseIds": [
+        "p14-vn-ai-archive-vn-ai-interaction-disclosure",
+        "p14-vn-ai-assist-vn-ai-interaction-disclosure",
+        "p14-vn-ai-bulletin-vn-ai-interaction-disclosure",
+        "p14-vn-ai-capture-vn-ai-interaction-disclosure",
+        "p14-vn-ai-lattice-vn-ai-interaction-disclosure",
+        "p14-vn-ai-prototype-vn-ai-interaction-disclosure",
+        "p14-vn-ai-studio-vn-ai-interaction-disclosure",
+        "p14-vn-ai-workbench-vn-ai-interaction-disclosure",
+        "vn-ai-archive-vn-ai-interaction-disclosure",
+        "vn-ai-assist-vn-ai-interaction-disclosure",
+        "vn-ai-bulletin-vn-ai-interaction-disclosure",
+        "vn-ai-capture-vn-ai-interaction-disclosure",
+        "vn-ai-lattice-vn-ai-interaction-disclosure",
+        "vn-ai-prototype-vn-ai-interaction-disclosure",
+        "vn-ai-studio-vn-ai-interaction-disclosure",
+        "vn-ai-workbench-vn-ai-interaction-disclosure"
+      ],
+      "groupId": "EXPLICIT_SEMANTIC_GROUP:VN_AI_INTERACTION_DISCLOSURE",
+      "split": "HOLDOUT"
+    },
+    {
+      "caseIds": [
+        "p14-vn-ai-archive-vn-ai-risk-version",
+        "p14-vn-ai-assist-vn-ai-risk-version",
+        "p14-vn-ai-bulletin-vn-ai-risk-version",
+        "p14-vn-ai-capture-vn-ai-risk-version",
+        "p14-vn-ai-lattice-vn-ai-risk-version",
+        "p14-vn-ai-prototype-vn-ai-risk-version",
+        "p14-vn-ai-studio-vn-ai-risk-version",
+        "p14-vn-ai-workbench-vn-ai-risk-version",
+        "vn-ai-archive-vn-ai-risk-version",
+        "vn-ai-assist-vn-ai-risk-version",
+        "vn-ai-bulletin-vn-ai-risk-version",
+        "vn-ai-capture-vn-ai-risk-version",
+        "vn-ai-lattice-vn-ai-risk-version",
+        "vn-ai-prototype-vn-ai-risk-version",
+        "vn-ai-studio-vn-ai-risk-version",
+        "vn-ai-workbench-vn-ai-risk-version"
+      ],
+      "groupId": "EXPLICIT_SEMANTIC_GROUP:VN_AI_RISK_DOSSIER",
+      "split": "DEV"
+    },
+    {
+      "caseIds": [
+        "p14-vn-ai-archive-vn-ai-media-mark",
+        "p14-vn-ai-assist-vn-ai-media-mark",
+        "p14-vn-ai-assist-vn-ai-open-mark-enablement",
+        "p14-vn-ai-bulletin-vn-ai-media-mark",
+        "p14-vn-ai-bulletin-vn-ai-open-mark-enablement",
+        "p14-vn-ai-capture-vn-ai-media-mark",
+        "p14-vn-ai-capture-vn-ai-open-mark-enablement",
+        "p14-vn-ai-lattice-vn-ai-media-mark",
+        "p14-vn-ai-lattice-vn-ai-open-mark-enablement",
+        "p14-vn-ai-prototype-vn-ai-media-mark",
+        "p14-vn-ai-studio-vn-ai-media-mark",
+        "p14-vn-ai-studio-vn-ai-open-mark-enablement",
+        "p14-vn-ai-workbench-vn-ai-media-mark",
+        "p14-vn-ai-workbench-vn-ai-open-mark-enablement",
+        "vn-ai-archive-vn-ai-media-mark",
+        "vn-ai-assist-vn-ai-media-mark",
+        "vn-ai-assist-vn-ai-open-mark-enablement",
+        "vn-ai-bulletin-vn-ai-media-mark",
+        "vn-ai-bulletin-vn-ai-open-mark-enablement",
+        "vn-ai-capture-vn-ai-media-mark",
+        "vn-ai-capture-vn-ai-open-mark-enablement",
+        "vn-ai-lattice-vn-ai-media-mark",
+        "vn-ai-lattice-vn-ai-open-mark-enablement",
+        "vn-ai-prototype-vn-ai-media-mark",
+        "vn-ai-studio-vn-ai-media-mark",
+        "vn-ai-studio-vn-ai-open-mark-enablement",
+        "vn-ai-workbench-vn-ai-media-mark",
+        "vn-ai-workbench-vn-ai-open-mark-enablement"
+      ],
+      "groupId": "EXPLICIT_SEMANTIC_GROUP:VN_AI_TECHNICAL_MARKING",
+      "split": "DEV"
+    }
+  ],
+  "sharedCohortCaseCount": 30,
+  "sharedCohortSha256": "8b8e1c53428ec282b8bb2275b4b22c86da9a8a65536662ce20ac6240aa5675a5",
+  "splitCaseCounts": {
+    "DEV": 44,
+    "HOLDOUT": 16
+  },
+  "splitDigest": "b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851",
+  "splitGroupCounts": {
+    "DEV": 2,
+    "HOLDOUT": 1
+  },
+  "splitId": "lcsp400-legal-reasoning-v2-frozen",
+  "splitVersion": "LCSP-400-DEV-HOLDOUT-SPLIT-V2"
+}

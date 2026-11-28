@@ -1,0 +1,360 @@
+{
+  "assessmentId": "61c799d1-7461-4e1f-88c1-a525b2b21855",
+  "authorityViolations": [],
+  "caseId": "archive-VN-AI-MEDIA-MARK",
+  "checkpointId": null,
+  "clientCalls": [
+    "claim",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "context",
+    "rule_set",
+    "context",
+    "context",
+    "context",
+    "legal_text",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "decision",
+    "context",
+    "context",
+    "context",
+    "finalization",
+    "context",
+    "context",
+    "context",
+    "final_report",
+    "context",
+    "context",
+    "finish"
+  ],
+  "injectedFaultObserved": false,
+  "mode": "SCRIPTED",
+  "observedOutput": {
+    "actualAssessmentDecision": {
+      "decision": {
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "VN-AI-MEDIA-MARK",
+        "assessmentRuleVersion": "v1",
+        "caseRevision": 0,
+        "compliance": "COMPLIANT",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "outcome": "MET",
+            "rationale": "Verified.",
+            "references": [
+              {
+                "evidenceId": "ev-archive-vn-ai-media-mark-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ]
+          }
+        ],
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-VN-AI-MEDIA-MARK"
+          }
+        ],
+        "rationale": "Verified in pinned repository source.",
+        "references": [
+          {
+            "evidenceId": "ev-archive-vn-ai-media-mark-1",
+            "type": "ASSESSMENT_EVIDENCE"
+          }
+        ],
+        "repositoryCommit": "c599dde23a86775dc02ed184214d06223f21f3b45419aa793ad280c2af7dc7d2",
+        "repositorySnapshotId": "snap-policy-archive",
+        "ruleSetVersionId": "VN-AI-MEDIA-MARK-v3",
+        "scopeId": "ASSESSMENT"
+      },
+      "expectedDecisionRevision": 0,
+      "idempotencyKey": "decision:7717da76-689f-44d6-8a76-d8c0ace90fa2:12826fbb0ea62b72ddfd43b3"
+    },
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "assessmentDecisions": [
+      {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "VN-AI-MEDIA-MARK",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-archive-vn-ai-media-mark-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-VN-AI-MEDIA-MARK"
+            }
+          ],
+          "rationale": "Verified in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-archive-vn-ai-media-mark-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "c599dde23a86775dc02ed184214d06223f21f3b45419aa793ad280c2af7dc7d2",
+          "repositorySnapshotId": "snap-policy-archive",
+          "ruleSetVersionId": "VN-AI-MEDIA-MARK-v3",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:7717da76-689f-44d6-8a76-d8c0ace90fa2:12826fbb0ea62b72ddfd43b3"
+      }
+    ],
+    "assessmentId": "61c799d1-7461-4e1f-88c1-a525b2b21855",
+    "authorityViolations": [],
+    "caseId": "archive-VN-AI-MEDIA-MARK",
+    "corpusPin": {
+      "corpus_id": "lcsp-402-vn-cong-bao-v1",
+      "digest_sha256": "cec5d841167332a08ab6a656d0e90f44f866e39cacb65ae1189df4bd66dfae4f",
+      "version": "LCSP-402 Công báo Việt Nam v1"
+    },
+    "evaluationStage": "ASSESSMENT_ROOT",
+    "evidenceRecords": {
+      "ev-archive-vn-ai-media-mark-1": {
+        "commitSha": "c599dde23a86775dc02ed184214d06223f21f3b45419aa793ad280c2af7dc7d2",
+        "contentSha256": "96f4573f7541331db08a144ac79f84fc5f3b170bd0cfc1dd1ca6db98440a6c23",
+        "end_line": 12,
+        "evidenceId": "ev-archive-vn-ai-media-mark-1",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "release-evidence.json",
+        "payload": {
+          "contentSha256": "96f4573f7541331db08a144ac79f84fc5f3b170bd0cfc1dd1ca6db98440a6c23",
+          "endLine": 12,
+          "path": "release-evidence.json",
+          "startLine": 1
+        },
+        "repositoryId": "policy-archive",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      }
+    },
+    "evidenceReferences": [
+      "ev-archive-vn-ai-media-mark-1"
+    ],
+    "facts": [],
+    "finalReport": {
+      "findings": [
+        {
+          "assessmentRuleId": "VN-AI-MEDIA-MARK",
+          "recommendations": [],
+          "summary": "Compliant."
+        }
+      ],
+      "kind": "FINAL_REPORT",
+      "summary": "Compliant."
+    },
+    "hitl": {
+      "openRequestIds": [],
+      "requests": [],
+      "resolvedRequests": [],
+      "state": "NONE"
+    },
+    "legalProvisions": [
+      {
+        "content": "Điều 17. Đánh dấu kỹ thuật đối với nội dung do hệ thống trí tuệ nhân tạo tạo ra\n\n1. Nhà cung cấp hệ thống trí tuệ nhân tạo phải áp dụng giải pháp kỹ thuật để\nnội dung đầu ra là âm thanh, hình ảnh hoặc video được đánh dấu ở định dạng máy\nđọc theo quy định tại khoản 2 Điều 11 của Luật Trí tuệ nhân tạo. Nhà cung cấp\nkhông bắt buộc phải th ực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội\ndung đầu ra là văn bản, trừ trường hợp pháp luật có quy định khác.\n\n2. Việc đánh dấu kỹ thuật quy định tại khoản 1 Điều này phải bảo đảm khả\nnăng nhận diện bằng máy đọc và có thể được thực hiện bằng một trong các biện\npháp sau đây:\nCÔNG BÁO/Số 278/Ngày 18-05-2026 16\n\na) Tích hợp dấu hiệu nhận biết vào cấu trúc tệp tin hoặc dữ liệu nội dung;\n\nb) Tích hợp dấu hiệu nhận biết vào siêu dữ liệu của tệp tin;\n\nc) Sử dụng chữ ký số, chữ ký điện tử hoặc phương thức xác thực kỹ thuật tương đương;\n\nd) Áp dụng giải pháp kỹ thuật khác bảo đảm khả năng nhận diện nội dung được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo.\n\n3. Dấu hiệu nhận biết ở định dạng máy đọc phải thể hiện thông tin xác nhận nội\ndung được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo. Nhà cung cấp có thể\ntích hợp thêm thông tin về nhà cung cấp, hệ thống trí tuệ nhân tạo hoặc thời điểm\ntạo, chỉnh sửa nội dung nếu giải pháp kỹ thuật cho phép, nhằm phục vụ việc xác thực\nnguồn gốc và truy vết nội dung.\n\n4. Nhà cung cấp phải bảo đảm chức năng đánh dấu kỹ thuật được duy trì trong\nquá trình tạo, xuất và cung cấp nội dung trong phạm vi các chức năng do hệ thống\nkiểm soát.\n\n5. Trường hợp hệ thống trí tuệ nhân tạo được cung cấp dưới dạng mã nguồn\nmở hoặc cung cấp miễn phí, nhà cung cấp được coi là đã thực hiện nghĩa vụ quy\nđịnh tại khoản 1 Điều này khi:\n\na) Tích hợp sẵn chức năng đánh dấu kỹ thuật; hoặc\n\nb) Công bố công khai công cụ, cấu hình tiêu chuẩn, giao diện lập trình ứng dụng\nhoặc tài liệu kỹ thuật cho phép bên triển khai cấu hình và vận hành chức năng đánh dấu.\nBên triển khai khi sử dụng hệ thống này để cung cấp nội dung ra công cộng\nphải áp dụng giải pháp kỹ thuật để thực hiện việc đánh dấu nội dung đầu ra.\n\n6. Bộ Khoa học và Công nghệ công bố và cập nhật danh mục tiêu chuẩn, quy\nchuẩn kỹ thuật hoặc hướng dẫn kỹ thuật tham chiếu phục vụ việc thực hiện đánh dấu\nkỹ thuật quy định tại Điều này. Việc công bố quy định tại khoản này không làm phát\nsinh thủ tục hành chính, điều kiện đầu tư kinh doanh hoặc nghĩa vụ ngoài quy định\ncủa Nghị định này.",
+        "content_sha256": "e90045c61c8afaeceba1c9cbcfcc33f62d03ebc0d9974db93aebf52366b4266b",
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 17",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "142-2026-ND-CP · Công báo PDF trang 14–15"
+      },
+      {
+        "content": "Điều 11. Trách nhiệm minh bạch\n\n1. Nhà cung c ấp bảo đảm h ệ thống trí tuệ nhân tạo tương tác tr ực tiếp với\ncon người được thiết kế và vận hành để người sử dụng nhận biết khi đang tương\ntác với hệ thống, trừ trường hợp pháp luật có quy định khác.\n\n2. Nhà cung cấp bảo đảm các nội dung âm thanh, hình ảnh, video do hệ thống\ntrí tuệ nhân tạo tạo ra đư ợc đánh d ấu ở định dạng máy đ ọc theo quy đị nh của\nChính phủ.\n\n3. Bên triển khai có trách nhiệm thông báo rõ ràng khi cung cấp ra công cộng\nvăn bản, âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí\ntuệ nhân tạo nếu nội dung đó có khả năng gây nhầm lẫn về tính xác thực của sự\nkiện, nhân vật, trừ trường hợp pháp luật có quy định khác.\n\n4. Bên triển khai có trách nhiệ m bảo đảm âm thanh, hình ảnh, video được\ntạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nhằm mô phỏng, giả lập ngoại\nhình, giọng nói của người thật hoặc tái hiện sự kiện thực tế phải được gắn nhãn\ndễ nhận biết để phân biệt với nội dung thật.\nĐối với sản phẩm là tác phẩm điện ảnh, nghệ thuật hoặc sáng tạo, việc gắn\nnhãn quy định tại khoản này được thực hiện theo phương thức phù hợp, bảo đảm\nkhông làm cản trở việc hiển thị, trình diễn hoặc thưởng thức tác phẩm.\n\n5. Nhà cung cấp và bên triển khai có trách nhiệm duy trì thông tin minh bạch\ntheo quy định tại Điều này trong suốt quá trình cung cấp hệ thống, sản phẩm hoặc\nnội dung cho người sử dụng.\n\n6. Chính phủ quy định chi tiết hình thức thông báo, gắn nhãn.",
+        "content_sha256": "759a6979df1239a058545b8834431ff2ace96a4dc3a8088d99bfcac4ae99e07f",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 11",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 6–6"
+      },
+      {
+        "content": "Điều 16. Nguyên tắc minh bạch và giải trình\n\n1. Nhà cung cấp và bên triển khai hệ thống trí tuệ nhân tạo phải thực hiện trách\nnhiệm minh bạch, thông báo, đánh dấu kỹ thuật và gắn nhãn hiển thị đối với hệ thống\ntrí tuệ nhân tạo và nội dung do hệ thống tạo ra theo quy định tại Điều 11 của Luật Trí\ntuệ nhân tạo. Việc thực hiện trách nhiệm minh bạch phải phù hợp với mục đích sử dụng,\nbối cảnh triển khai và mức độ rủi ro của hệ thống.\n\n2. Nhà cung cấp và bên triển khai phải thực hiện các nghĩa vụ sau đây:\n\na) Thông báo, đánh dấu kỹ thuật và gắn nhãn hiển thị đối với hệ thống trí tuệ\nnhân tạo và nội dung do hệ thống tạo ra theo quy định của pháp luật;\n\nb) Cung cấp thông tin về mục đích sử dụng, phạm vi áp dụng, điều kiện sử dụng\nvà các hạn chế của hệ thống trí tuệ nhân tạo;\n\nc) Lưu trữ thông tin, tài liệu phục vụ việc kiểm tra, giám sát theo quy định của\npháp luật.\n\n3. Nhà cung cấp và bên triển khai phải giải trình khi có yêu cầu bằng văn bản\ncủa cơ quan nhà nước có thẩm quyền theo quy định tại Điều 14 và Điều 15 của Luật\nTrí tuệ nhân tạo. Phạm vi, nội dung và thời hạn giải trình phải phù hợp với địa vị\npháp lý của từng chủ thể và mức độ rủi ro của hệ thống.\n\n4. Khi thực hiện trách nhiệm giải trình và cung cấp thông tin theo quy định của\npháp luật, nhà cung cấp và bên triển khai không bắt buộc phải tiết lộ mã nguồn, thuật\ntoán chi tiết, dữ liệu huấn luyện, bộ tham số hoặc thông tin thuộc phạm vi bí mật\nkinh doanh, bí mật công nghệ, trừ trường hợp pháp luật có quy định khác.\n\n5. Việc cung cấp thông tin trong quá trình minh bạch, giải trình phải tuân thủ\npháp luật về bảo vệ dữ liệu cá nhân và pháp luật về dữ liệu.\n\n6. Trường hợp hệ thống trí tuệ nhân tạo tích hợp mô hình trí tuệ nhân tạo của\ntổ chức, cá nhân khác, nhà cung cấp phải thỏa thuận với tổ chức, cá nhân cung cấp\nmô hình để bảo đảm việc phối hợp cung cấp thông tin kỹ thuật cần thiết phục vụ\nviệc thực hiện trách nhiệm minh bạch và giải trình theo quy định của pháp luật.",
+        "content_sha256": "b8e3d655f6c2e8a6a77e72f41e497e61ed9f318c5877ade863726d2ca87d7eb9",
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 16",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "142-2026-ND-CP · Công báo PDF trang 14–14"
+      },
+      {
+        "content": "Điều 1. Phạm vi điều chỉnh\n\n1. Luật này quy đ ịnh về nghiên cứu, phát tri ển, cung c ấp, triển khai và s ử\ndụng hệ thống trí tuệ nhân tạo (sau đây gọi là hoạt động trí tuệ nhân tạo); quyền,\nnghĩa vụ của tổ chức, cá nhân có liên quan và quản lý nhà nước đối với hoạt động\ntrí tuệ nhân tạo tại Việt Nam.\n\n2. Hoạt động trí tuệ nhân tạo chỉ phục vụ cho mục đích quốc phòng, an ninh,\ncơ yếu không thuộc phạm vi điều chỉnh của Luật này.",
+        "content_sha256": "8585aa8330e7ede21c22707ea297bd82653b944b8aa66a3af77b54428d1f5c71",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 1",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 1–1"
+      },
+      {
+        "content": "Điều 2. Đối tượng áp dụng\nLuật này áp dụng đối với cơ quan, tổ chức, cá nhân Việt Nam và tổ chức, cá\nnhân nước ngoài tham gia vào hoạt động trí tuệ nhân tạo tại Việt Nam.",
+        "content_sha256": "6f84549c207fba872d3fb62cd5042aa2070b589ad8486e5318e522296ad28261",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 2",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 1–1"
+      },
+      {
+        "content": "Điều 3. Giải thích từ ngữ\n\nTrong Luật này, các từ ngữ dưới đây được hiểu như sau:\n\n1. Trí tuệ nhân tạo là việc thực hiện bằng điện tử các năng lực trí tuệ của con\nngười, bao gồm học tập, suy luận, nhận thức, phán đoán và hiểu ngôn ngữ tự nhiên.\n\n2. Hệ thống trí tuệ nhân tạo là hệ thống dựa trên máy, được thiết kế để thực\nhiện các năng lực trí tuệ nhân tạo với các mức độ tự chủ khác nhau, có khả năng\ntự thích nghi sau khi được triển khai; căn cứ vào các mục tiêu được xác định rõ\nràng hoặc được hình thành một cách ngầm định, hệ thống suy luận từ dữ liệu đầu\nvào để tạo ra các đầu ra như dự đoán, nội dung, khuyến nghị hoặc quyết định có\nthể gây ảnh hưởng tới môi trường vật lý hoặc môi trường số.\n\n3. Nhà phát triển là tổ chức, cá nhân thực hiện việc thiết kế, xây dựng, huấn\nluyện, kiểm thử hoặc tinh chỉnh toàn bộ hoặc một phần mô hình, thuật toán hoặc\nhệ thống trí tuệ nhân tạo và có quyền kiểm soát trực tiếp đối với phương pháp kỹ\nthuật, dữ liệu huấn luyện hoặc tham số mô hình.\n\n4. Nhà cung cấp là tổ chức, cá nhân đưa hệ thống trí tuệ nhân tạo ra thị trường\nhoặc đưa vào sử dụng dưới tên, thương hiệu hoặc nhãn hiệu của mình, không phụ\nCÔNG BÁO/Số 40/Ngày 22-01-2026 6\nthuộc hệ thống đó do họ tự phát triển hay được phát triển bởi bên thứ ba.\n\n5. Bên triển khai là tổ chức, cá nhân sử dụng hệ thống trí tuệ nhân tạo thuộc\nphạm vi kiểm soát của mình trong hoạt động nghề nghiệp, thương mại hoặc cung\ncấp dị ch v ụ; không bao gồ m trư ờng h ợp s ử dụng cho m ục đích cá nhân, phi\nthương mại.\n\n6. Người sử dụng là tổ chức, cá nhân trực tiếp tương tác với hệ thống trí tuệ\nnhân tạo hoặc sử dụng kết quả đầu ra của hệ thống đó.\n\n7. Người bị ảnh hưởng là tổ chức, cá nhân bị tác động trực tiếp hoặc gián tiếp\nđến quyền, lợi ích hợp pháp, tính mạng, sức khỏe, tài sản, uy tín hoặc cơ hội tiếp\ncận dịch vụ do việc triển khai hoặc do kết quả đầu ra của hệ thống trí tuệ nhân tạo.\n\n8. Sự cố nghiêm trọng là sự kiện xảy ra trong hoạt động của hệ thống trí tuệ\nnhân tạo, gây ra hoặc có nguy cơ gây ra thiệt hại đáng kể đến tính mạng, sức khỏe,\nquyền con người, tài sản, an ninh mạng, trật tự công cộng, môi trường hoặc làm\ngián đoạn hoạt động của hệ thống thông tin quan trọng về an ninh quốc gia.",
+        "content_sha256": "c513e53befd4dce36f65e9cc35b06fc7d54afdf86e410210c8ce24e936bfb984",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 3",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 1–2"
+      },
+      {
+        "content": "Điều 34. Hiệu lực thi hành\nLuật này có hiệu lực thi hành từ ngày 01 tháng 3 năm 2026, trừ các nội dung\nliên quan quy định tại Điều 35 của Luật này.",
+        "content_sha256": "82c2c09c439ef4f98a599d9f966036f6a250561bf7224277160f7604d0608c8c",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 34",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 19–19"
+      },
+      {
+        "content": "Điều 35. Điều khoản chuyển tiếp\n\n1. Đối với các h ệ thống trí tu ệ nhân tạo đã đư ợc đưa vào ho ạt động trước\nngày Lu ật này có hi ệu lự c thi hành, nhà cung c ấp và bên tri ển khai có trách\nnhiệm thực hiện các nghĩa vụ tuân thủ theo quy định của Luật này trong thời hạn\nsau đây:\n\na) 18 tháng kể từ ngày Luật này có hiệu lực thi hành đối với hệ thống trí tuệ\nnhân tạo trong lĩnh vực y tế, giáo dục và tài chính;\n\nb) 12 tháng kể từ ngày Luật này có hi ệu lực thi hành đ ối với các hệ thống\nCÔNG BÁO/Số 40/Ngày 22-01-2026 24\ntrí tuệ nhân tạo không thuộc trường hợp quy định tại điểm a khoản này.\n\n2. Trong thời hạn quy đị nh tại khoản 1 Điều này, hệ thống trí tuệ nhân tạo\nđược tiếp tục hoạt động, trừ trường hợp cơ quan quản lý nhà nước về trí tuệ nhân\ntạo xác định hệ thống có nguy cơ gây thiệt hại nghiêm trọng thì có quyền yêu cầu\ntạm dừng hoặc chấm dứt hoạt động.\nLuật này được Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam khóa XV,\nKỳ họp thứ 10 thông qua ngày 10 tháng 12 năm 2025.\nCHỦ TỊCH QUỐC HỘI\nTrần Thanh Mẫn",
+        "content_sha256": "604afc6dd8bc9bbce8ca946f87c3b6e56e544322ffe1681ea18deff106da92b7",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 35",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 19–20"
+      },
+      {
+        "content": "Điều 45. Hiệu lực thi hành\nNghị định này có hiệu lực thi hành từ ngày 01 tháng 5 năm 2026.",
+        "content_sha256": "e8a869627301db5b598c48d581386a87a36f2cfd6413066b425734b91c8c0656",
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 45",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "142-2026-ND-CP · Công báo PDF trang 44–44"
+      }
+    ],
+    "lifecycleHistory": [],
+    "lifecycleStage": "INITIAL",
+    "lifecycleState": "COMPLETE",
+    "outcomeBinding": {
+      "actualVerdict": "APPLICABLE_COMPLIANT",
+      "caseId": "archive-VN-AI-MEDIA-MARK",
+      "lifecycleState": "COMPLETE",
+      "passed": false,
+      "runId": "lcsp400-r4-vn-ai-scripted-final",
+      "stage": "INITIAL",
+      "threadId": "7717da76-689f-44d6-8a76-d8c0ace90fa2",
+      "trialIndex": 0
+    },
+    "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+    "repositorySnapshot": {
+      "commit_sha": "c599dde23a86775dc02ed184214d06223f21f3b45419aa793ad280c2af7dc7d2",
+      "fixture_dir": "evals\\fixtures\\policy-baseline\\archive",
+      "repo_id": "policy-archive",
+      "snapshot_kind": "SYNTHETIC_FIXTURE",
+      "untrusted_code_execution_allowed": false
+    },
+    "ruleDefinitions": [
+      {
+        "applicability_conditions": [
+          "Development Activity Scope theo LCSP-424. Kiểm tra chủ thể và điều kiện riêng của mỗi nghĩa vụ. Đối chiếu assessedOn và firstOperatedOn với Điều 34–35 Luật 134 và Điều 45 Nghị định 142. Đối với hệ thống hoạt động trước ngày 01/03/2026, dùng sector để xác định mốc chuyển tiếp 12 hoặc 18 tháng. Khi thời hạn chưa đến, chỉ ghi nhận không áp dụng tại ngày đánh giá."
+        ],
+        "concept": "TECHNICAL_MARKING",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Nhà cung cấp bảo đảm dấu máy đọc trên đầu ra âm thanh, hình ảnh hoặc video do hệ thống tạo ra. Kiểm tra dấu đã được xác nhận bằng máy đọc trong đầu ra mẫu và xác nhận dấu nói nội dung do AI tạo hoặc chỉnh sửa. Các dạng dấu hợp pháp khác không bị loại chỉ vì định dạng."
+          }
+        ],
+        "exceptions": [
+          "Hệ thống nguồn mở hoặc cung cấp miễn phí được đánh giá theo cơ chế riêng tại khoản 5 Điều 17."
+        ],
+        "legal_requirement_id": "LR-VN-AI-MEDIA-MARK",
+        "requirement_proposition": "Nhà cung cấp bảo đảm dấu máy đọc trên đầu ra âm thanh, hình ảnh hoặc video do hệ thống tạo ra.",
+        "requirement_title": "VN-AI-MEDIA-MARK",
+        "rule_id": "VN-AI-MEDIA-MARK"
+      }
+    ],
+    "ruleSetVersionId": "VN-AI-MEDIA-MARK-v3",
+    "runId": "lcsp400-r4-vn-ai-scripted-final",
+    "runResult": {
+      "checkpointId": null,
+      "errorType": null,
+      "executionId": "aa0ea616-7c19-49f5-82d6-4117f1f0baa9",
+      "promptManifestSha256": "9068e8a02aeef041a40c901ec747f204936089d58d069ecb2b71ef618245e65f",
+      "state": "SUCCEEDED",
+      "threadId": "7717da76-689f-44d6-8a76-d8c0ace90fa2"
+    },
+    "targetRuleIds": [
+      "VN-AI-MEDIA-MARK"
+    ],
+    "threadId": "7717da76-689f-44d6-8a76-d8c0ace90fa2",
+    "trialIndex": 0
+  },
+  "observedOutputSha256": "fb3bbb33a06784c562e0ae030c5efab2e24e4fe578f17cba01a3e251f3542d84",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": false
+  },
+  "recoveryObserved": false,
+  "runId": "lcsp400-r4-vn-ai-scripted-final",
+  "runResult": {
+    "checkpointId": null,
+    "errorType": null,
+    "executionId": "aa0ea616-7c19-49f5-82d6-4117f1f0baa9",
+    "promptManifestSha256": "9068e8a02aeef041a40c901ec747f204936089d58d069ecb2b71ef618245e65f",
+    "state": "SUCCEEDED",
+    "threadId": "7717da76-689f-44d6-8a76-d8c0ace90fa2"
+  },
+  "stage": "INITIAL",
+  "threadId": "7717da76-689f-44d6-8a76-d8c0ace90fa2",
+  "toolCalls": [
+    {
+      "input": "{}",
+      "tool": "get_assessment_context"
+    },
+    {
+      "input": "{}",
+      "tool": "get_pinned_rule_set"
+    },
+    {
+      "input": "{'document_id': '142-2026-ND-CP', 'locator': 'Điều 17'}",
+      "tool": "read_legal_source"
+    },
+    {
+      "input": "{'path': 'release-evidence.json', 'start_line': 1, 'end_line': 12}",
+      "tool": "cite_repository_source"
+    },
+    {
+      "input": "{'assessment_rule_id': 'VN-AI-MEDIA-MARK', 'applicability': 'APPLICABLE', 'rationale': 'Verified in pinned repository source.', 'legal_context_ids': ['LR-VN-AI-MEDIA-MARK'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-archive-vn-ai-media-mark-1'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'MET', 'rationale': 'Verified.', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-archive-vn-ai-media-mark-1'}]}], 'compliance': 'COMPLIANT'}",
+      "tool": "submit_rule_decision"
+    },
+    {
+      "input": "{}",
+      "tool": "request_finalization"
+    },
+    {
+      "input": "{'summary': 'Compliant.', 'findings': [{'assessment_rule_id': 'VN-AI-MEDIA-MARK', 'summary': 'Compliant.'}]}",
+      "tool": "submit_final_report"
+    }
+  ],
+  "trialIndex": 0
+}

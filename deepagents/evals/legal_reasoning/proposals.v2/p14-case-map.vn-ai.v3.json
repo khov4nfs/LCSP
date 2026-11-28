@@ -1,0 +1,253 @@
+{
+  "caseMappings": [
+    {
+      "candidateCaseId": "vn-ai-archive-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-archive-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "archive-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-archive-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-archive-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "archive-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-archive-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-archive-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "archive-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-assist-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-assist-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "assist-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-assist-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-assist-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "assist-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-assist-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-assist-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "assist-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-assist-vn-ai-open-mark-enablement",
+      "cohortCaseId": "p14-vn-ai-assist-vn-ai-open-mark-enablement",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "assist-VN-AI-OPEN-MARK-ENABLEMENT",
+      "p14RuleId": "VN-AI-OPEN-MARK-ENABLEMENT"
+    },
+    {
+      "candidateCaseId": "vn-ai-bulletin-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-bulletin-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "bulletin-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-bulletin-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-bulletin-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "bulletin-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-bulletin-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-bulletin-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "bulletin-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-bulletin-vn-ai-open-mark-enablement",
+      "cohortCaseId": "p14-vn-ai-bulletin-vn-ai-open-mark-enablement",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "bulletin-VN-AI-OPEN-MARK-ENABLEMENT",
+      "p14RuleId": "VN-AI-OPEN-MARK-ENABLEMENT"
+    },
+    {
+      "candidateCaseId": "vn-ai-capture-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-capture-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "capture-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-capture-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-capture-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "capture-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-capture-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-capture-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "capture-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-capture-vn-ai-open-mark-enablement",
+      "cohortCaseId": "p14-vn-ai-capture-vn-ai-open-mark-enablement",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "capture-VN-AI-OPEN-MARK-ENABLEMENT",
+      "p14RuleId": "VN-AI-OPEN-MARK-ENABLEMENT"
+    },
+    {
+      "candidateCaseId": "vn-ai-lattice-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-lattice-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "lattice-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-lattice-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-lattice-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "lattice-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-lattice-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-lattice-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "lattice-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-lattice-vn-ai-open-mark-enablement",
+      "cohortCaseId": "p14-vn-ai-lattice-vn-ai-open-mark-enablement",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "lattice-VN-AI-OPEN-MARK-ENABLEMENT",
+      "p14RuleId": "VN-AI-OPEN-MARK-ENABLEMENT"
+    },
+    {
+      "candidateCaseId": "vn-ai-prototype-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-prototype-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "prototype-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-prototype-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-prototype-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "prototype-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-prototype-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-prototype-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "prototype-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-studio-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-studio-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "studio-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-studio-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-studio-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "studio-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-studio-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-studio-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "studio-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-studio-vn-ai-open-mark-enablement",
+      "cohortCaseId": "p14-vn-ai-studio-vn-ai-open-mark-enablement",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "studio-VN-AI-OPEN-MARK-ENABLEMENT",
+      "p14RuleId": "VN-AI-OPEN-MARK-ENABLEMENT"
+    },
+    {
+      "candidateCaseId": "vn-ai-workbench-vn-ai-risk-version",
+      "cohortCaseId": "p14-vn-ai-workbench-vn-ai-risk-version",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "workbench-VN-AI-RISK-VERSION",
+      "p14RuleId": "VN-AI-RISK-VERSION"
+    },
+    {
+      "candidateCaseId": "vn-ai-workbench-vn-ai-interaction-disclosure",
+      "cohortCaseId": "p14-vn-ai-workbench-vn-ai-interaction-disclosure",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "workbench-VN-AI-INTERACTION-DISCLOSURE",
+      "p14RuleId": "VN-AI-INTERACTION-DISCLOSURE"
+    },
+    {
+      "candidateCaseId": "vn-ai-workbench-vn-ai-media-mark",
+      "cohortCaseId": "p14-vn-ai-workbench-vn-ai-media-mark",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "WAITING_FOR_HUMAN",
+      "p14CaseId": "workbench-VN-AI-MEDIA-MARK",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-ai-workbench-vn-ai-open-mark-enablement",
+      "cohortCaseId": "p14-vn-ai-workbench-vn-ai-open-mark-enablement",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "p14CaseId": "workbench-VN-AI-OPEN-MARK-ENABLEMENT",
+      "p14RuleId": "VN-AI-OPEN-MARK-ENABLEMENT"
+    }
+  ],
+  "mappingPolicy": "EXACT_OFFICIAL_SOURCE_AND_SAME_P14_CASE_IDENTITY; NO LEGAL CROSSWALK",
+  "mappingVersion": "LCSP-400-P14-CASE-MAP-V3",
+  "pinnedInputs": {
+    "candidateDatasetSha256": "6f0e5649eb120b46afd03fbf9f91bf80bc1c886caf65e4807a915a8d26b31ca5",
+    "p14CasesDatasetSha256": "46316dc73097fb5f923d2eefb9a2a0995b69196ea8bcc39adcd4780d6d907af0",
+    "sharedCohortSha256": "41ec17d4101c72901f1e32573ec596b8bfb345365bad7e747db3433f1a86fb12",
+    "sourcePinsSha256": "ce0cd1380e5e4becf9e1e56919a2e7c9bf5abd486f39809a1b0bbbdfa8ff24e5",
+    "splitManifestSha256": "3c02530ed7bc0d0ae468c60134323c97b0c9680bcd7c29ab62e3b577937b443a"
+  }
+}

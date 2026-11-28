@@ -1,0 +1,30 @@
+{
+  "sourcePinsVersion": "LCSP-400-PUBLIC-SOURCE-PINS-V1",
+  "sources": [
+    {
+      "sourceId": "EU_GDPR_2016_679_OJ",
+      "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+      "sourceName": "Regulation (EU) 2016/679, Official Journal L 119, 4 May 2016, English text",
+      "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+      "versionPinBasis": "Fixed original Official Journal publication identified by CELEX and OJ issue/date; this is not a claim that the original text includes every later corrigendum or amendment.",
+      "reviewerVerificationRequired": "Before gold approval, a qualified reviewer must confirm that this pinned text is the applicable version for the scenario and identify any relevant corrigendum, amendment, national implementation, or later authority.",
+      "provisions": {
+        "GDPR_RECITAL_23": {"citation": "Recital 23", "referenceNote": "Territorial-scope guidance distinguishes deliberate targeting or monitoring of people in the Union from mere website accessibility or contact details."},
+        "GDPR_ART_2_2_C": {"citation": "Article 2(2)(c)", "referenceNote": "The Regulation excludes processing by a natural person in a purely personal or household activity."},
+        "GDPR_ART_3_1": {"citation": "Article 3(1)", "referenceNote": "Territorial scope includes processing in the context of a Union establishment's activities, even where processing occurs elsewhere."},
+        "GDPR_ART_3_2_A": {"citation": "Article 3(2)(a)", "referenceNote": "Territorial scope can include a non-Union controller or processor offering goods or services to people in the Union, regardless of payment."},
+        "GDPR_ART_3_2_B": {"citation": "Article 3(2)(b)", "referenceNote": "Territorial scope can include a non-Union controller or processor monitoring behavior that takes place in the Union."},
+        "GDPR_ART_28_10": {"citation": "Article 28(10)", "referenceNote": "A processor that determines processing purposes and means is treated as a controller for that processing."},
+        "GDPR_ART_30_5": {"citation": "Article 30(5)", "referenceNote": "The under-250-person records exception is subject to risk, frequency, and special-category/criminal-data carve-outs."},
+        "GDPR_ART_32_1": {"citation": "Article 32(1)", "referenceNote": "Controllers and processors must implement security measures appropriate to risk, considering the stated contextual factors; encryption is listed as an example where appropriate."},
+        "GDPR_ART_33_1": {"citation": "Article 33(1)", "referenceNote": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."},
+        "GDPR_ART_33_2": {"citation": "Article 33(2)", "referenceNote": "A processor notifies the controller without undue delay after becoming aware of a personal-data breach."},
+        "GDPR_ART_34_1": {"citation": "Article 34(1)", "referenceNote": "A controller communicates a personal-data breach to affected data subjects without undue delay when it is likely to create high risk."},
+        "GDPR_ART_34_3_A": {"citation": "Article 34(3)(a)", "referenceNote": "Data-subject communication is not required when appropriate protections were implemented and applied to the affected data, including protections that render them unintelligible."},
+        "GDPR_ART_34_3_B": {"citation": "Article 34(3)(b)", "referenceNote": "Data-subject communication is not required when later measures ensure the high risk is no longer likely to materialize."},
+        "GDPR_ART_34_3_C": {"citation": "Article 34(3)(c)", "referenceNote": "Where direct communication would involve disproportionate effort, a public communication or similarly effective measure is required instead."},
+        "GDPR_ART_35_1": {"citation": "Article 35(1)", "referenceNote": "The controller performs a prior impact assessment when processing, considering its nature, scope, context, and purposes, is likely to result in high risk."}
+      }
+    }
+  ]
+}

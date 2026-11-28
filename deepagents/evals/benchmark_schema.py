@@ -6,10 +6,10 @@ reproducibility and contract integrity across offline, scripted, and live runs.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 
 # Canonical execution modes; offline CI only permits OFFLINE_FIXTURE and SCRIPTED.
 ExecutionMode = Literal["OFFLINE_FIXTURE", "SCRIPTED", "LIVE"]
@@ -36,6 +36,24 @@ class RepoSnapshotPin(BaseModel):
     fixture_dir: str = Field(min_length=1)
     # Safety invariant: benchmark runner never executes untrusted repository code.
     untrusted_code_execution_allowed: Literal[False] = False
+
+    @property
+    def portable_fixture_dir(self) -> str:
+        """Business purpose: Resolve pinned fixture paths across evaluation hosts.
+
+        Business rules:
+        - Preserve the exact serialized pin and its digest; only filesystem lookup uses portable separators.
+
+        Execution flow:
+        1. Translate Windows separators into forward slashes understood by both hosts.
+
+        Failure cases:
+        - Missing fixtures still fail at the existing reader boundary.
+
+        Side effects:
+        - None: returns a lookup string without mutating the frozen pin.
+        """
+        return self.fixture_dir.replace("\\", "/")
 
 
 class CorpusPin(BaseModel):
@@ -255,6 +273,8 @@ class RunConfig(BaseModel):
     model_route: str = "offline-scripted"
     allow_live: bool = False
     include_fault_injection: bool = True
+    case_split_manifest_sha256: str | None = None
+    git_commit_sha: str | None = None
 
     @field_validator("k_values")
     @classmethod
@@ -276,3 +296,49 @@ class RunConfig(BaseModel):
         if not value or any(k < 1 for k in value):
             raise ValueError("INVALID_K_VALUES")
         return tuple(sorted(set(value)))
+
+    @field_validator("case_split_manifest_sha256")
+    @classmethod
+    def _validate_case_split_manifest_sha256(cls, value: str | None) -> str | None:
+        """Business purpose: Keep an optional frozen evaluation split attached to its P14 run.
+
+        Business rules:
+        - A supplied split identity must be a lowercase SHA-256 digest.
+        - An absent digest preserves existing non-LCSP-400 benchmark behavior.
+
+        Execution flow:
+        1. Accept null when the run has no split-manifest binding.
+        2. Validate the exact digest format when a binding is supplied.
+
+        Failure cases:
+        - Malformed split digests fail RunConfig validation before execution.
+
+        Side effects:
+        - None: validates immutable run configuration.
+        """
+        if value is not None and not re.fullmatch(r"[a-f0-9]{64}", value):
+            raise ValueError("INVALID_CASE_SPLIT_MANIFEST_SHA256")
+        return value
+
+    @field_validator("git_commit_sha")
+    @classmethod
+    def _validate_git_commit_sha(cls, value: str | None) -> str | None:
+        """Business purpose: Bind evaluation artifacts to the source revision used for execution.
+
+        Business rules:
+        - An omitted revision preserves generic P14 runs that do not need LCSP-400 provenance.
+        - A supplied Git object ID must be a full SHA-1 or SHA-256 hexadecimal identifier.
+
+        Execution flow:
+        1. Preserve null when no source revision was provided.
+        2. Validate a supplied full-length lowercase object ID before it enters the manifest.
+
+        Failure cases:
+        - Abbreviated, malformed, or uppercase IDs raise ValueError.
+
+        Side effects:
+        - None: validates immutable run configuration.
+        """
+        if value is not None and not re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", value):
+            raise ValueError("INVALID_GIT_COMMIT_SHA")
+        return value

@@ -1,0 +1,2447 @@
+{
+  "actualExecutionBaseline": "NOT_RUN",
+  "annotationReviewInventory": {
+    "candidateAnnotationCount": 30,
+    "excludedAnnotationCount": 0,
+    "provisionalOrUncertainAnnotationCount": 0,
+    "reviewAuthenticity": "NOT_AUTHENTICATED_BY_TOOL",
+    "reviewStatusCounts": {
+      "CANDIDATE": 30
+    },
+    "structurallyReviewedAnnotationCount": 0,
+    "unresolvedDisagreementCount": 0
+  },
+  "artifactClassification": "P14_SCRIPTED_EXECUTION_ARTIFACTS",
+  "artifactProvenanceStatus": "VALIDATED_P14_ARTIFACT_BYTES",
+  "artifactValidationStatus": "VALIDATED",
+  "caseExecutionRecords": [
+    {
+      "cohortCaseId": "p14-case-01-initial",
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
+      "p14CaseId": "CASE-01",
+      "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
+      "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
+      "trialIndex": 0
+    },
+    {
+      "cohortCaseId": "p14-case-01-initial",
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
+      "p14CaseId": "CASE-01",
+      "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
+      "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
+      "trialIndex": 1
+    },
+    {
+      "cohortCaseId": "p14-case-02-resume-final",
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "lifecycleStage": "RESUME_FINAL",
+      "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
+      "p14CaseId": "CASE-02",
+      "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
+      "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
+      "trialIndex": 0
+    },
+    {
+      "cohortCaseId": "p14-case-02-resume-final",
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "lifecycleStage": "RESUME_FINAL",
+      "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
+      "p14CaseId": "CASE-02",
+      "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
+      "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
+      "trialIndex": 1
+    },
+    {
+      "cohortCaseId": "p14-case-17-initial",
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
+      "p14CaseId": "CASE-17",
+      "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
+      "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
+      "trialIndex": 0
+    },
+    {
+      "cohortCaseId": "p14-case-17-initial",
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
+      "p14CaseId": "CASE-17",
+      "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
+      "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
+      "trialIndex": 1
+    }
+  ],
+  "caseMapping": {
+    "assessmentOutputCandidateCount": 21,
+    "candidateCaseCount": 30,
+    "excludedDiagnosticCaseCount": 5,
+    "executableCaseCount": 3,
+    "executedMissingOutputCount": 0,
+    "expectedExecutionCount": 6,
+    "fixedOutputDiagnosticCaseCount": 5,
+    "mappedCandidateLegalGoldCaseCount": 0,
+    "mappedCaseCount": 3,
+    "mappedCaseWithoutTrialCount": 0,
+    "mappedSharedExecutableCaseCount": 3,
+    "mappedTrialCount": 6,
+    "mappingPolicy": "EXACT_SHARED_P14_FIXTURE_IDENTITY_ONLY_NO_LEGAL_CROSSWALK",
+    "notExecutedCaseCount": 0,
+    "notExecutedTrialCount": 0,
+    "outputAvailableCount": 6,
+    "p14BenchmarkCaseCount": 3,
+    "ruleSetPreparationCandidateCount": 4,
+    "scoringEligibleCaseCount": 0,
+    "sharedExecutableCandidateCount": 3,
+    "unmappedReasonCounts": {
+      "FIXED_CLAIM_DIAGNOSTIC_NOT_GENERATED_OUTPUT": 5,
+      "NO_EXACT_P14_CASE_MAPPING": 21,
+      "P14_DOES_NOT_EXECUTE_RULE_SET_PREPARATION": 4
+    },
+    "unsupportedCaseCount": 25
+  },
+  "executionCohort": {
+    "executedCaseCount": 3,
+    "executedMissingOutputCount": 0,
+    "executedTrialCount": 6,
+    "expectedTrialCount": 6,
+    "mappedCaseCount": 3,
+    "mappingStatus": "MAPPED",
+    "notExecutedCaseCount": 0,
+    "notExecutedTrialCount": 0,
+    "outputAvailableCount": 6,
+    "scoringEligibleCaseCount": 0,
+    "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+  },
+  "humanReviewedQualityMetrics": "NOT_SCORED",
+  "integrationReportVersion": "LCSP-400-P14-INTEGRATION-REPORT-V1",
+  "mappedTrialBindings": [
+    {
+      "candidateCaseId": "p14-case-01-initial",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
+      "p14CaseId": "CASE-01",
+      "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+      "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
+      "trialIndex": 0
+    },
+    {
+      "candidateCaseId": "p14-case-01-initial",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
+      "p14CaseId": "CASE-01",
+      "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+      "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
+      "trialIndex": 1
+    },
+    {
+      "candidateCaseId": "p14-case-02-resume-final",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "RESUME_FINAL",
+      "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
+      "p14CaseId": "CASE-02",
+      "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+      "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
+      "trialIndex": 0
+    },
+    {
+      "candidateCaseId": "p14-case-02-resume-final",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "RESUME_FINAL",
+      "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
+      "p14CaseId": "CASE-02",
+      "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+      "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
+      "trialIndex": 1
+    },
+    {
+      "candidateCaseId": "p14-case-17-initial",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
+      "p14CaseId": "CASE-17",
+      "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+      "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
+      "trialIndex": 0
+    },
+    {
+      "candidateCaseId": "p14-case-17-initial",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "INITIAL",
+      "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
+      "p14CaseId": "CASE-17",
+      "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+      "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
+      "trialIndex": 1
+    }
+  ],
+  "missingExpectedTrialCount": 0,
+  "missingExpectedTrials": [],
+  "normalizedObservedOutputs": [
+    {
+      "assessmentDecision": {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-01",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-01-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-01"
+            }
+          ],
+          "rationale": "Verified in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-01-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "synthetic-16e21ad3807f",
+          "repositorySnapshotId": "snap-repo-01-consent-app",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:2bbb139f-3bb2-489a-adaa-c7ff5e26771f:f7f43a74b0dd3a6141233f92"
+      },
+      "caseId": "p14-case-01-initial",
+      "dimensionPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "COMPLIANT"
+      },
+      "evaluationLabelPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_COMPLIANCE"
+      },
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "evidenceReferences": [
+        "ev-case-01-1"
+      ],
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "hitl": {
+        "openRequestIds": [],
+        "requests": [],
+        "resolvedRequests": [],
+        "state": "NONE"
+      },
+      "humanJudgments": {},
+      "lifecycleStage": "INITIAL",
+      "normalizationSource": "P14_SAVED_ARTIFACTS",
+      "observationKind": "GENERATED_LCSP_OUTPUT",
+      "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
+      "p14Binding": {
+        "candidateCaseId": "p14-case-01-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-11",
+        "legalProvisionRefs": "vn-pdpl-2025#art-11",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
+        "p14CaseId": "CASE-01",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-16e21ad3807f",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+        "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
+        "trialIndex": 0
+      },
+      "p14CaseId": "CASE-01",
+      "rawActualVerdict": "APPLICABLE_COMPLIANT",
+      "reviewPayload": {
+        "actualAssessmentDecision": {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "ER-DEMO-01",
+            "assessmentRuleVersion": "v1",
+            "caseRevision": 0,
+            "compliance": "COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "MET",
+                "rationale": "Verified.",
+                "references": [
+                  {
+                    "evidenceId": "ev-case-01-1",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  }
+                ]
+              }
+            ],
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-CASE-01"
+              }
+            ],
+            "rationale": "Verified in pinned repository source.",
+            "references": [
+              {
+                "evidenceId": "ev-case-01-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ],
+            "repositoryCommit": "synthetic-16e21ad3807f",
+            "repositorySnapshotId": "snap-repo-01-consent-app",
+            "ruleSetVersionId": "rs-demo-v1",
+            "scopeId": "ASSESSMENT"
+          },
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:2bbb139f-3bb2-489a-adaa-c7ff5e26771f:f7f43a74b0dd3a6141233f92"
+        },
+        "actualVerdict": "APPLICABLE_COMPLIANT",
+        "assessmentDecisions": [
+          {
+            "decision": {
+              "applicability": "APPLICABLE",
+              "assessmentRuleId": "ER-DEMO-01",
+              "assessmentRuleVersion": "v1",
+              "caseRevision": 0,
+              "compliance": "COMPLIANT",
+              "criteria": [
+                {
+                  "criterionId": "C-1",
+                  "outcome": "MET",
+                  "rationale": "Verified.",
+                  "references": [
+                    {
+                      "evidenceId": "ev-case-01-1",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ]
+                }
+              ],
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-CASE-01"
+                }
+              ],
+              "rationale": "Verified in pinned repository source.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-01-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ],
+              "repositoryCommit": "synthetic-16e21ad3807f",
+              "repositorySnapshotId": "snap-repo-01-consent-app",
+              "ruleSetVersionId": "rs-demo-v1",
+              "scopeId": "ASSESSMENT"
+            },
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:2bbb139f-3bb2-489a-adaa-c7ff5e26771f:f7f43a74b0dd3a6141233f92"
+          }
+        ],
+        "assessmentId": "43a09b7d-5986-4cea-a788-311b71b61d8f",
+        "authorityViolations": [],
+        "caseId": "CASE-01",
+        "corpusPin": {
+          "corpus_id": "vn-pdpl-2025",
+          "digest_sha256": "e6edef2476d0fea459c3f13eb7f175e1b50037aff9ce9a11b8e11983618ca67f",
+          "version": "2025.1"
+        },
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "evidenceRecords": {
+          "ev-case-01-1": {
+            "commitSha": "synthetic-16e21ad3807f",
+            "contentSha256": "b87fc8e367b3eccbea04bef1e8647d1e58ea407657778db27164197b45667121",
+            "end_line": 8,
+            "evidenceId": "ev-case-01-1",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/consent.py",
+            "payload": {
+              "contentSha256": "b87fc8e367b3eccbea04bef1e8647d1e58ea407657778db27164197b45667121",
+              "endLine": 8,
+              "path": "src/consent.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-01-consent-app",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          }
+        },
+        "evidenceReferences": [
+          "ev-case-01-1"
+        ],
+        "facts": [],
+        "finalReport": {
+          "findings": [
+            {
+              "assessmentRuleId": "ER-DEMO-01",
+              "recommendations": [],
+              "summary": "Compliant."
+            }
+          ],
+          "kind": "FINAL_REPORT",
+          "summary": "Compliant."
+        },
+        "hitl": {
+          "openRequestIds": [],
+          "requests": [],
+          "resolvedRequests": [],
+          "state": "NONE"
+        },
+        "legalProvisions": [
+          {
+            "content": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+            "content_sha256": "949304d5bbefc4018e957f1d21efe66e6bacdc90333db21f9eeb98fdd2e0b352",
+            "document_id": "vn-pdpl-2025",
+            "locator": "art-11",
+            "source_kind": "SYNTHETIC_PINNED_LAW",
+            "title": "Consent before personal data processing (CASE-01)"
+          }
+        ],
+        "lifecycleHistory": [],
+        "lifecycleStage": "INITIAL",
+        "lifecycleState": "COMPLETE",
+        "outcomeBinding": {
+          "actualVerdict": "APPLICABLE_COMPLIANT",
+          "caseId": "CASE-01",
+          "lifecycleState": "COMPLETE",
+          "passed": true,
+          "runId": "lcsp400-pm-review-r3-scripted",
+          "stage": "INITIAL",
+          "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+          "trialIndex": 0
+        },
+        "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+        "repositorySnapshot": {
+          "commit_sha": "synthetic-16e21ad3807f",
+          "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
+          "repo_id": "repo-01-consent-app",
+          "snapshot_kind": "SYNTHETIC_FIXTURE",
+          "untrusted_code_execution_allowed": false
+        },
+        "ruleDefinitions": [
+          {
+            "applicability_conditions": [
+              "Processes personal data of natural persons",
+              "Not an internal-only developer utility"
+            ],
+            "concept": "context_wizard_ready",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "statement": "Consent capture enforces non-empty purpose and explicit opt-in status."
+              }
+            ],
+            "exceptions": [
+              "Statutory emergency exemption"
+            ],
+            "legal_requirement_id": "LR-CASE-01",
+            "requirement_proposition": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+            "requirement_title": "Consent before personal data processing — Context wizard READY with pinned artifacts",
+            "rule_id": "ER-DEMO-01"
+          }
+        ],
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "runResult": {
+          "checkpointId": null,
+          "errorType": null,
+          "executionId": "6f453624-a66f-4fa2-99aa-441f9a2beb6c",
+          "promptManifestSha256": "3bb25d32ddae6a8336b79766e6f88196687e72f6d4c74b4284a059b34792171f",
+          "state": "SUCCEEDED",
+          "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f"
+        },
+        "targetRuleIds": [
+          "ER-DEMO-01"
+        ],
+        "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+        "trialIndex": 0
+      },
+      "stage": "ASSESSMENT_ROOT",
+      "targetBinding": {
+        "candidateCaseId": "p14-case-01-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-11",
+        "legalProvisionRefs": "vn-pdpl-2025#art-11",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
+        "p14CaseId": "CASE-01",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-16e21ad3807f",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+        "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
+        "trialIndex": 0
+      },
+      "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
+      "trialIndex": 0
+    },
+    {
+      "assessmentDecision": {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-01",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "NON_COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "NOT_MET",
+              "rationale": "Gap observed.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-17-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-17"
+            }
+          ],
+          "rationale": "Observed gap in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-17-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "synthetic-e697ed5e29c9",
+          "repositorySnapshotId": "snap-repo-02-audit-gap",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
+      },
+      "caseId": "p14-case-17-initial",
+      "dimensionPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT"
+      },
+      "evaluationLabelPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_NON_COMPLIANCE"
+      },
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "evidenceReferences": [
+        "ev-case-17-1"
+      ],
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "hitl": {
+        "openRequestIds": [],
+        "requests": [],
+        "resolvedRequests": [],
+        "state": "NONE"
+      },
+      "humanJudgments": {},
+      "lifecycleStage": "INITIAL",
+      "normalizationSource": "P14_SAVED_ARTIFACTS",
+      "observationKind": "GENERATED_LCSP_OUTPUT",
+      "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
+      "p14Binding": {
+        "candidateCaseId": "p14-case-17-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-26",
+        "legalProvisionRefs": "vn-pdpl-2025#art-26",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
+        "p14CaseId": "CASE-17",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-e697ed5e29c9",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+        "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
+        "trialIndex": 0
+      },
+      "p14CaseId": "CASE-17",
+      "rawActualVerdict": "APPLICABLE_NON_COMPLIANT",
+      "reviewPayload": {
+        "actualAssessmentDecision": {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "ER-DEMO-01",
+            "assessmentRuleVersion": "v1",
+            "caseRevision": 0,
+            "compliance": "NON_COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "NOT_MET",
+                "rationale": "Gap observed.",
+                "references": [
+                  {
+                    "evidenceId": "ev-case-17-1",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  }
+                ]
+              }
+            ],
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-CASE-17"
+              }
+            ],
+            "rationale": "Observed gap in pinned repository source.",
+            "references": [
+              {
+                "evidenceId": "ev-case-17-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ],
+            "repositoryCommit": "synthetic-e697ed5e29c9",
+            "repositorySnapshotId": "snap-repo-02-audit-gap",
+            "ruleSetVersionId": "rs-demo-v1",
+            "scopeId": "ASSESSMENT"
+          },
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
+        },
+        "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+        "assessmentDecisions": [
+          {
+            "decision": {
+              "applicability": "APPLICABLE",
+              "assessmentRuleId": "ER-DEMO-01",
+              "assessmentRuleVersion": "v1",
+              "caseRevision": 0,
+              "compliance": "NON_COMPLIANT",
+              "criteria": [
+                {
+                  "criterionId": "C-1",
+                  "outcome": "NOT_MET",
+                  "rationale": "Gap observed.",
+                  "references": [
+                    {
+                      "evidenceId": "ev-case-17-1",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ]
+                }
+              ],
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-CASE-17"
+                }
+              ],
+              "rationale": "Observed gap in pinned repository source.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-17-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ],
+              "repositoryCommit": "synthetic-e697ed5e29c9",
+              "repositorySnapshotId": "snap-repo-02-audit-gap",
+              "ruleSetVersionId": "rs-demo-v1",
+              "scopeId": "ASSESSMENT"
+            },
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
+          }
+        ],
+        "assessmentId": "d5b32274-b4fb-4bc2-a59a-50f2fadb1263",
+        "authorityViolations": [],
+        "caseId": "CASE-17",
+        "corpusPin": {
+          "corpus_id": "vn-pdpl-2025",
+          "digest_sha256": "377806c61c14f1f5e8e58e6f07002af153bd73079e0f2f51971360b5391055b0",
+          "version": "2025.1"
+        },
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "evidenceRecords": {
+          "ev-case-17-1": {
+            "commitSha": "synthetic-e697ed5e29c9",
+            "contentSha256": "9586eb3eca47c31790998fcc69b0e13a1c415ea20cb039a54da8ff48e495a858",
+            "end_line": 6,
+            "evidenceId": "ev-case-17-1",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/audit_log.py",
+            "payload": {
+              "contentSha256": "9586eb3eca47c31790998fcc69b0e13a1c415ea20cb039a54da8ff48e495a858",
+              "endLine": 6,
+              "path": "src/audit_log.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-02-audit-gap",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          }
+        },
+        "evidenceReferences": [
+          "ev-case-17-1"
+        ],
+        "facts": [],
+        "finalReport": {
+          "findings": [
+            {
+              "assessmentRuleId": "ER-DEMO-01",
+              "recommendations": [],
+              "summary": "Gap."
+            }
+          ],
+          "kind": "FINAL_REPORT",
+          "summary": "Non-compliant finding."
+        },
+        "hitl": {
+          "openRequestIds": [],
+          "requests": [],
+          "resolvedRequests": [],
+          "state": "NONE"
+        },
+        "legalProvisions": [
+          {
+            "content": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+            "content_sha256": "2a1c3014740973844ed9ca52e068cea8c232c6c8571b00aee5b7308e2b1b82c9",
+            "document_id": "vn-pdpl-2025",
+            "locator": "art-26",
+            "source_kind": "SYNTHETIC_PINNED_LAW",
+            "title": "Access logging and retention enforcement (CASE-17)"
+          }
+        ],
+        "lifecycleHistory": [],
+        "lifecycleStage": "INITIAL",
+        "lifecycleState": "COMPLETE",
+        "outcomeBinding": {
+          "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+          "caseId": "CASE-17",
+          "lifecycleState": "COMPLETE",
+          "passed": true,
+          "runId": "lcsp400-pm-review-r3-scripted",
+          "stage": "INITIAL",
+          "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+          "trialIndex": 0
+        },
+        "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+        "repositorySnapshot": {
+          "commit_sha": "synthetic-e697ed5e29c9",
+          "fixture_dir": "evals/fixtures/benchmark/repos/repo-02-audit-gap",
+          "repo_id": "repo-02-audit-gap",
+          "snapshot_kind": "SYNTHETIC_FIXTURE",
+          "untrusted_code_execution_allowed": false
+        },
+        "ruleDefinitions": [
+          {
+            "applicability_conditions": [
+              "System processes or stores personal data"
+            ],
+            "concept": "investigator_production_evidence",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "statement": "Access logs include actor, action, and enforceable retention policy."
+              }
+            ],
+            "exceptions": [
+              "Anonymized aggregate telemetry"
+            ],
+            "legal_requirement_id": "LR-CASE-17",
+            "requirement_proposition": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+            "requirement_title": "Access logging and retention enforcement — Audit log gap yields APPLICABLE_NON_COMPLIANT with source citation",
+            "rule_id": "ER-DEMO-01"
+          }
+        ],
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "runResult": {
+          "checkpointId": null,
+          "errorType": null,
+          "executionId": "c1e160f4-edf9-4b7f-887e-7ae9a0947700",
+          "promptManifestSha256": "b1421d96c3642e0e0bb3baa706fe33ac8e0949c0559ad741e7ebe0e8f70d2e3b",
+          "state": "SUCCEEDED",
+          "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e"
+        },
+        "targetRuleIds": [
+          "ER-DEMO-01"
+        ],
+        "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+        "trialIndex": 0
+      },
+      "stage": "ASSESSMENT_ROOT",
+      "targetBinding": {
+        "candidateCaseId": "p14-case-17-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-26",
+        "legalProvisionRefs": "vn-pdpl-2025#art-26",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
+        "p14CaseId": "CASE-17",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-e697ed5e29c9",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+        "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
+        "trialIndex": 0
+      },
+      "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
+      "trialIndex": 0
+    },
+    {
+      "assessmentDecision": {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-01",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-01-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-01"
+            }
+          ],
+          "rationale": "Verified in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-01-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "synthetic-16e21ad3807f",
+          "repositorySnapshotId": "snap-repo-01-consent-app",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
+      },
+      "caseId": "p14-case-01-initial",
+      "dimensionPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "COMPLIANT"
+      },
+      "evaluationLabelPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_COMPLIANCE"
+      },
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "evidenceReferences": [
+        "ev-case-01-1"
+      ],
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "hitl": {
+        "openRequestIds": [],
+        "requests": [],
+        "resolvedRequests": [],
+        "state": "NONE"
+      },
+      "humanJudgments": {},
+      "lifecycleStage": "INITIAL",
+      "normalizationSource": "P14_SAVED_ARTIFACTS",
+      "observationKind": "GENERATED_LCSP_OUTPUT",
+      "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
+      "p14Binding": {
+        "candidateCaseId": "p14-case-01-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-11",
+        "legalProvisionRefs": "vn-pdpl-2025#art-11",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
+        "p14CaseId": "CASE-01",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-16e21ad3807f",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+        "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
+        "trialIndex": 1
+      },
+      "p14CaseId": "CASE-01",
+      "rawActualVerdict": "APPLICABLE_COMPLIANT",
+      "reviewPayload": {
+        "actualAssessmentDecision": {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "ER-DEMO-01",
+            "assessmentRuleVersion": "v1",
+            "caseRevision": 0,
+            "compliance": "COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "MET",
+                "rationale": "Verified.",
+                "references": [
+                  {
+                    "evidenceId": "ev-case-01-1",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  }
+                ]
+              }
+            ],
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-CASE-01"
+              }
+            ],
+            "rationale": "Verified in pinned repository source.",
+            "references": [
+              {
+                "evidenceId": "ev-case-01-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ],
+            "repositoryCommit": "synthetic-16e21ad3807f",
+            "repositorySnapshotId": "snap-repo-01-consent-app",
+            "ruleSetVersionId": "rs-demo-v1",
+            "scopeId": "ASSESSMENT"
+          },
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
+        },
+        "actualVerdict": "APPLICABLE_COMPLIANT",
+        "assessmentDecisions": [
+          {
+            "decision": {
+              "applicability": "APPLICABLE",
+              "assessmentRuleId": "ER-DEMO-01",
+              "assessmentRuleVersion": "v1",
+              "caseRevision": 0,
+              "compliance": "COMPLIANT",
+              "criteria": [
+                {
+                  "criterionId": "C-1",
+                  "outcome": "MET",
+                  "rationale": "Verified.",
+                  "references": [
+                    {
+                      "evidenceId": "ev-case-01-1",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ]
+                }
+              ],
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-CASE-01"
+                }
+              ],
+              "rationale": "Verified in pinned repository source.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-01-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ],
+              "repositoryCommit": "synthetic-16e21ad3807f",
+              "repositorySnapshotId": "snap-repo-01-consent-app",
+              "ruleSetVersionId": "rs-demo-v1",
+              "scopeId": "ASSESSMENT"
+            },
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
+          }
+        ],
+        "assessmentId": "ec422dfe-7cd4-4035-82d6-d45904dceb0c",
+        "authorityViolations": [],
+        "caseId": "CASE-01",
+        "corpusPin": {
+          "corpus_id": "vn-pdpl-2025",
+          "digest_sha256": "e6edef2476d0fea459c3f13eb7f175e1b50037aff9ce9a11b8e11983618ca67f",
+          "version": "2025.1"
+        },
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "evidenceRecords": {
+          "ev-case-01-1": {
+            "commitSha": "synthetic-16e21ad3807f",
+            "contentSha256": "b87fc8e367b3eccbea04bef1e8647d1e58ea407657778db27164197b45667121",
+            "end_line": 8,
+            "evidenceId": "ev-case-01-1",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/consent.py",
+            "payload": {
+              "contentSha256": "b87fc8e367b3eccbea04bef1e8647d1e58ea407657778db27164197b45667121",
+              "endLine": 8,
+              "path": "src/consent.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-01-consent-app",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          }
+        },
+        "evidenceReferences": [
+          "ev-case-01-1"
+        ],
+        "facts": [],
+        "finalReport": {
+          "findings": [
+            {
+              "assessmentRuleId": "ER-DEMO-01",
+              "recommendations": [],
+              "summary": "Compliant."
+            }
+          ],
+          "kind": "FINAL_REPORT",
+          "summary": "Compliant."
+        },
+        "hitl": {
+          "openRequestIds": [],
+          "requests": [],
+          "resolvedRequests": [],
+          "state": "NONE"
+        },
+        "legalProvisions": [
+          {
+            "content": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+            "content_sha256": "949304d5bbefc4018e957f1d21efe66e6bacdc90333db21f9eeb98fdd2e0b352",
+            "document_id": "vn-pdpl-2025",
+            "locator": "art-11",
+            "source_kind": "SYNTHETIC_PINNED_LAW",
+            "title": "Consent before personal data processing (CASE-01)"
+          }
+        ],
+        "lifecycleHistory": [],
+        "lifecycleStage": "INITIAL",
+        "lifecycleState": "COMPLETE",
+        "outcomeBinding": {
+          "actualVerdict": "APPLICABLE_COMPLIANT",
+          "caseId": "CASE-01",
+          "lifecycleState": "COMPLETE",
+          "passed": true,
+          "runId": "lcsp400-pm-review-r3-scripted",
+          "stage": "INITIAL",
+          "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+          "trialIndex": 1
+        },
+        "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+        "repositorySnapshot": {
+          "commit_sha": "synthetic-16e21ad3807f",
+          "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
+          "repo_id": "repo-01-consent-app",
+          "snapshot_kind": "SYNTHETIC_FIXTURE",
+          "untrusted_code_execution_allowed": false
+        },
+        "ruleDefinitions": [
+          {
+            "applicability_conditions": [
+              "Processes personal data of natural persons",
+              "Not an internal-only developer utility"
+            ],
+            "concept": "context_wizard_ready",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "statement": "Consent capture enforces non-empty purpose and explicit opt-in status."
+              }
+            ],
+            "exceptions": [
+              "Statutory emergency exemption"
+            ],
+            "legal_requirement_id": "LR-CASE-01",
+            "requirement_proposition": "[CASE-01] Data controllers must obtain explicit, informed opt-in consent specifying purpose before processing personal data.",
+            "requirement_title": "Consent before personal data processing — Context wizard READY with pinned artifacts",
+            "rule_id": "ER-DEMO-01"
+          }
+        ],
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "runResult": {
+          "checkpointId": null,
+          "errorType": null,
+          "executionId": "22fb7365-de60-4fab-8d7f-e3d7f79ad3cc",
+          "promptManifestSha256": "a5bc5942457c670dd7039758e7856bcb65b95709f99379b8d4600238233a82aa",
+          "state": "SUCCEEDED",
+          "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f"
+        },
+        "targetRuleIds": [
+          "ER-DEMO-01"
+        ],
+        "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+        "trialIndex": 1
+      },
+      "stage": "ASSESSMENT_ROOT",
+      "targetBinding": {
+        "candidateCaseId": "p14-case-01-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-11",
+        "legalProvisionRefs": "vn-pdpl-2025#art-11",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
+        "p14CaseId": "CASE-01",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-16e21ad3807f",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+        "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
+        "trialIndex": 1
+      },
+      "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
+      "trialIndex": 1
+    },
+    {
+      "assessmentDecision": {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-01",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "NON_COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "NOT_MET",
+              "rationale": "Gap observed.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-17-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-17"
+            }
+          ],
+          "rationale": "Observed gap in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-17-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "synthetic-e697ed5e29c9",
+          "repositorySnapshotId": "snap-repo-02-audit-gap",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:2dc48f83-07ad-4628-bbf3-e45e9e53c5a1:ea401c0eb81bf43fde5bd8fe"
+      },
+      "caseId": "p14-case-17-initial",
+      "dimensionPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "NON_COMPLIANT"
+      },
+      "evaluationLabelPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_NON_COMPLIANCE"
+      },
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "evidenceReferences": [
+        "ev-case-17-1"
+      ],
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "hitl": {
+        "openRequestIds": [],
+        "requests": [],
+        "resolvedRequests": [],
+        "state": "NONE"
+      },
+      "humanJudgments": {},
+      "lifecycleStage": "INITIAL",
+      "normalizationSource": "P14_SAVED_ARTIFACTS",
+      "observationKind": "GENERATED_LCSP_OUTPUT",
+      "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
+      "p14Binding": {
+        "candidateCaseId": "p14-case-17-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-26",
+        "legalProvisionRefs": "vn-pdpl-2025#art-26",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
+        "p14CaseId": "CASE-17",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-e697ed5e29c9",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+        "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
+        "trialIndex": 1
+      },
+      "p14CaseId": "CASE-17",
+      "rawActualVerdict": "APPLICABLE_NON_COMPLIANT",
+      "reviewPayload": {
+        "actualAssessmentDecision": {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "ER-DEMO-01",
+            "assessmentRuleVersion": "v1",
+            "caseRevision": 0,
+            "compliance": "NON_COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "NOT_MET",
+                "rationale": "Gap observed.",
+                "references": [
+                  {
+                    "evidenceId": "ev-case-17-1",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  }
+                ]
+              }
+            ],
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-CASE-17"
+              }
+            ],
+            "rationale": "Observed gap in pinned repository source.",
+            "references": [
+              {
+                "evidenceId": "ev-case-17-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ],
+            "repositoryCommit": "synthetic-e697ed5e29c9",
+            "repositorySnapshotId": "snap-repo-02-audit-gap",
+            "ruleSetVersionId": "rs-demo-v1",
+            "scopeId": "ASSESSMENT"
+          },
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:2dc48f83-07ad-4628-bbf3-e45e9e53c5a1:ea401c0eb81bf43fde5bd8fe"
+        },
+        "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+        "assessmentDecisions": [
+          {
+            "decision": {
+              "applicability": "APPLICABLE",
+              "assessmentRuleId": "ER-DEMO-01",
+              "assessmentRuleVersion": "v1",
+              "caseRevision": 0,
+              "compliance": "NON_COMPLIANT",
+              "criteria": [
+                {
+                  "criterionId": "C-1",
+                  "outcome": "NOT_MET",
+                  "rationale": "Gap observed.",
+                  "references": [
+                    {
+                      "evidenceId": "ev-case-17-1",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ]
+                }
+              ],
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-CASE-17"
+                }
+              ],
+              "rationale": "Observed gap in pinned repository source.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-17-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ],
+              "repositoryCommit": "synthetic-e697ed5e29c9",
+              "repositorySnapshotId": "snap-repo-02-audit-gap",
+              "ruleSetVersionId": "rs-demo-v1",
+              "scopeId": "ASSESSMENT"
+            },
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:2dc48f83-07ad-4628-bbf3-e45e9e53c5a1:ea401c0eb81bf43fde5bd8fe"
+          }
+        ],
+        "assessmentId": "6355fb5c-8817-42c6-a824-1e2e95f1c961",
+        "authorityViolations": [],
+        "caseId": "CASE-17",
+        "corpusPin": {
+          "corpus_id": "vn-pdpl-2025",
+          "digest_sha256": "377806c61c14f1f5e8e58e6f07002af153bd73079e0f2f51971360b5391055b0",
+          "version": "2025.1"
+        },
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "evidenceRecords": {
+          "ev-case-17-1": {
+            "commitSha": "synthetic-e697ed5e29c9",
+            "contentSha256": "9586eb3eca47c31790998fcc69b0e13a1c415ea20cb039a54da8ff48e495a858",
+            "end_line": 6,
+            "evidenceId": "ev-case-17-1",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/audit_log.py",
+            "payload": {
+              "contentSha256": "9586eb3eca47c31790998fcc69b0e13a1c415ea20cb039a54da8ff48e495a858",
+              "endLine": 6,
+              "path": "src/audit_log.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-02-audit-gap",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          }
+        },
+        "evidenceReferences": [
+          "ev-case-17-1"
+        ],
+        "facts": [],
+        "finalReport": {
+          "findings": [
+            {
+              "assessmentRuleId": "ER-DEMO-01",
+              "recommendations": [],
+              "summary": "Gap."
+            }
+          ],
+          "kind": "FINAL_REPORT",
+          "summary": "Non-compliant finding."
+        },
+        "hitl": {
+          "openRequestIds": [],
+          "requests": [],
+          "resolvedRequests": [],
+          "state": "NONE"
+        },
+        "legalProvisions": [
+          {
+            "content": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+            "content_sha256": "2a1c3014740973844ed9ca52e068cea8c232c6c8571b00aee5b7308e2b1b82c9",
+            "document_id": "vn-pdpl-2025",
+            "locator": "art-26",
+            "source_kind": "SYNTHETIC_PINNED_LAW",
+            "title": "Access logging and retention enforcement (CASE-17)"
+          }
+        ],
+        "lifecycleHistory": [],
+        "lifecycleStage": "INITIAL",
+        "lifecycleState": "COMPLETE",
+        "outcomeBinding": {
+          "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+          "caseId": "CASE-17",
+          "lifecycleState": "COMPLETE",
+          "passed": true,
+          "runId": "lcsp400-pm-review-r3-scripted",
+          "stage": "INITIAL",
+          "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+          "trialIndex": 1
+        },
+        "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+        "repositorySnapshot": {
+          "commit_sha": "synthetic-e697ed5e29c9",
+          "fixture_dir": "evals/fixtures/benchmark/repos/repo-02-audit-gap",
+          "repo_id": "repo-02-audit-gap",
+          "snapshot_kind": "SYNTHETIC_FIXTURE",
+          "untrusted_code_execution_allowed": false
+        },
+        "ruleDefinitions": [
+          {
+            "applicability_conditions": [
+              "System processes or stores personal data"
+            ],
+            "concept": "investigator_production_evidence",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "statement": "Access logs include actor, action, and enforceable retention policy."
+              }
+            ],
+            "exceptions": [
+              "Anonymized aggregate telemetry"
+            ],
+            "legal_requirement_id": "LR-CASE-17",
+            "requirement_proposition": "[CASE-17] Systems processing personal data must log access events and enforce bounded retention policies.",
+            "requirement_title": "Access logging and retention enforcement — Audit log gap yields APPLICABLE_NON_COMPLIANT with source citation",
+            "rule_id": "ER-DEMO-01"
+          }
+        ],
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "runResult": {
+          "checkpointId": null,
+          "errorType": null,
+          "executionId": "35477ec3-969f-4292-94de-b5da09979329",
+          "promptManifestSha256": "bf7098db1348d4a83c0a57af6167d3833763ae1398ab29b96a9ecaa683fb031e",
+          "state": "SUCCEEDED",
+          "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1"
+        },
+        "targetRuleIds": [
+          "ER-DEMO-01"
+        ],
+        "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+        "trialIndex": 1
+      },
+      "stage": "ASSESSMENT_ROOT",
+      "targetBinding": {
+        "candidateCaseId": "p14-case-17-initial",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-26",
+        "legalProvisionRefs": "vn-pdpl-2025#art-26",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "INITIAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
+        "p14CaseId": "CASE-17",
+        "p14RuleId": "ER-DEMO-01",
+        "repositoryCommitSha": "synthetic-e697ed5e29c9",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+        "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
+        "trialIndex": 1
+      },
+      "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
+      "trialIndex": 1
+    },
+    {
+      "assessmentDecision": {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-02",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 1,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-02-2",
+                  "type": "ASSESSMENT_EVIDENCE"
+                },
+                {
+                  "caseRevision": 1,
+                  "factId": "fact-case-02-1",
+                  "type": "CONFIRMED_FACT"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-02"
+            }
+          ],
+          "rationale": "Confirmed via HITL answer and cited source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-02-2",
+              "type": "ASSESSMENT_EVIDENCE"
+            },
+            {
+              "caseRevision": 1,
+              "factId": "fact-case-02-1",
+              "type": "CONFIRMED_FACT"
+            }
+          ],
+          "repositoryCommit": "synthetic-de4b5964d365",
+          "repositorySnapshotId": "snap-repo-04-hitl-retention",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
+      },
+      "caseId": "p14-case-02-resume-final",
+      "dimensionPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "COMPLIANT"
+      },
+      "evaluationLabelPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_COMPLIANCE"
+      },
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "evidenceReferences": [
+        "ev-case-02-1",
+        "ev-case-02-2",
+        "fact-case-02-1"
+      ],
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "hitl": {
+        "openRequestIds": [],
+        "requests": [
+          {
+            "assessmentRuleId": "ER-DEMO-02",
+            "question": "Who owns the notification_owner duty for context_wizard_needs_input?",
+            "requestId": "hr-case-02-1",
+            "requestRevision": 1,
+            "resolvedFactId": "fact-case-02-1",
+            "status": "RESOLVED",
+            "unresolvedFact": "notification_owner"
+          }
+        ],
+        "resolvedRequests": [
+          {
+            "answer": "Data Protection Office owns retention and notification.",
+            "factId": "fact-case-02-1",
+            "requestId": "hr-case-02-1",
+            "resolvesFact": true
+          }
+        ],
+        "state": "RESOLVED"
+      },
+      "humanJudgments": {},
+      "lifecycleStage": "RESUME_FINAL",
+      "normalizationSource": "P14_SAVED_ARTIFACTS",
+      "observationKind": "GENERATED_LCSP_OUTPUT",
+      "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
+      "p14Binding": {
+        "candidateCaseId": "p14-case-02-resume-final",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-28",
+        "legalProvisionRefs": "vn-pdpl-2025#art-28",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "RESUME_FINAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
+        "p14CaseId": "CASE-02",
+        "p14RuleId": "ER-DEMO-02",
+        "repositoryCommitSha": "synthetic-de4b5964d365",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+        "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
+        "trialIndex": 0
+      },
+      "p14CaseId": "CASE-02",
+      "rawActualVerdict": "APPLICABLE_COMPLIANT",
+      "reviewPayload": {
+        "actualAssessmentDecision": {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "ER-DEMO-02",
+            "assessmentRuleVersion": "v1",
+            "caseRevision": 1,
+            "compliance": "COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "MET",
+                "rationale": "Verified.",
+                "references": [
+                  {
+                    "evidenceId": "ev-case-02-2",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  },
+                  {
+                    "caseRevision": 1,
+                    "factId": "fact-case-02-1",
+                    "type": "CONFIRMED_FACT"
+                  }
+                ]
+              }
+            ],
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-CASE-02"
+              }
+            ],
+            "rationale": "Confirmed via HITL answer and cited source.",
+            "references": [
+              {
+                "evidenceId": "ev-case-02-2",
+                "type": "ASSESSMENT_EVIDENCE"
+              },
+              {
+                "caseRevision": 1,
+                "factId": "fact-case-02-1",
+                "type": "CONFIRMED_FACT"
+              }
+            ],
+            "repositoryCommit": "synthetic-de4b5964d365",
+            "repositorySnapshotId": "snap-repo-04-hitl-retention",
+            "ruleSetVersionId": "rs-demo-v1",
+            "scopeId": "ASSESSMENT"
+          },
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
+        },
+        "actualVerdict": "APPLICABLE_COMPLIANT",
+        "assessmentDecisions": [
+          {
+            "decision": {
+              "applicability": "APPLICABLE",
+              "assessmentRuleId": "ER-DEMO-02",
+              "assessmentRuleVersion": "v1",
+              "caseRevision": 1,
+              "compliance": "COMPLIANT",
+              "criteria": [
+                {
+                  "criterionId": "C-1",
+                  "outcome": "MET",
+                  "rationale": "Verified.",
+                  "references": [
+                    {
+                      "evidenceId": "ev-case-02-2",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    },
+                    {
+                      "caseRevision": 1,
+                      "factId": "fact-case-02-1",
+                      "type": "CONFIRMED_FACT"
+                    }
+                  ]
+                }
+              ],
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-CASE-02"
+                }
+              ],
+              "rationale": "Confirmed via HITL answer and cited source.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-02-2",
+                  "type": "ASSESSMENT_EVIDENCE"
+                },
+                {
+                  "caseRevision": 1,
+                  "factId": "fact-case-02-1",
+                  "type": "CONFIRMED_FACT"
+                }
+              ],
+              "repositoryCommit": "synthetic-de4b5964d365",
+              "repositorySnapshotId": "snap-repo-04-hitl-retention",
+              "ruleSetVersionId": "rs-demo-v1",
+              "scopeId": "ASSESSMENT"
+            },
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
+          }
+        ],
+        "assessmentId": "a06d393f-cc9f-4ea3-95c2-6a9938c524bd",
+        "authorityViolations": [],
+        "caseId": "CASE-02",
+        "corpusPin": {
+          "corpus_id": "vn-pdpl-2025",
+          "digest_sha256": "82c98cfaa9f2366a24a3d0b253e507ccaddea781e6fa64b1cf63fafc10005bff",
+          "version": "2025.1"
+        },
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "evidenceRecords": {
+          "ev-case-02-1": {
+            "commitSha": "synthetic-de4b5964d365",
+            "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+            "end_line": 3,
+            "evidenceId": "ev-case-02-1",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/retention.py",
+            "payload": {
+              "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+              "endLine": 3,
+              "path": "src/retention.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-04-hitl-retention",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          },
+          "ev-case-02-2": {
+            "commitSha": "synthetic-de4b5964d365",
+            "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+            "end_line": 3,
+            "evidenceId": "ev-case-02-2",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/retention.py",
+            "payload": {
+              "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+              "endLine": 3,
+              "path": "src/retention.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-04-hitl-retention",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          },
+          "fact-case-02-1": {
+            "answer": "Data Protection Office owns retention and notification.",
+            "authority": "HUMAN_CONFIRMED",
+            "caseRevision": 1,
+            "evidenceIds": [],
+            "evidenceType": "HUMAN_CONFIRMED_FACT",
+            "factId": "fact-case-02-1",
+            "kind": "HUMAN_ANSWER",
+            "requestId": "hr-case-02-1",
+            "state": "ACCEPTED",
+            "statement": "Data Protection Office owns retention and notification.",
+            "status": "RESOLVED"
+          }
+        },
+        "evidenceReferences": [
+          "ev-case-02-1",
+          "ev-case-02-2",
+          "fact-case-02-1"
+        ],
+        "facts": [
+          {
+            "answer": "Data Protection Office owns retention and notification.",
+            "authority": "HUMAN_CONFIRMED",
+            "caseRevision": 1,
+            "evidenceIds": [],
+            "evidenceType": "HUMAN_CONFIRMED_FACT",
+            "factId": "fact-case-02-1",
+            "kind": "HUMAN_ANSWER",
+            "requestId": "hr-case-02-1",
+            "state": "ACCEPTED",
+            "statement": "Data Protection Office owns retention and notification.",
+            "status": "RESOLVED"
+          }
+        ],
+        "finalReport": {
+          "findings": [
+            {
+              "assessmentRuleId": "ER-DEMO-02",
+              "recommendations": [],
+              "summary": "Compliant after HITL."
+            }
+          ],
+          "kind": "FINAL_REPORT",
+          "summary": "Resumed report."
+        },
+        "hitl": {
+          "openRequestIds": [],
+          "requests": [
+            {
+              "assessmentRuleId": "ER-DEMO-02",
+              "question": "Who owns the notification_owner duty for context_wizard_needs_input?",
+              "requestId": "hr-case-02-1",
+              "requestRevision": 1,
+              "resolvedFactId": "fact-case-02-1",
+              "status": "RESOLVED",
+              "unresolvedFact": "notification_owner"
+            }
+          ],
+          "resolvedRequests": [
+            {
+              "answer": "Data Protection Office owns retention and notification.",
+              "factId": "fact-case-02-1",
+              "requestId": "hr-case-02-1",
+              "resolvesFact": true
+            }
+          ],
+          "state": "RESOLVED"
+        },
+        "legalProvisions": [
+          {
+            "content": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+            "content_sha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+            "document_id": "vn-pdpl-2025",
+            "locator": "art-28",
+            "source_kind": "SYNTHETIC_PINNED_LAW",
+            "title": "Organizational ownership and retention accountability (CASE-02)"
+          }
+        ],
+        "lifecycleHistory": [
+          {
+            "actualVerdict": "WAITING_FOR_HUMAN",
+            "lifecycleState": "WAITING_FOR_HUMAN",
+            "stage": "WAITING_FOR_HUMAN",
+            "traceSha256": "1cd2b333ab0333ca230cf9376b7127b56942f5a45fb7e2cfe79cb8a7fc10f1e9"
+          }
+        ],
+        "lifecycleStage": "RESUME_FINAL",
+        "lifecycleState": "COMPLETE",
+        "outcomeBinding": {
+          "actualVerdict": "APPLICABLE_COMPLIANT",
+          "caseId": "CASE-02",
+          "lifecycleState": "COMPLETE",
+          "passed": true,
+          "runId": "lcsp400-pm-review-r3-scripted",
+          "stage": "RESUME_FINAL",
+          "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+          "trialIndex": 0
+        },
+        "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+        "repositorySnapshot": {
+          "commit_sha": "synthetic-de4b5964d365",
+          "fixture_dir": "evals/fixtures/benchmark/repos/repo-04-hitl-retention",
+          "repo_id": "repo-04-hitl-retention",
+          "snapshot_kind": "SYNTHETIC_FIXTURE",
+          "untrusted_code_execution_allowed": false
+        },
+        "ruleDefinitions": [
+          {
+            "applicability_conditions": [
+              "Operates personal data retention workflow"
+            ],
+            "concept": "context_wizard_needs_input",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "statement": "Confirm designated organizational owner and retention period."
+              }
+            ],
+            "exceptions": [
+              "Exempted archival records"
+            ],
+            "legal_requirement_id": "LR-CASE-02",
+            "requirement_proposition": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+            "requirement_title": "Organizational ownership and retention accountability — Context wizard NEEDS_INPUT on missing business fact",
+            "rule_id": "ER-DEMO-02"
+          }
+        ],
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "runResult": {
+          "checkpointId": null,
+          "errorType": null,
+          "executionId": "09c46dad-1b16-4ae5-9b9b-cfca8760ee7d",
+          "promptManifestSha256": "18c0efaa418b38256cbf267ea6af7c00a935293eb9ea37a27b09dac493475591",
+          "state": "SUCCEEDED",
+          "threadId": "b59aa426-454e-4395-bf75-14af102ea27f"
+        },
+        "targetRuleIds": [
+          "ER-DEMO-02"
+        ],
+        "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+        "trialIndex": 0
+      },
+      "stage": "ASSESSMENT_ROOT",
+      "targetBinding": {
+        "candidateCaseId": "p14-case-02-resume-final",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-28",
+        "legalProvisionRefs": "vn-pdpl-2025#art-28",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "RESUME_FINAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
+        "p14CaseId": "CASE-02",
+        "p14RuleId": "ER-DEMO-02",
+        "repositoryCommitSha": "synthetic-de4b5964d365",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+        "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
+        "trialIndex": 0
+      },
+      "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
+      "trialIndex": 0
+    },
+    {
+      "assessmentDecision": {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "ER-DEMO-02",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 1,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-02-2",
+                  "type": "ASSESSMENT_EVIDENCE"
+                },
+                {
+                  "caseRevision": 1,
+                  "factId": "fact-case-02-1",
+                  "type": "CONFIRMED_FACT"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-CASE-02"
+            }
+          ],
+          "rationale": "Confirmed via HITL answer and cited source.",
+          "references": [
+            {
+              "evidenceId": "ev-case-02-2",
+              "type": "ASSESSMENT_EVIDENCE"
+            },
+            {
+              "caseRevision": 1,
+              "factId": "fact-case-02-1",
+              "type": "CONFIRMED_FACT"
+            }
+          ],
+          "repositoryCommit": "synthetic-de4b5964d365",
+          "repositorySnapshotId": "snap-repo-04-hitl-retention",
+          "ruleSetVersionId": "rs-demo-v1",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:6c2f9030-bedf-4e31-abbc-23bb828b1dbd:0c2c30f6c71bda05dffe27ef"
+      },
+      "caseId": "p14-case-02-resume-final",
+      "dimensionPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "COMPLIANT"
+      },
+      "evaluationLabelPredictions": {
+        "applicability": "APPLICABLE",
+        "compliance": "SUPPORTED_COMPLIANCE"
+      },
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "evidenceReferences": [
+        "ev-case-02-1",
+        "ev-case-02-2",
+        "fact-case-02-1"
+      ],
+      "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
+      "hitl": {
+        "openRequestIds": [],
+        "requests": [
+          {
+            "assessmentRuleId": "ER-DEMO-02",
+            "question": "Who owns the notification_owner duty for context_wizard_needs_input?",
+            "requestId": "hr-case-02-1",
+            "requestRevision": 1,
+            "resolvedFactId": "fact-case-02-1",
+            "status": "RESOLVED",
+            "unresolvedFact": "notification_owner"
+          }
+        ],
+        "resolvedRequests": [
+          {
+            "answer": "Data Protection Office owns retention and notification.",
+            "factId": "fact-case-02-1",
+            "requestId": "hr-case-02-1",
+            "resolvesFact": true
+          }
+        ],
+        "state": "RESOLVED"
+      },
+      "humanJudgments": {},
+      "lifecycleStage": "RESUME_FINAL",
+      "normalizationSource": "P14_SAVED_ARTIFACTS",
+      "observationKind": "GENERATED_LCSP_OUTPUT",
+      "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
+      "p14Binding": {
+        "candidateCaseId": "p14-case-02-resume-final",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-28",
+        "legalProvisionRefs": "vn-pdpl-2025#art-28",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "RESUME_FINAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
+        "p14CaseId": "CASE-02",
+        "p14RuleId": "ER-DEMO-02",
+        "repositoryCommitSha": "synthetic-de4b5964d365",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+        "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
+        "trialIndex": 1
+      },
+      "p14CaseId": "CASE-02",
+      "rawActualVerdict": "APPLICABLE_COMPLIANT",
+      "reviewPayload": {
+        "actualAssessmentDecision": {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "ER-DEMO-02",
+            "assessmentRuleVersion": "v1",
+            "caseRevision": 1,
+            "compliance": "COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "MET",
+                "rationale": "Verified.",
+                "references": [
+                  {
+                    "evidenceId": "ev-case-02-2",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  },
+                  {
+                    "caseRevision": 1,
+                    "factId": "fact-case-02-1",
+                    "type": "CONFIRMED_FACT"
+                  }
+                ]
+              }
+            ],
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-CASE-02"
+              }
+            ],
+            "rationale": "Confirmed via HITL answer and cited source.",
+            "references": [
+              {
+                "evidenceId": "ev-case-02-2",
+                "type": "ASSESSMENT_EVIDENCE"
+              },
+              {
+                "caseRevision": 1,
+                "factId": "fact-case-02-1",
+                "type": "CONFIRMED_FACT"
+              }
+            ],
+            "repositoryCommit": "synthetic-de4b5964d365",
+            "repositorySnapshotId": "snap-repo-04-hitl-retention",
+            "ruleSetVersionId": "rs-demo-v1",
+            "scopeId": "ASSESSMENT"
+          },
+          "expectedDecisionRevision": 0,
+          "idempotencyKey": "decision:6c2f9030-bedf-4e31-abbc-23bb828b1dbd:0c2c30f6c71bda05dffe27ef"
+        },
+        "actualVerdict": "APPLICABLE_COMPLIANT",
+        "assessmentDecisions": [
+          {
+            "decision": {
+              "applicability": "APPLICABLE",
+              "assessmentRuleId": "ER-DEMO-02",
+              "assessmentRuleVersion": "v1",
+              "caseRevision": 1,
+              "compliance": "COMPLIANT",
+              "criteria": [
+                {
+                  "criterionId": "C-1",
+                  "outcome": "MET",
+                  "rationale": "Verified.",
+                  "references": [
+                    {
+                      "evidenceId": "ev-case-02-2",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    },
+                    {
+                      "caseRevision": 1,
+                      "factId": "fact-case-02-1",
+                      "type": "CONFIRMED_FACT"
+                    }
+                  ]
+                }
+              ],
+              "legalContextRefs": [
+                {
+                  "legalContextId": "LR-CASE-02"
+                }
+              ],
+              "rationale": "Confirmed via HITL answer and cited source.",
+              "references": [
+                {
+                  "evidenceId": "ev-case-02-2",
+                  "type": "ASSESSMENT_EVIDENCE"
+                },
+                {
+                  "caseRevision": 1,
+                  "factId": "fact-case-02-1",
+                  "type": "CONFIRMED_FACT"
+                }
+              ],
+              "repositoryCommit": "synthetic-de4b5964d365",
+              "repositorySnapshotId": "snap-repo-04-hitl-retention",
+              "ruleSetVersionId": "rs-demo-v1",
+              "scopeId": "ASSESSMENT"
+            },
+            "expectedDecisionRevision": 0,
+            "idempotencyKey": "decision:6c2f9030-bedf-4e31-abbc-23bb828b1dbd:0c2c30f6c71bda05dffe27ef"
+          }
+        ],
+        "assessmentId": "e7b3542b-8073-4496-934a-d608fc5ce4cf",
+        "authorityViolations": [],
+        "caseId": "CASE-02",
+        "corpusPin": {
+          "corpus_id": "vn-pdpl-2025",
+          "digest_sha256": "82c98cfaa9f2366a24a3d0b253e507ccaddea781e6fa64b1cf63fafc10005bff",
+          "version": "2025.1"
+        },
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "evidenceRecords": {
+          "ev-case-02-1": {
+            "commitSha": "synthetic-de4b5964d365",
+            "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+            "end_line": 3,
+            "evidenceId": "ev-case-02-1",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/retention.py",
+            "payload": {
+              "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+              "endLine": 3,
+              "path": "src/retention.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-04-hitl-retention",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          },
+          "ev-case-02-2": {
+            "commitSha": "synthetic-de4b5964d365",
+            "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+            "end_line": 3,
+            "evidenceId": "ev-case-02-2",
+            "evidenceType": "REPOSITORY_SOURCE",
+            "path": "src/retention.py",
+            "payload": {
+              "contentSha256": "c8f38c84b5495293846721f1b5887c06a0ec8b8599616643378fe7030f3901b8",
+              "endLine": 3,
+              "path": "src/retention.py",
+              "startLine": 1
+            },
+            "repositoryId": "repo-04-hitl-retention",
+            "start_line": 1,
+            "state": "ACCEPTED",
+            "type": "REPOSITORY_SOURCE"
+          },
+          "fact-case-02-1": {
+            "answer": "Data Protection Office owns retention and notification.",
+            "authority": "HUMAN_CONFIRMED",
+            "caseRevision": 1,
+            "evidenceIds": [],
+            "evidenceType": "HUMAN_CONFIRMED_FACT",
+            "factId": "fact-case-02-1",
+            "kind": "HUMAN_ANSWER",
+            "requestId": "hr-case-02-1",
+            "state": "ACCEPTED",
+            "statement": "Data Protection Office owns retention and notification.",
+            "status": "RESOLVED"
+          }
+        },
+        "evidenceReferences": [
+          "ev-case-02-1",
+          "ev-case-02-2",
+          "fact-case-02-1"
+        ],
+        "facts": [
+          {
+            "answer": "Data Protection Office owns retention and notification.",
+            "authority": "HUMAN_CONFIRMED",
+            "caseRevision": 1,
+            "evidenceIds": [],
+            "evidenceType": "HUMAN_CONFIRMED_FACT",
+            "factId": "fact-case-02-1",
+            "kind": "HUMAN_ANSWER",
+            "requestId": "hr-case-02-1",
+            "state": "ACCEPTED",
+            "statement": "Data Protection Office owns retention and notification.",
+            "status": "RESOLVED"
+          }
+        ],
+        "finalReport": {
+          "findings": [
+            {
+              "assessmentRuleId": "ER-DEMO-02",
+              "recommendations": [],
+              "summary": "Compliant after HITL."
+            }
+          ],
+          "kind": "FINAL_REPORT",
+          "summary": "Resumed report."
+        },
+        "hitl": {
+          "openRequestIds": [],
+          "requests": [
+            {
+              "assessmentRuleId": "ER-DEMO-02",
+              "question": "Who owns the notification_owner duty for context_wizard_needs_input?",
+              "requestId": "hr-case-02-1",
+              "requestRevision": 1,
+              "resolvedFactId": "fact-case-02-1",
+              "status": "RESOLVED",
+              "unresolvedFact": "notification_owner"
+            }
+          ],
+          "resolvedRequests": [
+            {
+              "answer": "Data Protection Office owns retention and notification.",
+              "factId": "fact-case-02-1",
+              "requestId": "hr-case-02-1",
+              "resolvesFact": true
+            }
+          ],
+          "state": "RESOLVED"
+        },
+        "legalProvisions": [
+          {
+            "content": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+            "content_sha256": "9bd2033ff8ce2cc99f3d1be36a042bc94b74b02e2c339902de29a4333d7116cd",
+            "document_id": "vn-pdpl-2025",
+            "locator": "art-28",
+            "source_kind": "SYNTHETIC_PINNED_LAW",
+            "title": "Organizational ownership and retention accountability (CASE-02)"
+          }
+        ],
+        "lifecycleHistory": [
+          {
+            "actualVerdict": "WAITING_FOR_HUMAN",
+            "lifecycleState": "WAITING_FOR_HUMAN",
+            "stage": "WAITING_FOR_HUMAN",
+            "traceSha256": "362f5ec9541567e2765a82b7cd550d81b6c93b887a059fda4ead5d575f362d8b"
+          }
+        ],
+        "lifecycleStage": "RESUME_FINAL",
+        "lifecycleState": "COMPLETE",
+        "outcomeBinding": {
+          "actualVerdict": "APPLICABLE_COMPLIANT",
+          "caseId": "CASE-02",
+          "lifecycleState": "COMPLETE",
+          "passed": true,
+          "runId": "lcsp400-pm-review-r3-scripted",
+          "stage": "RESUME_FINAL",
+          "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+          "trialIndex": 1
+        },
+        "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+        "repositorySnapshot": {
+          "commit_sha": "synthetic-de4b5964d365",
+          "fixture_dir": "evals/fixtures/benchmark/repos/repo-04-hitl-retention",
+          "repo_id": "repo-04-hitl-retention",
+          "snapshot_kind": "SYNTHETIC_FIXTURE",
+          "untrusted_code_execution_allowed": false
+        },
+        "ruleDefinitions": [
+          {
+            "applicability_conditions": [
+              "Operates personal data retention workflow"
+            ],
+            "concept": "context_wizard_needs_input",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "statement": "Confirm designated organizational owner and retention period."
+              }
+            ],
+            "exceptions": [
+              "Exempted archival records"
+            ],
+            "legal_requirement_id": "LR-CASE-02",
+            "requirement_proposition": "[CASE-02] Data controllers must designate an accountable organizational owner for retention and notification duties.",
+            "requirement_title": "Organizational ownership and retention accountability — Context wizard NEEDS_INPUT on missing business fact",
+            "rule_id": "ER-DEMO-02"
+          }
+        ],
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "runResult": {
+          "checkpointId": null,
+          "errorType": null,
+          "executionId": "453a3ff5-819f-481e-88c9-2ab8ef41a82e",
+          "promptManifestSha256": "cd683b58252749ba46603dbb72de7156f906d3f178c637f0ce58f180a5e4132b",
+          "state": "SUCCEEDED",
+          "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd"
+        },
+        "targetRuleIds": [
+          "ER-DEMO-02"
+        ],
+        "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+        "trialIndex": 1
+      },
+      "stage": "ASSESSMENT_ROOT",
+      "targetBinding": {
+        "candidateCaseId": "p14-case-02-resume-final",
+        "corpusId": "vn-pdpl-2025",
+        "corpusVersion": "2025.1",
+        "evaluationStage": "ASSESSMENT_ROOT",
+        "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+        "legalCitations": "art-28",
+        "legalProvisionRefs": "vn-pdpl-2025#art-28",
+        "legalSourceId": "vn-pdpl-2025",
+        "legalSourceVersion": "2025.1",
+        "lifecycleStage": "RESUME_FINAL",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+        "modelRoute": "offline-scripted",
+        "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
+        "p14CaseId": "CASE-02",
+        "p14RuleId": "ER-DEMO-02",
+        "repositoryCommitSha": "synthetic-de4b5964d365",
+        "ruleSetVersionId": "rs-demo-v1",
+        "runId": "lcsp400-pm-review-r3-scripted",
+        "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+        "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
+        "trialIndex": 1
+      },
+      "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
+      "trialIndex": 1
+    }
+  ],
+  "p14ReviewDiagnostics": {
+    "lcsp400HumanJudgmentCount": 0,
+    "note": "P14's binary verdict review fields do not constitute LCSP-400 dimension judgments. The separate dimension-review contract checks structure and trace binding, not reviewer authenticity.",
+    "p14ExpertVerifiedFlagCount": 0,
+    "reviewAuthenticity": "NOT_AUTHENTICATED_BY_TOOL",
+    "seededUnverifiedCount": 0,
+    "usedAsLcsp400Gold": false
+  },
+  "pinnedInputs": {
+    "candidateDatasetSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
+    "caseMappingSha256": "b56fe7285800d3e901c4235962cb1d599600d264f32a31c7d2b35cb5f2e5fc4f",
+    "p14CasesDatasetSha256": "9772c405eb8f5d0d56a76453c3d5d7419f505e6313f4562f61a112889517eb79",
+    "sharedCohortSha256": "301a2dad69dff58ff58cddde43aa35a09809184beb44e831e111735087b1588a",
+    "sourcePinsSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14",
+    "splitManifestSha256": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef"
+  },
+  "reviewOverlaySha256": "e14eaa2423ee7c88d53d31440ff9c78ba66bfc1fda0f174c74c37eb5c702d291",
+  "reviewedGoldDenominator": 0,
+  "rubricReportsByTargetAndTrial": [
+    {
+      "denominator": 0,
+      "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+      "falseNegatives": null,
+      "falsePositives": null,
+      "macroF1": null,
+      "reason": "SHARED_COHORT_HAS_NO_HUMAN_REVIEWED_LEGAL_GOLD",
+      "scoringStatus": "NOT_SCORED"
+    }
+  ],
+  "runMetadata": {
+    "evaluationBudgetAndUsage": {
+      "cachedInputTokens": null,
+      "costCurrency": null,
+      "failedAttempts": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "physicalAttempts": null,
+      "providerCost": null
+    },
+    "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
+    "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
+    "mode": "SCRIPTED",
+    "modelRoute": "offline-scripted",
+    "p14CasesDatasetSha256": "9772c405eb8f5d0d56a76453c3d5d7419f505e6313f4562f61a112889517eb79",
+    "promptSha256": {
+      "assessment-root": "0a4357b9be60039711c2e08da14d77a4aa7ab33722e4e9278f9356ced37b6f5f"
+    },
+    "repositoryCommitSha": "0b6f2637e9f00baf5964a96257a800d8fc777eb6",
+    "runId": "lcsp400-pm-review-r3-scripted",
+    "skillFingerprints": {
+      "available": {
+        "assessment-automated-outcomes": "6db9ab0245df225bfd9ac7ba9008dc99b5fe82f0206a735ffafb626f2de5e9c9",
+        "assessment-controls-and-claims": "79b6202858b1be01345229b420c709b21d934ad281e25fb3f2db1a0f28950b99",
+        "assessment-data-lifecycle": "0ef374de4c49f0cd964feb64b8f795d9034f47e77c74beae2e9ab199f8895525",
+        "assessment-model-integrity": "0cbdc4608cf729c681cf05a7918d8ffa4c6acd2e0ca1242fc514f3ea7b3a0aa5",
+        "assessment-system-boundaries": "97746345f2484fd0d0422d27138dd7c562c870a73e311ee9011891039ec7c6a5"
+      },
+      "selected": {}
+    },
+    "sourcePins": {
+      "caseSplitManifestSha256": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef",
+      "casesDatasetSha256": "9772c405eb8f5d0d56a76453c3d5d7419f505e6313f4562f61a112889517eb79",
+      "corpusPinsSha256": "efa827fdf6eb2abd16434798e57cbf1e804086ab5dae3d880507876283406d8a",
+      "expectedInventorySha256": "0d961e589f4958a8f0d10e9af7b7de3a5fbeb08e487eccbfb7d42dbe79f566e5",
+      "goldRubricSha256": "fc70a11dcf1dc25c0852bca8015f0248f01739af2cd399eb97bfd1c556b4f156",
+      "governanceMode": "OFFLINE_TEST_BYPASS",
+      "hitlFixtureSha256": "8afe61401ecd9f2ac65499b42a5a8a486026f13cb0322ae8705b5394c688b164",
+      "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "repoPinsSha256": "bf101e1ce7d3af96952bec9d6a705cd6ed1fd18d6b82966ff68d2589c68afa39",
+      "ruleSetPinsSha256": "d03e87ac2df4348042327d3835d17c8bc9f0ce9fc0facd854c1bda45119264b0",
+      "runConfigSha256": "46e9373ba0e57a54d61136d8a490bf0eeafe25a5b5a3a5a3b25b26eef6a67340"
+    },
+    "splitManifestSha256": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef",
+    "trialCount": 8
+  },
+  "scoringReason": "NO_REVIEWED_LEGAL_GOLD_FOR_EXACT_EXECUTION_COHORT",
+  "scoringStatus": "NOT_SCORED",
+  "scriptedExecutionVerification": "PASS",
+  "splitInventory": {
+    "caseCounts": {
+      "DEV": 32,
+      "HOLDOUT": 1
+    },
+    "currentP14CaseMembership": {
+      "CASE-01": "DEV",
+      "CASE-02": "DEV",
+      "CASE-17": "DEV"
+    },
+    "generalizationClaim": "NOT_SUPPORTED_BY_SMALL_SHARED_SCRIPTED_COHORT",
+    "groupCounts": {
+      "DEV": 6,
+      "HOLDOUT": 1
+    },
+    "splitDigest": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef"
+  },
+  "verifiedArtifactReport": true,
+  "verifiedSemanticMetrics": false
+}
