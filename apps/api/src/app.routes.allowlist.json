@@ -35,6 +35,7 @@
   "GET /admin/compliance-rule-sets/preparations/:preparationRunId/source-units/:sourceNodeId/content",
   "GET /admin/legal-rule-catalog",
   "GET /admin/legal-rule-catalog/:catalogId/rules",
+  "GET /admin/legal-rule-catalog/:catalogId/rules/:ruleId/scope-authorizations",
   "GET /admin/legal-rule-catalog/:catalogId/scope-authorizations/:scopeKey",
   "GET /admin/legal-rule-catalog/preparations/:batchId",
   "GET /admin/legal-rule-catalog/rules/:ruleId/results",

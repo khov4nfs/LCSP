@@ -554,6 +554,31 @@ export class PreparationRuleService {
   }
 
   /**
+   * Business purpose: List persisted semantic review authorizations for a specific Legal Rule in a catalog.
+   * Business rules:
+   * - Read-only catalog/rule scoped query; returns newest first so UI can auto-select without manual key entry.
+   * Execution flow: 1. Query SelectedRuleScopeAuthorization by catalogId and ruleId ordered by updatedAt desc.
+   * Failure cases:
+   * - Database read errors propagate without modifying persisted records.
+   * Side effects:
+   * - Read-only database query.
+   */
+  async listScopeAuthorizationsForRule(catalogId: string, ruleId: string) {
+    const rows = await this.prisma.selectedRuleScopeAuthorization.findMany({
+      where: { catalogId, ruleId },
+      orderBy: [{ updatedAt: "desc" }],
+      take: 20,
+      select: {
+        scopeKey: true,
+        decisionDigest: true,
+        revision: true,
+        state: true,
+      },
+    });
+    return { authorizations: rows };
+  }
+
+  /**
    * Business purpose: Present a persisted semantic candidate and the exact source to an independent reviewer.
    * Business rules:
    * - Only the owning catalog, current eligible rule and matching pinned evidence are accessible, including historical keys.

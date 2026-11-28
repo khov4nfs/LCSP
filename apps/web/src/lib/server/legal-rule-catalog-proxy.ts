@@ -105,6 +105,11 @@ const routes = [
     response: C.selectedScopeAuthorizationSummarySchema,
   },
   {
+    method: "GET",
+    pattern: /^[^/]+\/rules\/[^/]+\/scope-authorizations$/,
+    response: C.selectedScopeAuthorizationListSchema,
+  },
+  {
     method: "POST",
     pattern: /^[^/]+\/scope-authorizations\/revoke$/,
     request: C.selectedScopeAuthorizationRevokeSchema,

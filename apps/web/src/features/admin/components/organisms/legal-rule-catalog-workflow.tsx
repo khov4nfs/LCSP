@@ -1,64 +1,64 @@
 "use client";
-import { useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { FileTextIcon, Trash2Icon, UploadIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useComplianceRuleSetHistoryQuery } from "@/lib/api/compliance-rule-set-queries";
+import {
+  useDeleteLegalRuleCatalog,
+  useLegalRuleActivation,
+  useLegalRuleActivationSelection,
+  useLegalRuleCatalogs,
+  useLegalRuleCommand,
+  useLegalRules,
+} from "@/lib/api/legal-rule-catalog-queries";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
-  LEGAL_RULE_PREPARATION_STATES as STATES,
   LEGAL_RULE_SELECTION_MODES as MODES,
+  LEGAL_RULE_PREPARATION_STATES as STATES,
   legalRuleSelectionResultSchema,
   preparationRuleBatchSchema,
   type LegalRuleActivationResult,
   type LegalRuleFilter,
   type LegalRuleListItem,
 } from "@lcsp/contracts/legal-rule-catalog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import {
-  useLegalRuleCatalogs,
-  useLegalRules,
-  useLegalRuleCommand,
-  useLegalRuleActivation,
-  useLegalRuleActivationSelection,
-  useDeleteLegalRuleCatalog,
-} from "@/lib/api/legal-rule-catalog-queries";
-import { useComplianceRuleSetHistoryQuery } from "@/lib/api/compliance-rule-set-queries";
-import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
+import { FileTextIcon, Trash2Icon, UploadIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useRef, useState } from "react";
 import {
   LEGAL_RULE_FILTER_ALL,
   LEGAL_RULE_FILTER_PREPARED_WITH_ASSESSMENT_RULES,
 } from "../../config/legal-rule-catalog.config";
+import { catalogMessage as t } from "../../utils/legal-rule-catalog-message";
+import {
+  formatLegalProvisions,
+  getRuleDisplayTitle,
+} from "../../utils/legal-rule-formatter";
 import { selectLegalRulePreparationFilter } from "../../utils/legal-rule-preparation-filter";
 import {
   LegalRuleCatalogCreateForm,
   LegalRuleCatalogRuleForm,
 } from "../molecules/legal-rule-catalog-forms";
 import { LegalRuleResultDialog } from "../molecules/legal-rule-catalog-result";
-import {
-  formatLegalProvisions,
-  getRuleDisplayTitle,
-} from "../../utils/legal-rule-formatter";
+import { AssessmentRuleImportDialog } from "./assessment-rule-import-dialog";
 import { LegalRuleCatalogBatch } from "./legal-rule-catalog-batch";
 import { LegalRuleSourcePickerDialog } from "./legal-rule-source-picker-dialog";
-import { AssessmentRuleImportDialog } from "./assessment-rule-import-dialog";
 import { SelectedScopeAuthorizationDialog } from "./selected-scope-authorization-dialog";
 
 /**
@@ -907,7 +907,7 @@ export function LegalRuleCatalogWorkflow({
               <summary className="cursor-pointer text-xs font-medium">
                 {t("confirmScope")}
               </summary>
-              <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">
+              <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap wrap-break-word text-xs text-muted-foreground">
                 {JSON.stringify(snapshot?.scope, null, 2)}
               </pre>
               <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
@@ -1003,6 +1003,11 @@ export function LegalRuleCatalogWorkflow({
           ruleId={inspectedRule}
           onClose={() => setInspectedRule(null)}
           onBatch={showBatch}
+          onReviewScope={() => {
+            const target = inspectedRule;
+            setInspectedRule(null);
+            setScopeAuthRuleId(target);
+          }}
         />
       ) : null}
       {importOpen && catalogId && rules.data ? (

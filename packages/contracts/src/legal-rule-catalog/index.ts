@@ -363,6 +363,9 @@ export const selectedScopeAuthorizationSummarySchema = z.object({
   revision: z.number().int().positive(),
   state: z.enum(SELECTED_SCOPE_AUTHORIZATION_STATES),
 });
+export const selectedScopeAuthorizationListSchema = z.object({
+  authorizations: z.array(selectedScopeAuthorizationSummarySchema),
+});
 export const selectedScopeAuthorizationDetailSchema = z.object({
   scopeKey: scopeHash,
   ruleId: id,

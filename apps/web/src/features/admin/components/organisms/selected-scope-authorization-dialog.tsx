@@ -12,8 +12,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useApproveScopeAuthorization,
   useRevokeScopeAuthorization,
+  useRuleScopeAuthorizations,
   useScopeAuthorization,
 } from "@/lib/api/legal-rule-catalog-queries";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -67,7 +75,10 @@ export function SelectedScopeAuthorizationDialog({
       confirmsRevocation: false,
     },
   });
-  const scopeKeyInput = useWatch({ control: form.control, name: "scopeKey" });
+  const list = useRuleScopeAuthorizations(catalogId, ruleId);
+  const effectiveKey =
+    activeKey || list.data?.authorizations[0]?.scopeKey || "";
+
   const confirmsLegalReview = useWatch({
     control: form.control,
     name: "confirmsLegalReview",
@@ -81,24 +92,9 @@ export function SelectedScopeAuthorizationDialog({
     name: "confirmsRevocation",
   });
 
-  const detail = useScopeAuthorization(catalogId, activeKey);
+  const detail = useScopeAuthorization(catalogId, effectiveKey);
   const approve = useApproveScopeAuthorization(catalogId);
   const revoke = useRevokeScopeAuthorization(catalogId);
-
-  /**
-   * Business purpose: Load the candidate matching the entered 64-hex scope key.
-   * Business rules: Only valid 64-hex keys trigger a query.
-   * Execution flow: 1. Validate the key format. 2. Set activeKey to trigger useScopeAuthorization.
-   * Failure cases: Invalid keys are ignored.
-   * Side effects: Updates local dialog state.
-   */
-  function handleLoadCandidate() {
-    setStatusMessage(null);
-    const trimmed = (scopeKeyInput ?? "").trim();
-    if (/^[a-f0-9]{64}$/.test(trimmed)) {
-      setActiveKey(trimmed);
-    }
-  }
 
   /**
    * Business purpose: Independently approve a loaded DRAFT semantic authorization candidate.
@@ -153,26 +149,34 @@ export function SelectedScopeAuthorizationDialog({
           <DialogDescription>{t("scopeAuthDescription")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="flex items-end gap-2">
-            <div className="flex-1 space-y-1">
-              <Label htmlFor="scope-auth-key">{t("scopeAuthKeyLabel")}</Label>
-              <Input
-                id="scope-auth-key"
-                {...form.register("scopeKey")}
-                disabled={busy}
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={
-                busy || !/^[a-f0-9]{64}$/.test((scopeKeyInput ?? "").trim())
-              }
-              onClick={handleLoadCandidate}
-            >
-              {t("scopeAuthLoad")}
-            </Button>
-          </div>
+          {list.isPending ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              {t("loading")}
+            </p>
+          ) : list.data?.authorizations.length ? (
+            list.data.authorizations.length > 1 ? (
+              <div className="space-y-1">
+                <Label>{t("scopeAuthRevisionLabel")}</Label>
+                <Select
+                  value={effectiveKey}
+                  onValueChange={(value) => setActiveKey(value ?? "")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {list.data.authorizations.map((item) => (
+                      <SelectItem key={item.scopeKey} value={item.scopeKey}>
+                        {`${item.state} · ${t("revision")} ${item.revision}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("noResult")}</p>
+          )}
 
           {detail.data ? (
             <div className="space-y-3 rounded-md border p-3 text-sm">

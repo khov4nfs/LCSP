@@ -656,6 +656,54 @@ export function useAssessmentRuleImport(catalogId: string) {
  * Side effects:
  * - Read-only query subscription.
  */
+/**
+ * Business purpose: List semantic review authorizations for a specific Legal Rule so the UI auto-loads candidates without manual scopeKey entry.
+ * Business rules:
+ * - Catalog and ruleId partition the query cache; missing IDs disable the request.
+ * Execution flow:
+ * 1. Fetch authorization summaries for (catalogId, ruleId).
+ * 2. Validate against selectedScopeAuthorizationListSchema.
+ * Failure cases:
+ * - Transport or authorization errors reject via shared apiValidated error handling.
+ * Side effects:
+ * - Read-only query subscription.
+ */
+export function useRuleScopeAuthorizations(catalogId: string, ruleId: string) {
+  return useQuery({
+    queryKey: [...legalRuleCatalogKey, "rule-scope-authorizations", catalogId, ruleId],
+    enabled: Boolean(catalogId && ruleId),
+    /**
+     * Business purpose: Fetch authorization summaries for the selected Legal Rule.
+     * Business rules:
+     * - Scoped to catalogId and ruleId.
+     * Execution flow:
+     * 1. GET from BFF proxy.
+     * 2. Validate response schema.
+     * Failure cases:
+     * - Errors propagate as query errors.
+     * Side effects:
+     * - Read-only BFF GET request.
+     */
+    queryFn: () =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/rules/${encodeURIComponent(ruleId)}/scope-authorizations`,
+        C.selectedScopeAuthorizationListSchema,
+      ),
+  });
+}
+
+/**
+ * Business purpose: Load one persisted semantic scope authorization detail for independent Admin review.
+ * Business rules:
+ * - Catalog and scopeKey partition the query cache; missing/invalid keys disable the request.
+ * Execution flow:
+ * 1. Fetch the candidate detail via the BFF proxy.
+ * 2. Validate against selectedScopeAuthorizationDetailSchema.
+ * Failure cases:
+ * - Missing or stale candidates reject via shared apiValidated error handling.
+ * Side effects:
+ * - Read-only query subscription.
+ */
 export function useScopeAuthorization(catalogId: string, scopeKey: string) {
   return useQuery({
     queryKey: [...legalRuleCatalogKey, "scope-authorizations", catalogId, scopeKey],

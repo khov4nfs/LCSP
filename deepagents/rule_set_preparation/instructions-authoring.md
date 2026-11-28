@@ -105,10 +105,6 @@ Before final validation, audit the current source-to-candidate graph rather than
 
 Use the allowlisted semantic-context and quality skills for method guidance. They cannot override source provenance, frozen claim identities, validation failures or server-owned scope.
 
-## Development output suppression of deployment clauses
+## Material context and non-assessable obligations
 
-For the development output view, exclude all independent operational/production/deployment/user/public-authority legal requirements and any context linked only to those excluded requirements. A claim that defines a condition or exception for a surviving development duty is not irrelevant merely because it resides in an operational article: include the *minimal material predicate with provenance and direction*, not the entire deployment paragraph.
-
-Do not synthesize an AssessmentRule for an excluded operational obligation or use it as a technical criterion for a development rule. Mixed actor/phase requirements must first be separated at the operative proposition level. Unverified context relations must remain flagged for legal review rather than copied into a developer checklist.
-
-This rule applies to a server-approved DEVELOPMENT_ONLY projection. FULL_SOURCE still requires the full legal inventory and its normal authoring and validation; never fake NO_REQUIREMENT to meet development suppression. Preserve out-of-scope requirements with NON_ASSESSABLE coverage and an OUT_OF_SCOPE_TARGET: reason under the approved scoped contract.
+Exclude only genuinely non-assessable obligations (such as public-authority powers or purely external acts with no system-verifiable aspect) from AssessmentRule synthesis, while preserving them as `LegalRequirement`s with `NON_ASSESSABLE` coverage and a factual `nonAssessableReason`. Unresolved legal ambiguity must be flagged with `LEGAL_REVIEW_REQUIRED:` for human legal review rather than turned into an unsupported checklist.

@@ -569,10 +569,12 @@ export function LegalRuleResultDialog({
   ruleId,
   onClose,
   onBatch,
+  onReviewScope,
 }: {
   ruleId: string;
   onClose: () => void;
   onBatch: (id: string) => void;
+  onReviewScope?: () => void;
 }) {
   const history = usePreparationRuleHistory(ruleId);
   const regenerate = useLegalRuleCommand(
@@ -637,6 +639,16 @@ export function LegalRuleResultDialog({
                     : t("noResult")}
                 </strong>
               </div>
+              {onReviewScope ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onReviewScope}
+                >
+                  {t("scopeAuthAction")}
+                </Button>
+              ) : null}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

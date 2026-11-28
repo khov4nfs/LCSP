@@ -226,6 +226,23 @@ export class LegalRuleCatalogController {
   }
 
   /**
+   * Business purpose: List semantic review authorizations for a specific Legal Rule in a catalog.
+   * Business rules: Admin-only; enables UI auto-discovery without manual 64-hex key entry.
+   * Execution flow: 1. Query authorizations for (catalogId, ruleId). 2. Return wrapped list.
+   * Failure cases: Invalid UUIDs reject via ValidationPipe.
+   * Side effects: Read-only.
+   */
+  @Get(":catalogId/rules/:ruleId/scope-authorizations")
+  async listRuleScopeAuthorizations(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Param("ruleId", uuid()) ruleId: string,
+  ) {
+    return resultEnvelope(
+      await this.preparation.listScopeAuthorizationsForRule(catalogId, ruleId),
+    );
+  }
+
+  /**
    * Business purpose: Read an exact candidate and pinned source evidence for independent legal review.
    * Business rules: Admin-only; the service verifies catalog ownership and current source identity.
    * Execution flow: 1. Resolve the candidate key. 2. Return verified review evidence.
