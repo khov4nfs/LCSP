@@ -106,6 +106,11 @@ const unresolvedPreparationStates = new Set<string>(
   RULE_SET_PREPARATION_UNRESOLVED_STATES,
 );
 
+// Why: Advisory locks without an explicit domain namespace can collide with other services sharing the database.
+// How: Use a 32-bit application namespace constant (0x4c435350 = 'LCSP') for two-key pg_advisory_xact_lock.
+// Invariant: Concurrent submit requests for legal rule preparation are partitioned safely from other advisory locks.
+const ADVISORY_NAMESPACE_PREPARATION = 0x4c435350;
+
 @Injectable()
 export class PreparationRuleService {
   constructor(
@@ -139,7 +144,7 @@ export class PreparationRuleService {
   ) {
     const id = await this.prisma.$transaction(
       async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${actor}:${request.idempotencyKey}`}, 0))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${ADVISORY_NAMESPACE_PREPARATION}, hashtext(${`${actor}:${request.idempotencyKey}`}))`;
         const requestHash = sha256Hex(canonicalJson(request));
         const existing = await tx.preparationRuleBatch.findUnique({
           where: {
@@ -193,14 +198,27 @@ export class PreparationRuleService {
             requestHash,
           },
         });
-        const items: z.infer<typeof batchItemSchema>[] = [];
+        // Why: Row locks acquired in arbitrary or client-supplied order cause deadlocks under concurrency.
+        // How: Upsert all PreparationRule records, collect their unique IDs, and lock them in strict ascending order before per-item processing.
+        // Invariant: Concurrent transactions always acquire row locks on PreparationRule in the exact same order.
+        const artifactMap = new Map<string, { id: string }>();
         for (const input of inputs) {
           const artifact = await tx.preparationRule.upsert({
             where: { legalRuleId: input.ruleId },
             create: { legalRuleId: input.ruleId },
             update: {},
           });
-          await tx.$queryRaw`SELECT "id" FROM "PreparationRule" WHERE "id" = ${artifact.id} FOR UPDATE`;
+          artifactMap.set(input.ruleId, artifact);
+        }
+        const sortedArtifactIds = [...new Set([...artifactMap.values()].map((a) => a.id))].sort();
+        if (sortedArtifactIds.length > 0) {
+          await tx.$queryRaw(
+            Prisma.sql`SELECT "id" FROM "PreparationRule" WHERE "id" IN (${Prisma.join(sortedArtifactIds)}) ORDER BY "id" FOR UPDATE`,
+          );
+        }
+        const items: z.infer<typeof batchItemSchema>[] = [];
+        for (const input of inputs) {
+          const artifact = artifactMap.get(input.ruleId)!;
           const last = await tx.preparationRuleResult.findFirst({
             where: { preparationRuleId: artifact.id },
             orderBy: { revision: "desc" },
@@ -987,15 +1005,31 @@ export class PreparationRuleService {
           };
         }
 
-        const imported: AssessmentRuleImportResult["imported"] = [];
-        let batchId: string | null = null;
-        for (const { input, output } of prepared) {
+        // Why: Prevent deadlocks during bulk import by sorting and locking all PreparationRule rows upfront in canonical ID order.
+        // How: Upsert preparation rule artifacts, sort their IDs alphabetically, and lock via a single ordered SELECT ... FOR UPDATE.
+        // Invariant: Row lock ordering is strictly deterministic regardless of the order of items in the import payload.
+        const importArtifactMap = new Map<string, { id: string }>();
+        for (const { input } of prepared) {
           const artifact = await tx.preparationRule.upsert({
             where: { legalRuleId: input.ruleId },
             create: { legalRuleId: input.ruleId },
             update: {},
           });
-          await tx.$queryRaw`SELECT "id" FROM "PreparationRule" WHERE "id" = ${artifact.id} FOR UPDATE`;
+          importArtifactMap.set(input.ruleId, artifact);
+        }
+        const sortedImportArtifactIds = [
+          ...new Set([...importArtifactMap.values()].map((a) => a.id)),
+        ].sort();
+        if (sortedImportArtifactIds.length > 0) {
+          await tx.$queryRaw(
+            Prisma.sql`SELECT "id" FROM "PreparationRule" WHERE "id" IN (${Prisma.join(sortedImportArtifactIds)}) ORDER BY "id" FOR UPDATE`,
+          );
+        }
+
+        const imported: AssessmentRuleImportResult["imported"] = [];
+        let batchId: string | null = null;
+        for (const { input, output } of prepared) {
+          const artifact = importArtifactMap.get(input.ruleId)!;
           const last = await tx.preparationRuleResult.findFirst({
             where: { preparationRuleId: artifact.id },
             orderBy: { revision: "desc" },
