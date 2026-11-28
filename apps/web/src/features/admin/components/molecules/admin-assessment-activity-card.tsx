@@ -4,9 +4,14 @@ import type { MessageKey } from "@lcsp/i18n";
 import type { AdminOverviewActivityPoint } from "@lcsp/contracts/auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { NextMetricCard } from "@/components/molecules/next-metric-card";
 import { NEXT_METRIC_VARIANTS } from "@/components/types/dashboard-primitives.types";
-import { resolveAppMessage } from "@/lib/i18n";
+import { formatAppMessage, resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type AdminAssessmentActivityCardProps = {
@@ -29,8 +34,6 @@ export function AdminAssessmentActivityCard({
   totalStarted = 0,
   totalUsersCount = 0,
   periodDays = 30,
-  startDate,
-  endDate,
   isLoading = false,
   isError = false,
   onRetry,
@@ -39,13 +42,16 @@ export function AdminAssessmentActivityCard({
   const title = resolveAppMessage(
     "pages.admin.overview.assessmentActivity.title" as MessageKey,
   );
-  const subtitle = "Starts by date interval · completions of the same cohort";
+  const subtitle = formatAppMessage(
+    "pages.admin.overview.assessmentActivity.subtitle" as MessageKey,
+    { days: periodDays },
+  );
 
   if (isLoading) {
     return (
       <div
         className={cn(
-          "flex min-h-[380px] w-full flex-col justify-between rounded-2xl bg-[#0A2231] p-6 text-white shadow-md",
+          "flex min-h-95 w-full flex-col justify-between rounded-2xl bg-[#0A2231] p-6 text-white shadow-md",
           className,
         )}
       >
@@ -70,7 +76,7 @@ export function AdminAssessmentActivityCard({
     return (
       <div
         className={cn(
-          "flex min-h-[380px] w-full flex-col items-center justify-center rounded-2xl bg-[#0A2231] p-6 text-center text-white shadow-md",
+          "flex min-h-95 w-full flex-col items-center justify-center rounded-2xl bg-[#0A2231] p-6 text-center text-white shadow-md",
           className,
         )}
       >
@@ -100,7 +106,9 @@ export function AdminAssessmentActivityCard({
 
   // Derive max count across started and completed for proportional bar height
   const maxActivityCount = Math.max(
-    ...points.map((point) => Math.max(point.startedCount, point.completedCount)),
+    ...points.map((point) =>
+      Math.max(point.startedCount, point.completedCount),
+    ),
     100,
   );
 
@@ -130,25 +138,28 @@ export function AdminAssessmentActivityCard({
         <div className="mt-4 flex items-center gap-6 text-xs text-[#C6DFE1]">
           <div className="flex items-center gap-2">
             <span className="size-2.5 rounded-xs bg-[#46D5B5]" />
-            <span>Started</span>
+            <span>
+              {resolveAppMessage(
+                "pages.admin.overview.assessmentActivity.started" as MessageKey,
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="size-2.5 rounded-xs bg-[#A5B4FC]" />
-            <span>Completed</span>
+            <span>
+              {resolveAppMessage(
+                "pages.admin.overview.assessmentActivity.completed" as MessageKey,
+              )}
+            </span>
           </div>
         </div>
 
         {/* Chart representation */}
         <div className="mt-6 flex h-40 items-end justify-between gap-4 px-2 pb-2 border-b border-[#365862]">
-          {(points.length > 0
-            ? points.slice(-4)
-            : [
-                { date: "Oct 26–Nov 2", startedCount: 66, completedCount: 57 },
-                { date: "Nov 3–9", startedCount: 85, completedCount: 75 },
-                { date: "Nov 10–16", startedCount: 100, completedCount: 85 },
-                { date: "Nov 17–24", startedCount: 119, completedCount: 103 },
-              ]
-          ).map((item, index) => {
+          {/* Why: An empty cohort is a real result; sample bars would misstate activity.
+              How: Render only the bounded points returned by the Admin API.
+              Invariant: Zero totals never create fictional chart data. */}
+          {points.slice(-4).map((item, index) => {
             const startedHeight = Math.min(
               100,
               Math.max(15, (item.startedCount / maxActivityCount) * 100),
@@ -157,22 +168,46 @@ export function AdminAssessmentActivityCard({
               100,
               Math.max(15, (item.completedCount / maxActivityCount) * 100),
             );
+            const barLabel = formatAppMessage(
+              "pages.admin.overview.assessmentActivity.barTooltip" as MessageKey,
+              {
+                date: item.date,
+                started: item.startedCount,
+                completed: item.completedCount,
+              },
+            );
             return (
               <div
                 key={index}
                 className="flex flex-1 flex-col items-center justify-end h-full gap-1.5"
               >
                 <div className="flex items-end gap-1.5 w-full justify-center h-full">
-                  <div
-                    style={{ height: `${startedHeight}%` }}
-                    className="w-5 rounded-t-xs bg-[#46D5B5] transition-all"
-                    title={`Started: ${item.startedCount}`}
-                  />
-                  <div
-                    style={{ height: `${completedHeight}%` }}
-                    className="w-5 rounded-t-xs bg-[#A5B4FC] transition-all"
-                    title={`Completed: ${item.completedCount}`}
-                  />
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <div
+                          tabIndex={0}
+                          aria-label={barLabel}
+                          style={{ height: `${startedHeight}%` }}
+                          className="w-5 rounded-t-xs bg-[#46D5B5] transition-all"
+                        />
+                      }
+                    />
+                    <TooltipContent>{barLabel}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <div
+                          tabIndex={0}
+                          aria-label={barLabel}
+                          style={{ height: `${completedHeight}%` }}
+                          className="w-5 rounded-t-xs bg-[#A5B4FC] transition-all"
+                        />
+                      }
+                    />
+                    <TooltipContent>{barLabel}</TooltipContent>
+                  </Tooltip>
                 </div>
                 <span className="text-[11px] text-[#C6DFE1] truncate">
                   {item.date}
@@ -186,16 +221,25 @@ export function AdminAssessmentActivityCard({
       {/* Embedded Analytics KPIs (#1832:13715) */}
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-[#40616A]">
         <NextMetricCard
-          label="User accounts"
-          value={totalUsersCount || 876}
-          context="Active and operational accounts"
+          label={resolveAppMessage(
+            "pages.admin.overview.assessmentActivity.userAccounts" as MessageKey,
+          )}
+          value={totalUsersCount}
+          context={resolveAppMessage(
+            "pages.admin.overview.assessmentActivity.userAccountsContext" as MessageKey,
+          )}
           variant={NEXT_METRIC_VARIANTS.embedded}
           href="/admin/users"
         />
         <NextMetricCard
-          label="Assessments started"
-          value={totalStarted || totalCompleted || 312}
-          context={`${totalCompleted || 270} completed in cohort`}
+          label={resolveAppMessage(
+            "pages.admin.overview.assessmentActivity.assessmentsStarted" as MessageKey,
+          )}
+          value={totalStarted}
+          context={formatAppMessage(
+            "pages.admin.overview.assessmentActivity.completedInCohort" as MessageKey,
+            { count: totalCompleted },
+          )}
           variant={NEXT_METRIC_VARIANTS.embedded}
           href="/admin/overview"
         />
