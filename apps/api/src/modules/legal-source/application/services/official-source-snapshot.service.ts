@@ -242,6 +242,20 @@ function isSnapshotReferenceUniqueRace(error: unknown): boolean {
   );
 }
 
+/**
+ * Business purpose: Reject malformed worker provenance before creating immutable official-source evidence.
+ * Business rules:
+ * - Required identity, source URL, content hash, object key, retrieval time and boolean verification must be valid at runtime.
+ * - The object key must bind the requested document and content digest.
+ * Execution flow:
+ * 1. Check field shapes, URL syntax and verification flag.
+ * 2. Check that the snapshot key names the same document and digest.
+ * 3. Check the snapshot reference yields an identity.
+ * Failure cases:
+ * - Invalid fields return the ingest-invalid problem; mismatched key provenance returns snapshot conflict.
+ * Side effects:
+ * - Pure request validation; no database read or write occurs.
+ */
 function validateRegisterInput(
   input: RegisterOfficialSourceSnapshotRequest,
   correlationId: string,
@@ -251,8 +265,12 @@ function validateRegisterInput(
     Boolean(input.catalogSourceRef?.trim()) &&
     Boolean(input.adminCatalogVersion?.trim()) &&
     Boolean(input.documentId?.trim()) &&
-    Boolean(input.sourceUrl?.trim()) &&
+    // Why: Worker types do not validate untrusted runtime provenance after deserialization.
+    // How: Require a parseable HTTP(S) URL and a real boolean before any snapshot transaction.
+    // Invariant: Invalid source identity cannot become immutable legal evidence.
+    requiredUrlIsValid(input.sourceUrl) &&
     optionalUrlIsValid(input.finalUrl) &&
+    typeof input.documentIdentityVerified === "boolean" &&
     Boolean(input.contentType?.trim()) &&
     Number.isInteger(input.byteLength) &&
     input.byteLength >= 0 &&
@@ -315,6 +333,31 @@ function optionalUrlIsValid(value: string | null | undefined): boolean {
   try {
     const parsed = new URL(value);
     return Boolean(parsed.protocol && parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Business purpose: Accept only a usable external provenance URL for an official-source snapshot.
+ * Business rules:
+ * - The source URL is required and must use HTTP or HTTPS with a hostname.
+ * Execution flow:
+ * 1. Parse the submitted URL.
+ * 2. Check protocol and host without making a network request.
+ * Failure cases:
+ * - Missing, malformed, non-web, or hostless URLs return false for controlled request rejection.
+ * Side effects:
+ * - Pure validation; no DNS or persistence access.
+ */
+function requiredUrlIsValid(value: unknown): boolean {
+  if (typeof value !== "string" || value.trim() === "") return false;
+  try {
+    const parsed = new URL(value);
+    return (
+      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      parsed.hostname !== ""
+    );
   } catch {
     return false;
   }

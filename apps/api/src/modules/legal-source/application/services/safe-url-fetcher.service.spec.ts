@@ -132,6 +132,16 @@ describe("parseImportUrl", () => {
 });
 
 describe("SafeUrlFetcherService", () => {
+  it("returns a typed import rejection for a malformed escaped filename", async () => {
+    // Why: A public URL may contain an invalid percent escape even after the fetch succeeds.
+    // How: Let the safe transport return bytes and exercise fallback filename decoding.
+    // Invariant: Untrusted URL metadata must not escape as a raw URIError/HTTP 500.
+    const { fetcher } = fetcherWith([{ response: ok("text/plain") }]);
+    await expect(
+      fetcher.fetch("https://example.com/%ZZ"),
+    ).rejects.toBeInstanceOf(ImportRejectedError);
+  });
+
   it("returns the bytes with provenance and never reaches the network twice for one hop", async () => {
     const { fetcher, get } = fetcherWith([
       {
