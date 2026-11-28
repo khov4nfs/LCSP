@@ -58,7 +58,7 @@ Object.defineProperty(testWindow, "matchMedia", {
 });
 
 const { createRoot } = await import("react-dom/client");
-const { resolveAppMessage } = await import("../src/lib/i18n.ts");
+const { formatAppMessage, resolveAppMessage } = await import("../src/lib/i18n.ts");
 const { AdminPeriodSelector } = await import(
   "../src/features/admin/components/molecules/admin-period-selector.tsx"
 );
@@ -298,7 +298,15 @@ test("AdminAssessmentActivityCard renders points, completion count and labels", 
 
   assert.match(container.textContent ?? "", new RegExp(title, "i"));
   assert.match(container.textContent ?? "", /312/);
-  assert.match(container.textContent ?? "", /completed in cohort/i);
+  // Assert the localized cohort count, not an English-only phrase.
+  assert.ok(
+    (container.textContent ?? "").includes(
+      formatAppMessage(
+        "pages.admin.overview.assessmentActivity.completedInCohort" as MessageKey,
+        { count: fixtureData.assessmentActivity.totalCompleted },
+      ),
+    ),
+  );
   cleanup();
 });
 

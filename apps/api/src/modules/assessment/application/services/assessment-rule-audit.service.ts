@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { PREPARATION_ACTIVITY_SCOPES } from "@lcsp/contracts/compliance-rule-set";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
@@ -295,10 +294,8 @@ export class AssessmentRuleAuditService {
             byMembership.get(rule.assessmentRuleId)?.assessmentRuleVersion ===
             rule.assessmentRuleVersion,
         );
-      const developmentOnly =
-        ruleSet.targetActivityScope === PREPARATION_ACTIVITY_SCOPES[1];
-      const selectableTotal = developmentOnly && !groupingComplete ? 0 : total;
-      const visibleRules = developmentOnly && !groupingComplete ? [] : rules;
+      const selectableTotal = !groupingComplete ? 0 : total;
+      const visibleRules = !groupingComplete ? [] : rules;
       const groups = groupingComplete
         ? [...new Set(memberships.map((row) => row.groupId))].map((groupId) => {
             const members = memberships.filter(
@@ -533,7 +530,7 @@ export class AssessmentRuleAuditService {
       const byId = new Map(
         catalog.map((rule) => [rule.assessmentRuleId, rule]),
       );
-      if (ruleSet.targetActivityScope === PREPARATION_ACTIVITY_SCOPES[1]) {
+      {
         const approved = await tx.ruleCatalogGroupMembership.findMany({
           where: {
             ruleSetVersionId: ruleSet.id,

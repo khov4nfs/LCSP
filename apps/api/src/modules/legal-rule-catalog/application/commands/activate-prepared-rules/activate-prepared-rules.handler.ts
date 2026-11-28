@@ -26,6 +26,8 @@ import {
   type SelectedActivationContext,
 } from "../../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { LegalSourceSnapshotLoader } from "../../../../compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
+import { requireSelectedScopeAuthorization } from "../../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
 import { LegalRuleCatalogService } from "../../services/legal-rule-catalog.service.js";
 import { validateSelectedOutput } from "../../services/selected-output-validation.js";
 import { ActivatePreparedRulesCommand } from "./activate-prepared-rules.command.js";
@@ -45,6 +47,7 @@ export class ActivatePreparedRulesHandler implements ICommandHandler<ActivatePre
     private readonly catalogs: LegalRuleCatalogService,
     private readonly sourceSnapshot: LegalSourceSnapshotLoader,
     private readonly activation: ComplianceRuleSetActivation,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
   /**
    * Business purpose: Publish an explicit set of current selected-rule Assessment Rules through the canonical ACTIVE Rule Set lifecycle.
@@ -52,6 +55,7 @@ export class ActivatePreparedRulesHandler implements ICommandHandler<ActivatePre
    * Business rules:
    * - Every requested result must be the current, successful, fingerprint-matching revision for an eligible catalog rule and contain at least one Assessment Rule.
    * - All selected results share the catalog's pinned Legal Source Version; each output and source reference passes selected-result and Rule Set integrity validation.
+   * - Every included output must still match independently reviewed semantic authority.
    * - Admin confirmation is explicit; activation never includes unselected results or reruns AI.
    *
    * Execution flow:
@@ -149,6 +153,7 @@ export class ActivatePreparedRulesHandler implements ICommandHandler<ActivatePre
           const output = preparationRuleOutputSchema.parse(result.output);
           if (
             input.ruleId !== selection.ruleId ||
+            preparationInputFingerprint(input) !== result.inputFingerprint ||
             input.legalSourceVersionId !== first.catalog.legalSourceVersionId ||
             output.assessmentRules.length === 0
           )
@@ -165,7 +170,18 @@ export class ActivatePreparedRulesHandler implements ICommandHandler<ActivatePre
           });
         }
 
-        await this.catalogs.hydrate(tx, inputs, cid);
+        // Revalidate each publication against the reviewed material rule content and pinned source.
+        const hydrated = await this.catalogs.hydrate(tx, inputs, cid);
+        for (const [index, input] of hydrated.entries()) {
+          manifest[index].scopeAuthorizationKey =
+            await requireSelectedScopeAuthorization(
+              tx,
+              input,
+              outputs[index],
+              cid,
+              this.authority,
+            );
+        }
         const packet = complianceRuleSetPacketSchema.parse({
           legalRequirements: outputs.flatMap(
             (output) => output.legalRequirements,

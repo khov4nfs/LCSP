@@ -1,0 +1,485 @@
+import { describe, expect, it, jest } from "@jest/globals";
+import {
+  complianceRuleSetPacketSchema,
+  LEGAL_REQUIREMENT_COVERAGE_STATES as coverage,
+  LEGAL_OPERATIVE_MODALITIES as modality,
+} from "@lcsp/contracts/compliance-rule-set";
+import {
+  preparationRuleOutputSchema,
+  type PreparationRuleInput,
+  type SelectedScopeDecision,
+} from "@lcsp/contracts/legal-rule-catalog";
+import {
+  AgentExecutionState,
+  LegalEffectStatus,
+  LegalSourceDocumentCorpusRole,
+  PreparationScopeReviewState,
+  type Prisma,
+} from "@prisma/client";
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
+import { canonicalJson, sha256Hex } from "../../../assessment/domain/domain-ids.js";
+import { preparationInputFingerprint } from "../../../legal-rule-catalog/application/services/legal-rule-catalog-shared.js";
+import {
+  hasValidSelectedActivationManifest,
+  requireSelectedScopeAuthorization,
+  selectedScopeKey,
+  validateSelectedScopeDecisions,
+} from "./selected-scope-authority.js";
+
+const content =
+  "Synthetic legal source: development obligation and external filing obligation.";
+const ref = {
+  documentId: "test-only",
+  locator: "art-1::cl-1",
+  contentSha256: `sha256:${sha256Hex(content)}`,
+};
+const uuid = (n: number) =>
+  `${String(n).repeat(8)}-1111-4111-8111-111111111111`;
+const input: PreparationRuleInput = {
+  ruleId: uuid(1),
+  legalRuleId: "test",
+  title: "Test",
+  description: "Synthetic",
+  catalogVersionId: uuid(2),
+  catalogVersion: "1",
+  catalogRevision: 1,
+  legalSourceVersionId: uuid(3),
+  sourceVersion: "1",
+  indexId: uuid(4),
+  indexContentHash: "sha256:index",
+  citations: [{ ...ref, chunkId: "chunk-1", content }],
+};
+function fixture() {
+  const requirement = (suffix: string, external: boolean) => ({
+    legalRequirementId: `${input.ruleId}:${suffix}`,
+    title: suffix,
+    proposition: suffix,
+    operativePropositions: [
+      {
+        actor: external ? "Operator" : "Developer",
+        modality: modality.DUTY,
+        action: suffix,
+        sourceRefs: [ref],
+      },
+    ],
+    applicabilityConditions: ["Synthetic trigger"],
+    qualifiers: [],
+    exceptions: [],
+    nonRepositoryDuty: external,
+    sourceRefs: [ref],
+    coverage: {
+      state: external
+        ? coverage.NON_ASSESSABLE
+        : coverage.COVERED_BY_ASSESSMENT_RULES,
+      nonAssessableReason: external
+        ? "OUT_OF_SCOPE_TARGET: external filing only"
+        : null,
+    },
+  });
+  const dev = requirement("design-protection", false),
+    ops = requirement("file-report", true);
+  const output = preparationRuleOutputSchema.parse({
+    analysis: "Synthetic fixture",
+    legalRequirements: [dev, ops],
+    contextRelations: [],
+    assessmentRules: [
+      {
+        assessmentRuleId: `${input.ruleId}:rule`,
+        concept: "Test",
+        legalRequirementIds: [dev.legalRequirementId],
+        criteria: [
+          {
+            criterionId: "criterion",
+            legalRequirementIds: [dev.legalRequirementId],
+          },
+        ],
+        investigationGoals: [],
+        startingNodeTypes: [],
+        targetNodeTypes: [],
+        edgeStrategies: [],
+        graphQueries: [],
+        keywords: [],
+        commonApis: [],
+        commonLibraries: [],
+        patterns: [],
+        requiredEvidence: [],
+        supportingEvidence: [],
+        negativeEvidence: [],
+        sourceRefs: [ref],
+      },
+    ],
+    semanticValidation: {
+      status: "PASSED",
+      verifier: "DEEP_AGENT_SEMANTIC_VALIDATOR",
+      checks: [
+        {
+          assessmentRuleId: `${input.ruleId}:rule`,
+          legalRequirementId: dev.legalRequirementId,
+          verdict: "GROUNDED",
+          rationale:
+            "Assessment rule directly verifies the design protection duty in the cited legal requirement.",
+          sourceRefs: [ref],
+        },
+      ],
+    },
+  });
+  const decisions: SelectedScopeDecision[] = [dev, ops].map((r, i) => ({
+    legalRequirementId: r.legalRequirementId,
+    stage: i ? "NON_DEVELOPMENT" : "DEVELOPMENT",
+    rationale: "Synthetic test only, not a legal finding",
+    technicalDeliverable: i ? null : "Design protective control",
+    sourceSupport: [
+      {
+        chunkId: "chunk-1",
+        startOffset: 0,
+        endOffset: content.length,
+        contentSha256: sha256Hex(content),
+      },
+    ],
+  }));
+  return { output, decisions };
+}
+describe("Reusable selected semantic scope evidence", () => {
+  it.each([1, 2] as const)(
+    "checks criteria before reusing format %s approval",
+    async (format) => {
+      const { output, decisions } = fixture();
+      const key = selectedScopeKey(input, output, format);
+      const row = {
+        scopeKey: key,
+        state: PreparationScopeReviewState.APPROVED,
+        legalSourceVersionId: input.legalSourceVersionId,
+        catalogId: input.catalogVersionId,
+        ruleId: input.ruleId,
+        approvedBy: "reviewer",
+        submittedBy: "author",
+        approvedAt: new Date(),
+        output,
+        decisions,
+        decisionDigest: validateSelectedScopeDecisions(
+          input,
+          output,
+          decisions,
+          "cid",
+        ),
+      };
+      const tx = {
+        selectedRuleScopeAuthorization: {
+          findUnique: jest.fn(({ where }: { where: { scopeKey: string } }) =>
+            Promise.resolve(where.scopeKey === key ? row : null),
+          ),
+          findFirst: jest.fn(() => Promise.resolve({ scopeKey: key })),
+        },
+        legalDocumentChunk: {
+          findMany: jest.fn(() =>
+            Promise.resolve([
+              {
+                ...input.citations[0],
+                id: "chunk-1",
+                legalEffectStatus: LegalEffectStatus.EFFECTIVE,
+                sourceDocument: {
+                  corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+                },
+              },
+            ]),
+          ),
+        },
+      } as unknown as Prisma.TransactionClient;
+      const authority = fixtureSourceAuthority;
+      const changed = structuredClone(output);
+      changed.assessmentRules[0].keywords.push("synthetic-hint");
+      await expect(
+        requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+      ).resolves.toBe(key);
+
+      changed.assessmentRules[0].criteria[0].statement =
+        "Deploy an unrelated control at every site";
+      await expect(
+        requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+      ).rejects.toMatchObject({
+        response: { problem: { meta: { path: "output.scopeAuthorization" } } },
+      });
+
+      const changedKey = selectedScopeKey(input, changed);
+      (
+        tx.selectedRuleScopeAuthorization.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        ...row,
+        scopeKey: changedKey,
+        state: PreparationScopeReviewState.REJECTED,
+      } as never);
+      await expect(
+        requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+      ).rejects.toMatchObject({
+        response: { problem: { meta: { path: "output.scopeAuthorization" } } },
+      });
+    },
+  );
+
+  it("rejects empty output because it accounts for none of the cited obligations", async () => {
+    const { output } = fixture();
+    await expect(
+      requireSelectedScopeAuthorization(
+        {} as Prisma.TransactionClient,
+        input,
+        { ...output, legalRequirements: [], assessmentRules: [] },
+        "cid",
+      ),
+    ).rejects.toMatchObject({
+      response: { problem: { meta: { path: "output.legalRequirements" } } },
+    });
+  });
+
+  it("rejects a brand-new unreviewed rule with LEGAL_REVIEW_REQUIRED uncertainty or unlinked Assessment Rule sourceRefs", async () => {
+    const { output } = fixture();
+    const uncertain = structuredClone(output);
+    uncertain.legalRequirements[1].coverage.nonAssessableReason =
+      "LEGAL_REVIEW_REQUIRED: ambiguous actor obligation";
+    const tx = {
+      selectedRuleScopeAuthorization: {
+        findUnique: jest.fn(() => Promise.resolve(null)),
+        findFirst: jest.fn(() => Promise.resolve(null)),
+      },
+      legalDocumentChunk: {
+        findMany: jest.fn(() =>
+          Promise.resolve([
+            {
+              ...input.citations[0],
+              id: "chunk-1",
+              legalEffectStatus: LegalEffectStatus.EFFECTIVE,
+              sourceDocument: {
+                corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+              },
+            },
+          ]),
+        ),
+      },
+    } as unknown as Prisma.TransactionClient;
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        uncertain,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.legalRequirements" } },
+      },
+    });
+
+    const unlinkedRefs = structuredClone(output);
+    unlinkedRefs.assessmentRules[0].sourceRefs = [
+      { ...ref, locator: "art-99::cl-1" },
+    ];
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        unlinkedRefs,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.assessmentRules.sourceRefs" } },
+      },
+    });
+
+    const missingSemanticValidation = structuredClone(output);
+    delete missingSemanticValidation.semanticValidation;
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        missingSemanticValidation,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.semanticValidation" } },
+      },
+    });
+
+    const ungroundedSemantic = structuredClone(output);
+    ungroundedSemantic.semanticValidation!.checks[0].verdict = "UNGROUNDED";
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        ungroundedSemantic,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.semanticValidation" } },
+      },
+    });
+
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        output,
+        "cid",
+        fixtureSourceAuthority,
+        { requireReviewedAuthorization: true },
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.scopeAuthorization" } },
+      },
+    });
+  });
+
+  it("authorizes an exact reviewed development requirement while accounting the external obligation", () => {
+    const { output, decisions } = fixture();
+    expect(
+      validateSelectedScopeDecisions(input, output, decisions, "cid"),
+    ).toMatch(/^[a-f0-9]{64}$/);
+    expect(
+      selectedScopeKey(input, {
+        ...output,
+        analysis: "Different investigation notes",
+      }),
+    ).toBe(selectedScopeKey(input, output));
+    expect(selectedScopeKey({ ...input, catalogRevision: 2 }, output)).toBe(
+      selectedScopeKey(input, output),
+    );
+    expect(
+      selectedScopeKey({ ...input, legalSourceVersionId: uuid(5) }, output),
+    ).not.toBe(selectedScopeKey(input, output));
+  });
+  it("retains genuine legal uncertainty only as a review draft", () => {
+    const { output, decisions } = fixture();
+    output.legalRequirements[1].coverage.nonAssessableReason =
+      "LEGAL_REVIEW_REQUIRED: unresolved external actor";
+    decisions[1].stage = "LEGAL_REVIEW_REQUIRED";
+    // A draft is not a grant: retaining it cannot authorize publication.
+    expect(() =>
+      validateSelectedScopeDecisions(input, output, decisions, "cid", false),
+    ).not.toThrow();
+    expect(() =>
+      validateSelectedScopeDecisions(input, output, decisions, "cid", true),
+    ).toThrow();
+  });
+
+  it("rejects a substituted manifest key and mutated input snapshot", async () => {
+    const { output } = fixture();
+    const inputFingerprint = preparationInputFingerprint(input);
+    const entry = {
+      ruleId: input.ruleId,
+      resultId: uuid(6),
+      revision: 1,
+      inputFingerprint,
+      outputDigest: sha256Hex(canonicalJson(output)),
+      scopeAuthorizationKey: selectedScopeKey(input, output),
+    };
+    const row = {
+      id: entry.resultId,
+      revision: 1,
+      inputFingerprint,
+      inputSnapshot: input,
+      output,
+      preparationRule: { legalRuleId: input.ruleId },
+      preparationRun: {
+        executionState: AgentExecutionState.SUCCEEDED,
+        legalSourceVersionId: input.legalSourceVersionId,
+      },
+    };
+    const findMany = jest.fn(async () => [row]);
+    const count = jest.fn(async () => 0);
+    const tx = {
+      preparationRuleResult: { findMany },
+      selectedRuleScopeAuthorization: { count },
+    } as unknown as Prisma.TransactionClient;
+    // Correct immutable results remain admissible; a new hash-shaped key is not authority.
+    await expect(hasValidSelectedActivationManifest(tx, [entry])).resolves.toBe(true);
+    await expect(hasValidSelectedActivationManifest(tx, [
+      { ...entry, scopeAuthorizationKey: "f".repeat(64) },
+    ])).resolves.toBe(false);
+    const packet = complianceRuleSetPacketSchema.parse({
+      legalRequirements: output.legalRequirements,
+      assessmentRules: output.assessmentRules,
+      contextRelations: output.contextRelations,
+    });
+    const expectedRuleSetDigest = sha256Hex(canonicalJson(packet));
+    // Correct results cannot authorize a different published packet digest.
+    await expect(
+      hasValidSelectedActivationManifest(tx, [entry], { expectedRuleSetDigest }),
+    ).resolves.toBe(true);
+    await expect(
+      hasValidSelectedActivationManifest(tx, [entry], {
+        expectedRuleSetDigest: "0".repeat(64),
+      }),
+    ).resolves.toBe(false);
+    findMany.mockResolvedValueOnce([
+      { ...row, inputSnapshot: { ...input, catalogRevision: 2 } },
+    ]);
+    await expect(hasValidSelectedActivationManifest(tx, [entry])).resolves.toBe(false);
+  });
+
+  it("rejects unsupported, forged, omitted, ambiguous, and mixed normative evidence", () => {
+    const { output, decisions } = fixture();
+    expect(() =>
+      validateSelectedScopeDecisions(
+        input,
+        output,
+        decisions.slice(0, 1),
+        "cid",
+      ),
+    ).toThrow();
+    expect(() =>
+      validateSelectedScopeDecisions(
+        input,
+        output,
+        [{ ...decisions[0], stage: "LEGAL_REVIEW_REQUIRED" }, decisions[1]],
+        "cid",
+      ),
+    ).toThrow();
+    expect(() =>
+      validateSelectedScopeDecisions(
+        input,
+        output,
+        [
+          {
+            ...decisions[0],
+            sourceSupport: [
+              {
+                ...decisions[0].sourceSupport[0],
+                contentSha256: "f".repeat(64),
+              },
+            ],
+          },
+          decisions[1],
+        ],
+        "cid",
+      ),
+    ).toThrow();
+    expect(() =>
+      validateSelectedScopeDecisions(
+        input,
+        output,
+        [
+          decisions[0],
+          {
+            ...decisions[1],
+            stage: "LEGAL_REVIEW_REQUIRED",
+            technicalDeliverable: null,
+          },
+        ],
+        "cid",
+      ),
+    ).toThrow();
+    const mixed = structuredClone(output);
+    mixed.legalRequirements[0].operativePropositions!.push(
+      output.legalRequirements[1].operativePropositions![0],
+    );
+    expect(() =>
+      validateSelectedScopeDecisions(input, mixed, decisions, "cid"),
+    ).toThrow();
+  });
+});

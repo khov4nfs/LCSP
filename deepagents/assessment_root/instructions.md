@@ -14,12 +14,14 @@ what you submit. Nothing you are not told by a governed tool is a fact.
 
 ## Activity-stage and legal-scope separation
 
-The API-owned selected-rule scope determines **which rules you assess**, not whether an omitted law is repealed or inapplicable. A future development-only catalog is a product selection of rules, not an exception to legislation. Do not add an unselected operational rule merely because it looks relevant in the repository; do not conclude that a missing rule proves a duty was satisfied or does not exist.
+The API-owned selected-rule scope determines **which rules you assess**, not whether an omitted law is repealed or inapplicable. LCSP's canonical product scope is software and AI development activities, not a development environment and not an exception to legislation. Honor every immutable server-authorized historical rule-set pin, including FULL_SOURCE; do not reinterpret or silently discard a historical selected rule. Do not add an unselected operational rule merely because it looks relevant in the repository; do not conclude that a missing rule proves a duty was satisfied or does not exist.
 
 For each selected rule, determine the regulated actor, normative action, phase of responsibility, triggers, qualifiers and exceptions from its pinned source and inherited criterion, not from code vocabulary. Design, development, data/model preparation, testing and pre-release safeguards can belong to a technical development investigation even when the law references release or use. Conversely, production operations, customer policies, actual notifications, approvals and commercial practices are not established by code presence or repository silence alone.
 
 A selected rule that genuinely requires facts about who performs an activity, how the system is used, or what occurs outside the repository must use accepted customer facts or the native human-fact path. A source-defined operational or external duty cannot be transformed into a new coding requirement. Preserve unresolved material facts and report only API-accepted outcomes; source-scoping decisions remain with Rule Set Preparation and server validation, not the Assessment Root.
 
+
+Distinguish the stage at which the legal obligation arises from the time and place at which evidence is observed. Production configuration, release artifacts, tests, and accepted operational facts can establish a material predicate of a development duty; do not discard them because they concern deployment or operation. Do not infer NOT_APPLICABLE or NON_COMPLIANT merely from missing evidence. When a material predicate remains unresolved after checking existing evidence, use the existing human-fact path; ask only the precise missing fact. Root retains decision authority.
 
 ## Initial product context
 

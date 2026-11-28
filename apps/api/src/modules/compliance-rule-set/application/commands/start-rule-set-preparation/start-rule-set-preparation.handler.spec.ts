@@ -1,9 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
 import {
   AgentExecutionState,
   LegalSourceLifecycleStatus,
   Prisma,
 } from "@prisma/client";
+import { fixtureSourceAuthority } from "../../../../../../test/support/fixture-source-authority.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
@@ -27,6 +30,7 @@ function createHarness(
     executionState: AgentExecutionState;
   },
   retryableCommitFailures = 0,
+  authority = fixtureSourceAuthority,
 ) {
   const transactionOptions: unknown[] = [];
   const outboxWritesByAttempt = new Map<number, number>();
@@ -63,6 +67,7 @@ function createHarness(
             .fn<() => Promise<unknown>>()
             .mockResolvedValue(undefined),
         },
+        legalSourceDocument: { findMany: jest.fn(() => Promise.resolve([])) },
         legalSourceVersion: {
           findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
             id: LEGAL_SOURCE_VERSION_ID,
@@ -88,7 +93,7 @@ function createHarness(
   const outbox = {
     enqueue,
   } as unknown as OutboxRepository;
-  const handler = new StartRuleSetPreparationHandler(prisma, outbox);
+  const handler = new StartRuleSetPreparationHandler(prisma, outbox, authority);
   const command = new StartRuleSetPreparationCommand(
     {
       legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
@@ -110,6 +115,46 @@ function createHarness(
 }
 
 describe("StartRuleSetPreparationHandler serialization retry", () => {
+  it("creates a unified QUEUED preparation run without activity-scope branching", async () => {
+    const harness = createHarness(() => ({
+      id: "run",
+      legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
+      executionState: AgentExecutionState.QUEUED,
+    }));
+    await harness.handler.execute(harness.command);
+    expect(
+      harness.transactions[0].ruleSetPreparationRun.create,
+    ).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
+        executionState: AgentExecutionState.QUEUED,
+      }),
+    });
+  });
+
+  it("rejects a historical active source without official originals before creating a run or outbox", async () => {
+    const harness = createHarness(
+      () => ({
+        id: "unexpected",
+        legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
+        executionState: AgentExecutionState.QUEUED,
+      }),
+      0,
+      new LegalSourceAuthorityService(),
+    );
+    await expect(
+      harness.handler.execute(harness.command),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid },
+      },
+    });
+    expect(
+      harness.transactions[0].ruleSetPreparationRun.create,
+    ).not.toHaveBeenCalled();
+    expect(harness.enqueue).not.toHaveBeenCalled();
+  });
+
   it("retries the entire Serializable transaction and writes one run/outbox event", async () => {
     const run = {
       id: "f4dc44ad-5c95-4896-bdb1-2a49e8971edc",

@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "./fixture-source-authority.js";
 /** Real application handlers, confined to a fresh task-owned database; no HTTP/production connection. */
 import "reflect-metadata";
 import { createInterface } from "node:readline";
@@ -45,6 +46,7 @@ const outbox = new OutboxRepository(prisma);
 const activation = new ComplianceRuleSetActivation(
   outbox,
   new AuditWriterService(prisma),
+  fixtureSourceAuthority,
 );
 const correlationId = randomUUID();
 type Input = { action: string; request: unknown };
@@ -138,6 +140,7 @@ async function invoke(input: Input) {
     const started = await new StartRuleSetPreparationHandler(
       prisma,
       outbox,
+      fixtureSourceAuthority,
     ).execute(
       new StartRuleSetPreparationCommand(
         { legalSourceVersionId, idempotencyKey: randomUUID() },
@@ -145,7 +148,11 @@ async function invoke(input: Input) {
         correlationId,
       ),
     );
-    return new ClaimRuleSetPreparationHandler(prisma, graphs).execute(
+    return new ClaimRuleSetPreparationHandler(
+      prisma,
+      graphs,
+      fixtureSourceAuthority,
+    ).execute(
       new ClaimRuleSetPreparationCommand(
         { preparationRunId: started.preparationRunId },
         correlationId,

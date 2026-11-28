@@ -26,6 +26,15 @@ import { fixtureLegalSource } from "./compliance-rule-set-fixtures.js";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import type { PrismaClient } from "@prisma/client";
 import { LegalDocumentGraphService } from "../../src/modules/legal-source/application/services/legal-document-graph.service.js";
+import { ClaimRuleSetPreparationHandler } from "../../src/modules/compliance-rule-set/application/commands/claim-rule-set-preparation/claim-rule-set-preparation.handler.js";
+import { ClaimRuleSetPreparationCommand } from "../../src/modules/compliance-rule-set/application/commands/claim-rule-set-preparation/claim-rule-set-preparation.command.js";
+import { OutboxRepository } from "../../src/platform/outbox/outbox.repository.js";
+import { fixtureSourceAuthority } from "./fixture-source-authority.js";
+import {
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_EXECUTION_CONTRACTS,
+  PREPARATION_SCOPE_STAGES,
+} from "@lcsp/contracts/compliance-rule-set";
 
 /** Only translates the reusable synthetic fixture's node identities into its real DB source pin. */
 export async function pinFixtureRequest<T>(
@@ -58,6 +67,17 @@ export async function pinFixtureRequest<T>(
   const targets = new Map(graph.nodes.map((n) => [n.structuralPath, n.nodeId]));
   const id = (nodeId: string) => targets.get(paths.get(nodeId) ?? "") ?? nodeId;
   const packet = structuredClone(request.packet);
+  // The fixture labels its external-only duty explicitly before freezing the canonical packet.
+  const externalDuty = packet.legalRequirements.find(
+    (requirement) =>
+      requirement.legalRequirementId === "LR-PERSON" &&
+      requirement.coverage.state ===
+        LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+  );
+  if (externalDuty) {
+    externalDuty.coverage.nonAssessableReason =
+      "OUT_OF_SCOPE_TARGET: Synthetic duty is fulfilled outside development.";
+  }
   const semantic = packet.semanticGraph!;
   semantic.legalSourceVersionId = graph.legalSourceVersionId;
   semantic.materializationId = graph.materializationId;
@@ -109,7 +129,7 @@ export async function pinFixtureRequest<T>(
     };
   }
   if (run.executionState === AgentExecutionState.RUNNING) {
-    // Historical submit fixtures now traverse the same discovery/freeze/readiness lifecycle as the worker.
+    // Submit fixtures traverse the real freeze, scope review, and readiness boundaries.
     const service = prisma as PrismaService;
     const loader = new LegalSourceSnapshotLoader(
       service,
@@ -167,7 +187,7 @@ export async function pinFixtureRequest<T>(
               ),
             )
           : reviewed;
-      if (result.outcome === O.PASSED)
+      if (result.outcome === O.PASSED) {
         await handler.execute(
           new ClaimInventoryCommand(
             {
@@ -178,6 +198,7 @@ export async function pinFixtureRequest<T>(
             "fixture-author",
           ),
         );
+      }
     } else if (run.claimPhase === ClaimPreparationPhase.CLAIM_INVENTORY_READY) {
       await handler.execute(
         new ClaimInventoryCommand(

@@ -1,3 +1,4 @@
+import { isOfficialCorpusAdmitted } from "../../domain/official-legal-authority.js";
 import type {
   LegalRetrievalIndex,
   LegalSource,
@@ -234,12 +235,13 @@ export function toSourceDetail(
  * Business rules:
  * - Only DRAFT versions are eligible for activation checks.
  * - Eligible versions need at least one document, every document READY, and a valid structural index once all documents are ready.
- * - This projection evaluates readiness only and does not determine legal content or effect.
+ * - This projection evaluates readiness and configured original identity; it does not determine legal content or effect.
  *
  * Execution flow:
  * 1. Return VERSION_NOT_DRAFT immediately for any non-draft lifecycle state.
  * 2. Add the no-documents and not-ready blockers where applicable.
  * 3. Add the invalid-index blocker only when the version has documents and all are ready but structure is invalid.
+ * 4. If document identity was evaluated and is unadmitted, add the corpus blocker.
  *
  * Failure cases:
  * - No exception is raised for an ineligible or incomplete version; its blockers are returned as contract values.
@@ -252,6 +254,7 @@ export function versionBlockers(input: {
   documentCount: number;
   readyDocumentCount: number;
   structuralValid: boolean;
+  officialCorpusAdmitted?: boolean;
 }): LegalSourceVersionBlocker[] {
   if (input.status !== Lifecycle.draft) return [Blockers.VERSION_NOT_DRAFT];
   const blockers: LegalSourceVersionBlocker[] = [];
@@ -264,6 +267,9 @@ export function versionBlockers(input: {
     !input.structuralValid
   )
     blockers.push(Blockers.INDEX_NOT_VALID);
+  // Keep structural readiness and normative source admission independent.
+  if (input.documentCount > 0 && input.officialCorpusAdmitted === false)
+    blockers.push(Blockers.OFFICIAL_CORPUS_REQUIRED);
   return blockers;
 }
 
@@ -301,6 +307,7 @@ export function toVersionDetail(input: {
     documentCount: summary.documentCount,
     readyDocumentCount: summary.readyDocumentCount,
     structuralValid: input.structuralValid,
+    officialCorpusAdmitted: isOfficialCorpusAdmitted(input.documents),
   });
   return {
     ...summary,

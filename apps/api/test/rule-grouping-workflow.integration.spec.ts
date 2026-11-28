@@ -3,7 +3,6 @@ import { randomUUID, createHash } from "node:crypto";
 import {
   PrismaClient,
   ArtifactLifecycleState,
-  PreparationTargetActivityScope,
   AgentExecutionState,
   RuleSetPreparationFailureReason,
   LegalRequirementCoverageState,
@@ -86,7 +85,6 @@ integration("persisted grouping proposal and independent review", () => {
         requestedBy: "isolated-fixture",
         correlationId: tag,
         idempotencyKey: tag,
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
         executionState: AgentExecutionState.FAILED,
         failureReason: RuleSetPreparationFailureReason.RUNTIME_ERROR,
       },
@@ -97,7 +95,6 @@ integration("persisted grouping proposal and independent review", () => {
         legalSourceVersionId: source.id,
         preparationRunId: run.id,
         ruleSetDigest: fingerprint(tag),
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
       },
     });
     await expect(
@@ -153,7 +150,6 @@ integration("persisted grouping proposal and independent review", () => {
         requestedBy: "isolated-fixture",
         correlationId: tag,
         idempotencyKey: tag,
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
         executionState: AgentExecutionState.SUCCEEDED,
       },
     });
@@ -163,7 +159,6 @@ integration("persisted grouping proposal and independent review", () => {
         legalSourceVersionId: source.id,
         preparationRunId: run.id,
         ruleSetDigest: fingerprint(tag),
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
       },
     });
     id = version.id;

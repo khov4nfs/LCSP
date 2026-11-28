@@ -21,10 +21,9 @@ An exception in an otherwise operational provision may still affect a developer 
 ## Output
 Retained context edges (claim, source node, relationship, exact quote, reason) and excluded model-view nodes (source node, reason); neither list mutates pinned source records.
 
-## Deployment-only context must not leak into development assessment
+## Unrelated context must not leak into rule criteria
 
-- Suppress every deployment-only Article, clause, point and context block that has no verified directed dependency on an included development operative claim.
-- Do not carry a parent Article's entire deployment narrative merely because its child point also addresses a developer. Carry the minimal legal condition/definition/exception that actually modifies the development duty.
+- Do not link unrelated Articles, clauses, points, or context blocks that have no verified directed dependency on the operative claim.
+- Carry the minimal legal condition/definition/exception that actually modifies the duty rather than copying unrelated paragraphs.
 - Materiality requires a pinned source locator and source-supported relation. Proximity, shared words or semantic topic similarity are not materiality.
-- If the required context cannot be verified at the pinned version, mark the dependency for human/legal review. Never invent it, never treat it as verified, and never surface unrelated deployment passages in the dev view.
-- Source accounting stays complete outside the model-facing development projection.
+- If the required context cannot be verified at the pinned version, mark the dependency for human/legal review (`LEGAL_REVIEW_REQUIRED:`). Never invent it or treat it as verified.

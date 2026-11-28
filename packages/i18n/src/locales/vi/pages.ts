@@ -1851,63 +1851,95 @@ export const viPages = {
       showcaseQuestion: "Câu hỏi",
       showcaseFinding: "Phát hiện",
       providerStripTitle: "Kết nối liền mạch hệ sinh thái Git",
-      providerStripDescription: "Tích hợp trực tiếp với các nền tảng quản lý mã nguồn hàng đầu mà không cần sao chép kho mã hay để lộ mã bí mật.",
+      providerStripDescription:
+        "Tích hợp trực tiếp với các nền tảng quản lý mã nguồn hàng đầu mà không cần sao chép kho mã hay để lộ mã bí mật.",
       bentoEyebrow: "Năng lực cốt lõi",
       bentoTitle: "Kiến trúc cho an toàn và quản trị AI có thể kiểm chứng",
-      bentoDescription: "Rà soát mã nguồn chuyên sâu, ánh xạ quy tắc tất định và luồng kiểm toán liên tục kết nối tuân thủ với kỹ thuật.",
+      bentoDescription:
+        "Rà soát mã nguồn chuyên sâu, ánh xạ quy tắc tất định và luồng kiểm toán liên tục kết nối tuân thủ với kỹ thuật.",
       bentoCard1Title: "Rà soát AST & Đồ thị lời gọi đã ghim",
-      bentoCard1Description: "Truy vết các đường dẫn mã tới mô hình AI/LLM bên ngoài, bộ tạo prompt và vòng lặp agentic gắn chặt với commit SHA chính xác.",
+      bentoCard1Description:
+        "Truy vết các đường dẫn mã tới mô hình AI/LLM bên ngoài, bộ tạo prompt và vòng lặp agentic gắn chặt với commit SHA chính xác.",
       bentoCard1Badge: "Căn cứ bằng chứng",
       bentoCard2Title: "Sự can thiệp có giới hạn của con người",
-      bentoCard2Description: "Chỉ đặt câu hỏi cho người vận hành và chuyên viên tuân thủ khi mã nguồn không thể giải quyết mục đích nghiệp vụ.",
+      bentoCard2Description:
+        "Chỉ đặt câu hỏi cho người vận hành và chuyên viên tuân thủ khi mã nguồn không thể giải quyết mục đích nghiệp vụ.",
       bentoCard2Badge: "Bối cảnh có giới hạn",
       bentoCard3Title: "Công cụ quy tắc tất định",
-      bentoCard3Description: "Đánh giá sự tuân thủ dựa trên các tiêu chí luật định, phân cấp rủi ro Đạo luật AI của EU và chính sách nội bộ doanh nghiệp.",
+      bentoCard3Description:
+        "Đánh giá sự tuân thủ dựa trên các tiêu chí luật định, phân cấp rủi ro Đạo luật AI của EU và chính sách nội bộ doanh nghiệp.",
       bentoCard3Badge: "Danh mục quy tắc",
       bentoCard4Title: "Khắc phục khép kín mạch bằng chứng",
-      bentoCard4Description: "Đề xuất các thay đổi pull request cụ thể và xác minh các lỗ hổng đã được xử lý trước khi hợp nhất mã.",
+      bentoCard4Description:
+        "Đề xuất các thay đổi pull request cụ thể và xác minh các lỗ hổng đã được xử lý trước khi hợp nhất mã.",
       bentoCard4Badge: "Khắc phục đã xác minh",
       workflowEyebrow: "Quy trình thực thi",
       workflowStep1Number: "01",
       workflowStep1Title: "Kết nối & Ghim mã nguồn",
-      workflowStep1Description: "Liên kết GitHub, GitLab, Bitbucket hoặc Azure DevOps. Khóa phạm vi phân tích vào hash commit chính xác.",
+      workflowStep1Description:
+        "Liên kết GitHub, GitLab, Bitbucket hoặc Azure DevOps. Khóa phạm vi phân tích vào hash commit chính xác.",
       workflowStep2Number: "02",
       workflowStep2Title: "Quét đồ thị & Làm rõ khoảng trống",
-      workflowStep2Description: "Trích xuất đường dẫn gọi, ranh giới mô hình và các tuyên bố kiểm soát. Yêu cầu làm rõ có trọng tâm khi mã nguồn không đề cập.",
+      workflowStep2Description:
+        "Trích xuất đường dẫn gọi, ranh giới mô hình và các tuyên bố kiểm soát. Yêu cầu làm rõ có trọng tâm khi mã nguồn không đề cập.",
       workflowStep3Number: "03",
       workflowStep3Title: "Kiểm toán, Khắc phục & Xác minh",
-      workflowStep3Description: "Tạo các phát hiện tuân thủ có thể rà soát, áp dụng bản vá mã an toàn và chạy lại các bước xác minh.",
+      workflowStep3Description:
+        "Tạo các phát hiện tuân thủ có thể rà soát, áp dụng bản vá mã an toàn và chạy lại các bước xác minh.",
       audienceEyebrow: "Đối tượng phù hợp",
       audienceTitle: "Xây dựng cho các tổ chức kỹ thuật và tuân thủ hiện đại",
-      audienceDescription: "Thu hẹp khoảng cách giữa kỹ sư phần mềm phát triển AI tạo sinh và chuyên viên pháp chế kiểm toán rủi ro.",
+      audienceDescription:
+        "Thu hẹp khoảng cách giữa kỹ sư phần mềm phát triển AI tạo sinh và chuyên viên pháp chế kiểm toán rủi ro.",
       audienceRole1Title: "Kỹ sư AI & Nền tảng",
-      audienceRole1Description: "Tự tin phát hành các tính năng ứng dụng AI, nắm chắc mọi lệnh gọi mô hình và mẫu prompt đều tuân thủ chính sách.",
-      audienceRole1Point1: "Tự động quét đồ thị lời gọi & prompt injection trong quy trình CI/CD",
-      audienceRole1Point2: "Đề xuất pull request khắc phục rõ ràng, không phỏng đoán hợp đồng",
+      audienceRole1Description:
+        "Tự tin phát hành các tính năng ứng dụng AI, nắm chắc mọi lệnh gọi mô hình và mẫu prompt đều tuân thủ chính sách.",
+      audienceRole1Point1:
+        "Tự động quét đồ thị lời gọi & prompt injection trong quy trình CI/CD",
+      audienceRole1Point2:
+        "Đề xuất pull request khắc phục rõ ràng, không phỏng đoán hợp đồng",
       audienceRole2Title: "Chuyên viên Tuân thủ & Rủi ro",
-      audienceRole2Description: "Thu thập bằng chứng tuân thủ bất biến gắn liền với mã nguồn thay vì chỉ dựa vào các bảng câu hỏi chủ quan.",
-      audienceRole2Point1: "Nhật ký kiểm toán có thể kiểm chứng gắn trực tiếp với snapshot commit",
-      audienceRole2Point2: "Chuẩn hóa theo Đạo luật EU AI Act, tiêu chuẩn ISO 42001 và khung NIST",
+      audienceRole2Description:
+        "Thu thập bằng chứng tuân thủ bất biến gắn liền với mã nguồn thay vì chỉ dựa vào các bảng câu hỏi chủ quan.",
+      audienceRole2Point1:
+        "Nhật ký kiểm toán có thể kiểm chứng gắn trực tiếp với snapshot commit",
+      audienceRole2Point2:
+        "Chuẩn hóa theo Đạo luật EU AI Act, tiêu chuẩn ISO 42001 và khung NIST",
       audienceRole3Title: "Lãnh đạo Kỹ thuật & CTO",
-      audienceRole3Description: "Duy trì tốc độ phát triển của doanh nghiệp mà không để lộ nguy cơ bị phạt pháp lý hay lỗ hổng rò rỉ dữ liệu.",
-      audienceRole3Point1: "Bảng điều khiển tập trung cho mọi nhóm dự án, kho mã và nhà cung cấp",
-      audienceRole3Point2: "Hạn ngạch sử dụng chi tiết, giới hạn chi tiêu và nạp tiền trả trước linh hoạt",
+      audienceRole3Description:
+        "Duy trì tốc độ phát triển của doanh nghiệp mà không để lộ nguy cơ bị phạt pháp lý hay lỗ hổng rò rỉ dữ liệu.",
+      audienceRole3Point1:
+        "Bảng điều khiển tập trung cho mọi nhóm dự án, kho mã và nhà cung cấp",
+      audienceRole3Point2:
+        "Hạn ngạch sử dụng chi tiết, giới hạn chi tiêu và nạp tiền trả trước linh hoạt",
       faqEyebrow: "Câu hỏi thường gặp",
       faqTitle: "Tất cả những điều bạn cần biết về LCSP",
-      faqDescription: "Câu trả lời rõ ràng cho các câu hỏi phổ biến về phân tích mã nguồn, quyền riêng tư dữ liệu và xác minh.",
-      faq1Question: "LCSP phân tích mã nguồn như thế nào mà vẫn đảm bảo bảo mật?",
-      faq1Answer: "LCSP quét kho mã trong các môi trường sandbox tách biệt hoặc lưu trữ commit đã ghim. Mã nguồn của bạn không bao giờ được dùng để huấn luyện các mô hình dùng chung công khai, và tất cả thông tin xác thực luôn nằm trong ranh giới kiểm soát quyền của bạn.",
-      faq2Question: "Những nhà cung cấp Git và dịch vụ lưu trữ kho mã nào được hỗ trợ?",
-      faq2Answer: "LCSP hỗ trợ tự nhiên GitHub, GitLab, Bitbucket và Azure DevOps trên cả nền tảng đám mây lẫn phiên bản doanh nghiệp tự vận hành (self-managed).",
-      faq3Question: "LCSP khác biệt gì so với các công cụ phân tích tĩnh (SAST) truyền thống?",
-      faq3Answer: "SAST truyền thống tìm kiếm lỗi cú pháp hoặc lỗ hổng bảo mật cơ bản. LCSP lập bản đồ ngữ nghĩa vận hành của AI: mẫu prompt, lời gọi mô hình, ranh giới quyết định, vòng lặp giám sát của con người và sự tuân thủ quy định luật định.",
-      faq4Question: "Tôi có thể dùng LCSP mà không cần đăng ký gói thuê bao hàng tháng không?",
-      faq4Answer: "Có. LCSP hoạt động theo mô hình tín dụng trả trước (prepaid credit). Bạn chỉ trả phí cho các phiên đánh giá và khắc phục mà bạn thực sự chạy, với chiết khấu theo khối lượng bắt đầu từ 50 USD.",
-      faq5Question: "Quy trình xác minh có sự tham gia của con người hoạt động ra sao?",
-      faq5Answer: "Khi một phiên đánh giá phát hiện điểm chưa rõ ràng mà mã nguồn không thể giải quyết (chẳng hạn như chính sách phê duyệt nội bộ), hệ thống sẽ tạo một câu hỏi theo ngữ cảnh có trọng tâm. Sau khi trả lời, phản hồi sẽ được gắn vĩnh viễn vào mạch bằng chứng kiểm toán.",
+      faqDescription:
+        "Câu trả lời rõ ràng cho các câu hỏi phổ biến về phân tích mã nguồn, quyền riêng tư dữ liệu và xác minh.",
+      faq1Question:
+        "LCSP phân tích mã nguồn như thế nào mà vẫn đảm bảo bảo mật?",
+      faq1Answer:
+        "LCSP quét kho mã trong các môi trường sandbox tách biệt hoặc lưu trữ commit đã ghim. Mã nguồn của bạn không bao giờ được dùng để huấn luyện các mô hình dùng chung công khai, và tất cả thông tin xác thực luôn nằm trong ranh giới kiểm soát quyền của bạn.",
+      faq2Question:
+        "Những nhà cung cấp Git và dịch vụ lưu trữ kho mã nào được hỗ trợ?",
+      faq2Answer:
+        "LCSP hỗ trợ tự nhiên GitHub, GitLab, Bitbucket và Azure DevOps trên cả nền tảng đám mây lẫn phiên bản doanh nghiệp tự vận hành (self-managed).",
+      faq3Question:
+        "LCSP khác biệt gì so với các công cụ phân tích tĩnh (SAST) truyền thống?",
+      faq3Answer:
+        "SAST truyền thống tìm kiếm lỗi cú pháp hoặc lỗ hổng bảo mật cơ bản. LCSP lập bản đồ ngữ nghĩa vận hành của AI: mẫu prompt, lời gọi mô hình, ranh giới quyết định, vòng lặp giám sát của con người và sự tuân thủ quy định luật định.",
+      faq4Question:
+        "Tôi có thể dùng LCSP mà không cần đăng ký gói thuê bao hàng tháng không?",
+      faq4Answer:
+        "Có. LCSP hoạt động theo mô hình tín dụng trả trước (prepaid credit). Bạn chỉ trả phí cho các phiên đánh giá và khắc phục mà bạn thực sự chạy, với chiết khấu theo khối lượng bắt đầu từ 50 USD.",
+      faq5Question:
+        "Quy trình xác minh có sự tham gia của con người hoạt động ra sao?",
+      faq5Answer:
+        "Khi một phiên đánh giá phát hiện điểm chưa rõ ràng mà mã nguồn không thể giải quyết (chẳng hạn như chính sách phê duyệt nội bộ), hệ thống sẽ tạo một câu hỏi theo ngữ cảnh có trọng tâm. Sau khi trả lời, phản hồi sẽ được gắn vĩnh viễn vào mạch bằng chứng kiểm toán.",
       feedbackEyebrow: "Góp ý của bạn",
-      feedbackTitle: "Cùng chúng tôi hoàn thiện tương lai tuân thủ AI dựa trên bằng chứng",
-      feedbackDescription: "Dù bạn có thắc mắc, ý tưởng tính năng hay yêu cầu tích hợp, đội ngũ kỹ thuật của chúng tôi luôn lắng nghe từng phản hồi.",
+      feedbackTitle:
+        "Cùng chúng tôi hoàn thiện tương lai tuân thủ AI dựa trên bằng chứng",
+      feedbackDescription:
+        "Dù bạn có thắc mắc, ý tưởng tính năng hay yêu cầu tích hợp, đội ngũ kỹ thuật của chúng tôi luôn lắng nghe từng phản hồi.",
       feedbackNameLabel: "Họ và tên",
       feedbackNamePlaceholder: "Ví dụ: Nguyễn Văn An",
       feedbackEmailLabel: "Email công việc",
@@ -1919,18 +1951,21 @@ export const viPages = {
       feedbackCategoryOther: "Thắc mắc chung",
       feedbackRatingLabel: "Mức độ hài lòng của bạn với quy trình tuân thủ?",
       feedbackMessageLabel: "Ý kiến đóng góp chi tiết",
-      feedbackMessagePlaceholder: "Chia sẻ cho chúng tôi những điểm hữu ích hoặc tính năng bạn mong muốn được bổ sung...",
+      feedbackMessagePlaceholder:
+        "Chia sẻ cho chúng tôi những điểm hữu ích hoặc tính năng bạn mong muốn được bổ sung...",
       feedbackSubmitButton: "Gửi ý kiến phản hồi",
       feedbackSubmittingButton: "Đang gửi góp ý...",
       feedbackSuccessTitle: "Đã nhận phản hồi!",
-      feedbackSuccessDescription: "Cảm ơn bạn đã đóng góp ý kiến quý báu. Đội ngũ của chúng tôi đã ghi nhận và sẽ xem xét trong thời gian sớm nhất.",
+      feedbackSuccessDescription:
+        "Cảm ơn bạn đã đóng góp ý kiến quý báu. Đội ngũ của chúng tôi đã ghi nhận và sẽ xem xét trong thời gian sớm nhất.",
       feedbackSendAnother: "Gửi thêm phản hồi khác",
       feedbackErrorNameRequired: "Vui lòng nhập họ và tên của bạn",
       feedbackErrorEmailInvalid: "Vui lòng nhập địa chỉ email hợp lệ",
       feedbackErrorMessageMin: "Ý kiến phản hồi phải có ít nhất 10 ký tự",
       feedbackErrorRatingRequired: "Vui lòng chọn mức độ hài lòng",
       figmaHeroEyebrow: "TUÂN THỦ PHÁP LÝ CHO PHẦN MỀM",
-      figmaHeroTitle: "Nắm rõ quy định áp dụng.\nThấu hiểu vì sao điều đó quan trọng.",
+      figmaHeroTitle:
+        "Nắm rõ quy định áp dụng.\nThấu hiểu vì sao điều đó quan trọng.",
       figmaHeroDescription:
         "Kết nối kho mã nguồn của bạn với các yêu cầu pháp lý và rà soát bằng chứng đằng sau mỗi phát hiện tuân thủ.",
       figmaHeroPrimaryCta: "Bắt đầu ngay",
@@ -1949,27 +1984,38 @@ export const viPages = {
       figmaHeroOutcomeCompliant: "Đã tuân thủ",
       figmaHeroOutcomeInReview: "Đang rà soát",
       figmaHeroRequirementLabel: "Yêu cầu pháp lý gốc",
-      figmaHeroRequirementValue: "Lưu trữ hồ sơ tài khoản liên quan tối thiểu hai năm.",
+      figmaHeroRequirementValue:
+        "Lưu trữ hồ sơ tài khoản liên quan tối thiểu hai năm.",
       figmaHeroEvidenceLabel: "BẰNG CHỨNG LIÊN KẾT",
       figmaHeroEvidence1: "E1  Chính sách lưu trữ · 90 ngày",
       figmaHeroEvidence2: "E2  Cơ chế dọn dẹp · xóa khi hết hạn",
-      figmaHeroConclusion: "Kết luận: thời hạn lưu trữ ngắn hơn mức tối thiểu luật định.",
+      figmaHeroConclusion:
+        "Kết luận: thời hạn lưu trữ ngắn hơn mức tối thiểu luật định.",
       figmaHeroScenarioRetention: "Lưu giữ tài khoản",
       figmaHeroScenarioInjection: "Bảo vệ Prompt Injection",
       figmaHeroScenarioEuAiAct: "EU AI Act rủi ro cao",
       figmaHeroInjectionFindingTitle: "Rào chắn tấn công Prompt Injection",
-      figmaHeroInjectionReqTitle: "NIST AI 100-1 § 4.3 — Khử khuẩn đầu vào & Hàng rào bảo vệ",
-      figmaHeroInjectionReqValue: "Cổng nạp LLM phải làm sạch ký tự phân tách và cách ly mã đầu vào không tin cậy.",
-      figmaHeroInjectionEvidence1: "E1  Biểu thức regex làm sạch · khớp ký tự escape XML",
-      figmaHeroInjectionEvidence2: "E2  Bộ kiểm thử vector đối kháng · trung hòa 100%",
-      figmaHeroInjectionConclusion: "Kết luận: hàng rào mã hóa đã được xác thực toàn diện.",
+      figmaHeroInjectionReqTitle:
+        "NIST AI 100-1 § 4.3 — Khử khuẩn đầu vào & Hàng rào bảo vệ",
+      figmaHeroInjectionReqValue:
+        "Cổng nạp LLM phải làm sạch ký tự phân tách và cách ly mã đầu vào không tin cậy.",
+      figmaHeroInjectionEvidence1:
+        "E1  Biểu thức regex làm sạch · khớp ký tự escape XML",
+      figmaHeroInjectionEvidence2:
+        "E2  Bộ kiểm thử vector đối kháng · trung hòa 100%",
+      figmaHeroInjectionConclusion:
+        "Kết luận: hàng rào mã hóa đã được xác thực toàn diện.",
       figmaHeroInjectionRulesEvaluated: "Đã đánh giá 8 / 8 quy tắc",
       figmaHeroInjectionOpenRequests: "0 yêu cầu làm rõ thông tin mở",
       figmaHeroEuAiActFindingTitle: "Tài liệu kỹ thuật EU AI Act",
-      figmaHeroEuAiActReqTitle: "Phụ lục IV — Tài liệu kỹ thuật & Khả năng kiểm toán",
-      figmaHeroEuAiActReqValue: "Quy trình suy luận rủi ro cao phải duy trì nhật ký kiểm toán bất biến cho quyết định tự động.",
-      figmaHeroEuAiActEvidence1: "E1  Đo lường suy luận · bộ ghi log cây Merkle chỉ thêm",
-      figmaHeroEuAiActEvidence2: "E2  Danh mục tài liệu kỹ thuật · chờ chữ ký chuyên viên an toàn",
+      figmaHeroEuAiActReqTitle:
+        "Phụ lục IV — Tài liệu kỹ thuật & Khả năng kiểm toán",
+      figmaHeroEuAiActReqValue:
+        "Quy trình suy luận rủi ro cao phải duy trì nhật ký kiểm toán bất biến cho quyết định tự động.",
+      figmaHeroEuAiActEvidence1:
+        "E1  Đo lường suy luận · bộ ghi log cây Merkle chỉ thêm",
+      figmaHeroEuAiActEvidence2:
+        "E2  Danh mục tài liệu kỹ thuật · chờ chữ ký chuyên viên an toàn",
       figmaHeroEuAiActConclusion: "Kết luận: đang chờ rà soát tại PR #142.",
       figmaHeroEuAiActRulesEvaluated: "Đã đánh giá 7 / 8 quy tắc",
       figmaHeroEuAiActOpenRequests: "1 yêu cầu làm rõ thông tin mở",
@@ -2000,12 +2046,14 @@ export const viPages = {
       capabilitiesMainTitle: "Phát hiện có thể điều tra chi tiết.",
       capabilitiesMainTag: "Minh họa · Lưu trữ nhật ký tài khoản",
       capabilitiesMainReqLabel: "Yêu cầu pháp lý gốc",
-      capabilitiesMainReqValue: "Lưu trữ hồ sơ tài khoản liên quan tối thiểu hai năm.",
+      capabilitiesMainReqValue:
+        "Lưu trữ hồ sơ tài khoản liên quan tối thiểu hai năm.",
       capabilitiesMainEvidenceLabel: "Bằng chứng từ kho mã",
       capabilitiesMainEvidence1: "E1 · Chính sách lưu trữ: 90 ngày",
       capabilitiesMainEvidence2: "E2 · Cơ chế dọn dẹp: xóa khi hết hạn",
       capabilitiesMainStatus: "Chưa tuân thủ",
-      capabilitiesMainStatusDetail: "Thời hạn lưu trữ ngắn hơn mức tối thiểu trong quy định mẫu.",
+      capabilitiesMainStatusDetail:
+        "Thời hạn lưu trữ ngắn hơn mức tối thiểu trong quy định mẫu.",
       capabilitiesCard2Title: "Đặt câu hỏi khi thiếu ngữ cảnh",
       capabilitiesCard2Description:
         "Yêu cầu thông tin có trọng tâm giúp người dùng cung cấp các dữ kiện mà mã nguồn không thể xác nhận độc lập.",
@@ -2025,25 +2073,31 @@ export const viPages = {
       howStep2Desc: "Lựa chọn các yêu cầu pháp lý liên quan cần đánh giá.",
       howStep3Num: "03",
       howStep3Title: "Rà soát và làm rõ",
-      howStep3Desc: "Đọc phát hiện, kiểm tra bằng chứng và trả lời các câu hỏi mở.",
+      howStep3Desc:
+        "Đọc phát hiện, kiểm tra bằng chứng và trả lời các câu hỏi mở.",
       howStep4Num: "04",
       howStep4Title: "Hành động và xác minh",
-      howStep4Desc: "Khắc phục các vấn đề và đánh giá lại các quy tắc liên quan.",
+      howStep4Desc:
+        "Khắc phục các vấn đề và đánh giá lại các quy tắc liên quan.",
       howStartCta: "Bắt đầu phiên đánh giá của bạn",
       whoEyebrow: "ĐỐI TƯỢNG SỬ DỤNG",
       whoTitle: "Xây dựng cho những người trực tiếp rà soát phần mềm.",
       whoDescription:
         "Không gian bối cảnh chung cho công tác kỹ thuật và tuân thủ, không thay thế nhận định chuyên môn.",
       whoTeam1Title: "Đội ngũ kỹ thuật",
-      whoTeam1Desc: "Xác định vị trí mã liên quan, hiểu phát hiện và kiểm tra kết quả khắc phục.",
+      whoTeam1Desc:
+        "Xác định vị trí mã liên quan, hiểu phát hiện và kiểm tra kết quả khắc phục.",
       whoTeam2Title: "Chuyên viên tuân thủ",
-      whoTeam2Desc: "Rà soát căn cứ pháp lý, bằng chứng hỗ trợ và các câu hỏi chưa giải quyết.",
+      whoTeam2Desc:
+        "Rà soát căn cứ pháp lý, bằng chứng hỗ trợ và các câu hỏi chưa giải quyết.",
       whoTeam3Title: "Chủ sở hữu dự án",
-      whoTeam3Desc: "Nắm bắt các vấn đề tồn đọng và ưu tiên các hành động tiếp theo.",
+      whoTeam3Desc:
+        "Nắm bắt các vấn đề tồn đọng và ưu tiên các hành động tiếp theo.",
       whoGitConnectLabel: "Kết nối tài khoản nhà cung cấp Git trong LCSP.",
       faqSectionEyebrow: "HỎI ĐÁP",
       faqSectionTitle: "Các câu hỏi thường gặp.",
-      faqSectionDescription: "Nắm rõ những điều cần biết trước khi bắt đầu một phiên đánh giá.",
+      faqSectionDescription:
+        "Nắm rõ những điều cần biết trước khi bắt đầu một phiên đánh giá.",
       faqViewPricingCta: "Xem bảng giá",
       faqItem1Question: "LCSP thực hiện đánh giá những gì?",
       faqItem1Answer:
@@ -2054,7 +2108,8 @@ export const viPages = {
       faqItem3Question: "Điều gì xảy ra nếu kho mã nguồn thiếu bằng chứng?",
       faqItem3Answer:
         "Khi mã nguồn không đủ để kết luận, LCSP tạo các yêu cầu thông tin có giới hạn để người vận hành bổ sung bối cảnh nghiệp vụ mà không làm sai lệch sự thật từ mã nguồn.",
-      faqItem4Question: "Tôi có thể đánh giá lại chỉ các quy tắc đã chọn không?",
+      faqItem4Question:
+        "Tôi có thể đánh giá lại chỉ các quy tắc đã chọn không?",
       faqItem4Answer:
         "Có. Bạn có thể chọn chạy lại kiểm toán cho từng quy tắc riêng biệt sau khi áp dụng bản vá để xác minh nhanh chóng.",
       faqItem5Question: "Hình thức thanh toán hoạt động như thế nào?",
@@ -2073,12 +2128,16 @@ export const viPages = {
       feedbackEmailFieldLabel: "Email (không bắt buộc)",
       feedbackEmailFieldPlaceholder: "ban@congty.com",
       feedbackMessageFieldLabel: "Ý kiến phản hồi của bạn *",
-      feedbackMessageFieldPlaceholder: "Chia sẻ điều bạn hài lòng hoặc điều chúng tôi có thể cải thiện…",
+      feedbackMessageFieldPlaceholder:
+        "Chia sẻ điều bạn hài lòng hoặc điều chúng tôi có thể cải thiện…",
       feedbackSendButton: "Gửi phản hồi",
       feedbackSendingButton: "Đang gửi phản hồi...",
-      feedbackDisclaimer: "Bản xem trước nguyên mẫu · Không có dữ liệu nào được gửi đi.",
-      finalCtaSectionTitle: "Bắt đầu với một kho mã nguồn. Định hình bước đi tiếp theo rõ ràng hơn.",
-      finalCtaSectionDescription: "Tạo tài khoản LCSP để khám phá không gian đánh giá tuân thủ.",
+      feedbackDisclaimer:
+        "Bản xem trước nguyên mẫu · Không có dữ liệu nào được gửi đi.",
+      finalCtaSectionTitle:
+        "Bắt đầu với một kho mã nguồn. Định hình bước đi tiếp theo rõ ràng hơn.",
+      finalCtaSectionDescription:
+        "Tạo tài khoản LCSP để khám phá không gian đánh giá tuân thủ.",
       finalCtaCreateAccount: "Tạo tài khoản",
       finalCtaSignIn: "Đăng nhập",
     },
@@ -2249,7 +2308,8 @@ export const viPages = {
     brandPanelLabel: "Quy trình tuân thủ LCSP",
     brandEyebrow: "NỀN TẢNG TUÂN THỦ PHÁP LÝ",
     brandHeadline: "Từ văn bản pháp luật\nđến kết quả có thể truy vết.",
-    brandDescription: "Liên kết yêu cầu pháp lý với bằng chứng trong kho mã và xem xét căn cứ của từng đánh giá.",
+    brandDescription:
+      "Liên kết yêu cầu pháp lý với bằng chứng trong kho mã và xem xét căn cứ của từng đánh giá.",
     workflowLabel: "QUY TRÌNH ĐÁNH GIÁ",
     legalSource: "Nguồn pháp lý",
     legalSourceDescription: "Các yêu cầu pháp lý gốc",
@@ -2259,7 +2319,8 @@ export const viPages = {
     findingDescription: "Yêu cầu gốc và bằng chứng trong kho mã",
     evidenceLinked: "Đã liên kết bằng chứng",
     reasoning: "Xem xét căn cứ của từng kết quả.",
-    brandFooter: "Bối cảnh pháp lý. Bằng chứng mã nguồn. Kết quả có thể rà soát.",
+    brandFooter:
+      "Bối cảnh pháp lý. Bằng chứng mã nguồn. Kết quả có thể rà soát.",
     footerLabel: "LCSP · Truy cập không gian làm việc an toàn",
   },
   // Keep auth copy complete per locale so switching language updates both the shared shell and active form without remounting or losing entered values.
@@ -2294,7 +2355,8 @@ export const viPages = {
       emailRequired: "Nhập email công việc của bạn.",
       emailInvalid: "Nhập email công việc hợp lệ.",
       passwordRequired: "Nhập mật khẩu của bạn.",
-      invalidCredentialsMessage: "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.",
+      invalidCredentialsMessage:
+        "Email hoặc mật khẩu không chính xác. Vui lòng thử lại.",
       requestFailedTitle: "Không thể đăng nhập",
       requestFailedDetail: "Không thể đăng nhập. Vui lòng thử lại.",
       retryAtLabel: "Bạn có thể thử lại lúc",
@@ -2309,7 +2371,8 @@ export const viPages = {
       "Thiết lập không gian làm việc LCSP và bắt đầu bài đánh giá đầu tiên.",
     displayNameLabel: "Họ và tên",
     displayNamePlaceholder: "Họ tên đầy đủ của bạn",
-    displayNameDescription: "Tên này sẽ hiển thị trong không gian làm việc của bạn.",
+    displayNameDescription:
+      "Tên này sẽ hiển thị trong không gian làm việc của bạn.",
     emailLabel: "Email",
     emailPlaceholder: "Nhập địa chỉ email của bạn",
     emailDescription: "Dùng địa chỉ email mà bạn có thể truy cập.",
@@ -2367,7 +2430,8 @@ export const viPages = {
     recoveryCodeAccessHelp: "Mỗi mã khôi phục chỉ có thể sử dụng một lần.",
     lostBothFactorsHelp:
       "Mất cả ứng dụng xác thực và mã dự phòng? Hãy liên hệ quản trị viên không gian làm việc để đặt lại xác thực đa yếu tố.",
-    useRecovery: "Không truy cập được ứng dụng xác thực? Hãy khôi phục quyền truy cập.",
+    useRecovery:
+      "Không truy cập được ứng dụng xác thực? Hãy khôi phục quyền truy cập.",
     enrollmentExpiredTitle: "Phiên thiết lập đã hết hạn",
     enrollmentExpiredDetail:
       "Phiên thiết lập ứng dụng xác thực đã hết hạn. Vui lòng tạo mã QR mới để hoàn tất thiết lập.",
@@ -2386,7 +2450,8 @@ export const viPages = {
   },
   mfaEnroll: {
     metadataTitle: "Thiết lập MFA | LCSP",
-    metadataDescription: "Thiết lập ứng dụng xác thực trước khi vào không gian làm việc.",
+    metadataDescription:
+      "Thiết lập ứng dụng xác thực trước khi vào không gian làm việc.",
     homeAriaLabel: "Trang chủ LCSP",
     formEyebrow: "Thiết lập bảo mật",
     formTitle: "Bật xác thực hai bước",
@@ -2463,8 +2528,7 @@ export const viPages = {
     submit: "Đặt lại mật khẩu",
     submitting: "Đang đặt lại mật khẩu",
     requestAnother: "Yêu cầu liên kết khôi phục khác",
-    accessHelp:
-      "Đổi mật khẩu sẽ đăng xuất bạn khỏi tất cả các phiên hiện tại.",
+    accessHelp: "Đổi mật khẩu sẽ đăng xuất bạn khỏi tất cả các phiên hiện tại.",
     errors: {
       tokenRequired: "Nhập mã khôi phục.",
       passwordTooShort: "Mật khẩu phải có ít nhất 12 ký tự.",
@@ -2639,9 +2703,11 @@ export const viPages = {
       coverageEmptyTitle: "Chưa có đánh giá nào",
       coverageFormulaHint: "Độ phủ = kết quả áp dụng / quy tắc đã chọn",
       assessmentsMetricLabel: "Assessment",
-      assessmentsMetricContext: "{completed} hoàn tất · {notCompleted} chưa hoàn tất",
+      assessmentsMetricContext:
+        "{completed} hoàn tất · {notCompleted} chưa hoàn tất",
       activeAssessmentsMetricLabel: "Assessment đang chạy",
-      activeAssessmentsMetricContext: "{running} đang chạy · {awaiting} chờ thông tin",
+      activeAssessmentsMetricContext:
+        "{running} đang chạy · {awaiting} chờ thông tin",
       actionCenterTitle: "Cần bạn xử lý",
       actionCenterSubtitle: "{open} yêu cầu mở · {failed} assessment lỗi",
       actionCenterAnswerRequired: "{name} · cần trả lời",
@@ -2980,8 +3046,10 @@ export const viPages = {
         saveError: "Không thể cập nhật cài đặt quyền riêng tư.",
         loading: "Đang tải cài đặt quyền riêng tư...",
         loadError: "Không thể tải cài đặt quyền riêng tư.",
-        loadErrorDetail: "Không tải được cài đặt quyền riêng tư hiện tại. Vui lòng thử lại.",
-        staleTitle: "Đang hiển thị cài đặt quyền riêng tư được xác nhận lần gần nhất",
+        loadErrorDetail:
+          "Không tải được cài đặt quyền riêng tư hiện tại. Vui lòng thử lại.",
+        staleTitle:
+          "Đang hiển thị cài đặt quyền riêng tư được xác nhận lần gần nhất",
         staleDescription:
           "Lần tải mới nhất không thành công nên các giá trị này có thể đã cũ. Tạm thời không thể thay đổi cho đến khi tải lại cài đặt thành công.",
         retry: "Thử lại",
@@ -3169,7 +3237,8 @@ export const viPages = {
           "Chính sách hiện không trả về domain package manager nào được phép.",
         loading: "Đang tải cài đặt khả năng...",
         loadError: "Không thể tải cài đặt khả năng.",
-        loadErrorDetail: "Không tải được cài đặt khả năng hiện tại. Vui lòng thử lại.",
+        loadErrorDetail:
+          "Không tải được cài đặt khả năng hiện tại. Vui lòng thử lại.",
         staleTitle: "Đang hiển thị cài đặt khả năng được xác nhận lần gần nhất",
         staleDescription:
           "Lần tải mới nhất không thành công nên các giá trị này có thể đã cũ. Tạm thời không thể thay đổi cho đến khi tải lại cài đặt thành công.",
@@ -3475,11 +3544,13 @@ export const viPages = {
         bitbucketEmailLabel: "Email tài khoản Atlassian",
         credentialExpiryLabel: "Ngày hết hạn credential (không bắt buộc)",
         credentialExpiryInvalid: "Hãy nhập ngày hết hạn hợp lệ.",
-        credentialEmailRequired: "Hãy nhập email của tài khoản Atlassian sở hữu API token này.",
+        credentialEmailRequired:
+          "Hãy nhập email của tài khoản Atlassian sở hữu API token này.",
         providerUnavailable: "Provider chưa được bật trong môi trường này.",
         providerTemporarilyUnavailable:
           "Provider đã được bật nhưng runtime hiện tạm thời không khả dụng.",
-        credentialRotationReconnect: "Sau khi thay credential, hãy kết nối lại từng repository để cấp quyền cho credential mới.",
+        credentialRotationReconnect:
+          "Sau khi thay credential, hãy kết nối lại từng repository để cấp quyền cho credential mới.",
         azureDevOpsOrganizationLabel: "Tổ chức",
         azureDevOpsOrganizationAccess: "Quyền truy cập tổ chức Azure",
         azureDevOpsIdentityNotice:
@@ -3690,7 +3761,8 @@ export const viPages = {
       whatNextTitle: "Tiếp theo sẽ làm gì?",
       whatNextBody:
         "Xem xét các quy tắc áp dụng, findings và bằng chứng trong không gian làm việc assessment.",
-      disclaimer: "Trạng thái thiết lập không phải là kết quả tuân thủ pháp lý.",
+      disclaimer:
+        "Trạng thái thiết lập không phải là kết quả tuân thủ pháp lý.",
     },
   },
   assessmentForm: {
@@ -3982,6 +4054,8 @@ export const viPages = {
       DOCUMENT_NOT_READY: "Chờ xử lý xong mọi tài liệu.",
       VERSION_NOT_DRAFT: "Chỉ có thể kích hoạt phiên bản nháp.",
       INDEX_NOT_VALID: "Kiểm tra cấu trúc phải đạt.",
+      OFFICIAL_CORPUS_REQUIRED:
+        "Chỉ sử dụng các văn bản pháp luật Việt Nam chính thức thuộc bộ nguồn đã cấu hình để kích hoạt.",
     },
     failureCodes: {
       UNSUPPORTED_MEDIA_TYPE: "Loại tệp này không được hỗ trợ.",
@@ -4752,8 +4826,7 @@ export const viPages = {
       resultsRatio: "{ready} trên {total} quy tắc đã có kết quả tuân thủ",
       resultsReadyLabel: "kết quả sẵn sàng",
       compliantSummary: "{compliant} tuân thủ · {nonCompliant} không tuân thủ",
-      pendingSummary:
-        "{needsInfo} cần thông tin · {notRequested} chưa yêu cầu",
+      pendingSummary: "{needsInfo} cần thông tin · {notRequested} chưa yêu cầu",
       reviewFindings: "Xem kết quả",
       attentionTitle: "Cần xử lý",
       attentionBlocking:

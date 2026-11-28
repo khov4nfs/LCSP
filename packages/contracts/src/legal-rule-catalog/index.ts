@@ -1,14 +1,15 @@
 import { z } from "zod";
 import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.ts";
-import { LEGAL_REFERENCE_RESOLUTION_STATES } from "../legal-source/document-graph.ts";
 import {
-  legalRequirementSchema,
-  assessmentRuleSchema,
   assessmentRuleAuthoringSchema,
   assessmentRuleCriterionSchema,
-  legalContextRelationSchema,
+  assessmentRuleSchema,
   complianceRuleSetPacketSchema,
+  legalContextRelationSchema,
+  legalRequirementSchema,
 } from "../compliance-rule-set/schemas.ts";
+import { PREPARATION_SCOPE_STAGES } from "../compliance-rule-set/scope-review.ts";
+import { LEGAL_REFERENCE_RESOLUTION_STATES } from "../legal-source/document-graph.ts";
 
 export const LEGAL_RULE_PREPARATION_STATES = {
   NOT_PREPARED: "NOT_PREPARED",
@@ -32,6 +33,7 @@ export const LEGAL_RULE_CATALOG_ERRORS = {
   TOO_LARGE: "LEGAL_RULE_SELECTION_TOO_LARGE",
   SOURCE_CONTEXT_TOO_LARGE: "LEGAL_RULE_SOURCE_CONTEXT_TOO_LARGE",
   RESULT_INVALID: "LEGAL_RULE_RESULT_INVALID",
+  SCOPE_REVIEW_REQUIRED: "LEGAL_RULE_SCOPE_REVIEW_REQUIRED",
 } as const;
 // Why: Public validation diagnostics must not expose the nested authoring schema or item indexes.
 // How: API responses use this bounded category set while keeping exact paths server-side.
@@ -49,6 +51,15 @@ export const LEGAL_RULE_CATALOG_EVENTS = {
   PREPARATION_REQUESTED: "event.legal-rule-catalog.preparation-requested.v1",
   RESULT_RECORDED: "event.legal-rule-catalog.result-recorded.v1",
   RESULT_IMPORTED: "event.legal-rule-catalog.result-imported.v1",
+  // Import declarations are audit evidence, not server-approved scope decisions.
+  IMPORT_EXCLUSIONS_RECORDED:
+    "event.legal-rule-catalog.import-exclusions-recorded.v1",
+  SCOPE_AUTHORIZATION_SUBMITTED:
+    "event.legal-rule-catalog.scope-authorization-submitted.v1",
+  SCOPE_AUTHORIZATION_APPROVED:
+    "event.legal-rule-catalog.scope-authorization-approved.v1",
+  SCOPE_AUTHORIZATION_REVOKED:
+    "event.legal-rule-catalog.scope-authorization-revoked.v1",
   DELETED: "event.legal-rule-catalog.deleted.v1",
 } as const;
 export const LEGAL_RULE_INELIGIBILITY_REASONS = {
@@ -243,13 +254,52 @@ export const preparationRuleInputSchema = z.strictObject({
     .max(64),
 });
 export type PreparationRuleInput = z.infer<typeof preparationRuleInputSchema>;
+
+export const SEMANTIC_VALIDATION_STATUSES = {
+  passed: "PASSED",
+  failed: "FAILED",
+} as const;
+export type SemanticValidationStatus =
+  (typeof SEMANTIC_VALIDATION_STATUSES)[keyof typeof SEMANTIC_VALIDATION_STATUSES];
+
+export const SEMANTIC_VALIDATION_VERDICTS = {
+  grounded: "GROUNDED",
+  ungrounded: "UNGROUNDED",
+  contradictory: "CONTRADICTORY",
+  uncertain: "UNCERTAIN",
+} as const;
+export type SemanticValidationVerdict =
+  (typeof SEMANTIC_VALIDATION_VERDICTS)[keyof typeof SEMANTIC_VALIDATION_VERDICTS];
+
+export const semanticValidationCheckSchema = z.strictObject({
+  assessmentRuleId: z.string().min(1).max(256),
+  legalRequirementId: z.string().min(1).max(256),
+  verdict: z.enum([
+    SEMANTIC_VALIDATION_VERDICTS.grounded,
+    SEMANTIC_VALIDATION_VERDICTS.ungrounded,
+    SEMANTIC_VALIDATION_VERDICTS.contradictory,
+    SEMANTIC_VALIDATION_VERDICTS.uncertain,
+  ]),
+  rationale: text.min(1).max(4000),
+  sourceRefs: legalRequirementSchema.shape.sourceRefs.unwrap().min(1).max(64),
+});
+
+export const semanticValidationSchema = z.strictObject({
+  status: z.enum([
+    SEMANTIC_VALIDATION_STATUSES.passed,
+    SEMANTIC_VALIDATION_STATUSES.failed,
+  ]),
+  verifier: z.literal("DEEP_AGENT_SEMANTIC_VALIDATOR"),
+  checks: z.array(semanticValidationCheckSchema).min(1).max(256),
+});
+
 /**
  * Business purpose: Apply the existing downstream authoring contract to one selected LegalRule result.
  * Business rules:
  * - Derived assessment prose comes from canonical parent bindings; coverage and context retain existing validation.
  * Execution flow:
  * 1. Parse the downstream packet with its shared contract.
- * 2. Forward validation issues or return the normalized packet with the analysis.
+ * 2. Forward validation issues or return the normalized packet with the analysis and optional semanticValidation.
  * Failure cases:
  * - Invalid coverage or malformed downstream artifacts become schema issues rather than fabricated output.
  * Side effects:
@@ -261,10 +311,11 @@ function normalizeSelectedRuleOutput(
     legalRequirements: unknown[];
     assessmentRules: unknown[];
     contextRelations: unknown[];
+    semanticValidation?: z.infer<typeof semanticValidationSchema>;
   },
   ctx: z.RefinementCtx,
 ) {
-  const { analysis, ...packet } = payload;
+  const { analysis, semanticValidation, ...packet } = payload;
   const parsed = complianceRuleSetPacketSchema.safeParse(packet);
   if (!parsed.success) {
     for (const issue of parsed.error.issues)
@@ -275,7 +326,11 @@ function normalizeSelectedRuleOutput(
       });
     return z.NEVER;
   }
-  return { analysis, ...parsed.data };
+  return {
+    analysis,
+    ...(semanticValidation ? { semanticValidation } : {}),
+    ...parsed.data,
+  };
 }
 export const preparationRuleOutputSchema = z
   .strictObject({
@@ -290,9 +345,106 @@ export const preparationRuleOutputSchema = z
       .array(legalContextRelationSchema)
       .max(LEGAL_RULE_LIMITS.preparedArtifacts)
       .default([]),
+    semanticValidation: semanticValidationSchema.optional(),
   })
   .transform(normalizeSelectedRuleOutput);
 export type PreparationRuleOutput = z.infer<typeof preparationRuleOutputSchema>;
+// Source-level semantic authority is separate from a selected-run result or a client
+// scope flag. Existing import/worker output schemas remain unchanged. An independent
+// reviewer can approve an exact normative candidate once; subsequent identical
+// imports/regenerations can consume that authority without a model invocation.
+const scopeHash = z.string().regex(/^[a-f0-9]{64}$/);
+export const selectedScopeDecisionSchema = z.strictObject({
+  legalRequirementId: z.string().min(1).max(128),
+  stage: z.enum(PREPARATION_SCOPE_STAGES),
+  rationale: z.string().trim().min(8).max(8000),
+  technicalDeliverable: z.string().trim().min(1).max(8000).nullable(),
+  // Offsets are UTF-16 code units, like other pinned legal source spans.
+  sourceSupport: z
+    .array(
+      z.strictObject({
+        chunkId: z.string().min(1),
+        startOffset: z.number().int().nonnegative(),
+        endOffset: z.number().int().positive(),
+        contentSha256: scopeHash,
+      }),
+    )
+    .min(1)
+    .max(256),
+});
+export const selectedScopeAuthorizationSubmitSchema = z.strictObject({
+  ruleId: id,
+  expectedCatalogRevision: z.number().int().positive(),
+  expectedReviewRevision: z.number().int().nonnegative(),
+  output: preparationRuleOutputSchema,
+  decisions: z
+    .array(selectedScopeDecisionSchema)
+    .min(1)
+    .max(LEGAL_RULE_LIMITS.preparedArtifacts),
+});
+export const selectedScopeAuthorizationApproveSchema = z.strictObject({
+  ruleId: id,
+  expectedCatalogRevision: z.number().int().positive(),
+  scopeKey: scopeHash,
+  expectedReviewRevision: z.number().int().positive(),
+  decisionDigest: scopeHash,
+  confirmsLegalReview: z.literal(true),
+});
+export const selectedScopeAuthorizationRevokeSchema = z.strictObject({
+  expectedCatalogRevision: z.number().int().positive(),
+  scopeKey: scopeHash,
+  expectedReviewRevision: z.number().int().positive(),
+  reason: text.max(2000),
+  confirmsRevocation: z.literal(true),
+});
+export const SELECTED_SCOPE_AUTHORIZATION_STATES = {
+  DRAFT: "DRAFT",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
+} as const;
+export const selectedScopeAuthorizationSummarySchema = z.object({
+  scopeKey: scopeHash,
+  decisionDigest: scopeHash,
+  revision: z.number().int().positive(),
+  state: z.enum(SELECTED_SCOPE_AUTHORIZATION_STATES),
+});
+export const selectedScopeAuthorizationListSchema = z.object({
+  authorizations: z.array(selectedScopeAuthorizationSummarySchema),
+});
+export const selectedScopeAuthorizationDetailSchema = z.object({
+  scopeKey: scopeHash,
+  ruleId: id,
+  state: z.enum(SELECTED_SCOPE_AUTHORIZATION_STATES),
+  revision: z.number().int().positive(),
+  catalogRevision: z.number().int().positive(),
+  decisionDigest: scopeHash,
+  submittedBy: z.string().min(1),
+  approvedBy: z.string().nullable(),
+  approvedAt: z.coerce.date().nullable(),
+  legalSourceVersionId: id,
+  output: preparationRuleOutputSchema,
+  decisions: z.array(selectedScopeDecisionSchema),
+  citations: z.array(
+    z.object({
+      chunkId: z.string().min(1),
+      documentId: z.string().min(1),
+      locator: z.string().min(1),
+      contentSha256: z.string().min(1),
+      content: z.string(),
+    }),
+  ),
+});
+export type SelectedScopeDecision = z.infer<typeof selectedScopeDecisionSchema>;
+export type SelectedScopeAuthorizationSubmit = z.infer<
+  typeof selectedScopeAuthorizationSubmitSchema
+>;
+export type SelectedScopeAuthorizationApprove = z.infer<
+  typeof selectedScopeAuthorizationApproveSchema
+>;
+export type SelectedScopeAuthorizationRevoke = z.infer<
+  typeof selectedScopeAuthorizationRevokeSchema
+>;
+
 /** Version of the externally authored Assessment Rule Import document. */
 export const ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION = 1 as const;
 /** Why a reviewed Legal Rule (or part of one) was deliberately not imported. */

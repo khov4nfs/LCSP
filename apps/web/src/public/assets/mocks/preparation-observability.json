@@ -6,7 +6,6 @@
     "executionState": "RUNNING",
     "ruleSetVersionId": null,
     "executionContract": "CLAIM_INVENTORY_V1",
-    "targetActivityScope": "DEVELOPMENT_ONLY",
     "claimPhase": "RULE_AUTHORING",
     "startedAt": "2026-11-09T01:00:00.000Z",
     "createdAt": "2026-11-09T00:59:00.000Z",

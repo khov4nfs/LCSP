@@ -105,7 +105,7 @@ test("run-scoped durable history survives replay/reconnect, pages older events a
     );
     assert.equal(activityTab.getAttribute("aria-selected"), "true");
     await settle();
-    assert.match(node.textContent!, /DEVELOPMENT_ONLY/);
+    assert.match(node.textContent!, /CLAIM_INVENTORY_V1/);
     assert.match(node.textContent!, /MODEL_EXECUTION/);
     assert.match(node.textContent!, /Observed input tokens\s*100/);
     assert(!node.textContent!.includes("DO_NOT_RENDER"));

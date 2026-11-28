@@ -1,16 +1,16 @@
-/** Server-owned scope review protocol. This is NOT a model-selected source filter. */
+/** Server-owned legal scope classification stages. */
 import { z } from "zod";
 import { RULE_CATALOG_GROUP_IDS } from "../assessment-domain/rule-groups.ts";
 
-export const PREPARATION_ACTIVITY_SCOPES = [
-  "FULL_SOURCE",
-  "DEVELOPMENT_ONLY",
-] as const;
 export const PREPARATION_SCOPE_STAGES = [
   "DEVELOPMENT",
   "NON_DEVELOPMENT",
   "LEGAL_REVIEW_REQUIRED",
 ] as const;
+
+/** Negative authoring signal only: an unresolved legal scope must not be published as an accepted result. */
+export const PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX =
+  "LEGAL_REVIEW_REQUIRED:";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const preparationClaimStageDecisionSchema = z.strictObject({

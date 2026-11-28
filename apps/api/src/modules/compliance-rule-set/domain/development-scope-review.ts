@@ -9,6 +9,7 @@ import {
   type ComplianceRuleSetPacket,
   type PreparationClaimStageDecision,
 } from "@lcsp/contracts/compliance-rule-set";
+import { sourceSupportFailures } from "./source-completeness.js";
 
 const normative = new Set(["DUTY", "PROHIBITION", "PERMISSION"]);
 const inbound = new Set([
@@ -82,6 +83,63 @@ export function scopeDigest(value: unknown): string {
     return JSON.stringify(item);
   };
   return createHash("sha256").update(serialize(value)).digest("hex");
+}
+
+type PinnedScopeSourceNode = {
+  nodeId: string;
+  legalSourceVersionId: string;
+  materializationId: string;
+  structuralPath: string;
+  content: string;
+};
+
+/**
+ * Business purpose: Bind new stage decisions to the actual frozen legal text, rather than a claimed locator.
+ * Business rules:
+ * - Each decision must cite all and only the claim's actual source anchors, with exact structural locators.
+ * - The frozen claim's original support spans must hash-match the same source version and materialization.
+ * - This verifies provenance, not the correctness of a semantic classification; independent legal review remains necessary.
+ * Execution flow:
+ * 1. Index persisted source nodes from the frozen materialization and validate source identity.
+ * 2. Revalidate support spans for each decision and resolve its locators against those nodes.
+ * Failure cases:
+ * - Reject missing, foreign, substituted, duplicated or unbound source evidence.
+ * Side effects:
+ * - Pure verification, without editing historical ledgers or granting activation authority.
+ */
+export function assertScopeDecisionSourceBindings(
+  graph: LegalSemanticGraph,
+  decisions: readonly PreparationClaimStageDecision[],
+  nodes: readonly PinnedScopeSourceNode[],
+): void {
+  const byId = new Map(nodes.map((node) => [node.nodeId, node]));
+  if (
+    byId.size !== nodes.length ||
+    nodes.some(
+      (node) =>
+        node.legalSourceVersionId !== graph.legalSourceVersionId ||
+        node.materializationId !== graph.materializationId,
+    )
+  )
+    fail("SOURCE_MATERIALIZATION_MISMATCH");
+
+  const claims = new Map(graph.claims.map((claim) => [claim.claimId, claim]));
+  for (const decision of decisions) {
+    const claim = claims.get(decision.claimId);
+    if (!claim || sourceSupportFailures(claim, { nodes }).length)
+      fail("SOURCE_SUPPORT_INVALID:" + decision.claimId);
+    const support = decision.evidence.sourceSupport;
+    const cited = new Set(support.map((row) => row.sourceNodeId));
+    if (
+      cited.size !== support.length ||
+      cited.size !== claim.sourceNodeIds.length ||
+      claim.sourceNodeIds.some((id) => !cited.has(id)) ||
+      support.some(
+        (row) => byId.get(row.sourceNodeId)?.structuralPath !== row.locator,
+      )
+    )
+      fail("SOURCE_LOCATOR_MISMATCH:" + decision.claimId);
+  }
 }
 
 export type DevelopmentProjection = {

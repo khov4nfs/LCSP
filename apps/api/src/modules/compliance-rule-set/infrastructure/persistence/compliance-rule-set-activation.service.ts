@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { canonicalJson as selectedCanonicalJson } from "../../../assessment/domain/domain-ids.js";
 import { validateFrozenInventory } from "../../domain/claim-inventory.js";
 import { frozenInventoryForRun } from "./preparation-inventory.persistence.js";
 
@@ -12,11 +13,17 @@ import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
+  complianceRuleSetPacketSchema,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSubmitResult,
   type ComplianceRuleSetValidationFailure,
 } from "@lcsp/contracts/compliance-rule-set";
-import type { LegalRuleActivationResult } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  preparationRuleInputSchema,
+  preparationRuleOutputSchema,
+  type LegalRuleActivationResult,
+  type PreparationRuleOutput,
+} from "@lcsp/contracts/legal-rule-catalog";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
@@ -24,7 +31,6 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
-  PreparationTargetActivityScope,
   ClaimPreparationPhase,
   AgentExecutionState as PrismaAgentExecutionState,
   ArtifactLifecycleState as PrismaArtifactLifecycleState,
@@ -43,7 +49,8 @@ import {
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
 import { writeSemanticGraph } from "./semantic-graph.persistence.js";
-import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
+import { requireSelectedScopeAuthorization } from "./selected-scope-authority.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
 
@@ -86,6 +93,7 @@ export interface SelectedActivationContext {
     revision: number;
     inputFingerprint: string;
     outputDigest: string;
+    scopeAuthorizationKey?: string;
   }>;
   correlationId: string;
 }
@@ -99,6 +107,7 @@ export class ComplianceRuleSetActivation {
   constructor(
     private readonly outboxRepository: OutboxRepository,
     private readonly auditWriter: AuditWriterService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   async findReplay(
@@ -154,6 +163,8 @@ export class ComplianceRuleSetActivation {
    * - The Preparation row lock serializes submission with cancellation, inventory reopening, and other publication attempts.
    * - A matching activation record is replayed; the same idempotency key with different run/request digest conflicts.
    * - A clean packet must still match the frozen inventory, persisted direct draft, and SUBMISSION_READY phase after locking.
+   * - New passing publications must bind the product-approved official original corpus.
+   * - New passing publications require the canonical Development scope and its approved projection.
    * - A failed packet is recorded as INVALID and cannot supersede the current ACTIVE version; a passing packet becomes ACTIVE and supersedes the prior version.
    *
    * Execution flow:
@@ -180,10 +191,9 @@ export class ComplianceRuleSetActivation {
         claimInventoryRevision: number;
         claimPhase: ClaimPreparationPhase;
         executionContract: import("@prisma/client").PreparationExecutionContract;
-        targetActivityScope: import("@prisma/client").PreparationTargetActivityScope;
       }>
     >(
-      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract", "targetActivityScope" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase", "executionContract" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -239,18 +249,31 @@ export class ComplianceRuleSetActivation {
         },
       );
 
-    // Recompute human-reviewed projection after the run lock: a stale
-    // approval can NEVER publish an incomplete Development catalog.
-    await requireApprovedDevelopmentScope(
-      tx,
-      ctx.runId,
-      preparation.claimInventoryRevision,
-      ctx.legalSource.id,
-      preparation.targetActivityScope,
-      ctx.correlationId,
-      ctx.packet,
-    );
-
+    // Source admission is checked before publication; never publish a new version from a foreign corpus.
+    // Unified legal validation: reject any unresolved LEGAL_REVIEW_REQUIRED marker on publication.
+    if (ctx.failures.length === 0) {
+      const hasUnresolvedUncertainty = ctx.packet.legalRequirements.some(
+        (req) =>
+          (req.coverage.nonAssessableReason ?? "").startsWith(
+            "LEGAL_REVIEW_REQUIRED:",
+          ),
+      );
+      if (hasUnresolvedUncertainty) {
+        throw problemException(
+          COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+          ctx.correlationId,
+          {
+            status: HttpStatus.CONFLICT,
+            meta: { reason: "LEGAL_REVIEW_REQUIRED" },
+          },
+        );
+      }
+      await this.authority.requireVersion(
+        tx,
+        ctx.legalSource.id,
+        ctx.correlationId,
+      );
+    }
     // Cancel and publication serialize on the preparation row; only one can become terminal.
     await acquireComplianceRuleSetActivationLock(tx);
 
@@ -284,7 +307,6 @@ export class ComplianceRuleSetActivation {
         version,
         legalSourceVersionId: ctx.legalSource.id,
         preparationRunId: ctx.runId,
-        targetActivityScope: preparation.targetActivityScope,
         lifecycleState: valid
           ? PrismaArtifactLifecycleState.ACTIVE
           : PrismaArtifactLifecycleState.INVALID,
@@ -300,18 +322,9 @@ export class ComplianceRuleSetActivation {
     if (valid) {
       await this.writeChildren(tx, ruleSet.id, ctx);
       await this.enqueueAuthoredDocuments(tx, ruleSet.id);
-      if (
-        ruleSet.targetActivityScope ===
-        PreparationTargetActivityScope.DEVELOPMENT_ONLY
-      ) {
-        const { materializeGroupingProposal } =
-          await import("./rule-catalog-groups.service.js");
-        await materializeGroupingProposal(
-          tx,
-          ruleSet.id,
-          ruleSet.ruleSetDigest,
-        );
-      }
+      const { materializeGroupingProposal } =
+        await import("./rule-catalog-groups.service.js");
+      await materializeGroupingProposal(tx, ruleSet.id, ruleSet.ruleSetDigest);
     }
 
     await tx.ruleSetPreparationRun.update({
@@ -419,10 +432,116 @@ export class ComplianceRuleSetActivation {
   }
 
   /**
+   * Business purpose: Reconstruct the selected publication's authorized normative packet at the final write boundary.
+   * Business rules:
+   * - Only persisted SUCCEEDED revisions, exact source/input/output pins and an independent positive scope grant may publish.
+   * - The packet must be exactly the aggregation of those authorized results, not a caller-substituted packet.
+   * Execution flow: 1. Reload each exact selected result. 2. Revalidate the reviewed authority and source. 3. Compare the reconstructed packet digest.
+   * Failure cases:
+   * - Missing, stale, substituted, unreviewed, duplicated or foreign results abort before the ACTIVE pointer moves.
+   * Side effects:
+   * - Read-only within the caller's publication transaction.
+   */
+  private async requireSelectedPublicationAuthority(
+    tx: Prisma.TransactionClient,
+    ctx: SelectedActivationContext,
+  ) {
+    /**
+     * Business purpose: Deny publication when the persisted selected authority does not match.
+     * Business rules:
+     * - Return the shared conflict without exposing candidate contents.
+     * Execution flow: 1. Build a problem for the publication correlation.
+     * Failure cases:
+     * - The caller throws this conflict before mutation.
+     * Side effects:
+     * - None; constructs an error only.
+     */
+    const reject = () =>
+      problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+        ctx.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    if (
+      !ctx.selectedPreparationResults.length ||
+      new Set(ctx.selectedPreparationResults.map((row) => row.resultId))
+        .size !== ctx.selectedPreparationResults.length ||
+      new Set(ctx.selectedPreparationResults.map((row) => row.ruleId)).size !==
+        ctx.selectedPreparationResults.length
+    )
+      throw reject();
+    const rows = await tx.preparationRuleResult.findMany({
+      where: {
+        id: { in: ctx.selectedPreparationResults.map((row) => row.resultId) },
+      },
+      include: { preparationRule: true, preparationRun: true },
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const outputs: PreparationRuleOutput[] = [];
+    for (const manifest of ctx.selectedPreparationResults) {
+      const row = byId.get(manifest.resultId);
+      if (
+        !row ||
+        row.revision !== manifest.revision ||
+        row.preparationRule.legalRuleId !== manifest.ruleId ||
+        row.preparationRun.executionState !==
+          PrismaAgentExecutionState.SUCCEEDED ||
+        row.preparationRun.legalSourceVersionId !== ctx.legalSource.id ||
+        row.inputFingerprint !== manifest.inputFingerprint ||
+        !row.output
+      )
+        throw reject();
+      const input = preparationRuleInputSchema.parse(row.inputSnapshot);
+      const output = preparationRuleOutputSchema.parse(row.output);
+      if (
+        input.legalSourceVersionId !== ctx.legalSource.id ||
+        input.ruleId !== manifest.ruleId ||
+        sha256Hex(
+          selectedCanonicalJson({
+            ...input,
+            citations: input.citations.map(
+              ({ chunkId, documentId, locator, contentSha256 }) => ({
+                chunkId,
+                documentId,
+                locator,
+                contentSha256,
+              }),
+            ),
+          }),
+        ) !== manifest.inputFingerprint ||
+        sha256Hex(selectedCanonicalJson(output)) !== manifest.outputDigest ||
+        !output.assessmentRules.length
+      )
+        throw reject();
+      const key = await requireSelectedScopeAuthorization(
+        tx,
+        input,
+        output,
+        ctx.correlationId,
+        this.authority,
+      );
+      if (!key || key !== manifest.scopeAuthorizationKey) throw reject();
+      outputs.push(output);
+    }
+    const reconstructed = complianceRuleSetPacketSchema.parse({
+      legalRequirements: outputs.flatMap((output) => output.legalRequirements),
+      assessmentRules: outputs.flatMap((output) => output.assessmentRules),
+      contextRelations: outputs.flatMap((output) => output.contextRelations),
+    });
+    if (
+      selectedCanonicalJson(reconstructed) !==
+        selectedCanonicalJson(ctx.packet) ||
+      sha256Hex(selectedCanonicalJson(ctx.packet)) !== ctx.ruleSetDigest
+    )
+      throw reject();
+  }
+
+  /**
    * Business purpose: Publish only Admin-selected, persisted LegalRule results as the single ACTIVE Rule Set without inventing a full-source Preparation.
    *
    * Business rules:
    * - The caller must validate current successful result revisions, source pins, and the combined packet in the same transaction before calling this method.
+   * - New selected publications also require the approved official original corpus, even if a caller already validated the packet.
    * - The selected-result manifest is immutable provenance; the shared advisory lock and partial unique index preserve one ACTIVE Rule Set.
    * - Publication and replacement of the prior ACTIVE version, child rows, audit, and outbox commit atomically.
    *
@@ -459,6 +578,13 @@ export class ComplianceRuleSetActivation {
     );
     if (lockedReplay) return lockedReplay;
 
+    // Recheck admission after acquiring the publication lock; a historical replay is unchanged.
+    await this.authority.requireVersion(
+      tx,
+      ctx.legalSource.id,
+      ctx.correlationId,
+    );
+    await this.requireSelectedPublicationAuthority(tx, ctx);
     const previousActive = await tx.complianceRuleSetVersion.findFirst({
       where: { lifecycleState: PrismaArtifactLifecycleState.ACTIVE },
       select: { id: true },
@@ -490,7 +616,6 @@ export class ComplianceRuleSetActivation {
         legalSourceVersionId: ctx.legalSource.id,
         preparationRunId: null,
         selectedPreparationResults: manifest,
-        targetActivityScope: PreparationTargetActivityScope.FULL_SOURCE,
         lifecycleState: PrismaArtifactLifecycleState.ACTIVE,
         ruleSetDigest: ctx.ruleSetDigest,
         validationOutcome: PrismaValidationOutcome.PASSED,
@@ -502,6 +627,10 @@ export class ComplianceRuleSetActivation {
 
     await this.writeChildren(tx, ruleSet.id, ctx, false);
     await this.enqueueAuthoredDocuments(tx, ruleSet.id);
+    // Selected and full-source publications share the same grouping readiness boundary.
+    const { materializeGroupingProposal } =
+      await import("./rule-catalog-groups.service.js");
+    await materializeGroupingProposal(tx, ruleSet.id, ruleSet.ruleSetDigest);
 
     const outboxEventId = await this.outboxRepository.enqueue(
       buildOutboxMessageInput({

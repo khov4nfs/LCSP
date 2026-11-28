@@ -1,29 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { Injectable, Optional } from "@nestjs/common";
-import { CommandBus } from "@nestjs/cqrs";
-import {
-  Prisma,
-  AgentExecutionState as A,
-  PreparationExecutionContract,
-  RuleSetPreparationFailureReason,
-} from "@prisma/client";
-import { z } from "zod";
-import {
-  LEGAL_RULE_CATALOG_ERRORS as E,
-  LEGAL_RULE_CATALOG_EVENTS as EVENTS,
-  LEGAL_RULE_SELECTION_MODES,
-  preparationRuleInputSchema,
-  preparationRuleOutputSchema,
-  preparationInstructionReceiptSchema,
-  type PreparationRuleInput,
-  type PreparationRuleComplete,
-  // Shared contracts type activation, output collection, and rule validation.
-  type LegalRuleActivationRequest,
-  type LegalRuleActivationResult,
-  type AssessmentRuleImportRequest,
-  type AssessmentRuleImportResult,
-  type PreparationRuleValidate,
-} from "@lcsp/contracts/legal-rule-catalog";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
@@ -34,9 +8,40 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
+  LEGAL_RULE_CATALOG_ERRORS as E,
+  LEGAL_RULE_CATALOG_EVENTS as EVENTS,
+  LEGAL_RULE_SELECTION_MODES,
+  preparationInstructionReceiptSchema,
+  preparationRuleInputSchema,
+  preparationRuleOutputSchema,
+  selectedScopeDecisionSchema,
+  type AssessmentRuleImportRequest,
+  type AssessmentRuleImportResult,
+  // Shared contracts type activation, output collection, and rule validation.
+  type LegalRuleActivationRequest,
+  type LegalRuleActivationResult,
+  type PreparationRuleComplete,
+  type PreparationRuleInput,
+  type PreparationRuleValidate,
+  type SelectedScopeAuthorizationApprove,
+  type SelectedScopeAuthorizationRevoke,
+  type SelectedScopeAuthorizationSubmit,
+} from "@lcsp/contracts/legal-rule-catalog";
+import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { Injectable, Optional } from "@nestjs/common";
+import { CommandBus } from "@nestjs/cqrs";
+import {
+  AgentExecutionState as A,
+  PreparationExecutionContract,
+  PreparationScopeReviewState,
+  Prisma,
+  RuleSetPreparationFailureReason,
+} from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import {
@@ -45,18 +50,26 @@ import {
 } from "../../../assessment/domain/domain-ids.js";
 import { ComplianceRuleSetActivation } from "../../../compliance-rule-set/infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { LegalSourceSnapshotLoader } from "../../../compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
-import { CancelRuleSetPreparationCommand } from "../../../compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
-import { ActivatePreparedRulesHandler } from "../commands/activate-prepared-rules/activate-prepared-rules.handler.js";
-import { ActivatePreparedRulesCommand } from "../commands/activate-prepared-rules/activate-prepared-rules.command.js";
-import { ImportAssessmentRulesHandler } from "../commands/import-assessment-rules/import-assessment-rules.handler.js";
-import { ImportAssessmentRulesCommand } from "../commands/import-assessment-rules/import-assessment-rules.command.js";
-import { validateSelectedOutput } from "./selected-output-validation.js";
 import {
-  LegalRuleCatalogService,
+  requireSelectedScopeAuthorization,
+  requireSelectedScopeSource,
+  selectedScopeKey,
+  validateSelectedScopeDecisions,
+} from "../../../compliance-rule-set/infrastructure/persistence/selected-scope-authority.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
+
+import { CancelRuleSetPreparationCommand } from "../../../compliance-rule-set/application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
+import { ActivatePreparedRulesCommand } from "../commands/activate-prepared-rules/activate-prepared-rules.command.js";
+import { ActivatePreparedRulesHandler } from "../commands/activate-prepared-rules/activate-prepared-rules.handler.js";
+import { ImportAssessmentRulesCommand } from "../commands/import-assessment-rules/import-assessment-rules.command.js";
+import { ImportAssessmentRulesHandler } from "../commands/import-assessment-rules/import-assessment-rules.handler.js";
+import {
   catalogFailure,
+  LegalRuleCatalogService,
   preparationInputFingerprint,
   type CatalogClient,
 } from "./legal-rule-catalog.service.js";
+import { validateSelectedOutput } from "./selected-output-validation.js";
 
 const batchItemSchema = z.strictObject({
   ruleId: z.string().uuid(),
@@ -96,6 +109,7 @@ export class PreparationRuleService {
     private readonly commands: CommandBus,
     private readonly sourceSnapshot: LegalSourceSnapshotLoader,
     private readonly activation: ComplianceRuleSetActivation,
+    private readonly scopeSourceAuthority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
     @Optional() private readonly activateHandler?: ActivatePreparedRulesHandler,
     @Optional() private readonly importHandler?: ImportAssessmentRulesHandler,
   ) {}
@@ -389,14 +403,20 @@ export class PreparationRuleService {
       complete: items.every((item) => terminalStates.has(item.executionState)),
       items,
       ruleSet: {
-        legalRequirements: items.flatMap(
-          (item) => item.output?.legalRequirements ?? [],
+        legalRequirements: items.flatMap((item) =>
+          item.executionState === A.SUCCEEDED
+            ? (item.output?.legalRequirements ?? [])
+            : [],
         ),
-        assessmentRules: items.flatMap(
-          (item) => item.output?.assessmentRules ?? [],
+        assessmentRules: items.flatMap((item) =>
+          item.executionState === A.SUCCEEDED
+            ? (item.output?.assessmentRules ?? [])
+            : [],
         ),
-        contextRelations: items.flatMap(
-          (item) => item.output?.contextRelations ?? [],
+        contextRelations: items.flatMap((item) =>
+          item.executionState === A.SUCCEEDED
+            ? (item.output?.contextRelations ?? [])
+            : [],
         ),
       },
     };
@@ -439,7 +459,334 @@ export class PreparationRuleService {
       this.catalogs,
       this.sourceSnapshot,
       this.activation,
+      this.scopeSourceAuthority,
     ).execute(command);
+  }
+
+  /**
+   * Business purpose: Register reusable source-backed semantic review without creating a Preparation run.
+   * Business rules:
+   * - Only the authenticated Admin route supplies the author; the candidate must match the current catalog and official original source.
+   * - A draft cannot publish; approved authority is immutable and cannot be self-approved.
+   * Execution flow: 1. Lock and hydrate the exact catalog entry. 2. Validate output and decision source support. 3. CAS-create/update the draft and audit.
+   * Failure cases:
+   * - Stale revisions, missing source or invalid scope evidence reject before writes.
+   * Side effects:
+   * - Saves a review candidate and audit event only; never invokes a provider or creates a result.
+   */
+  async submitScopeAuthorization(
+    catalogId: string,
+    request: SelectedScopeAuthorizationSubmit,
+    actor: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.catalogs.lock(
+        tx,
+        catalogId,
+        request.expectedCatalogRevision,
+        cid,
+      );
+      const { items } = await this.catalogs.entries(tx, catalogId, cid);
+      const item = items.find((row) => row.id === request.ruleId);
+      if (!item?.input) catalogFailure(E.INELIGIBLE, cid);
+      const [input] = await this.catalogs.hydrate(tx, [item.input], cid);
+      validateSelectedOutput(input, request.output, cid, true);
+      const scopeKey = selectedScopeKey(input, request.output);
+      const decisionDigest = validateSelectedScopeDecisions(
+        input,
+        request.output,
+        request.decisions,
+        cid,
+        false,
+      );
+      const existing = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey },
+      });
+      // Preserve immutable approval/revocation history: never overwrite a row that
+      // has already been APPROVED, REJECTED (revoked), or carries an approvedBy signature.
+      if (
+        (existing?.revision ?? 0) !== request.expectedReviewRevision ||
+        (existing &&
+          (existing.state !== PreparationScopeReviewState.DRAFT ||
+            existing.approvedBy !== null))
+      )
+        catalogFailure(E.CONFLICT, cid);
+      const data = {
+        legalSourceVersionId: input.legalSourceVersionId,
+        catalogId,
+        ruleId: input.ruleId,
+        output: request.output as unknown as Prisma.InputJsonValue,
+        decisions: request.decisions as unknown as Prisma.InputJsonValue,
+        decisionDigest,
+        submittedBy: actor,
+        state: PreparationScopeReviewState.DRAFT,
+        approvedBy: null,
+        approvedAt: null,
+      };
+      const row = existing
+        ? await tx.selectedRuleScopeAuthorization.update({
+            where: { scopeKey },
+            data: { ...data, revision: { increment: 1 } },
+          })
+        : await tx.selectedRuleScopeAuthorization.create({
+            data: { scopeKey, ...data },
+          });
+      await this.catalogs.record(
+        tx,
+        EVENTS.SCOPE_AUTHORIZATION_SUBMITTED,
+        scopeKey,
+        actor,
+        cid,
+        {
+          scopeAuthorizationId: scopeKey,
+          decisionDigest,
+          revision: row.revision,
+        },
+      );
+      return {
+        scopeKey,
+        decisionDigest,
+        revision: row.revision,
+        state: row.state,
+      };
+    });
+  }
+
+  /**
+   * Business purpose: List persisted semantic review authorizations for a specific Legal Rule in a catalog.
+   * Business rules:
+   * - Read-only catalog/rule scoped query; returns newest first so UI can auto-select without manual key entry.
+   * Execution flow: 1. Query SelectedRuleScopeAuthorization by catalogId and ruleId ordered by updatedAt desc.
+   * Failure cases:
+   * - Database read errors propagate without modifying persisted records.
+   * Side effects:
+   * - Read-only database query.
+   */
+  async listScopeAuthorizationsForRule(catalogId: string, ruleId: string) {
+    const rows = await this.prisma.selectedRuleScopeAuthorization.findMany({
+      where: { catalogId, ruleId },
+      orderBy: [{ updatedAt: "desc" }],
+      take: 20,
+      select: {
+        scopeKey: true,
+        decisionDigest: true,
+        revision: true,
+        state: true,
+      },
+    });
+    return { authorizations: rows };
+  }
+
+  /**
+   * Business purpose: Present a persisted semantic candidate and the exact source to an independent reviewer.
+   * Business rules:
+   * - Only the owning catalog, current eligible rule and matching pinned evidence are accessible, including historical keys.
+   * Execution flow: 1. Read the candidate. 2. Resolve the catalog entry and hydrate its pinned source. 3. Recheck the semantic key and return the reviewed payload.
+   * Failure cases:
+   * - Missing, mismatched or stale evidence returns a typed conflict.
+   * Side effects:
+   * - Read-only; no model invocation, mutation or approval.
+   */
+  async readScopeAuthorization(
+    catalogId: string,
+    scopeKey: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey },
+      });
+      if (!row || row.catalogId !== catalogId) catalogFailure(E.CONFLICT, cid);
+      const { items } = await this.catalogs.entries(tx, catalogId, cid);
+      const item = items.find((candidate) => candidate.id === row.ruleId);
+      if (!item?.input) catalogFailure(E.INELIGIBLE, cid);
+      const [input] = await this.catalogs.hydrate(tx, [item.input], cid);
+      const output = preparationRuleOutputSchema.parse(row.output);
+      const decisions = z
+        .array(selectedScopeDecisionSchema)
+        .parse(row.decisions);
+      if (
+        // Historical rows remain auditable under their original key.
+        (selectedScopeKey(input, output) !== scopeKey &&
+          selectedScopeKey(input, output, 1) !== scopeKey) ||
+        validateSelectedScopeDecisions(input, output, decisions, cid, false) !==
+          row.decisionDigest
+      )
+        catalogFailure(E.CONFLICT, cid);
+      return {
+        scopeKey,
+        ruleId: row.ruleId,
+        state: row.state,
+        revision: row.revision,
+        catalogRevision: input.catalogRevision,
+        decisionDigest: row.decisionDigest,
+        submittedBy: row.submittedBy,
+        approvedBy: row.approvedBy,
+        approvedAt: row.approvedAt,
+        legalSourceVersionId: input.legalSourceVersionId,
+        output,
+        decisions,
+        citations: input.citations,
+      };
+    });
+  }
+
+  /**
+   * Business purpose: Independently approve an exact reusable legal-scope candidate.
+   * Business rules:
+   * - The reviewer must differ from the author and explicitly confirm the reviewed legal meaning.
+   * - All operative decisions, effective original citations and material context must match; unresolved or mixed unsupported candidates cannot publish.
+   * Execution flow: 1. Lock catalog revision and reload the draft. 2. Rehydrate source and revalidate candidate/digest. 3. Mark approved and audit atomically.
+   * Failure cases:
+   * - Self-approval, stale or changed candidates, unresolved scope, source drift and malformed evidence reject.
+   * Side effects:
+   * - Persists independent reviewer identity; no Preparation, provider calls or automatic activation.
+   */
+  async approveScopeAuthorization(
+    catalogId: string,
+    request: SelectedScopeAuthorizationApprove,
+    actor: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.catalogs.lock(
+        tx,
+        catalogId,
+        request.expectedCatalogRevision,
+        cid,
+      );
+      const row = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey: request.scopeKey },
+      });
+      if (
+        request.confirmsLegalReview !== true ||
+        !row ||
+        row.catalogId !== catalogId ||
+        row.ruleId !== request.ruleId ||
+        row.state !== PreparationScopeReviewState.DRAFT ||
+        row.submittedBy === actor ||
+        row.revision !== request.expectedReviewRevision ||
+        row.decisionDigest !== request.decisionDigest
+      )
+        catalogFailure(E.CONFLICT, cid);
+      const { items } = await this.catalogs.entries(tx, catalogId, cid);
+      const item = items.find((candidate) => candidate.id === request.ruleId);
+      if (!item?.input) catalogFailure(E.INELIGIBLE, cid);
+      const [input] = await this.catalogs.hydrate(tx, [item.input], cid);
+      const output = preparationRuleOutputSchema.parse(row.output);
+      const decisions = z
+        .array(selectedScopeDecisionSchema)
+        .parse(row.decisions);
+      validateSelectedOutput(input, output, cid);
+      if (
+        row.legalSourceVersionId !== input.legalSourceVersionId ||
+        selectedScopeKey(input, output) !== row.scopeKey ||
+        validateSelectedScopeDecisions(input, output, decisions, cid) !==
+          row.decisionDigest
+      )
+        catalogFailure(E.CONFLICT, cid);
+      await requireSelectedScopeSource(
+        tx,
+        input,
+        output,
+        cid,
+        this.scopeSourceAuthority,
+      );
+      const approved = await tx.selectedRuleScopeAuthorization.update({
+        where: { scopeKey: row.scopeKey },
+        data: {
+          state: PreparationScopeReviewState.APPROVED,
+          approvedBy: actor,
+          approvedAt: new Date(),
+        },
+      });
+      await this.catalogs.record(
+        tx,
+        EVENTS.SCOPE_AUTHORIZATION_APPROVED,
+        row.scopeKey,
+        actor,
+        cid,
+        {
+          scopeAuthorizationId: row.scopeKey,
+          decisionDigest: row.decisionDigest,
+          revision: row.revision,
+        },
+      );
+      return {
+        scopeKey: approved.scopeKey,
+        decisionDigest: approved.decisionDigest,
+        revision: approved.revision,
+        state: approved.state,
+      };
+    });
+  }
+
+  /**
+   * Business purpose: Revoke a previously approved semantic authorization so flawed interpretations cannot authorize new publications or imports.
+   * Business rules:
+   * - Only an APPROVED authorization belonging to this catalog at the expected review revision may be revoked.
+   * - Historical published Rule Sets and prior audit records remain intact; revocation only transitions the authorization to REJECTED.
+   * Execution flow: 1. Lock the catalog revision. 2. Verify the target authorization is APPROVED and matches expectedReviewRevision. 3. Transition state to REJECTED, increment revision, and write an attributed audit event.
+   * Failure cases:
+   * - Stale catalog/review revisions, missing rows, or non-APPROVED rows reject with CONFLICT.
+   * Side effects:
+   * - Updates SelectedRuleScopeAuthorization.state to REJECTED and appends a SCOPE_AUTHORIZATION_REVOKED audit record.
+   */
+  async revokeScopeAuthorization(
+    catalogId: string,
+    request: SelectedScopeAuthorizationRevoke,
+    actor: string,
+    cid: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.catalogs.lock(
+        tx,
+        catalogId,
+        request.expectedCatalogRevision,
+        cid,
+      );
+      const row = await tx.selectedRuleScopeAuthorization.findUnique({
+        where: { scopeKey: request.scopeKey },
+      });
+      if (
+        !row ||
+        row.catalogId !== catalogId ||
+        row.revision !== request.expectedReviewRevision ||
+        row.state !== PreparationScopeReviewState.APPROVED
+      )
+        catalogFailure(E.CONFLICT, cid);
+      // Preserve approvedBy, approvedAt, output, and decisions on the row for historical traceability
+      // while blocking any new publication or import from reusing this authority.
+      const revoked = await tx.selectedRuleScopeAuthorization.update({
+        where: { scopeKey: row.scopeKey },
+        data: {
+          state: PreparationScopeReviewState.REJECTED,
+          revision: { increment: 1 },
+        },
+      });
+      await this.catalogs.record(
+        tx,
+        EVENTS.SCOPE_AUTHORIZATION_REVOKED,
+        row.scopeKey,
+        actor,
+        cid,
+        {
+          scopeAuthorizationId: row.scopeKey,
+          decisionDigest: row.decisionDigest,
+          previousRevision: row.revision,
+          revision: revoked.revision,
+          reason: request.reason,
+          previousApprovedBy: row.approvedBy,
+        },
+      );
+      return {
+        scopeKey: revoked.scopeKey,
+        decisionDigest: revoked.decisionDigest,
+        revision: revoked.revision,
+        state: revoked.state,
+      };
+    });
   }
 
   /**
@@ -474,9 +821,11 @@ export class PreparationRuleService {
         ImportAssessmentRulesCommand,
         AssessmentRuleImportResult
       >(command);
-    return new ImportAssessmentRulesHandler(this.prisma, this.catalogs).execute(
-      command,
-    );
+    return new ImportAssessmentRulesHandler(
+      this.prisma,
+      this.catalogs,
+      this.scopeSourceAuthority,
+    ).execute(command);
   }
 
   /**
@@ -885,10 +1234,15 @@ export class PreparationRuleService {
       !result.instructionReceipt
     )
       catalogFailure(E.CONFLICT, cid);
-    validateSelectedOutput(
-      preparationRuleInputSchema.parse(result.inputSnapshot),
+    const input = preparationRuleInputSchema.parse(result.inputSnapshot);
+    validateSelectedOutput(input, request.output, cid);
+    // A missing positive grant is a legal-review error, never a paid structural repair.
+    await requireSelectedScopeAuthorization(
+      this.prisma,
+      input,
       request.output,
       cid,
+      this.scopeSourceAuthority,
     );
     return { valid: true as const };
   }
@@ -897,6 +1251,7 @@ export class PreparationRuleService {
    * Business purpose: Finish one selected rule without rolling back or activating unrelated results.
    * Business rules:
    * - Successful output requires a recorded instruction receipt and exact source allowlist; terminal callback replays must be identical.
+   * - A failed legal-review result may retain its validated draft for history only; it is never a prepared rule set.
    * Execution flow:
    * 1. Lock run
    * 2. Verify output identity/references
@@ -934,10 +1289,28 @@ export class PreparationRuleService {
           request.failureCode
         )
           catalogFailure(E.RESULT_INVALID, cid, 422);
+        const input = preparationRuleInputSchema.parse(result.inputSnapshot);
+        validateSelectedOutput(input, request.output, cid);
+        // Completion rechecks authority even when worker preflight was inconclusive.
+        await requireSelectedScopeAuthorization(
+          tx,
+          input,
+          request.output,
+          cid,
+          this.scopeSourceAuthority,
+        );
+      } else if (
+        request.executionState === A.FAILED &&
+        request.failureCode === E.SCOPE_REVIEW_REQUIRED &&
+        request.output &&
+        result.instructionReceipt
+      ) {
+        // Retain a provenance-validated unresolved draft for history, never publication.
         validateSelectedOutput(
           preparationRuleInputSchema.parse(result.inputSnapshot),
           request.output,
           cid,
+          true,
         );
       } else if (request.output) catalogFailure(E.RESULT_INVALID, cid, 422);
       await tx.preparationRuleResult.update({
@@ -969,6 +1342,8 @@ export class PreparationRuleService {
         {
           preparationRunId: request.preparationRunId,
           outcome: request.executionState,
+          // Preserve the typed terminal reason without copying the legal draft into audit.
+          ...(request.failureCode ? { failureCode: request.failureCode } : {}),
           revision: result.revision,
         },
       );

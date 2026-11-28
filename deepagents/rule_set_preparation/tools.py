@@ -191,10 +191,6 @@ class RuleSetPreparationContext:
     frontier_enabled: bool = True
     discovery_only: bool = False
     direct_draft: bool = False
-    target_activity_scope: str = "FULL_SOURCE"
-    scope_review_requested: bool = False
-    approved_scope_digest: str | None = None
-    scope_review_paused: bool = False
     used_skill_hashes: dict[str, str] = field(default_factory=dict)
     model_facing_manifests: dict[str, dict] = field(default_factory=dict)
     response_language: str = "vi"

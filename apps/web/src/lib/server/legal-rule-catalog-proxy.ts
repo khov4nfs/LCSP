@@ -88,6 +88,34 @@ const routes = [
     response: C.preparationRuleClaimSchema,
   },
   {
+    method: "GET",
+    pattern: /^[^/]+\/scope-authorizations\/[^/]+$/,
+    response: C.selectedScopeAuthorizationDetailSchema,
+  },
+  {
+    method: "POST",
+    pattern: /^[^/]+\/scope-authorizations\/submit$/,
+    request: C.selectedScopeAuthorizationSubmitSchema,
+    response: C.selectedScopeAuthorizationSummarySchema,
+  },
+  {
+    method: "POST",
+    pattern: /^[^/]+\/scope-authorizations\/approve$/,
+    request: C.selectedScopeAuthorizationApproveSchema,
+    response: C.selectedScopeAuthorizationSummarySchema,
+  },
+  {
+    method: "GET",
+    pattern: /^[^/]+\/rules\/[^/]+\/scope-authorizations$/,
+    response: C.selectedScopeAuthorizationListSchema,
+  },
+  {
+    method: "POST",
+    pattern: /^[^/]+\/scope-authorizations\/revoke$/,
+    request: C.selectedScopeAuthorizationRevokeSchema,
+    response: C.selectedScopeAuthorizationSummarySchema,
+  },
+  {
     method: "DELETE",
     pattern: /^[^/]+$/,
     response: C.legalRuleCatalogDeleteResponseSchema,

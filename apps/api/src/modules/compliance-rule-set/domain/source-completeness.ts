@@ -112,7 +112,12 @@ const sorted = <T>(rows: T[], key: (r: T) => string) =>
  */
 export function sourceSupportFailures(
   claim: LegalSemanticClaim,
-  source: LegalDocumentGraph,
+  source: {
+    nodes: readonly Pick<
+      LegalDocumentGraph["nodes"][number],
+      "nodeId" | "content"
+    >[];
+  },
 ): string[] {
   const supports = claim.sourceSupport;
   if (

@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { randomUUID } from "node:crypto";
 import {
@@ -23,6 +24,7 @@ import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
+  PREPARATION_EXECUTION_CONTRACTS,
   RULE_SET_REACTIVATION_ERROR_CODES as Errors,
   RULE_SET_REACTIVATION_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -59,16 +61,26 @@ describeDatabase(
     const db = prisma as unknown as PrismaService;
     const audit = new AuditWriterService(db);
     const outbox = new OutboxRepository(db);
-    const handler = new ReactivateComplianceRuleSetHandler(db, audit, outbox);
-    const start = new StartRuleSetPreparationHandler(db, outbox);
+    const handler = new ReactivateComplianceRuleSetHandler(
+      db,
+      audit,
+      outbox,
+      fixtureSourceAuthority,
+    );
+    const start = new StartRuleSetPreparationHandler(
+      db,
+      outbox,
+      fixtureSourceAuthority,
+    );
     const claim = new ClaimRuleSetPreparationHandler(
       db,
       new LegalDocumentGraphService(db),
+      fixtureSourceAuthority,
     );
     const submit = new SubmitComplianceRuleSetHandler(
       db,
       new LegalSourceSnapshotLoader(db, new LegalDocumentGraphService(db)),
-      new ComplianceRuleSetActivation(outbox, audit),
+      new ComplianceRuleSetActivation(outbox, audit, fixtureSourceAuthority),
     );
     const source = legalSourceFactory(prisma, randomUUID());
     let admin: string;
@@ -185,7 +197,7 @@ describeDatabase(
       });
       b = await publish();
       key = randomUUID();
-    });
+    }, 20_000); // Both fixture publications freeze inventory and complete independent scope review.
     afterEach(async () => {
       jest.restoreAllMocks();
       await prisma.ruleSetPreparationRun.updateMany({
@@ -351,6 +363,36 @@ describeDatabase(
         handler.execute(command(b, a, randomUUID())),
         Errors.TARGET_NOT_ELIGIBLE,
       );
+    });
+    it("keeps the active Rule Set and historical pins when reactivation fails", async () => {
+      const before = await snapshot();
+      await prisma.complianceRuleSetVersion.update({
+        where: { id: a },
+        data: {
+          validationOutcome: "FAILED",
+        },
+      });
+      await expectProblem(
+        handler.execute(command()),
+        Errors.TARGET_NOT_ELIGIBLE,
+      );
+      expect(await snapshot()).toEqual(before);
+    });
+    it("rejects a Development target without approval for its current inventory revision", async () => {
+      const target = await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+        where: { id: a },
+      });
+      // Simulate a historical mismatch between the archived run and its approved revision.
+      await prisma.ruleSetPreparationRun.update({
+        where: { id: target.preparationRunId! },
+        data: { claimInventoryRevision: { increment: 1 } },
+      });
+      const before = await snapshot();
+      await expectProblem(
+        handler.execute(command()),
+        Errors.TARGET_NOT_ELIGIBLE,
+      );
+      expect(await snapshot()).toEqual(before);
     });
     it("fails closed with no ACTIVE authority", async () => {
       await prisma.complianceRuleSetVersion.update({

@@ -134,7 +134,9 @@ describe("Rule Set Preparation ownership", () => {
       /PrismaService|prisma\.|StartRuleSetPreparationCommand|commands\.execute/u,
     );
     const all = sourceFiles(SRC);
+    // The model-free import command owns atomic result writes too; consumers stay read-only.
     expect(withMatch(all, /preparationRuleResult\.create/u)).toEqual([
+      "modules/legal-rule-catalog/application/commands/import-assessment-rules/import-assessment-rules.handler.ts",
       "modules/legal-rule-catalog/application/services/preparation-rule.service.ts",
     ]);
   });

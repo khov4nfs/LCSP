@@ -5,7 +5,7 @@ import pytest
 
 from langchain_core.messages import SystemMessage
 
-from rule_set_preparation.agent import PreparationPhaseMiddleware, ScopeReviewPauseRequired
+from rule_set_preparation.agent import PreparationPhaseMiddleware
 
 
 class FakeRequest:
@@ -20,9 +20,9 @@ class FakeRequest:
 def context(locale="vi"):
     return SimpleNamespace(
         run_id="runner-001", response_language=locale, direct_draft=True,
-        inventory=None, target_activity_scope="FULL_SOURCE",
+        inventory=None,
         pinned_source_version_id="11111111-1111-4111-8111-111111111111",
-        discovery_only=False, scope_review_paused=False,
+        discovery_only=False,
         model_facing_manifests={}, used_skill_hashes={},
     )
 
@@ -59,28 +59,15 @@ def test_preparation_phase_fingerprints_actual_localized_prompt_and_allowed_tool
     assert en_manifest["manifestSha256"] != vi_manifest["manifestSha256"]
 
 
-def test_review_paused_stops_before_model_invocation():
-    state = context()
-    state.scope_review_paused = True
-    with __import__("pytest").raises(ScopeReviewPauseRequired, match="SCOPE_REVIEW_PAUSED"):
-        PreparationPhaseMiddleware(state)._request(FakeRequest([]))
-    assert not state.model_facing_manifests
-
-
 @pytest.mark.parametrize("locale", ["en", "vi"])
 @pytest.mark.parametrize("frozen", [False, True])
-def test_middleware_passes_reviewed_scope_contract_to_model(monkeypatch, locale, frozen):
+def test_middleware_passes_unified_preparation_contract_to_model(monkeypatch, locale, frozen):
     monkeypatch.delenv("LCSP_EVAL_MANIFEST_DIR", raising=False)
     state = context(locale)
     state.direct_draft = False
     state.inventory = SimpleNamespace(frozen=frozen)
-    state.target_activity_scope = "DEVELOPMENT_ONLY"
     result = PreparationPhaseMiddleware(state)._request(FakeRequest([]))
     prompt = result["system_message"].content
-    assert "coverage.state = NON_ASSESSABLE" in prompt
-    assert "OUT_OF_SCOPE_TARGET:" in prompt
-    assert "Today that scope is" not in prompt
-    assert "Server chỉ cho phép thực thi" not in prompt
     assert "governed compaction" in prompt
 
 

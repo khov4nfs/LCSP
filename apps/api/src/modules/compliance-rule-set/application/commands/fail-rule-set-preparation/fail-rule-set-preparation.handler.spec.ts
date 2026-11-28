@@ -17,8 +17,6 @@ function build(executionState: State, failureReason: string | null = null) {
     outboxEventId: "delivery-1",
     claimInventoryRevision: 1,
     claimPhase: "CLAIM_DISCOVERY",
-    scopeReviewRequested: false,
-    targetActivityScope: "FULL_SOURCE",
     completedAt: null as Date | null,
   };
   const tx = {

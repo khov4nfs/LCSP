@@ -33,7 +33,6 @@ import { completedReviewStates } from "../../../domain/source-review-frontier.js
 import { projectCompletedReviewInventory } from "../../../domain/claim-inventory-review-projection.js";
 import { authoringDraftSaveDecision } from "../../../domain/authoring-draft-version.js";
 import { withLockedPreparationRun } from "../../../infrastructure/persistence/locked-preparation-run.js";
-import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 import { reviewEvidenceForInventory } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
 import { validateComplianceRuleSetPacket } from "../../../domain/compliance-rule-set-integrity.validator.js";
@@ -343,14 +342,6 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
               G.PHASE,
               "Finalize inventory before starting Rule authoring",
             );
-          await requireApprovedDevelopmentScope(
-            tx,
-            run.id,
-            run.claimInventoryRevision,
-            run.legalSourceVersionId,
-            run.targetActivityScope,
-            correlationId,
-          );
           await tx.ruleSetPreparationRun.update({
             where: { id: run.id },
             data: { claimPhase: ClaimPreparationPhase.RULE_AUTHORING },
@@ -588,10 +579,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
                   executionState: AgentExecutionState.SUCCEEDED,
                   completedAt: new Date(),
                 }
-              : run.scopeReviewRequested &&
-                  run.targetActivityScope === "FULL_SOURCE"
-                ? { executionState: AgentExecutionState.PAUSED }
-                : {}),
+              : {}),
           },
         });
         return {
@@ -600,9 +588,6 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           revision: input.revision,
           fingerprint,
           graphDigest: inventoryHash(graph),
-          scopeReviewHold:
-            run.scopeReviewRequested &&
-            run.targetActivityScope === "FULL_SOURCE",
           coverage: result.coverage,
         };
       },

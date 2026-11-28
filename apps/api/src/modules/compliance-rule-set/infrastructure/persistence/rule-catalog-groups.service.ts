@@ -3,7 +3,6 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import {
   Prisma,
   RuleCatalogReviewState,
-  PreparationTargetActivityScope,
   ArtifactLifecycleState,
   PreparationScopeReviewState,
   LegalClaimAccountingRole,
@@ -18,12 +17,20 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
-  PREPARATION_SCOPE_STAGES,
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
   preparationScopeReviewSubmitSchema,
 } from "@lcsp/contracts/compliance-rule-set";
+import {
+  preparationRuleOutputSchema,
+  selectedScopeDecisionSchema,
+} from "@lcsp/contracts/legal-rule-catalog";
+import { z } from "zod";
+import {
+  canonicalJson,
+  sha256Hex,
+} from "../../../assessment/domain/domain-ids.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { requireApprovedDevelopmentScope } from "./approved-development-scope.js";
 import {
   authoredFields,
   hasReviewedLocale,
@@ -48,6 +55,7 @@ const digestRows = (rows: unknown[]) =>
  * Business purpose: Persist a deterministic review proposal after successful Development-only activation.
  * Business rules:
  * - Canonical rules and source evidence determine identity; absent reviewed taxonomy evidence stays unassigned, never guessed from titles.
+ * - Whole-source rules with no chunk citation retain source references from the operative claims bound to the published requirement.
  * Execution flow:
  * 1. Read ordered canonical rule support, construct review-required entries and idempotently persist the pinned proposal.
  * Failure cases:
@@ -66,49 +74,57 @@ export async function materializeGroupingProposal(
   });
   const preparationRun = version.preparationRun;
   const preparationRunId = version.preparationRunId;
-  if (
-    !preparationRun ||
-    !preparationRunId ||
-    version.ruleSetDigest !== ruleSetDigest ||
-    version.targetActivityScope !==
-      PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
-    preparationRun.executionState === AgentExecutionState.FAILED ||
-    version.lifecycleState === ArtifactLifecycleState.INVALID
-  )
-    throw problemException(
+  /**
+   * Business purpose: Reject a grouping request lacking exact development authority.
+   * Business rules:
+   * - Do not expose source or decision data in a conflict.
+   * Execution flow: 1. Construct the shared problem response.
+   * Failure cases:
+   * - The caller aborts grouping on any proof mismatch.
+   * Side effects:
+   * - None; constructs an error only.
+   */
+  const conflict = () =>
+    problemException(
       COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
       randomUUID(),
       { status: HttpStatus.CONFLICT },
     );
-  const review = await tx.ruleSetPreparationScopeReview.findUnique({
-    where: {
-      preparationRunId_inventoryRevision: {
-        preparationRunId,
-        inventoryRevision: preparationRun.claimInventoryRevision,
-      },
-    },
-  });
+  if (
+    version.ruleSetDigest !== ruleSetDigest ||
+    version.lifecycleState === ArtifactLifecycleState.INVALID
+  )
+    throw conflict();
   const approvedDecisions = new Map<
     string,
     ReturnType<
       typeof preparationScopeReviewSubmitSchema.shape.decisions.parse
     >[number]
   >();
-  if (review?.state === PreparationScopeReviewState.APPROVED) {
-    const projection = await requireApprovedDevelopmentScope(
-      tx,
-      preparationRunId,
-      preparationRun.claimInventoryRevision,
-      version.legalSourceVersionId,
-      version.targetActivityScope,
-      randomUUID(),
-    );
-    const retained = new Set(projection?.developmentClaimIds ?? []);
-    for (const decision of preparationScopeReviewSubmitSchema.shape.decisions.parse(
-      review.decisions,
-    ))
-      if (retained.has(decision.claimId))
-        approvedDecisions.set(decision.claimId, decision);
+  const selectedRequirementIds: Set<string> | null = null;
+  if (preparationRun && preparationRunId) {
+    if (preparationRun.executionState === AgentExecutionState.FAILED)
+      throw conflict();
+  } else {
+    // Selected publications derive grouping directly from the activated Rule Set's
+    // persisted manifest and requirements without depending on mutable review state.
+    const parsed = z
+      .array(
+        z.object({
+          ruleId: z.string().uuid(),
+          scopeAuthorizationKey: z.string().regex(/^[a-f0-9]{64}$/),
+        }),
+      )
+      .min(1)
+      .safeParse(version.selectedPreparationResults);
+    if (
+      preparationRun ||
+      preparationRunId ||
+      !parsed.success ||
+      new Set(parsed.data.map((row) => row.scopeAuthorizationKey)).size !==
+        parsed.data.length
+    )
+      throw conflict();
   }
   const rules = await tx.assessmentRule.findMany({
     where: { ruleSetVersionId },
@@ -117,7 +133,25 @@ export async function materializeGroupingProposal(
       legalRequirementLinks: {
         include: {
           legalRequirement: {
-            include: { provenance: true, claimBindings: true },
+            include: {
+              provenance: true,
+              claimBindings: {
+                where: { role: LegalClaimAccountingRole.OPERATIVE_PROPOSITION },
+                include: {
+                  claim: {
+                    select: {
+                      sources: {
+                        select: {
+                          sourceNode: {
+                            select: { documentId: true, structuralPath: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -147,12 +181,7 @@ export async function materializeGroupingProposal(
     const operativeClaims = [
       ...new Set(
         requirements.flatMap((requirement) =>
-          requirement.claimBindings
-            .filter(
-              (binding) =>
-                binding.role === LegalClaimAccountingRole.OPERATIVE_PROPOSITION,
-            )
-            .map((binding) => binding.claimId),
+          requirement.claimBindings.map((binding) => binding.claimId),
         ),
       ),
     ];
@@ -172,14 +201,22 @@ export async function materializeGroupingProposal(
       concept: rule.concept,
       legalIntent: rule.legalIntent,
       actor: actors.join("; "),
-      lifecycleStage: PREPARATION_SCOPE_STAGES[0],
+      lifecycleStage: "SYSTEM_COMPLIANCE",
       operativePropositions: propositions,
       sourceReferences: requirements
         .flatMap((requirement) =>
-          requirement.provenance.map((source) => ({
-            documentId: source.documentId,
-            locator: source.locator,
-          })),
+          // Use source nodes bound to this published graph when the requirement has no chunk provenance.
+          requirement.provenance.length
+            ? requirement.provenance.map(({ documentId, locator }) => ({
+                documentId,
+                locator,
+              }))
+            : requirement.claimBindings.flatMap(({ claim }) =>
+                claim.sources.map(({ sourceNode }) => ({
+                  documentId: sourceNode.documentId,
+                  locator: sourceNode.structuralPath,
+                })),
+              ),
         )
         .sort(
           (a, b) =>
@@ -229,7 +266,6 @@ export class RuleCatalogGroupsService {
     const rows = await this.prisma.complianceRuleSetVersion.findMany({
       where: {
         lifecycleState: ArtifactLifecycleState.ACTIVE,
-        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
       },
       orderBy: { id: "asc" },
       take: 100,
@@ -292,11 +328,7 @@ export class RuleCatalogGroupsService {
       const version = await tx.complianceRuleSetVersion.findUniqueOrThrow({
         where: { id: ruleSetVersionId },
       });
-      if (
-        version.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
-        version.targetActivityScope !==
-          PreparationTargetActivityScope.DEVELOPMENT_ONLY
-      )
+      if (version.lifecycleState !== ArtifactLifecycleState.ACTIVE)
         this.conflict(correlationId);
       const proposal = await materializeGroupingProposal(
         tx,
@@ -401,8 +433,6 @@ export class RuleCatalogGroupsService {
         where: { ruleSetVersionId },
       });
       if (
-        version.targetActivityScope !==
-          PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
         version.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
         version.ruleSetDigest !== body.ruleSetDigest ||
         existing.some((row) => row.state === RuleCatalogReviewState.APPROVED)
@@ -459,11 +489,7 @@ export class RuleCatalogGroupsService {
             ),
           ),
         ].sort();
-        if (
-          !actors.length ||
-          row.actor !== actors.join("; ") ||
-          row.lifecycleStage !== PREPARATION_SCOPE_STAGES[0]
-        )
+        if (!actors.length || row.actor !== actors.join("; "))
           this.conflict(correlationId);
         if (
           !sources.length ||
@@ -561,8 +587,6 @@ export class RuleCatalogGroupsService {
       });
       if (
         version.lifecycleState !== ArtifactLifecycleState.ACTIVE ||
-        version.targetActivityScope !==
-          PreparationTargetActivityScope.DEVELOPMENT_ONLY ||
         rules.some(
           (rule) =>
             !memberships.some(

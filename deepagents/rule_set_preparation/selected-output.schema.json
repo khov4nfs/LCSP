@@ -771,6 +771,101 @@
         ],
         "additionalProperties": false
       }
+    },
+    "semanticValidation": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "PASSED",
+            "FAILED"
+          ]
+        },
+        "verifier": {
+          "type": "string",
+          "const": "DEEP_AGENT_SEMANTIC_VALIDATOR"
+        },
+        "checks": {
+          "minItems": 1,
+          "maxItems": 256,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "assessmentRuleId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "legalRequirementId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "GROUNDED",
+                  "UNGROUNDED",
+                  "CONTRADICTORY",
+                  "UNCERTAIN"
+                ]
+              },
+              "rationale": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "sourceRefs": {
+                "minItems": 1,
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    },
+                    "locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "contentSha256": {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "documentId",
+                    "locator",
+                    "contentSha256"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "assessmentRuleId",
+              "legalRequirementId",
+              "verdict",
+              "rationale",
+              "sourceRefs"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "status",
+        "verifier",
+        "checks"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

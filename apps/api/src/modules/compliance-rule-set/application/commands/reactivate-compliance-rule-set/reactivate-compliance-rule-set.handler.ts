@@ -1,4 +1,23 @@
-import { randomUUID } from "node:crypto";
+import {
+  AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+} from "@lcsp/contracts/audit";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  COMPLIANCE_RULE_SET_EVENT_TYPES,
+  complianceRuleSetReactivationResultSchema,
+  RULE_SET_REACTIVATION_ERROR_CODES as Errors,
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
+  RULE_SET_REACTIVATION_REASONS,
+} from "@lcsp/contracts/compliance-rule-set";
+import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
+import {
+  buildOutboxMessageInput,
+  OUTBOX_AGGREGATE_TYPES,
+} from "@lcsp/contracts/outbox";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
@@ -10,35 +29,18 @@ import {
   Prisma,
   UserAccessStatus,
 } from "@prisma/client";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import {
-  AUDIT_ACTOR_TYPES,
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  AUDIT_RESOURCE_TYPES,
-} from "@lcsp/contracts/audit";
-import {
-  COMPLIANCE_RULE_SET_ERROR_CODES,
-  COMPLIANCE_RULE_SET_EVENT_TYPES,
-  RULE_SET_PREPARATION_UNRESOLVED_STATES,
-  RULE_SET_REACTIVATION_ERROR_CODES as Errors,
-  RULE_SET_REACTIVATION_REASONS,
-  complianceRuleSetReactivationResultSchema,
-} from "@lcsp/contracts/compliance-rule-set";
-import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
-import {
-  buildOutboxMessageInput,
-  OUTBOX_AGGREGATE_TYPES,
-} from "@lcsp/contracts/outbox";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import {
   canonicalJson,
   sha256Hex,
 } from "../../../domain/compliance-rule-set-integrity.validator.js";
 import { acquireComplianceRuleSetActivationLock } from "../../../infrastructure/persistence/compliance-rule-set-activation.service.js";
+import { hasValidSelectedActivationManifest } from "../../../infrastructure/persistence/selected-scope-authority.js";
 import {
   reactivationTargetInclude,
   storedRuleSetIntegrityValid,
@@ -51,6 +53,7 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
     private readonly prisma: PrismaService,
     private readonly audit: AuditWriterService,
     private readonly outbox: OutboxRepository,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -61,6 +64,8 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
    * - Reactivation is refused during Preparation, for an already-active target, or for a target that is not a valid previously activated and superseded version.
    * - The target's successful validation, successful Preparation, source lifecycle, activation record, run/source pins, stored digest, and relational integrity must still agree.
    * - A prior semantic-authority-containment rejection permanently excludes the target from this path.
+   * - Historical artifacts remain readable, but reactivation requires the current official original corpus admission policy.
+   * - Reactivation must leave an eligible Development Rule Set for new Assessments. The published scope and its frozen Preparation approval must agree.
    *
    * Execution flow:
    * 1. Hash the request and enter a transaction; verify the active admin and acquire the global activation lock.
@@ -189,12 +194,12 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             throw problemException(Errors.TARGET_NOT_FOUND, correlationId, {
               status: HttpStatus.NOT_FOUND,
             });
-          if (
-            !target.preparationRun ||
-            !target.preparationRunId ||
-            !target.activation ||
-            target.selectedPreparationResults !== null
-          )
+          const hasRun =
+            Boolean(target.preparationRun && target.preparationRunId) &&
+            target.preparationRun?.executionState ===
+              AgentExecutionState.SUCCEEDED;
+          const hasSelected = target.selectedPreparationResults !== null;
+          if (!target.activation || (!hasRun && !hasSelected))
             throw conflict(Errors.TARGET_NOT_ELIGIBLE);
           const rejectedBefore =
             await tx.complianceRuleSetReactivationRecord.count({
@@ -208,8 +213,6 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             target.lifecycleState !== ArtifactLifecycleState.SUPERSEDED ||
             target.validationOutcome !==
               ComplianceRuleSetValidationOutcome.PASSED ||
-            target.preparationRun.executionState !==
-              AgentExecutionState.SUCCEEDED ||
             target.activation.validationOutcome !==
               ComplianceRuleSetValidationOutcome.PASSED ||
             !target.activatedAt ||
@@ -232,14 +235,43 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
               contentSha256: true,
             },
           });
+          const isSelected = target.selectedPreparationResults !== null;
+          const validDigests = isSelected
+            ? /^[a-f0-9]{64}$/.test(target.activation.requestDigest) &&
+              /^[a-f0-9]{64}$/.test(target.ruleSetDigest) &&
+              target.activation.preparationRunId === null
+            : target.activation.requestDigest === target.ruleSetDigest &&
+              target.activation.preparationRunId === target.preparationRunId;
           if (
-            target.activation.requestDigest !== target.ruleSetDigest ||
-            target.activation.preparationRunId !== target.preparationRunId ||
-            target.preparationRun.legalSourceVersionId !==
-              target.legalSourceVersionId ||
+            !validDigests ||
+            (target.preparationRun &&
+              target.preparationRun.legalSourceVersionId !==
+                target.legalSourceVersionId) ||
             !storedRuleSetIntegrityValid(target, chunks)
           )
             throw conflict(Errors.INTEGRITY_INVALID);
+          // Re-publication is a new active pointer decision; historical read access is not admission.
+          await this.authority.requireVersion(
+            tx,
+            target.legalSourceVersionId,
+            correlationId,
+          );
+          if (!target.rules.length) {
+            throw conflict(Errors.TARGET_NOT_ELIGIBLE);
+          }
+          if (
+            target.selectedPreparationResults !== null &&
+            !(await hasValidSelectedActivationManifest(
+              tx,
+              target.selectedPreparationResults,
+              {
+                legalSourceVersionId: target.legalSourceVersionId,
+                expectedRuleSetDigest: target.ruleSetDigest,
+              },
+            ))
+          ) {
+            throw conflict(Errors.TARGET_NOT_ELIGIBLE);
+          }
           const id = randomUUID();
           const now = new Date();
           await tx.complianceRuleSetVersion.update({

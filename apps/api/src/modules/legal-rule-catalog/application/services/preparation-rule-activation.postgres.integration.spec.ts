@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { createHash, randomUUID } from "node:crypto";
 
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -16,10 +17,13 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   LEGAL_RULE_SELECTION_MODES,
+  ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+  assessmentRuleImportRequestSchema,
   preparationRuleInputSchema,
   preparationRuleOutputSchema,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import { LEGAL_SOURCE_ERROR_CODES } from "@lcsp/contracts/legal-source";
 
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 import { AssessmentRuntimePreparation } from "../../../assessment/application/services/assessment-runtime-preparation.service.js";
@@ -49,7 +53,9 @@ const disposableDatabase = (() => {
     return (
       ["localhost", "127.0.0.1"].includes(url.hostname) &&
       url.port === "55448" &&
-      url.pathname === "/lcsp_r2_activation"
+      ["/lcsp_r2_activation", "/lcsp_r2_activation_scope"].includes(
+        url.pathname,
+      )
     );
   } catch {
     return false;
@@ -76,8 +82,17 @@ describeDatabase(
     const outbox = new OutboxRepository(db);
     const graph = new LegalDocumentGraphService(db);
     // Catalog browsing and preparation share the same derived source authority.
-    const catalogs = new LegalRuleCatalogService(db, audit, graph);
-    const activation = new ComplianceRuleSetActivation(outbox, audit);
+    const catalogs = new LegalRuleCatalogService(
+      db,
+      audit,
+      graph,
+      fixtureSourceAuthority,
+    );
+    const activation = new ComplianceRuleSetActivation(
+      outbox,
+      audit,
+      fixtureSourceAuthority,
+    );
     const sourceSnapshot = new LegalSourceSnapshotLoader(db, graph);
     const preparation = new PreparationRuleService(
       db,
@@ -86,6 +101,7 @@ describeDatabase(
       {} as never,
       sourceSnapshot,
       activation,
+      fixtureSourceAuthority,
     );
     const readModel = new ComplianceRuleSetReadModelLoader(
       db,
@@ -94,6 +110,7 @@ describeDatabase(
     const runtimePreparation = new AssessmentRuntimePreparation(
       {} as never,
       outbox,
+      fixtureSourceAuthority,
     );
     const assessmentSupport = new AssessmentCaseSupport();
     const runTag = `r2-${randomUUID()}`;
@@ -138,6 +155,16 @@ describeDatabase(
         })
       ).id;
 
+      const reviewer = await prisma.user.create({
+        data: {
+          id: randomUUID(),
+          email: `${randomUUID()}@test.invalid`,
+          passwordHash: "test-only",
+          emailVerified: true,
+          failedLoginCount: 0,
+          role: AuthUserRole.ADMIN,
+        },
+      });
       const source = await makeSource(false, "DRAFT");
       sourceVersionId = source.id;
       const content = "a) Keep complete records for the required period.";
@@ -295,6 +322,53 @@ describeDatabase(
               : {}),
           },
         });
+        // Synthetic independent review fixture, not a legal opinion about an actual statute.
+        if (
+          output?.assessmentRules.length &&
+          (!input.fingerprintState || input.fingerprintState === "CURRENT")
+        ) {
+          const review = await preparation.submitScopeAuthorization(
+            catalog.id,
+            {
+              ruleId: legalRule.id,
+              expectedCatalogRevision: catalog.revision,
+              expectedReviewRevision: 0,
+              output,
+              decisions: output.legalRequirements.map((requirement) => ({
+                legalRequirementId: requirement.legalRequirementId,
+                stage: "DEVELOPMENT" as const,
+                rationale: "Synthetic test control",
+                technicalDeliverable: "Synthetic repository control",
+                sourceSupport: [
+                  {
+                    chunkId: citation.chunkId,
+                    startOffset: 0,
+                    endOffset: citation.content.length,
+                    contentSha256: citation.contentSha256.replace(
+                      /^sha256:/u,
+                      "",
+                    ),
+                  },
+                ],
+              })),
+            },
+            actorId,
+            correlationId,
+          );
+          await preparation.approveScopeAuthorization(
+            catalog.id,
+            {
+              ruleId: legalRule.id,
+              expectedCatalogRevision: catalog.revision,
+              expectedReviewRevision: review.revision,
+              scopeKey: review.scopeKey,
+              decisionDigest: review.decisionDigest,
+              confirmsLegalReview: true,
+            },
+            reviewer.id,
+            correlationId,
+          );
+        }
         return { legalRule, result };
       };
 
@@ -341,6 +415,110 @@ describeDatabase(
     afterAll(async () => {
       jest.restoreAllMocks();
       await prisma.$disconnect();
+    });
+
+    it("rejects new selected preparation, model-free import and publication on a historical unadmitted source", async () => {
+      const strictCatalogs = new LegalRuleCatalogService(db, audit, graph);
+      const strictPreparation = new PreparationRuleService(
+        db,
+        strictCatalogs,
+        outbox,
+        {} as never,
+        sourceSnapshot,
+        new ComplianceRuleSetActivation(outbox, audit),
+      );
+      const selection = await catalogs.select(
+        {
+          catalogVersionId: catalogId,
+          expectedRevision: 1,
+          mode: LEGAL_RULE_SELECTION_MODES.EXPLICIT,
+          filters: { search: "" },
+          ruleIds: [positiveThree.legalRule.id],
+        },
+        actorId,
+        correlationId,
+      );
+      const output = preparationRuleOutputSchema.parse(
+        (
+          await prisma.preparationRuleResult.findUniqueOrThrow({
+            where: { id: positiveThree.result.id },
+          })
+        ).output,
+      );
+      const document = assessmentRuleImportRequestSchema.parse({
+        schemaVersion: ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+        catalogVersionId: catalogId,
+        expectedCatalogRevision: 1,
+        legalSourceVersionId: sourceVersionId,
+        items: [
+          {
+            ruleId: positiveThree.legalRule.id,
+            analysis: output.analysis,
+            legalRequirements: output.legalRequirements,
+            contextRelations: output.contextRelations,
+            assessmentRules: output.assessmentRules.map((rule) => ({
+              assessmentRuleId: rule.assessmentRuleId,
+              legalRequirementIds: rule.legalRequirementIds,
+              concept: rule.concept,
+              criteria: rule.criteria.map((criterion) => ({
+                criterionId: criterion.criterionId,
+                legalRequirementIds: criterion.legalRequirementIds,
+                investigationFocus: criterion.investigationFocus,
+              })),
+              requiredEvidence: rule.requiredEvidence,
+              sourceRefs: rule.sourceRefs,
+            })),
+          },
+        ],
+      });
+      const expectedProblem = {
+        response: {
+          problem: { code: LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid },
+        },
+      };
+      const before = {
+        batches: await prisma.preparationRuleBatch.count(),
+        runs: await prisma.ruleSetPreparationRun.count(),
+        results: await prisma.preparationRuleResult.count(),
+        outbox: await prisma.outboxMessage.count(),
+        active: await prisma.complianceRuleSetVersion.findMany({
+          where: { lifecycleState: "ACTIVE" },
+        }),
+      };
+      await expect(
+        strictPreparation.submit(
+          { selectionId: selection.selectionId, idempotencyKey: randomUUID() },
+          actorId,
+          correlationId,
+        ),
+      ).rejects.toMatchObject(expectedProblem);
+      for (const dryRun of [true, false]) {
+        await expect(
+          strictPreparation.importAssessmentRules(
+            catalogId,
+            { ...document, dryRun },
+            actorId,
+            correlationId,
+          ),
+        ).rejects.toMatchObject(expectedProblem);
+      }
+      await expect(
+        strictPreparation.activate(
+          catalogId,
+          activationRequest(positiveThree),
+          actorId,
+          correlationId,
+        ),
+      ).rejects.toMatchObject(expectedProblem);
+      expect({
+        batches: await prisma.preparationRuleBatch.count(),
+        runs: await prisma.ruleSetPreparationRun.count(),
+        results: await prisma.preparationRuleResult.count(),
+        outbox: await prisma.outboxMessage.count(),
+        active: await prisma.complianceRuleSetVersion.findMany({
+          where: { lifecycleState: "ACTIVE" },
+        }),
+      }).toEqual(before);
     });
 
     it("filters exact persisted results, atomically replaces ACTIVE, and serves pinned Assessments", async () => {
@@ -417,12 +595,18 @@ describeDatabase(
           },
         });
       expect(persistedFirst.lifecycleState).toBe("ACTIVE");
+      expect(
+        await prisma.ruleCatalogGroupingProposal.findUnique({
+          where: { ruleSetVersionId: first.ruleSetVersionId },
+        }),
+      ).not.toBeNull();
       expect(persistedFirst.preparationRunId).toBeNull();
       expect(persistedFirst.selectedPreparationResults).toMatchObject([
         {
           ruleId: positiveThree.legalRule.id,
           resultId: positiveThree.result.id,
           revision: 1,
+          scopeAuthorizationKey: expect.stringMatching(/^[a-f0-9]{64}$/),
         },
       ]);
       expect(persistedFirst.rules).toHaveLength(3);

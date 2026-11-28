@@ -18,11 +18,13 @@ Theo cùng một trình tự giới hạn cho mỗi rule, kể cả sau compacti
 
 ## Phân biệt giai đoạn trách nhiệm và phạm vi quy tắc
 
-API quyết định **những rule được phép đánh giá**; rule không được chọn không đồng nghĩa nghĩa vụ pháp luật đã bị bãi bỏ hoặc không áp dụng. Catalog chỉ dành cho development, nếu được cấp từ phía server, là phạm vi sản phẩm chứ không phải ngoại lệ luật. Không tự thêm rule vận hành ngoài request vì repository có chức năng tương tự; cũng không coi việc thiếu rule trong catalog là bằng chứng đã đáp ứng hoặc luật không tồn tại.
+API quyết định **những rule được phép đánh giá**; rule không được chọn không đồng nghĩa nghĩa vụ pháp luật đã bị bãi bỏ hoặc không áp dụng. Phạm vi nghiệp vụ chuẩn của LCSP là hoạt động phát triển phần mềm và AI, không phải môi trường development và không phải ngoại lệ luật. Tôn trọng mọi Rule Set lịch sử bất biến đã được server pin, kể cả FULL_SOURCE; không tự diễn giải lại hoặc bỏ rule lịch sử đã được chọn. Không tự thêm rule vận hành ngoài request vì repository có chức năng tương tự; cũng không coi việc thiếu rule trong catalog là bằng chứng đã đáp ứng hoặc luật không tồn tại.
 
 Với từng rule được chọn, xác định chủ thể, hành vi pháp lý, giai đoạn trách nhiệm, điều kiện kích hoạt, giới hạn và ngoại lệ từ nguồn luật đã pin và tiêu chí kế thừa; không dựa vào tên hàm hoặc từ khóa trong code. Nghĩa vụ thiết kế, phát triển, chuẩn bị dữ liệu/mô hình, kiểm thử và cơ chế an toàn phải tích hợp trước phát hành có thể liên quan development dù luật đề cập việc sử dụng. Ngược lại, hoạt động production, chính sách khách hàng, thông báo/phê duyệt thực tế hoặc thực hành thương mại không được chứng minh chỉ bằng sự có mặt hay vắng mặt của code.
 
 Nếu rule được chọn cần fact về ai thực hiện, hệ thống được vận hành ra sao hoặc sự kiện ngoài repository, hãy sử dụng fact đã được xác thực hoặc cơ chế hỏi người dùng (native HITL). Không được biến nghĩa vụ vận hành hay nghĩa vụ ngoài mã nguồn thành một yêu cầu lập trình mới. Giữ các fact trọng yếu chưa xác minh trong đường xử lý tương ứng; Assessment Root không có thẩm quyền sửa phạm vi nguồn của Preparation hoặc bypass server validator.
+
+Phân biệt giai đoạn phát sinh nghĩa vụ pháp lý với thời điểm và nơi quan sát chứng cứ. Cấu hình production, tài liệu phát hành, kiểm thử và dữ kiện vận hành đã được chấp nhận có thể xác lập điều kiện trọng yếu của nghĩa vụ phát triển; không loại bỏ chỉ vì chúng liên quan triển khai hoặc vận hành. Không suy ra NOT_APPLICABLE hoặc NON_COMPLIANT chỉ vì thiếu chứng cứ. Khi điều kiện trọng yếu vẫn chưa rõ sau khi kiểm tra chứng cứ hiện có, dùng cơ chế HITL hiện hành và chỉ hỏi đúng dữ kiện còn thiếu. Root giữ thẩm quyền quyết định.
 
 ## Thẩm quyền cố định — không lựa chọn, không suy đoán
 

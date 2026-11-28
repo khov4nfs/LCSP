@@ -4,12 +4,14 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_OPERATIVE_MODALITIES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_VALIDATION_ISSUES,
   preparationRuleOutputSchema,
   type PreparationRuleValidate,
+  type PreparationRuleComplete,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { PreparationRuleService } from "./preparation-rule.service.js";
 import { validateSelectedOutput } from "./selected-output-validation.js";
@@ -35,7 +37,7 @@ const input = {
       chunkId: "chunk-1",
       documentId: "doc-1",
       locator: "art-1::cl-1",
-      contentSha256: "sha256:chunk",
+      contentSha256: `sha256:${"a".repeat(64)}`,
       content: "Legal text",
     },
   ],
@@ -188,6 +190,62 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
   });
 
   expect(() => validateSelectedOutput(selected, output, "cid")).not.toThrow();
+
+  // A valid development criterion must not mask a different unresolved legal proposition.
+  const unresolved = {
+    ...output,
+    legalRequirements: [
+      ...output.legalRequirements,
+      {
+        ...output.legalRequirements[0],
+        legalRequirementId: `${input.ruleId}:unresolved-stage`,
+        coverage: {
+          state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+          nonAssessableReason:
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX +
+            " stage unresolved",
+        },
+      },
+    ],
+  };
+  expect(() => validateSelectedOutput(selected, unresolved, "cid")).toThrow(
+    expect.objectContaining({
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+          meta: expect.objectContaining({
+            issues: "output.legalRequirements.1.coverage.nonAssessableReason",
+          }),
+        }),
+      }),
+    }),
+  );
+  // The canonical schema trims coverage reasons; direct validation must do the same.
+  const padded = {
+    ...unresolved,
+    legalRequirements: unresolved.legalRequirements.map((requirement) =>
+      requirement.coverage.nonAssessableReason
+        ? {
+            ...requirement,
+            coverage: {
+              ...requirement.coverage,
+              nonAssessableReason:
+                "  " + requirement.coverage.nonAssessableReason,
+            },
+          }
+        : requirement,
+    ),
+  };
+  expect(() => validateSelectedOutput(selected, padded, "cid")).toThrow(
+    expect.objectContaining({
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+        }),
+      }),
+    }),
+  );
+
   expect(() =>
     validateSelectedOutput(
       { ...selected, citations: selected.citations.slice(0, 2) },
@@ -209,13 +267,18 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
 });
 
 describe("PreparationRuleService.validate", () => {
-  it("accepts a structurally valid empty result without writing anything", async () => {
+  it("requires scope review for empty output without writing anything", async () => {
     const { subject, write } = service({
       executionState: AgentExecutionState.RUNNING,
       receipt,
     });
-    await expect(subject.validate(draft, "cid")).resolves.toEqual({
-      valid: true,
+    await expect(subject.validate(draft, "cid")).rejects.toMatchObject({
+      response: {
+        problem: {
+          code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+          meta: { path: "output.legalRequirements" },
+        },
+      },
     });
     expect(write).not.toHaveBeenCalled();
   });
@@ -261,5 +324,207 @@ describe("PreparationRuleService.validate", () => {
       },
     });
     expect(JSON.stringify(error)).not.toContain("private fixture");
+  });
+});
+
+describe("failed legal scope lifecycle", () => {
+  const sourceRef = {
+    documentId: input.citations[0].documentId,
+    locator: input.citations[0].locator,
+    contentSha256: input.citations[0].contentSha256,
+  };
+  const failedOutput = preparationRuleOutputSchema.parse({
+    analysis: "The source does not resolve the actor's development scope.",
+    legalRequirements: [
+      {
+        legalRequirementId: `${input.ruleId}:unresolved`,
+        title: "Unresolved actor",
+        proposition: "The actor and timing require legal review.",
+        operativePropositions: [
+          {
+            actor: "Unresolved actor",
+            modality: LEGAL_OPERATIVE_MODALITIES.DUTY,
+            action: "Perform the required action.",
+            sourceRefs: [sourceRef],
+          },
+        ],
+        applicabilityConditions: [],
+        qualifiers: [],
+        exceptions: [],
+        nonRepositoryDuty: false,
+        sourceRefs: [sourceRef],
+        coverage: {
+          state: LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+          nonAssessableReason:
+            PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX +
+            " actor unresolved",
+        },
+      },
+    ],
+    assessmentRules: [],
+    contextRelations: [],
+  });
+
+  function fixture() {
+    const now = new Date("2026-11-28T00:00:00Z");
+    const result = {
+      id: uuid(6),
+      revision: 1,
+      batchId: uuid(7),
+      preparationRunId: runId,
+      inputSnapshot: input,
+      inputFingerprint: "a".repeat(64),
+      instructionReceipt: receipt,
+      createdAt: now,
+      output: null as PreparationRuleComplete["output"],
+      failureCode: null as string | null,
+      preparationRun: {
+        executionState: AgentExecutionState.RUNNING as AgentExecutionState,
+        requestedBy: "admin-1",
+        startedAt: now,
+        completedAt: null as Date | null,
+      },
+    };
+    const resultUpdate = jest.fn(
+      (args: {
+        data: { output: typeof result.output; failureCode: string | null };
+      }) => {
+        Object.assign(result, args.data);
+      },
+    );
+    const runUpdate = jest.fn(
+      (args: {
+        data: { executionState: AgentExecutionState; completedAt: Date };
+      }) => {
+        Object.assign(result.preparationRun, args.data);
+      },
+    );
+    const record = jest.fn();
+    const tx = {
+      $queryRaw: jest.fn(),
+      preparationRule: { findUnique: jest.fn(() => ({ id: uuid(8) })) },
+      preparationRuleResult: {
+        findUnique: jest.fn(() => result),
+        findMany: jest.fn(() => [result]),
+        findFirst: jest.fn((args: { where: { preparationRun?: unknown } }) =>
+          args.where.preparationRun ? null : { id: result.id },
+        ),
+        update: resultUpdate,
+      },
+      ruleSetPreparationRun: { update: runUpdate },
+      preparationRuleBatch: {
+        findUnique: jest.fn(() => ({
+          id: result.batchId,
+          selectionId: uuid(9),
+          requestedBy: "admin-1",
+          createdAt: now,
+          selection: { scope: { mode: "ALL_MATCHING" } },
+          items: [
+            { ruleId: input.ruleId, resultId: result.id, skipped: false },
+          ],
+        })),
+      },
+    };
+    const prisma = {
+      ...tx,
+      $transaction: (callback: (client: typeof tx) => Promise<unknown>) =>
+        callback(tx),
+    } as unknown as PrismaService;
+    const subject = new PreparationRuleService(
+      prisma,
+      { record } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    return { subject, result, resultUpdate, runUpdate, record };
+  }
+
+  it("retains the failed draft for history only and replays settlement without writes", async () => {
+    const { subject, result, resultUpdate, runUpdate, record } = fixture();
+    const request: PreparationRuleComplete = {
+      preparationRunId: runId,
+      executionState: AgentExecutionState.FAILED,
+      failureCode: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+      output: failedOutput,
+    };
+    await expect(subject.complete(request, "cid")).resolves.toEqual({
+      resultId: result.id,
+    });
+    expect(record).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      result.id,
+      "admin-1",
+      "cid",
+      expect.objectContaining({ failureCode: request.failureCode }),
+    );
+    const history = await subject.history(input.ruleId, "cid");
+    expect(history.currentResultId).toBeNull();
+    expect(history.latestResultId).toBe(result.id);
+    expect(history.results[0]).toMatchObject({
+      executionState: AgentExecutionState.FAILED,
+      failureCode: request.failureCode,
+      output: failedOutput,
+    });
+    const batch = await subject.batch(result.batchId, "cid");
+    expect(batch).toMatchObject({
+      failed: 1,
+      prepared: 0,
+      complete: true,
+      items: [expect.objectContaining({ output: failedOutput })],
+      ruleSet: {
+        legalRequirements: [],
+        assessmentRules: [],
+        contextRelations: [],
+      },
+    });
+    await expect(subject.complete(request, "retry")).resolves.toEqual({
+      resultId: result.id,
+    });
+    expect(resultUpdate).toHaveBeenCalledTimes(1);
+    expect(runUpdate).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledTimes(1);
+    await expect(
+      subject.complete({ ...request, output: null }, "changed"),
+    ).rejects.toMatchObject({
+      response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.CONFLICT } },
+    });
+  });
+
+  it("rejects success or a scope failure that has no ambiguity marker", async () => {
+    const { subject, resultUpdate, runUpdate, record } = fixture();
+    await expect(
+      subject.complete(
+        {
+          preparationRunId: runId,
+          executionState: AgentExecutionState.SUCCEEDED,
+          output: failedOutput,
+          failureCode: null,
+        },
+        "cid",
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+      },
+    });
+    await expect(
+      subject.complete(
+        {
+          preparationRunId: runId,
+          executionState: AgentExecutionState.FAILED,
+          output: draft.output,
+          failureCode: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+        },
+        "cid",
+      ),
+    ).rejects.toMatchObject({
+      response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID } },
+    });
+    expect(resultUpdate).not.toHaveBeenCalled();
+    expect(runUpdate).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 });

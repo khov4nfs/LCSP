@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../../test/support/fixture-source-authority.js";
 import { randomUUID } from "node:crypto";
 import { ensureMigratedSchema } from "../../../../../../test/support/auth-workspace-test-helpers.js";
 import { beforeAll, afterAll, describe, expect, it } from "@jest/globals";
@@ -12,6 +13,7 @@ import {
   CLAIM_INVENTORY_ACTIONS as A,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
   CLAIM_INVENTORY_GAPS as G,
+  PREPARATION_EXECUTION_CONTRACTS,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   legalSourceFactory,
@@ -66,6 +68,7 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     const start = await new StartRuleSetPreparationHandler(
       service,
       new OutboxRepository(service),
+      fixtureSourceAuthority,
     ).execute(
       new StartRuleSetPreparationCommand(
         { legalSourceVersionId: source.id, idempotencyKey: randomUUID() },
@@ -84,9 +87,15 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
+      fixtureSourceAuthority,
     ).execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: id },
+        {
+          preparationRunId: id,
+          supportedExecutionContracts: [
+            PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1,
+          ],
+        },
         randomUUID(),
       ),
     );
@@ -303,9 +312,15 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     const recovered = await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
+      fixtureSourceAuthority,
     ).execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: id },
+        {
+          preparationRunId: id,
+          supportedExecutionContracts: [
+            PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1,
+          ],
+        },
         randomUUID(),
       ),
     );
@@ -367,6 +382,7 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     const start = await new StartRuleSetPreparationHandler(
       service,
       new OutboxRepository(service),
+      fixtureSourceAuthority,
     ).execute(
       new StartRuleSetPreparationCommand(
         { legalSourceVersionId: source.id, idempotencyKey: randomUUID() },
@@ -384,9 +400,15 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     await new ClaimRuleSetPreparationHandler(
       service,
       new LegalDocumentGraphService(service),
+      fixtureSourceAuthority,
     ).execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: id },
+        {
+          preparationRunId: id,
+          supportedExecutionContracts: [
+            PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1,
+          ],
+        },
         randomUUID(),
       ),
     );

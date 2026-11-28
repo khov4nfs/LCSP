@@ -24,11 +24,11 @@ Use only a pinned LegalSourceVersion, exact source node, canonical Điều/Kho�
 ## Output
 A review-only decision with sourceNodeId, canonicalLocator, actor, modality, activity, stage, decision, exactSupport, materialContext and reviewStatus. This is not a new claim type or persisted activation permission.
 
-## Deployment-only suppression rules
+## Unified system scope across lifecycle stages
 
-In the review-facing DEVELOPMENT_ONLY projection, entirely omit independent source units, candidate rules and narrative context addressing solely deployment, operational production, downstream use or administrative actors. For mixed clauses, split by exact actor/action and suppress only the non-development operative branch; do not reject the developer branch.
+Account for all system-relevant obligations across development, deployment, and operation (design, training, testing, deployment configuration, monitoring, logging, and operational controls). Do not suppress operational or deployment duties that are verifiable against system artifacts or operational evidence. Only purely external, physical, organizational, or public-authority obligations with no system-verifiable aspect remain `NON_ASSESSABLE`. For mixed clauses, split by exact actor/action and preserve all system-assessable branches.
 
-Shared Article numbers or topical proximity are insufficient to keep context. Any exception needs a verified material link and a minimal source-faithful predicate. This affects view selection only; operative source accounting and full-source validation remain intact.
+Shared Article numbers or topical proximity are insufficient to link unrelated context. Any exception needs a verified material link and a minimal source-faithful predicate.
 
 ## Passive-voice addressee and supervision check
 

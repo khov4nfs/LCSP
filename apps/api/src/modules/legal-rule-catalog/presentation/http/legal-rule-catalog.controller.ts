@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import * as C from "@lcsp/contracts/legal-rule-catalog";
 import {
   Body,
   Controller,
@@ -13,15 +14,14 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import * as C from "@lcsp/contracts/legal-rule-catalog";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import type { AuthenticatedRequest } from "../../../../platform/rbac/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { LegalRuleCatalogService } from "../../application/services/legal-rule-catalog.service.js";
 import { PreparationRuleService } from "../../application/services/preparation-rule.service.js";
 
@@ -192,6 +192,120 @@ export class LegalRuleCatalogController {
   ) {
     return resultEnvelope(
       await this.preparation.importAssessmentRules(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Register an exact source-backed legal scope candidate for review.
+   * Business rules: Authenticated Admin only; the service owns source pins and review identity.
+   * Execution flow: 1. Validate the request. 2. Delegate draft registration and return its revision/digest.
+   * Failure cases: Stale or invalid scope evidence is rejected by the service.
+   * Side effects: Creates or revises a draft authorization; no Preparation or model call.
+   */
+  @Post(":catalogId/scope-authorizations/submit")
+  @HttpCode(200)
+  async submitScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.selectedScopeAuthorizationSubmitSchema))
+    request: C.SelectedScopeAuthorizationSubmit,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.submitScopeAuthorization(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: List semantic review authorizations for a specific Legal Rule in a catalog.
+   * Business rules: Admin-only; enables UI auto-discovery without manual 64-hex key entry.
+   * Execution flow: 1. Query authorizations for (catalogId, ruleId). 2. Return wrapped list.
+   * Failure cases: Invalid UUIDs reject via ValidationPipe.
+   * Side effects: Read-only.
+   */
+  @Get(":catalogId/rules/:ruleId/scope-authorizations")
+  async listRuleScopeAuthorizations(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Param("ruleId", uuid()) ruleId: string,
+  ) {
+    return resultEnvelope(
+      await this.preparation.listScopeAuthorizationsForRule(catalogId, ruleId),
+    );
+  }
+
+  /**
+   * Business purpose: Read an exact candidate and pinned source evidence for independent legal review.
+   * Business rules: Admin-only; the service verifies catalog ownership and current source identity.
+   * Execution flow: 1. Resolve the candidate key. 2. Return verified review evidence.
+   * Failure cases: Missing or stale candidates cannot be reviewed from this endpoint.
+   * Side effects: Read-only.
+   */
+  @Get(":catalogId/scope-authorizations/:scopeKey")
+  async readScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Param("scopeKey") scopeKey: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.readScopeAuthorization(
+        catalogId,
+        scopeKey,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Approve the independently reviewed semantic candidate.
+   * Business rules: Authenticated Admin only; separate reviewer and exact source/digest checks remain server-owned.
+   * Execution flow: 1. Validate request. 2. Delegate approval and return persisted state.
+   * Failure cases: Stale, self-approved or unsupported candidates cannot authorize publication.
+   * Side effects: Persists approval and audit only.
+   */
+  @Post(":catalogId/scope-authorizations/approve")
+  @HttpCode(200)
+  async approveScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.selectedScopeAuthorizationApproveSchema))
+    request: C.SelectedScopeAuthorizationApprove,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.approveScopeAuthorization(
+        catalogId,
+        request,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
+    );
+  }
+
+  /**
+   * Business purpose: Revoke a previously approved semantic authorization so it can no longer authorize new publications.
+   * Business rules: Authenticated Admin only; preserves historical records while marking the authorization REJECTED.
+   * Execution flow: 1. Validate the revocation payload. 2. Delegate to PreparationRuleService and return the updated state.
+   * Failure cases: Stale revisions or non-approved authorizations return CONFLICT.
+   * Side effects: Transitions authorization to REJECTED and appends an audit event.
+   */
+  @Post(":catalogId/scope-authorizations/revoke")
+  @HttpCode(200)
+  async revokeScopeAuthorization(
+    @Param("catalogId", uuid()) catalogId: string,
+    @Body(body(C.selectedScopeAuthorizationRevokeSchema))
+    request: C.SelectedScopeAuthorizationRevoke,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.preparation.revokeScopeAuthorization(
         catalogId,
         request,
         req.rbacContext.userId,

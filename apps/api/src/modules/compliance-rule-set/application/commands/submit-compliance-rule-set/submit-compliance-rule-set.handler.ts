@@ -26,7 +26,6 @@ import {
   validateComplianceRuleSetPacket,
 } from "../../../domain/compliance-rule-set-integrity.validator.js";
 import { isRetryable } from "../../../infrastructure/persistence/compliance-rule-set.mappers.js";
-import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 import { SubmitComplianceRuleSetCommand } from "./submit-compliance-rule-set.command.js";
 
 const MAX_TRANSACTION_ATTEMPTS = 4;
@@ -98,15 +97,6 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
     );
     if (replay) return replay;
 
-    await requireApprovedDevelopmentScope(
-      this.prisma,
-      run.id,
-      run.claimInventoryRevision,
-      run.legalSourceVersionId,
-      run.targetActivityScope,
-      input.correlationId,
-      request.packet,
-    );
     const legalSource = await this.legalSource.load(run, request.packet);
     const validation = validateComplianceRuleSetPacket(
       request.packet,

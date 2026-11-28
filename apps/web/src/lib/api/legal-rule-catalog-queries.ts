@@ -643,3 +643,235 @@ export function useAssessmentRuleImport(catalogId: string) {
         : client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
   });
 }
+
+/**
+ * Business purpose: Read one persisted semantic scope authorization candidate and its pinned source citations.
+ * Business rules:
+ * - Catalog and scopeKey partition the query cache; missing/invalid keys disable the request.
+ * Execution flow:
+ * 1. Fetch the candidate detail via the BFF proxy.
+ * 2. Validate against selectedScopeAuthorizationDetailSchema.
+ * Failure cases:
+ * - Missing or stale candidates reject via shared apiValidated error handling.
+ * Side effects:
+ * - Read-only query subscription.
+ */
+/**
+ * Business purpose: List semantic review authorizations for a specific Legal Rule so the UI auto-loads candidates without manual scopeKey entry.
+ * Business rules:
+ * - Catalog and ruleId partition the query cache; missing IDs disable the request.
+ * Execution flow:
+ * 1. Fetch authorization summaries for (catalogId, ruleId).
+ * 2. Validate against selectedScopeAuthorizationListSchema.
+ * Failure cases:
+ * - Transport or authorization errors reject via shared apiValidated error handling.
+ * Side effects:
+ * - Read-only query subscription.
+ */
+export function useRuleScopeAuthorizations(catalogId: string, ruleId: string) {
+  return useQuery({
+    queryKey: [...legalRuleCatalogKey, "rule-scope-authorizations", catalogId, ruleId],
+    enabled: Boolean(catalogId && ruleId),
+    /**
+     * Business purpose: Fetch authorization summaries for the selected Legal Rule.
+     * Business rules:
+     * - Scoped to catalogId and ruleId.
+     * Execution flow:
+     * 1. GET from BFF proxy.
+     * 2. Validate response schema.
+     * Failure cases:
+     * - Errors propagate as query errors.
+     * Side effects:
+     * - Read-only BFF GET request.
+     */
+    queryFn: () =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/rules/${encodeURIComponent(ruleId)}/scope-authorizations`,
+        C.selectedScopeAuthorizationListSchema,
+      ),
+  });
+}
+
+/**
+ * Business purpose: Load one persisted semantic scope authorization detail for independent Admin review.
+ * Business rules:
+ * - Catalog and scopeKey partition the query cache; missing/invalid keys disable the request.
+ * Execution flow:
+ * 1. Fetch the candidate detail via the BFF proxy.
+ * 2. Validate against selectedScopeAuthorizationDetailSchema.
+ * Failure cases:
+ * - Missing or stale candidates reject via shared apiValidated error handling.
+ * Side effects:
+ * - Read-only query subscription.
+ */
+export function useScopeAuthorization(catalogId: string, scopeKey: string) {
+  return useQuery({
+    queryKey: [...legalRuleCatalogKey, "scope-authorizations", catalogId, scopeKey],
+    enabled: Boolean(catalogId && /^[a-f0-9]{64}$/.test(scopeKey)),
+    /**
+     * Business purpose: Fetch one persisted scope authorization candidate from the Admin BFF.
+     * Business rules:
+     * - Only valid 64-hex scope keys under the owning catalog are requested.
+     * Execution flow: 1. Request candidate detail. 2. Validate against selectedScopeAuthorizationDetailSchema.
+     * Failure cases:
+     * - Missing, stale, or unauthorized candidates reject as query errors.
+     * Side effects:
+     * - Performs a read-only BFF GET request.
+     */
+    queryFn: () =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/scope-authorizations/${encodeURIComponent(scopeKey)}`,
+        C.selectedScopeAuthorizationDetailSchema,
+      ),
+  });
+}
+
+/**
+ * Business purpose: Submit or revise a semantic scope authorization candidate for independent review.
+ * Business rules:
+ * - Invalidates cached scope-authorization and catalog queries on success.
+ * Execution flow:
+ * 1. POST submit payload to the catalog-scoped BFF route.
+ * 2. Validate the summary response and refresh caches.
+ * Failure cases:
+ * - Stale revisions or invalid source support reject with typed API problems.
+ * Side effects:
+ * - Persists a DRAFT authorization candidate on the server.
+ */
+export function useSubmitScopeAuthorization(catalogId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Submit a semantic scope authorization draft for independent review.
+     * Business rules:
+     * - The server validates source support and prevents overwriting approved rows.
+     * Execution flow: 1. POST the candidate payload. 2. Validate the returned summary.
+     * Failure cases:
+     * - Stale revisions or invalid source spans reject with API problem codes.
+     * Side effects:
+     * - Persists a DRAFT authorization candidate on the backend.
+     */
+    mutationFn: (request: C.SelectedScopeAuthorizationSubmit) =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/scope-authorizations/submit`,
+        C.selectedScopeAuthorizationSummarySchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    /**
+     * Business purpose: Refresh catalog and scope-authorization caches after draft submission.
+     * Business rules:
+     * - Only committed submissions trigger cache invalidation.
+     * Execution flow: 1. Invalidate the legalRuleCatalogKey prefix.
+     * Failure cases:
+     * - Cache invalidation errors propagate through React Query.
+     * Side effects:
+     * - Marks cached catalog queries stale.
+     */
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}
+
+/**
+ * Business purpose: Independently approve a reviewed semantic scope authorization candidate.
+ * Business rules:
+ * - Requires an independent reviewer and explicit legal confirmation.
+ * Execution flow:
+ * 1. POST approval payload to the catalog-scoped BFF route.
+ * 2. Validate the summary response and refresh caches.
+ * Failure cases:
+ * - Self-approval, stale revision, or source drift reject with typed API problems.
+ * Side effects:
+ * - Transitions the candidate to APPROVED on the server.
+ */
+export function useApproveScopeAuthorization(catalogId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Send an independent reviewer's approval for a DRAFT scope authorization.
+     * Business rules:
+     * - Reviewer must differ from author and confirm legal review.
+     * Execution flow: 1. POST the approval payload. 2. Validate the returned summary.
+     * Failure cases:
+     * - Self-approval or stale revisions reject with API problem codes.
+     * Side effects:
+     * - Transitions the authorization to APPROVED on the backend.
+     */
+    mutationFn: (request: C.SelectedScopeAuthorizationApprove) =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/scope-authorizations/approve`,
+        C.selectedScopeAuthorizationSummarySchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    /**
+     * Business purpose: Refresh catalog and scope-authorization caches after approval.
+     * Business rules:
+     * - Only committed approvals trigger cache invalidation.
+     * Execution flow: 1. Invalidate the legalRuleCatalogKey prefix.
+     * Failure cases:
+     * - Cache invalidation errors propagate through React Query.
+     * Side effects:
+     * - Marks cached catalog queries stale.
+     */
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}
+
+/**
+ * Business purpose: Revoke a previously approved semantic scope authorization so it cannot authorize new publications.
+ * Business rules:
+ * - Requires explicit revocation confirmation and a non-blank reason.
+ * Execution flow:
+ * 1. POST revocation payload to the catalog-scoped BFF route.
+ * 2. Validate the summary response and refresh caches.
+ * Failure cases:
+ * - Stale revisions or non-APPROVED rows reject with CONFLICT.
+ * Side effects:
+ * - Transitions the authorization to REJECTED while preserving historical records.
+ */
+export function useRevokeScopeAuthorization(catalogId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    /**
+     * Business purpose: Revoke an APPROVED scope authorization to block future reuse.
+     * Business rules:
+     * - Requires explicit confirmation and a non-blank revocation reason.
+     * Execution flow: 1. POST the revocation payload. 2. Validate the returned summary.
+     * Failure cases:
+     * - Stale revisions or non-APPROVED rows reject with CONFLICT.
+     * Side effects:
+     * - Transitions the authorization to REJECTED while preserving history.
+     */
+    mutationFn: (request: C.SelectedScopeAuthorizationRevoke) =>
+      apiValidated(
+        `${root}/${encodeURIComponent(catalogId)}/scope-authorizations/revoke`,
+        C.selectedScopeAuthorizationSummarySchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(request),
+        },
+      ),
+    /**
+     * Business purpose: Refresh catalog and scope-authorization caches after revocation.
+     * Business rules:
+     * - Only committed revocations trigger cache invalidation.
+     * Execution flow: 1. Invalidate the legalRuleCatalogKey prefix.
+     * Failure cases:
+     * - Cache invalidation errors propagate through React Query.
+     * Side effects:
+     * - Marks cached catalog queries stale.
+     */
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: legalRuleCatalogKey }),
+  });
+}

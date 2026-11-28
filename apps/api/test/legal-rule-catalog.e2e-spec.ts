@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "./support/fixture-source-authority.js";
 import "reflect-metadata";
 import type { Server } from "node:http";
 import { z } from "zod";
@@ -39,6 +40,7 @@ import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
 import { WorkerApiKeyGuard } from "../src/platform/rbac/guards/worker-api-key.guard.js";
+import { LegalSourceAuthorityService } from "../src/modules/legal-source/application/services/legal-source-authority.service.js";
 import { LegalRuleCatalogService } from "../src/modules/legal-rule-catalog/application/services/legal-rule-catalog.service.js";
 import { PreparationRuleService } from "../src/modules/legal-rule-catalog/application/services/preparation-rule.service.js";
 import {
@@ -168,6 +170,10 @@ database(
         providers: [
           { provide: PrismaService, useValue: db },
           LegalRuleCatalogService,
+          {
+            provide: LegalSourceAuthorityService,
+            useValue: fixtureSourceAuthority,
+          },
           PreparationRuleService,
           LegalDocumentGraphService,
           LegalSourceSnapshotLoader,

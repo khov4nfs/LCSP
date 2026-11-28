@@ -426,6 +426,10 @@ jobs:
           python -m venv deepagents/.venv
           deepagents/.venv/bin/python -m pip install -e "./deepagents[dev]"
 
+      # Extract the pinned official Vietnamese PDF independently in the corpus regression.
+      - name: Install PDF text extraction for official corpus regression
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
       - name: Test API e2e
         run: pnpm --filter @lcsp/api test:e2e
 

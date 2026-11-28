@@ -375,17 +375,11 @@ def phase_instructions(context):
     else:
         part = "authoring" if context.inventory and context.inventory.frozen else "discovery"
         prompt = runtime_instruction("preparation.common") + "\n" + runtime_instruction("preparation." + part)
-    from rule_set_preparation.preparation_skills import development_scope_overlay
-    prompt += development_scope_overlay(getattr(context, "target_activity_scope", "FULL_SOURCE"))
     from rule_set_preparation.preparation_skills import preparation_locale_overlay
     prompt += preparation_locale_overlay(getattr(context, "response_language", "vi"))
     if context.discovery_only:
         prompt += "\n" + runtime_instruction("preparation.continuation")
     return prompt
-
-
-class ScopeReviewPauseRequired(RuntimeError):
-    """Server froze the legal inventory; stop before a new model invocation."""
 
 
 class PreparationPhaseMiddleware(AgentMiddleware):
@@ -408,8 +402,6 @@ class PreparationPhaseMiddleware(AgentMiddleware):
 
         Side effects:
         - Tracks run receipts; optionally persists immutable metadata, never changes the legal source."""
-        if getattr(self.context, "scope_review_paused", False):
-            raise ScopeReviewPauseRequired("SCOPE_REVIEW_PAUSED_BY_SERVER")
         allowed = ({*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "list_preparation_skills", "load_preparation_skill", "write_todos", "get_next_legal_analysis_package", "get_rule_set_draft_candidate", "submit_rule_set_draft_candidates", "correct_rule_set_draft_submission", "get_applicable_legal_state", "validate_compliance_rule_set", "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked"}
                    if self.context.direct_draft else AUTHORING_TOOLS if self.context.inventory and self.context.inventory.frozen else DISCOVERY_TOOLS)
         from langchain_core.messages import SystemMessage
@@ -549,8 +541,8 @@ def claim_author_subagent(context, model, backend, budget):
                 receipt_context=lambda: {"run_id": context.run_id, "component": CLAIM_AUTHOR_ROLE, "locale": context.response_language, "pins": preparation_source_pins(context)},
                 receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest})),
             AgentRoleMiddleware(CLAIM_AUTHOR_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE, AuthoringToolCallRecorder(context),
-            __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["preparation.common", "preparation.discovery", "claim-author.system"] + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []),
-                presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope},
+            __import__("middleware.approved_instructions", fromlist=["ApprovedInstructionMiddleware"]).ApprovedInstructionMiddleware(["preparation.common", "preparation.discovery", "claim-author.system"],
+                presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft},
                 receipt_context=lambda: {"run_id": context.run_id, "component": CLAIM_AUTHOR_ROLE, "locale": context.response_language,
                     "pins": preparation_source_pins(context), "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
                 receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}))]}
@@ -642,12 +634,9 @@ def create_rule_set_preparation_agent(
     Side effects:
     - Creates the local work directory and agent objects and updates the run context's source root; actual model/tool execution occurs only when the caller invokes the graph.
     """
-    from rule_set_preparation.preparation_skills import enforce_runtime_scope
     from runtime_instruction_bundle import production_runtime_bundle
     from middleware.approved_instructions import ApprovedInstructionMiddleware
     bundle = production_runtime_bundle()
-    enforce_runtime_scope(getattr(context, "target_activity_scope", "FULL_SOURCE"),
-                          getattr(context, "approved_scope_digest", None))
     author_model = model
     if model is None:
         from model_policy import resolve_agent_model
@@ -709,11 +698,11 @@ def create_rule_set_preparation_agent(
                 *MODEL_GOVERNANCE_MIDDLEWARE,
                 # Innermost: sees the raw model response and tool result before governance can raise on them.
                 AuthoringToolCallRecorder(context),
-                ApprovedInstructionMiddleware(lambda: (["preparation.direct"] if context.direct_draft else ["preparation.common", "preparation.authoring" if context.inventory and context.inventory.frozen else "preparation.discovery"]) + (["preparation.development-overlay"] if context.target_activity_scope == "DEVELOPMENT_ONLY" else []) + ["preparation.presentation"] + (["preparation.continuation"] if context.discovery_only else []),
+                ApprovedInstructionMiddleware(lambda: (["preparation.direct"] if context.direct_draft else ["preparation.common", "preparation.authoring" if context.inventory and context.inventory.frozen else "preparation.discovery"]) + ["preparation.presentation"] + (["preparation.continuation"] if context.discovery_only else []),
                     receipt_context=lambda: {"run_id": context.run_id, "component": RULE_SET_PREPARATION_ROLE, "locale": context.response_language,
                         "pins": preparation_source_pins(context), "skill_names": __import__("rule_set_preparation.preparation_skills", fromlist=["_SKILLS"])._SKILLS.keys(), "selected_skills": context.used_skill_hashes},
                     receipt_sink=lambda manifest: context.model_facing_manifests.update({manifest["manifestSha256"]: manifest}),
-                    presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft, "target_activity_scope": context.target_activity_scope}),
+                    presentation_context=lambda: {"response_language": context.response_language, "preparation_run_id": context.run_id, "discovery_only": context.discovery_only, "direct_draft": context.direct_draft}),
             ],
             subagents=[] if context.direct_draft else [claim_author_subagent(context, author_model, backend, budget)],
             # False, not None: None would inherit the Agent Server run's Postgres checkpointer, and

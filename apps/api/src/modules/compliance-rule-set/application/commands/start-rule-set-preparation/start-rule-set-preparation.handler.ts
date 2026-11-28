@@ -2,13 +2,13 @@ import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
-import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   type RuleSetPreparationRun,
 } from "@lcsp/contracts/compliance-rule-set";
+import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 import {
   buildOutboxMessageInput,
@@ -17,19 +17,20 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
-  AgentExecutionState as PrismaAgentExecutionState,
   PreparationExecutionContract,
   Prisma,
+  AgentExecutionState as PrismaAgentExecutionState,
 } from "@prisma/client";
 
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
+import { acquireLegalSourceLifecycleLock } from "../../../../legal-source/application/services/legal-source.service.js";
 import {
-  isUniqueViolation,
   isRetryable,
+  isUniqueViolation,
   toRun,
 } from "../../../infrastructure/persistence/compliance-rule-set.mappers.js";
 import { StartRuleSetPreparationCommand } from "./start-rule-set-preparation.command.js";
@@ -47,6 +48,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
   constructor(
     private readonly prisma: PrismaService,
     private readonly outboxRepository: OutboxRepository,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -54,12 +56,13 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
    *
    * Business rules:
    * - A start key can create only one run and may be replayed only for the same source version.
-   * - Only an ACTIVE Legal Source Version may produce a shared Rule Set.
+   * - Only an ACTIVE Legal Source Version with admitted official originals may produce a new shared Rule Set.
+   * - Scope Review is only requested when explicitly required (e.g. unverified obligations or semantic changes), not forced on every routine run.
    * - Run creation and its outbox request are one transaction, preventing an unqueued or duplicate preparation.
    *
    * Execution flow:
    * 1. Open a SERIALIZABLE transaction, acquire the global source lifecycle lock, and reload the idempotency record.
-   * 2. If no run exists, read the source lifecycle and reject missing or non-ACTIVE versions.
+   * 2. If no run exists, read the source lifecycle and reject missing, non-ACTIVE or unadmitted versions.
    * 3. Create the run and its outbox event atomically, then return the persisted run identity.
    * 4. On a unique-key race, replay the matching winner; on P2034/40001, back off and retry the entire transaction.
    *
@@ -74,9 +77,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     input: StartRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {
     const { legalSourceVersionId, idempotencyKey } = input.request;
-    const reviewRequested =
-      input.request.targetActivityScope === "DEVELOPMENT_ONLY";
-
     for (let attempt = 1; ; attempt += 1) {
       try {
         return await this.prisma.$transaction(
@@ -91,7 +91,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 existing,
                 legalSourceVersionId,
                 input.correlationId,
-                reviewRequested,
               );
             }
 
@@ -125,12 +124,17 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 },
               );
             }
+            // Replays above retain historical pins; new model work cannot use an unadmitted source.
+            await this.authority.requireVersion(
+              tx,
+              source.id,
+              input.correlationId,
+            );
             const run = await tx.ruleSetPreparationRun.create({
               data: {
                 idempotencyKey,
                 executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
                 targetDate: new Date(),
-                scopeReviewRequested: reviewRequested,
                 legalSourceVersionId: source.id,
                 requestedBy: input.requestedBy,
                 correlationId: input.correlationId,
@@ -176,7 +180,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
               raced,
               legalSourceVersionId,
               input.correlationId,
-              reviewRequested,
             );
           }
         }
@@ -199,13 +202,13 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
 
   /**
    * Business purpose:
-   * Recover only an idempotent Preparation request for the same pinned source and scope intent.
+   * Recover only an idempotent Preparation request for the same pinned source.
    * Business rules:
-   * - A repeated key must not silently change the user-selected target scope.
+   * - A repeated key preserves the existing run, including historical scope intent.
    * Execution flow:
-   * 1. Compare existing run source and requested scope before returning it.
+   * 1. Compare the existing and requested sources before returning the archived run.
    * Failure cases:
-   * - Source/scope conflicts become canonical idempotency failures.
+   * - A different source becomes a canonical idempotency failure.
    * Side effects:
    * - Returns the existing run without creating a second one.
    */
@@ -215,16 +218,11 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
       legalSourceVersionId: string;
       executionState: PrismaAgentExecutionState;
       ruleSet: { id: string } | null;
-      scopeReviewRequested: boolean;
     },
     legalSourceVersionId: string,
     correlationId: string,
-    reviewRequested: boolean,
   ): RuleSetPreparationRun {
-    if (
-      existing.legalSourceVersionId !== legalSourceVersionId ||
-      existing.scopeReviewRequested !== reviewRequested
-    ) {
+    if (existing.legalSourceVersionId !== legalSourceVersionId) {
       throw problemException(
         COMPLIANCE_RULE_SET_ERROR_CODES.idempotencyConflict,
         correlationId,

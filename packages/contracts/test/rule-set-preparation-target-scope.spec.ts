@@ -4,16 +4,16 @@ import {
   ruleSetPreparationLegalSourceBundleSchema,
   ruleSetPreparationStartRequestSchema,
 } from "../src/compliance-rule-set/schemas.ts";
-import { PREPARATION_ACTIVITY_SCOPES } from "../src/compliance-rule-set/scope-review.ts";
 
-describe("Rule Set Preparation activity scope boundary", () => {
-  it("keeps the worker bundle FULL_SOURCE by default for existing runs", () => {
-    const scope =
-      ruleSetPreparationLegalSourceBundleSchema.shape.targetActivityScope;
-    expect(scope.parse(undefined)).toBe("FULL_SOURCE");
-    expect(scope.parse("FULL_SOURCE")).toBe("FULL_SOURCE");
-    expect(scope.parse("DEVELOPMENT_ONLY")).toBe("DEVELOPMENT_ONLY");
-    expect(scope.safeParse("OPERATION_ONLY").success).toBe(false);
+describe("Rule Set Preparation unified scope contract", () => {
+  it("keeps responseLanguage server-owned and omits removed activity scope fields from the worker bundle", () => {
+    const shape = ruleSetPreparationLegalSourceBundleSchema.shape as Record<
+      string,
+      unknown
+    >;
+    expect(shape.targetActivityScope).toBeUndefined();
+    expect(shape.scopeReviewRequested).toBeUndefined();
+    expect(shape.approvedScopeDigest).toBeUndefined();
     const responseLanguage =
       ruleSetPreparationLegalSourceBundleSchema.shape.responseLanguage;
     expect(responseLanguage.parse(undefined)).toBe("vi");
@@ -22,7 +22,7 @@ describe("Rule Set Preparation activity scope boundary", () => {
     expect(responseLanguage.safeParse("fr").success).toBe(false);
   });
 
-  it("allows requesting reviewed activity scopes at preparation start while rejecting unsupported scopes", () => {
+  it("rejects removed targetActivityScope and approvedScopeDigest fields at preparation start and admin boundaries", () => {
     const start = {
       legalSourceVersionId: "11111111-1111-4111-8111-111111111111",
       idempotencyKey: "test-preparation-scope-1",
@@ -30,30 +30,19 @@ describe("Rule Set Preparation activity scope boundary", () => {
     expect(ruleSetPreparationStartRequestSchema.safeParse(start).success).toBe(
       true,
     );
-    for (const scope of PREPARATION_ACTIVITY_SCOPES) {
+    for (const scope of ["FULL_SOURCE", "DEVELOPMENT_ONLY", "OPERATION_ONLY"]) {
       expect(
         ruleSetPreparationStartRequestSchema.safeParse({
           ...start,
           targetActivityScope: scope,
         }).success,
-      ).toBe(true);
+      ).toBe(false);
       expect(
         ruleSetPreparationAdminRequestSchema.safeParse({
           targetActivityScope: scope,
         }).success,
-      ).toBe(true);
+      ).toBe(false);
     }
-    expect(
-      ruleSetPreparationStartRequestSchema.safeParse({
-        ...start,
-        targetActivityScope: "OPERATION_ONLY",
-      }).success,
-    ).toBe(false);
-    expect(
-      ruleSetPreparationAdminRequestSchema.safeParse({
-        targetActivityScope: "OPERATION_ONLY",
-      }).success,
-    ).toBe(false);
     expect(
       ruleSetPreparationAdminRequestSchema.safeParse({
         approvedScopeDigest: "a".repeat(64),

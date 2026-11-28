@@ -26,7 +26,9 @@ from provider_credentials import llm_provider_timeout_seconds
 from orchestration.graph_execution import agent_graph_config
 from orchestration.agent_stream import publish_agent_stream_event
 from runtime_instruction_bundle import runtime_instruction_snapshot
-from tools.common.capabilities.platform.api_client import SELECTED_RULE_OUTPUT_REJECTIONS, WorkerCallbackError
+from tools.common.capabilities.platform.api_client import (
+    SELECTED_RULE_OUTPUT_REJECTIONS, SELECTED_RULE_SCOPE_REVIEW_REQUIRED, WorkerCallbackError,
+)
 from tools.common.capabilities.platform.correlation import get_correlationId
 
 logger = logging.getLogger(__name__)
@@ -113,10 +115,56 @@ def _draft_rejection(api: Any, run_id: str, output: dict[str, Any]) -> WorkerCal
     try:
         api.validate_selected_rule_output(run_id, output)
     except WorkerCallbackError as error:
+        if (error.status_code, error.error_code) == (422, SELECTED_RULE_SCOPE_REVIEW_REQUIRED):
+            raise
         if (error.status_code, error.error_code) in SELECTED_RULE_OUTPUT_REJECTIONS:
             return error
         logger.warning("Selected rule draft validation inconclusive run_id=%s error_type=%s status_code=%s", run_id, type(error).__name__, error.status_code)
     return None
+
+
+def _reject_unresolved_scope(output: dict[str, Any]) -> None:
+    """Business purpose: Stop repair of a draft that already declares legal ambiguity.
+
+    Business rules:
+    - An explicit review signal is terminal for this attempt, not evidence of eligibility.
+    Execution flow:
+    1. Inspect the structured coverage reason before any repair or settlement.
+    Failure cases:
+    - A declared review requirement raises the dedicated non-repairable error.
+    Side effects:
+    - Pure validation; no model or API call.
+    """
+    requirements = output.get("legalRequirements")
+    if isinstance(requirements, list):
+        for requirement in requirements:
+            coverage = requirement.get("coverage") if isinstance(requirement, dict) else None
+            reason = coverage.get("nonAssessableReason") if isinstance(coverage, dict) else None
+            if isinstance(reason, str) and reason.strip().startswith("LEGAL_REVIEW_REQUIRED:"):
+                raise WorkerCallbackError(
+                    "Legal scope requires review", status_code=422,
+                    error_code=SELECTED_RULE_SCOPE_REVIEW_REQUIRED,
+                )
+    rules = output.get("assessmentRules")
+    if isinstance(rules, list) and len(rules) > 0:
+        sv = output.get("semanticValidation")
+        checks = sv.get("checks") if isinstance(sv, dict) else None
+        if (
+            not isinstance(sv, dict)
+            or sv.get("status") != "PASSED"
+            or sv.get("verifier") != "DEEP_AGENT_SEMANTIC_VALIDATOR"
+            or not isinstance(checks, list)
+            or not checks
+            or any(
+                not isinstance(c, dict) or c.get("verdict") != "GROUNDED"
+                for c in checks
+            )
+        ):
+            raise WorkerCallbackError(
+                "Semantic validation failed or requires legal review",
+                status_code=422,
+                error_code=SELECTED_RULE_SCOPE_REVIEW_REQUIRED,
+            )
 
 
 def _repair_messages(claim_input: dict[str, Any], draft: dict[str, Any], rejection: WorkerCallbackError) -> list[dict[str, str]]:
@@ -182,6 +230,7 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
         return {"state": "FAILED", "resultId": claim["resultId"], "failureCode": claim["failureCode"]}
 
     settling = False
+    output = None
     try:
         with runtime_instruction_snapshot() as bundle:
             content = bundle.instruction("preparation.selected")
@@ -214,6 +263,7 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
             with activate_agent_run_state(run_state):
                 response = asyncio.run(_invoke_selected_rule(agent, {"messages": [{"role": "user", "content": json.dumps(claim["input"], ensure_ascii=False)}]}))
                 output = _structured_output(response)
+                _reject_unresolved_scope(output)
                 for _ in range(_max_repairs()):
                     rejection = _draft_rejection(api, run_id, output)
                     remaining = llm_provider_timeout_seconds() - (time.monotonic() - started)
@@ -223,6 +273,7 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
                     publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_REPAIR", "result_revision": claim["revision"]})
                     response = asyncio.run(_invoke_selected_rule(agent, {"messages": _repair_messages(claim["input"], output, rejection)}, timeout=remaining))
                     output = _structured_output(response)
+                    _reject_unresolved_scope(output)
             settling = True
             api.complete_selected_rule_preparation(run_id, "SUCCEEDED", output, None)
     except NodeCancelledError:
@@ -234,7 +285,11 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
             isinstance(error, WorkerCallbackError)
             and (error.status_code, error.error_code) in SELECTED_RULE_OUTPUT_REJECTIONS
         )
-        if settling and not rejected_output:
+        scope_review = (
+            isinstance(error, WorkerCallbackError)
+            and (error.status_code, error.error_code) == (422, SELECTED_RULE_SCOPE_REVIEW_REQUIRED)
+        )
+        if settling and not rejected_output and not scope_review:
             raise
         provider_code = _safe_provider_error_code(error)
         causes = []
@@ -246,7 +301,15 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
             "Selected rule preparation failed run_id=%s error_type=%s provider_error_code=%s correlation_id=%s cause_types=%s",
             run_id, type(error).__name__, provider_code, get_correlationId(), ",".join(causes),
         )
-        api.complete_selected_rule_preparation(run_id, "FAILED", None, "SELECTED_RULE_PREPARATION_FAILED")
+        failure_code = SELECTED_RULE_SCOPE_REVIEW_REQUIRED if scope_review else "SELECTED_RULE_PREPARATION_FAILED"
+        try:
+            api.complete_selected_rule_preparation(run_id, "FAILED", output if scope_review else None, failure_code)
+        except WorkerCallbackError as settlement_error:
+            # Invalid structure may prevent retention of the unresolved draft; preserve the typed failure.
+            # Never retry an uncertain write or ask the model to remove legal ambiguity.
+            if not scope_review or (settlement_error.status_code, settlement_error.error_code) not in SELECTED_RULE_OUTPUT_REJECTIONS:
+                raise
+            api.complete_selected_rule_preparation(run_id, "FAILED", None, failure_code)
         publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={"activity_kind": "SELECTED_RULE_PREPARATION_FAILED", "error_type": type(error).__name__, "provider_error_code": provider_code})
         return {"state": "FAILED", "resultId": claim["resultId"]}
     else:

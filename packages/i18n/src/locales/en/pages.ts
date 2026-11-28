@@ -787,8 +787,7 @@ export const enPages = {
         loadMore: "Load more candidate rules",
         // Pre-audit Discovery asks about intended product behavior.
         contextQuestions: "Questions about AI features",
-        contextAdvisory:
-          "Describe what each feature is designed to do.",
+        contextAdvisory: "Describe what each feature is designed to do.",
         interviewTitle: "Review feature context before selecting rules",
         interviewDescription:
           "Submit your answer for review, then confirm it to record it as customer-provided context.",
@@ -1548,7 +1547,8 @@ export const enPages = {
     quickActionsDescription: "Jump to a workspace destination.",
     quickActionsClose: "Close",
     quickActionNewAssessment: "New assessment",
-    quickActionNewAssessmentDesc: "Connect a repository and choose requirements",
+    quickActionNewAssessmentDesc:
+      "Connect a repository and choose requirements",
     quickActionAssessmentsDesc: "Review or resume an assessment",
     quickActionInfoRequests: "Information requests",
     quickActionInfoRequestsDesc: "Respond to unresolved questions",
@@ -1843,63 +1843,92 @@ export const enPages = {
       showcaseQuestion: "Question",
       showcaseFinding: "Finding",
       providerStripTitle: "Seamless Git Ecosystem Connectors",
-      providerStripDescription: "Directly integrate with leading source control platforms without copying repositories or leaking secrets.",
+      providerStripDescription:
+        "Directly integrate with leading source control platforms without copying repositories or leaking secrets.",
       bentoEyebrow: "Core Capabilities",
       bentoTitle: "Architected for verifiable AI safety and governance",
-      bentoDescription: "Deep source inspection, deterministic rule mapping, and continuous audit trails unite compliance and engineering.",
+      bentoDescription:
+        "Deep source inspection, deterministic rule mapping, and continuous audit trails unite compliance and engineering.",
       bentoCard1Title: "Pinned AST & Call-Graph Inspection",
-      bentoCard1Description: "Trace code paths to external AI/LLM models, prompt builders, and agentic loops locked to exact commit SHAs.",
+      bentoCard1Description:
+        "Trace code paths to external AI/LLM models, prompt builders, and agentic loops locked to exact commit SHAs.",
       bentoCard1Badge: "Evidence Grounding",
       bentoCard2Title: "Granular Human-in-the-Loop",
-      bentoCard2Description: "Prompt system operators and compliance reviewers solely when source code cannot resolve business intent.",
+      bentoCard2Description:
+        "Prompt system operators and compliance reviewers solely when source code cannot resolve business intent.",
       bentoCard2Badge: "Bounded Context",
       bentoCard3Title: "Deterministic Rule Engines",
-      bentoCard3Description: "Evaluate compliance against validated statutory criteria, EU AI Act risk tiers, and custom corporate policies.",
+      bentoCard3Description:
+        "Evaluate compliance against validated statutory criteria, EU AI Act risk tiers, and custom corporate policies.",
       bentoCard3Badge: "Rule Catalog",
       bentoCard4Title: "Closed-Loop Remediation",
-      bentoCard4Description: "Propose concrete pull request changes and verify that gaps are resolved before code is merged.",
+      bentoCard4Description:
+        "Propose concrete pull request changes and verify that gaps are resolved before code is merged.",
       bentoCard4Badge: "Verified Fixes",
       workflowEyebrow: "Execution Workflow",
       workflowStep1Number: "01",
       workflowStep1Title: "Connect & Pin Source",
-      workflowStep1Description: "Link GitHub, GitLab, Bitbucket, or Azure DevOps. Lock analysis scope to exact commit hashes.",
+      workflowStep1Description:
+        "Link GitHub, GitLab, Bitbucket, or Azure DevOps. Lock analysis scope to exact commit hashes.",
       workflowStep2Number: "02",
       workflowStep2Title: "Scan Graph & Resolve Gaps",
-      workflowStep2Description: "Extract call paths, model boundaries, and automated control claims. Request targeted clarification where code is silent.",
+      workflowStep2Description:
+        "Extract call paths, model boundaries, and automated control claims. Request targeted clarification where code is silent.",
       workflowStep3Number: "03",
       workflowStep3Title: "Audit, Remediate & Verify",
-      workflowStep3Description: "Generate reviewable compliance findings, apply guarded code patches, and rerun verification checks.",
+      workflowStep3Description:
+        "Generate reviewable compliance findings, apply guarded code patches, and rerun verification checks.",
       audienceEyebrow: "Target Audience",
-      audienceTitle: "Built for modern engineering and compliance organizations",
-      audienceDescription: "Bridging the gap between software developers building generative AI and legal officers auditing risk.",
+      audienceTitle:
+        "Built for modern engineering and compliance organizations",
+      audienceDescription:
+        "Bridging the gap between software developers building generative AI and legal officers auditing risk.",
       audienceRole1Title: "AI & Platform Engineers",
-      audienceRole1Description: "Ship AI-powered features with confidence, knowing every model invocation and prompt template complies with policy.",
-      audienceRole1Point1: "Automated call-graph & prompt injection scanning in CI/CD",
-      audienceRole1Point2: "Clear remediation pull requests with zero contract guesswork",
+      audienceRole1Description:
+        "Ship AI-powered features with confidence, knowing every model invocation and prompt template complies with policy.",
+      audienceRole1Point1:
+        "Automated call-graph & prompt injection scanning in CI/CD",
+      audienceRole1Point2:
+        "Clear remediation pull requests with zero contract guesswork",
       audienceRole2Title: "Compliance & Risk Officers",
-      audienceRole2Description: "Obtain immutable, evidence-backed proof of compliance instead of relying on subjective questionnaire answers.",
-      audienceRole2Point1: "Verifiable audit logs tied directly to commit snapshots",
-      audienceRole2Point2: "Standardized EU AI Act, ISO 42001, and NIST framework alignment",
+      audienceRole2Description:
+        "Obtain immutable, evidence-backed proof of compliance instead of relying on subjective questionnaire answers.",
+      audienceRole2Point1:
+        "Verifiable audit logs tied directly to commit snapshots",
+      audienceRole2Point2:
+        "Standardized EU AI Act, ISO 42001, and NIST framework alignment",
       audienceRole3Title: "Engineering Leadership & CTOs",
-      audienceRole3Description: "Maintain enterprise velocity without exposing the business to regulatory fines or data leak vulnerabilities.",
-      audienceRole3Point1: "Unified dashboard across all teams, repositories, and providers",
-      audienceRole3Point2: "Granular usage quotas, spend limits, and prepaid flexibility",
+      audienceRole3Description:
+        "Maintain enterprise velocity without exposing the business to regulatory fines or data leak vulnerabilities.",
+      audienceRole3Point1:
+        "Unified dashboard across all teams, repositories, and providers",
+      audienceRole3Point2:
+        "Granular usage quotas, spend limits, and prepaid flexibility",
       faqEyebrow: "Frequently Asked Questions",
       faqTitle: "Everything you need to know about LCSP",
-      faqDescription: "Clear answers to common questions about source analysis, data privacy, and verification.",
+      faqDescription:
+        "Clear answers to common questions about source analysis, data privacy, and verification.",
       faq1Question: "How does LCSP analyze code without compromising security?",
-      faq1Answer: "LCSP scans repositories within isolated containerized sandboxes or pinned commit archives. Your source code is never used to train shared public models, and all tokens/credentials stay strictly inside your access control boundary.",
+      faq1Answer:
+        "LCSP scans repositories within isolated containerized sandboxes or pinned commit archives. Your source code is never used to train shared public models, and all tokens/credentials stay strictly inside your access control boundary.",
       faq2Question: "Which Git providers and repository hosts are supported?",
-      faq2Answer: "LCSP natively supports GitHub, GitLab, Bitbucket, and Azure DevOps across both cloud-hosted and self-managed enterprise instances.",
-      faq3Question: "How does LCSP differ from standard static analysis (SAST) tools?",
-      faq3Answer: "Traditional SAST looks for basic syntax flaws or vulnerabilities. LCSP maps AI runtime semantics: prompt templates, model invocations, decision boundaries, human oversight loops, and statutory regulatory compliance.",
+      faq2Answer:
+        "LCSP natively supports GitHub, GitLab, Bitbucket, and Azure DevOps across both cloud-hosted and self-managed enterprise instances.",
+      faq3Question:
+        "How does LCSP differ from standard static analysis (SAST) tools?",
+      faq3Answer:
+        "Traditional SAST looks for basic syntax flaws or vulnerabilities. LCSP maps AI runtime semantics: prompt templates, model invocations, decision boundaries, human oversight loops, and statutory regulatory compliance.",
       faq4Question: "Can I use LCSP without a monthly subscription?",
-      faq4Answer: "Yes. LCSP operates on a prepaid credit model. You only pay for the assessments and remediation runs you execute, with volume discounts starting at $50.",
+      faq4Answer:
+        "Yes. LCSP operates on a prepaid credit model. You only pay for the assessments and remediation runs you execute, with volume discounts starting at $50.",
       faq5Question: "How does the human-in-the-loop verification work?",
-      faq5Answer: "When an assessment finds an ambiguity that source code cannot settle (such as internal approval policies), it creates a targeted contextual question. Once answered, the answer is permanently attached as evidence to the review audit trail.",
+      faq5Answer:
+        "When an assessment finds an ambiguity that source code cannot settle (such as internal approval policies), it creates a targeted contextual question. Once answered, the answer is permanently attached as evidence to the review audit trail.",
       feedbackEyebrow: "Share Your Feedback",
-      feedbackTitle: "Help us shape the future of evidence-backed AI compliance",
-      feedbackDescription: "Whether you have questions, feature ideas, or integration requests, our engineering team reviews every submission.",
+      feedbackTitle:
+        "Help us shape the future of evidence-backed AI compliance",
+      feedbackDescription:
+        "Whether you have questions, feature ideas, or integration requests, our engineering team reviews every submission.",
       feedbackNameLabel: "Full Name",
       feedbackNamePlaceholder: "e.g. Alex Rivera",
       feedbackEmailLabel: "Work Email",
@@ -1909,17 +1938,21 @@ export const enPages = {
       feedbackCategoryCompliance: "Compliance & Regulations",
       feedbackCategoryIntegration: "Git & CI/CD Integrations",
       feedbackCategoryOther: "General Inquiry",
-      feedbackRatingLabel: "How satisfied are you with our compliance workflow?",
+      feedbackRatingLabel:
+        "How satisfied are you with our compliance workflow?",
       feedbackMessageLabel: "Detailed Thoughts & Suggestions",
-      feedbackMessagePlaceholder: "Tell us what worked well or what capabilities you'd like to see added...",
+      feedbackMessagePlaceholder:
+        "Tell us what worked well or what capabilities you'd like to see added...",
       feedbackSubmitButton: "Send Feedback",
       feedbackSubmittingButton: "Submitting Feedback...",
       feedbackSuccessTitle: "Feedback Received!",
-      feedbackSuccessDescription: "Thank you for your valuable feedback. Our team has recorded your thoughts and will review them shortly.",
+      feedbackSuccessDescription:
+        "Thank you for your valuable feedback. Our team has recorded your thoughts and will review them shortly.",
       feedbackSendAnother: "Send another message",
       feedbackErrorNameRequired: "Please enter your name",
       feedbackErrorEmailInvalid: "Please enter a valid email address",
-      feedbackErrorMessageMin: "Feedback message must be at least 10 characters",
+      feedbackErrorMessageMin:
+        "Feedback message must be at least 10 characters",
       feedbackErrorRatingRequired: "Please choose a satisfaction rating",
       figmaHeroEyebrow: "LEGAL COMPLIANCE FOR SOFTWARE",
       figmaHeroTitle: "Know what applies.\nKnow why it matters.",
@@ -1941,7 +1974,8 @@ export const enPages = {
       figmaHeroOutcomeCompliant: "Compliant",
       figmaHeroOutcomeInReview: "In review",
       figmaHeroRequirementLabel: "Original legal requirement",
-      figmaHeroRequirementValue: "Retain relevant account records for at least two years.",
+      figmaHeroRequirementValue:
+        "Retain relevant account records for at least two years.",
       figmaHeroEvidenceLabel: "LINKED EVIDENCE",
       figmaHeroEvidence1: "E1  Retention policy · 90 days",
       figmaHeroEvidence2: "E2  Cleanup behavior · expiry deletion",
@@ -1950,18 +1984,27 @@ export const enPages = {
       figmaHeroScenarioInjection: "Prompt Injection Guard",
       figmaHeroScenarioEuAiAct: "EU AI Act High-Risk",
       figmaHeroInjectionFindingTitle: "Prompt injection guardrails",
-      figmaHeroInjectionReqTitle: "NIST AI 100-1 § 4.3 — Input Sanitation & Guardrails",
-      figmaHeroInjectionReqValue: "LLM ingestion gateway must sanitize delimiters and isolate untrusted prompt tokens.",
-      figmaHeroInjectionEvidence1: "E1  Prompt sanitizer regex · XML escape brackets matched",
-      figmaHeroInjectionEvidence2: "E2  Adversarial vector suite · 100% neutralized",
-      figmaHeroInjectionConclusion: "Conclusion: cryptographic guardrails fully verified.",
+      figmaHeroInjectionReqTitle:
+        "NIST AI 100-1 § 4.3 — Input Sanitation & Guardrails",
+      figmaHeroInjectionReqValue:
+        "LLM ingestion gateway must sanitize delimiters and isolate untrusted prompt tokens.",
+      figmaHeroInjectionEvidence1:
+        "E1  Prompt sanitizer regex · XML escape brackets matched",
+      figmaHeroInjectionEvidence2:
+        "E2  Adversarial vector suite · 100% neutralized",
+      figmaHeroInjectionConclusion:
+        "Conclusion: cryptographic guardrails fully verified.",
       figmaHeroInjectionRulesEvaluated: "8 of 8 rules evaluated",
       figmaHeroInjectionOpenRequests: "0 open information requests",
       figmaHeroEuAiActFindingTitle: "EU AI Act technical documentation",
-      figmaHeroEuAiActReqTitle: "Annex IV — Technical Documentation & Auditability",
-      figmaHeroEuAiActReqValue: "High-risk inference pipeline must persist unalterable audit trails for autonomous decisions.",
-      figmaHeroEuAiActEvidence1: "E1  Inference telemetry · append-only Merkle tree logger",
-      figmaHeroEuAiActEvidence2: "E2  Technical doc checklist · awaiting safety officer signature",
+      figmaHeroEuAiActReqTitle:
+        "Annex IV — Technical Documentation & Auditability",
+      figmaHeroEuAiActReqValue:
+        "High-risk inference pipeline must persist unalterable audit trails for autonomous decisions.",
+      figmaHeroEuAiActEvidence1:
+        "E1  Inference telemetry · append-only Merkle tree logger",
+      figmaHeroEuAiActEvidence2:
+        "E2  Technical doc checklist · awaiting safety officer signature",
       figmaHeroEuAiActConclusion: "Conclusion: under review in PR #142.",
       figmaHeroEuAiActRulesEvaluated: "7 of 8 rules evaluated",
       figmaHeroEuAiActOpenRequests: "1 open information request",
@@ -1992,12 +2035,14 @@ export const enPages = {
       capabilitiesMainTitle: "A finding you can investigate.",
       capabilitiesMainTag: "Illustrative · Account-log retention",
       capabilitiesMainReqLabel: "Original legal requirement",
-      capabilitiesMainReqValue: "Retain relevant account records for at least two years.",
+      capabilitiesMainReqValue:
+        "Retain relevant account records for at least two years.",
       capabilitiesMainEvidenceLabel: "Repository evidence",
       capabilitiesMainEvidence1: "E1 · Retention policy: 90 days",
       capabilitiesMainEvidence2: "E2 · Cleanup behavior: deletion on expiry",
       capabilitiesMainStatus: "Non-compliant",
-      capabilitiesMainStatusDetail: "Retention is shorter than the example legal minimum.",
+      capabilitiesMainStatusDetail:
+        "Retention is shorter than the example legal minimum.",
       capabilitiesCard2Title: "Ask when context is missing",
       capabilitiesCard2Description:
         "A focused information request helps the user supply facts that cannot be confirmed from code alone.",
@@ -2027,15 +2072,19 @@ export const enPages = {
       whoDescription:
         "Shared context for technical and compliance work, without replacing professional judgment.",
       whoTeam1Title: "Engineering teams",
-      whoTeam1Desc: "Locate relevant code, understand findings and check remediation.",
+      whoTeam1Desc:
+        "Locate relevant code, understand findings and check remediation.",
       whoTeam2Title: "Compliance reviewers",
-      whoTeam2Desc: "Review the legal basis, supporting evidence and unresolved questions.",
+      whoTeam2Desc:
+        "Review the legal basis, supporting evidence and unresolved questions.",
       whoTeam3Title: "Project owners",
-      whoTeam3Desc: "Understand outstanding issues and prioritize follow-up actions.",
+      whoTeam3Desc:
+        "Understand outstanding issues and prioritize follow-up actions.",
       whoGitConnectLabel: "Connect your Git provider account in LCSP.",
       faqSectionEyebrow: "FAQ",
       faqSectionTitle: "Questions, answered.",
-      faqSectionDescription: "Learn what to expect before starting an assessment.",
+      faqSectionDescription:
+        "Learn what to expect before starting an assessment.",
       faqViewPricingCta: "View pricing",
       faqItem1Question: "What does LCSP assess?",
       faqItem1Answer:
@@ -2065,12 +2114,15 @@ export const enPages = {
       feedbackEmailFieldLabel: "Email (optional)",
       feedbackEmailFieldPlaceholder: "you@example.com",
       feedbackMessageFieldLabel: "Your feedback *",
-      feedbackMessageFieldPlaceholder: "Tell us what worked or what we can improve…",
+      feedbackMessageFieldPlaceholder:
+        "Tell us what worked or what we can improve…",
       feedbackSendButton: "Send feedback",
       feedbackSendingButton: "Sending feedback...",
       feedbackDisclaimer: "Prototype preview · No feedback is sent.",
-      finalCtaSectionTitle: "Start with a repository. Leave with a clearer next step.",
-      finalCtaSectionDescription: "Create your LCSP account to explore the assessment workspace.",
+      finalCtaSectionTitle:
+        "Start with a repository. Leave with a clearer next step.",
+      finalCtaSectionDescription:
+        "Create your LCSP account to explore the assessment workspace.",
       finalCtaCreateAccount: "Create account",
       finalCtaSignIn: "Sign in",
     },
@@ -2238,7 +2290,8 @@ export const enPages = {
     brandPanelLabel: "LCSP compliance workflow",
     brandEyebrow: "LEGAL COMPLIANCE PLATFORM",
     brandHeadline: "From legal text\nto traceable findings.",
-    brandDescription: "Connect legal requirements to repository evidence and review the reasoning behind each assessment.",
+    brandDescription:
+      "Connect legal requirements to repository evidence and review the reasoning behind each assessment.",
     workflowLabel: "ASSESSMENT WORKFLOW",
     legalSource: "Legal source",
     legalSourceDescription: "Original legal requirements",
@@ -2281,7 +2334,8 @@ export const enPages = {
       emailRequired: "Enter your work email.",
       emailInvalid: "Enter a valid work email.",
       passwordRequired: "Enter your password.",
-      invalidCredentialsMessage: "Your email or password is incorrect. Please try again.",
+      invalidCredentialsMessage:
+        "Your email or password is incorrect. Please try again.",
       requestFailedTitle: "Unable to sign in",
       requestFailedDetail: "Unable to sign in. Please try again.",
       retryAtLabel: "You can try again at",
@@ -2628,9 +2682,11 @@ export const enPages = {
       coverageEmptyTitle: "No evaluations yet",
       coverageFormulaHint: "Coverage = applicable results / selected rules",
       assessmentsMetricLabel: "Assessments",
-      assessmentsMetricContext: "{completed} completed · {notCompleted} not completed",
+      assessmentsMetricContext:
+        "{completed} completed · {notCompleted} not completed",
       activeAssessmentsMetricLabel: "Active assessments",
-      activeAssessmentsMetricContext: "{running} running · {awaiting} awaiting input",
+      activeAssessmentsMetricContext:
+        "{running} running · {awaiting} awaiting input",
       actionCenterTitle: "Needs your attention",
       actionCenterSubtitle: "{open} open requests · {failed} failed assessment",
       actionCenterAnswerRequired: "{name} · answer required",
@@ -2968,7 +3024,8 @@ export const enPages = {
         saveError: "Failed to update privacy settings.",
         loading: "Loading privacy settings...",
         loadError: "Unable to load privacy settings.",
-        loadErrorDetail: "The current privacy settings could not be loaded. Try again.",
+        loadErrorDetail:
+          "The current privacy settings could not be loaded. Try again.",
         staleTitle: "Showing the last confirmed privacy settings",
         staleDescription:
           "The latest refresh failed, so these values may be outdated. Changes are disabled until settings can be refreshed.",
@@ -3156,7 +3213,8 @@ export const enPages = {
           "No package-manager domains are currently reported by policy.",
         loading: "Loading capability settings...",
         loadError: "Unable to load capability settings.",
-        loadErrorDetail: "The current capability settings could not be loaded. Try again.",
+        loadErrorDetail:
+          "The current capability settings could not be loaded. Try again.",
         staleTitle: "Showing the last confirmed capability settings",
         staleDescription:
           "The latest refresh failed, so these values may be outdated. Changes are disabled until settings can be refreshed.",
@@ -3465,11 +3523,13 @@ export const enPages = {
         bitbucketEmailLabel: "Atlassian account email",
         credentialExpiryLabel: "Credential expiry date (optional)",
         credentialExpiryInvalid: "Enter a valid expiry date.",
-        credentialEmailRequired: "Enter the email for the Atlassian account that owns this API token.",
+        credentialEmailRequired:
+          "Enter the email for the Atlassian account that owns this API token.",
         providerUnavailable: "This provider is not enabled in this deployment.",
         providerTemporarilyUnavailable:
           "This provider is enabled, but its local runtime is temporarily unavailable.",
-        credentialRotationReconnect: "After replacing this credential, reconnect each repository to authorize the new credential.",
+        credentialRotationReconnect:
+          "After replacing this credential, reconnect each repository to authorize the new credential.",
         azureDevOpsOrganizationLabel: "Organization",
         azureDevOpsOrganizationAccess: "Azure organization access",
         azureDevOpsIdentityNotice:
@@ -3969,6 +4029,8 @@ export const enPages = {
       DOCUMENT_NOT_READY: "Wait for every document to finish ingestion.",
       VERSION_NOT_DRAFT: "Only a draft version can be activated.",
       INDEX_NOT_VALID: "Structure validation must pass.",
+      OFFICIAL_CORPUS_REQUIRED:
+        "Use only the configured official Vietnamese legal documents for activation.",
     },
     failureCodes: {
       UNSUPPORTED_MEDIA_TYPE: "This file type is not supported.",

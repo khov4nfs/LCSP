@@ -101,63 +101,6 @@ def _skill_tool_error(code: str) -> str:
     )
 
 
-_SCOPE_FULL = "FULL_SOURCE"
-_SCOPE_DEVELOPMENT = "DEVELOPMENT_ONLY"
-
-
-def development_scope_overlay(scope: str) -> str:
-    """Business purpose: Append an opt-in, pinned-source-safe prompt for development rule selection.
-
-    Business rules:
-    - The worker must receive the target scope from the API bundle; FULL_SOURCE remains the default.
-    - Development scope never authorizes dropping operative legal claims or bypassing validation.
-
-    Execution flow:
-    1. Return no additional instructions for the full-source contract.
-    2. For development-only scope, read the checked-in overlay and append its text.
-
-    Failure cases:
-    - An unsupported scope, missing instruction file, or empty overlay fails closed before model invocation.
-
-    Side effects:
-    - Reads a local instruction file; never modifies the run, draft or legal source.
-    """
-    if scope == _SCOPE_FULL:
-        return ""
-    if scope != _SCOPE_DEVELOPMENT:
-        raise ValueError("unsupported server-bound Preparation activity scope")
-    from runtime_instruction_bundle import runtime_instruction
-    body = runtime_instruction("preparation.development-overlay")
-    if not body:
-        raise ValueError("development scope instruction overlay is empty")
-    return "\n\n" + body
-
-
-def enforce_runtime_scope(scope: str, approved_scope_digest: str | None = None) -> None:
-    """Business purpose: Forbid unsupported scoped Rule Set executions.
-
-    Business rules:
-    - FULL_SOURCE runs by default; DEVELOPMENT_ONLY requires a trusted server-issued, reviewed scope digest.
-
-    Execution flow:
-    1. Require an explicitly bound 64-character digest for an API-approved DEVELOPMENT_ONLY scope.
-
-    Failure cases:
-    - Unapproved DEVELOPMENT_ONLY, malformed proof and unknown scopes raise a ValueError.
-
-    Side effects:
-    - None. The guard runs before any model call or source changes.
-    """
-    if scope == _SCOPE_FULL:
-        return
-    if scope == _SCOPE_DEVELOPMENT and isinstance(approved_scope_digest, str) and (
-        len(approved_scope_digest) == 64 and
-        all(c in "0123456789abcdef" for c in approved_scope_digest)
-    ):
-        return  # proof appears only in the authenticated, server-reviewed worker bundle
-    raise ValueError("DEVELOPMENT_SCOPE_NOT_VALIDATED: server scoped validator and approval are required")
-
-
 def preparation_locale_overlay(locale: str) -> str:
     """Business purpose: Select the trusted Preparation output language overlay.
 

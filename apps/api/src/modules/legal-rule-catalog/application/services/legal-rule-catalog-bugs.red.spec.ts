@@ -7,6 +7,7 @@ import {
 import { PreparationRuleService } from "./preparation-rule.service.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { sha256Hex } from "../../../assessment/domain/domain-ids.js";
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 
 const uuid = (n: number) =>
   `${String(n).padStart(8, "0")}-1111-4111-8111-111111111111`;
@@ -60,6 +61,8 @@ describe("Legal Rule Catalog - Bug Reproductions (RED Tests)", () => {
         mockPrisma,
         {} as any,
         {} as any,
+        // Isolate newline handling from independently tested official-source admission.
+        fixtureSourceAuthority,
       );
 
       const inputs = [

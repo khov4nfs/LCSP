@@ -30,6 +30,8 @@ import { AUDIT_RESOURCE_TYPES, AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 import { attachLegalRuleReferenceContext } from "./legal-rule-reference-context.js";
 import {
@@ -70,6 +72,7 @@ export class LegalRuleCatalogService {
     private readonly audit: AuditWriterService,
     // The versioned graph owns reference resolution for the picker.
     private readonly documentGraph: LegalDocumentGraphService,
+    private readonly authority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
 
   /**
@@ -710,9 +713,10 @@ export class LegalRuleCatalogService {
       const parsedOutput = last?.output
         ? preparationRuleOutputSchema.safeParse(last.output)
         : null;
-      const assessmentRuleCount = parsedOutput?.success
-        ? parsedOutput.data.assessmentRules.length
-        : 0;
+      const assessmentRuleCount =
+        state === S.PREPARED && parsedOutput?.success
+          ? parsedOutput.data.assessmentRules.length
+          : 0;
       return {
         id: rule.id,
         legalRuleId: rule.legalRuleId,
@@ -970,8 +974,9 @@ export class LegalRuleCatalogService {
    * Business purpose: Pin exact source bytes for selected rule execution.
    * Business rules:
    * - Every chunk/hash must still match; content is loaded only for selected inputs and never synthesized.
+   * - New selected preparation, regeneration, model-free import and publication use admitted official originals.
    * Execution flow:
-   * 1. Read selected chunks
+   * 1. Require source admission, then read selected chunks
    * 2. Verify stored and computed hashes
    * 3. Validate complete snapshots.
    * Failure cases:
@@ -984,6 +989,13 @@ export class LegalRuleCatalogService {
     inputs: PreparationRuleInput[],
     cid: string,
   ) {
+    // All selected authoring paths enter here before writing results or dispatching agents.
+    // Keep historical browsing independent of admission for new work.
+    for (const versionId of new Set(
+      inputs.map((input) => input.legalSourceVersionId),
+    )) {
+      await this.authority.requireVersion(tx, versionId, cid);
+    }
     const indexes = await tx.legalRetrievalIndex.findMany({
       where: {
         id: { in: [...new Set(inputs.map((input) => input.indexId))] },
@@ -1060,6 +1072,7 @@ export class LegalRuleCatalogService {
    * Business purpose: Keep catalog and preparation actions in the existing audit journal.
    * Business rules:
    * - Caller's transaction owns audit atomicity; source text is never copied into audit payloads.
+   * - A supplied idempotency identity preserves one receipt for an identical import replay.
    * Execution flow:
    * 1. Delegate safe identities and scalar metadata to the canonical writer.
    * Failure cases:
@@ -1073,7 +1086,8 @@ export class LegalRuleCatalogService {
     resourceId: string,
     actor: string,
     cid: string,
-    payload: Record<string, string | number>,
+    payload: Record<string, unknown>,
+    idempotencyKey?: string,
   ) {
     await this.audit.writeInTx(
       {
@@ -1084,6 +1098,8 @@ export class LegalRuleCatalogService {
         correlationId: cid,
         decision: AUDIT_DECISIONS.allow,
         payload,
+        // Reuse the audit writer's stable identity for import receipts only.
+        ...(idempotencyKey ? { idempotencyKey } : {}),
       },
       tx,
     );

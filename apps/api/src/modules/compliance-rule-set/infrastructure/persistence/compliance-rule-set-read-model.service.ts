@@ -160,7 +160,6 @@ export class ComplianceRuleSetReadModelLoader {
           }
         : {}),
       ruleSetVersionId: active.id,
-      targetActivityScope: active.targetActivityScope,
       version: active.version,
       legalSourceVersionId: active.legalSourceVersionId,
       ruleSetDigest: active.ruleSetDigest,

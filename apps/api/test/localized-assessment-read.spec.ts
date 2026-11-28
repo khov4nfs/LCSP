@@ -49,7 +49,6 @@ import {
   RULE_CATALOG_REVIEW_STATES,
   RULE_CATALOG_GROUP_IDS,
 } from "@lcsp/contracts/assessment-domain";
-import { PREPARATION_ACTIVITY_SCOPES } from "@lcsp/contracts/compliance-rule-set";
 import { ListAssessmentEventsHandler } from "../src/modules/assessment/application/queries/list-assessment-events/list-assessment-events.handler.js";
 import { ListAssessmentEventsQuery } from "../src/modules/assessment/application/queries/list-assessment-events/list-assessment-events.query.js";
 import { AssessmentRuleAuditService } from "../src/modules/assessment/application/services/assessment-rule-audit.service.js";
@@ -774,7 +773,6 @@ for (const locale of ["en", "vi"] as const)
           Promise.resolve({
             id: ruleSetVersionId,
             ruleSetDigest: "digest",
-            targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
           }),
       },
       assessmentRule: {

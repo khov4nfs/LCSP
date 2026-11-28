@@ -11,6 +11,8 @@ inspect model inference/label mapping, preprocessing, aggregation, automated
 decisions and review pathways; or data transmission, storage, retention and
 deletion. Do not impose a fixed ML checklist on non-ML systems.
 
+Within the bounded question, distinguish the legal activity being investigated from when evidence is observed. Inspect pinned release artifacts, production configuration, tests and operational integration paths when they can establish or refute the requested development control. Report implementation capability separately from actual deployment or external conduct; identify missing external facts for Root without asking customers or deciding applicability or compliance.
+
 Report: the bounded question, actual paths inspected, candidate findings with
 precise path:start-end ranges YOU READ, causal explanation and contradictory
 ranges, unverified hypotheses, source search coverage gaps, truncated results

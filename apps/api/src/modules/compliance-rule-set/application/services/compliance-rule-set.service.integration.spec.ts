@@ -1,3 +1,4 @@
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import { AuthoredLocalizationService } from "../../../../platform/localization/authored-localization.service.js";
 import { randomUUID } from "node:crypto";
 import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
@@ -90,16 +91,21 @@ function buildRuleSetUseCases(
     prisma,
     new LegalDocumentGraphService(prisma),
   );
-  const start = new StartRuleSetPreparationHandler(prisma, outbox);
+  const start = new StartRuleSetPreparationHandler(
+    prisma,
+    outbox,
+    fixtureSourceAuthority,
+  );
   const claim = new ClaimRuleSetPreparationHandler(
     prisma,
     new LegalDocumentGraphService(prisma),
+    fixtureSourceAuthority,
   );
   const fail = new FailRuleSetPreparationHandler(prisma);
   const submit = new SubmitComplianceRuleSetHandler(
     prisma,
     legalSource,
-    new ComplianceRuleSetActivation(outbox, audit),
+    new ComplianceRuleSetActivation(outbox, audit, fixtureSourceAuthority),
   );
   const validate = new ValidateComplianceRuleSetHandler(prisma, legalSource);
   const active = new GetActiveComplianceRuleSetHandler(
@@ -529,6 +535,38 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       ),
     ).toBe(true);
     expect(storedRuleSetIntegrityValid(accepted, [])).toBe(true);
+    const grouping = await prisma.ruleCatalogGroupingProposal.findUniqueOrThrow(
+      {
+        where: { ruleSetVersionId: result.ruleSetVersionId },
+      },
+    );
+    const sourceNode = await prisma.legalDocumentNode.findFirstOrThrow({
+      where: {
+        legalSourceVersionId: source.id,
+        semanticClaims: {
+          some: {
+            ruleSetVersionId: result.ruleSetVersionId,
+            claimId: accepted.rules.find(
+              (rule) => rule.legalRequirementId === "LR-DEF",
+            )!.claimBindings[0].claimId,
+          },
+        },
+      },
+      select: { documentId: true, structuralPath: true },
+    });
+    // The proposal retains exact legal source references from the published claim graph.
+    expect(grouping.payload).toMatchObject({
+      entries: expect.arrayContaining([
+        expect.objectContaining({
+          sourceReferences: expect.arrayContaining([
+            {
+              documentId: sourceNode.documentId,
+              locator: sourceNode.structuralPath,
+            },
+          ]),
+        }),
+      ]),
+    });
     const read = await service.getActiveRuleSet(randomUUID());
     expect(read.semanticGraph!.claims.length).toBe(
       candidate.semanticGraph!.claims.length,
@@ -1008,13 +1046,14 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     const bad = structuredClone(pinned.packet);
     bad.assessmentRules[0].legalRequirementIds.push("LR-MISSING");
 
-    const failed = await service.validate({
-      body: { preparationRunId: run.preparationRunId, packet: bad },
-      correlationId: randomUUID(),
-    });
-    expect(failed.outcome).toBe("FAILED");
-    expect(failed.failures.map((f) => f.code)).toContain(
-      COMPLIANCE_RULE_SET_FAILURE_CODES.ORPHAN_ASSESSMENT_RULE,
+    // Development scope authorization rejects any rule that escapes its reviewed parent bindings.
+    await expectProblem(
+      service.validate({
+        body: { preparationRunId: run.preparationRunId, packet: bad },
+        correlationId: randomUUID(),
+      }),
+      COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+      409,
     );
     const passed = await service.validate({
       body: pinned,
