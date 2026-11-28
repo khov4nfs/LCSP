@@ -2453,6 +2453,7 @@ client.claim_selected_rule_preparation = lambda run_id: {
     "resultId": result_id,
 }
 client.record_selected_rule_instructions = lambda run_id, r: {"recorded": True}
+client.validate_selected_rule_output = lambda run_id, output: {"valid": True}
 client.complete_selected_rule_preparation = lambda *args: {"completed": True}
 
 model = GovernedSelectedFixtureModel()
