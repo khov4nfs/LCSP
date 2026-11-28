@@ -1,10 +1,37 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+from tools.common.capabilities.platform import repository_snapshot_client
 from tools.common.capabilities.platform.repository_snapshot_client import (
     RepositoryArchiveDownload,
     RepositoryArchiveRequest,
     RepositorySnapshotClient,
 )
+
+
+@pytest.mark.parametrize(
+    ("status", "archive_root", "error_message"),
+    [
+        ("VERIFIED_WRAPPER", None, "wrapper metadata is contradictory"),
+        ("VERIFIED_ROOTLESS", "repo", "rootless metadata is contradictory"),
+        ("UNKNOWN", "repo", "archive root cannot be verified"),
+    ],
+)
+def test_archive_root_status_rejects_invalid_or_contradictory_wrapper_metadata(
+    status, archive_root, error_message,
+):
+    # Wrapper removal depends on an exact transport claim; contradictory shapes fail closed.
+    with pytest.raises(RuntimeError, match=error_message):
+        repository_snapshot_client._validate_root_status(
+            status, archive_root, tree_manifest=None,
+        )
+
+
+@pytest.mark.parametrize("archive_root", ["../repo", "repo/src", ""])
+def test_archive_root_rejects_invalid_wrapper_names(archive_root):
+    # Declared roots remain one bounded path component and can never encode traversal.
+    with pytest.raises(RuntimeError, match="archive root metadata is invalid"):
+        repository_snapshot_client._validate_archive_root(archive_root)
 
 
 def test_download_archive_uses_worker_api_key_header():
