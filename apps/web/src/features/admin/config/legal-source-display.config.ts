@@ -1,3 +1,4 @@
+import { LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES } from "@lcsp/contracts/legal-source";
 import {
   LEGAL_SOURCE_DOCUMENT_FAILURE_CODES,
   LEGAL_SOURCE_DOCUMENT_INGESTION_STATES,
@@ -144,5 +145,16 @@ export const LEGAL_SOURCE_STRUCTURE_PROFILE_OPTIONS = [
       LEGAL_SOURCE_STRUCTURE_PROFILE_MESSAGE_KEYS[
         LEGAL_SOURCE_STRUCTURE_PROFILES.PARAGRAPHS
       ],
+  },
+] as const;
+
+export const LEGAL_SOURCE_PURPOSE_OPTIONS = [
+  {
+    value: LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE,
+    labelKey: "pages.legalLifecycle.operative",
+  },
+  {
+    value: LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY,
+    labelKey: "pages.legalLifecycle.reference",
   },
 ] as const;

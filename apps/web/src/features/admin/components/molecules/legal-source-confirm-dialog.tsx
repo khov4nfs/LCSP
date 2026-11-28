@@ -22,6 +22,8 @@ export function LegalSourceConfirmDialog({
   confirmKey,
   pendingKey,
   pending,
+  disabled,
+  context,
   destructive,
   onConfirm,
 }: {
@@ -32,18 +34,30 @@ export function LegalSourceConfirmDialog({
   confirmKey: string;
   pendingKey: string;
   pending: boolean;
+  disabled?: boolean;
+  context?: string;
   destructive?: boolean;
   onConfirm: () => void;
 }) {
   const t = (key: string) => resolveAppMessage(key as MessageKey);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!pending) onOpenChange(next);
+      }}
+    >
+      <DialogContent
+        closeLabel={t("pages.legalSources.cancel")}
+        showCloseButton={!pending}
+      >
         <DialogHeader>
           <DialogTitle>{t(titleKey)}</DialogTitle>
           <DialogDescription>{t(descriptionKey)}</DialogDescription>
         </DialogHeader>
-        <DialogBody />
+        <DialogBody>
+          {context ? <p className="break-all text-sm">{context}</p> : null}
+        </DialogBody>
         <DialogFooter className="flex-row justify-end">
           <Button
             type="button"
@@ -56,7 +70,7 @@ export function LegalSourceConfirmDialog({
           <Button
             type="button"
             variant={destructive ? "destructive" : "default"}
-            disabled={pending}
+            disabled={pending || disabled}
             onClick={onConfirm}
           >
             {t(pending ? pendingKey : confirmKey)}
