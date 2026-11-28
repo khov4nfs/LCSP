@@ -439,7 +439,12 @@ describe("PreparationRuleService.importAssessmentRules", () => {
       }),
       expect.any(String),
     ]);
-    await subject.importAssessmentRules(catalogId, document, "admin-1", "retry");
+    await subject.importAssessmentRules(
+      catalogId,
+      document,
+      "admin-1",
+      "retry",
+    );
     expect(catalogs.record.mock.calls[1][6]).toBe(args[6]);
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
     expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
@@ -500,7 +505,8 @@ describe("PreparationRuleService.importAssessmentRules", () => {
           excludedItems: [
             {
               ruleId: uuid(9),
-              reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NON_ASSESSABLE,
+              reasonCode:
+                ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NON_ASSESSABLE,
               reason: "Ngoài repo",
             },
           ],

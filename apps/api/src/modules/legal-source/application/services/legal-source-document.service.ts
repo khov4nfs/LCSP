@@ -1,6 +1,10 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { discardDraftDocumentGraphs } from "./discard-draft-document-graph.js";
 import {
+  identifyOfficialLegalDocument,
+  resolveOfficialLegalDocument,
+} from "../../domain/official-legal-authority.js";
+import {
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
@@ -183,9 +187,14 @@ export class LegalSourceDocumentService {
     request: ImportLegalSourceDocumentRequest;
   }): Promise<LegalSourceDocumentView> {
     await this.requireDraft(input.versionId, input.correlationId);
+    // A known publication page resolves directly to the pinned original PDF.
+    // The generic fetcher retains its network and redirect safety checks.
+    const official = resolveOfficialLegalDocument(input.request.url);
     let fetched: FetchedDocument;
     try {
-      fetched = await this.fetcher.fetch(input.request.url);
+      fetched = await this.fetcher.fetch(
+        official?.downloadUrl ?? input.request.url,
+      );
     } catch (error) {
       if (error instanceof ImportRejectedError) {
         throw problemException(Errors.importUrlRejected, input.correlationId, {
@@ -195,6 +204,15 @@ export class LegalSourceDocumentService {
       }
       throw error;
     }
+    // Reject a changed or substituted original before storing any bytes.
+    if (
+      official &&
+      identifyOfficialLegalDocument(sha256Ref(fetched.bytes)) !== official
+    ) {
+      throw problemException(Errors.importUrlRejected, input.correlationId, {
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+      });
+    }
     return this.addDocument({
       versionId: input.versionId,
       actorId: input.actorId,
@@ -203,9 +221,9 @@ export class LegalSourceDocumentService {
       fileName: cleanFileName(fetched.fileName ?? "imported-document"),
       declaredType: fetched.contentType,
       origin: Origins.URL_IMPORT,
-      sourceUrl: fetched.finalUrl,
+      sourceUrl: official?.sourcePage ?? fetched.finalUrl,
       provenance: {
-        requestedUrl: fetched.requestedUrl,
+        requestedUrl: input.request.url,
         finalUrl: fetched.finalUrl,
         retrievedAt: fetched.retrievedAt.toISOString(),
         httpStatus: fetched.status,
@@ -1089,6 +1107,9 @@ export class LegalSourceDocumentService {
       );
     }
     const sha256 = sha256Ref(input.bytes).slice("sha256:".length);
+    // Recognize a known original even when an Admin uploads the PDF directly.
+    // Unknown draft bytes are not assigned an official authority identity.
+    const official = identifyOfficialLegalDocument(sha256);
 
     return this.prisma.$transaction(async (tx) => {
       const version = await this.lockDraft(
@@ -1138,7 +1159,7 @@ export class LegalSourceDocumentService {
           legalSourceVersionId: version.id,
           documentId,
           title,
-          sourceUrl: input.sourceUrl,
+          sourceUrl: official?.sourcePage ?? input.sourceUrl,
           sourceSha256: `sha256:${sha256}`,
           sourceEffectStatus: input.sourceEffectStatus ?? NOT_STATED,
           effectiveDate: input.effectiveDate
@@ -1154,7 +1175,16 @@ export class LegalSourceDocumentService {
           byteLength: input.bytes.byteLength,
           blobSha256: sha256,
           structureProfile: input.structureProfile,
-          provenance: input.provenance,
+          provenance: {
+            ...input.provenance,
+            ...(official
+              ? {
+                  officialPublication: official.sourcePage,
+                  originalDownload: official.downloadUrl,
+                  documentNumber: official.number,
+                }
+              : {}),
+          },
           createdBy: input.actorId,
         },
       });
