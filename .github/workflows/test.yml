@@ -532,6 +532,18 @@ jobs:
       - name: Test Python workers
         run: pytest
 
+      # Publish the local-only P14 smoke evidence tied to this exact CI revision.
+      - name: Generate Vietnamese policy baseline and P14 smoke artifacts
+        run: python -m evals.cli policy-baseline --output-dir "$RUNNER_TEMP/lcsp-policy-baseline"
+
+      - name: Upload policy baseline and P14 smoke artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcsp-policy-baseline-${{ github.sha }}
+          path: ${{ runner.temp }}/lcsp-policy-baseline/
+          if-no-files-found: error
+          retention-days: 30
+
   docker-sandbox-e2e:
     name: Docker sandbox E2E
     needs: changes

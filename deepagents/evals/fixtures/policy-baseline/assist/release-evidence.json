@@ -1,0 +1,22 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "mediumOrHighRisk": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "isDeployer": true,
+  "publicConfusableAiContent": true,
+  "otherPublicNoticeException": false,
+  "publicDistribution": true,
+  "simulatedRealAudiovisual": true,
+  "visibleLabelException": false,
+  "scenario": "Dịch vụ AI đã đưa phiên bản mới vào sử dụng. Cùng một tổ chức cung cấp hệ thống rủi ro trung bình và phát hành nội dung nghe nhìn mô phỏng sự kiện.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "value": "4.2.0"},
+  "riskNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "BEFORE_FIRST_USE"},
+  "interactionDisclosure": {"status": "VERIFIED_PRESENT", "value": "Banner đã xác nhận trên màn hình"},
+  "machineReadableMark": {"status": "VERIFIED_PRESENT", "value": "Dấu metadata nhận diện AI"},
+  "publicNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "AT_ACCESS"},
+  "visibleMediaLabel": {"status": "EXPLICITLY_ABSENT"}
+}

@@ -1,0 +1,22 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "mediumOrHighRisk": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "isDeployer": true,
+  "publicConfusableAiContent": true,
+  "otherPublicNoticeException": false,
+  "publicDistribution": true,
+  "simulatedRealAudiovisual": true,
+  "visibleLabelException": false,
+  "scenario": "Nhà cung cấp cũng trực tiếp phát hành video AI mô phỏng. Hồ sơ dùng kênh tiếp nhận tạm thời hợp lệ đã xác nhận. Thông báo hiện sau khi bắt đầu xem.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "value": "r18"},
+  "riskNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "BEFORE_FIRST_USE"},
+  "interactionDisclosure": {"status": "UNVERIFIED"},
+  "machineReadableMark": {"status": "VERIFIED_PRESENT", "value": "Chữ ký số định danh nguồn AI"},
+  "publicNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "AFTER_ACCESS"},
+  "visibleMediaLabel": {"status": "MISSING"}
+}

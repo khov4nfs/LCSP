@@ -99,7 +99,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_repo.add_argument("--output-dir", type=Path, required=True)
 
     # The documentary baseline runs locally and has no provider route or live mode.
-    p_policy = sub.add_parser("policy-baseline", help="Compare CRA documentary checks with the offline Root graph")
+    p_policy = sub.add_parser("policy-baseline", help="Evaluate Vietnamese documentary policies and smoke-test P14 offline")
     p_policy.add_argument("--output-dir", type=Path, required=True)
 
     args = parser.parse_args(argv)

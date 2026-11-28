@@ -1,0 +1,18 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "mediumOrHighRisk": false,
+  "interactsDirectly": false,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": true,
+  "isDeployer": false,
+  "publicConfusableAiContent": false,
+  "otherPublicNoticeException": false,
+  "publicDistribution": false,
+  "simulatedRealAudiovisual": false,
+  "visibleLabelException": false,
+  "scenario": "Nhà cung cấp hệ thống nguồn mở phát hành audio, không trực tiếp triển khai. Phân loại rủi ro thấp đã được xác nhận trong ca và hệ thống không tương tác trực tiếp.",
+  "dossierSystemVersion": {"status": "UNVERIFIED"},
+  "openMarkingCapability": {"status": "EXPLICITLY_ABSENT"}
+}

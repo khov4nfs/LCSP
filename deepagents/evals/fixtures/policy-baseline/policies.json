@@ -1,44 +1,174 @@
 {
-  "source": "https://eur-lex.europa.eu/eli/reg/2024/2847/oj",
-  "version": "OJ L 2024/2847, 20 November 2024",
-  "applicability": "The snapshot stipulates either an in-scope manufacturer supplying an in-scope digital product on the EU market after the general CRA application date, or FOSS supplied outside commercial activity under Article 2(3). Neither status is inferred from repo metadata.",
+  "version": "LCSP-402 Công báo Việt Nam v1",
+  "applicability": "Các ca giả định hoạt động tại Việt Nam sau ngày cả hai văn bản có hiệu lực, hệ thống mới hoặc đã qua thời hạn chuyển tiếp. Chủ thể và các điều kiện của từng nghĩa vụ phải có evidence riêng. Hoạt động chỉ phục vụ quốc phòng, an ninh, cơ yếu nằm ngoài phạm vi. Việc nghiên cứu, phát triển nội bộ không tự xác lập vai trò nhà cung cấp hoặc bên triển khai.",
+  "common_context": [
+    "law-1",
+    "law-2",
+    "law-3",
+    "law-34",
+    "law-35",
+    "decree-45"
+  ],
   "policies": [
     {
-      "id": "CRA-MANUFACTURER-NAME",
-      "type": "USER_INFORMATION",
-      "locator": "Annex II(1)",
-      "excerpt": "the name, registered trade name or registered trademark of the manufacturer",
-      "field": "manufacturerName",
-      "criterion": "The accompanying information identifies the manufacturer by name, registered trade name or registered trademark.",
-      "pass_pattern": "[A-Za-z][A-Za-z0-9 .&'-]*",
-      "fail_pattern": "NOT_PROVIDED",
-      "limit": "Only the identifier in the accompanying information. The snapshot format uses plain ASCII names. Other representations are unknown. Address, identity verification and the rest of Annex II(1) are outside this check."
+      "id": "VN-AI-RISK-VERSION",
+      "type": "RISK_DOSSIER",
+      "locator": "decree-12",
+      "context": [
+        "law-10"
+      ],
+      "field": "dossierSystemVersion",
+      "criterion": "Đối với hệ thống rủi ro trung bình hoặc cao, hồ sơ phân loại trước khi đưa vào sử dụng phải nêu phiên bản hệ thống.",
+      "conditions": {
+        "isProvider": true,
+        "mediumOrHighRisk": true
+      },
+      "limit": "Chỉ kiểm tra trường phiên bản đã đối chiếu trong hồ sơ tương ứng hoặc tài liệu tương đương được phép. Không kết luận về thành phần hồ sơ khác.",
+      "pass_pattern": null,
+      "fail_pattern": null,
+      "exceptions": []
     },
     {
-      "id": "CRA-REPORTING-CONTACT",
-      "type": "VULNERABILITY_REPORTING",
-      "locator": "Annex II(2)",
-      "excerpt": "the single point of contact",
-      "field": "vulnerabilityReportingContact",
-      "criterion": "The accompanying information identifies a point of contact for reporting product vulnerabilities.",
-      "pass_pattern": "mailto:[^\\s@]+@[^\\s@]+\\.[^\\s@]+",
-      "fail_pattern": "NOT_PROVIDED",
-      "limit": "Only whether the accompanying information lists a reporting point. The supported positive form is mailto. Other channels are unknown. Channel operation, communications choice and access to the disclosure policy are outside this check."
+      "id": "VN-AI-RISK-NOTICE",
+      "type": "RISK_NOTIFICATION",
+      "locator": "decree-14",
+      "context": [
+        "law-10",
+        "decree-12",
+        "decree-46"
+      ],
+      "field": "riskNoticeTiming",
+      "criterion": "Nhà cung cấp thông báo kết quả phân loại của hệ thống rủi ro trung bình hoặc cao cho Bộ Khoa học và Công nghệ trước khi đưa hệ thống vào sử dụng.",
+      "conditions": {
+        "isProvider": true,
+        "mediumOrHighRisk": true
+      },
+      "limit": "Đối chiếu trình tự giữa xác nhận gửi qua kênh được phép và lần đầu đưa hệ thống vào sử dụng. Chấp nhận kênh chuyển tiếp hợp lệ theo Điều 46. Không kiểm tra nội dung thông báo.",
+      "pass_pattern": "BEFORE_FIRST_USE",
+      "fail_pattern": "AT_OR_AFTER_FIRST_USE",
+      "exceptions": [
+        "Kênh tiếp nhận tạm thời hợp lệ theo Điều 46 khi cổng chưa vận hành chính thức."
+      ]
     },
     {
-      "id": "CRA-SUPPORT-END",
-      "type": "SUPPORT_INFORMATION",
-      "locator": "Article 13(19)",
-      "excerpt": "including at least the month and the year",
-      "field": "supportEndAtPurchase",
-      "criterion": "The end of the support period is stated to at least month and year at purchase.",
-      "pass_pattern": "[1-9][0-9]{3}-(0[1-9]|1[0-2])",
-      "fail_pattern": "NOT_PROVIDED|[1-9][0-9]{3}",
-      "limit": "Only whether the stipulated point-of-purchase information states both month and year. The fixture format uses YYYY-MM. An explicitly year-only value contradicts the criterion. Accessibility and the length or operation of support are outside this check."
+      "id": "VN-AI-INTERACTION-DISCLOSURE",
+      "type": "INTERACTION_TRANSPARENCY",
+      "locator": "law-11",
+      "context": [
+        "decree-16"
+      ],
+      "field": "interactionDisclosure",
+      "criterion": "Nhà cung cấp bảo đảm người dùng nhận biết khi tương tác trực tiếp với hệ thống trí tuệ nhân tạo.",
+      "conditions": {
+        "isProvider": true,
+        "interactsDirectly": true,
+        "otherInteractionException": false
+      },
+      "limit": "Chỉ kiểm tra kết quả quan sát trực tiếp được xác nhận trong ca cho điểm tương tác liên quan, không suy từ mã frontend hoặc chất lượng thông báo.",
+      "pass_pattern": null,
+      "fail_pattern": null,
+      "exceptions": [
+        "Trường hợp pháp luật có quy định khác theo khoản 1 Điều 11."
+      ]
+    },
+    {
+      "id": "VN-AI-MEDIA-MARK",
+      "type": "TECHNICAL_MARKING",
+      "locator": "decree-17",
+      "context": [
+        "law-11",
+        "decree-16"
+      ],
+      "field": "machineReadableMark",
+      "criterion": "Nhà cung cấp bảo đảm dấu máy đọc trên đầu ra âm thanh, hình ảnh hoặc video do hệ thống tạo ra.",
+      "conditions": {
+        "isProvider": true,
+        "generatesAudiovisual": true,
+        "openOrFreeDistribution": false
+      },
+      "limit": "Kiểm tra dấu đã được xác nhận bằng máy đọc trong đầu ra mẫu và xác nhận dấu nói nội dung do AI tạo hoặc chỉnh sửa. Các dạng dấu hợp pháp khác không bị loại chỉ vì định dạng.",
+      "pass_pattern": null,
+      "fail_pattern": null,
+      "exceptions": [
+        "Hệ thống nguồn mở hoặc cung cấp miễn phí được đánh giá theo cơ chế riêng tại khoản 5 Điều 17."
+      ]
+    },
+    {
+      "id": "VN-AI-OPEN-MARK-ENABLEMENT",
+      "type": "TECHNICAL_MARKING",
+      "locator": "decree-17",
+      "context": [
+        "law-11",
+        "decree-16"
+      ],
+      "field": "openMarkingCapability",
+      "criterion": "Nhà cung cấp hệ thống nguồn mở hoặc miễn phí có đầu ra âm thanh, hình ảnh hoặc video thực hiện nghĩa vụ thông qua chức năng tích hợp hoặc phương tiện kỹ thuật công khai cho bên triển khai cấu hình và vận hành.",
+      "conditions": {
+        "isProvider": true,
+        "generatesAudiovisual": true,
+        "openOrFreeDistribution": true
+      },
+      "limit": "Chỉ đánh giá hai con đường tại khoản 5 Điều 17. Công cụ công khai cần đã được kiểm tra có thể cấu hình và vận hành dấu. Nghĩa vụ bên triển khai khi cung cấp nội dung ra công cộng nằm ngoài check này.",
+      "pass_pattern": "BUILT_IN_VERIFIED|PUBLIC_ENABLEMENT_VERIFIED",
+      "fail_pattern": null,
+      "exceptions": []
+    },
+    {
+      "id": "VN-AI-PUBLIC-NOTICE-TIMING",
+      "type": "PUBLIC_TRANSPARENCY",
+      "locator": "decree-18",
+      "context": [
+        "law-11",
+        "decree-16"
+      ],
+      "field": "publicNoticeTiming",
+      "criterion": "Đối với nội dung AI cung cấp ra công cộng có khả năng gây nhầm lẫn, bên triển khai thông báo trước hoặc tại thời điểm người tiếp nhận tiếp cận nội dung.",
+      "conditions": {
+        "isDeployer": true,
+        "publicConfusableAiContent": true,
+        "otherPublicNoticeException": false
+      },
+      "limit": "Chỉ xác minh thời điểm hiển thị thông báo đối với nội dung mẫu, không đánh giá mức độ dễ hiểu hay nhận biết. Chấp nhận các hình thức thông báo phù hợp với khoản 5 và khoản 6.",
+      "pass_pattern": "BEFORE_ACCESS|AT_ACCESS",
+      "fail_pattern": "AFTER_ACCESS",
+      "exceptions": [
+        "Luật có quy định khác theo khoản 3 Điều 11."
+      ]
+    },
+    {
+      "id": "VN-AI-VISIBLE-MEDIA-LABEL",
+      "type": "PUBLIC_TRANSPARENCY",
+      "locator": "decree-18",
+      "context": [
+        "law-11",
+        "decree-16"
+      ],
+      "field": "visibleMediaLabel",
+      "criterion": "Bên triển khai gắn nhãn dễ nhận biết đối với nội dung AI mô phỏng người thật hoặc tái hiện sự kiện thực tế thuộc trường hợp quy định.",
+      "conditions": {
+        "isDeployer": true,
+        "publicDistribution": true,
+        "simulatedRealAudiovisual": true,
+        "visibleLabelException": false
+      },
+      "limit": "Chỉ kiểm tra phiên bản phát hành công cộng được xác nhận trong ca. Đối với tác phẩm sáng tạo, kiểm tra cả các vị trí hoặc tài liệu kèm theo được khoản 6 cho phép trước khi kết luận vắng nhãn.",
+      "pass_pattern": null,
+      "fail_pattern": null,
+      "exceptions": [
+        "Các ngoại lệ tại khoản 4 Điều 18 và quy định khác được dẫn chiếu tại điểm b khoản 2."
+      ]
     }
   ],
   "excluded": [
-    {"type": "VULNERABILITY_HANDLING", "locator": "Annex I Part II(5)", "reason": "A file cannot demonstrate enforcement of coordinated disclosure."},
-    {"type": "SECURE_BY_DEFAULT", "locator": "Annex I Part I(2)(b)", "reason": "The supplied documentation snapshot establishes neither effective defaults nor the terms of any tailor-made agreement."}
+    {
+      "type": "RISK_CLASSIFICATION",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 6–9",
+      "reason": "Không tự phân loại rủi ro từ repository; cần phạm vi, trường hợp sử dụng và ngữ cảnh triển khai."
+    },
+    {
+      "type": "TRANSPARENCY_QUALITY",
+      "locator": "Nghị định 142/2026/NĐ-CP, Điều 18 khoản 3",
+      "reason": "Sự hiện diện hoặc thời điểm của dấu không chứng minh mức độ dễ hiểu trong tất cả bối cảnh tiếp nhận."
+    }
   ]
 }

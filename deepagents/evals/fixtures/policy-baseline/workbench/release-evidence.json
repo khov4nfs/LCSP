@@ -1,0 +1,22 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": true,
+  "mediumOrHighRisk": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "isDeployer": true,
+  "publicConfusableAiContent": false,
+  "otherPublicNoticeException": false,
+  "publicDistribution": false,
+  "simulatedRealAudiovisual": true,
+  "visibleLabelException": true,
+  "scenario": "Nhà cung cấp và bên triển khai cùng pháp nhân; nội dung mô phỏng chỉ dùng nội bộ, không công bố. Có công cụ gắn nhãn, nhưng chưa thấy evidence xác nhận đầu ra có dấu.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "value": "2026.10.2"},
+  "riskNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "BEFORE_FIRST_USE"},
+  "interactionDisclosure": {"status": "VERIFIED_PRESENT", "value": "Chỉ báo AI trong giao diện"},
+  "machineReadableMark": {"status": "UNVERIFIED"},
+  "publicNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "AFTER_ACCESS"},
+  "visibleMediaLabel": {"status": "EXPLICITLY_ABSENT"}
+}

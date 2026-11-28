@@ -1,0 +1,128 @@
+{
+  "law-1": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 1",
+    "pages": [
+      1,
+      1
+    ],
+    "text": "Điều 1. Phạm vi điều chỉnh\n1. Luật này quy định về nghiên cứu, phát triển, cung cấp, triển khai và sử dụng hệ thống trí tuệ nhân tạo (sau đây gọi là hoạt động trí tuệ nhân tạo); quyền, nghĩa vụ của tổ chức, cá nhân có liên quan và quản lý nhà nước đối với hoạt động trí tuệ nhân tạo tại Việt Nam.\n2. Hoạt động trí tuệ nhân tạo chỉ phục vụ cho mục đích quốc phòng, an ninh, cơ yếu không thuộc phạm vi điều chỉnh của Luật này."
+  },
+  "law-2": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 2",
+    "pages": [
+      1,
+      1
+    ],
+    "text": "Điều 2. Đối tượng áp dụng Luật này áp dụng đối với cơ quan, tổ chức, cá nhân Việt Nam và tổ chức, cá nhân nước ngoài tham gia vào hoạt động trí tuệ nhân tạo tại Việt Nam."
+  },
+  "law-3": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 3",
+    "pages": [
+      1,
+      2
+    ],
+    "text": "Điều 3. Giải thích từ ngữ Trong Luật này, các từ ngữ dưới đây được hiểu như sau:\n1. Trí tuệ nhân tạo là việc thực hiện bằng điện tử các năng lực trí tuệ của con người, bao gồm học tập, suy luận, nhận thức, phán đoán và hiểu ngôn ngữ tự nhiên.\n2. Hệ thống trí tuệ nhân tạo là hệ thống dựa trên máy, được thiết kế để thực hiện các năng lực trí tuệ nhân tạo với các mức độ tự chủ khác nhau, có khả năng tự thích nghi sau khi được triển khai; căn cứ vào các mục tiêu được xác định rõ ràng hoặc được hình thành một cách ngầm định, hệ thống suy luận từ dữ liệu đầu vào để tạo ra các đầu ra như dự đoán, nội dung, khuyến nghị hoặc quyết định có thể gây ảnh hưởng tới môi trường vật lý hoặc môi trường số.\n3. Nhà phát triển là tổ chức, cá nhân thực hiện việc thiết kế, xây dựng, huấn luyện, kiểm thử hoặc tinh chỉnh toàn bộ hoặc một phần mô hình, thuật toán hoặc hệ thống trí tuệ nhân tạo và có quyền kiểm soát trực tiếp đối với phương pháp kỹ thuật, dữ liệu huấn luyện hoặc tham số mô hình.\n4. Nhà cung cấp là tổ chức, cá nhân đưa hệ thống trí tuệ nhân tạo ra thị trường hoặc đưa vào sử dụng dưới tên, thương hiệu hoặc nhãn hiệu của mình, không phụ thuộc hệ thống đó do họ tự phát triển hay được phát triển bởi bên thứ ba.\n5. Bên triển khai là tổ chức, cá nhân sử dụng hệ thống trí tuệ nhân tạo thuộc phạm vi kiểm soát của mình trong hoạt động nghề nghiệp, thương mại hoặc cung cấp dịch vụ; không bao gồm trường hợp sử dụng cho mục đích cá nhân, phi thương mại.\n6. Người sử dụng là tổ chức, cá nhân trực tiếp tương tác với hệ thống trí tuệ nhân tạo hoặc sử dụng kết quả đầu ra của hệ thống đó.\n7. Người bị ảnh hưởng là tổ chức, cá nhân bị tác động trực tiếp hoặc gián tiếp đến quyền, lợi ích hợp pháp, tính mạng, sức khỏe, tài sản, uy tín hoặc cơ hội tiếp cận dịch vụ do việc triển khai hoặc do kết quả đầu ra của hệ thống trí tuệ nhân tạo.\n8. Sự cố nghiêm trọng là sự kiện xảy ra trong hoạt động của hệ thống trí tuệ nhân tạo, gây ra hoặc có nguy cơ gây ra thiệt hại đáng kể đến tính mạng, sức khỏe, quyền con người, tài sản, an ninh mạng, trật tự công cộng, môi trường hoặc làm gián đoạn hoạt động của hệ thống thông tin quan trọng về an ninh quốc gia."
+  },
+  "law-10": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 10",
+    "pages": [
+      5,
+      6
+    ],
+    "text": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử dụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ phân loại kèm theo.\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách nhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường hợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi ro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà cung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông qua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng. Khuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp công khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị Bộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có dấu hiệu vi phạm;\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo cáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự cố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không cần thiết cho tổ chức, cá nhân.\n6. Trên cơ sở kết quả kiểm tra, giám sát quy định tại khoản 5 Điều này, khi phát hiện sai lệch hoặc khai báo không trung thực, cơ quan có thẩm quyền yêu cầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo quy định của pháp luật.\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự, thủ tục thông báo và hướng dẫn kỹ thuật về phân loại rủi ro."
+  },
+  "law-11": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 11",
+    "pages": [
+      6,
+      6
+    ],
+    "text": "Điều 11. Trách nhiệm minh bạch\n1. Nhà cung cấp bảo đảm hệ thống trí tuệ nhân tạo tương tác trực tiếp với con người được thiết kế và vận hành để người sử dụng nhận biết khi đang tương tác với hệ thống, trừ trường hợp pháp luật có quy định khác.\n2. Nhà cung cấp bảo đảm các nội dung âm thanh, hình ảnh, video do hệ thống trí tuệ nhân tạo tạo ra được đánh dấu ở định dạng máy đọc theo quy định của Chính phủ.\n3. Bên triển khai có trách nhiệm thông báo rõ ràng khi cung cấp ra công cộng văn bản, âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nếu nội dung đó có khả năng gây nhầm lẫn về tính xác thực của sự kiện, nhân vật, trừ trường hợp pháp luật có quy định khác.\n4. Bên triển khai có trách nhiệm bảo đảm âm thanh, hình ảnh, video được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo nhằm mô phỏng, giả lập ngoại hình, giọng nói của người thật hoặc tái hiện sự kiện thực tế phải được gắn nhãn dễ nhận biết để phân biệt với nội dung thật. Đối với sản phẩm là tác phẩm điện ảnh, nghệ thuật hoặc sáng tạo, việc gắn nhãn quy định tại khoản này được thực hiện theo phương thức phù hợp, bảo đảm không làm cản trở việc hiển thị, trình diễn hoặc thưởng thức tác phẩm.\n5. Nhà cung cấp và bên triển khai có trách nhiệm duy trì thông tin minh bạch theo quy định tại Điều này trong suốt quá trình cung cấp hệ thống, sản phẩm hoặc nội dung cho người sử dụng.\n6. Chính phủ quy định chi tiết hình thức thông báo, gắn nhãn."
+  },
+  "law-34": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 34",
+    "pages": [
+      19,
+      19
+    ],
+    "text": "Điều 34. Hiệu lực thi hành Luật này có hiệu lực thi hành từ ngày 01 tháng 3 năm 2026, trừ các nội dung liên quan quy định tại Điều 35 của Luật này."
+  },
+  "law-35": {
+    "document": "134-2025-QH15",
+    "locator": "Điều 35",
+    "pages": [
+      19,
+      20
+    ],
+    "text": "Điều 35. Điều khoản chuyển tiếp\n1. Đối với các hệ thống trí tuệ nhân tạo đã được đưa vào hoạt động trước ngày Luật này có hiệu lực thi hành, nhà cung cấp và bên triển khai có trách nhiệm thực hiện các nghĩa vụ tuân thủ theo quy định của Luật này trong thời hạn sau đây:\na) 18 tháng kể từ ngày Luật này có hiệu lực thi hành đối với hệ thống trí tuệ nhân tạo trong lĩnh vực y tế, giáo dục và tài chính;\nb) 12 tháng kể từ ngày Luật này có hiệu lực thi hành đối với các hệ thống trí tuệ nhân tạo không thuộc trường hợp quy định tại điểm a khoản này.\n2. Trong thời hạn quy định tại khoản 1 Điều này, hệ thống trí tuệ nhân tạo được tiếp tục hoạt động, trừ trường hợp cơ quan quản lý nhà nước về trí tuệ nhân tạo xác định hệ thống có nguy cơ gây thiệt hại nghiêm trọng thì có quyền yêu cầu tạm dừng hoặc chấm dứt hoạt động."
+  },
+  "decree-12": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 12",
+    "pages": [
+      9,
+      10
+    ],
+    "text": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo\n1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo có rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống vào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\n2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung cấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:\na) Thông tin nhận diện hệ thống, bao gồm: tên hệ thống; phiên bản; mã định danh nội bộ hoặc mã định danh do cơ quan nhà nước có thẩm quyền cấp; tên, địa chỉ và thông tin liên hệ của nhà cung cấp;\nb) Mô tả hệ thống và bối cảnh sử dụng: mục đích sử dụng; chức năng chính; kiến trúc hệ thống ở mức chức năng, nghiệp vụ; phạm vi triển khai; nhóm người sử dụng và người bị ảnh hưởng;\nc) Thông tin về dữ liệu: Mô tả khái quát loại dữ liệu đầu vào chủ yếu được sử dụng để vận hành hệ thống;\nd) Nội dung quản lý rủi ro: Tóm tắt các biện pháp quản lý rủi ro, bảo đảm an toàn và tính minh bạch của hệ thống.\n3. Trường hợp nhà cung cấp phát triển hệ thống trí tuệ nhân tạo dựa trên nền tảng, mô hình hoặc dịch vụ trí tuệ nhân tạo của bên thứ ba, nhà cung cấp chỉ phải cung cấp thông tin kỹ thuật và thông tin về dữ liệu trong phạm vi quyền tiếp cận và kiểm soát hợp pháp của mình.\n4. Việc lập, cung cấp và quản lý hồ sơ phân loại rủi ro không bắt buộc nhà cung cấp phải tiết lộ mã nguồn, bộ tham số mô hình, thuật toán chi tiết, dữ liệu huấn luyện thô hoặc các thông tin thuộc danh mục bí mật nhà nước, bí mật kinh doanh, bí mật công nghệ theo quy định tại điểm e khoản 1 Điều 14 của Luật Trí tuệ nhân tạo, trừ trường hợp pháp luật có quy định khác.\n5. Nhà cung cấp có quyền sử dụng tài liệu mô tả kỹ thuật mô hình hoặc tài liệu kỹ thuật tương đương được lập theo tiêu chuẩn quốc tế để đáp ứng các thành phần hồ sơ quy định tại khoản 2 và khoản 3 Điều này, với điều kiện các tài liệu đó đáp ứng đầy đủ các nội dung thông tin theo yêu cầu của Nghị định này.\n6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong suốt thời gian hệ thống hoạt động.\n7. Trường hợp hệ thống trí tuệ nhân tạo có sử dụng dữ liệu cá nhân, nhà cung cấp được sử dụng Hồ sơ đánh giá tác động xử lý dữ liệu cá nhân theo quy định của pháp luật về bảo vệ dữ liệu cá nhân để thay thế hoặc tích hợp làm thành phần của Hồ sơ phân loại rủi ro, nhằm giảm thiểu chi phí tuân thủ hành chính."
+  },
+  "decree-14": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 14",
+    "pages": [
+      12,
+      12
+    ],
+    "text": "Điều 14. Thông báo kết quả phân loại rủi ro đối với hệ thống trí tuệ nhân tạo\n1. Nhà cung cấp hệ thống trí tuệ nhân tạo có rủi ro trung bình và hệ thống trí tuệ nhân tạo có rủi ro cao phải thông báo kết quả phân loại rủi ro cho Bộ Khoa học và Công nghệ thông qua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa hệ thống vào sử dụng. Nhà cung cấp tự kê khai, tự chịu trách nhiệm trước pháp luật về nội dung thông báo.\n2. Nhà cung cấp phải bảo đảm nội dung thông báo kết quả phân loại rủi ro tuân thủ theo quy định tại Điều 12 của Nghị định này.\n3. Nhà cung cấp thực hiện thông báo bằng phương thức điện tử trên Cổng thông tin điện tử một cửa về trí tuệ nhân tạo theo một trong các hình thức sau đây:\na) Kê khai trực tiếp theo biểu mẫu điện tử trên Cổng thông tin điện tử một cửa về trí tuệ nhân tạo;\nb) Gửi thông tin tự động thông qua giao diện lập trình ứng dụng hoặc phương thức điện tử phù hợp khác theo quy định của pháp luật.\n4. Bộ Khoa học và Công nghệ thông qua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo tự động ghi nhận thông tin, cấp mã định danh hệ thống trí tuệ nhân tạo và gửi xác nhận điện tử cho nhà cung cấp ngay sau khi nhà cung cấp hoàn tất việc gửi thông báo. Trong quá trình tiếp nhận thông báo, cơ quan nhà nước có thẩm quyền không được yêu cầu nhà cung cấp nộp thêm tài liệu hoặc bổ sung thành phần thông tin ngoài nội dung quy định tại khoản 2 Điều này. Cơ quan nhà nước có thẩm quyền thực hiện thanh tra, kiểm tra và hậu kiểm theo quy định của pháp luật."
+  },
+  "decree-16": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 16",
+    "pages": [
+      14,
+      14
+    ],
+    "text": "Điều 16. Nguyên tắc minh bạch và giải trình\n1. Nhà cung cấp và bên triển khai hệ thống trí tuệ nhân tạo phải thực hiện trách nhiệm minh bạch, thông báo, đánh dấu kỹ thuật và gắn nhãn hiển thị đối với hệ thống trí tuệ nhân tạo và nội dung do hệ thống tạo ra theo quy định tại Điều 11 của Luật Trí tuệ nhân tạo. Việc thực hiện trách nhiệm minh bạch phải phù hợp với mục đích sử dụng, bối cảnh triển khai và mức độ rủi ro của hệ thống.\n2. Nhà cung cấp và bên triển khai phải thực hiện các nghĩa vụ sau đây:\na) Thông báo, đánh dấu kỹ thuật và gắn nhãn hiển thị đối với hệ thống trí tuệ nhân tạo và nội dung do hệ thống tạo ra theo quy định của pháp luật;\nb) Cung cấp thông tin về mục đích sử dụng, phạm vi áp dụng, điều kiện sử dụng và các hạn chế của hệ thống trí tuệ nhân tạo;\nc) Lưu trữ thông tin, tài liệu phục vụ việc kiểm tra, giám sát theo quy định của pháp luật.\n3. Nhà cung cấp và bên triển khai phải giải trình khi có yêu cầu bằng văn bản của cơ quan nhà nước có thẩm quyền theo quy định tại Điều 14 và Điều 15 của Luật Trí tuệ nhân tạo. Phạm vi, nội dung và thời hạn giải trình phải phù hợp với địa vị pháp lý của từng chủ thể và mức độ rủi ro của hệ thống.\n4. Khi thực hiện trách nhiệm giải trình và cung cấp thông tin theo quy định của pháp luật, nhà cung cấp và bên triển khai không bắt buộc phải tiết lộ mã nguồn, thuật toán chi tiết, dữ liệu huấn luyện, bộ tham số hoặc thông tin thuộc phạm vi bí mật kinh doanh, bí mật công nghệ, trừ trường hợp pháp luật có quy định khác.\n5. Việc cung cấp thông tin trong quá trình minh bạch, giải trình phải tuân thủ pháp luật về bảo vệ dữ liệu cá nhân và pháp luật về dữ liệu.\n6. Trường hợp hệ thống trí tuệ nhân tạo tích hợp mô hình trí tuệ nhân tạo của tổ chức, cá nhân khác, nhà cung cấp phải thỏa thuận với tổ chức, cá nhân cung cấp mô hình để bảo đảm việc phối hợp cung cấp thông tin kỹ thuật cần thiết phục vụ việc thực hiện trách nhiệm minh bạch và giải trình theo quy định của pháp luật."
+  },
+  "decree-17": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 17",
+    "pages": [
+      14,
+      15
+    ],
+    "text": "Điều 17. Đánh dấu kỹ thuật đối với nội dung do hệ thống trí tuệ nhân tạo tạo ra\n1. Nhà cung cấp hệ thống trí tuệ nhân tạo phải áp dụng giải pháp kỹ thuật để nội dung đầu ra là âm thanh, hình ảnh hoặc video được đánh dấu ở định dạng máy đọc theo quy định tại khoản 2 Điều 11 của Luật Trí tuệ nhân tạo. Nhà cung cấp không bắt buộc phải thực hiện đánh dấu kỹ thuật ở định dạng máy đọc đối với nội dung đầu ra là văn bản, trừ trường hợp pháp luật có quy định khác.\n2. Việc đánh dấu kỹ thuật quy định tại khoản 1 Điều này phải bảo đảm khả năng nhận diện bằng máy đọc và có thể được thực hiện bằng một trong các biện pháp sau đây:\na) Tích hợp dấu hiệu nhận biết vào cấu trúc tệp tin hoặc dữ liệu nội dung;\nb) Tích hợp dấu hiệu nhận biết vào siêu dữ liệu của tệp tin;\nc) Sử dụng chữ ký số, chữ ký điện tử hoặc phương thức xác thực kỹ thuật tương đương;\nd) Áp dụng giải pháp kỹ thuật khác bảo đảm khả năng nhận diện nội dung được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo.\n3. Dấu hiệu nhận biết ở định dạng máy đọc phải thể hiện thông tin xác nhận nội dung được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo. Nhà cung cấp có thể tích hợp thêm thông tin về nhà cung cấp, hệ thống trí tuệ nhân tạo hoặc thời điểm tạo, chỉnh sửa nội dung nếu giải pháp kỹ thuật cho phép, nhằm phục vụ việc xác thực nguồn gốc và truy vết nội dung.\n4. Nhà cung cấp phải bảo đảm chức năng đánh dấu kỹ thuật được duy trì trong quá trình tạo, xuất và cung cấp nội dung trong phạm vi các chức năng do hệ thống kiểm soát.\n5. Trường hợp hệ thống trí tuệ nhân tạo được cung cấp dưới dạng mã nguồn mở hoặc cung cấp miễn phí, nhà cung cấp được coi là đã thực hiện nghĩa vụ quy định tại khoản 1 Điều này khi:\na) Tích hợp sẵn chức năng đánh dấu kỹ thuật; hoặc\nb) Công bố công khai công cụ, cấu hình tiêu chuẩn, giao diện lập trình ứng dụng hoặc tài liệu kỹ thuật cho phép bên triển khai cấu hình và vận hành chức năng đánh dấu. Bên triển khai khi sử dụng hệ thống này để cung cấp nội dung ra công cộng phải áp dụng giải pháp kỹ thuật để thực hiện việc đánh dấu nội dung đầu ra.\n6. Bộ Khoa học và Công nghệ công bố và cập nhật danh mục tiêu chuẩn, quy chuẩn kỹ thuật hoặc hướng dẫn kỹ thuật tham chiếu phục vụ việc thực hiện đánh dấu kỹ thuật quy định tại Điều này. Việc công bố quy định tại khoản này không làm phát sinh thủ tục hành chính, điều kiện đầu tư kinh doanh hoặc nghĩa vụ ngoài quy định của Nghị định này."
+  },
+  "decree-18": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 18",
+    "pages": [
+      15,
+      16
+    ],
+    "text": "Điều 18. Thông báo và gắn nhãn hiển thị đối với nội dung do hệ thống trí tuệ nhân tạo tạo ra\n1. Bên triển khai phải thông báo rõ ràng khi cung cấp ra công cộng nội dung do hệ thống trí tuệ nhân tạo tạo ra hoặc chỉnh sửa có khả năng gây nhầm lẫn về tính xác thực của sự kiện, nhân vật hoặc nguồn gốc nội dung theo quy định tại khoản 3 Điều 11 của Luật Trí tuệ nhân tạo.\n2. Bên triển khai phải gắn nhãn dễ nhận biết đối với âm thanh, hình ảnh hoặc video được tạo ra hoặc chỉnh sửa bằng hệ thống trí tuệ nhân tạo trong các trường hợp sau đây:\na) Mô phỏng hoặc giả lập ngoại hình, giọng nói của người thật;\nb) Tái hiện sự kiện thực tế để phân biệt với nội dung thật, trừ trường hợp pháp luật có quy định khác.\n3. Việc thông báo và gắn nhãn hiển thị phải bảo đảm các yêu cầu sau đây:\na) Rõ ràng, dễ hiểu và dễ nhận biết đối với người tiếp nhận;\nb) Được thực hiện trước hoặc tại thời điểm người tiếp nhận tiếp cận nội dung;\nc) Không được thiết kế theo cách che giấu hoặc làm giảm khả năng nhận biết bản chất của nội dung;\nd) Phù hợp với loại hình nội dung và phương thức cung cấp nội dung;\nđ) Không gây cản trở đáng kể việc hiển thị, trình diễn hoặc sử dụng nội dung.\n4. Bên triển khai không phải thực hiện nghĩa vụ gắn nhãn hiển thị trong các trường hợp sau đây:\na) Nội dung được chỉnh sửa kỹ thuật nhằm cải thiện chất lượng âm thanh, hình ảnh hoặc video mà không làm thay đổi bản chất hoặc ngữ cảnh chính của nội dung;\nb) Văn bản được xử lý bằng công cụ hỗ trợ sửa lỗi chính tả, ngữ pháp, tóm tắt, diễn giải hoặc dịch thuật mà không làm sai lệch nội dung cơ bản của văn bản gốc;\nc) Nội dung được sử dụng trong phạm vi nội bộ của cơ quan, tổ chức, doanh nghiệp và không được cung cấp ra công cộng;\nd) Nội dung được tạo ra trong quá trình nghiên cứu, phát triển hoặc thử nghiệm trong môi trường kiểm soát và không được cung cấp ra công cộng.\n5. Bên triển khai có quyền lựa chọn hình thức thể hiện thông báo và nhãn hiển thị phù hợp với loại hình nội dung và phương thức cung cấp, bao gồm:\na) Hiển thị trực tiếp trên nội dung;\nb) Hiển thị tại tiêu đề, phần mô tả hoặc chú thích kèm theo nội dung;\nc) Hiển thị trên giao diện của nền tảng cung cấp nội dung;\nd) Phát thông báo bằng âm thanh hoặc hình thức phù hợp khác.\n6. Đối với tác phẩm điện ảnh, chương trình nghệ thuật hoặc nội dung sáng tạo, việc thông báo và gắn nhãn hiển thị do bên triển khai trực tiếp đưa nội dung ra công cộng thực hiện và có thể được thực hiện tại phần mở đầu, phần kết thúc, phần danh đề, phần mô tả hoặc tài liệu kèm theo tác phẩm, phù hợp với đặc thù của từng loại hình. Việc thông báo và gắn nhãn phải bảo đảm người tiếp nhận có thể nhận biết rõ ràng nội dung được tạo ra hoặc được chỉnh sửa bằng hệ thống trí tuệ nhân tạo, không gây nhầm lẫn về nguồn gốc của nội dung. Trường hợp nội dung do hệ thống trí tuệ nhân tạo tạo ra hoặc chỉnh sửa trong quá trình sản xuất, bên thực hiện việc tạo ra hoặc chỉnh sửa nội dung có trách nhiệm cung cấp thông tin cần thiết để thực hiện nghĩa vụ quy định tại khoản này; bên trực tiếp đưa nội dung ra công cộng thực hiện nghĩa vụ trên cơ sở thông tin được cung cấp.\n7. Bộ Khoa học và Công nghệ công bố và cập nhật hướng dẫn kỹ thuật tham chiếu về hình thức thông báo và gắn nhãn hiển thị quy định tại Điều này. Việc công bố quy định tại khoản này không làm phát sinh thủ tục hành chính, điều kiện đầu tư kinh doanh hoặc nghĩa vụ ngoài quy định của Nghị định này."
+  },
+  "decree-45": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 45",
+    "pages": [
+      44,
+      44
+    ],
+    "text": "Điều 45. Hiệu lực thi hành Nghị định này có hiệu lực thi hành từ ngày 01 tháng 5 năm 2026."
+  },
+  "decree-46": {
+    "document": "142-2026-ND-CP",
+    "locator": "Điều 46",
+    "pages": [
+      44,
+      45
+    ],
+    "text": "Điều 46. Điều khoản chuyển tiếp\n1. Trường hợp Cổng thông tin điện tử một cửa về trí tuệ nhân tạo chưa được Bộ Khoa học và Công nghệ công bố vận hành chính thức, việc thực hiện các thủ tục thông báo, báo cáo theo quy định của Nghị định này được thực hiện thông qua hệ thống thông tin điện tử, dịch vụ công trực tuyến hoặc phương thức tiếp nhận do Bộ Khoa học và Công nghệ công bố, bảo đảm thống nhất trên phạm vi toàn quốc. Việc thực hiện thông báo, báo cáo theo phương thức quy định tại khoản này có giá trị pháp lý tương đương với việc thực hiện thông qua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo.\n2. Trong thời gian quy định tại khoản 1 Điều này, việc công khai thông tin theo quy định của Nghị định này được thực hiện trên cổng thông tin điện tử hoặc trang thông tin điện tử chính thức của cơ quan, tổ chức, đơn vị có trách nhiệm công khai theo quy định của Nghị định này, trừ trường hợp pháp luật có quy định khác.\n3. Hồ sơ, thông tin đã được tiếp nhận trước thời điểm quy định tại khoản 3 Điều này tiếp tục được xử lý theo quy định tại thời điểm tiếp nhận./."
+  }
+}

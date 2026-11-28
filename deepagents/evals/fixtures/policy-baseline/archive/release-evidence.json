@@ -1,0 +1,18 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": false,
+  "mediumOrHighRisk": true,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "isDeployer": true,
+  "publicConfusableAiContent": true,
+  "otherPublicNoticeException": false,
+  "publicDistribution": true,
+  "simulatedRealAudiovisual": true,
+  "visibleLabelException": false,
+  "scenario": "Bên triển khai đưa tác phẩm sáng tạo ra công cộng và dùng vị trí danh đề để gắn nhãn. Tổ chức không phải nhà cung cấp hệ thống.",
+  "publicNoticeTiming": {"status": "VERIFIED_PRESENT", "value": "BEFORE_ACCESS"},
+  "visibleMediaLabel": {"status": "VERIFIED_PRESENT", "value": "Danh đề xác nhận nội dung AI"}
+}

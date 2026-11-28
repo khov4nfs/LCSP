@@ -1,0 +1,16 @@
+{
+  "scope": "IN_SCOPE",
+  "isProvider": false,
+  "interactsDirectly": true,
+  "otherInteractionException": false,
+  "generatesAudiovisual": true,
+  "openOrFreeDistribution": false,
+  "isDeployer": false,
+  "publicConfusableAiContent": false,
+  "otherPublicNoticeException": false,
+  "publicDistribution": false,
+  "simulatedRealAudiovisual": false,
+  "visibleLabelException": false,
+  "scenario": "Nhóm chỉ nghiên cứu, phát triển nguyên mẫu trong môi trường kiểm soát, chưa cung cấp hoặc triển khai sử dụng thuộc định nghĩa luật.",
+  "dossierSystemVersion": {"status": "VERIFIED_PRESENT", "value": "0.2.0"}
+}
