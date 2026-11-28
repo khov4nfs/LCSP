@@ -60,6 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_manifest.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_manifest.add_argument("--locale", choices=["en", "vi"], default="en")
     p_manifest.add_argument("--model-route", default="offline-scripted")
+    p_manifest.add_argument("--git-commit-sha", default=None)
     p_manifest.add_argument("--evaluation-split-manifest", type=Path, default=None)
     p_manifest.add_argument("--output", type=Path, required=True)
 
@@ -73,6 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_run.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_run.add_argument("--locale", choices=["en", "vi"], default="en")
     p_run.add_argument("--model-route", default="offline-scripted")
+    p_run.add_argument("--git-commit-sha", default=None)
     p_run.add_argument("--evaluation-split-manifest", type=Path, default=None)
     p_run.add_argument("--allow-live", action="store_true")
     p_run.add_argument("--output-dir", type=Path, required=True)
@@ -193,6 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             k_values=tuple(args.k),
             locale=args.locale,
             model_route=args.model_route,
+            git_commit_sha=args.git_commit_sha,
             case_split_manifest_sha256=(
                 load_split_manifest(args.evaluation_split_manifest)["splitDigest"]
                 if args.evaluation_split_manifest
@@ -216,6 +219,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             locale=args.locale,
             model_route=args.model_route,
             allow_live=args.allow_live,
+            git_commit_sha=args.git_commit_sha,
             case_split_manifest_sha256=(
                 load_split_manifest(args.evaluation_split_manifest)["splitDigest"]
                 if args.evaluation_split_manifest

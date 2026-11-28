@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
@@ -11,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from evals.benchmark_runner import load_benchmark_cases, load_manual_reviews
-from evals.benchmark_schema import TrialOutcome
+from evals.benchmark_schema import RunConfig, TrialOutcome
 from evals.cli import main as p14_cli_main
 from evals.legal_reasoning.p14_adapter import (
     _load_dimension_reviews,
@@ -35,6 +36,13 @@ COHORT = PACKAGE_ROOT / "p14-shared-cohort.v1.json"
 SPLITS = PACKAGE_ROOT / "evaluation-splits.v1.json"
 
 
+def test_run_config_accepts_only_full_git_object_ids():
+    expected = "a" * 40
+    assert RunConfig(mode="SCRIPTED", git_commit_sha=expected).git_commit_sha == expected
+    with pytest.raises(ValueError, match="INVALID_GIT_COMMIT_SHA"):
+        RunConfig(mode="SCRIPTED", git_commit_sha="abcdef1")
+
+
 @pytest.fixture(scope="module")
 def saved_p14_run(tmp_path_factory):
     """Generate genuine P14 SCRIPTED traces from the exact shared cohort through the real runner."""
@@ -43,6 +51,9 @@ def saved_p14_run(tmp_path_factory):
     prepare_case_subset(P14_CASES_SOURCE, COHORT, cases_path)
     run_id = "lcsp400-p14-scripted-test"
     output_dir = tmp_path / "p14-runs"
+    git_commit_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=DEEPAGENTS, text=True
+    ).strip()
     assert p14_cli_main(
         [
             "run",
@@ -58,6 +69,8 @@ def saved_p14_run(tmp_path_factory):
             "1",
             "--run-id",
             run_id,
+            "--git-commit-sha",
+            git_commit_sha,
             "--output-dir",
             str(output_dir),
             "--evaluation-split-manifest",
@@ -181,6 +194,9 @@ def test_saved_p14_offline_run_validates_and_remains_not_scored(saved_p14_run):
     assert first["verifiedArtifactReport"] is True
     assert first["verifiedSemanticMetrics"] is False
     assert first["artifactClassification"] == "P14_SCRIPTED_EXECUTION_ARTIFACTS"
+    assert first["runMetadata"]["repositoryCommitSha"] == json.loads(
+        (saved_p14_run / "manifest.json").read_text(encoding="utf-8")
+    )["gitCommitSha"]
     assert first["caseMapping"]["candidateCaseCount"] == 30
     assert first["caseMapping"]["p14BenchmarkCaseCount"] == 3
     assert first["caseMapping"]["sharedExecutableCandidateCount"] == 3

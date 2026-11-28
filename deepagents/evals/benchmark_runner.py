@@ -242,6 +242,8 @@ def build_benchmark_manifest(
     )
     payload = {k: v for k, v in base_manifest.items() if k != "manifestSha256"}
     payload["expectedTrialInventory"] = expected_inventory
+    if config.git_commit_sha is not None:
+        payload["gitCommitSha"] = config.git_commit_sha
     return {**payload, "manifestSha256": stable_hash(payload)}
 
 

@@ -256,6 +256,7 @@ class RunConfig(BaseModel):
     allow_live: bool = False
     include_fault_injection: bool = True
     case_split_manifest_sha256: str | None = None
+    git_commit_sha: str | None = None
 
     @field_validator("k_values")
     @classmethod
@@ -299,4 +300,27 @@ class RunConfig(BaseModel):
         """
         if value is not None and not re.fullmatch(r"[a-f0-9]{64}", value):
             raise ValueError("INVALID_CASE_SPLIT_MANIFEST_SHA256")
+        return value
+
+    @field_validator("git_commit_sha")
+    @classmethod
+    def _validate_git_commit_sha(cls, value: str | None) -> str | None:
+        """Business purpose: Bind evaluation artifacts to the source revision used for execution.
+
+        Business rules:
+        - An omitted revision preserves generic P14 runs that do not need LCSP-400 provenance.
+        - A supplied Git object ID must be a full SHA-1 or SHA-256 hexadecimal identifier.
+
+        Execution flow:
+        1. Preserve null when no source revision was provided.
+        2. Validate a supplied full-length lowercase object ID before it enters the manifest.
+
+        Failure cases:
+        - Abbreviated, malformed, or uppercase IDs raise ValueError.
+
+        Side effects:
+        - None: validates immutable run configuration.
+        """
+        if value is not None and not re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", value):
+            raise ValueError("INVALID_GIT_COMMIT_SHA")
         return value

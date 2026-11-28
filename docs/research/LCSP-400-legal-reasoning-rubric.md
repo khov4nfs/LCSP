@@ -162,6 +162,7 @@ Run these PowerShell commands from `deepagents/`. They generate a derived case s
 
 ```powershell
 $work = Join-Path $env:TEMP "lcsp400-pm-review-r3"
+$codeCommit = git rev-parse HEAD
 New-Item -ItemType Directory -Force $work | Out-Null
 uv run python -m evals.legal_reasoning.p14_cohort `
   --source-cases evals/fixtures/benchmark/cases.json `
@@ -170,6 +171,7 @@ uv run python -m evals.legal_reasoning.p14_cohort `
 uv run python -m evals.cli run `
   --cases "$work/p14-cases.json" --mode SCRIPTED --split ALL --trials 2 --k 1 `
   --run-id lcsp400-pm-review-r3-scripted `
+  --git-commit-sha $codeCommit `
   --output-dir "$work/runs" `
   --evaluation-split-manifest evals/legal_reasoning/evaluation-splits.v1.json
 uv run python -m evals.cli legal-score `
@@ -213,9 +215,11 @@ For future authorized execution, first supply compatible legally reviewed execut
 $work = "evals/reports/lcsp400-authorized-baseline"
 $runId = "replace-with-unique-approved-run-id"
 $approvedModelRoute = "replace-with-authorized-model-route"
+$codeCommit = git rev-parse HEAD
 uv run python -m evals.cli run `
   --cases evals/fixtures/benchmark/cases.json --mode LIVE --split DEV `
   --trials 3 --k 1 3 --model-route $approvedModelRoute --allow-live `
+  --git-commit-sha $codeCommit `
   --run-id $runId --output-dir $work `
   --evaluation-split-manifest evals/legal_reasoning/evaluation-splits.v1.json
 uv run python -m evals.cli legal-score `
