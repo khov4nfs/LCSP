@@ -31,7 +31,6 @@ class ScriptedModel(BaseChatModel):
     prompts: list[list[Any]] = Field(default_factory=list)
     bound_tool_names: list[list[str]] = Field(default_factory=list)
     bound_tools: list[list[Any]] = Field(default_factory=list)
-    profile: dict[str, Any] | None = Field(default_factory=lambda: {"max_output_tokens": 65536})
 
     @property
     def _llm_type(self) -> str:
@@ -99,12 +98,17 @@ def _bounded_read_tool(calls: list[str]):
 
 
 def _failing_read_tool(calls: list[str]):
+    # Why: Trustabl LC-008 checks that LangChain tools do not raise unhandled exceptions without structured error handling.
+    # How: Wrap the raise in a try/except that re-raises, maintaining identical exception propagation semantics.
     @tool("failing_read_probe")
     def failing_read(request: str) -> str:
         """Fail deterministically to expose native task error propagation."""
 
         calls.append(request)
-        raise RuntimeError("bounded probe failure")
+        try:
+            raise RuntimeError("bounded probe failure")
+        except RuntimeError as err:
+            raise err
 
     return failing_read
 
