@@ -5,7 +5,10 @@
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-05-1": {
+        "commitSha": "synthetic-3c64440fb16d",
+        "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414",
         "end_line": 1,
+        "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/consent.py",
         "repositoryId": "repo-01-consent-app",
         "start_line": 1
@@ -24,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "5fa3c5ec-803c-4d22-acde-28f79f4403b3",
+  "threadId": "19a04de3-60fe-4145-90b1-7c7ee27f7042",
   "trialIndex": 4
 }

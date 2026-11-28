@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Any, Callable, Sequence
 
 from evals.benchmark_schema import (
     BenchmarkCase,
+    HitlFixtureAnswer,
     ManualReviewRecord,
     RunConfig,
     StageExpectation,
@@ -136,18 +138,19 @@ def build_benchmark_manifest(
     config: RunConfig,
     manual_reviews: Sequence[ManualReviewRecord] = (),
 ) -> dict[str, Any]:
-    """Business purpose: Build an immutable, content-hashed run manifest for a benchmark run (AC1).
+    """Business purpose: Build an immutable, content-hashed run manifest with expected trial inventory (AC1).
 
     Business rules:
     - Reuses evals.run_manifest.build_runtime_manifest so prompt/tool/skill/bundle
       fingerprints come from the single authoritative production helper.
-    - Hashes actual repository fixture file trees, full case payloads (including
-      offline_fixture_output and rule_ids), corpus/rule pins, HITL, gold, reviews, and config.
+    - Hashes actual repository fixture file trees, legal provisions, rule definitions,
+      full case payloads, manual reviews, and expected trial inventory.
+    - In LIVE mode, resolves the actual configured model identity for the manifest.
 
     Execution flow:
-    1. Collect checked-in skill hashes and Root prompt/tool fingerprints.
-    2. Hash actual repository fixture directories, full case dataset, and manual reviews.
-    3. Build and return the signed manifest dictionary.
+    1. Collect checked-in skill hashes, Root prompt/tool fingerprints, and resolved model.
+    2. Hash actual repository fixture directories, legal/rule data, cases, and reviews.
+    3. Build manifest with expectedTrialInventory and sign with stable_hash.
 
     Failure cases:
     - Empty case list, missing repo fixture dir, or missing skill/bundle entries fail closed.
@@ -166,6 +169,16 @@ def build_benchmark_manifest(
     root_prompt = (DEEPAGENTS_ROOT / "assessment_root" / instructions_file).read_text(encoding="utf-8")
     tools = [SimpleNamespace(name=name, description=describe_tool(name, name)) for name in sorted(ROOT_TOOL_NAMES)]
 
+    model_obj: Any = SimpleNamespace(model_name=config.model_route)
+    if config.mode == "LIVE":
+        try:
+            from model_policy import load_model_routes, resolve_agent_model
+            routes = load_model_routes()
+            if config.model_route in routes.roles:
+                model_obj = resolve_agent_model(config.model_route)
+        except Exception:  # noqa: BLE001
+            model_obj = SimpleNamespace(model_name=config.model_route)
+
     repo_tree_pins = {
         c.repo_pin.repo_id: {
             "snapshotKind": c.repo_pin.snapshot_kind,
@@ -174,8 +187,8 @@ def build_benchmark_manifest(
         }
         for c in cases
     }
-    corpus_pins = {c.corpus_pin.corpus_id: c.corpus_pin.model_dump() for c in cases}
-    rule_pins = {c.rule_set_pin.rule_set_version_id: c.rule_set_pin.model_dump() for c in cases}
+    corpus_pins = {c.case_id: [p.model_dump() for p in c.legal_provisions] for c in cases}
+    rule_pins = {c.case_id: [r.model_dump() for r in c.rule_definitions] for c in cases}
     cases_content_sha = stable_hash([c.model_dump() for c in cases])
     hitl_sha = stable_hash([
         {"caseId": c.case_id, "hitl": [h.model_dump() for h in c.hitl_answers]}
@@ -188,6 +201,18 @@ def build_benchmark_manifest(
     reviews_sha = stable_hash([r.model_dump() for r in manual_reviews])
     config_sha = stable_hash(config.model_dump())
 
+    expected_inventory = [
+        {
+            "caseId": c.case_id,
+            "stage": exp.stage,
+            "trialIndex": t_idx,
+            "mode": config.mode,
+        }
+        for c in cases
+        for t_idx in range(config.trials_per_case)
+        for exp in c.gold_rubric.stages
+    ]
+
     pins = {
         "repoPinsSha256": stable_hash(repo_tree_pins),
         "corpusPinsSha256": stable_hash(corpus_pins),
@@ -197,19 +222,23 @@ def build_benchmark_manifest(
         "goldRubricSha256": gold_sha,
         "manualReviewsSha256": reviews_sha,
         "runConfigSha256": config_sha,
+        "expectedInventorySha256": stable_hash(expected_inventory),
     }
     gold_revisions = sorted({c.gold_rubric.gold_revision for c in cases})
-    return build_runtime_manifest(
+    base_manifest = build_runtime_manifest(
         run_id=run_id,
         component="assessment-benchmark",
         locale=config.locale,
-        model=SimpleNamespace(model_name=config.model_route),
+        model=model_obj,
         prompts={"assessment-root": root_prompt},
         tools=tools,
         skill_hashes=skill_hashes,
         pins=pins,
         gold_revision=",".join(gold_revisions),
     )
+    payload = {k: v for k, v in base_manifest.items() if k != "manifestSha256"}
+    payload["expectedTrialInventory"] = expected_inventory
+    return {**payload, "manifestSha256": stable_hash(payload)}
 
 
 def preflight_live_config(
@@ -226,7 +255,7 @@ def preflight_live_config(
 
     Execution flow:
     1. Check config.allow_live.
-    2. If live_model_factory is None, verify resolve_agent_model(config.model_route) succeeds.
+    2. If live_model_factory is None, verify config.model_route is configured and resolves.
 
     Failure cases:
     - Raises PermissionError if allow_live is False; RuntimeError if provider is unconfigured.
@@ -248,13 +277,45 @@ def preflight_live_config(
         raise RuntimeError(f"LIVE_PREFLIGHT_MISSING_PROVIDER_CONFIG:{type(exc).__name__}") from exc
 
 
+def _match_hitl_answer(case: BenchmarkCase, request_row: dict[str, Any]) -> HitlFixtureAnswer | None:
+    """Business purpose: Match an open HITL request to the case's fixture answer by key or question pattern.
+
+    Business rules:
+    - Matches request_key against unresolvedFact or regex question_pattern against question.
+    - Never invents a default answer when no fixture entry matches.
+
+    Execution flow:
+    1. Inspect each HitlFixtureAnswer in case.hitl_answers.
+    2. Return first matching answer or None.
+
+    Failure cases:
+    - Invalid regex pattern falls back to case-insensitive substring check.
+
+    Side effects:
+    - Pure matching; no state mutation.
+    """
+    unresolved = str(request_row.get("unresolvedFact") or "").lower()
+    question = str(request_row.get("question") or "")
+    for candidate in case.hitl_answers:
+        if candidate.request_key.lower() in unresolved:
+            return candidate
+        try:
+            if re.search(candidate.question_pattern, question, re.IGNORECASE):
+                return candidate
+        except re.error:
+            if candidate.question_pattern.lower() in question.lower():
+                return candidate
+    return None
+
+
 class _BenchmarkRuntimeClient:
-    """Stateful per-trial AssessmentRuntimeClient stand-in for real run_assessment_root()."""
+    """Stateful per-trial AssessmentRuntimeClient with real legal data and authority/completion gates."""
 
     def __init__(self, case: BenchmarkCase, thread_id: str, assessment_id: str) -> None:
         self.case = case
         self.thread_id = thread_id
         self.assessment_id = assessment_id
+        self.repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
         self.execution_counter = 0
         self.execution_id = str(uuid.uuid4())
         self.lease_token = f"lease-{self.execution_id[:8]}"
@@ -272,6 +333,9 @@ class _BenchmarkRuntimeClient:
         self.calls: list[tuple[str, Any]] = []
         self.fault_to_inject: Exception | None = None
         self.injected_fault_observed = False
+        self.authority_violations: list[str] = []
+        self.authority_gate_tested = False
+        self.completion_gate_tested = False
 
     def inject_fault_once(self, error: Exception) -> None:
         """Business purpose: Arm a one-shot fault to be raised on the next domain mutation.
@@ -283,29 +347,29 @@ class _BenchmarkRuntimeClient:
         1. Store error on self.fault_to_inject.
 
         Failure cases:
-        - None; pure state setup.
+        - No failure modes; pure state assignment.
 
         Side effects:
         - Mutates in-memory client fault arming state.
         """
         self.fault_to_inject = error
 
-    def resolve_human_request(self, request_id: str, answer: str) -> None:
-        """Business purpose: Apply a deterministic HITL fixture answer before resuming checkpoint.
+    def resolve_human_request(self, request_id: str, answer_obj: HitlFixtureAnswer) -> None:
+        """Business purpose: Apply a matched HITL fixture answer before resuming checkpoint.
 
         Business rules:
         - Moves request_id from open_requests to resolved_requests, records confirmed
-          fact, and transitions lifecycle back to ACTIVE for resume.
+          fact as HUMAN_CONFIRMED_FACT, and transitions lifecycle back to ACTIVE.
 
         Execution flow:
         1. Remove request_id from open_requests and record answer as confirmed fact.
         2. Increment case_revision and set lifecycle_state = ACTIVE.
 
         Failure cases:
-        - Missing request_id in open_requests still appends the resolution record without crashing.
+        - Missing request_id in open_requests still appends resolution record.
 
         Side effects:
-        - Updates in-memory HITL and lifecycle state.
+        - Updates in-memory HITL, facts, and lifecycle state.
         """
         if request_id in self.open_requests:
             self.open_requests.remove(request_id)
@@ -316,14 +380,18 @@ class _BenchmarkRuntimeClient:
                 row["status"] = "RESOLVED"
                 row["requestRevision"] = row.get("requestRevision", 0) + 1
                 row["resolvedFactId"] = fact_id
-        self.resolved_requests.append({"requestId": request_id, "answer": answer, "factId": fact_id})
+        self.resolved_requests.append({"requestId": request_id, "answer": answer_obj.answer, "factId": fact_id})
         self.facts.append({
             "factId": fact_id,
+            "evidenceType": "HUMAN_CONFIRMED_FACT",
+            "requestId": request_id,
+            "answer": answer_obj.answer,
             "caseRevision": self.case_revision,
             "kind": "HUMAN_ANSWER",
             "state": "ACCEPTED",
+            "status": "RESOLVED",
             "authority": "HUMAN_CONFIRMED",
-            "statement": answer,
+            "statement": answer_obj.answer,
             "evidenceIds": [],
         })
         self.lifecycle_state = "ACTIVE"
@@ -332,17 +400,23 @@ class _BenchmarkRuntimeClient:
         """Business purpose: Claim an execution lease on the trial's durable thread.
 
         Business rules:
+        - Rejects foreign assessment_id to enforce tenant/assessment isolation.
         - Returns resumeCheckpointId when resuming an interrupted or failed execution.
 
         Execution flow:
-        1. Mint a new executionId and return lease + optional resumeCheckpointId.
+        1. Verify assessment_id matches self.assessment_id.
+        2. Mint a new executionId and return lease + optional resumeCheckpointId.
 
         Failure cases:
-        - None; pure in-memory fixture.
+        - Raises AssessmentApiError(403) on assessment_id mismatch.
 
         Side effects:
         - Increments execution_counter and records claim call.
         """
+        if assessment_id != self.assessment_id:
+            self.authority_violations.append("CROSS_ASSESSMENT_CLAIM_REJECTED")
+            from assessment_root.client import AssessmentApiError
+            raise AssessmentApiError(403, "ASSESSMENT_SCOPE_MISMATCH", {"assessmentId": assessment_id})
         self.execution_counter += 1
         self.execution_id = str(uuid.uuid4())
         self.lease_token = f"lease-{self.execution_id[:8]}"
@@ -406,7 +480,11 @@ class _BenchmarkRuntimeClient:
                 {
                     "assessmentRuleId": rule_id,
                     "assessmentRuleVersion": "v1",
-                    "resolutionState": "DECIDED" if any(d.get("assessmentRuleId") == rule_id for d in self.decisions) else "PENDING",
+                    "resolutionState": (
+                        "DECIDED"
+                        if any(d.get("decision", d).get("assessmentRuleId") == rule_id for d in self.decisions)
+                        else "PENDING"
+                    ),
                     "currentDecisionId": None,
                     "decisionRevision": 0,
                 }
@@ -427,13 +505,14 @@ class _BenchmarkRuntimeClient:
         }
 
     def rule_set(self) -> dict[str, Any]:
-        """Business purpose: Return pinned rule set definitions for the case.
+        """Business purpose: Return case-specific pinned rule definitions, applicability conditions, and exceptions.
 
         Business rules:
-        - Returns only the rule IDs pinned in case.rule_set_pin.
+        - Serves real per-case legal requirements, applicability conditions, criteria,
+          and exceptions from case.rule_definitions.
 
         Execution flow:
-        1. Record rule_set call and return rule set payload.
+        1. Record rule_set call and project case.rule_definitions into API payload.
 
         Failure cases:
         - No failure modes; pure in-memory read.
@@ -444,55 +523,89 @@ class _BenchmarkRuntimeClient:
         self.calls.append(("rule_set", None))
         return {
             "ruleSetVersionId": self.case.rule_set_pin.rule_set_version_id,
-            "legalRequirements": [{"legalRequirementId": "LR-DEMO-1", "title": "Pinned Duty", "proposition": "Verify pinned obligation."}],
+            "legalRequirements": [
+                {
+                    "legalRequirementId": r.legal_requirement_id,
+                    "title": r.requirement_title,
+                    "proposition": r.requirement_proposition,
+                    "applicabilityConditions": list(r.applicability_conditions),
+                    "exceptions": list(r.exceptions),
+                }
+                for r in self.case.rule_definitions
+            ],
             "assessmentRules": [
                 {
-                    "assessmentRuleId": rule_id,
+                    "assessmentRuleId": r.rule_id,
                     "assessmentRuleVersion": "v1",
-                    "concept": self.case.task_category,
-                    "legalRequirementIds": ["LR-DEMO-1"],
-                    "criteria": [{"criterionId": "C-1", "statement": "Verify pinned source evidence."}],
+                    "concept": r.concept,
+                    "legalRequirementIds": [r.legal_requirement_id],
+                    "applicabilityElements": list(r.applicability_conditions),
+                    "exceptions": list(r.exceptions),
+                    "criteria": [dict(c) for c in r.criteria],
                 }
-                for rule_id in self.case.rule_set_pin.rule_ids
+                for r in self.case.rule_definitions
             ],
             "contextRelations": [],
         }
 
     def legal_source_text(self, document_id: str, locator: str) -> dict[str, Any]:
-        """Business purpose: Return pinned legal provision text for the case.
+        """Business purpose: Return pinned legal provision text matching document_id and locator.
 
         Business rules:
-        - Returns deterministic pinned legal text without network calls.
+        - Serves case.legal_provisions; raises 404 AssessmentApiError if not found.
 
         Execution flow:
-        1. Record call and return provision text.
+        1. Search case.legal_provisions for exact (document_id, locator) match.
+        2. Return provision payload or raise 404.
 
         Failure cases:
-        - No failure modes in fixture client.
+        - Missing provision raises AssessmentApiError(404).
 
         Side effects:
         - Appends call record to self.calls.
         """
         self.calls.append(("legal_text", (document_id, locator)))
-        return {"documentId": document_id, "locator": locator, "content": "Pinned legal obligation.", "contentSha256": self.case.corpus_pin.digest_sha256}
+        for prov in self.case.legal_provisions:
+            if prov.document_id == document_id and prov.locator == locator:
+                return {
+                    "documentId": prov.document_id,
+                    "locator": prov.locator,
+                    "title": prov.title,
+                    "content": prov.content,
+                    "contentSha256": prov.content_sha256,
+                    "sourceKind": prov.source_kind,
+                }
+        from assessment_root.client import AssessmentApiError
+        raise AssessmentApiError(404, "ASSESSMENT_DOMAIN_REQUEST_INVALID", {"reason": "LEGAL_SOURCE_PROVISION_NOT_FOUND"})
 
     def legal_source_search(self, query: str) -> dict[str, Any]:
-        """Business purpose: Search pinned legal corpus for the case.
+        """Business purpose: Search pinned legal provisions by query terms.
 
         Business rules:
-        - Returns empty bounded match list in fixture client.
+        - Returns provisions where all query words appear in title or content.
 
         Execution flow:
-        1. Record query and return matches.
+        1. Tokenize query and match against case.legal_provisions.
 
         Failure cases:
-        - No failure modes.
+        - Empty query returns empty matches.
 
         Side effects:
         - Appends call record to self.calls.
         """
         self.calls.append(("legal_search", query))
-        return {"matches": [], "truncated": False}
+        words = query.lower().split()
+        matches = [
+            {
+                "documentId": prov.document_id,
+                "locator": prov.locator,
+                "contentSha256": prov.content_sha256,
+                "snippet": prov.content[:120],
+            }
+            for prov in self.case.legal_provisions
+            if words and all(w in (prov.title + " " + prov.content).lower() for w in words)
+        ]
+        return {"matches": matches, "truncated": False}
 
     def repository_discovery_summary(self) -> dict[str, Any]:
         """Business purpose: Return repository discovery summary availability.
@@ -513,18 +626,18 @@ class _BenchmarkRuntimeClient:
         return {"available": False, "discovery": None}
 
     def post_evidence(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Business purpose: Record cited repository source evidence on the trial client.
+        """Business purpose: Record cited repository source evidence with verified contentSha256.
 
         Business rules:
-        - Raises armed one-shot fault if fault_to_inject is set (for real fault recovery).
-        - Stores independent evidence metadata (repositoryId, path, start_line, end_line).
+        - Raises armed one-shot fault if fault_to_inject is set.
+        - Computes actual contentSha256 from the pinned fixture file lines.
 
         Execution flow:
         1. Check and raise armed fault if present.
-        2. Mint deterministic evidenceId and store record in self.evidence_records.
+        2. Read cited lines from self.repo_root and store typed REPOSITORY_SOURCE record.
 
         Failure cases:
-        - Armed fault raises AssessmentApiError/RuntimeError once.
+        - Armed fault raises once; missing file raises AssessmentApiError(400).
 
         Side effects:
         - Mutates self.evidence_records and clears fault_to_inject on trigger.
@@ -535,20 +648,30 @@ class _BenchmarkRuntimeClient:
             self.fault_to_inject = None
             self.injected_fault_observed = True
             raise err
+        rel_path = str(body.get("path") or "")
+        start_line = int(body.get("startLine") or body.get("start_line") or 1)
+        end_line = int(body.get("endLine") or body.get("end_line") or start_line)
+        target = (self.repo_root / rel_path).resolve()
+        if not rel_path or not target.is_relative_to(self.repo_root) or not target.is_file():
+            from assessment_root.client import AssessmentApiError
+            raise AssessmentApiError(400, "ASSESSMENT_EVIDENCE_PATH_INVALID", {"path": rel_path})
+        lines = target.read_text(encoding="utf-8").splitlines()
+        excerpt = "\n".join(lines[start_line - 1:end_line])
+        content_sha = sha256(excerpt.encode("utf-8")).hexdigest()
+
         ev_id = f"ev-{self.case.case_id.lower()}-{len(self.evidence_records) + 1}"
         self.evidence_records[ev_id] = {
             "evidenceId": ev_id,
+            "evidenceType": "REPOSITORY_SOURCE",
             "type": "REPOSITORY_SOURCE",
             "state": "ACCEPTED",
-            "payload": {
-                "path": body.get("path"),
-                "startLine": body.get("startLine") or body.get("start_line"),
-                "endLine": body.get("endLine") or body.get("end_line"),
-            },
+            "payload": {"path": rel_path, "startLine": start_line, "endLine": end_line, "contentSha256": content_sha},
             "repositoryId": self.case.repo_pin.repo_id,
-            "path": body.get("path"),
-            "start_line": body.get("startLine") or body.get("start_line"),
-            "end_line": body.get("endLine") or body.get("end_line"),
+            "commitSha": self.case.repo_pin.commit_sha,
+            "path": rel_path,
+            "start_line": start_line,
+            "end_line": end_line,
+            "contentSha256": content_sha,
         }
         return {"evidenceId": ev_id, "state": "ACCEPTED", "replayed": False}
 
@@ -585,55 +708,92 @@ class _BenchmarkRuntimeClient:
         """Business purpose: Record start of rule investigation.
 
         Business rules:
-        - Returns INVESTIGATING state.
+        - Rejects out-of-scope rule_id.
 
         Execution flow:
-        1. Record call and return state.
+        1. Verify rule_id is in case.rule_set_pin.rule_ids and return INVESTIGATING.
 
         Failure cases:
-        - No failure modes.
+        - Out-of-scope rule raises AssessmentApiError(403).
 
         Side effects:
         - Appends call record to self.calls.
         """
+        self.authority_gate_tested = True
+        if rule_id not in self.case.rule_set_pin.rule_ids:
+            self.authority_violations.append(f"OUT_OF_SCOPE_INVESTIGATION:{rule_id}")
+            from assessment_root.client import AssessmentApiError
+            raise AssessmentApiError(403, "ASSESSMENT_RULE_OUT_OF_SCOPE", {"ruleId": rule_id})
         self.calls.append(("investigation", rule_id))
         return {"resolutionState": "INVESTIGATING"}
 
     def post_decision(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Business purpose: Record a submitted rule decision on the trial client.
+        """Business purpose: Validate scope and evidence references before persisting a rule decision.
 
         Business rules:
-        - Stores decision payload for independent verdict inspection.
+        - Rejects decisions for rules outside case.rule_set_pin.rule_ids.
+        - Rejects decisions with empty or unrecorded evidence/fact references.
 
         Execution flow:
-        1. Append decision to self.decisions and return decision receipt.
+        1. Mark authority_gate_tested=True and validate rule scope + references.
+        2. Append decision to self.decisions and return decision receipt.
 
         Failure cases:
-        - No failure modes.
+        - Out-of-scope rule or invalid reference raises AssessmentApiError.
 
         Side effects:
-        - Mutates self.decisions.
+        - Mutates self.decisions and self.authority_violations on failure.
         """
+        from assessment_root.client import AssessmentApiError
+
         self.calls.append(("decision", body))
+        self.authority_gate_tested = True
+        dec = body.get("decision", body)
+        rule_id = dec.get("assessmentRuleId")
+        if rule_id not in self.case.rule_set_pin.rule_ids:
+            self.authority_violations.append(f"OUT_OF_SCOPE_RULE:{rule_id}")
+            raise AssessmentApiError(403, "ASSESSMENT_RULE_OUT_OF_SCOPE", {"assessmentRuleId": rule_id})
+
+        known_ids = set(self.evidence_records.keys()) | {f["factId"] for f in self.facts if "factId" in f}
+        refs = dec.get("references") or []
+        if not refs:
+            raise AssessmentApiError(400, "ASSESSMENT_DECISION_UNSUPPORTED", {"reason": "MISSING_REFERENCES"})
+        for ref in refs:
+            ref_id = (ref.get("evidenceId") or ref.get("factId") or ref.get("id")) if isinstance(ref, dict) else None
+            if not ref_id or ref_id not in known_ids:
+                self.authority_violations.append(f"UNVERIFIED_REFERENCE:{ref_id}")
+                raise AssessmentApiError(400, "ASSESSMENT_EVIDENCE_REFERENCE_INVALID", {"referenceId": ref_id})
+
         self.decisions.append(body)
         return {"decisionId": f"dec-{len(self.decisions)}", "decisionRevision": len(self.decisions), "replayed": False}
 
     def request_finalization(self) -> dict[str, Any]:
-        """Business purpose: Transition assessment lifecycle to FINALIZING.
+        """Business purpose: Enforce Completion Gate before transitioning lifecycle to FINALIZING.
 
         Business rules:
-        - Updates lifecycle_state to FINALIZING.
+        - Blocks finalization if any pinned rule lacks a decision or any HITL request is open.
 
         Execution flow:
-        1. Set lifecycle_state = FINALIZING and return blockers=[].
+        1. Mark completion_gate_tested=True and check undecided rules + open HITL requests.
+        2. Transition to FINALIZING only when blockers is empty.
 
         Failure cases:
-        - No failure modes.
+        - Pending rules or open HITL requests return blockers without FINALIZING.
 
         Side effects:
-        - Mutates self.lifecycle_state.
+        - Mutates self.lifecycle_state only when all blockers are cleared.
         """
         self.calls.append(("finalization", None))
+        self.completion_gate_tested = True
+        decided_rules = {d.get("decision", d).get("assessmentRuleId") for d in self.decisions}
+        blockers: list[str] = []
+        for rule_id in self.case.rule_set_pin.rule_ids:
+            if rule_id not in decided_rules:
+                blockers.append(f"UNDECIDED_RULE:{rule_id}")
+        if self.open_requests:
+            blockers.append(f"OPEN_HUMAN_REQUESTS:{len(self.open_requests)}")
+        if blockers:
+            return {"lifecycleState": self.lifecycle_state, "blockers": blockers}
         self.lifecycle_state = "FINALIZING"
         return {"lifecycleState": self.lifecycle_state, "blockers": []}
 
@@ -641,37 +801,41 @@ class _BenchmarkRuntimeClient:
         """Business purpose: Persist final report and transition lifecycle to COMPLETE.
 
         Business rules:
-        - Requires lifecycle_state == FINALIZING.
+        - Requires lifecycle_state == FINALIZING (enforces Completion Gate).
 
         Execution flow:
-        1. Assert FINALIZING, store report, set lifecycle_state = COMPLETE.
+        1. Reject if lifecycle_state != FINALIZING, store report, set COMPLETE.
 
         Failure cases:
-        - Raises AssertionError if called outside FINALIZING.
+        - Raises AssessmentApiError(409) if called outside FINALIZING.
 
         Side effects:
         - Mutates self.final_report and self.lifecycle_state.
         """
-        assert self.lifecycle_state == "FINALIZING"
+        if self.lifecycle_state != "FINALIZING":
+            from assessment_root.client import AssessmentApiError
+            raise AssessmentApiError(409, "ASSESSMENT_NOT_FINALIZING", {"lifecycleState": self.lifecycle_state})
         self.calls.append(("final_report", body))
         self.final_report = body
         self.lifecycle_state = "COMPLETE"
         return {"lifecycleState": self.lifecycle_state, "artifactId": f"report-{self.case.case_id.lower()}"}
 
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Business purpose: Open a human resolution request and transition to WAITING_FOR_HUMAN.
+        """Business purpose: Open a human resolution request idempotently and transition to WAITING_FOR_HUMAN.
 
         Business rules:
-        - Records open request ID and transitions lifecycle_state to WAITING_FOR_HUMAN.
+        - Stores question and unresolvedFact for fixture matching.
+        - Replays existing requestId on idempotencyKey match without re-opening resolved requests.
 
         Execution flow:
-        1. Mint requestId, add to open_requests, set lifecycle_state = WAITING_FOR_HUMAN.
+        1. Check human_request_by_key for idempotent replay.
+        2. Mint requestId, add to open_requests, set lifecycle_state = WAITING_FOR_HUMAN.
 
         Failure cases:
         - No failure modes.
 
         Side effects:
-        - Mutates self.open_requests and self.lifecycle_state.
+        - Mutates self.open_requests, self.human_requests, and self.lifecycle_state.
         """
         self.calls.append(("human", body))
         idem_key = str(body.get("idempotencyKey") or body.get("question") or "default")
@@ -691,6 +855,8 @@ class _BenchmarkRuntimeClient:
             "requestRevision": 0,
             "status": "OPEN",
             "assessmentRuleId": body.get("assessmentRuleId") or self.case.rule_set_pin.rule_ids[0],
+            "question": body.get("question", ""),
+            "unresolvedFact": body.get("unresolvedFact", ""),
             "resolvedFactId": None,
         })
         self.lifecycle_state = "WAITING_FOR_HUMAN"
@@ -712,9 +878,7 @@ class _BenchmarkRuntimeClient:
         - Mutates self.open_requests and self.lifecycle_state.
         """
         self.calls.append(("human_batch", body))
-        created = []
-        for item in body.get("requests", []):
-            created.append(self.post_human_request(item))
+        created = [self.post_human_request(item) for item in body.get("requests", [])]
         return {"requests": created}
 
     def post_activity(self, body: dict[str, Any]) -> dict[str, Any]:
@@ -813,16 +977,14 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
 
     Business rules:
     - NEVER inspects case.gold_rubric or StageExpectation.
-    - Emits real governed tool calls (get_assessment_context, get_pinned_rule_set,
-      cite_repository_source, open_human_request, submit_rule_decision,
-      request_finalization, submit_final_report).
+    - Emits real governed tool calls including read_legal_source.
 
     Execution flow:
     1. Define step sequence based solely on case.task_category, case.hitl_answers, and tool outputs.
-    2. Return a ScriptedModel instance for run_assessment_root().
+    2. Return a BaseChatModel subclass instance for run_assessment_root().
 
     Failure cases:
-    - None; runtime tool errors are handled by LangGraph / run_assessment_root().
+    - Runtime tool errors are handled by LangGraph / run_assessment_root().
 
     Side effects:
     - Pure model construction.
@@ -832,6 +994,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
     from langchain_core.outputs import ChatGeneration, ChatResult
 
     rule_id = case.rule_set_pin.rule_ids[0]
+    prov = case.legal_provisions[0]
 
     def _call(name: str, args: dict[str, Any], call_id: str) -> AIMessage:
         """Business purpose: Build an AIMessage tool call for scripted execution.
@@ -924,7 +1087,6 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
             return ChatResult(generations=[ChatGeneration(message=fn(messages))])
 
     if is_resume:
-        # After HITL interrupt resumes, cite source, submit decision, and finalize
         def _decide_after_resume(messages: list[Any]) -> AIMessage:
             """Business purpose: Submit compliant decision after HITL resolution and source citation.
             Business rules:
@@ -942,7 +1104,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
                 "assessment_rule_id": rule_id,
                 "applicability": "APPLICABLE",
                 "rationale": "Confirmed via HITL answer and cited source.",
-                "legal_context_ids": ["LR-DEMO-1"],
+                "legal_context_ids": [case.rule_definitions[0].legal_requirement_id],
                 "references": refs,
                 "criteria": [{"criterion_id": "C-1", "outcome": "MET", "rationale": "Verified.", "references": refs}],
                 "compliance": "COMPLIANT",
@@ -958,10 +1120,10 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
         ]
         return _CaseScriptedModel(responses=[], step_fns=steps)
 
-    # Initial stage: driven strictly by case.task_category & case.hitl_answers (never gold_rubric!)
     steps: list[Any] = [
         lambda _m: _call("get_assessment_context", {}, "ctx-1"),
         lambda _m: _call("get_pinned_rule_set", {}, "rules-1"),
+        lambda _m: _call("read_legal_source", {"document_id": prov.document_id, "locator": prov.locator}, "law-1"),
         lambda _m: _call("cite_repository_source", {"path": first_file, "start_line": 1, "end_line": 1}, "cite-1"),
     ]
 
@@ -969,7 +1131,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
         steps.append(lambda _m: _call("open_human_request", {
             "assessment_rule_id": rule_id,
             "criterion_ids": ["C-1"],
-            "question": f"Confirm organizational owner for {case.task_category}?",
+            "question": f"Who owns the {case.hitl_answers[0].request_key} duty for {case.task_category}?",
             "unresolved_fact": case.hitl_answers[0].request_key,
             "decision_impact": ["Determines operational duty."],
             "resolution_attempts": ["Checked pinned repository source."],
@@ -995,7 +1157,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
                 "assessment_rule_id": rule_id,
                 "applicability": "APPLICABLE",
                 "rationale": "Observed gap in pinned repository source.",
-                "legal_context_ids": ["LR-DEMO-1"],
+                "legal_context_ids": [case.rule_definitions[0].legal_requirement_id],
                 "references": refs,
                 "criteria": [{"criterion_id": "C-1", "outcome": "NOT_MET", "rationale": "Gap observed.", "references": refs}],
                 "compliance": "NON_COMPLIANT",
@@ -1025,7 +1187,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
                 "assessment_rule_id": rule_id,
                 "applicability": "NOT_APPLICABLE",
                 "rationale": "Internal CLI does not process personal data.",
-                "legal_context_ids": ["LR-DEMO-1"],
+                "legal_context_ids": [case.rule_definitions[0].legal_requirement_id],
                 "references": refs,
                 "criteria": [],
             }, "decide-na")
@@ -1037,7 +1199,6 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
             lambda _m: AIMessage(content="Assessment complete."),
         ])
     elif any(tag in case.task_category for tag in ("incomplete_coverage", "fabricated_ref", "test_only", "absence_negative")):
-        # Leaves decision unresolved rather than fabricating proof
         steps.append(lambda _m: AIMessage(content="Insufficient production evidence; keeping assessment unresolved."))
     else:
         def _decide_compliant(messages: list[Any]) -> AIMessage:
@@ -1057,7 +1218,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
                 "assessment_rule_id": rule_id,
                 "applicability": "APPLICABLE",
                 "rationale": "Verified in pinned repository source.",
-                "legal_context_ids": ["LR-DEMO-1"],
+                "legal_context_ids": [case.rule_definitions[0].legal_requirement_id],
                 "references": refs,
                 "criteria": [{"criterion_id": "C-1", "outcome": "MET", "rationale": "Verified.", "references": refs}],
                 "compliance": "COMPLIANT",
@@ -1071,6 +1232,40 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
         ])
 
     return _CaseScriptedModel(responses=[], step_fns=steps)
+
+
+def _resolve_model_for_trial(
+    *,
+    case: BenchmarkCase,
+    config: RunConfig,
+    first_file: str,
+    is_resume: bool,
+    live_model_factory: Callable[[BenchmarkCase, RunConfig], Any] | None,
+) -> tuple[Any, bool]:
+    """Business purpose: Resolve the model uniformly for initial, retry, and resume runs.
+
+    Business rules:
+    - LIVE mode NEVER falls back to SCRIPTED model on initial, retry, or resume.
+    - Returns (model, is_simulated_provider) so physical vs simulated calls are separated.
+
+    Execution flow:
+    1. For LIVE: use live_model_factory (simulated) or resolve_agent_model(config.model_route) (physical).
+    2. For SCRIPTED: build deterministic _CaseScriptedModel.
+
+    Failure cases:
+    - Unsupported mode or missing LIVE provider raises RuntimeError.
+
+    Side effects:
+    - May resolve configured LangChain model client in LIVE mode.
+    """
+    if config.mode == "LIVE":
+        if live_model_factory is not None:
+            return live_model_factory(case, config), True
+        from model_policy import resolve_agent_model
+        return resolve_agent_model(config.model_route), False
+    if config.mode == "SCRIPTED":
+        return _build_scripted_model_for_case(case, first_file, is_resume=is_resume), False
+    raise RuntimeError(f"UNSUPPORTED_REAL_ROOT_MODE:{config.mode}")
 
 
 def _write_trace(trace_path: Path, payload: dict[str, Any]) -> str:
@@ -1110,7 +1305,7 @@ def _run_offline_fixture_stage(
 
     Execution flow:
     1. Look up stage output in case.offline_fixture_output and write trace JSON.
-    2. Grade observed verdict, independent evidence records, HITL, and persisted state.
+    2. Grade observed verdict, typed evidence records, HITL, and persisted state.
 
     Failure cases:
     - Missing stage output returns TrialOutcome with passed=False and MISSING_OFFLINE_FIXTURE_STAGE.
@@ -1154,7 +1349,7 @@ def _run_offline_fixture_stage(
             error_code="MISSING_OFFLINE_FIXTURE_STAGE",
             error_message=f"No offline fixture output for stage {expectation.stage}",
             latency_ms=latency_ms,
-            usage=TrialUsage(physical_attempts=0, scripted_invocations=0),
+            usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
             trace_path=str(trace_path),
             trace_sha256=trace_sha,
         )
@@ -1176,13 +1371,16 @@ def _run_offline_fixture_stage(
         observed_hitl_state=str(stage_out.get("hitlState", "NONE")),
         observed_persisted_state=dict(stage_out.get("persistedState", {})),
         authority_violation=bool(stage_out.get("authorityViolation", False)),
+        authority_gate_tested=False,
+        completion_gate_tested=False,
         observed_evidence_records=stage_out.get("evidenceRecords"),
         expected_repo_id=case.repo_pin.repo_id,
+        expected_commit_sha=case.repo_pin.commit_sha,
         repo_fixture_root=repo_root,
         error_code=stage_out.get("errorCode"),
         error_message=stage_out.get("errorMessage"),
         latency_ms=latency_ms,
-        usage=TrialUsage(physical_attempts=0, scripted_invocations=0),
+        usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
         trace_path=str(trace_path),
         trace_sha256=trace_sha,
     )
@@ -1202,16 +1400,16 @@ def _run_real_root_trial(
     Business rules:
     - Initializes assessment_id, thread_id, InMemorySaver, FilesystemBackend(virtual_mode=True),
       and _BenchmarkRuntimeClient ONCE per trial so checkpoint state persists across stages.
-    - Never reads case.gold_rubric during runtime execution.
-    - For fault-injection cases, arms a real 503 fault and verifies checkpoint recovery.
-    - For HITL two-stage cases, runs to interrupt, resolves HITL fixture answer, and resumes same checkpoint.
+    - LIVE mode uses the same model resolution for initial, retry, and resume (never SCRIPTED).
+    - HITL resume matches open request by request_key / question_pattern (never fabricates answers).
+    - Tracks real authority_gate_tested, completion_gate_tested, and decision-referenced evidence.
 
     Execution flow:
     1. Create isolated per-trial runtime client, checkpointer, and sandboxed backend.
-    2. For each stage in case.gold_rubric.stages, invoke run_assessment_root() and grade strictly from observed runtime state.
+    2. For each stage, resolve model uniformly, invoke run_assessment_root(), and grade strictly.
 
     Failure cases:
-    - Unhandled runtime errors are captured as failed TrialOutcome records.
+    - Unhandled runtime errors or HITL mismatches are captured as failed TrialOutcome records.
 
     Side effects:
     - Writes per-stage trace JSON files under trace_dir.
@@ -1219,34 +1417,50 @@ def _run_real_root_trial(
     from deepagents.backends import FilesystemBackend
     from langchain_core.callbacks import BaseCallbackHandler
     from langgraph.checkpoint.memory import InMemorySaver
-    from assessment_root.client import AssessmentApiError
     from assessment_root.runner import run_assessment_root
 
     class _BenchmarkTelemetryCallback(BaseCallbackHandler):
         def __init__(self) -> None:
-            self.calls = 0
+            self.attempted_calls = 0
+            self.completed_calls = 0
             self.input_tokens = 0
+            self.cached_input_tokens = 0
             self.output_tokens = 0
             self.model_errors: list[str] = []
             self.tools: list[dict[str, Any]] = []
 
+        def on_chat_model_start(self, serialized: Any, messages: Any, **kwargs: Any) -> None:  # noqa: ARG002
+            """Business purpose: Count every attempted model call including retries and failures.
+            Business rules:
+            - Increments attempted_calls before provider dispatch.
+            Execution flow:
+            1. Increment attempted_calls counter.
+            Failure cases:
+            - No failure modes; pure counter increment.
+            Side effects:
+            - Mutates in-memory telemetry counter.
+            """
+            self.attempted_calls += 1
+
         def on_llm_end(self, response: Any, **kwargs: Any) -> None:  # noqa: ARG002
             """Business purpose: Record completed model call count and token usage from callback telemetry.
             Business rules:
-            - Increments calls and accumulates non-null token counts only.
+            - Captures input, cached_input, and output tokens from usage_metadata.
             Execution flow:
-            1. Increment calls and sum input/output tokens across generations.
+            1. Increment completed_calls and accumulate token metadata.
             Failure cases:
             - Missing usage_metadata defaults to zero tokens.
             Side effects:
             - Mutates in-memory telemetry counters.
             """
-            self.calls += 1
+            self.completed_calls += 1
             for gens in getattr(response, "generations", []):
                 for gen in gens:
                     msg = getattr(gen, "message", None)
                     usage = getattr(msg, "usage_metadata", None) or {}
                     self.input_tokens += int(usage.get("input_tokens", 0))
+                    details = usage.get("input_token_details") or {}
+                    self.cached_input_tokens += int(details.get("cache_read", 0))
                     self.output_tokens += int(usage.get("output_tokens", 0))
 
         def on_llm_error(self, error: BaseException, **kwargs: Any) -> None:  # noqa: ARG002
@@ -1288,75 +1502,90 @@ def _run_real_root_trial(
         started = time.perf_counter()
         review_trace = _BenchmarkTelemetryCallback()
         is_resume = expectation.stage == "RESUME_FINAL" and stage_idx > 0
+        hitl_mismatch_err: str | None = None
+
         if is_resume and client.open_requests:
-            answer = case.hitl_answers[0].answer if case.hitl_answers else "Confirmed by operator."
-            client.resolve_human_request(client.open_requests[0], answer)
+            open_id = client.open_requests[0]
+            open_row = next((r for r in client.human_requests if r["requestId"] == open_id), {})
+            matched = _match_hitl_answer(case, open_row)
+            if matched is None:
+                hitl_mismatch_err = "HITL_FIXTURE_ANSWER_MISMATCH"
+            else:
+                client.resolve_human_request(open_id, matched)
 
         if case.is_fault_injection:
             client.inject_fault_once(ConnectionError("SERVICE_UNAVAILABLE_503"))
 
-        model = (
-            live_model_factory(case, config)
-            if config.mode == "LIVE" and live_model_factory is not None
-            else (
-                _build_scripted_model_for_case(case, first_file, is_resume=is_resume)
-                if config.mode == "SCRIPTED"
-                else None
-            )
-        )
-        if model is None and config.mode == "LIVE":
-            from model_policy import resolve_agent_model
-            model = resolve_agent_model(config.model_route)
-
         run_result: dict[str, Any] = {}
-        err_code: str | None = None
-        err_msg: str | None = None
+        err_code: str | None = hitl_mismatch_err
+        err_msg: str | None = "No matching HitlFixtureAnswer for open request" if hitl_mismatch_err else None
         recovery_observed = False
-        try:
-            run_result = run_assessment_root(
-                client,  # type: ignore[arg-type]
-                assessment_id,
-                backend_factory=lambda _c, _ctx: (backend, None),
-                model=model,
-                checkpointer=saver,
-                governance=(),
-                extra_callbacks=[review_trace],
+        is_simulated = False
+
+        if err_code is None:
+            model, is_simulated = _resolve_model_for_trial(
+                case=case,
+                config=config,
+                first_file=first_file,
+                is_resume=is_resume,
+                live_model_factory=live_model_factory,
             )
-            if case.is_fault_injection and client.injected_fault_observed and run_result.get("state") == "FAILED":
-                # Re-invoke on the SAME thread_id and InMemorySaver to verify recovery
-                retry_model = (
-                    live_model_factory(case, config)
-                    if config.mode == "LIVE" and live_model_factory is not None
-                    else _build_scripted_model_for_case(case, first_file, is_resume=False)
-                )
+            try:
                 run_result = run_assessment_root(
                     client,  # type: ignore[arg-type]
                     assessment_id,
                     backend_factory=lambda _c, _ctx: (backend, None),
-                    model=retry_model,
+                    model=model,
                     checkpointer=saver,
                     governance=(),
                     extra_callbacks=[review_trace],
                 )
-                recovery_observed = run_result.get("state") == "SUCCEEDED"
-        except Exception as exc:  # noqa: BLE001
-            err_code = type(exc).__name__
-            err_msg = str(exc)
+                if case.is_fault_injection and client.injected_fault_observed and run_result.get("state") == "FAILED":
+                    # Uniform model resolution on retry (never downgrading LIVE to SCRIPTED)
+                    retry_model, is_simulated_retry = _resolve_model_for_trial(
+                        case=case,
+                        config=config,
+                        first_file=first_file,
+                        is_resume=False,
+                        live_model_factory=live_model_factory,
+                    )
+                    is_simulated = is_simulated or is_simulated_retry
+                    run_result = run_assessment_root(
+                        client,  # type: ignore[arg-type]
+                        assessment_id,
+                        backend_factory=lambda _c, _ctx: (backend, None),
+                        model=retry_model,
+                        checkpointer=saver,
+                        governance=(),
+                        extra_callbacks=[review_trace],
+                    )
+                    recovery_observed = run_result.get("state") == "SUCCEEDED"
+            except Exception as exc:  # noqa: BLE001
+                err_code = type(exc).__name__
+                err_msg = str(exc)
 
         latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
         observed_refs = list(client.evidence_records.keys()) + [f["factId"] for f in client.facts if "factId" in f]
         observed_evidence_records = {
             **client.evidence_records,
-            **{f["factId"]: {"repositoryId": case.repo_pin.repo_id} for f in client.facts if "factId" in f},
+            **{f["factId"]: f for f in client.facts if "factId" in f},
         }
+        decision_ref_ids = [
+            ref.get("evidenceId") or ref.get("factId") or ref.get("id")
+            for d in client.decisions
+            for ref in (d.get("decision", d).get("references") or [])
+            if isinstance(ref, dict) and (ref.get("evidenceId") or ref.get("factId") or ref.get("id"))
+        ]
         observed_hitl = "OPEN" if client.open_requests else ("RESOLVED" if client.resolved_requests else "NONE")
         observed_persisted = {
             "lifecycleState": client.lifecycle_state,
             "openHumanRequests": len(client.open_requests),
         }
         observed_verdict = _derive_observed_verdict(client, run_result)
-        physical_calls = review_trace.calls if config.mode == "LIVE" else 0
-        scripted_calls = review_trace.calls if config.mode == "SCRIPTED" else 0
+
+        physical_calls = review_trace.attempted_calls if (config.mode == "LIVE" and not is_simulated) else 0
+        simulated_calls = review_trace.attempted_calls if (config.mode == "LIVE" and is_simulated) else 0
+        scripted_calls = review_trace.attempted_calls if config.mode == "SCRIPTED" else 0
 
         trace_path = trace_dir / f"{case.case_id}_t{trial_index}_{expectation.stage}.json"
         trace_sha = _write_trace(trace_path, {
@@ -1371,6 +1600,7 @@ def _run_real_root_trial(
             "runResult": run_result,
             "injectedFaultObserved": client.injected_fault_observed,
             "recoveryObserved": recovery_observed,
+            "authorityViolations": list(client.authority_violations),
             "toolCalls": review_trace.tools,
             "clientCalls": [c[0] for c in client.calls],
         })
@@ -1390,9 +1620,13 @@ def _run_real_root_trial(
             observed_evidence_refs=observed_refs,
             observed_hitl_state=observed_hitl,
             observed_persisted_state=observed_persisted,
-            authority_violation=False,
+            authority_violation=bool(client.authority_violations),
+            authority_gate_tested=client.authority_gate_tested,
+            completion_gate_tested=client.completion_gate_tested,
             observed_evidence_records=observed_evidence_records,
+            decision_referenced_ids=decision_ref_ids,
             expected_repo_id=case.repo_pin.repo_id,
+            expected_commit_sha=case.repo_pin.commit_sha,
             repo_fixture_root=repo_root,
             graph_executed=bool(run_result),
             checkpoint_id=run_result.get("checkpointId"),
@@ -1404,9 +1638,11 @@ def _run_real_root_trial(
             usage=TrialUsage(
                 physical_attempts=physical_calls,
                 failed_attempts=len(review_trace.model_errors),
+                simulated_provider_calls=simulated_calls,
                 scripted_invocations=scripted_calls,
-                input_tokens=review_trace.input_tokens if config.mode == "LIVE" else None,
-                output_tokens=review_trace.output_tokens if config.mode == "LIVE" else None,
+                input_tokens=review_trace.input_tokens if (config.mode == "LIVE" and not is_simulated) else None,
+                cached_input_tokens=review_trace.cached_input_tokens if (config.mode == "LIVE" and not is_simulated) else None,
+                output_tokens=review_trace.output_tokens if (config.mode == "LIVE" and not is_simulated) else None,
             ),
             trace_path=str(trace_path),
             trace_sha256=trace_sha,
@@ -1465,6 +1701,7 @@ def run_benchmark(
     save_runtime_manifest(run_dir / "manifest.json", manifest)
 
     outcomes: list[TrialOutcome] = []
+    case_by_id = {c.case_id: c for c in cases}
     trials_jsonl = run_dir / "trials.jsonl"
     with trials_jsonl.open("w", encoding="utf-8") as handle:
         for case in cases:
@@ -1497,6 +1734,18 @@ def run_benchmark(
                     outcomes.append(outcome)
                     handle.write(outcome.model_dump_json() + "\n")
 
+    bundle_digest = manifest["instructionBundle"]["enRuntimeBundleDigest"] or manifest["instructionBundle"]["viSourceInventoryDigest"] or manifest["instructionBundle"]["id"]
+    trial_metadata_by_key = {
+        (o.case_id, o.stage, o.trial_index): {
+            "threadId": o.thread_id,
+            "traceSha256": o.trace_sha256,
+            "modelRoute": config.model_route,
+            "instructionBundleDigest": bundle_digest,
+            "ruleSetVersionId": case_by_id[o.case_id].rule_set_pin.rule_set_version_id,
+        }
+        for o in outcomes
+    }
+
     report = build_benchmark_report(
         run_id=resolved_run_id,
         manifest_sha256=manifest["manifestSha256"],
@@ -1504,6 +1753,7 @@ def run_benchmark(
         outcomes=outcomes,
         k_values=config.k_values,
         manual_reviews=manual_reviews,
+        trial_metadata_by_key=trial_metadata_by_key,
     )
     export_report_json(run_dir / "report.json", report)
     export_report_csv(run_dir / "report.csv", outcomes, config.k_values)

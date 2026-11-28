@@ -31,7 +31,6 @@ class RepoSnapshotPin(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     repo_id: str = Field(min_length=1)
-    # Explicitly distinguish synthetic fixtures from checked-out Git commits.
     snapshot_kind: Literal["SYNTHETIC_FIXTURE", "GIT_COMMIT"] = "SYNTHETIC_FIXTURE"
     commit_sha: str = Field(min_length=7, max_length=64)
     fixture_dir: str = Field(min_length=1)
@@ -49,6 +48,34 @@ class CorpusPin(BaseModel):
     digest_sha256: str = Field(min_length=64, max_length=64)
 
 
+class LegalProvisionFixture(BaseModel):
+    """Pinned legal provision text served by read_legal_source and search_legal_source."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    document_id: str = Field(min_length=1)
+    locator: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    content: str = Field(min_length=1)
+    content_sha256: str = Field(min_length=64, max_length=64)
+    source_kind: Literal["SYNTHETIC_PINNED_LAW", "OFFICIAL_PINNED_LAW"] = "SYNTHETIC_PINNED_LAW"
+
+
+class RuleDefinitionFixture(BaseModel):
+    """Case-specific legal requirement, applicability conditions, criteria, and exceptions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    rule_id: str = Field(min_length=1)
+    concept: str = Field(min_length=1)
+    legal_requirement_id: str = Field(min_length=1)
+    requirement_title: str = Field(min_length=1)
+    requirement_proposition: str = Field(min_length=1)
+    applicability_conditions: tuple[str, ...] = Field(min_length=1)
+    criteria: tuple[dict[str, str], ...] = Field(min_length=1)
+    exceptions: tuple[str, ...] = ()
+
+
 class RuleSetPin(BaseModel):
     """Pinned rule set version and rule IDs in scope for the case."""
 
@@ -60,7 +87,7 @@ class RuleSetPin(BaseModel):
 
 
 class HitlFixtureAnswer(BaseModel):
-    """Deterministic HITL fixture answer for a specific unresolved fact or question."""
+    """Deterministic HITL fixture answer matched by request_key or question_pattern."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -82,7 +109,6 @@ class StageExpectation(BaseModel):
     required_evidence_refs: tuple[str, ...] = ()
     expected_hitl_state: str = Field(min_length=1)
     expected_persisted_state: dict[str, Any] = Field(default_factory=dict)
-    # Authority violations (e.g. specialist emitting verdict, cross-tenant leak) are never allowed.
     allow_authority_violation: Literal[False] = False
 
 
@@ -97,7 +123,7 @@ class GoldRubric(BaseModel):
 
 
 class BenchmarkCase(BaseModel):
-    """Single reproducible benchmark case with pins, HITL fixture, and reviewed gold."""
+    """Single reproducible benchmark case with real legal provisions, rule specs, and gold."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -113,6 +139,8 @@ class BenchmarkCase(BaseModel):
     repo_pin: RepoSnapshotPin
     corpus_pin: CorpusPin
     rule_set_pin: RuleSetPin
+    legal_provisions: tuple[LegalProvisionFixture, ...] = Field(min_length=1)
+    rule_definitions: tuple[RuleDefinitionFixture, ...] = Field(min_length=1)
     hitl_answers: tuple[HitlFixtureAnswer, ...] = ()
     gold_rubric: GoldRubric
     # Pre-baked offline fixture output used ONLY in OFFLINE_FIXTURE mode (never SCRIPTED/LIVE).
@@ -120,14 +148,14 @@ class BenchmarkCase(BaseModel):
 
 
 class TrialUsage(BaseModel):
-    """Observed resource usage; physical_attempts defaults to 0 (telemetry-only)."""
+    """Observed resource usage distinguishing physical provider calls from simulated/scripted."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    # Physical provider model calls observed by telemetry (0 in OFFLINE_FIXTURE/SCRIPTED).
+    # Real external provider model calls (including retries/failures); 0 in OFFLINE/SCRIPTED/simulated.
     physical_attempts: int = Field(ge=0, default=0)
     failed_attempts: int = Field(ge=0, default=0)
-    # Distinguish scripted/logical invocations from physical provider attempts.
+    simulated_provider_calls: int = Field(ge=0, default=0)
     scripted_invocations: int = Field(ge=0, default=0)
     input_tokens: int | None = Field(ge=0, default=None)
     cached_input_tokens: int | None = Field(ge=0, default=None)
@@ -156,6 +184,8 @@ class TrialOutcome(BaseModel):
     hitl_match: bool
     persisted_state_match: bool
     authority_violation: bool = False
+    authority_gate_tested: bool = False
+    completion_gate_tested: bool = False
     graph_executed: bool = False
     checkpoint_id: str | None = None
     injected_fault_observed: bool = False
@@ -172,12 +202,13 @@ class TrialOutcome(BaseModel):
 
 
 class ManualReviewRecord(BaseModel):
-    """P15 manual semantic review bound to a specific run, trial, trace, and config."""
+    """P15 manual semantic review bound to a specific run, case, stage, trial, trace, and config."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     run_id: str = Field(min_length=1)
     case_id: str = Field(min_length=1)
+    stage: StageType = "INITIAL"
     trial_index: int = Field(ge=0, default=0)
     thread_id: str = Field(min_length=1)
     trace_sha256: str = Field(min_length=64, max_length=64)

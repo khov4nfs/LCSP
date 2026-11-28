@@ -7,6 +7,1208 @@
     "assessment-system-boundaries": "97746345f2484fd0d0422d27138dd7c562c870a73e311ee9011891039ec7c6a5"
   },
   "component": "assessment-benchmark",
+  "expectedTrialInventory": [
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-01",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-02",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-03",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-04",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-05",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-06",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-07",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-08",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-09",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-10",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-11",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-12",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-13",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-14",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-15",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-16",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-17",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-18",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-19",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-20",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-20",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-20",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-20",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-20",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-21",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-22",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-23",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-24",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-25",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-26",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-27",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "WAITING_FOR_HUMAN",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-28",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "RESUME_FINAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-29",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-30",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-31",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-32",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-33",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "INITIAL",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-34",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-34",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-34",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-34",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-34",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-35",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-35",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-35",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-35",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-35",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 4
+    },
+    {
+      "caseId": "CASE-36",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 0
+    },
+    {
+      "caseId": "CASE-36",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 1
+    },
+    {
+      "caseId": "CASE-36",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 2
+    },
+    {
+      "caseId": "CASE-36",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 3
+    },
+    {
+      "caseId": "CASE-36",
+      "mode": "OFFLINE_FIXTURE",
+      "stage": "FAULT_RECOVERY",
+      "trialIndex": 4
+    }
+  ],
   "goldReviewerRevision": "gold-pilot-r1",
   "instructionBundle": {
     "approvalIdentity": "NOT_REQUIRED",
@@ -80,7 +1282,7 @@
       "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
     }
   },
-  "manifestSha256": "9455bd7cec575dcaef38d0d0ff0da7c039805aadba64a04ece2060bc8f4eec23",
+  "manifestSha256": "ed6266f0ea764844faccb53f0e85bb1a744869eb12ffd8ca10de9cd19092f66c",
   "model": {
     "adapterClass": "SimpleNamespace",
     "configuredModelId": "offline-scripted"
@@ -94,13 +1296,14 @@
   "selectedSkillsSha256": {},
   "semanticAcceptance": "NOT_ESTABLISHED_BY_FINGERPRINT",
   "sourcePins": {
-    "casesDatasetSha256": "f1b552848ff1b167a967538c77a5334bf2283147f861c02d75eac297b12e8848",
-    "corpusPinsSha256": "8d5db48480d9afc4474ad42fec46531b07733bdadfbe7d56dd773459b1951ed2",
+    "casesDatasetSha256": "e5b6b7493ed892647dc5f3c03439984eb7f20bb3c1357b9edebfa1b7e76d909c",
+    "corpusPinsSha256": "de2d47c00bb213036bbc14fe31b803de2cebdcac06309bcab6088bbd374b99a4",
+    "expectedInventorySha256": "579f54e621eea00477a1384226b142720f7debbd559b092391751c43ab7b4536",
     "goldRubricSha256": "66245d0f50c06ead8801ab48290146b8d9d65b844673837459a2c0d16c97e66e",
     "hitlFixtureSha256": "80be0fbafbb044787f64c6b04f70542dca8a7b968f9cb28f3fd00795a56ccc61",
     "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "repoPinsSha256": "7017943c1a64d9d67bce882a19d51215993b4aa570196b2444312908149a6504",
-    "ruleSetPinsSha256": "c132693ed38f7031bcfbef43f6f6f87b522f58ba35e555d38896a7624412f179",
+    "ruleSetPinsSha256": "88962005b149c72e936d0b77e8ef97ee8b1e352a53f6a185ff32263bda517159",
     "runConfigSha256": "8347266c6457c87029ea5b3f513391b38fc7746ace96e1de899894de5207bf48"
   },
   "toolDescriptionsSha256": {

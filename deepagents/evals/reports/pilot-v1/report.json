@@ -41,18 +41,30 @@
       "outputTokens": null,
       "physicalAttempts": 0,
       "providerCost": null,
-      "scriptedInvocations": 0
+      "scriptedInvocations": 0,
+      "simulatedProviderCalls": 0
     }
   },
-  "manifestSha256": "9455bd7cec575dcaef38d0d0ff0da7c039805aadba64a04ece2060bc8f4eec23",
+  "invariantCoverage": {
+    "authorityGate": "NOT_TESTED",
+    "completionGate": "NOT_TESTED"
+  },
+  "manifestSha256": "ed6266f0ea764844faccb53f0e85bb1a744869eb12ffd8ca10de9cd19092f66c",
   "manualSemanticReviewP15": {
-    "authorityRespectedRate": 1.0,
-    "evidenceAcceptableRate": 1.0,
-    "expertVerifiedCount": 0,
-    "overallSemanticPassRate": 1.0,
-    "seededUnverifiedCount": 15,
-    "totalReviewed": 15,
-    "verdictAgreementRate": 1.0
+    "expertVerified": {
+      "authorityRespectedRate": null,
+      "evidenceAcceptableRate": null,
+      "overallSemanticPassRate": null,
+      "totalReviewed": 0,
+      "verdictAgreementRate": null
+    },
+    "seededUnverified": {
+      "authorityRespectedRate": 1.0,
+      "evidenceAcceptableRate": 1.0,
+      "overallSemanticPassRate": 1.0,
+      "totalReviewed": 15,
+      "verdictAgreementRate": 1.0
+    }
   },
   "mode": "OFFLINE_FIXTURE",
   "runId": "pilot-v1",
@@ -63,7 +75,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.002,
+        "maxMs": 0.022,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -100,7 +112,8 @@
         "outputTokens": null,
         "physicalAttempts": 0,
         "providerCost": null,
-        "scriptedInvocations": 0
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0
       }
     },
     "holdout": {
@@ -108,7 +121,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.001,
+        "maxMs": 0.003,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -145,7 +158,8 @@
         "outputTokens": null,
         "physicalAttempts": 0,
         "providerCost": null,
-        "scriptedInvocations": 0
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0
       }
     },
     "negativeControls": {
@@ -153,7 +167,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.002,
+        "maxMs": 0.022,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -190,7 +204,8 @@
         "outputTokens": null,
         "physicalAttempts": 0,
         "providerCost": null,
-        "scriptedInvocations": 0
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0
       }
     },
     "overall": {
@@ -198,7 +213,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.002,
+        "maxMs": 0.022,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -235,7 +250,8 @@
         "outputTokens": null,
         "physicalAttempts": 0,
         "providerCost": null,
-        "scriptedInvocations": 0
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0
       }
     }
   }

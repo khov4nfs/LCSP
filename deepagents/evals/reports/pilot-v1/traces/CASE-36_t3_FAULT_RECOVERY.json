@@ -5,7 +5,10 @@
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-36-1": {
+        "commitSha": "synthetic-1058f7c84f5c",
+        "contentSha256": "f4c7ee3a9fa8de71f57b56309dab157a71b5cc8e93cb6326b01a4fd94f2b883e",
         "end_line": 1,
+        "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/breach.py",
         "repositoryId": "repo-08-breach-sla",
         "start_line": 1
@@ -24,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "FAULT_RECOVERY",
-  "threadId": "1b032430-053c-4f26-af83-aaccf3b5d644",
+  "threadId": "52bd29ce-a605-42d9-86c1-cdf4b6241073",
   "trialIndex": 3
 }

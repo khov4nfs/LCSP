@@ -5,7 +5,10 @@
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-26-1": {
+        "commitSha": "synthetic-2a9be529e4d9",
+        "contentSha256": "ca6d2e0fc53b9c69078ec5403bc3aa40e8a14d990b0dbf9e0498e1f92604fe50",
         "end_line": 1,
+        "evidenceType": "REPOSITORY_SOURCE",
         "path": "tests/test_crypto.py",
         "repositoryId": "repo-05-test-only-evidence",
         "start_line": 1
@@ -24,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "8ed1f4f0-fbda-4280-9731-498720b98db7",
+  "threadId": "8dedf0fa-6ae6-45ec-ac7b-882f5972b64a",
   "trialIndex": 4
 }

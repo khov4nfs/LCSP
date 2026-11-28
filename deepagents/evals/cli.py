@@ -32,12 +32,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Business purpose: Provide one-command CLI for manifest reproduction, benchmark runs, and pass^k scoring.
 
     Business rules:
-    - Offline CI commands never invoke paid models; LIVE mode requires --allow-live.
+    - Offline CI commands never invoke paid models; LIVE mode requires --allow-live and --model-route.
     - Persists immutable manifests, all trial outcomes (including failures), and JSON/CSV reports.
 
     Execution flow:
     1. Parse subcommand (manifest | run | score).
-    2. Load validated cases/reviews or trials.jsonl.
+    2. Load validated cases/reviews or trials.jsonl and verify integrity.
     3. Execute requested action and print bounded JSON summary.
 
     Failure cases:
@@ -57,6 +57,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_manifest.add_argument("--trials", type=int, default=3)
     p_manifest.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_manifest.add_argument("--locale", choices=["en", "vi"], default="en")
+    p_manifest.add_argument("--model-route", default="offline-scripted")
     p_manifest.add_argument("--output", type=Path, required=True)
 
     p_run = sub.add_parser("run", help="Run benchmark trials and export pass^k JSON/CSV reports")
@@ -68,6 +69,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_run.add_argument("--trials", type=int, default=3)
     p_run.add_argument("--k", type=int, nargs="+", default=[1, 3])
     p_run.add_argument("--locale", choices=["en", "vi"], default="en")
+    p_run.add_argument("--model-route", default="offline-scripted")
     p_run.add_argument("--allow-live", action="store_true")
     p_run.add_argument("--output-dir", type=Path, required=True)
 
@@ -87,6 +89,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             trials_per_case=args.trials,
             k_values=tuple(args.k),
             locale=args.locale,
+            model_route=args.model_route,
         )
         cases = load_benchmark_cases(args.cases, split=args.split)
         manifest = build_benchmark_manifest(run_id=args.run_id, cases=cases, config=config)
@@ -101,6 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             trials_per_case=args.trials,
             k_values=tuple(args.k),
             locale=args.locale,
+            model_route=args.model_route,
             allow_live=args.allow_live,
         )
         cases = load_benchmark_cases(args.cases, split=args.split)
@@ -129,6 +133,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         validate_run_artifacts_for_scoring(manifest, outcomes)
         reviews = load_manual_reviews(args.reviews)
+        trial_metadata_by_key = {
+            (o.case_id, o.stage, o.trial_index): {
+                "threadId": o.thread_id,
+                "traceSha256": o.trace_sha256,
+            }
+            for o in outcomes
+        }
         report = build_benchmark_report(
             run_id=manifest["runId"],
             manifest_sha256=manifest["manifestSha256"],
@@ -136,6 +147,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             outcomes=outcomes,
             k_values=tuple(args.k),
             manual_reviews=reviews,
+            trial_metadata_by_key=trial_metadata_by_key,
         )
         export_report_json(args.output_dir / "report.json", report)
         export_report_csv(args.output_dir / "report.csv", outcomes, tuple(args.k))

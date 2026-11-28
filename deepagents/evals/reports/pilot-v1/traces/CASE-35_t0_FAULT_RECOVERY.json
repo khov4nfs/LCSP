@@ -5,7 +5,10 @@
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-35-1": {
+        "commitSha": "synthetic-e10f3784e411",
+        "contentSha256": "7bfc524f7f2e3bad370460b31119c010b3261b348ff83362330e4787d0790938",
         "end_line": 1,
+        "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/cli.py",
         "repositoryId": "repo-03-internal-cli",
         "start_line": 1
@@ -24,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "FAULT_RECOVERY",
-  "threadId": "8a3cb092-4956-4efe-bee1-5bfad7123796",
+  "threadId": "ad880dfd-d280-44c0-b88c-db731c647a45",
   "trialIndex": 0
 }

@@ -5,7 +5,10 @@
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-11-1": {
+        "commitSha": "synthetic-de4b5964d365",
+        "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58",
         "end_line": 1,
+        "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/retention.py",
         "repositoryId": "repo-04-hitl-retention",
         "start_line": 1
@@ -24,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "WAITING_FOR_HUMAN",
-  "threadId": "7f8ad791-aba6-4228-9a10-cfad663a61d8",
+  "threadId": "dd03e01d-5b01-4ee7-b51c-3b4364e63d43",
   "trialIndex": 2
 }

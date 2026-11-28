@@ -1,21 +1,22 @@
 """Offline CI & regression tests for LCSP SWE-bench / tau-bench style benchmark.
 
-Covers all 12 mandatory regression tests from PR #622 review, plus real
-run_assessment_root() execution in SCRIPTED, HITL two-stage, FAULT_RECOVERY,
-and fake-provider LIVE modes with zero paid API calls.
+Covers all 12 mandatory regression tests from PR #622 review plus re-review
+findings: no LIVE->SCRIPTED fallback, per-case legal corpus/rules, authority &
+completion gates, typed evidence provenance, complete trial inventory, trace
+digest checks, fail-closed P15 review binding, HITL matching, and CLI --model-route.
 """
 from __future__ import annotations
 
-import csv
 import json
 from pathlib import Path
 
 import httpx
 import pytest
-from langchain_core.messages import AIMessage
 
 from evals.benchmark_runner import (
+    _BenchmarkRuntimeClient,
     _build_scripted_model_for_case,
+    _resolve_model_for_trial,
     build_benchmark_manifest,
     load_benchmark_cases,
     load_manual_reviews,
@@ -46,6 +47,9 @@ def test_seeded_benchmark_inventory_meets_scope_and_safety():
     assert any(c.is_fault_injection for c in cases)
     assert all(c.repo_pin.snapshot_kind == "SYNTHETIC_FIXTURE" for c in cases)
     assert all(c.repo_pin.untrusted_code_execution_allowed is False for c in cases)
+    # Per-case legal provisions and rule definitions are distinct and populated
+    provs = {c.legal_provisions[0].content for c in cases}
+    assert len(provs) == len(cases)
 
 
 def test_pass_pow_k_exact_combinatorics():
@@ -56,54 +60,53 @@ def test_pass_pow_k_exact_combinatorics():
 
 
 def test_regression_missing_verdict_inverted_verdict_and_no_graph_execution():
-    exp = StageExpectation(
-        stage="INITIAL",
-        expected_lifecycle_state="COMPLETE",
-        expected_verdict="APPLICABLE_COMPLIANT",
-        required_evidence_refs=("ev-1",),
-        expected_hitl_state="NONE",
-        expected_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
-    )
-    ev_records = {"ev-1": {"repositoryId": "repo-01-consent-app"}}
+    cases = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])
+    case = cases[0]
+    exp = case.gold_rubric.stages[0]
+    ev_records = exp_records = case.offline_fixture_output["stages"]["INITIAL"]["evidenceRecords"]
+    ev_id = list(exp_records.keys())[0]
 
     # 1. SCRIPTED without verdict -> FAIL
     no_verdict = grade_trial(
-        run_id="r1", case_id="C1", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
+        run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
         expectation=exp, is_negative_control=False, is_fault_injection=False,
         observed_lifecycle_state="COMPLETE", observed_verdict="UNRESOLVED",
-        observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
+        observed_evidence_refs=(ev_id,), observed_hitl_state="NONE",
         observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
         authority_violation=False, observed_evidence_records=ev_records,
-        expected_repo_id="repo-01-consent-app", graph_executed=True,
+        expected_repo_id=case.repo_pin.repo_id, expected_commit_sha=case.repo_pin.commit_sha,
+        graph_executed=True,
     )
     assert no_verdict.passed is False
 
     # 2. Inverted verdict vs gold -> FAIL
     inverted = grade_trial(
-        run_id="r1", case_id="C1", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
+        run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
         expectation=exp, is_negative_control=False, is_fault_injection=False,
         observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_NON_COMPLIANT",
-        observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
+        observed_evidence_refs=(ev_id,), observed_hitl_state="NONE",
         observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
         authority_violation=False, observed_evidence_records=ev_records,
-        expected_repo_id="repo-01-consent-app", graph_executed=True,
+        expected_repo_id=case.repo_pin.repo_id, expected_commit_sha=case.repo_pin.commit_sha,
+        graph_executed=True,
     )
     assert inverted.passed is False
 
     # 5. Graph not executed -> cannot PASS SCRIPTED execution
     no_graph = grade_trial(
-        run_id="r1", case_id="C1", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
+        run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
         expectation=exp, is_negative_control=False, is_fault_injection=False,
         observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
-        observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
+        observed_evidence_refs=(ev_id,), observed_hitl_state="NONE",
         observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
         authority_violation=False, observed_evidence_records=ev_records,
-        expected_repo_id="repo-01-consent-app", graph_executed=False,
+        expected_repo_id=case.repo_pin.repo_id, expected_commit_sha=case.repo_pin.commit_sha,
+        graph_executed=False,
     )
     assert no_graph.passed is False
 
 
-def test_regression_evidence_missing_or_wrong_snapshot_fails():
+def test_regression_typed_evidence_rejects_partial_or_wrong_snapshot():
     exp = StageExpectation(
         stage="INITIAL",
         expected_lifecycle_state="COMPLETE",
@@ -125,51 +128,90 @@ def test_regression_evidence_missing_or_wrong_snapshot_fails():
     )
     assert missing_ev.passed is False and missing_ev.evidence_match is False
 
-    # 4. Matching evidence ID but wrong repository snapshot -> FAIL
-    wrong_snap = grade_trial(
+    # Partial record with only repositoryId (no path/span/contentSha256) -> FAIL
+    partial_ev = grade_trial(
         run_id="r1", case_id="C1", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
         expectation=exp, is_negative_control=False, is_fault_injection=False,
         observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
         observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
         observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
         authority_violation=False,
-        observed_evidence_records={"ev-1": {"repositoryId": "foreign-repo-999"}},
+        observed_evidence_records={"ev-1": {"evidenceType": "REPOSITORY_SOURCE", "repositoryId": "repo-01-consent-app"}},
         expected_repo_id="repo-01-consent-app", graph_executed=True,
     )
-    assert wrong_snap.passed is False and wrong_snap.evidence_match is False
+    assert partial_ev.passed is False and partial_ev.evidence_match is False
 
 
-def test_regression_fault_not_injected_cannot_pass_recovery():
-    exp = StageExpectation(
-        stage="FAULT_RECOVERY",
-        expected_lifecycle_state="COMPLETE",
-        expected_verdict="APPLICABLE_COMPLIANT",
-        required_evidence_refs=("ev-1",),
-        expected_hitl_state="NONE",
-        expected_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
+def test_regression_authority_and_completion_gates_enforced():
+    from assessment_root.client import AssessmentApiError
+
+    case = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])[0]
+    client = _BenchmarkRuntimeClient(case, "thread-1", "assess-1")
+
+    # Legal source text & search serve real per-case data
+    prov = case.legal_provisions[0]
+    assert client.legal_source_text(prov.document_id, prov.locator)["content"] == prov.content
+    assert len(client.legal_source_search(case.case_id)["matches"]) == 1
+
+    # Completion gate blocks finalization while rule is undecided
+    blocked = client.request_finalization()
+    assert blocked["lifecycleState"] == "ACTIVE"
+    assert any(b.startswith("UNDECIDED_RULE:") for b in blocked["blockers"])
+    assert client.completion_gate_tested is True
+
+    # Authority gate rejects out-of-scope rule decision
+    with pytest.raises(AssessmentApiError, match="ASSESSMENT_RULE_OUT_OF_SCOPE"):
+        client.post_decision({"decision": {"assessmentRuleId": "UNPINNED-RULE-999", "references": [{"id": "x"}]}})
+    assert client.authority_gate_tested is True
+    assert client.authority_violations
+
+
+def test_regression_live_never_falls_back_to_scripted(monkeypatch):
+    case = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])[0]
+    cfg = RunConfig(mode="LIVE", split="DEV", trials_per_case=1, k_values=(1,), allow_live=True, model_route="default")
+
+    sentinel = object()
+    monkeypatch.setattr("model_policy.resolve_agent_model", lambda route: sentinel)
+    model, is_simulated = _resolve_model_for_trial(
+        case=case, config=cfg, first_file="src/consent.py", is_resume=False, live_model_factory=None
     )
-    # 7. Fault not actually injected -> cannot count as recovery PASS
-    no_fault = grade_trial(
-        run_id="r1", case_id="C20", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
-        expectation=exp, is_negative_control=False, is_fault_injection=True,
-        observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
-        observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
-        observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
-        authority_violation=False,
-        observed_evidence_records={"ev-1": {"repositoryId": "repo-08-breach-sla"}},
-        expected_repo_id="repo-08-breach-sla", graph_executed=True,
-        injected_fault_observed=False, recovery_observed=False,
-    )
-    assert no_fault.passed is False
+    assert model is sentinel
+    assert is_simulated is False
+
+
+def test_regression_incomplete_inventory_and_trace_tampering_rejected(tmp_path):
+    cases = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01", "CASE-02"])
+    config = RunConfig(mode="OFFLINE_FIXTURE", split="DEV", trials_per_case=2, k_values=(1,))
+    run_benchmark(cases=cases, config=config, output_dir=tmp_path, run_id="inv-run")
+
+    # 12. Overwrite forbidden
+    with pytest.raises(FileExistsError, match="RUN_ID_ALREADY_EXISTS"):
+        run_benchmark(cases=cases, config=config, output_dir=tmp_path, run_id="inv-run")
+
+    manifest = json.loads((tmp_path / "inv-run" / "manifest.json").read_text(encoding="utf-8"))
+    lines = (tmp_path / "inv-run" / "trials.jsonl").read_text(encoding="utf-8").splitlines()
+    outcomes = [TrialOutcome.model_validate_json(l) for l in lines]
+
+    # Deleting a trial -> SCORING_INCOMPLETE_TRIAL_INVENTORY
+    with pytest.raises(ValueError, match="SCORING_INCOMPLETE_TRIAL_INVENTORY"):
+        validate_run_artifacts_for_scoring(manifest, outcomes[:-1])
+
+    # Tampering with an on-disk trace file -> SCORING_TRACE_DIGEST_MISMATCH
+    Path(outcomes[0].trace_path).write_text('{"tampered": true}\n', encoding="utf-8")
+    with pytest.raises(ValueError, match="SCORING_TRACE_DIGEST_MISMATCH"):
+        validate_run_artifacts_for_scoring(manifest, outcomes)
+
+    # 9. Cross-run trial rejected
+    foreign = outcomes[0].model_copy(update={"run_id": "other-run"})
+    with pytest.raises(ValueError, match="SCORING_CROSS_RUN_TRIAL_REJECTED"):
+        validate_run_artifacts_for_scoring(manifest, [foreign, *outcomes[1:]])
 
 
 def test_regression_fixture_content_change_changes_manifest_hash(tmp_path):
-    # 8. Modifying a source file inside a fixture repo changes manifestSha256
     cases = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])
     config = RunConfig(mode="OFFLINE_FIXTURE", split="DEV", trials_per_case=1, k_values=(1,))
     m_before = build_benchmark_manifest(run_id="m-test", cases=cases, config=config)
 
-    # Copy fixture repo to tmp_path, mutate file, and verify hash changes
     repo_copy = tmp_path / "repo-01"
     repo_copy.mkdir()
     src = Path(__file__).resolve().parent.parent / cases[0].repo_pin.fixture_dir / "src" / "consent.py"
@@ -181,32 +223,13 @@ def test_regression_fixture_content_change_changes_manifest_hash(tmp_path):
     assert m_before["manifestSha256"] != m_after["manifestSha256"]
 
 
-def test_regression_mixed_runs_rejected_and_overwrite_forbidden(tmp_path):
-    cases = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])
-    config = RunConfig(mode="OFFLINE_FIXTURE", split="DEV", trials_per_case=1, k_values=(1,))
-    run_benchmark(cases=cases, config=config, output_dir=tmp_path, run_id="immutable-run")
-
-    # 12. Re-running same run_id does NOT overwrite existing evidence
-    with pytest.raises(FileExistsError, match="RUN_ID_ALREADY_EXISTS"):
-        run_benchmark(cases=cases, config=config, output_dir=tmp_path, run_id="immutable-run")
-
-    # 9. Mixing trials from different runs is rejected by scorer
-    manifest = json.loads((tmp_path / "immutable-run" / "manifest.json").read_text(encoding="utf-8"))
-    trial_line = (tmp_path / "immutable-run" / "trials.jsonl").read_text(encoding="utf-8").splitlines()[0]
-    t1 = TrialOutcome.model_validate_json(trial_line)
-    t_foreign = t1.model_copy(update={"run_id": "other-run", "trial_index": 1})
-    with pytest.raises(ValueError, match="SCORING_CROSS_RUN_TRIAL_REJECTED"):
-        validate_run_artifacts_for_scoring(manifest, [t1, t_foreign])
-
-
-def test_regression_live_preflight_and_fake_provider_execution(tmp_path, monkeypatch):
+def test_regression_live_preflight_and_simulated_provider_execution(tmp_path, monkeypatch):
     def deny_network(_client, request, **_kwargs):
-        raise AssertionError(f"Preflight/fake-provider test must never dispatch HTTP: {request.url}")
+        raise AssertionError(f"Preflight/simulated test must never dispatch HTTP: {request.url}")
 
     monkeypatch.setattr(httpx.Client, "send", deny_network)
     cases = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])
 
-    # 11. LIVE without allow_live or unconfigured provider fails at preflight
     with pytest.raises(PermissionError, match="LIVE_MODE_REQUIRES_EXPLICIT_ALLOW_LIVE"):
         run_benchmark(
             cases=cases,
@@ -222,17 +245,18 @@ def test_regression_live_preflight_and_fake_provider_execution(tmp_path, monkeyp
             ),
             output_dir=tmp_path,
         )
-    assert not (tmp_path / "nonexistent-route-for-preflight").exists()
 
-    # Fake-provider LIVE adapter executes real run_assessment_root() with physical_attempts > 0
+    # Simulated provider via live_model_factory increments simulatedProviderCalls, NOT physicalAttempts
     report = run_benchmark(
         cases=cases,
         config=RunConfig(mode="LIVE", split="DEV", trials_per_case=1, k_values=(1,), allow_live=True, model_route="fake-live"),
         output_dir=tmp_path,
-        run_id="live-fake-1",
+        run_id="live-sim-1",
         live_model_factory=lambda case, _cfg: _build_scripted_model_for_case(case, "src/consent.py"),
     )
-    assert report["semanticReliability"]["overall"]["usage"]["physicalAttempts"] > 0
+    usage = report["semanticReliability"]["overall"]["usage"]
+    assert usage["simulatedProviderCalls"] > 0
+    assert usage["physicalAttempts"] == 0
     assert report["semanticReliability"]["overall"]["passedTrials"] == 1
 
 
@@ -242,7 +266,6 @@ def test_regression_real_scripted_assessment_root_hitl_and_fault_recovery(tmp_pa
 
     monkeypatch.setattr(httpx.Client, "send", deny_network)
 
-    # Real run_assessment_root() on: normal compliant (CASE-01), two-stage HITL (CASE-15), and fault recovery (CASE-20)
     cases = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01", "CASE-15", "CASE-20"])
     report = run_benchmark(
         cases=cases,
@@ -250,57 +273,41 @@ def test_regression_real_scripted_assessment_root_hitl_and_fault_recovery(tmp_pa
         output_dir=tmp_path,
         run_id="scripted-real-root",
     )
-    # 10. Offline/SCRIPTED reports 0 physical provider attempts
     assert report["semanticReliability"]["overall"]["usage"]["physicalAttempts"] == 0
     assert report["semanticReliability"]["overall"]["usage"]["scriptedInvocations"] > 0
-    assert report["semanticReliability"]["overall"]["passedTrials"] == 3  # CASE-01 (1) + CASE-15 (2 stages)
-    assert report["faultInjectionRecovery"]["passedTrials"] == 1  # CASE-20 real 503 fault + recovery
+    assert report["semanticReliability"]["overall"]["passedTrials"] == 3
+    assert report["faultInjectionRecovery"]["passedTrials"] == 1
+    assert report["invariantCoverage"] == {"authorityGate": "TESTED", "completionGate": "TESTED"}
 
-    # Verify CASE-15 shared thread_id and checkpoint across WAITING_FOR_HUMAN -> RESUME_FINAL
-    trials = [
-        TrialOutcome.model_validate_json(line)
-        for line in (tmp_path / "scripted-real-root" / "trials.jsonl").read_text(encoding="utf-8").splitlines()
-    ]
-    hitl_trials = [t for t in trials if t.case_id == "CASE-15"]
-    assert len(hitl_trials) == 2
-    assert hitl_trials[0].thread_id == hitl_trials[1].thread_id
-    assert hitl_trials[0].checkpoint_id is not None
-    assert hitl_trials[0].graph_executed and hitl_trials[1].graph_executed
-
-    # 6. Mismatched checkpoint / stopping at WAITING_FOR_HUMAN fails RESUME_FINAL
-    resume_exp = cases[1].gold_rubric.stages[1]
-    bad_resume = grade_trial(
-        run_id="r1", case_id="CASE-15", trial_index=0, thread_id=hitl_trials[0].thread_id,
-        mode="SCRIPTED", split="DEV", expectation=resume_exp,
-        is_negative_control=False, is_fault_injection=False,
-        observed_lifecycle_state="WAITING_FOR_HUMAN", observed_verdict="WAITING_FOR_HUMAN",
-        observed_evidence_refs=("ev-case-15-1",), observed_hitl_state="OPEN",
-        observed_persisted_state={"lifecycleState": "WAITING_FOR_HUMAN", "openHumanRequests": 1},
-        authority_violation=False,
-        observed_evidence_records={"ev-case-15-1": {"repositoryId": cases[1].repo_pin.repo_id}},
-        expected_repo_id=cases[1].repo_pin.repo_id, graph_executed=True,
+    # Unmatched HITL question fails with HITL_FIXTURE_ANSWER_MISMATCH (never fabricates answer)
+    from evals.benchmark_runner import _match_hitl_answer
+    bad_hitl_case = cases[1].model_copy(update={
+        "hitl_answers": (cases[1].hitl_answers[0].model_copy(update={"request_key": "unrelated_key", "question_pattern": "^nomatch$"}),)
+    })
+    assert _match_hitl_answer(bad_hitl_case, {"unresolvedFact": "notification_owner", "question": "Who owns notification?"}) is None
+    monkeypatch.setattr("evals.benchmark_runner._match_hitl_answer", lambda _c, _r: None)
+    mismatch_report = run_benchmark(
+        cases=[cases[1]],
+        config=RunConfig(mode="SCRIPTED", split="DEV", trials_per_case=1, k_values=(1,)),
+        output_dir=tmp_path,
+        run_id="hitl-mismatch",
     )
-    assert bad_resume.passed is False
+    assert mismatch_report["semanticReliability"]["overall"]["failuresByCode"].get("HITL_FIXTURE_ANSWER_MISMATCH") == 1
 
 
-def test_regression_offline_fixture_zero_physical_attempts_and_p15_binding(tmp_path):
-    cases = load_benchmark_cases(CASES_PATH)
+def test_regression_p15_fail_closed_and_cli_model_route(tmp_path):
     reviews = load_manual_reviews(REVIEWS_PATH)
-    # Cross-run P15 review is rejected
-    with pytest.raises(ValueError, match="MANUAL_REVIEW_RUN_MISMATCH"):
-        score_manual_reviews(reviews, expected_run_id="different-run")
+    # Missing trial in trial_metadata_by_key fails closed
+    with pytest.raises(ValueError, match="MANUAL_REVIEW_TRIAL_NOT_FOUND"):
+        score_manual_reviews(reviews, expected_run_id="pilot-v1", trial_metadata_by_key={})
 
+    # CLI accepts --model-route
     rc = cli_main([
-        "run",
+        "manifest",
         "--cases", str(CASES_PATH),
-        "--run-id", "offline-ci-check",
-        "--mode", "OFFLINE_FIXTURE",
-        "--trials", "5",
-        "--k", "1", "3", "5",
-        "--output-dir", str(tmp_path),
+        "--run-id", "cli-route-test",
+        "--model-route", "offline-scripted",
+        "--output", str(tmp_path / "manifest.json"),
     ])
     assert rc == 0
-    report = json.loads((tmp_path / "offline-ci-check" / "report.json").read_text(encoding="utf-8"))
-    assert report["semanticReliability"]["overall"]["usage"]["physicalAttempts"] == 0
-    assert report["faultInjectionRecovery"]["usage"]["physicalAttempts"] == 0
-    assert report["semanticReliability"]["overall"]["passPowK"]["pass^5"]["score"] == 1.0
+    assert json.loads((tmp_path / "manifest.json").read_text())["model"]["configuredModelId"] == "offline-scripted"

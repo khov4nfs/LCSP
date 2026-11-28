@@ -5,7 +5,10 @@
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-10-1": {
+        "commitSha": "synthetic-e697ed5e29c9",
+        "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff",
         "end_line": 1,
+        "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/audit_log.py",
         "repositoryId": "repo-02-audit-gap",
         "start_line": 1
@@ -24,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "8dc73478-a918-4d04-8be5-36b1f5b33e84",
+  "threadId": "eee1d2ac-dc99-4e9a-ba8f-96e565e0af1e",
   "trialIndex": 1
 }
