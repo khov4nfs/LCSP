@@ -34,6 +34,7 @@ import {
   OutboxStatus,
   Prisma,
 } from "@prisma/client";
+import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
 
 import { fromPrismaLegalSourceLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -42,12 +43,13 @@ import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { acquireLegalSourceLifecycleLock } from "./legal-source.service.js";
 
-const NONTERMINAL_PREPARATION_STATES: AgentExecutionState[] = [
-  AgentExecutionState.QUEUED,
-  AgentExecutionState.RUNNING,
-  AgentExecutionState.INTERRUPTED,
-  AgentExecutionState.PAUSED,
-] as const;
+// Why: A cancellation request does not prove that native preparation has stopped.
+// How: Share the canonical unresolved set with catalog and preparation guards.
+// Invariant: Impact and deletion both keep CANCEL_REQUESTED work blocking until a terminal state is durable.
+const NONTERMINAL_PREPARATION_STATES: AgentExecutionState[] =
+  RULE_SET_PREPARATION_UNRESOLVED_STATES.map(
+    (state) => state as AgentExecutionState,
+  );
 
 const OUTBOX_REPLAYABLE_STATES = [
   OutboxStatus.PENDING,

@@ -50,3 +50,8 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 - Discovery questions describe intended AI use; reuse accepted answers and pinned code after rule selection. [STACK: deepagents]
 - Nested mobile dialogs preserve intrinsic card height and return focus to a mounted target; verify keyboard flows. [STACK: apps/web]
 
+### [2026-11-28] [LEGAL-SOURCE/DELETION-CANCEL-PENDING] Native Cancellation Remains Unresolved
+- **Context / Symptom**: Legal Source deletion impact reported an eligible source while an owned Rule Set Preparation run had `CANCEL_REQUESTED`; deleting then could remove source data before native worker termination was confirmed.
+- **Root Cause**: The deletion service maintained its own four-state nonterminal list and omitted `CANCEL_REQUESTED`, while other preparation guards used the canonical unresolved-state contract.
+- **Resolution & Invariant**: Derive deletion impact and transaction-time delete blocking from `RULE_SET_PREPARATION_UNRESOLVED_STATES`. A cancellation request is not terminal; keep source-owned data until a confirmed terminal native outcome. Preserve a PostgreSQL integration reproducer for this state.
+
