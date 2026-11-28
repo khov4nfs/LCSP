@@ -14,6 +14,7 @@ import { inventoryHash } from "./claim-inventory.js";
 import {
   initialReviewFrontierProjection,
   referenceIdsByReviewOwner,
+  reviewFrontierTransition,
 } from "./source-review-frontier-projection.js";
 
 const fixture = JSON.parse(
@@ -36,6 +37,55 @@ const graph = buildLegalDocumentGraph("00000000-0000-4000-8000-000000000001", [
   },
 ]);
 describe("Deterministic body review units", () => {
+  it("moves one review between state buckets and replaces its aggregate fingerprint", () => {
+    const previous = {
+      sourceNodeId: "review-unit",
+      state: S.BLOCKED_REFERENCE,
+      ownedClaimCount: 0,
+      stateFingerprint: "",
+    };
+    previous.stateFingerprint = reviewItemStateFingerprint(previous);
+    const current = {
+      ...previous,
+      state: S.REVIEWED_WITH_CLAIMS,
+      ownedClaimCount: 2,
+      claimIds: ["claim-a", "claim-b"],
+    };
+    const frontierFingerprint = "f".repeat(64);
+    const transition = reviewFrontierTransition(
+      {
+        fingerprint: frontierFingerprint,
+        stateAccumulator: previous.stateFingerprint,
+      },
+      previous,
+      current,
+    );
+    expect(transition.counters).toEqual({
+      blockedCount: { increment: -1 },
+      reviewedWithClaimsCount: { increment: 1 },
+      persistedClaimCount: { increment: 2 },
+    });
+    expect(transition.stateAccumulator).toBe(
+      reviewItemStateFingerprint(current),
+    );
+    expect(transition.stateFingerprint).toBe(
+      inventoryHash({
+        fingerprint: frontierFingerprint,
+        accumulator: transition.stateAccumulator,
+      }),
+    );
+    const sameBucket = reviewFrontierTransition(
+      {
+        fingerprint: frontierFingerprint,
+        stateAccumulator: transition.stateAccumulator,
+      },
+      { ...current, stateFingerprint: transition.itemFingerprint },
+      { ...current, reason: "Additional source explanation" },
+    );
+    expect(sameBucket.counters).toEqual({
+      persistedClaimCount: { increment: 0 },
+    });
+  });
   it("projects the same ordered review units and reference owners for initialization", () => {
     const projected = initialReviewFrontierProjection(graph, undefined, false);
     expect(projected?.items.create.map((item) => item.sourceNodeId)).toEqual(

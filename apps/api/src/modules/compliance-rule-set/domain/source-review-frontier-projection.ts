@@ -108,3 +108,63 @@ export function initialReviewFrontierProjection(
     },
   };
 }
+
+type ReviewTransitionRow = Parameters<typeof reviewItemStateFingerprint>[0] & {
+  stateFingerprint: string;
+  ownedClaimCount: number;
+};
+
+const REVIEW_STATE_COUNTERS: Record<string, string> = {
+  [SOURCE_REVIEW_STATES.PENDING]: "pendingCount",
+  [SOURCE_REVIEW_STATES.REOPENED]: "pendingCount",
+  [SOURCE_REVIEW_STATES.IN_REVIEW]: "inReviewCount",
+  [SOURCE_REVIEW_STATES.REVIEWED_WITH_CLAIMS]: "reviewedWithClaimsCount",
+  [SOURCE_REVIEW_STATES.REVIEWED_NO_CLAIMS]: "reviewedNoClaimsCount",
+  [SOURCE_REVIEW_STATES.BLOCKED_REFERENCE]: "blockedCount",
+};
+
+/**
+ * Business purpose: Calculate the durable frontier delta after one review row changes.
+ * Business rules:
+ * - Replace the old row hash with the new row hash in the XOR accumulator.
+ * - Move one unit only when its state bucket changes; persist the owned-claim count delta.
+ * Execution flow:
+ * 1. Fingerprint the updated row. 2. Replace its accumulator contribution. 3. Derive counter deltas and the new frontier fingerprint.
+ * Failure cases:
+ * - An unknown review state has no counter bucket and must not be passed by the persistence caller.
+ * Side effects:
+ * - None; returns values for the caller's atomic row and frontier updates.
+ */
+export function reviewFrontierTransition(
+  frontier: { fingerprint: string; stateAccumulator: string },
+  previous: ReviewTransitionRow,
+  current: ReviewTransitionRow,
+) {
+  // Why: A changed review must update counters and the aggregate hash from the same before/after rows.
+  // How: Compute the entire delta before either row or frontier is written.
+  // Invariant: Replaying an unchanged state does not move a unit between state buckets.
+  const itemFingerprint = reviewItemStateFingerprint(current);
+  const stateAccumulator = xorReviewHash(
+    xorReviewHash(frontier.stateAccumulator, previous.stateFingerprint),
+    itemFingerprint,
+  );
+  const counters: Record<string, { increment: number }> = {};
+  const beforeBucket = REVIEW_STATE_COUNTERS[previous.state];
+  const afterBucket = REVIEW_STATE_COUNTERS[current.state];
+  if (beforeBucket !== afterBucket) {
+    counters[beforeBucket] = { increment: -1 };
+    counters[afterBucket] = { increment: 1 };
+  }
+  counters.persistedClaimCount = {
+    increment: current.ownedClaimCount - previous.ownedClaimCount,
+  };
+  return {
+    itemFingerprint,
+    stateAccumulator,
+    stateFingerprint: inventoryHash({
+      fingerprint: frontier.fingerprint,
+      accumulator: stateAccumulator,
+    }),
+    counters,
+  };
+}

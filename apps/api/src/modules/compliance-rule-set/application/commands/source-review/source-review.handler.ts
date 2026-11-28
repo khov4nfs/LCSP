@@ -50,6 +50,7 @@ import {
 } from "../../../domain/source-review-frontier-projection.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { withLockedPreparationRun } from "../../../infrastructure/persistence/locked-preparation-run.js";
+import { persistSourceReviewFrontierChange } from "../../../infrastructure/persistence/source-review-frontier.persistence.js";
 import { sourceSupportFailures } from "../../../domain/source-completeness.js";
 import {
   claimEndpointFingerprint,
@@ -249,14 +250,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               frontier!.blockedCount ===
               0,
         });
-        const bucket: Record<string, string> = {
-          [S.PENDING]: "pendingCount",
-          [S.REOPENED]: "pendingCount",
-          [S.IN_REVIEW]: "inReviewCount",
-          [S.REVIEWED_WITH_CLAIMS]: "reviewedWithClaimsCount",
-          [S.REVIEWED_NO_CLAIMS]: "reviewedNoClaimsCount",
-          [S.BLOCKED_REFERENCE]: "blockedCount",
-        };
         /**
          * Business purpose: Reconcile frontier counters and fingerprints after a review row changes.
          *
@@ -279,49 +272,15 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           _change: unknown,
           previous?: RuleSetPreparationSourceReview,
         ) => {
-          const counters: Record<string, { increment: number }> = {};
-          let accumulator = frontier!.stateAccumulator;
-          if (previous) {
-            const current =
-              await tx.ruleSetPreparationSourceReview.findUniqueOrThrow({
-                where: {
-                  preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-                    previous.sourceNodeId,
-                  ),
-                },
-              });
-            const fingerprint = reviewItemStateFingerprint(current);
-            accumulator = xorReviewHash(
-              xorReviewHash(accumulator, previous.stateFingerprint),
-              fingerprint,
-            );
-            if (bucket[previous.state] !== bucket[current.state]) {
-              counters[bucket[previous.state]] = { increment: -1 };
-              counters[bucket[current.state]] = { increment: 1 };
-            }
-            counters.persistedClaimCount = {
-              increment: current.ownedClaimCount - previous.ownedClaimCount,
-            };
-            await tx.ruleSetPreparationSourceReview.update({
-              where: {
-                preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-                  previous.sourceNodeId,
-                ),
-              },
-              data: { stateFingerprint: fingerprint },
-            });
-          }
-          frontier = await tx.ruleSetPreparationReviewFrontier.update({
-            where: { preparationRunId_inventoryRevision: key },
-            data: {
-              ...counters,
-              stateAccumulator: accumulator,
-              stateFingerprint: inventoryHash({
-                fingerprint: frontier!.fingerprint,
-                accumulator,
-              }),
-            },
-          });
+          // Why: The command owns decisions while persistence keeps row/frontier writes atomic.
+          // How: Pass the existing transaction and current frontier to the adapter.
+          // Invariant: No second transaction or weaker lock is introduced.
+          frontier = await persistSourceReviewFrontierChange(
+            tx,
+            key,
+            frontier!,
+            previous,
+          );
         };
         let completionRows: RuleSetPreparationSourceReview[] | undefined;
         let dependencySnapshot:
