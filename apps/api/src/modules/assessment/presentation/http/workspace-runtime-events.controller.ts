@@ -1,12 +1,7 @@
-import { preparationActivityView } from "../../../../platform/runtime-events/preparation-activity-view.js";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import {
-  workspaceAssessmentSnapshotSchema,
-  type AssessmentAgentStreamEvent,
-} from "@lcsp/contracts/evidence";
+import { workspaceAssessmentSnapshotSchema } from "@lcsp/contracts/evidence";
 import {
   Controller,
-  Query,
   Sse,
   Req,
   UseGuards,
@@ -34,34 +29,42 @@ import { GetWorkspaceRuntimeQuery } from "../../application/queries/get-workspac
 
 @Controller("workspace/runtime-events")
 @UseGuards(RbacGuard)
-@RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+// This stream carries customer assessment events; ADMIN operational visibility uses metadata projections instead.
+@RequireRoles(AUTH_USER_ROLES.customer)
 export class WorkspaceRuntimeEventsController {
   constructor(private readonly queries: QueryBus) {}
+
+  /**
+   * Business purpose:
+   * Stream canonical workspace assessment activity to the authenticated customer owner.
+   *
+   * Business rules:
+   * - The class RBAC guard admits CUSTOMER only, and every query is scoped to that customer's user ID.
+   * - Rule Set Preparation activity belongs to its dedicated ADMIN transport and is never multiplexed here.
+   *
+   * Execution flow:
+   * 1. Poll the canonical owner-scoped workspace query at a bounded interval.
+   * 2. Validate and emit lifecycle, assessment-event and sanitized agent-event snapshots.
+   * 3. Convert failures to the standard problem envelope with the request correlation ID.
+   *
+   * Failure cases:
+   * - Invalid persisted snapshots or query failures emit an error event without widening owner scope.
+   *
+   * Side effects:
+   * - Opens a read-only SSE subscription and performs periodic database reads; no assessment state is changed.
+   */
   @Sse()
-  stream(
-    @Req() request: AuthenticatedRequest,
-    @Query("preparation_run_id") preparationRunId?: string,
-  ) {
+  stream(@Req() request: AuthenticatedRequest) {
     const actor = request.rbacContext;
-    const ownerId =
-      actor.role === AUTH_USER_ROLES.customer
-        ? actor.userId
-        : `no-assessment-owner:${actor.userId}`;
+    // The class-level CUSTOMER guard makes the authenticated user the only valid owner scope.
+    const ownerId = actor.userId;
     const correlationId = request.correlationId ?? "";
-    const preparationScope =
-      actor.role === AUTH_USER_ROLES.admin
-        ? preparationRunId?.trim()
-        : undefined;
     return interval(2000).pipe(
       startWith(0),
       exhaustMap(() =>
         defer(() =>
           this.queries.execute(
-            new GetWorkspaceRuntimeQuery(
-              ownerId,
-              correlationId,
-              preparationScope || null,
-            ),
+            new GetWorkspaceRuntimeQuery(ownerId, correlationId, null),
           ),
         ).pipe(
           map((data): MessageEvent => ({
@@ -70,16 +73,7 @@ export class WorkspaceRuntimeEventsController {
               emitted_at: data.emittedAt,
               canonical_assessments: data.canonicalAssessments,
               canonical_events: data.canonicalEvents,
-              agent_stream_events: preparationScope
-                ? data.agentStreamEvents.flatMap(
-                    (event: AssessmentAgentStreamEvent) => {
-                      if (event.preparationRunId !== preparationScope)
-                        return [];
-                      const view = preparationActivityView(event);
-                      return view ? [view] : [];
-                    },
-                  )
-                : data.agentStreamEvents,
+              agent_stream_events: data.agentStreamEvents,
             }),
           })),
         ),

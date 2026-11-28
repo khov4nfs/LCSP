@@ -11,6 +11,7 @@ import { authFailure } from "../../errors/auth-application.error.ts";
 import {
   fingerprintToken,
   hashSecret,
+  verifySecret,
 } from "../../../../../platform/security/crypto.utils.js";
 import type { ConfirmRecoverySuccess } from "../../contracts/auth/recovery.contract.ts";
 import {
@@ -51,13 +52,13 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
    * - Completion of password recovery revokes active sessions and updates account credentials.
    * Execution flow:
    * 1. Look up active recovery request by SHA-256 fingerprint of the supplied token.
-   * 2. Assert that the recovery request exists and is valid at the current timestamp.
+   * 2. Assert that the recovery request exists, is valid at current timestamp, and matches tokenHash via constant-time verification.
    * 3. Compute new password hash asynchronously via non-blocking hashSecret.
    * 4. Persist updated password hash and mark recovery request completed within persistence transaction.
    * 5. Record audit events for successful or failed recovery confirmation.
    * 6. Return success confirmation with correlation ID.
    * Failure cases:
-   * - Throws RECOVERY_INVALID if recovery token does not exist, is expired, or already completed.
+   * - Throws RECOVERY_INVALID if recovery token does not exist, is expired, secret mismatch, or already completed.
    * Side effects:
    * - Updates user password hash, revokes sessions, and records security audit events.
    *
@@ -83,6 +84,24 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
         correlationId: correlationId,
+      });
+      throw authFailure(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
+    }
+
+    // Rationale (Why): Enforce constant-time secret verification against salted scrypt hash to prevent token tampering.
+    // Mechanism (How): Await asynchronous verifySecret against recoveryRequest.tokenHash.
+    // Invariants (What): Dual-factor token check (fingerprint index + scrypt secret proof); fails closed in constant time.
+    const isSecretValid = await verifySecret(
+      payload.token,
+      recoveryRequest.tokenHash,
+    );
+    if (!isSecretValid) {
+      await this.support.recordAudit({
+        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryConfirmFailed,
+        actor_id: recoveryRequest.userId,
+        decision: AUDIT_DECISIONS.deny,
+        reason_code: AUTH_ERROR_CODES.recoveryInvalid,
+        correlationId,
       });
       throw authFailure(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
     }

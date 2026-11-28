@@ -6,7 +6,7 @@ import {
   PUBLIC_ENTRY_ROUTES,
 } from "@lcsp/web/auth-entry";
 import { resolveProtectedWorkspaceRoute } from "@lcsp/web/workspace-routes";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   getWorkspaceRouteRedirectPath,
   isProtectedWorkspacePath,
@@ -41,6 +41,27 @@ test("server-side route middleware allows protected routes only when session coo
       pathname: "/sign-in",
       search: "",
       hasSession: false,
+    }),
+    null,
+  );
+});
+
+test("server-side route middleware redirects ADMIN away from customer assessment views", () => {
+  assert.equal(
+    getWorkspaceRouteRedirectPath({
+      pathname: "/assessments/11111111-1111-4111-8111-111111111111",
+      search: "",
+      hasSession: true,
+      userRole: AUTH_USER_ROLES.admin,
+    }),
+    "/admin",
+  );
+  assert.equal(
+    getWorkspaceRouteRedirectPath({
+      pathname: "/workspace",
+      search: "",
+      hasSession: true,
+      userRole: AUTH_USER_ROLES.customer,
     }),
     null,
   );

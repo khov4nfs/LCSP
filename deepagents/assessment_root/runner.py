@@ -22,6 +22,7 @@ from assessment_root.tools import RootRun, SearchTrace
 from assessment_root.runtime_control import RootRuntimeControl
 from middleware.failure_policy import AgentRunBudgetExceeded
 from middleware.usage_metering import active_agent_run_state, activate_agent_run_state
+from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from orchestration.agent_stream import (
     active_agent_stream, AgentStreamSession, BufferedAgentStreamEmitter,
     activate_agent_stream, publish_agent_stream_event,
@@ -100,6 +101,20 @@ BackendFactory = Callable[[dict[str, Any], dict[str, Any]], tuple[Any, Any]]
 
 @contextlib.contextmanager
 def _root_telemetry(claim: dict[str, Any]):
+    """Business purpose: Bind one claimed Root execution to its usage and stream authority.
+
+    Business rules:
+    - The API claim supplies both the execution ID and lease token; a transport event must not supply either authority.
+    - Every governed model attempt must retain the claimed lease token so billing admission can validate the active Root run.
+    Execution flow:
+    1. Build an optional stream session under the claimed execution identity.
+    2. Copy the active usage state and attach the server-claimed execution ID and lease token.
+    3. Emit boundary lifecycle events while the bound state is active.
+    Failure cases:
+    - A missing claim identity or downstream failure propagates; no model call receives a fabricated lease.
+    Side effects:
+    - Temporarily binds context-local usage and stream state and may publish lifecycle telemetry.
+    """
     state = active_agent_run_state()
     parent = active_agent_stream.get()
     session = None
@@ -113,7 +128,13 @@ def _root_telemetry(claim: dict[str, Any]):
                 ),
             ),
         )
-    with activate_agent_run_state(replace(state, run_id=claim["executionId"]) if state else None), activate_agent_stream(session):
+    # Why: A dataclass copy drops dynamically attached fields; without the claimed lease, billing rejects every Root model call before admission.
+    # How: Bind the server's lease token to the per-execution usage state after replacing its transport run ID.
+    # Invariant: This token comes only from the successful API claim and is never guessed from the broker command.
+    claimed_state = replace(state, run_id=claim["executionId"]) if state else None
+    if claimed_state is not None:
+        claimed_state.execution_lease_token = claim["leaseToken"]
+    with activate_agent_run_state(claimed_state), activate_agent_stream(session):
         publish_agent_stream_event("BOUNDARY_STARTED", status="RUNNING")
         try:
             yield
@@ -424,6 +445,9 @@ def run_assessment_root(
                     raise RuntimeError("native Root checkpoint audit scope does not match the assessment")
                 pending = [item for task in saved.tasks for item in task.interrupts]
                 control_wait = [item for item in pending if "controlRequestId" in item.value]
+                # Why: R2 retires NO_PROGRESS_LIMIT_EXCEEDED as a budget pause reason; only call/token/unavailable limits classify as budget_wait.
+                # How: Exclude NO_PROGRESS_LIMIT_EXCEEDED from the checkpoint reason allowlist.
+                # Invariant: Saved payment and call/token/unavailable interrupts settle EXECUTION_PAUSED.
                 budget_wait = [
                     item for item in pending
                     if item.value.get("budgetDenial")
@@ -432,10 +456,11 @@ def run_assessment_root(
                         "BUDGET_EXHAUSTED",
                         "CALL_LIMIT_EXCEEDED",
                         "TOKEN_LIMIT_EXCEEDED",
-                        "NO_PROGRESS_LIMIT_EXCEEDED",
                         "BUDGET_UNAVAILABLE",
+                        "PAYMENT_REQUIRED",
                     }
                 ]
+                payment_wait = [item for item in pending if item.value.get("reason") == "PAYMENT_REQUIRED"]
                 recovered = claim.get("recoveredExecution", False)
                 human_wait_recovery = (
                     claim.get("lifecycleState", context.get("lifecycleState"))
@@ -489,6 +514,15 @@ def run_assessment_root(
                     checkpoint_id = actual
                     pause_reason = budget_wait[0].value["reason"]
                     final_state = EXECUTION_PAUSED
+                elif payment_wait:
+                    # Why: Adding a fresh user packet at this pending after_model interrupt restarts the paid model node.
+                    # How: Resume the exact server-bound native interrupt so execution advances past the settled response.
+                    # Invariant: A top-up never authorizes a duplicate provider dispatch for the completed invocation.
+                    if len(payment_wait) != 1 or payment_wait[0].value.get("targetExecutionId") != run.execution_id:
+                        raise RuntimeError("native payment checkpoint does not match server execution")
+                    if not checkpoint_authorized:
+                        raise RuntimeError("native payment checkpoint lacks server authorization")
+                    packet = Command(resume={payment_wait[0].id: {"paymentContinued": True}})
                 elif pending and context["openHumanRequestIds"]:
                     if not checkpoint_authorized:
                         raise RuntimeError("human interrupt checkpoint lacks server authorization")
@@ -530,6 +564,9 @@ def run_assessment_root(
                     saved = agent.get_state(graph_config)
                     checkpoint_id = saved.config["configurable"]["checkpoint_id"]
                     controls = [item for item in interrupts if "controlRequestId" in item.value]
+                    # Why: R2 retires NO_PROGRESS_LIMIT_EXCEEDED as an execution pause reason; only call/token/unavailable limits trigger EXECUTION_PAUSED.
+                    # How: Exclude NO_PROGRESS_LIMIT_EXCEEDED from the post-invoke budget_pauses reason set.
+                    # Invariant: Genuine payment/budget denials and stop requests settle EXECUTION_PAUSED.
                     budget_pauses = [
                         item for item in interrupts
                         if item.value.get("budgetDenial")
@@ -538,8 +575,8 @@ def run_assessment_root(
                             "BUDGET_EXHAUSTED",
                             "CALL_LIMIT_EXCEEDED",
                             "TOKEN_LIMIT_EXCEEDED",
-                            "NO_PROGRESS_LIMIT_EXCEEDED",
                             "BUDGET_UNAVAILABLE",
+                            "PAYMENT_REQUIRED",
                         }
                     ]
                     if controls:
@@ -592,6 +629,14 @@ def run_assessment_root(
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
         final_state = EXECUTION_FAILED
         error_type = type(error).__name__
+        # Why: A denied wallet admission is customer-recoverable, but arbitrary worker failures must stay failures.
+        # How: Match both the billing HTTP status and canonical problem code before considering a native pause.
+        # Invariant: Only a durably captured checkpoint can authorize later customer Continue; no provider call is retried here.
+        payment_required = (
+            isinstance(error, WorkerCallbackError)
+            and error.status_code == 402
+            and error.error_code == "BILLING_PAYMENT_REQUIRED"
+        )
         if (
             checkpointer is not None
             and agent is not None
@@ -616,14 +661,20 @@ def run_assessment_root(
                     error_type=type(checkpoint_error).__name__,
                     assessment_id=assessment_id,
                 )
-        logger.error(
-            "ASSESSMENT_ROOT_RUN_FAILED",
-            error_type=error_type,
-            error_message=str(error)[:300],
-            assessment_id=assessment_id,
-            # Plain frames only: a rich traceback would print local variables such as the lease token.
-            error_traceback="".join(traceback.format_exception(error))[-2500:],
-        )
+        if payment_required and checkpoint_id:
+            final_state = EXECUTION_PAUSED
+            pause_reason = "PAYMENT_REQUIRED"
+            error_type = None
+            logger.info("ASSESSMENT_ROOT_PAYMENT_REQUIRED", assessment_id=assessment_id)
+        else:
+            logger.error(
+                "ASSESSMENT_ROOT_RUN_FAILED",
+                error_type=error_type,
+                error_message=str(error)[:300],
+                assessment_id=assessment_id,
+                # Plain frames only: a rich traceback would print local variables such as the lease token.
+                error_traceback="".join(traceback.format_exception(error))[-2500:],
+            )
     finally:
         heartbeat_stop.set()
     if final_state == EXECUTION_INTERRUPTED:

@@ -6,10 +6,9 @@ from types import SimpleNamespace
 import pytest
 from middleware.paid_admission import TokenPolicy, TokenRunBudget, RunAdmission, fingerprint, recover_admission
 from middleware.failure_policy import PaidAdmissionError
-from middleware.usage_metering import UsageMeteringMiddleware, activate_agent_run_state
 from middleware.usage_recovery import read_usage_evidence
 from vertical.live_preparation import LiveUsage, recover_usage
-from test_paid_admission import offline, native, policy_for, budget_for, req, answer
+from test_paid_admission import offline, native, policy_for, budget_for, answer, invoke
 
 
 def token_state(tmp_path, *, maximum_calls=2):
@@ -24,9 +23,10 @@ def token_state(tmp_path, *, maximum_calls=2):
 
 def test_token_only_budget_no_private_tariff_and_no_financial_claim(tmp_path):
     model, state = token_state(tmp_path)
-    meter = UsageMeteringMiddleware()
-    with activate_agent_run_state(state):
-        meter.wrap_model_call(req(model), lambda _: answer())
+    # Why: This local-budget assertion now needs the same server-issued gate as every physical call.
+    # How: The shared offline fixture supplies request/consume while preserving the local usage journal.
+    # Invariant: No provider handler runs through an unadmitted legacy path.
+    invoke(state, model, lambda _: answer())
     report = recover_usage(str(tmp_path / "usage.json"), state.run_id)
     assert report["physicalAttempts"] == 1 and report["successfulResponses"] == 1
     assert report["admission"]["financialEnforcement"] == "DISABLED"
@@ -37,14 +37,15 @@ def test_token_only_budget_no_private_tariff_and_no_financial_claim(tmp_path):
 
 def test_shared_parent_author_and_unknown_attempt_are_terminal_at_limit(tmp_path):
     model, state = token_state(tmp_path)
-    meter = UsageMeteringMiddleware()
     dispatched = []
-    with activate_agent_run_state(state):
-        meter.wrap_model_call(req(model), lambda _: (dispatched.append("producer"), answer())[1])
-        with pytest.raises(TimeoutError):
-            meter.wrap_model_call(req(model), lambda _: (dispatched.append("author"), (_ for _ in ()).throw(TimeoutError()))[1])
-        with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
-            meter.wrap_model_call(req(model), lambda _: dispatched.append("forbidden"))
+    # Why: The physical attempt ceiling must be tested after server admission, including denied attempt three.
+    # How: Each invocation uses the shared offline authority and retains the original local budget assertions.
+    # Invariant: A local denial never dispatches a third provider call.
+    invoke(state, model, lambda _: (dispatched.append("producer"), answer())[1])
+    with pytest.raises(TimeoutError):
+        invoke(state, model, lambda _: (dispatched.append("author"), (_ for _ in ()).throw(TimeoutError()))[1])
+    with pytest.raises(PaidAdmissionError, match="CALL_LIMIT"):
+        invoke(state, model, lambda _: dispatched.append("forbidden"))
     report = recover_usage(str(tmp_path / "usage.json"), state.run_id)
     assert dispatched == ["producer", "author"]
     assert report["physicalAttempts"] == 2 and report["unresolvedAttempts"] == 1

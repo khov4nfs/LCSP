@@ -1,9 +1,12 @@
 import { z } from "zod";
 
 export const CUSTOMER_USAGE_PRICING = {
-  version: "lcsp-usage-1.8-v1",
-  multiplier: "1.8",
-  numerator: "18",
+  // Why: Product reduced the current informational quote from 1.8 to 1.2;
+  // the new version prevents old quote evidence from being mistaken for this policy.
+  // This quote cannot authorize a wallet debit: settlement uses pinned tariffs.
+  version: "lcsp-usage-1.2-v1",
+  multiplier: "1.2",
+  numerator: "12",
   denominator: "10",
 } as const;
 
@@ -18,7 +21,7 @@ export const customerUsageSellingPriceSchema = z.object({
 });
 
 /**
- * Business purpose: Quote LCSP usage at 1.8 times the provider reference cost independently of cost evidence.
+ * Business purpose: Quote LCSP usage at the current 1.2 informational multiplier over provider reference cost.
  * Business rules:
  * - Preserve exact decimal USD using integer arithmetic; unknown full costs remain unknown.
  * - This versioned quote is informational and never establishes a wallet debit or historical charge.

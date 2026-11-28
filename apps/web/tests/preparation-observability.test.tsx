@@ -10,8 +10,8 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES as E,
+  agentStreamEventSchema,
   preparationActivityPageSchema,
-  workspaceAssessmentSnapshotSchema,
 } from "@lcsp/contracts/evidence";
 import { AGENT_EXECUTION_STATES as X } from "@lcsp/contracts/assessment";
 import { RuleSetPreparationList } from "../src/features/admin/components/organisms/rule-set-preparation-list.tsx";
@@ -107,30 +107,29 @@ test("run-scoped durable history survives replay/reconnect, pages older events a
     await settle();
     assert.match(node.textContent!, /DEVELOPMENT_ONLY/);
     assert.match(node.textContent!, /MODEL_EXECUTION/);
-    assert.match(node.textContent!, /Observed input tokens: 100/);
+    assert.match(node.textContent!, /Observed input tokens\s*100/);
     assert(!node.textContent!.includes("DO_NOT_RENDER"));
     assert.equal(es.instances.length, 1);
     const source = es.instances[0];
+    assert.equal(
+      source.url,
+      `/api/admin/compliance-rule-sets/preparations/${run.preparationRunId}/activity/stream`,
+    );
     act(() => source.open());
     act(() => source.onerror?.(new window.Event("error")));
     await settle();
     assert.match(node.textContent!, /Reconnecting/i);
     assert.match(node.textContent!, /Running/i);
-    const snapshot = workspaceAssessmentSnapshotSchema.parse({
-      emitted_at: new Date().toISOString(),
-      canonical_assessments: [],
-      canonical_events: [],
-      agent_stream_events: [
-        page.events[0],
-        page.events[0],
-        ...page.events.slice().reverse(),
-        { ...page.events[0], eventId: "foreign", preparationRunId: "foreign" },
-      ],
-    });
+    const activity = agentStreamEventSchema.parse(page.events[0]);
     act(() => {
       source.open();
-      source.emit("workspace.runtime", snapshot);
-      source.emit("workspace.runtime", { bad: true });
+      source.emit("preparation.activity", activity);
+      source.emit("preparation.activity", {
+        ...activity,
+        eventId: "foreign",
+        preparationRunId: "foreign",
+      });
+      source.emit("preparation.activity", { bad: true });
     });
     await settle();
     const before = node.querySelectorAll(
@@ -149,7 +148,7 @@ test("run-scoped durable history survives replay/reconnect, pages older events a
     assert(!node.textContent!.includes("foreign"));
     click(sectionTabs[0]);
     click(activityTab);
-    assert.match(node.textContent!, /Observed input tokens: 100/);
+    assert.match(node.textContent!, /Observed input tokens\s*100/);
     assert.equal(es.instances.length, 1);
   } finally {
     client.clear();

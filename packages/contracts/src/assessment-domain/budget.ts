@@ -7,13 +7,20 @@ export const WORKLOAD_SCOPES = {
 export type WorkloadScope =
   (typeof WORKLOAD_SCOPES)[keyof typeof WORKLOAD_SCOPES];
 
+// Why: R2 eliminates `NO_PROGRESS_LIMIT_EXCEEDED` as an assessment blocker; only call/token
+// limits and operational budget exhaustion/unavailability block admission.
+// How: Removed `NO_PROGRESS_LIMIT_EXCEEDED` from `ASSESSMENT_BUDGET_REASONS`.
+// Invariants: `noProgressLimit` and `consecutiveTurnsWithoutProgress` remain diagnostic telemetry only.
 export const ASSESSMENT_BUDGET_REASONS = {
   CALL_LIMIT_EXCEEDED: "CALL_LIMIT_EXCEEDED",
   TOKEN_LIMIT_EXCEEDED: "TOKEN_LIMIT_EXCEEDED",
-  NO_PROGRESS_LIMIT_EXCEEDED: "NO_PROGRESS_LIMIT_EXCEEDED",
   BUDGET_EXHAUSTED: "BUDGET_EXHAUSTED",
   AGENT_BUDGET_REACHED: "AGENT_BUDGET_REACHED",
   BUDGET_UNAVAILABLE: "BUDGET_UNAVAILABLE",
+  // Why: A depleted shared wallet is repaired by customer top-up and Continue, never by an admin budget extension.
+  // How: Keep its pause reason distinct from runtime model-call and token ceilings.
+  // Invariant: This value conveys an admission refusal; it does not debit or reserve credits.
+  PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
 } as const;
 export type AssessmentBudgetReason =
   (typeof ASSESSMENT_BUDGET_REASONS)[keyof typeof ASSESSMENT_BUDGET_REASONS];
@@ -29,7 +36,13 @@ export type AssessmentBudgetLimits = z.infer<
   typeof assessmentBudgetLimitsSchema
 >;
 
-export const assessmentBudgetExtensionSchema = z.strictObject({
+// Why: Historical DB `Assessment.blockerReference` JSONB rows may still carry `overrideNoProgress: false`
+// from before R2 removed the no-progress unlock. Using `z.object` on this persisted read schema
+// strips legacy unknown keys safely instead of failing `safeParse` and dropping authorized limits.
+// How: Removed `overrideNoProgress` from the schema and type while relaxing `z.strictObject` -> `z.object`
+// for persisted read compatibility; wire input remains strictly rejected by `assessmentBudgetExtensionInputSchema`.
+// Invariants: `applyBudgetExtension` never reads or acts on `overrideNoProgress`.
+export const assessmentBudgetExtensionSchema = z.object({
   version: z.number().int().positive(),
   authorizedBy: z.string().min(1),
   authorizedAt: z.string().datetime(),
@@ -38,7 +51,6 @@ export const assessmentBudgetExtensionSchema = z.strictObject({
   additionalInputTokens: z.number().int().positive().nullable().optional(),
   additionalOutputTokens: z.number().int().positive().nullable().optional(),
   additionalTotalTokens: z.number().int().positive().nullable().optional(),
-  overrideNoProgress: z.boolean().nullable().optional(),
 });
 export type AssessmentBudgetExtension = z.infer<
   typeof assessmentBudgetExtensionSchema
@@ -54,7 +66,6 @@ export const LEGACY_BUDGET_EXTENSION_ALLOWANCE = {
   additionalInputTokens: 1_000_000,
   additionalOutputTokens: 50_000,
   additionalTotalTokens: 1_050_000,
-  overrideNoProgress: false,
 } as const satisfies AssessmentBudgetExtension;
 
 export const assessmentCumulativeUsageSchema = z.strictObject({
@@ -69,10 +80,12 @@ export type AssessmentCumulativeUsage = z.infer<
   typeof assessmentCumulativeUsageSchema
 >;
 
+// Why: R2 eliminates `NO_PROGRESS` as a blocking admission status.
+// How: Removed `NO_PROGRESS` from `ASSESSMENT_BUDGET_STATUSES` and `assessmentBudgetStatusSchema`.
+// Invariants: Budget admission status is strictly `ADMITTED` or `EXHAUSTED`.
 export const ASSESSMENT_BUDGET_STATUSES = {
   ADMITTED: "ADMITTED",
   EXHAUSTED: "EXHAUSTED",
-  NO_PROGRESS: "NO_PROGRESS",
 } as const;
 export type AssessmentBudgetStatus =
   (typeof ASSESSMENT_BUDGET_STATUSES)[keyof typeof ASSESSMENT_BUDGET_STATUSES];
@@ -80,7 +93,6 @@ export type AssessmentBudgetStatus =
 export const assessmentBudgetStatusSchema = z.enum([
   ASSESSMENT_BUDGET_STATUSES.ADMITTED,
   ASSESSMENT_BUDGET_STATUSES.EXHAUSTED,
-  ASSESSMENT_BUDGET_STATUSES.NO_PROGRESS,
 ]);
 
 export const assessmentBudgetStateSchema = z.strictObject({
@@ -101,21 +113,20 @@ export interface BudgetAdmissionEvaluation {
 }
 
 /**
- * Business purpose: Evaluate whether a workload invocation can be admitted under cumulative limits.
+ * Business purpose: Evaluate whether a workload invocation can be admitted under cumulative call and token limits.
  *
  * Business rules:
  * - Reject model calls exceeding maxModelCalls when configured.
  * - Reject token requests exceeding maxInputTokens, maxOutputTokens, or maxTotalTokens when configured.
- * - Reject consecutive turns without authoritative progress exceeding noProgressLimit when configured.
+ * - Consecutive turns without progress (noProgressLimit) are diagnostic telemetry only and never block admission.
  *
  * Execution flow:
- * 1. Check model call count against limit.
- * 2. Check cumulative tokens against input, output, and total limits.
- * 3. Check consecutive turns without progress against limit.
- * 4. Return admission status and reason.
+ * 1. Check model call count against maxModelCalls.
+ * 2. Check cumulative input, output, and total tokens against their configured limits.
+ * 3. Return ADMITTED when call and token limits are satisfied.
  *
  * Failure cases:
- * - When any limit is exceeded, returns admitted=false with the specific reason.
+ * - When any call or token limit is exceeded, returns admitted=false with status EXHAUSTED and the specific reason.
  *
  * Side effects:
  * - Pure calculation; does not mutate input objects or call external services.
@@ -131,7 +142,7 @@ export function evaluateBudgetAdmission(
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED,
-      status: "EXHAUSTED",
+      status: ASSESSMENT_BUDGET_STATUSES.EXHAUSTED,
     };
   }
   if (
@@ -141,7 +152,7 @@ export function evaluateBudgetAdmission(
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED,
-      status: "EXHAUSTED",
+      status: ASSESSMENT_BUDGET_STATUSES.EXHAUSTED,
     };
   }
   if (
@@ -151,7 +162,7 @@ export function evaluateBudgetAdmission(
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED,
-      status: "EXHAUSTED",
+      status: ASSESSMENT_BUDGET_STATUSES.EXHAUSTED,
     };
   }
   if (
@@ -161,23 +172,13 @@ export function evaluateBudgetAdmission(
     return {
       admitted: false,
       reason: ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED,
-      status: "EXHAUSTED",
-    };
-  }
-  if (
-    limits.noProgressLimit !== null &&
-    usage.consecutiveTurnsWithoutProgress >= limits.noProgressLimit
-  ) {
-    return {
-      admitted: false,
-      reason: ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED,
-      status: "NO_PROGRESS",
+      status: ASSESSMENT_BUDGET_STATUSES.EXHAUSTED,
     };
   }
   return {
     admitted: true,
     reason: null,
-    status: "ADMITTED",
+    status: ASSESSMENT_BUDGET_STATUSES.ADMITTED,
   };
 }
 
@@ -187,13 +188,12 @@ export function evaluateBudgetAdmission(
  * Business rules:
  * - If no extension is present, returns base limits unmodified.
  * - Additional model calls and tokens are added to configured base limits; unconfigured (null) base limits remain null.
- * - When overrideNoProgress is true in the extension, noProgressLimit is cleared to null.
+ * - Diagnostic noProgressLimit is preserved unchanged because no-progress unlocks are eliminated.
  *
  * Execution flow:
  * 1. Check if extension exists; if not, return base limits.
  * 2. Calculate effective call and token limits by summing base and additional amounts where configured.
- * 3. Clear noProgressLimit if overrideNoProgress is true; otherwise keep base limit.
- * 4. Return new AssessmentBudgetLimits object.
+ * 3. Preserve base noProgressLimit and return the new AssessmentBudgetLimits object.
  *
  * Failure cases:
  * - Pure calculation; does not throw.
@@ -225,8 +225,7 @@ export function applyBudgetExtension(
       baseLimits.maxTotalTokens !== null
         ? baseLimits.maxTotalTokens + (extension.additionalTotalTokens ?? 0)
         : null,
-    noProgressLimit:
-      extension.overrideNoProgress === true ? null : baseLimits.noProgressLimit,
+    noProgressLimit: baseLimits.noProgressLimit,
   };
 }
 
@@ -275,13 +274,12 @@ export function parseConfiguredPositiveInt(
  * - Rule Set Preparation has no cumulative output-token ceiling; maxOutputTokens is permanently null for RULE_SET_PREPARATION.
  * - Assessment Root preserves support for its explicitly configured LCSP_ASSESSMENT_MAX_OUTPUT_TOKENS ceiling.
  * - Malformed configurations throw errors immediately to prevent silent permissive or restrictive execution.
- * - An explicitly passed overrideNoProgress flag sets noProgressLimit to null.
+ * - Optional noProgressLimit is parsed purely as diagnostic telemetry metadata and never cleared via override flags.
  *
  * Execution flow:
  * 1. Identify prefix based on workload scope (LCSP_RSP for RULE_SET_PREPARATION, LCSP_ASSESSMENT for ASSESSMENT_ROOT).
- * 2. Parse optional positive integer limits for model calls, input tokens, total tokens, and no-progress turns; maxOutputTokens is permanently null for RULE_SET_PREPARATION.
- * 3. Apply overrideNoProgress if requested.
- * 4. Return an AssessmentBudgetLimits object.
+ * 2. Parse optional positive integer limits for model calls, input tokens, output tokens, total tokens, and diagnostic no-progress threshold.
+ * 3. Return an AssessmentBudgetLimits object.
  *
  * Failure cases:
  * - Throws Error if any present configuration variable fails positive integer validation.
@@ -292,18 +290,15 @@ export function parseConfiguredPositiveInt(
 export function resolveConfiguredBudgetLimits(
   env: Record<string, string | undefined>,
   scope: WorkloadScope = WORKLOAD_SCOPES.ASSESSMENT_ROOT,
-  options?: { overrideNoProgress?: boolean },
 ): AssessmentBudgetLimits {
   const prefix =
     scope === WORKLOAD_SCOPES.RULE_SET_PREPARATION
       ? "LCSP_RSP"
       : "LCSP_ASSESSMENT";
-  const noProgress = options?.overrideNoProgress
-    ? null
-    : parseConfiguredPositiveInt(
-        `${prefix}_NO_PROGRESS_LIMIT`,
-        env[`${prefix}_NO_PROGRESS_LIMIT`],
-      );
+  const noProgress = parseConfiguredPositiveInt(
+    `${prefix}_NO_PROGRESS_LIMIT`,
+    env[`${prefix}_NO_PROGRESS_LIMIT`],
+  );
 
   return {
     maxModelCalls: parseConfiguredPositiveInt(

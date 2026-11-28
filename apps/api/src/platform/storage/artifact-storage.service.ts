@@ -27,6 +27,42 @@ export const chunkedManifestSchema = z.strictObject({
 });
 export type ChunkedManifest = z.infer<typeof chunkedManifestSchema>;
 
+/** Marks a verified collision or round-trip corruption in immutable storage. */
+export class ArtifactStorageIntegrityError extends Error {}
+
+/**
+ * Business purpose: Derive the authoritative immutable-storage manifest before bytes are written.
+ *
+ * Business rules:
+ * - The chunk identity is the SHA-256 digest of the exact UTF-8 content.
+ * - A manifest is deterministic for the same artifact identifier and content.
+ *
+ * Execution flow:
+ * 1. Hash the canonical content.
+ * 2. Derive its content-addressed chunk identifier and UTF-8 byte length.
+ * 3. Return the validated manifest metadata used by both database authority and storage writes.
+ *
+ * Failure cases:
+ * - Invalid artifact identifiers are rejected by the strict manifest schema.
+ *
+ * Side effects:
+ * - Pure computation; does not create directories or write artifact bytes.
+ */
+export function buildChunkedManifest(
+  artifactId: string,
+  content: string,
+): { manifest: ChunkedManifest; sizeBytes: number } {
+  const hash = crypto.createHash("sha256").update(content).digest("hex");
+  const sizeBytes = Buffer.byteLength(content, "utf8");
+  const manifest = chunkedManifestSchema.parse({
+    artifact_id: artifactId,
+    total_size: sizeBytes,
+    hash,
+    chunks: [`${hash}.chunk`],
+  });
+  return { manifest, sizeBytes };
+}
+
 @Injectable()
 export class ArtifactStorageService {
   private readonly storagePath: string;
@@ -131,60 +167,98 @@ export class ArtifactStorageService {
    * Business purpose: Write an immutable, content-addressed artifact chunk to local storage and produce its manifest.
    * Business rules:
    * - Chunk ID must be derived from the SHA-256 digest of content with .chunk extension.
-   * - Write operation must use exclusive flag ('wx') and restrictive permissions (0o600).
+   * - Bytes are fsynced in a request-owned temporary file before an atomic hard-link publishes the canonical path.
    * - Existing files with matching content are treated as idempotent writes.
-   * - Hash collisions with mismatched content must be rejected immediately.
+   * - The canonical content-addressed path is never overwritten or exposed while partially written.
    * Execution flow:
    * 1. Compute SHA-256 hash of incoming content string.
-   * 2. Attempt atomic write to chunks directory with exclusive creation flag.
-   * 3. On file existence error, verify existing file content matches input content.
-   * 4. Construct ChunkedManifest and verify round-trip reconstruction.
-   * 5. Return generated manifest and byte size.
+   * 2. Exclusively create, write, and fsync a unique temporary chunk in the storage directory.
+   * 3. Atomically hard-link the complete temporary inode to the canonical content-addressed path.
+   * 4. On canonical-path existence, verify the already published content matches exactly.
+   * 5. Remove only the request-owned temporary link, verify round-trip reconstruction, and return the manifest.
    * Failure cases:
-   * - Throws Error if an existing chunk with identical hash has mismatched content.
-   * - Throws Error if round-trip reconstruction verification fails.
+   * - Throws ArtifactStorageIntegrityError if an existing canonical chunk has mismatched content or verification fails.
+   * - Filesystem creation, sync, link, and read failures propagate for dependency classification.
    * Side effects:
-   * - Persists a new immutable chunk file to the disk chunks directory.
+   * - Publishes at most one immutable canonical chunk and cleans its request-owned temporary link.
    */
   async writeImmutableArtifact(
     artifactId: string,
     content: string,
   ): Promise<{ manifest: ChunkedManifest; sizeBytes: number }> {
-    const hash = crypto.createHash("sha256").update(content).digest("hex");
-    const chunkId = `${hash}.chunk`;
-    const chunkPath = path.join(this.storagePath, "chunks", chunkId);
+    // Database authority and the physical writer share this pure derivation so
+    // BUILDING metadata cannot drift from the chunk later verified on disk.
+    const { manifest, sizeBytes } = buildChunkedManifest(artifactId, content);
+    const chunkId = manifest.chunks[0];
+    const chunksDir = path.join(this.storagePath, "chunks");
+    const chunkPath = path.join(chunksDir, chunkId);
+    const temporaryPath = path.join(
+      chunksDir,
+      `.${chunkId}.${crypto.randomUUID()}.tmp`,
+    );
     try {
-      await fs.promises.writeFile(chunkPath, content, {
-        encoding: "utf8",
-        flag: "wx",
-        mode: 0o600,
-      });
-    } catch (error) {
-      if (
-        typeof error !== "object" ||
-        error === null ||
-        Reflect.get(error, "code") !== "EEXIST"
-      ) {
-        throw error;
+      const temporaryFile = await fs.promises.open(temporaryPath, "wx", 0o600);
+      try {
+        await temporaryFile.writeFile(content, "utf8");
+        await temporaryFile.sync();
+      } finally {
+        await temporaryFile.close();
       }
-      const existing = await fs.promises.readFile(chunkPath, "utf8");
-      if (existing !== content) {
-        throw new Error("Immutable artifact chunk hash collision", {
-          cause: error,
-        });
+
+      try {
+        // Hard-link creation is atomic and fails rather than replacing a
+        // canonical chunk already published by a concurrent same-digest call.
+        await fs.promises.link(temporaryPath, chunkPath);
+        const directory = await fs.promises.open(chunksDir, "r");
+        try {
+          await directory.sync();
+        } finally {
+          await directory.close();
+        }
+      } catch (error) {
+        if (
+          typeof error !== "object" ||
+          error === null ||
+          Reflect.get(error, "code") !== "EEXIST"
+        ) {
+          throw error;
+        }
+        const existing = await fs.promises.readFile(chunkPath, "utf8");
+        if (existing !== content) {
+          throw new ArtifactStorageIntegrityError(
+            "Immutable artifact chunk hash collision",
+            { cause: error },
+          );
+        }
+      }
+    } finally {
+      try {
+        await fs.promises.unlink(temporaryPath);
+      } catch {
+        // The temporary link is non-authoritative. Cleanup failure must not
+        // replace a more important publication/integrity outcome; a later
+        // maintenance sweep may remove orphaned dot-prefixed temp links.
       }
     }
 
-    const manifest: ChunkedManifest = {
-      artifact_id: artifactId,
-      total_size: Buffer.byteLength(content, "utf8"),
-      hash,
-      chunks: [chunkId],
-    };
-    if ((await this.readAndReconstruct(manifest)) !== content) {
-      throw new Error("Stored artifact did not verify");
+    try {
+      if ((await this.readAndReconstruct(manifest)) !== content) {
+        throw new ArtifactStorageIntegrityError(
+          "Stored artifact did not verify",
+        );
+      }
+    } catch (error) {
+      // The writer supplies its own freshly derived manifest, so a storage
+      // BadRequest here proves round-trip corruption rather than client input.
+      if (error instanceof BadRequestException) {
+        throw new ArtifactStorageIntegrityError(
+          "Stored artifact failed round-trip integrity verification",
+          { cause: error },
+        );
+      }
+      throw error;
     }
-    return { manifest, sizeBytes: manifest.total_size };
+    return { manifest, sizeBytes };
   }
 
   /**

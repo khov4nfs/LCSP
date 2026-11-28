@@ -1,12 +1,13 @@
 import { Query } from "@nestjs/cqrs";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 
-import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
+import type { AssessmentReadDetail } from "@lcsp/contracts/assessment-domain";
 
 /**
  * Requests one assessment detail view within the caller's RBAC subject context.
  */
-export class GetAssessmentQuery extends Query<AssessmentDetail> {
+// The query result preserves separate strict contracts instead of widening ADMIN into customer detail.
+export class GetAssessmentQuery extends Query<AssessmentReadDetail> {
   /**
    * Creates the assessment-detail query.
    *

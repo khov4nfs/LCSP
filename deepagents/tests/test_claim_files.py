@@ -256,7 +256,8 @@ def test_quota_mode_is_shared_and_never_trims_history():
     from middleware.failure_policy import AgentRunBudgetExceeded
     from langchain.agents.middleware.types import ModelRequest
     from langchain_core.messages import HumanMessage
-    request = ModelRequest(model=object(), messages=[HumanMessage(content='source')], tools=[], state={})
+    from types import SimpleNamespace
+    request = ModelRequest(model=SimpleNamespace(profile={"max_output_tokens": 4096}), messages=[HumanMessage(content='source')], tools=[], state={})
     budget = AgentRunBudgetMiddleware(run_quotas={'model_calls': 1})
     assert budget._bounded_request(request) is request
     assert budget.after_model({}, None) is None
@@ -365,7 +366,8 @@ def test_quota_replaces_input_reservation_with_reported_usage():
     from middleware.agent_run_budget import AgentRunBudgetMiddleware
     from langchain.agents.middleware.types import ModelRequest, ModelResponse
     from langchain_core.messages import AIMessage
-    request = ModelRequest(model=object(), messages=[], tools=[], state={})
+    from types import SimpleNamespace
+    request = ModelRequest(model=SimpleNamespace(profile={"max_output_tokens": 4096}), messages=[], tools=[], state={})
     response = ModelResponse(result=[AIMessage(content='fixture', usage_metadata={'input_tokens': 7, 'output_tokens': 1, 'total_tokens': 8})])
     budget = AgentRunBudgetMiddleware(run_quotas={})
     assert budget.wrap_model_call(request, lambda _: response) is response

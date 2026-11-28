@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  workspaceAssessmentSnapshotSchema,
+  agentStreamEventSchema,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
 import { usePreparationActivityHistory } from "@/lib/api/compliance-rule-set-queries";
@@ -13,11 +13,11 @@ import { useEffect, useState } from "react";
  *   terminal telemetry subscription.
  *
  * Business rules:
- * - Cache events per run, accept only validated snapshots for that run and never treat
+ * - Cache events per run, accept only validated activity events for that run and never treat
  *   telemetry as legal acceptance.
  *
  * Execution flow:
- * 1. Subscribe when a run and EventSource exist, project matching snapshots, and close on
+ * 1. Subscribe to the dedicated ADMIN stream, merge matching events, and close on
  *   cleanup or when the terminal prop closes the stream after a matching frame or 1500ms.
  *
  * Failure cases:
@@ -46,7 +46,7 @@ export function useRuleSetPreparationActivity(
     if (!preparationRunId || typeof EventSource === "undefined") return;
 
     const source = new EventSource(
-      `/api/workspace/runtime-events?preparation_run_id=${encodeURIComponent(preparationRunId)}`,
+      `/api/admin/compliance-rule-sets/preparations/${encodeURIComponent(preparationRunId)}/activity/stream`,
     );
     let closed = false;
     let terminalCloseTimer: number | null = null;
@@ -71,7 +71,7 @@ export function useRuleSetPreparationActivity(
       if (closed) return;
       closed = true;
       if (terminalCloseTimer !== null) window.clearTimeout(terminalCloseTimer);
-      source.removeEventListener("workspace.runtime", onRuntime);
+      source.removeEventListener("preparation.activity", onActivity);
       source.close();
       setStreams((previous) => {
         const current = previous[preparationRunId];
@@ -84,15 +84,15 @@ export function useRuleSetPreparationActivity(
       });
     };
     /**
-     * Business purpose: Adopt a validated activity snapshot for the selected Preparation only.
+     * Business purpose: Adopt one validated activity event for the selected Preparation only.
      *
      * Business rules:
-     * - Ignore non-string or malformed telemetry and retain only this run's events; the
+     * - Ignore non-string, malformed or foreign-run telemetry and retain only this run's events; the
      *   captured terminal prop closes the subscription after a validated frame.
      *
      * Execution flow:
-     * 1. Parse/validate the snapshot, filter its events to this run, replace its cached event
-     *   snapshot and close if the captured terminal prop is true.
+     * 1. Parse/validate the event, bind it to this run, merge it into the cache and close if
+     *   the captured terminal prop is true.
      *
      * Failure cases:
      * - Parsing/schema failures are ignored so the last accepted activity remains visible.
@@ -100,24 +100,20 @@ export function useRuleSetPreparationActivity(
      * Side effects:
      * - Updates the selected run’s React state and may dispose its terminal subscription.
      */
-    const onRuntime = (message: Event) => {
+    const onActivity = (message: Event) => {
       const data = (message as MessageEvent).data;
       if (typeof data !== "string") return;
       try {
-        const parsed = workspaceAssessmentSnapshotSchema.safeParse(
-          JSON.parse(data),
-        );
+        const parsed = agentStreamEventSchema.safeParse(JSON.parse(data));
         if (!parsed.success) return;
-        const events = parsed.data.agent_stream_events.filter(
-          (event) => event.preparationRunId === preparationRunId,
-        );
+        if (parsed.data.preparationRunId !== preparationRunId) return;
         setStreams((previous) => ({
           ...previous,
           [preparationRunId]: {
             events: mergePreparationEvents(
               preparationRunId,
               previous[preparationRunId]?.events ?? [],
-              events,
+              [parsed.data],
             ).slice(-5000),
             connected: terminal
               ? false
@@ -129,7 +125,7 @@ export function useRuleSetPreparationActivity(
         // A malformed telemetry frame must not affect the Admin page.
       }
     };
-    source.addEventListener("workspace.runtime", onRuntime);
+    source.addEventListener("preparation.activity", onActivity);
     source.onopen = () =>
       setStreams((previous) => ({
         ...previous,
@@ -149,7 +145,7 @@ export function useRuleSetPreparationActivity(
     if (terminal) terminalCloseTimer = window.setTimeout(close, 1500);
     return () => {
       if (terminalCloseTimer !== null) window.clearTimeout(terminalCloseTimer);
-      source.removeEventListener("workspace.runtime", onRuntime);
+      source.removeEventListener("preparation.activity", onActivity);
       source.close();
     };
   }, [preparationRunId, terminal]);

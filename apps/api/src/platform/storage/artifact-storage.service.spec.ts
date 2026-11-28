@@ -2,10 +2,13 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
+import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { BadRequestException } from "@nestjs/common";
 
-import { ArtifactStorageService } from "./artifact-storage.service.js";
+import {
+  ArtifactStorageIntegrityError,
+  ArtifactStorageService,
+} from "./artifact-storage.service.js";
 
 describe("ArtifactStorageService", () => {
   let service: ArtifactStorageService;
@@ -98,6 +101,38 @@ describe("ArtifactStorageService", () => {
     await expect(service.readAndReconstruct(manifest)).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it("[RED][ASM-REPORT-02] marks write round-trip corruption as storage integrity failure", async () => {
+    jest
+      .spyOn(service, "readAndReconstruct")
+      .mockRejectedValueOnce(new BadRequestException("private chunk mismatch"));
+
+    await expect(
+      service.writeImmutableArtifact(
+        crypto.randomUUID(),
+        "round-trip integrity payload",
+      ),
+    ).rejects.toBeInstanceOf(ArtifactStorageIntegrityError);
+  });
+
+  it("converges concurrent same-content writes without exposing a partial canonical chunk", async () => {
+    const content = "concurrent immutable publication";
+    const stored = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        service.writeImmutableArtifact(crypto.randomUUID(), content),
+      ),
+    );
+
+    expect(new Set(stored.map(({ manifest }) => manifest.hash)).size).toBe(1);
+    await expect(service.readAndReconstruct(stored[0].manifest)).resolves.toBe(
+      content,
+    );
+    expect(
+      fs
+        .readdirSync(path.join(testStoragePath, "chunks"))
+        .filter((entry) => entry.endsWith(".tmp")),
+    ).toEqual([]);
   });
 
   it("rejects traversal chunk ID '..' escaping chunks directory (RED reproducer)", async () => {

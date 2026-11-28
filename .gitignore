@@ -60,6 +60,10 @@ playwright-report/
 .pnpm-store/
 .billing/
 
+# Worker recovery SQLite stores encrypted capabilities and responses on this machine.
+# Keep runtime data and its SQLite sidecar files out of source control.
+/.data/
+
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 graft/
 

@@ -79,6 +79,7 @@ export async function createAuthSessionRecord(
     revokedAt?: Date | null;
     mfaVerifiedAt?: Date | null;
     sensitiveActionVerifiedAt?: Date | null;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<AuthRecord> {
   const tokenFingerprint = fingerprintToken(input.token);
@@ -96,6 +97,7 @@ export async function createAuthSessionRecord(
         mfaVerifiedAt: input.mfaVerifiedAt?.toISOString() ?? null,
         sensitiveActionVerifiedAt:
           input.sensitiveActionVerifiedAt?.toISOString() ?? null,
+        ...(input.metadata ?? {}),
       },
     },
   });

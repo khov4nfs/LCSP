@@ -255,7 +255,7 @@ function ProductMarketingPageContent() {
         <FigmaWhoSection />
 
         {/* tasteskill 2.5 Dealt Moment: Word Highlight Statement */}
-        <WordHighlightStatement 
+        <WordHighlightStatement
           lead="Evidence-Led Guarantee"
           statement={
             locale === "vi"

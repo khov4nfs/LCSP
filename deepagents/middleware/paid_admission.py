@@ -368,6 +368,37 @@ class RunAdmission:
             db.execute("UPDATE inference_attempts SET state=?,history=? WHERE run_id=? AND attempt_id=?",
                        (state, json.dumps(history), self.run_id, attempt_id))
 
+    def cancel_pre_dispatch(self, attempt_id: str) -> None:
+        """Business purpose: Release a local hard-ceiling reservation after server-confirmed no usage.
+
+        Business rules:
+        - The caller must first obtain terminal CONFIRMED_NO_USAGE from the server for this physical invocation.
+        - Only a locally admitted or in-flight predispatch attempt can be closed; unknown or settled attempts retain evidence.
+        Execution flow:
+        1. Lock the local journal and verify the immutable run budget.
+        2. Mark an eligible attempt DENIED with zero exposure and append the terminal history entry.
+        Failure cases:
+        - OUTCOME_UNKNOWN or SETTLED rejects cancellation; missing or already DENIED rows need no release.
+        Side effects:
+        - Commits the local terminal state and returns reserved capacity to the run ceiling.
+        """
+        # Why: Server cancellation can release a wallet slot while the local journal still counts the predispatch attempt.
+        # How: Close only the matching local row after the caller verified the server's terminal response.
+        # Invariant: Ambiguous consume outcomes never use this method to discard financial exposure.
+        with self._transaction() as db:
+            self._check_identity(db)
+            row = db.execute("SELECT * FROM inference_attempts WHERE run_id=? AND attempt_id=?",
+                             (self.run_id, attempt_id)).fetchone()
+            if row is None or row["state"] == "DENIED":
+                return
+            if row["state"] not in {"ADMITTED", "IN_FLIGHT"}:
+                raise PaidAdmissionError("ATTEMPT_IDENTITY", self.run_id, attempt_id)
+            history = json.loads(row["history"]) + [{"state": "DENIED", "at": time.time(),
+                                                       "reason": "SERVER_CONFIRMED_NO_USAGE"}]
+            db.execute("UPDATE inference_attempts SET state='DENIED',input_exposure=0,output_exposure=0,"
+                       "charge_exposure=0,history=? WHERE run_id=? AND attempt_id=?",
+                       (json.dumps(history), self.run_id, attempt_id))
+
     def settle(self, attempt_id: str, usage: dict | None):
         """Idempotent authoritative reconciliation; incomplete usage retains all exposure.
 

@@ -1,12 +1,30 @@
-import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
+import {
+  LEGAL_SOURCE_CHUNK_STATUSES,
+  LEGAL_SOURCE_LIFECYCLE_STATUSES,
+} from "@lcsp/contracts/legal-source";
+import { ASSESSMENT_COMPLETION_BLOCKER_CODES } from "@lcsp/contracts/assessment-domain";
+import { LEGAL_REQUIREMENT_COVERAGE_STATES } from "@lcsp/contracts/compliance-rule-set";
+
+// Explanatory comment:
+// Contract value-set typing: derived from canonical contract constants via as const to prevent literal union anti-pattern.
+export const LEGAL_PROVENANCE_FAILURE_CODES = {
+  LEGAL_SOURCE_PIN_MISMATCH:
+    ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_PIN_MISMATCH,
+  LEGAL_SOURCE_REFERENCE_INVALID:
+    ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_REFERENCE_INVALID,
+  LEGAL_SOURCE_HASH_MISMATCH:
+    ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_HASH_MISMATCH,
+  RULE_REQUIREMENT_LINK_INVALID:
+    ASSESSMENT_COMPLETION_BLOCKER_CODES.RULE_REQUIREMENT_LINK_INVALID,
+  REPORT_PROVENANCE_INCOMPLETE:
+    ASSESSMENT_COMPLETION_BLOCKER_CODES.REPORT_PROVENANCE_INCOMPLETE,
+} as const;
+
+export type LegalProvenanceFailureCode =
+  (typeof LEGAL_PROVENANCE_FAILURE_CODES)[keyof typeof LEGAL_PROVENANCE_FAILURE_CODES];
 
 export interface LegalProvenanceFailure {
-  code:
-    | "LEGAL_SOURCE_PIN_MISMATCH"
-    | "LEGAL_SOURCE_REFERENCE_INVALID"
-    | "LEGAL_SOURCE_HASH_MISMATCH"
-    | "RULE_REQUIREMENT_LINK_INVALID"
-    | "REPORT_PROVENANCE_INCOMPLETE";
+  code: LegalProvenanceFailureCode;
   reference: string;
 }
 
@@ -61,9 +79,10 @@ export interface LegalProvenanceRuleChunk {
   legalStatus: string;
 }
 
-const REPEALED_STATUS = "REPEALED";
-const COVERED_BY_RULES = "COVERED_BY_ASSESSMENT_RULES";
-const NON_ASSESSABLE = "NON_ASSESSABLE";
+const REPEALED_STATUS = LEGAL_SOURCE_CHUNK_STATUSES.REPEALED;
+const COVERED_BY_RULES =
+  LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES;
+const NON_ASSESSABLE = LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE;
 
 /**
  * Business purpose: Record one stable legal-provenance validation failure for the report submission gate.

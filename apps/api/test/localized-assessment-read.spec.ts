@@ -296,27 +296,41 @@ async function setup(version: string) {
       findUnique: () => Promise.resolve(null),
     },
     assessmentArtifact: {
-      findUnique: () =>
-        Promise.resolve({
-          ...report,
-          lifecycleState: "ACTIVE",
-          ruleSetVersionId: report.pins.ruleSetVersionId,
-          repositorySnapshotId: report.pins.repositorySnapshotId,
-          repositoryCommit: report.pins.repositoryCommit,
-          contentSha256: `sha256:${hash(bytes)}`,
-          sizeBytes: Buffer.byteLength(bytes),
-          storageRef: JSON.stringify({
-            artifact_id: report.artifactId,
-            total_size: Buffer.byteLength(bytes),
-            hash: hash(bytes),
-            chunks: ["chunk-0"],
-          }),
-          assessmentCase: {
-            ...report.pins,
-            caseRevision: 1,
-            assessment: { lifecycleState: "COMPLETE", ownerId: owner },
-          },
-        }),
+      // Why: The report loader uses an owner-scoped findFirst query; the double must expose that same read boundary.
+      findFirst: (query?: {
+        where?: {
+          artifactId?: string;
+          assessmentId?: string;
+          assessmentCase?: { assessment?: { ownerId?: string } };
+        };
+      }) =>
+        Promise.resolve(
+          query?.where &&
+            (query.where.artifactId !== report.artifactId ||
+              query.where.assessmentId !== report.assessmentId ||
+              query.where.assessmentCase?.assessment?.ownerId !== owner)
+            ? null
+            : {
+                ...report,
+                lifecycleState: "ACTIVE",
+                ruleSetVersionId: report.pins.ruleSetVersionId,
+                repositorySnapshotId: report.pins.repositorySnapshotId,
+                repositoryCommit: report.pins.repositoryCommit,
+                contentSha256: `sha256:${hash(bytes)}`,
+                sizeBytes: Buffer.byteLength(bytes),
+                storageRef: JSON.stringify({
+                  artifact_id: report.artifactId,
+                  total_size: Buffer.byteLength(bytes),
+                  hash: hash(bytes),
+                  chunks: ["chunk-0"],
+                }),
+                assessmentCase: {
+                  ...report.pins,
+                  caseRevision: 1,
+                  assessment: { lifecycleState: "COMPLETE", ownerId: owner },
+                },
+              },
+        ),
     },
     complianceRuleSetVersion: {
       findUnique: () =>
@@ -488,11 +502,11 @@ test("a corrupt READY translation is an integrity failure, never pending or fall
 test("canonical report corruption rejects before localized artifacts are created", async () => {
   const f = await setup("V1");
   f.ready();
-  const original = f.db.assessmentArtifact.findUnique;
-  f.db.assessmentArtifact.findUnique = async () => ({
-    ...(await original()),
-    contentSha256: `sha256:${"0".repeat(64)}`,
-  });
+  const original = f.db.assessmentArtifact.findFirst;
+  f.db.assessmentArtifact.findFirst = async (...args) => {
+    const row = await original(...args);
+    return row ? { ...row, contentSha256: `sha256:${"0".repeat(64)}` } : null;
+  };
   await assert.rejects(f.createLoader().load({ ...f.input, locale: "vi" }));
   assert.equal(f.artifacts.size, 0);
 });
@@ -519,9 +533,10 @@ test("a report with matching storage hash but incorrect decision fingerprint is 
     ...f.report,
     decisionFingerprint: `sha256:${"0".repeat(64)}`,
   });
-  const row = await f.db.assessmentArtifact.findUnique();
+  const row = await f.db.assessmentArtifact.findFirst();
+  assert.ok(row);
   const manifest = chunkedManifestSchema.parse(JSON.parse(row.storageRef));
-  f.db.assessmentArtifact.findUnique = () =>
+  f.db.assessmentArtifact.findFirst = () =>
     Promise.resolve({
       ...row,
       contentSha256: `sha256:${hash(corrupt)}`,
@@ -620,7 +635,18 @@ for (const locale of ["en", "vi"] as const)
         const { data } = z
           .object({ ok: z.literal(true), data: assessmentEventsPageSchema })
           .parse(JSON.parse(response.text));
-        assert.deepEqual(data, wire.events[`${locale}:${after}`]);
+        // Why: Generated IDs belong to the live fixture rows, not to the snapshot's historical call order.
+        assert.deepEqual(data, {
+          ...wire.events[`${locale}:${after}`],
+          assessmentId,
+          events: wire.events[`${locale}:${after}`].events.map((expected) => ({
+            ...expected,
+            eventId: rows[after].eventId,
+            assessmentId,
+            threadId,
+            executionId: rows[after].executionId,
+          })),
+        });
         assert.equal(data.hasMore, after === 0);
         assert.equal(data.nextAfterSequence, after + 1);
         const event = data.events[0];
@@ -774,6 +800,7 @@ for (const locale of ["en", "vi"] as const)
         {} as never,
         {} as never,
         new AuthoredLocalizationService(db as never),
+        { write: () => Promise.resolve() } as never,
       );
     const api = await localizedHttpFixture({
       ownerId: owner,
@@ -791,7 +818,13 @@ for (const locale of ["en", "vi"] as const)
         const { data } = z
           .object({ ok: z.literal(true), data: ruleAuditCatalogSchema })
           .parse(JSON.parse(response.text));
-        assert.deepEqual(data, wire.catalog[`${locale}:${offset}`]);
+        // Why: Compare stable localized content while pinning generated identities to this test's domain case.
+        assert.deepEqual(data, {
+          ...wire.catalog[`${locale}:${offset}`],
+          assessmentId,
+          ruleSetVersionId,
+          repositorySnapshotId: domainCase.repositorySnapshotId,
+        });
         assert.equal(
           data.localizationState,
           AUTHORED_LOCALIZATION_READINESS_STATES.READY,

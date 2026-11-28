@@ -35,9 +35,12 @@ import { RabbitMqClient } from "./rabbitmq.client.js";
        */
       useFactory: (configService: ConfigService<AppConfig>) => {
         const rabbitmq = configService.get<AppConfig["rabbitmq"]>("rabbitmq");
+        const outbox = configService.get<AppConfig["outbox"]>("outbox");
         return new RabbitMqClient(
           rabbitmq?.url ?? "",
           rabbitmq?.exchange ?? "lcsp.events",
+          outbox?.brokerConnectTimeoutMs ?? 5_000,
+          outbox?.brokerPublishTimeoutMs ?? 5_000,
         );
       },
     },

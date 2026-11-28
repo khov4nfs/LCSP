@@ -24,6 +24,7 @@ pytestmark = pytest.mark.production_instruction_bundle
 
 class SelectedFixtureModel(BaseChatModel):
     calls: list = Field(default_factory=list)
+    profile: dict[str, int] = {"max_output_tokens": 65536}
 
     @property
     def _llm_type(self):
@@ -248,6 +249,193 @@ def test_provider_failure_preserves_safe_code_without_logging_body(runtime_asset
     assert "secret-wrapper-message" not in caplog.text
 
 
+class GovernedSelectedFixtureModel(BaseChatModel):
+    calls: list = Field(default_factory=list)
+    provider: str = "anthropic"
+    protocol: str = "anthropic"
+    model_name: str = "claude-sonnet-4-6"
+    profile: dict[str, int] = {"max_output_tokens": 4096, "context_window_tokens": 1000000}
+
+    @property
+    def _llm_type(self):
+        return "governed-selected-fixture"
+
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.calls.append(messages)
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content="", tool_calls=[{
+            "name": "SelectedPreparationRuleResult", "id": "fixture-result",
+            "args": {"analysis": "Governed fixture result", "legalRequirements": [], "assessmentRules": []},
+        }]))])
+
+
+class GovernedSelectedFixtureApi(SelectedFixtureApi):
+    def __init__(self, *, admission_error: Exception | None = None):
+        super().__init__()
+        self.admissions: list[dict] = []
+        self.consumes: list[dict] = []
+        self.admission_error = admission_error
+
+    def request_invocation_admission(self, payload: dict) -> dict:
+        self.admissions.append(payload)
+        if self.admission_error:
+            raise self.admission_error
+        return {
+            "admissionId": "adm-selected-001",
+            "invocationId": "inv-selected-001",
+            "capabilityToken": "cap-selected-001",
+            "state": "ADMITTED",
+        }
+
+    def consume_invocation_admission(self, payload: dict) -> dict:
+        self.consumes.append(payload)
+        return {"consumed": True}
+
+
+@pytest.fixture
+def governed_runtime_assets(runtime_assets, tmp_path, monkeypatch):
+    """Reuse complete instruction assets while preserving real model governance."""
+    from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+    from middleware.usage_metering import UsageMeteringMiddleware
+    from tests.conftest import use_model_routes
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {
+                "primary": {
+                    "provider": "anthropic",
+                    "protocol": "anthropic",
+                    "model": "claude-sonnet-4-6",
+                    "options": {"context_window_tokens": 1000000, "max_output_tokens": 4096},
+                },
+            },
+            "roles": {"default": "primary", "rule-set-preparation": "primary"},
+        },
+    )
+    # Why: The governed fixture needs the same inventory and source files as the
+    # ordinary fixture; changing ROOT to an empty directory fails before admission.
+    # The metering middleware caches its recovery store, so a fresh instance must
+    # accompany each test's own SQLite path while all governance layers stay active.
+    governed_middleware = (*MODEL_GOVERNANCE_MIDDLEWARE[:-1], UsageMeteringMiddleware())
+    monkeypatch.setattr(selected_rule, "MODEL_GOVERNANCE_MIDDLEWARE", governed_middleware)
+    # Each physical admission needs its own durable recovery database so reused
+    # fixture IDs cannot collide across otherwise independent tests.
+    monkeypatch.setenv("WORKER_RECOVERY_DB_PATH", str(tmp_path / "worker_recovery.db"))
+    runtime_assets.write_text("Governed instruction snapshot", encoding="utf-8")
+    instructions.clear_runtime_bundle_cache()
+    yield runtime_assets
+    instructions.clear_runtime_bundle_cache()
+
+
+def test_selected_rule_fails_closed_zero_provider_calls_when_admission_denied(governed_runtime_assets, caplog):
+    """Proves RED/Fail-closed: when server admission fails (402/409/403), zero provider calls occur."""
+    api = GovernedSelectedFixtureApi(
+        admission_error=WorkerCallbackError("concurrency limit exceeded", status_code=409)
+    )
+    model = GovernedSelectedFixtureModel()
+    result = selected_rule.run_selected_rule_preparation(api, "run-denied-01", model=model)
+    assert result["state"] == "FAILED"
+    assert len(model.calls) == 0, "Provider model must NEVER be called when admission fails"
+    assert len(api.admissions) == 1, "Admission must be requested before provider dispatch"
+    assert api.admissions[0]["preparationRunId"] == "run-denied-01"
+    assert len(api.consumes) == 0, "Consume CAS must not run when admission request failed"
+
+
+def test_selected_rule_governed_admission_succeeds_with_server_context(governed_runtime_assets):
+    """Proves G-06: Selected rule preparation dispatches provider call ONLY after server admission & consume."""
+    api = GovernedSelectedFixtureApi()
+    model = GovernedSelectedFixtureModel()
+    result = selected_rule.run_selected_rule_preparation(api, "run-success-01", model=model)
+    assert result["state"] == "SUCCEEDED"
+    assert len(api.admissions) == 1, "Must request server admission"
+    assert api.admissions[0]["preparationRunId"] == "run-success-01"
+    assert api.admissions[0]["agentRole"] == "rule-set-preparation"
+    assert len(api.consumes) == 1, "Must commit capability token to IN_FLIGHT via CAS"
+    assert api.consumes[0]["admissionId"] == "adm-selected-001"
+    assert api.consumes[0]["invocationId"] == "inv-selected-001"
+    assert len(model.calls) == 1, "Provider model called exactly once after CAS consume"
+    assert api.completions[0][0:2] == ("run-success-01", "SUCCEEDED")
+
+
+def test_selected_rule_boundary_e2e_governed_admission_and_completion(governed_runtime_assets, monkeypatch):
+    """Proves G-06 End-to-End: RuleSetPreparationBoundary.handle() -> run_selected_rule_preparation() -> admission -> consume -> completion."""
+    from types import SimpleNamespace
+    from rule_set_preparation.boundary import RuleSetPreparationBoundary
+
+    api = GovernedSelectedFixtureApi()
+    model = GovernedSelectedFixtureModel()
+    monkeypatch.setattr(selected_rule, "resolve_agent_model", lambda role: model)
+
+    config = SimpleNamespace(nestjs_api_base_url="http://api.test", worker_api_key="key")
+    boundary = RuleSetPreparationBoundary(
+        config,
+        api_client=api,
+        runner=lambda *_: pytest.fail("Must not run whole-source runner"),
+    )
+
+    message = {
+        "preparationRunId": "run-bnd-01",
+        "preparationRuleResultId": "res-bnd-01",
+    }
+    result = boundary.handle(message, "corr-bnd-01")
+
+    assert result["state"] == "SUCCEEDED"
+    assert result["resultId"] == "result-run-bnd-01"
+
+    # Step 1: Claim initiated by boundary
+    assert api.claims == ["run-bnd-01"]
+    # Step 2: Instructions recorded
+    assert len(api.receipts) == 1
+    assert api.receipts[0][0] == "run-bnd-01"
+    # Step 3: Admission requested BEFORE provider dispatch
+    assert len(api.admissions) == 1
+    assert api.admissions[0]["preparationRunId"] == "run-bnd-01"
+    assert api.admissions[0]["agentRole"] == "rule-set-preparation"
+    # Step 4: CAS Consume committed BEFORE model generates output
+    assert len(api.consumes) == 1
+    assert api.consumes[0]["admissionId"] == "adm-selected-001"
+    # Step 5: Model executed exactly once
+    assert len(model.calls) == 1
+    # Step 6: Completion persisted to API
+    assert len(api.completions) == 1
+    assert api.completions[0][0:2] == ("run-bnd-01", "SUCCEEDED")
+
+
+def test_selected_rule_boundary_fails_closed_zero_provider_calls_on_admission_error(
+    governed_runtime_assets, monkeypatch
+):
+    """Proves G-06 Fail-Closed: Boundary halts before model call when server admission is denied."""
+    from types import SimpleNamespace
+    from rule_set_preparation.boundary import RuleSetPreparationBoundary
+
+    api = GovernedSelectedFixtureApi(
+        admission_error=WorkerCallbackError("concurrency limit exceeded", status_code=409)
+    )
+    model = GovernedSelectedFixtureModel()
+    monkeypatch.setattr(selected_rule, "resolve_agent_model", lambda role: model)
+
+    config = SimpleNamespace(nestjs_api_base_url="http://api.test", worker_api_key="key")
+    boundary = RuleSetPreparationBoundary(
+        config,
+        api_client=api,
+        runner=lambda *_: pytest.fail("Must not run whole-source runner"),
+    )
+
+    message = {
+        "preparationRunId": "run-bnd-denied",
+        "preparationRuleResultId": "res-bnd-denied",
+    }
+    result = boundary.handle(message, "corr-bnd-denied")
+
+    assert result["state"] == "FAILED"
+    assert len(model.calls) == 0, "Provider model must NEVER be called when admission fails"
+    assert len(api.admissions) == 1
+    assert api.admissions[0]["preparationRunId"] == "run-bnd-denied"
+    assert len(api.consumes) == 0, "Consume CAS must not run when admission failed"
+    assert len(api.completions) == 1
+    assert api.completions[0][0:2] == ("run-bnd-denied", "FAILED")
 class RepairingFixtureModel(SelectedFixtureModel):
     """Returns an invalid draft first and a corrected draft once the rejection feedback arrives."""
 

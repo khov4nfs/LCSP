@@ -35,20 +35,35 @@ data = json.loads(input_file.read_text())
 assert directory == Path(data["dir"]), "Fixture directory mismatch"
 root = Path(__file__).resolve().parents[3]
 fixture_prefix = "lcsp364.active-faults." + directory.name.rsplit("-", 1)[-1]
-os.environ.update(NESTJS_API_BASE_URL=data["base"], DATABASE_URL=data["databaseUrl"],
-    LANGGRAPH_CHECKPOINT_DATABASE_URL=data["checkpointDatabaseUrl"], LCSP_AGENT_RUNTIME_MODE="production",
-    LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS="2", LCSP_AGENT_SERVER_MAX_CONCURRENT_JOBS="2",
-    LCSP_AGENT_SERVER_URL="http://127.0.0.1:3432", RABBITMQ_URL="amqp://guest:guest@127.0.0.1:5678/",
+key = os.environ["WORKER_API_KEY"]
+# Why: Worker startup capability recovery sweeps the local recovery store and decrypts in-flight envelopes.
+# How: Supply WORKER_ENVELOPE_ENCRYPTION_KEY, WORKER_RECOVERY_DB_PATH, WORKER_API_KEY, and base URL
+# so child worker bridges (bridge-a, bridge-b) complete startup recovery without failing closed.
+# Invariant: Guarantees 0 unrecovered envelopes before accepting RabbitMQ jobs in active-fault fixture.
+os.environ.update(
+    NESTJS_API_BASE_URL=data["base"],
+    DATABASE_URL=data["databaseUrl"],
+    LANGGRAPH_CHECKPOINT_DATABASE_URL=data["checkpointDatabaseUrl"],
+    LCSP_AGENT_RUNTIME_MODE="production",
+    LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS="2",
+    LCSP_AGENT_SERVER_MAX_CONCURRENT_JOBS="2",
+    LCSP_AGENT_SERVER_URL="http://127.0.0.1:3432",
+    RABBITMQ_URL="amqp://guest:guest@127.0.0.1:5678/",
     LCSP_ROOT_CAPACITY_RABBITMQ_MANAGEMENT_URL="http://127.0.0.1:15678",
     LCSP_AGENT_RUNTIME_RABBITMQ_QUEUE_PREFIX=fixture_prefix,
-    RABBITMQ_EXCHANGE=fixture_prefix, LANGCHAIN_TRACING_V2="false",
-    LCSP_AGENT_SERVER_LOCK_PATH=str(directory/"server.lock"))
+    RABBITMQ_EXCHANGE=fixture_prefix,
+    LANGCHAIN_TRACING_V2="false",
+    LCSP_AGENT_SERVER_LOCK_PATH=str(directory / "server.lock"),
+    WORKER_ENVELOPE_ENCRYPTION_KEY="01" * 32,
+    WORKER_RECOVERY_DB_PATH=str(directory / "worker_recovery.db"),
+    LCSP_WORKER_API_KEY=key,
+    LCSP_API_BASE_URL=data["base"],
+)
 
 import httpx
 import pika
 import psycopg
 
-key = os.environ["WORKER_API_KEY"]
 jobs = {j["label"]: j for j in data["jobs"]}
 held = {jobs[label]["assessmentId"] for label in ["active", "short", "crash"]}
 

@@ -1,15 +1,16 @@
 import type { NextRequest } from "next/server";
 import {
-  assessmentDetailSchema,
+  assessmentReadDetailSchema,
   renameAssessmentSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { proxyAssessmentJson } from "@/lib/server/assessment-domain-proxy";
 
 type Context = { params: Promise<{ id: string }> };
 /**
- * Business purpose: Open an owned assessment while a translation is awaiting review.
+ * Business purpose: Open the assessment projection authorized for the caller's RBAC role.
  * Business rules:
- * - The shared proxy authorizes access and marks a pending-translation fallback.
+ * - CUSTOMER receives owned assessment content; ADMIN receives only strict operational metadata.
+ * - The shared proxy authorizes access and marks a pending-translation fallback when applicable.
  * Execution flow:
  * 1. Forward the assessment detail read through the validated proxy.
  * Failure cases:
@@ -19,7 +20,9 @@ type Context = { params: Promise<{ id: string }> };
  */
 export async function GET(request: NextRequest, { params }: Context) {
   return proxyAssessmentJson(request, (await params).id, "", {
-    responseSchema: assessmentDetailSchema,
+    // The strict union preserves the backend role boundary without teaching the BFF
+    // to infer roles or transform sensitive customer content itself.
+    responseSchema: assessmentReadDetailSchema,
     allowPendingLocalizationFallback: true,
   });
 }

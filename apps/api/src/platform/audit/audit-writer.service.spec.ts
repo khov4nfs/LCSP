@@ -14,6 +14,11 @@ import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import { AuditWriterService } from "./audit-writer.service.ts";
 
 type CreateFn = (args: { data: Record<string, unknown> }) => Promise<unknown>;
+type UpsertFn = (args: {
+  where: { id: string };
+  update: Record<string, never>;
+  create: Record<string, unknown>;
+}) => Promise<unknown>;
 
 function makePrisma(
   overrides: { create?: ReturnType<typeof jest.fn<CreateFn>> } = {},
@@ -102,6 +107,24 @@ describe("AuditWriterService", () => {
     );
   });
 
+  it("uses one deterministic canonical row for an idempotent audit retry", async () => {
+    const create = jest.fn<CreateFn>().mockResolvedValue({});
+    const upsert = jest.fn<UpsertFn>().mockResolvedValue({});
+    const service = new AuditWriterService({
+      auditEvent: { create, upsert },
+    } as unknown as PrismaService);
+    const event = makeEvent({ idempotencyKey: "stable-decision-key" });
+
+    await service.write(event);
+    await service.write(event);
+
+    expect(create).not.toHaveBeenCalled();
+    expect(upsert).toHaveBeenCalledTimes(2);
+    expect(upsert.mock.calls[0]?.[0].where).toEqual(
+      upsert.mock.calls[1]?.[0].where,
+    );
+  });
+
   it("T03: write() with payload.sessionToken strips the field and still creates the row", async () => {
     const { client, create } = makePrisma();
     const service = new AuditWriterService(client);
@@ -162,9 +185,7 @@ describe("AuditWriterService", () => {
     await expect(service.write(makeEvent())).rejects.toThrow("db unavailable");
 
     expect(create).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("db unavailable"),
-    );
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain("db unavailable");
   });
 
   it("forTransaction() binds a normalized writer to the supplied transaction only", async () => {

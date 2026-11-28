@@ -49,8 +49,9 @@ export class ReconcileOrphanedAssessmentHandler implements ICommandHandler<Recon
    */
   execute(command: ReconcileOrphanedAssessmentCommand) {
     return this.prisma.$transaction(async (tx) => {
+      // Scoped row lock with ownerId prevents Cross-Tenant Row-Lock DoS (BOLA) during reconciliation.
       await tx.$queryRaw(
-        Prisma.sql`SELECT id FROM "Assessment" WHERE id=${command.assessmentId} FOR UPDATE`,
+        Prisma.sql`SELECT id FROM "Assessment" WHERE id=${command.assessmentId} AND "ownerId" = ${command.ownerId} FOR UPDATE`,
       );
       const assessment = await tx.assessment.findUnique({
         where: { id: command.assessmentId },

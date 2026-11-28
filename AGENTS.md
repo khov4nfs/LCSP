@@ -64,7 +64,7 @@ Ruler concatenates all .md files in this directory (and subdirectories), startin
 - **Universal Scope**: In addition to formal JSDoc/docstrings, EVERY code modification, bugfix, refactor, or configuration tweak across the entire repository MUST contain clear, human-readable explanatory comments directly above or alongside the changed code blocks.
 - **Core-System Priority**: This rule is enforced with highest strictness on changes touching the project's **core architecture**:
   - `packages/contracts` (domain models, API envelopes, error codes, canonical value sets).
-  - `apps/api` core services (PBAC authorization, tenant isolation/BOLA, transactions, domain entities).
+  - `apps/api` core services (owner/resource-scoped RBAC authorization, BOLA isolation, transactions, domain entities).
   - `apps/web` core logic (BFF server proxies, auth guards, form state orchestration).
   - `deepagents` core workflows (decision engines, state machines, prompt injection defenses).
   - `.github/workflows` (CI/CD pipelines, release gates, quality checks).
@@ -98,7 +98,7 @@ Ruler concatenates all .md files in this directory (and subdirectories), startin
 
 - Apply the same rule to discriminators such as `kind`, `type`, `status`, `reason`, `requiredAction`, and UI state strings. Local UI-only states may keep local constants, but domain/API values must live in `packages/contracts`.
 - Canonical domain/API values must use one format: `SCREAMING_SNAKE_CASE`. Do not introduce mixed styles such as `pending`, `pending_approval`, `FinalReport`, or `accessRevoked` for contract values.
-- Hardcoded error codes, status values, workflow values, PBAC actions, scan statuses, evidence severities, document types, lifecycle statuses, audit/resource/reason/aggregate values, and wizard/assessment statuses must be imported from `packages/contracts`; do not repeat raw strings in `apps/web` or `apps/api`.
+- Hardcoded error codes, status values, workflow values, RBAC actions, scan statuses, evidence severities, document types, lifecycle statuses, audit/resource/reason/aggregate values, and wizard/assessment statuses must be imported from `packages/contracts`; do not repeat raw strings in `apps/web` or `apps/api`.
 - `apps/api` may translate between Prisma enums and contract constants only at explicit persistence boundaries. Do not leak Prisma enum values into controllers, BFF responses, or shared contracts.
 - For bounded database value sets in `apps/api/prisma/schema.prisma`, use Prisma enums instead of plain `String` fields when the set is closed. The enum members themselves must also be `SCREAMING_SNAKE_CASE`; do not rely on lower/mixed-case Prisma members plus `@map(...)` to simulate the canonical value set.
 - Tests must assert the value set of the layer they exercise: contract/API tests use shared contract constants, and Prisma persistence tests use Prisma enums or shared mapper helpers for that boundary.
@@ -118,7 +118,7 @@ Ruler concatenates all .md files in this directory (and subdirectories), startin
 ## Web BFF and API client layer
 
 - Keep Next route handlers as BFF/proxy code. They should use shared server helpers for upstream calls, bearer/session handling, query param normalization, result JSON, and payload validation. Do not repeat `fetch(apiBaseUrl...)`, `response.json()`, credential/session cookie guards, or pagination parsing in every route.
-- When a web business rule depends on server-side routing behavior such as auth gates, tenant/workspace entry, redirects before render, locale routing, or route-level access control, prefer a Next server-side route proxy (`apps/web/src/proxy.ts` with `export function proxy`) over client-side redirects or component-level guards. Do not add the deprecated `middleware.ts` convention for Next 16+; use Proxy naming, matcher coverage, and focused tests for the protected route set. Proxy is an early routing guard only; backend API/PBAC enforcement remains the source of truth.
+- When a web business rule depends on server-side routing behavior such as auth gates, owner/resource entry, redirects before render, locale routing, or route-level access control, prefer a Next server-side route proxy (`apps/web/src/proxy.ts` with `export function proxy`) over client-side redirects or component-level guards. Do not add the deprecated `middleware.ts` convention for Next 16+; use Proxy naming, matcher coverage, and focused tests for the protected route set. Proxy is an early routing guard only; backend owner/resource-scoped RBAC enforcement remains the source of truth.
 - `LCSP_API_BASE_URL` must be read in one shared upstream helper, not repeatedly inside `apps/web/src/app/api` or client modules.
 - Shared upstream server logic belongs under `apps/web/src/lib/server` such as `upstream-request.ts`; do not keep Next BFF proxy code in `apps/web/src/lib/api`.
 - Shared session/cookie guards, repeated query param normalization, and repeated success/problem forwarding must be centralized in helpers instead of copied across route handlers.
@@ -153,6 +153,7 @@ Do not skip either section even for seemingly trivial fixes. If both sections ca
 ## Adaptive Learning Protocol (Fail-Learn-Persist)
 
 When you fix a non-trivial bug, resolve a complex architectural edge-case, or receive a behavioral correction from the developer:
+
 1. **Distill the Invariant**: Identify the root cause and the permanent rule required to prevent it.
 2. **Persist to Memory**: Append the lesson to `.agents/memory/lessons-learned.md` using the standard incident schema.
 3. **Elevate to Verification Checklist**: If the lesson represents a recurring regression risk, add a concrete item to the verification checklist in the target module's `AGENTS.md` (`apps/api`, `apps/web`, or `deepagents`).
@@ -168,23 +169,33 @@ When you fix a non-trivial bug, resolve a complex architectural edge-case, or re
   - **Root scripts**: `node --test <path-to-test>` (runs in ~100ms).
 - **Reproducer First on Bugs**: When fixing a bug, first write or run a targeted test that reproduces the failure (RED), apply the minimal fix, and verify it passes (GREEN).
 
-
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+When `graphify-out/graph.json` exists, this project has a local code knowledge graph with god nodes, community structure, and cross-file relationships. The graph is a regenerable navigation index, never a source of truth.
 
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
 
 Rules:
+
+- **Why and trust boundary:** use Graphify to reduce repeated repository discovery and to surface candidate relationships across files. Never treat a graph edge as proof of runtime behavior, authorization, tenant isolation, transaction semantics, or business correctness; confirm material conclusions in current source, contracts, migrations, and tests.
+- **Local-only bootstrap:** if `graphify-out/graph.json` is absent and the task justifies building a persistent graph, use the code-only pipeline below. This keeps source analysis deterministic and local, avoids semantic model calls over LCSP documentation, skips oversized HTML generation, and creates community labels without an LLM:
+  `graphify extract . --code-only --no-cluster && graphify cluster-only . --no-viz --no-label`
+- **Use Graphify first** for broad architecture questions, unfamiliar modules, cross-runtime flows, dependency or caller tracing, impact analysis before a core refactor, and questions likely to span three or more files or layers.
+- **Skip Graphify** for a known-file/localized edit, an exact-text lookup, a small bug with an established reproducer, runtime/browser debugging, test execution, or any task where the graph is absent/stale and building it would cost more than direct `rg` plus focused reads. Also skip it when the user explicitly says not to use it or when investigating Graphify output itself.
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Prefer `graphify affected "<symbol>"` before changing shared contracts, public API envelopes, persistence mappings, authorization primitives, or cross-runtime event schemas. Treat the result as a candidate blast radius and verify every material consumer in source.
+- Query with a bounded output first (`--budget 1500 --depth 2` by default), then refine with an explicit `--seed`, `explain`, or `path`; do not issue repeated broad queries when the first result is noisy.
+- Every answer or change based on Graphify must distinguish `EXTRACTED`, `INFERRED`, and `AMBIGUOUS` edges. Verify `INFERRED` and `AMBIGUOUS` relationships before relying on them, and cite the underlying `file:line` evidence in analysis or handoff notes.
 - Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- After modifying code, run `graphify update .` to keep an existing graph current (AST-only, no API cost). If code was intentionally deleted and the shrink guard refuses the update, inspect the scope before using `--force`; never force merely to silence the guard.
+- Do not enable semantic extraction, hosted Graphify, HTTP MCP, URL ingestion, or external model backends for LCSP unless the user explicitly authorizes that data boundary. Never place model/API keys in repository files.
+- Do not generate or open the HTML visualization for graphs above 5,000 nodes. Use scoped CLI queries and `--no-viz`; `graphify-out/` remains ignored and must not be committed unless the user explicitly changes the repository policy.
 
 ## Security & Production-Grade Standards (OWASP ASVS & API Top 10)
 
-- **BOLA Prevention (API1:2023)**: Every query retrieving or mutating an entity by ID must be scoped to the authenticated tenant/workspace (`where: { id, workspaceId: user.workspaceId }`).
+- **BOLA Prevention (API1:2023)**: Every query retrieving or mutating an entity by ID must be scoped to the authenticated owner/resource relationship (for example `where: { id, ownerId: user.id }` or `where: { id, wallet: { userId: user.id } }`). Active MVP authorization has no organization boundary.
 - **Mass Assignment Prevention (API3:2023)**: Global validation with strict whitelisting (`whitelist: true, forbidNonWhitelisted: true` in NestJS; Pydantic `extra = "forbid"` in Python; Zod `safeParse()` in Next BFF).
 - **Secret Isolation**: Never prefix API secrets or private keys with `NEXT_PUBLIC_`. Use `import 'server-only'` in Next.js server helpers.
 - **Error Masking (RFC 7807)**: Never leak stack traces, database schema names, or raw SQL errors to production clients.

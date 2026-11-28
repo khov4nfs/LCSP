@@ -27,21 +27,22 @@ import {
 import { problemEnvelope } from "../src/lib/api/problem-envelope.ts";
 import { apiQueryKeys } from "../src/lib/api/query-keys.ts";
 
-test("LCSP pricing applies 1.8 exactly, preserves incomplete evidence and rejects invalid costs", () => {
+test("LCSP pricing applies 1.2 exactly, preserves incomplete evidence and rejects invalid costs", () => {
   for (const [cost, expected] of [
     ["0", "0"],
-    ["1", "1.8"],
-    ["0.001", "0.0018"],
-    ["0.000000000000000001", "0.0000000000000000018"],
-    ["9007199254740993", "16212958658533787.4"],
+    ["1", "1.2"],
+    ["0.001", "0.0012"],
+    ["0.000000000000000001", "0.0000000000000000012"],
+    ["9007199254740993", "10808639105689191.6"],
   ]) {
     const price = quoteCustomerUsage(cost, cost);
+    assert.equal(price.version, "lcsp-usage-1.2-v1");
     assert.equal(price.multiplier, CUSTOMER_USAGE_PRICING.multiplier);
     assert.equal(price.knownSubtotalUsd, expected);
     assert.equal(price.estimatedTotalUsd, expected);
   }
   assert.equal(quoteCustomerUsage("1", null).estimatedTotalUsd, null);
-  assert.equal(quoteCustomerUsage("1", null).knownSubtotalUsd, "1.8");
+  assert.equal(quoteCustomerUsage("1", null).knownSubtotalUsd, "1.2");
   for (const cost of ["-1", "NaN", "1e3", ""]) {
     assert.throws(() => quoteCustomerUsage(cost, cost));
   }

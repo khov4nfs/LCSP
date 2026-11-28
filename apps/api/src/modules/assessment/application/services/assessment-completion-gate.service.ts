@@ -32,7 +32,7 @@ import {
 
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
-import { decisionDependencyGraphIsComplete } from "../../domain/decision-dependencies.js";
+import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { validateLegalProvenance } from "../../domain/legal-provenance-validator.js";
 
 const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([

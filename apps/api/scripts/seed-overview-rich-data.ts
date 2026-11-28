@@ -42,7 +42,7 @@ async function main() {
         emailVerified: true,
         failedLoginCount: 0,
         accessStatus: u.status,
-        role: "CUSTOMER",
+        role: AUTH_USER_ROLES.customer,
       },
       update: {
         accessStatus: u.status,
@@ -51,7 +51,8 @@ async function main() {
   }
 
   // 2. Seed a Legal Source Version (Draft & Active)
-  const activeVersion = await prisma.legalSourceVersion.upsert({
+  // These seed writes establish sample versions; later steps do not consume the returned rows.
+  await prisma.legalSourceVersion.upsert({
     where: { version: "v2.5.0-2026" },
     create: {
       id: randomUUID(),
@@ -66,7 +67,7 @@ async function main() {
     },
   });
 
-  const draftVersion = await prisma.legalSourceVersion.upsert({
+  await prisma.legalSourceVersion.upsert({
     where: { version: "v2.6.0-draft" },
     create: {
       id: randomUUID(),

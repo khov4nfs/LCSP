@@ -21,7 +21,7 @@ import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecy
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { AssessmentCaseSupport } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../../domain/decision-validator.js";
-import { decisionDependencyGraphIsComplete } from "../../../domain/decision-dependencies.js";
+import { decisionDependencyGraphIsComplete } from "@lcsp/contracts/assessment";
 import { humanRequestScopeWhere } from "../../../infrastructure/persistence/assessment-human-request-scope.js";
 import { RequestAssessmentFinalizationCommand } from "./request-assessment-finalization.command.js";
 

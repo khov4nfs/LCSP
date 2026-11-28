@@ -318,10 +318,10 @@ describe("Billing and Usage UI components (Frames 32-33)", () => {
           knownEstimatedCostUsd: "1.25",
         },
         sellingPrice: {
-          version: "lcsp-usage-1.8-v1",
-          multiplier: "1.8",
-          estimatedTotalUsd: "1.88",
-          knownSubtotalUsd: "1.88",
+          version: "lcsp-usage-1.2-v1",
+          multiplier: "1.2",
+          estimatedTotalUsd: "1.50",
+          knownSubtotalUsd: "1.50",
         },
       }),
     );

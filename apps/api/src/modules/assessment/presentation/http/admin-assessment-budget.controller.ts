@@ -50,6 +50,10 @@ export class AdminAssessmentBudgetController {
   ) {
     const locale =
       (req.headers?.["x-lcsp-locale"] as string | undefined) ?? null;
+    // Why: Forward idempotencyKey and expectedVersion validated by adminBudgetExtensionRequestSchema
+    // so replay detection, conflict rejection, and deterministic AuditEvent IDs operate end-to-end.
+    // How: Maps validated DTO fields 1:1 into ControlAssessmentRuntimeCommand without controller logic.
+    // Invariants: Command shape matches deprecated `/assessments/:assessmentId/runtime/extend-budget`.
     return resultEnvelope(
       await this.commands.execute(
         new ControlAssessmentRuntimeCommand(
@@ -60,6 +64,8 @@ export class AdminAssessmentBudgetController {
           req.correlationId ?? assessmentId,
           locale,
           body.budgetExtension,
+          body.idempotencyKey,
+          body.expectedVersion,
         ),
       ),
     );

@@ -7,6 +7,7 @@ import {
   type OutboxMessageInput,
   type OutboxStatus,
 } from "@lcsp/contracts/outbox";
+import { RBAC_OUTBOX_EVENT_TYPES } from "@lcsp/contracts/rbac";
 
 import {
   fromPrismaOutboxAggregateType,
@@ -136,7 +137,8 @@ export class OutboxRepository {
     return this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<OutboxRow[]>`
         SELECT * FROM "OutboxMessage"
-        WHERE status = ${OUTBOX_STATUSES.pending}
+        WHERE (
+          status = ${OUTBOX_STATUSES.pending}
           OR (
             status = ${OUTBOX_STATUSES.failed}
             -- Prisma persists DateTime as UTC in a timestamp-without-zone
@@ -153,6 +155,8 @@ export class OutboxRepository {
                 AND isolation."writerRole" = session_user
             )
           )
+        )
+          AND "eventType" <> ${RBAC_OUTBOX_EVENT_TYPES.authorizationDecisionAuditFallback}
         ORDER BY "createdAt" ASC
         LIMIT ${batchSize}
         FOR UPDATE SKIP LOCKED
@@ -171,6 +175,54 @@ export class OutboxRepository {
         }),
       );
 
+      return handler(messages, tx);
+    });
+  }
+
+  /**
+   * Business purpose: Recover one bounded batch of local-only events independently from broker delivery backlog.
+   * Business rules:
+   * - Only the requested event type is locked; retry eligibility and SKIP LOCKED semantics match ordinary delivery.
+   * Execution flow:
+   * 1. Select eligible rows for the exact local event type under oldest-first row locks.
+   * 2. Rehydrate the rows and invoke the handler in the same transaction.
+   * Failure cases:
+   * - Handler or persistence failure rolls back the local batch without affecting broker-bound messages.
+   * Side effects:
+   * - Holds and updates only the selected local-event outbox rows in one database transaction.
+   */
+  async withPendingBatchByEventType<T>(
+    eventType: string,
+    batchSize: number,
+    handler: (
+      messages: OutboxMessageEntity[],
+      tx: Prisma.TransactionClient,
+    ) => Promise<T>,
+  ): Promise<T | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<OutboxRow[]>`
+        SELECT * FROM "OutboxMessage"
+        WHERE "eventType" = ${eventType}
+          AND (
+            status = ${OUTBOX_STATUSES.pending}
+            OR (
+              status = ${OUTBOX_STATUSES.failed}
+              AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
+            )
+          )
+        ORDER BY "createdAt" ASC
+        LIMIT ${batchSize}
+        FOR UPDATE SKIP LOCKED
+      `;
+      if (rows.length === 0) return null;
+      const messages = rows.map((row) =>
+        OutboxMessageEntity.fromPersistence({
+          ...row,
+          aggregateType: row.aggregateType as OutboxAggregateType,
+          payload: row.payload as Record<string, unknown>,
+          status: row.status as OutboxStatus,
+        }),
+      );
       return handler(messages, tx);
     });
   }

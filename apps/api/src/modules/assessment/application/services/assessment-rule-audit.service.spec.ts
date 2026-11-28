@@ -5,18 +5,26 @@ import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
   DECISION_RESOLUTION_STATES,
+  RULE_DECISION_APPLICABILITIES,
+  RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
 import {
+  ASSESSMENT_DECISION_SCOPE,
   ASSESSMENT_AUDIT_MODES,
   ASSESSMENT_DECISION_RECORD_STATES,
+  RULE_AUDIT_EXPORT_KINDS,
+  RULE_AUDIT_EXPORT_SCHEMA_VERSION,
   RULE_AUDIT_PROGRESS_STATES,
   RULE_AUDIT_SCOPE_MODES,
   RULE_AUDIT_STATUSES,
+  ruleAuditExportSchema,
   type SubmitRuleAudit,
 } from "@lcsp/contracts/assessment-domain";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
+import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
+import { canonicalJson, sha256Hex } from "../../domain/domain-ids.js";
 import { AssessmentRuleAuditService } from "./assessment-rule-audit.service.js";
 
 const ASSESSMENT = randomUUID();
@@ -30,6 +38,12 @@ const rules = Array.from({ length: 20 }, (_, index) => ({
   assessmentRuleId: `Rule-${index + 1}`,
   assessmentRuleVersion: "v1",
 }));
+
+function noOpAuditWriter(): AuditWriterService {
+  return {
+    write: jest.fn<AuditWriterService["write"]>().mockResolvedValue(undefined),
+  } as unknown as AuditWriterService;
+}
 
 function submission(ruleIds: string[]): SubmitRuleAudit {
   return {
@@ -117,6 +131,7 @@ function submitFixture() {
     { enqueue: enqueued } as unknown as OutboxRepository,
     {} as AssessmentCaseSupport,
     authoredLocalizationFixture().service,
+    noOpAuditWriter(),
   );
   jest
     .spyOn(service, "request")
@@ -187,6 +202,433 @@ it("replays the same selection key without duplicate rows or Root work", async (
   expect(f.created).toHaveBeenCalledTimes(1);
   expect(f.coverageCreated).toHaveBeenCalledTimes(1);
   expect(f.enqueued).toHaveBeenCalledTimes(1);
+});
+
+type ExportWinner = {
+  exportId: string;
+  requestId: string;
+  contentSha256: string;
+  createdAt: Date;
+};
+
+function exportRaceFixture(error: Error, winner: ExportWinner | null) {
+  const findFirst = jest
+    .fn<(input: unknown) => Promise<ExportWinner | null>>()
+    .mockResolvedValue(winner);
+  const transaction = jest.fn<() => Promise<never>>().mockRejectedValue(error);
+  const service = new AssessmentRuleAuditService(
+    {
+      $transaction: transaction,
+      assessmentRuleAuditExport: { findFirst },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    noOpAuditWriter(),
+  );
+  return { service, findFirst, transaction };
+}
+
+function exportP2002(targetOrCause: unknown, nested = false): Error {
+  // Cover both compatibility `meta.target` and Prisma 7 driver-adapter shapes
+  // without constructing a real database error in the fast service test.
+  return Object.assign(new Error("unique constraint"), {
+    code: "P2002",
+    meta: nested
+      ? { driverAdapterError: { cause: targetOrCause } }
+      : { target: targetOrCause },
+  });
+}
+
+it("[RED][ASM-EXPORT-01] replays the winning export after an exact-key P2002 race", async () => {
+  const exportId = randomUUID();
+  const createdAt = new Date("2026-11-22T00:00:00.000Z");
+  const contentSha256 = "a".repeat(64);
+  const winner = { exportId, requestId: REQUEST, contentSha256, createdAt };
+  const uniqueRace = Object.assign(new Error("unique constraint"), {
+    code: "P2002",
+    meta: { target: ["requestId", "idempotencyKey"] },
+  });
+  const findFirst = jest
+    .fn<() => Promise<typeof winner | null>>()
+    .mockResolvedValue(winner);
+  const service = new AssessmentRuleAuditService(
+    {
+      $transaction: () => Promise.reject(uniqueRace),
+      assessmentRuleAuditExport: { findFirst },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    noOpAuditWriter(),
+  );
+
+  // A concurrent request may win after the initial lookup. The loser must
+  // reload the exact composite key and return the durable winner as a replay.
+  await expect(
+    service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).resolves.toEqual({
+    exportId,
+    requestId: REQUEST,
+    contentSha256,
+    createdAt: createdAt.toISOString(),
+  });
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      assessmentId: ASSESSMENT,
+      requestId: REQUEST,
+      idempotencyKey: "same-export-key",
+      request: {
+        assessmentId: ASSESSMENT,
+        assessmentCase: { assessment: { ownerId: OWNER } },
+      },
+    },
+    select: {
+      exportId: true,
+      requestId: true,
+      contentSha256: true,
+      createdAt: true,
+    },
+  });
+});
+
+it.each([
+  {
+    label: "generated constraint name",
+    error: exportP2002(
+      "AssessmentRuleAuditExport_requestId_idempotencyKey_key",
+    ),
+  },
+  {
+    label: "schema-qualified generated constraint name",
+    error: exportP2002(
+      '"public"."AssessmentRuleAuditExport_requestId_idempotencyKey_key"',
+    ),
+  },
+  {
+    label: "Prisma 7 driver adapter fields",
+    error: exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ["requestId", "idempotencyKey"] },
+      },
+      true,
+    ),
+  },
+  {
+    label: "quoted Prisma 7 driver adapter fields",
+    error: exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ['"requestId"', '"idempotencyKey"'] },
+      },
+      true,
+    ),
+  },
+])("[RED][ASM-EXPORT-01] reloads the winner for $label", async ({ error }) => {
+  const winner = {
+    exportId: randomUUID(),
+    requestId: REQUEST,
+    contentSha256: "b".repeat(64),
+    createdAt: new Date("2026-11-22T01:00:00.000Z"),
+  };
+  const f = exportRaceFixture(error, winner);
+
+  await expect(
+    f.service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).resolves.toEqual({
+    ...winner,
+    createdAt: winner.createdAt.toISOString(),
+  });
+  expect(f.transaction).toHaveBeenCalledTimes(1);
+  expect(f.findFirst).toHaveBeenCalledWith({
+    where: {
+      assessmentId: ASSESSMENT,
+      requestId: REQUEST,
+      idempotencyKey: "same-export-key",
+      request: {
+        assessmentId: ASSESSMENT,
+        assessmentCase: { assessment: { ownerId: OWNER } },
+      },
+    },
+    select: {
+      exportId: true,
+      requestId: true,
+      contentSha256: true,
+      createdAt: true,
+    },
+  });
+});
+
+it.each([
+  ["different array target", exportP2002(["exportId"])],
+  [
+    "array target with extra field",
+    exportP2002(["requestId", "idempotencyKey", "exportId"]),
+  ],
+  [
+    "array target with duplicate field",
+    exportP2002(["requestId", "requestId"]),
+  ],
+  [
+    "different string constraint",
+    exportP2002("AssessmentRuleAuditExport_pkey"),
+  ],
+  [
+    "unbalanced quoted constraint",
+    exportP2002(
+      '"public.AssessmentRuleAuditExport_requestId_idempotencyKey_key',
+    ),
+  ],
+  [
+    "foreign-schema lookalike constraint",
+    exportP2002(
+      '"other"."AssessmentRuleAuditExport_requestId_idempotencyKey_key"',
+    ),
+  ],
+  [
+    "different driver-adapter fields",
+    exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ["exportId"] },
+      },
+      true,
+    ),
+  ],
+  [
+    "non-string driver-adapter field",
+    exportP2002(
+      {
+        kind: "UniqueConstraintViolation",
+        constraint: { fields: ["requestId", 42] },
+      },
+      true,
+    ),
+  ],
+  [
+    "different driver-adapter violation kind",
+    exportP2002(
+      {
+        kind: "ForeignKeyConstraintViolation",
+        constraint: { fields: ["requestId", "idempotencyKey"] },
+      },
+      true,
+    ),
+  ],
+  [
+    "malformed driver-adapter constraint",
+    exportP2002(
+      { kind: "UniqueConstraintViolation", constraint: "unknown" },
+      true,
+    ),
+  ],
+  ["missing target", exportP2002(undefined)],
+  ["non-P2002", Object.assign(new Error("write conflict"), { code: "P2034" })],
+])("preserves %s without replay", async (_label, error) => {
+  const f = exportRaceFixture(error, null);
+
+  await expect(
+    f.service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).rejects.toBe(error);
+  expect(f.transaction).toHaveBeenCalledTimes(1);
+  expect(f.findFirst).not.toHaveBeenCalled();
+});
+
+it("rethrows the exact P2002 when its committed winner cannot be reloaded", async () => {
+  const error = exportP2002(["requestId", "idempotencyKey"]);
+  const f = exportRaceFixture(error, null);
+
+  await expect(
+    f.service.createExport(
+      ASSESSMENT,
+      OWNER,
+      randomUUID(),
+      REQUEST,
+      "same-export-key",
+    ),
+  ).rejects.toBe(error);
+  expect(f.transaction).toHaveBeenCalledTimes(1);
+  expect(f.findFirst).toHaveBeenCalledTimes(1);
+});
+
+it("reloads a race winner through an owner-scoped metadata allowlist", async () => {
+  const winner = {
+    exportId: randomUUID(),
+    requestId: REQUEST,
+    contentSha256: "c".repeat(64),
+    createdAt: new Date("2026-11-22T02:00:00.000Z"),
+  };
+  const error = exportP2002(["requestId", "idempotencyKey"]);
+  const findFirst = jest
+    .fn<() => Promise<typeof winner>>()
+    .mockResolvedValue(winner);
+  const service = new AssessmentRuleAuditService(
+    {
+      $transaction: jest.fn<() => Promise<never>>().mockRejectedValue(error),
+      assessmentRuleAuditExport: { findFirst },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    noOpAuditWriter(),
+  );
+
+  await service.createExport(
+    ASSESSMENT,
+    OWNER,
+    randomUUID(),
+    REQUEST,
+    "same-export-key",
+  );
+
+  // Recovery is a fresh database boundary: bind every caller-owned identity and
+  // select metadata only so the immutable evidence JSON never enters memory.
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      assessmentId: ASSESSMENT,
+      requestId: REQUEST,
+      idempotencyKey: "same-export-key",
+      request: {
+        assessmentId: ASSESSMENT,
+        assessmentCase: { assessment: { ownerId: OWNER } },
+      },
+    },
+    select: {
+      exportId: true,
+      requestId: true,
+      contentSha256: true,
+      createdAt: true,
+    },
+  });
+});
+
+it("[RED][ASM-RBAC-01] returns no sensitive export bytes when business audit persistence fails", async () => {
+  const exportId = randomUUID();
+  const evidenceId = randomUUID();
+  const content = ruleAuditExportSchema.parse({
+    schemaVersion: RULE_AUDIT_EXPORT_SCHEMA_VERSION,
+    kind: RULE_AUDIT_EXPORT_KINDS.PARTIAL_SELECTED_RULE_AUDIT,
+    exportId,
+    requestId: REQUEST,
+    assessmentId: ASSESSMENT,
+    ruleSetVersionId: RULE_SET,
+    ruleSetDigest: "digest",
+    repositorySnapshotId: SNAPSHOT,
+    repositoryCommit: COMMIT,
+    requestRevision: 1,
+    requestedRuleIds: ["Rule-1"],
+    includedRuleIds: ["Rule-1"],
+    notRequestedRuleCount: 19,
+    exportedAt: "2026-11-23T00:00:00.000Z",
+    results: [
+      {
+        assessmentRuleId: "Rule-1",
+        assessmentRuleVersion: "v1",
+        decisionId: DECISION,
+        decisionRevision: 1,
+        decision: {
+          assessmentRuleId: "Rule-1",
+          assessmentRuleVersion: "v1",
+          scopeId: ASSESSMENT_DECISION_SCOPE,
+          ruleSetVersionId: RULE_SET,
+          repositorySnapshotId: SNAPSHOT,
+          repositoryCommit: COMMIT,
+          caseRevision: 1,
+          legalContextRefs: [{ legalContextId: "LR-1" }],
+          applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
+          rationale: "The requirement does not apply to this scope.",
+          references: [
+            {
+              type: RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE,
+              evidenceId,
+            },
+          ],
+          criteria: [],
+          compliance: null,
+        },
+        evidence: [],
+        legalBasis: {
+          concept: "Retention",
+          legalIntent: "Records must be retained.",
+          legalRequirements: [],
+        },
+      },
+    ],
+  });
+  const write = jest
+    .fn<AuditWriterService["write"]>()
+    .mockRejectedValue(new Error("private audit database error"));
+  const findFirst = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+    exportId,
+    assessmentId: ASSESSMENT,
+    requestId: REQUEST,
+    content,
+    contentSha256: sha256Hex(canonicalJson(content)),
+    request: {
+      assessmentCase: { assessment: { ownerId: OWNER } },
+    },
+  });
+  const ServiceWithAudit = AssessmentRuleAuditService as unknown as new (
+    prisma: PrismaService,
+    outbox: OutboxRepository,
+    support: AssessmentCaseSupport,
+    localization: ConstructorParameters<typeof AssessmentRuleAuditService>[3],
+    auditWriter: AuditWriterService,
+  ) => AssessmentRuleAuditService;
+  const service = new ServiceWithAudit(
+    {
+      assessmentRuleAuditExport: {
+        findFirst,
+      },
+    } as unknown as PrismaService,
+    {} as OutboxRepository,
+    {} as AssessmentCaseSupport,
+    authoredLocalizationFixture().service,
+    { write } as unknown as AuditWriterService,
+  );
+
+  const failure = (await service
+    .downloadExport(ASSESSMENT, OWNER, "corr-download", REQUEST, exportId)
+    .catch((error: unknown) => error)) as {
+    getResponse(): unknown;
+    getStatus(): number;
+  };
+
+  expect(failure.getStatus()).toBe(503);
+  expect(JSON.stringify(failure.getResponse())).not.toContain(
+    "private audit database error",
+  );
+  expect(findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        exportId,
+        assessmentId: ASSESSMENT,
+        requestId: REQUEST,
+        request: {
+          assessmentCase: { assessment: { ownerId: OWNER } },
+        },
+      },
+    }),
+  );
 });
 
 it("versions a later Rule 9 request and reuses an unchanged accepted Rule 3 decision", async () => {
@@ -373,6 +815,7 @@ it("shows Rule 3 ready while Rule 9 investigates or awaits a customer answer", a
     {} as OutboxRepository,
     {} as AssessmentCaseSupport,
     authoredLocalizationFixture().service,
+    noOpAuditWriter(),
   );
 
   const first = await service.request(ASSESSMENT, OWNER, randomUUID(), REQUEST);

@@ -1,13 +1,19 @@
 import { authoredFields } from "../../../../platform/localization/authored-localization.service.js";
 import { authoredLocalizationFixture } from "../../../../../test/support/authored-localization.fixture.js";
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
+  ARTIFACT_LIFECYCLE_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
+import {
   ASSESSMENT_ARTIFACT_KINDS,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   assessmentFinalReportArtifactSchema,
 } from "@lcsp/contracts/assessment-domain";
 import { randomUUID } from "node:crypto";
+import { HttpStatus } from "@nestjs/common";
 import { AssessmentReportLoader } from "./assessment-report.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { ArtifactStorageService } from "../../../../platform/storage/artifact-storage.service.js";
@@ -103,7 +109,7 @@ describe("AssessmentReportLoader locale read projection", () => {
     artifactId,
     assessmentId,
     kind: "FINAL_REPORT",
-    lifecycleState: "ACTIVE",
+    lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
     ruleSetVersionId: canonicalReport.pins.ruleSetVersionId,
     repositorySnapshotId: canonicalReport.pins.repositorySnapshotId,
     repositoryCommit: canonicalReport.pins.repositoryCommit,
@@ -124,7 +130,7 @@ describe("AssessmentReportLoader locale read projection", () => {
       repositoryScanJobId: canonicalReport.pins.repositoryScanJobId,
       repositoryCommit: canonicalReport.pins.repositoryCommit,
       assessment: {
-        lifecycleState: "COMPLETE",
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
         ownerId: userId,
       },
     },
@@ -132,7 +138,7 @@ describe("AssessmentReportLoader locale read projection", () => {
 
   const mockPrisma = {
     assessmentArtifact: {
-      findUnique: () => Promise.resolve(artifactRow),
+      findFirst: () => Promise.resolve(artifactRow),
     },
     repositorySnapshot: {
       findFirst: () => Promise.resolve(null),
@@ -193,6 +199,41 @@ describe("AssessmentReportLoader locale read projection", () => {
       decisionFingerprint: fingerprint,
     });
   });
+
+  it("accepts equivalent Git commit pins when persisted metadata uses uppercase hex", async () => {
+    const uppercaseCommit = canonicalReport.pins.repositoryCommit.toUpperCase();
+    const loader = new AssessmentReportLoader(
+      {
+        assessmentArtifact: {
+          findFirst: () =>
+            Promise.resolve({
+              ...artifactRow,
+              repositoryCommit: uppercaseCommit,
+              assessmentCase: {
+                ...artifactRow.assessmentCase,
+                repositoryCommit: uppercaseCommit,
+              },
+            }),
+        },
+        // Why: The merged loader resolves an optional canonical repository link
+        // after integrity checks; this fixture has no connection to expose.
+        repositorySnapshot: { findFirst: () => Promise.resolve(null) },
+      } as unknown as PrismaService,
+      mockStorage,
+      localization.projection,
+    );
+
+    const loaded = await loader.load({
+      assessmentId,
+      artifactId,
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "commit-case-normalization",
+    });
+
+    expect(loaded.content.toString("utf8")).toBe(rawContent);
+  });
+
   it("rejects an unavailable locale revision without substituting canonical text", async () => {
     const reader = new AssessmentReportLoader(
       mockPrisma,
@@ -209,6 +250,259 @@ describe("AssessmentReportLoader locale read projection", () => {
         locale: "vi",
       }),
     ).rejects.toThrow();
+  });
+
+  it("[RED][ASM-REPORT-02] reports storage dependency outages as 503", async () => {
+    const dependencyFailure = Object.assign(
+      new Error("artifact storage unavailable at /private/reports"),
+      { code: "ETIMEDOUT" },
+    );
+    const unavailable = new AssessmentReportLoader(
+      mockPrisma,
+      {
+        readAndReconstruct: () => Promise.reject(dependencyFailure),
+      } as unknown as ArtifactStorageService,
+      localization.projection,
+    );
+
+    const error = (await unavailable
+      .load({
+        assessmentId,
+        artifactId,
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "storage-outage",
+      })
+      .catch((failure: unknown) => failure)) as {
+      getResponse(): unknown;
+      getStatus(): number;
+    };
+
+    // An unavailable dependency is operationally retryable and must not be
+    // misreported as a permanently invalid customer artifact.
+    expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(JSON.stringify(error.getResponse())).not.toMatch(
+      /private\/reports|ETIMEDOUT/u,
+    );
+  });
+
+  it.each(["ENOSPC", "EMFILE", "ENFILE", "EROFS"])(
+    "[RED][ASM-REPORT-02] reports local storage dependency %s as safe 503",
+    async (code) => {
+      const dependencyFailure = Object.assign(new Error("private disk path"), {
+        code,
+      });
+      const loader = new AssessmentReportLoader(
+        mockPrisma,
+        {
+          readAndReconstruct: () => Promise.reject(dependencyFailure),
+        } as unknown as ArtifactStorageService,
+        localization.projection,
+      );
+
+      const error = (await loader
+        .load({
+          assessmentId,
+          artifactId,
+          sessionUserId: userId,
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: "local-storage-outage",
+        })
+        .catch((failure: unknown) => failure)) as {
+        getResponse(): unknown;
+        getStatus(): number;
+      };
+
+      expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+      expect(JSON.stringify(error.getResponse())).not.toMatch(
+        /private disk path|ENOSPC|EMFILE|ENFILE|EROFS/u,
+      );
+    },
+  );
+
+  it("[RED][BOLA] scopes owner and assessment identity in the database query", async () => {
+    const findFirst = jest.fn((query: unknown) => {
+      void query;
+      return Promise.resolve(artifactRow);
+    });
+    const loader = new AssessmentReportLoader(
+      {
+        assessmentArtifact: { findFirst },
+        repositorySnapshot: { findFirst: () => Promise.resolve(null) },
+      } as unknown as PrismaService,
+      mockStorage,
+      localization.projection,
+    );
+
+    await loader.load({
+      assessmentId,
+      artifactId,
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "bola-scope",
+    });
+
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          artifactId,
+          assessmentId,
+          assessmentCase: { assessment: { ownerId: userId } },
+        },
+      }),
+    );
+  });
+
+  it("[RED][BOLA] rejects non-customer roles before querying report metadata", async () => {
+    const findFirst = jest.fn((query: unknown) => {
+      void query;
+      return Promise.resolve(artifactRow);
+    });
+    const loader = new AssessmentReportLoader(
+      {
+        assessmentArtifact: { findFirst },
+      } as unknown as PrismaService,
+      mockStorage,
+      localization.projection,
+    );
+
+    const failure = (await loader
+      .load({
+        assessmentId,
+        artifactId,
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.admin,
+        correlationId: "role-gate",
+      })
+      .catch((error: unknown) => error)) as { getStatus(): number };
+
+    expect(failure.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ARTIFACT_LIFECYCLE_STATES.BUILDING,
+    ARTIFACT_LIFECYCLE_STATES.INVALID,
+    ARTIFACT_LIFECYCLE_STATES.SUPERSEDED,
+  ])(
+    "[ASM-REPORT-01D] refuses %s without reading storage",
+    async (lifecycleState) => {
+      const readAndReconstruct = jest.fn(() => Promise.resolve(rawContent));
+      const loader = new AssessmentReportLoader(
+        {
+          assessmentArtifact: {
+            findFirst: () =>
+              Promise.resolve({ ...artifactRow, lifecycleState }),
+          },
+        } as unknown as PrismaService,
+        { readAndReconstruct } as unknown as ArtifactStorageService,
+        localization.projection,
+      );
+
+      const error = (await loader
+        .load({
+          assessmentId,
+          artifactId,
+          sessionUserId: userId,
+          subjectRole: AUTH_USER_ROLES.customer,
+          correlationId: "inactive-artifact",
+        })
+        .catch((failure: unknown) => failure)) as {
+        getResponse(): { problem: { code: string } };
+        getStatus(): number;
+      };
+
+      expect(error.getStatus()).toBe(HttpStatus.CONFLICT);
+      expect(error.getResponse().problem.code).toBe(
+        ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+      );
+      expect(readAndReconstruct).not.toHaveBeenCalled();
+    },
+  );
+
+  it("[RED][ASM-REPORT-02] reports database dependency outages as a masked 503", async () => {
+    const databaseFailure = Object.assign(
+      new Error("postgres unavailable at postgres.internal:5432/lcsp"),
+      { code: "P1001" },
+    );
+    const loader = new AssessmentReportLoader(
+      {
+        assessmentArtifact: {
+          findFirst: () => Promise.reject(databaseFailure),
+        },
+      } as unknown as PrismaService,
+      mockStorage,
+      localization.projection,
+    );
+
+    const error = (await loader
+      .load({
+        assessmentId,
+        artifactId,
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "database-outage",
+      })
+      .catch((failure: unknown) => failure)) as {
+      getResponse(): unknown;
+      getStatus(): number;
+    };
+
+    expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+    expect(JSON.stringify(error.getResponse())).not.toMatch(
+      /postgres\.internal|5432|P1001/u,
+    );
+  });
+
+  it("[ASM-REPORT-02] reports malformed report bytes as integrity conflict 409", async () => {
+    const loader = new AssessmentReportLoader(
+      mockPrisma,
+      {
+        readAndReconstruct: () => Promise.resolve("not-json"),
+      } as unknown as ArtifactStorageService,
+      localization.projection,
+    );
+
+    const error = (await loader
+      .load({
+        assessmentId,
+        artifactId,
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "invalid-report",
+      })
+      .catch((failure: unknown) => failure)) as { getStatus(): number };
+
+    expect(error.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it("[RED][ASM-REPORT-02] masks unexpected internal failures as 500", async () => {
+    const loader = new AssessmentReportLoader(
+      mockPrisma,
+      {
+        readAndReconstruct: () =>
+          Promise.reject(new Error("secret path /srv/lcsp/reports")),
+      } as unknown as ArtifactStorageService,
+      localization.projection,
+    );
+
+    const error = (await loader
+      .load({
+        assessmentId,
+        artifactId,
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "unexpected-failure",
+      })
+      .catch((failure: unknown) => failure)) as {
+      getResponse(): unknown;
+      getStatus(): number;
+    };
+
+    expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(JSON.stringify(error.getResponse())).not.toMatch(
+      /secret path|\/srv\/lcsp/u,
+    );
   });
 });
 
@@ -247,7 +541,7 @@ describe("AssessmentReportLoader historical compatibility", () => {
     const loader = new AssessmentReportLoader(
       {
         assessmentArtifact: {
-          findUnique: () => ({
+          findFirst: () => ({
             artifactId,
             assessmentId,
             kind: "FINAL_REPORT",
@@ -300,7 +594,7 @@ describe("AssessmentReportLoader historical compatibility", () => {
     const blockedLoader = new AssessmentReportLoader(
       {
         assessmentArtifact: {
-          findUnique: () =>
+          findFirst: () =>
             Promise.resolve({
               artifactId: blockedArtifactId,
               assessmentId: blockedAssessmentId,

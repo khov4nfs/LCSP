@@ -6,7 +6,6 @@ import {
   RULE_DECISION_APPLICABILITIES,
   RULE_DECISION_COMPLIANCE_OUTCOMES,
   RULE_DECISION_CRITERION_OUTCOMES,
-  RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
 import { legalDocumentDisplayName } from "@lcsp/contracts/legal-source";
 import type { AssessmentReportV2Presentation } from "@lcsp/contracts/assessment-report";
@@ -16,14 +15,14 @@ type RulePresentation =
 
 export type ReportTranslationCatalog = Readonly<Record<string, string>>;
 
-export type ReportTechnicalText = {
+type ReportTechnicalText = {
   reference: string;
   ruleReference: string;
   field: string;
   original: string;
 };
 
-export type ReportSourceReference = {
+type ReportSourceReference = {
   reference: string;
   documentName: string;
   locator: string;
@@ -32,7 +31,7 @@ export type ReportSourceReference = {
   sourceHash: string;
 };
 
-export type ReportCriterionMapping = {
+type ReportCriterionMapping = {
   reference: string;
   ruleReference: string;
   id: string;
@@ -171,16 +170,6 @@ export function localizedApplicability(value: string): string {
   if (value === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE)
     return VIETNAMESE_LABELS.notApplicable;
   return VIETNAMESE_LABELS.insufficient;
-}
-
-export function localizedApplicabilityMode(guidance: string): string {
-  const mode = guidance.match(
-    /Applicability mode:\s*(UNCONDITIONAL|CONDITIONAL)/u,
-  )?.[1];
-  if (mode === "UNCONDITIONAL") return "Áp dụng chung theo định nghĩa nghĩa vụ";
-  if (mode === "CONDITIONAL")
-    return "Áp dụng khi điều kiện pháp lý tương ứng được đáp ứng";
-  return "Chưa xác định được chế độ áp dụng trong định nghĩa quy tắc";
 }
 
 export function localizedCompliance(
@@ -425,14 +414,6 @@ export function buildReportReferenceIndex(
   };
 }
 
-export function reportDecisionExplanation(rule: RulePresentation): string {
-  const applicability = localizedApplicability(rule.applicability);
-  const result = localizedCompliance(rule.applicability, rule.compliance);
-  if (rule.applicability === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE)
-    return `Trạng thái áp dụng: ${applicability}. ${result}.`;
-  return `Trạng thái áp dụng: ${applicability}. Kết quả đánh giá: ${result}.`;
-}
-
 export function ruleTitleInVietnamese(
   rule: RulePresentation,
   translations: ReportTranslationCatalog = {},
@@ -457,43 +438,6 @@ export function ruleTitleInVietnamese(
   return "Chưa có tiêu đề nghĩa vụ tiếng Việt đã được xác minh.";
 }
 
-export function contentInVietnameseOrAppendix(
-  text: string,
-  reference: ReportReferenceIndex,
-  fallback: string,
-  translations: ReportTranslationCatalog = {},
-): string {
-  const localized = localizeReportText(text, translations);
-  if (localized) return localized;
-  const textReference = reference.textReference(text);
-  return textReference
-    ? `${fallback} (xem ${textReference} ở phụ lục).`
-    : fallback;
-}
-
-export function factPresentation(
-  fact: RulePresentation["observedFacts"][number],
-  reference: ReportReferenceIndex,
-  translations: ReportTranslationCatalog = {},
-): string {
-  const source = localizedFactAuthority(fact.authority);
-  const acceptedStatement = fact.statement.split(
-    "\nAgent-authored question (context only):",
-    1,
-  )[0];
-  const localized = localizeReportText(acceptedStatement, translations);
-  if (localized) {
-    const sourceNote =
-      fact.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
-        ? "Nguồn: người dùng cung cấp; đây không phải bằng chứng độc lập từ mã nguồn."
-        : `Nguồn: ${source}.`;
-    return `${localized} (${sourceNote})`;
-  }
-  const id = reference.factReference(fact.factId);
-  const original = reference.textReference(fact.statement);
-  return `${source}${original ? `; nội dung nguyên văn ${original}` : ""} (${id}).`;
-}
-
 export function criterionPresentation(
   criterion: RulePresentation["criterionDecisions"][number],
   translations: ReportTranslationCatalog = {},
@@ -511,47 +455,4 @@ export function criterionPresentation(
     );
   if (proposition && hasVietnameseDiacritics(proposition)) return proposition;
   return "Mô tả tiêu chí chưa có bản tiếng Việt đã được xác minh; nguyên văn được giữ trong phụ lục.";
-}
-
-export function decisionReferenceLabels(
-  refs: RulePresentation["decisionReferences"],
-  reference: ReportReferenceIndex,
-): string[] {
-  const labels = new Set<string>();
-  for (const item of refs) {
-    if (item.reference.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT) {
-      const label = reference.factReference(item.reference.factId);
-      if (label) labels.add(label);
-    } else {
-      const label = reference.evidenceReference(item.reference.evidenceId);
-      if (label) labels.add(label);
-    }
-  }
-  return [...labels];
-}
-
-export function sourceLabelsForRule(
-  rule: RulePresentation,
-  reference: ReportReferenceIndex,
-): string[] {
-  return [
-    ...new Set(
-      rule.legalReferences
-        .map((source) => reference.legalReference(source))
-        .filter(Boolean),
-    ),
-  ];
-}
-
-export function factEvidenceLabels(
-  fact: RulePresentation["observedFacts"][number],
-  reference: ReportReferenceIndex,
-): string[] {
-  return [
-    ...new Set(
-      fact.evidenceIds
-        .map((id) => reference.evidenceReference(id))
-        .filter(Boolean),
-    ),
-  ];
 }

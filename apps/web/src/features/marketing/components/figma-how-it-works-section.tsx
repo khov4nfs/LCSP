@@ -44,9 +44,9 @@ export function FigmaHowItWorksSection() {
       className="relative w-full overflow-hidden bg-[#ECF5F3] py-20 text-[#101C29]"
     >
       {/* Vercel subtle grid lines background */}
-      <div 
-        aria-hidden="true" 
-        className="pointer-events-none absolute inset-0 bg-grid-slate opacity-60 [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_90%)]" 
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-grid-slate opacity-60 [mask-image:radial-gradient(ellipse_at_center,black_50%,transparent_90%)]"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">
@@ -62,7 +62,7 @@ export function FigmaHowItWorksSection() {
               {t("pages.marketing.home.howWorkflowDescription")}
             </p>
           </div>
-          
+
           <div className="hidden lg:flex items-center gap-2 rounded-full border border-[#11545B]/20 bg-white/80 px-3 py-1 text-xs font-mono text-[#11545B]">
             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
             Deterministic Pipeline • Zero Hallucinations
@@ -74,22 +74,22 @@ export function FigmaHowItWorksSection() {
           {/* Connecting SVG Circuit Line for Desktop */}
           <div aria-hidden="true" className="pointer-events-none absolute top-12 left-0 right-0 hidden lg:block px-12">
             <svg className="w-full h-2 overflow-visible" fill="transparent">
-              <line 
-                x1="0" 
-                y1="0" 
-                x2="100%" 
-                y2="0" 
-                stroke="#B9D5D1" 
-                strokeWidth="2" 
+              <line
+                x1="0"
+                y1="0"
+                x2="100%"
+                y2="0"
+                stroke="#B9D5D1"
+                strokeWidth="2"
                 strokeDasharray="4 4"
               />
-              <line 
-                x1="0" 
-                y1="0" 
-                x2="100%" 
-                y2="0" 
-                stroke="#31BDA7" 
-                strokeWidth="2" 
+              <line
+                x1="0"
+                y1="0"
+                x2="100%"
+                y2="0"
+                stroke="#31BDA7"
+                strokeWidth="2"
                 className="animate-circuit-pulse"
               />
             </svg>

@@ -64,4 +64,3 @@ export const CAPABILITY_POLICY_REASONS = {
 
 export type CapabilityPolicyReason =
   (typeof CAPABILITY_POLICY_REASONS)[keyof typeof CAPABILITY_POLICY_REASONS];
-

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UX Design Validation: LCSP Prompt 8 Shared Wallet</title>
+<style>
+  :root { --bg:#fafaf9; --surface:#fff; --border:#e7e5e4; --text:#1c1917; --muted:#78716c; --verdict-strong:#16a34a; --verdict-adequate:#65a30d; --verdict-thin:#d97706; --verdict-broken:#dc2626; --sev-low:#64748b; }
+  * { box-sizing:border-box; } html,body { margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; font-size:15px; }
+  .container { max-width:960px; margin:0 auto; padding:32px 24px 64px; }
+  .report-header { display:flex; gap:24px; padding-bottom:16px; border-bottom:1px solid var(--border); margin-bottom:24px; }
+  h1 { margin:0; font-size:22px; font-weight:600; } .subtitle,.reviewer-source,footer { color:var(--muted); font-size:12px; font-family:ui-monospace,"SF Mono",Menlo,monospace; }
+  .synthesis,.dim-card,details,.mechanical { background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+  .synthesis { border-left:3px solid var(--verdict-strong); padding:18px 22px; margin-bottom:24px; }
+  .dimension-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:24px; }
+  .dim-card { padding:12px 14px; } .dim-name { font-size:13px; color:var(--muted); } .dim-verdict { color:var(--verdict-strong); font-weight:600; }
+  section { margin-bottom:14px; } summary { padding:14px 20px; cursor:pointer; display:flex; align-items:center; gap:12px; } summary h2 { margin:0; font-size:16px; flex:1; }
+  .verdict-pill { color:#fff; background:var(--verdict-strong); padding:3px 10px; border-radius:9999px; font-size:11px; font-weight:600; text-transform:uppercase; }
+  .verdict-adequate { background:var(--verdict-adequate); } .body { padding:4px 20px 18px; }
+  .finding { border-top:1px solid var(--border); padding:14px 20px; } .badge { color:var(--sev-low); background:rgba(100,116,139,.12); padding:3px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+  .mechanical { padding:16px 20px; margin-top:24px; } .mechanical h3 { margin:0 0 10px; font-size:14px; color:var(--muted); } footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="report-header"><div><h1>LCSP Prompt 8 Shared Wallet — UX Design Validation Report</h1><div class="subtitle">docs/planning-artifacts/ux-designs/ux-LCSP-2026-11-24-shared-wallet/</div></div></header>
+  <div class="synthesis"><p><strong>APPROVE for finalization.</strong> No Critical, High or Medium rubric finding remains. Every IA surface has a flow, operational state coverage and consistent component/state authority.</p><p>Accessibility and adversarial reviewers also approve with zero findings. Production debit remains separately gated by G-01..G-07.</p></div>
+  <div class="dimension-summary">
+    <div class="dim-card"><div class="dim-name">Flow coverage</div><div class="dim-verdict">strong</div></div>
+    <div class="dim-card"><div class="dim-name">Token completeness</div><div class="dim-verdict">strong</div></div>
+    <div class="dim-card"><div class="dim-name">Component coverage</div><div class="dim-verdict">strong</div></div>
+    <div class="dim-card"><div class="dim-name">State coverage</div><div class="dim-verdict">strong</div></div>
+    <div class="dim-card"><div class="dim-name">Visual references</div><div class="dim-verdict">strong</div></div>
+    <div class="dim-card"><div class="dim-name">Bloat & overspecification</div><div class="dim-verdict" style="color:var(--verdict-adequate)">adequate</div></div>
+    <div class="dim-card"><div class="dim-name">Inheritance discipline</div><div class="dim-verdict">strong</div></div>
+    <div class="dim-card"><div class="dim-name">Shape fit</div><div class="dim-verdict">strong</div></div>
+  </div>
+  <section><details><summary><h2>Flow coverage</h2><span class="verdict-pill">strong</span></summary><div class="body">All Prompt 8 journeys and IA surfaces land in named-protagonist flows with numbered steps, climax and failure/recovery paths.</div></details></section>
+  <section><details><summary><h2>Token completeness</h2><span class="verdict-pill">strong</span></summary><div class="body">All tokens and prose references resolve. Load-bearing state color pairs pass WCAG AA for ordinary text.</div></details></section>
+  <section><details><summary><h2>Component coverage</h2><span class="verdict-pill">strong</span></summary><div class="body">DESIGN and EXPERIENCE share one canonical component inventory with visual and behavioral rules.</div></details></section>
+  <section><details><summary><h2>State coverage</h2><span class="verdict-pill">strong</span></summary><div class="body">Every Customer/Admin surface covers loading, empty, stale/offline, permission/version conflict and safe recovery.</div></details></section>
+  <section><details><summary><h2>Visual reference coverage</h2><span class="verdict-pill">strong</span></summary><div class="body">No orphan artifacts. Prompt 8 is intentionally spine-only and inherits the approved LCSP/Figma/shadcn visual system.</div></details></section>
+  <section><details open><summary><h2>Bloat & overspecification</h2><span class="verdict-pill verdict-adequate">adequate</span></summary><div class="body">The mandated companion remains self-contained and declares precedence with the spine pair.</div><div class="finding"><span class="badge">low</span> Deliberate state/journey repetition adds future synchronized-edit cost. Preserve stable IDs and summarize new duplicated behavior.</div></details></section>
+  <section><details><summary><h2>Inheritance discipline</h2><span class="verdict-pill">strong</span></summary><div class="body">Sources resolve and canonical states, RBAC scope, funding principals and financial/runtime authority remain aligned.</div></details></section>
+  <section><details><summary><h2>Shape fit</h2><span class="verdict-pill">strong</span></summary><div class="body">Both spines satisfy their required structures and contain only justified overlay sections.</div></details></section>
+  <section><details><summary><h2>Accessibility review</h2><span class="reviewer-source">review-accessibility.md</span></summary><div class="body"><strong>APPROVE — 0 findings.</strong> WCAG 2.2 AA acceptance covers payment return, focus, targets, reflow, announcements, exact values, tables, offline recovery and cognitive clarity.</div></details></section>
+  <section><details><summary><h2>Adversarial authority review</h2><span class="reviewer-source">review-adversarial.md</span></summary><div class="body"><strong>APPROVE — 0 findings.</strong> Shadow non-authority, proof-bound no-usage, stale tabs, sponsorship, integrity scope, authorization expiry and traceability seams are closed.</div></details></section>
+  <div class="mechanical"><h3>Mechanical notes</h3><ul><li>All frontmatter sources and token references resolve.</li><li>Component names match across both spines.</li><li>Canonical states: OUTCOME_UNKNOWN, DISPATCH_UNKNOWN, NO_PROGRESS_LIMIT_EXCEEDED.</li><li>No visual artifacts or Mermaid diagrams require validation.</li></ul></div>
+  <footer>Rubric: .agents/skills/bmad-ux/references/validate.md · Generated: 2026-11-24T18:07:47+07:00</footer>
+</div>
+</body>
+</html>

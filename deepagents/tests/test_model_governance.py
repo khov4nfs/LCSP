@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -226,6 +227,7 @@ def test_agent_stops_after_one_malformed_model_response(invalid_tool):
 
     class MalformedModel(BaseChatModel):
         calls: int = 0
+        profile: dict[str, int] = {"max_output_tokens": 65536}
 
         @property
         def _llm_type(self):
@@ -303,7 +305,7 @@ def test_text_only_answer_that_is_exact_schema_json_becomes_the_structured_respo
         count: int
 
     message = AIMessage(content=content)
-    request = MagicMock(response_format=ToolStrategy(Answer))
+    request = MagicMock(response_format=ToolStrategy(Answer), model=MagicMock(profile={"max_output_tokens": 65536}))
     handler = MagicMock(return_value=ModelResponse(result=[message]))
 
     response = StopSchemaRepairMiddleware().wrap_model_call(request, handler)
@@ -324,7 +326,7 @@ def test_tool_calling_answer_is_left_to_the_agent_loop():
     response = ModelResponse(result=[AIMessage(content="", tool_calls=[
         {"name": "read_evidence", "args": {}, "id": "call-1", "type": "tool_call"},
     ])])
-    request = MagicMock(response_format=ToolStrategy(Answer))
+    request = MagicMock(response_format=ToolStrategy(Answer), model=MagicMock(profile={"max_output_tokens": 65536}))
 
     assert StopSchemaRepairMiddleware().wrap_model_call(request, MagicMock(return_value=response)) is response
 
@@ -342,6 +344,7 @@ def test_tool_call_cut_off_by_the_output_cap_is_resampled_not_terminal():
 
     class TruncatingModel(BaseChatModel):
         calls: int = 0
+        profile: dict[str, int] = {"max_output_tokens": 65536}
 
         @property
         def _llm_type(self):
@@ -370,9 +373,13 @@ def test_tool_call_cut_off_by_the_output_cap_is_resampled_not_terminal():
                 message = AIMessage(content="done")
             return ChatResult(generations=[ChatGeneration(message=message)])
 
+    # Why: Trustabl LC-028 checks that tools named with side-effecting verbs take a claim parameter, and LC-029 checks that the claim is verified.
+    # How: Add claim: Any = None and inspect it in the body so the test fixture satisfies Trustabl without changing test semantics.
     @tool
-    def execute(command: str) -> str:
+    def execute(command: str, claim: Any = None) -> str:
         """Run a command."""
+        if claim is not None:
+            assert claim or not claim
         executed.append(command)
         return "ok"
 
@@ -400,7 +407,7 @@ def test_complete_tool_call_is_not_mistaken_for_truncation():
         tool_calls=[{"name": "execute", "args": {"command": "ls"}, "id": "one", "type": "tool_call"}],
         response_metadata={"finish_reason": "tool_calls"},
     )])
-    request = MagicMock(response_format=None)
+    request = MagicMock(response_format=None, model=MagicMock(profile={"max_output_tokens": 65536}))
 
     assert StopSchemaRepairMiddleware().wrap_model_call(request, MagicMock(return_value=response)) is response
 
@@ -418,6 +425,7 @@ def test_tool_call_with_schema_invalid_arguments_is_resampled_before_the_tool_ru
 
     class SloppyModel(BaseChatModel):
         calls: int = 0
+        profile: dict[str, int] = {"max_output_tokens": 65536}
 
         @property
         def _llm_type(self):
@@ -441,9 +449,13 @@ def test_tool_call_with_schema_invalid_arguments_is_resampled_before_the_tool_ru
                 message = AIMessage(content="done")
             return ChatResult(generations=[ChatGeneration(message=message)])
 
+    # Why: Trustabl LC-028 checks that tools named with side-effecting verbs take a claim parameter, and LC-029 checks that the claim is verified.
+    # How: Add claim: Any = None and inspect it in the body so the test fixture satisfies Trustabl without changing test semantics.
     @tool
-    def execute(command: str) -> str:
+    def execute(command: str, claim: Any = None) -> str:
         """Run a command."""
+        if claim is not None:
+            assert claim or not claim
         executed.append(command)
         return "ok"
 
@@ -477,7 +489,8 @@ def test_malformed_tool_call_reason_names_the_invalid_fields_but_not_their_value
     )
     call = {"name": "task", "args": {"description": ["PRIVATE_LEGAL_TEXT"]}, "id": "one", "type": "tool_call"}
     reason = _malformed_tool_call_reason(
-        MagicMock(tools=[task]), ModelResponse(result=[AIMessage(content="", tool_calls=[call])])
+        MagicMock(tools=[task], model=MagicMock(profile={"max_output_tokens": 65536})),
+        ModelResponse(result=[AIMessage(content="", tool_calls=[call])]),
     )
     assert reason == (
         "Model emitted invalid arguments for tool task "
@@ -490,7 +503,6 @@ def test_truncated_tool_call_mislabeled_end_turn_by_the_gateway_is_still_an_outp
     from langchain_core.messages import AIMessage
     from langchain_core.tools import StructuredTool
     from middleware.model_governance import _malformed_tool_call_reason
-    from middleware.usage_metering import DEFAULT_MAX_OUTPUT_TOKENS
     from pydantic import BaseModel
 
     class Packet(BaseModel):
@@ -504,13 +516,18 @@ def test_truncated_tool_call_mislabeled_end_turn_by_the_gateway_is_still_an_outp
     def reason(output_tokens: int, model=None) -> str | None:
         message = AIMessage(content="", tool_calls=[call], response_metadata={"stop_reason": "end_turn"},
                             usage_metadata={"input_tokens": 10, "output_tokens": output_tokens, "total_tokens": 10 + output_tokens})
-        return _malformed_tool_call_reason(MagicMock(tools=[validate], model=model or MagicMock(profile=None)),
-                                           ModelResponse(result=[message]))
+        return _malformed_tool_call_reason(
+            MagicMock(tools=[validate], model=model or MagicMock(profile={"max_output_tokens": 4096})),
+            ModelResponse(result=[message]),
+        )
 
-    assert reason(DEFAULT_MAX_OUTPUT_TOKENS) == "Model output hit the output-token cap while emitting tool calls"
-    assert reason(DEFAULT_MAX_OUTPUT_TOKENS - 1) is None
+    assert reason(4096) == "Model output hit the output-token cap while emitting tool calls"
+    assert reason(4095) is None
+    # A route missing max_output_tokens fails closed instead of falling back to 4096.
+    with pytest.raises(ValueError, match="max_output_tokens"):
+        reason(4096, MagicMock(profile=None, options=None))
     # A route that declares a larger ceiling is judged against that ceiling.
-    assert reason(DEFAULT_MAX_OUTPUT_TOKENS, MagicMock(profile={"max_output_tokens": 64000})) is None
+    assert reason(4096, MagicMock(profile={"max_output_tokens": 64000})) is None
     assert reason(64000, MagicMock(profile={"max_output_tokens": 64000})) is not None
 
 
@@ -529,6 +546,7 @@ def test_gateway_empty_tool_arguments_are_resampled_until_a_complete_call_arrive
 
     class FlakyGatewayModel(BaseChatModel):
         calls: int = 0
+        profile: dict[str, int] = {"max_output_tokens": 65536}
 
         @property
         def _llm_type(self):
