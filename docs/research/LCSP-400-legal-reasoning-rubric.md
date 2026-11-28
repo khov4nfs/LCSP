@@ -60,15 +60,41 @@ uv run python -m evals.cli legal-score `
   --output "$runRoot/legal-reasoning.json"
 ```
 
-The current checked-in run is [`reports/r4/vn-ai-scripted-final/`](../../deepagents/evals/legal_reasoning/reports/r4/vn-ai-scripted-final/). Its P14 artifacts are genuine outputs from the SCRIPTED runner, not hand-authored traces. The legal report records 30 exact mapped cases, their executed trials, trace/output digests, `artifactValidationStatus: VALIDATED`, zero reviewed gold, and `scoringStatus: NOT_SCORED`. P14's generic SCRIPTED task score is not a legal quality metric. `actualExecutionStatus` describes SCRIPTED artifact execution; `actualExecutionBaseline` remains `NOT_RUN` because no authorized LIVE model execution is available.
+The current checked-in run is [`reports/r4/vn-ai-scripted-final/`](../../deepagents/evals/legal_reasoning/reports/r4/vn-ai-scripted-final/). It used run ID `lcsp400-r4-vn-ai-scripted-final`, source code commit `be290851ee8b20d2cabe1d0690688e54188ca0c0`, and P14 manifest SHA-256 `55ebae6585dd0d290b27bfdf60972b6f96a6f0d33128bd9cf368d77b59db91d1`. The legal report SHA-256 is `2c8c8c3adccc5cab06817ad669cec42bc7282db33d1ed0920c566ae80673b85e`; it pins candidate dataset `aa35124bb96c169ce237d9194c6a9f9bc8e22e86f9b3e303e214841ed2074a5d`, map `2f5af404d790d1ffc3709912595e4f10a533618166d3d18f36f0b1178ed09129`, source pins `ce0cd1380e5e4becf9e1e56919a2e7c9bf5abd486f39809a1b0bbbdfa8ff24e5`, cohort `8b8e1c53428ec282b8bb2275b4b22c86da9a8a65536662ce20ac6240aa5675a5`, and split `b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851`. The real P14 runner produced 30 mapped cases, 30 executed trials, and 30 digest-validated observed outputs; lifecycle labels were `INITIAL` (29) and `WAITING_FOR_HUMAN` (1), with no missing outputs. All observed HITL states in this cohort were `NONE`; the WAITING_FOR_HUMAN lifecycle label did not contain an open or resolved human request. The report has zero reviewed gold and `scoringStatus: NOT_SCORED`. P14's generic SCRIPTED task score is not a legal quality metric. `actualExecutionStatus` describes SCRIPTED artifact execution; `actualExecutionBaseline` remains `NOT_RUN` because no authorized LIVE model execution is available.
 
-The zero-mapping and partial-mapping negative controls remain in `tests/test_legal_reasoning_vietnam_p14_integration.py`. To verify them and all LCSP-400 review/integrity gates:
+The zero-mapping and partial-mapping negative controls remain in `tests/test_legal_reasoning_vietnam_p14_integration.py`. Run both with the nonempty SCRIPTED runner fixture:
 
 ```powershell
+uv run pytest tests/test_legal_reasoning_vietnam_p14_integration.py::test_nonempty_scripted_artifacts_integrate_and_empty_or_partial_mapping_stays_unscored -q
+```
+
+Run the standalone fabricated-provenance diagnostic and the full LCSP-400 focused regression with:
+
+```powershell
+uv run pytest tests/test_legal_reasoning_r2_hardening.py::test_standalone_scoring_cannot_promote_fabricated_p14_provenance_to_verified -q
 uv run pytest tests/test_legal_reasoning_rubric.py tests/test_legal_reasoning_r2_hardening.py tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_vietnam_p14_integration.py -q
 ```
 
-For future authorized live evaluation, first obtain genuine legal review for candidate labels, appropriate output review, and explicit authorization for a model route. Then run the same P14 command with `--mode LIVE`, an approved `--model-route`, and `--allow-live`; score that exact manifest and trials with `legal-score`. No authorization for LIVE was given in this round.
+For a future authorized live baseline, first obtain genuine legal-gold review, output review, and explicit approval for a model route. From `deepagents/`, execute a unique run ID and score its exact saved artifacts:
+
+```powershell
+$base = "evals/legal_reasoning"
+$runId = "lcsp400-authorized-live-<unique-id>"
+$runRoot = "$base/reports/authorized-live"
+$approvedModelRoute = "<approved-route>"
+$commit = git rev-parse HEAD
+uv run python -m evals.cli run `
+  --cases "$base/p14-cases.vn-ai.v1.json" --mode LIVE --split ALL --trials 1 --k 1 `
+  --model-route $approvedModelRoute --allow-live --run-id $runId `
+  --git-commit-sha $commit --output-dir $runRoot `
+  --evaluation-split-manifest "$base/evaluation-splits.vn-ai.v2.json"
+uv run python -m evals.cli legal-score `
+  --manifest "$runRoot/$runId/manifest.json" `
+  --trials "$runRoot/$runId/trials.jsonl" `
+  --output "$runRoot/$runId/legal-reasoning.json"
+```
+
+No authorization for LIVE was given in this round.
 
 ## PM review resolution record
 

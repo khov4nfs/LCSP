@@ -1,0 +1,219 @@
+{
+  "faultInjectionRecovery": {
+    "authorityViolations": 0,
+    "failedTrials": 0,
+    "failuresByCode": {},
+    "latency": {
+      "maxMs": null,
+      "meanMs": null,
+      "minMs": null,
+      "p50Ms": null,
+      "p95Ms": null
+    },
+    "passPowK": {
+      "pass^1": {
+        "eligibleUnits": 0,
+        "k": 1,
+        "score": null,
+        "totalUnits": 0
+      }
+    },
+    "passedTrials": 0,
+    "totalTrials": 0,
+    "usage": {
+      "cachedInputTokens": null,
+      "costCurrencies": [],
+      "failedAttempts": 0,
+      "inputTokens": null,
+      "logicalTrials": 0,
+      "outputTokens": null,
+      "physicalAttempts": 0,
+      "physicalAttemptsVerified": false,
+      "providerCost": null,
+      "scriptedInvocations": 0,
+      "simulatedProviderCalls": 0,
+      "unverifiedCallbackCalls": 0
+    }
+  },
+  "invariantCoverage": {
+    "completionGateOpenHitl": "NOT_TESTED",
+    "completionGateUndecidedRule": "NOT_TESTED",
+    "crossAssessmentIsolation": "NOT_TESTED",
+    "outOfScopeRuleRejection": "NOT_TESTED",
+    "unverifiedReferenceRejection": "NOT_TESTED"
+  },
+  "manifestSha256": "55ebae6585dd0d290b27bfdf60972b6f96a6f0d33128bd9cf368d77b59db91d1",
+  "manualSemanticReviewP15": {
+    "expertVerified": {
+      "authorityRespectedRate": null,
+      "evidenceAcceptableRate": null,
+      "overallSemanticPassRate": null,
+      "totalReviewed": 0,
+      "verdictAgreementRate": null
+    },
+    "seededUnverified": {
+      "authorityRespectedRate": null,
+      "evidenceAcceptableRate": null,
+      "overallSemanticPassRate": null,
+      "totalReviewed": 0,
+      "verdictAgreementRate": null
+    }
+  },
+  "mode": "SCRIPTED",
+  "runId": "lcsp400-r4-vn-ai-scripted-final",
+  "schemaVersion": "LCSP_BENCHMARK_REPORT_V1",
+  "semanticReliability": {
+    "dev": {
+      "authorityViolations": 0,
+      "failedTrials": 18,
+      "failuresByCode": {
+        "RUBRIC_MISMATCH": 18
+      },
+      "latency": {
+        "maxMs": 802.318,
+        "meanMs": 416.811,
+        "minMs": 327.499,
+        "p50Ms": 364.74,
+        "p95Ms": 696.717
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 22,
+          "k": 1,
+          "score": 0.181818,
+          "totalUnits": 22
+        }
+      },
+      "passedTrials": 4,
+      "totalTrials": 22,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 22,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 154,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    },
+    "holdout": {
+      "authorityViolations": 0,
+      "failedTrials": 6,
+      "failuresByCode": {
+        "RUBRIC_MISMATCH": 6
+      },
+      "latency": {
+        "maxMs": 763.109,
+        "meanMs": 406.727,
+        "minMs": 343.838,
+        "p50Ms": 359.367,
+        "p95Ms": 369.211
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 8,
+          "k": 1,
+          "score": 0.25,
+          "totalUnits": 8
+        }
+      },
+      "passedTrials": 2,
+      "totalTrials": 8,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 8,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 56,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    },
+    "negativeControls": {
+      "authorityViolations": 0,
+      "failedTrials": 17,
+      "failuresByCode": {
+        "RUBRIC_MISMATCH": 17
+      },
+      "latency": {
+        "maxMs": 739.568,
+        "meanMs": 402.992,
+        "minMs": 339.314,
+        "p50Ms": 360.028,
+        "p95Ms": 696.717
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 17,
+          "k": 1,
+          "score": 0.0,
+          "totalUnits": 17
+        }
+      },
+      "passedTrials": 0,
+      "totalTrials": 17,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 17,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 119,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    },
+    "overall": {
+      "authorityViolations": 0,
+      "failedTrials": 24,
+      "failuresByCode": {
+        "RUBRIC_MISMATCH": 24
+      },
+      "latency": {
+        "maxMs": 802.318,
+        "meanMs": 414.122,
+        "minMs": 327.499,
+        "p50Ms": 360.028,
+        "p95Ms": 739.568
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 30,
+          "k": 1,
+          "score": 0.2,
+          "totalUnits": 30
+        }
+      },
+      "passedTrials": 6,
+      "totalTrials": 30,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 30,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 210,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,350 @@
+{
+  "assessmentId": "a484767d-f78b-41e3-aa47-75bd190f40e3",
+  "authorityViolations": [],
+  "caseId": "lattice-VN-AI-RISK-VERSION",
+  "checkpointId": null,
+  "clientCalls": [
+    "claim",
+    "context",
+    "context",
+    "context",
+    "context",
+    "context",
+    "discovery_summary",
+    "context",
+    "context",
+    "context",
+    "context",
+    "rule_set",
+    "context",
+    "context",
+    "context",
+    "legal_text",
+    "context",
+    "context",
+    "context",
+    "evidence",
+    "context",
+    "context",
+    "context",
+    "decision",
+    "context",
+    "context",
+    "context",
+    "finalization",
+    "context",
+    "context",
+    "context",
+    "final_report",
+    "context",
+    "context",
+    "finish"
+  ],
+  "injectedFaultObserved": false,
+  "mode": "SCRIPTED",
+  "observedOutput": {
+    "actualAssessmentDecision": {
+      "decision": {
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "VN-AI-RISK-VERSION",
+        "assessmentRuleVersion": "v1",
+        "caseRevision": 0,
+        "compliance": "COMPLIANT",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "outcome": "MET",
+            "rationale": "Verified.",
+            "references": [
+              {
+                "evidenceId": "ev-lattice-vn-ai-risk-version-1",
+                "type": "ASSESSMENT_EVIDENCE"
+              }
+            ]
+          }
+        ],
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-VN-AI-RISK-VERSION"
+          }
+        ],
+        "rationale": "Verified in pinned repository source.",
+        "references": [
+          {
+            "evidenceId": "ev-lattice-vn-ai-risk-version-1",
+            "type": "ASSESSMENT_EVIDENCE"
+          }
+        ],
+        "repositoryCommit": "bd5b47d3675828169fe14d33f18875e4901a5a1c8736d8fe63745dd4dc3c712b",
+        "repositorySnapshotId": "snap-policy-lattice",
+        "ruleSetVersionId": "VN-AI-RISK-VERSION-v3",
+        "scopeId": "ASSESSMENT"
+      },
+      "expectedDecisionRevision": 0,
+      "idempotencyKey": "decision:6dfdcf22-0cfc-41d7-99aa-d172fb63a35e:73134a0ae6ffa69d12f75859"
+    },
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "assessmentDecisions": [
+      {
+        "decision": {
+          "applicability": "APPLICABLE",
+          "assessmentRuleId": "VN-AI-RISK-VERSION",
+          "assessmentRuleVersion": "v1",
+          "caseRevision": 0,
+          "compliance": "COMPLIANT",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "outcome": "MET",
+              "rationale": "Verified.",
+              "references": [
+                {
+                  "evidenceId": "ev-lattice-vn-ai-risk-version-1",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            }
+          ],
+          "legalContextRefs": [
+            {
+              "legalContextId": "LR-VN-AI-RISK-VERSION"
+            }
+          ],
+          "rationale": "Verified in pinned repository source.",
+          "references": [
+            {
+              "evidenceId": "ev-lattice-vn-ai-risk-version-1",
+              "type": "ASSESSMENT_EVIDENCE"
+            }
+          ],
+          "repositoryCommit": "bd5b47d3675828169fe14d33f18875e4901a5a1c8736d8fe63745dd4dc3c712b",
+          "repositorySnapshotId": "snap-policy-lattice",
+          "ruleSetVersionId": "VN-AI-RISK-VERSION-v3",
+          "scopeId": "ASSESSMENT"
+        },
+        "expectedDecisionRevision": 0,
+        "idempotencyKey": "decision:6dfdcf22-0cfc-41d7-99aa-d172fb63a35e:73134a0ae6ffa69d12f75859"
+      }
+    ],
+    "assessmentId": "a484767d-f78b-41e3-aa47-75bd190f40e3",
+    "authorityViolations": [],
+    "caseId": "lattice-VN-AI-RISK-VERSION",
+    "corpusPin": {
+      "corpus_id": "lcsp-402-vn-cong-bao-v1",
+      "digest_sha256": "cec5d841167332a08ab6a656d0e90f44f866e39cacb65ae1189df4bd66dfae4f",
+      "version": "LCSP-402 Công báo Việt Nam v1"
+    },
+    "evaluationStage": "ASSESSMENT_ROOT",
+    "evidenceRecords": {
+      "ev-lattice-vn-ai-risk-version-1": {
+        "commitSha": "bd5b47d3675828169fe14d33f18875e4901a5a1c8736d8fe63745dd4dc3c712b",
+        "contentSha256": "f7b933522a637fb398d22a8148090c44e4767be5c9028f815e3ce6549c3f2d15",
+        "end_line": 14,
+        "evidenceId": "ev-lattice-vn-ai-risk-version-1",
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "release-evidence.json",
+        "payload": {
+          "contentSha256": "f7b933522a637fb398d22a8148090c44e4767be5c9028f815e3ce6549c3f2d15",
+          "endLine": 14,
+          "path": "release-evidence.json",
+          "startLine": 1
+        },
+        "repositoryId": "policy-lattice",
+        "start_line": 1,
+        "state": "ACCEPTED",
+        "type": "REPOSITORY_SOURCE"
+      }
+    },
+    "evidenceReferences": [
+      "ev-lattice-vn-ai-risk-version-1"
+    ],
+    "facts": [],
+    "finalReport": {
+      "findings": [
+        {
+          "assessmentRuleId": "VN-AI-RISK-VERSION",
+          "recommendations": [],
+          "summary": "Compliant."
+        }
+      ],
+      "kind": "FINAL_REPORT",
+      "summary": "Compliant."
+    },
+    "hitl": {
+      "openRequestIds": [],
+      "requests": [],
+      "resolvedRequests": [],
+      "state": "NONE"
+    },
+    "legalProvisions": [
+      {
+        "content": "Điều 12. Hồ sơ phân loại rủi ro của hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp phải lập hồ sơ phân loại rủi ro đối với hệ thống trí tuệ nhân tạo\ncó rủi ro cao và hệ thống trí tuệ nhân tạo có rủi ro trung bình trước khi đưa hệ thống\nvào sử dụng theo quy định tại khoản 1 Điều 10 của Luật Trí tuệ nhân tạo.\n\n2. Đối với hệ thống trí tuệ nhân tạo có rủi ro cao và rủi ro trung bình, nhà cung\ncấp phải bảo đảm hồ sơ phân loại rủi ro bao gồm các tài liệu sau đây:\n\na) Thông tin nhận diện hệ thống, bao gồm: tên hệ thống; phiên bản; mã định\ndanh nội bộ hoặc mã định danh do cơ quan nhà nước có thẩm quyền cấp; tên, địa chỉ\nvà thông tin liên hệ của nhà cung cấp;\n\nb) Mô tả hệ thống và bối cảnh sử dụng: mục đích sử dụng; chức năng chính;\nkiến trúc hệ thống ở mức chức năng, nghiệp vụ; phạm vi triển khai; nhóm người sử\ndụng và người bị ảnh hưởng;\n\nc) Thông tin về dữ liệu: Mô tả khái quát loại dữ liệu đầu vào chủ yếu được sử\ndụng để vận hành hệ thống;\nCÔNG BÁO/Số 278/Ngày 18-05-2026 11\n\nd) Nội dung quản lý rủi ro: Tóm tắt các biện pháp quản lý rủi ro, bảo đảm an\ntoàn và tính minh bạch của hệ thống.\n\n3. Trường hợp nhà cung cấp phát triển hệ thống trí tuệ nhân tạo dựa trên nền\ntảng, mô hình hoặc dịch vụ trí tuệ nhân tạo của bên thứ ba, nhà cung cấp chỉ phải\ncung cấp thông tin kỹ thuật và thông tin về dữ liệu trong phạm vi quyền tiếp cận và\nkiểm soát hợp pháp của mình.\n\n4. Việc lập, cung cấp và quản lý hồ sơ phân loại rủi ro không bắt buộc nhà cung\ncấp phải tiết lộ mã nguồn, bộ tham số mô hình, thuật toán chi tiết, dữ liệu huấn luyện\nthô hoặc các thông tin thuộc danh mục bí mật nhà nước, bí mật kinh doanh, bí mật\ncông nghệ theo quy định tại điểm e khoản 1 Điều 14 của Luật Trí tuệ nhân tạo, trừ\ntrường hợp pháp luật có quy định khác.\n\n5. Nhà cung cấp có quyền sử dụng tài liệu mô tả kỹ thuật mô hình hoặc tài liệu\nkỹ thuật tương đương được lập theo tiêu chuẩn quốc tế để đáp ứng các thành phần hồ\nsơ quy định tại khoản 2 và khoản 3 Điều này, với điều kiện các tài liệu đó đáp ứng đầy\nđủ các nội dung thông tin theo yêu cầu của Nghị định này.\n\n6. Nhà cung cấp, bên triển khai có trách nhiệm lưu trữ hồ sơ phân loại trong\nsuốt thời gian hệ thống hoạt động.\n\n7. Trường hợp hệ thống trí tuệ nhân tạo có sử dụng dữ liệu cá nhân, nhà cung\ncấp được sử dụng Hồ sơ đánh giá tác động xử lý dữ liệu cá nhân theo quy định của\npháp luật về bảo vệ dữ liệu cá nhân để thay thế hoặc tích hợp làm thành phần của Hồ\nsơ phân loại rủi ro, nhằm giảm thiểu chi phí tuân thủ hành chính.",
+        "content_sha256": "8e9a9d22a2ebc704f13ffa633136d77488ea4d6f847c6b4298db938904a09108",
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 12",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "142-2026-ND-CP · Công báo PDF trang 9–10"
+      },
+      {
+        "content": "Điều 10. Phân loại và thông báo hệ thống trí tuệ nhân tạo\n\n1. Nhà cung cấp tự phân loại hệ thống trí tuệ nhân tạo trước khi đưa vào sử\ndụng. Hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao phải có hồ sơ\nphân loại kèm theo.\n\n2. Bên triển khai được kế thừa kết quả phân loại của nhà cung cấp và có trách\nnhiệm bảo đảm an toàn, nguyên vẹn của hệ thống trong quá trình sử dụng; trường\nhợp sửa đổi, tích hợp hoặc thay đổi chức năng làm phát sinh rủi ro mới hoặc rủi\nro cao hơn thì phối hợp nhà cung cấp thực hiện phân loại lại.\n\n3. Đối với hệ thống được phân loại là rủi ro trung bình hoặc rủi ro cao, nhà\ncung cấp phải thông báo kết quả phân loại cho Bộ Khoa học và Công nghệ thông\nqua Cổng thông tin điện tử một cửa về trí tuệ nhân tạo trước khi đưa vào sử dụng.\nKhuyến khích tổ chức, cá nhân phát triển hệ thống trí tuệ nhân tạo có rủi ro thấp\ncông khai thông tin cơ bản của hệ thống nhằm tăng tính minh bạch.\n\n4. Trường hợp chưa xác định được mức độ rủi ro, nhà cung cấp được đề nghị\nBộ Khoa học và Công nghệ hướng dẫn về phân loại trên cơ sở hồ sơ kỹ thuật.\n\n5. Việc kiểm tra, giám sát được thực hiện theo mức độ rủi ro của hệ thống:\n\na) Hệ thống trí tuệ nhân tạo có rủi ro cao được kiểm tra định kỳ hoặc khi có\ndấu hiệu vi phạm;\n\nb) Hệ thống trí tuệ nhân tạo có rủi ro trung bình được giám sát thông qua báo\ncáo, kiểm tra chọn mẫu hoặc đánh giá của tổ chức độc lập;\nCÔNG BÁO/Số 40/Ngày 22-01-2026 10\n\nc) Hệ thống trí tuệ nhân tạo có rủi ro thấp được theo dõi, kiểm tra khi có sự\ncố, phản ánh hoặc khi cần bảo đảm an toàn, không làm phát sinh nghĩa vụ không\ncần thiết cho tổ chức, cá nhân.\n\n6. Trên cơ sở kết quả kiểm tra, giám sát quy đ ịnh tại khoản 5 Điều này, khi\nphát hiện sai lệch hoặc khai báo không trung thự c, cơ quan có th ẩm quyền yêu\ncầu tái phân loại, bổ sung hồ sơ hoặc tạm dừng việc sử dụng, đồng thời xử lý theo\nquy định của pháp luật.\n\n7. Chính phủ quy định chi tiết về nội dung cần thông báo, trình tự , thủ tục\nthông báo và hướng dẫn kỹ thuật về phân loại rủi ro.",
+        "content_sha256": "61fd7a1d5a075efa22b7827aea4fb9726aa3bae28601c877e3daecf0142f47dc",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 10",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 5–6"
+      },
+      {
+        "content": "Điều 1. Phạm vi điều chỉnh\n\n1. Luật này quy đ ịnh về nghiên cứu, phát tri ển, cung c ấp, triển khai và s ử\ndụng hệ thống trí tuệ nhân tạo (sau đây gọi là hoạt động trí tuệ nhân tạo); quyền,\nnghĩa vụ của tổ chức, cá nhân có liên quan và quản lý nhà nước đối với hoạt động\ntrí tuệ nhân tạo tại Việt Nam.\n\n2. Hoạt động trí tuệ nhân tạo chỉ phục vụ cho mục đích quốc phòng, an ninh,\ncơ yếu không thuộc phạm vi điều chỉnh của Luật này.",
+        "content_sha256": "8585aa8330e7ede21c22707ea297bd82653b944b8aa66a3af77b54428d1f5c71",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 1",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 1–1"
+      },
+      {
+        "content": "Điều 2. Đối tượng áp dụng\nLuật này áp dụng đối với cơ quan, tổ chức, cá nhân Việt Nam và tổ chức, cá\nnhân nước ngoài tham gia vào hoạt động trí tuệ nhân tạo tại Việt Nam.",
+        "content_sha256": "6f84549c207fba872d3fb62cd5042aa2070b589ad8486e5318e522296ad28261",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 2",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 1–1"
+      },
+      {
+        "content": "Điều 3. Giải thích từ ngữ\n\nTrong Luật này, các từ ngữ dưới đây được hiểu như sau:\n\n1. Trí tuệ nhân tạo là việc thực hiện bằng điện tử các năng lực trí tuệ của con\nngười, bao gồm học tập, suy luận, nhận thức, phán đoán và hiểu ngôn ngữ tự nhiên.\n\n2. Hệ thống trí tuệ nhân tạo là hệ thống dựa trên máy, được thiết kế để thực\nhiện các năng lực trí tuệ nhân tạo với các mức độ tự chủ khác nhau, có khả năng\ntự thích nghi sau khi được triển khai; căn cứ vào các mục tiêu được xác định rõ\nràng hoặc được hình thành một cách ngầm định, hệ thống suy luận từ dữ liệu đầu\nvào để tạo ra các đầu ra như dự đoán, nội dung, khuyến nghị hoặc quyết định có\nthể gây ảnh hưởng tới môi trường vật lý hoặc môi trường số.\n\n3. Nhà phát triển là tổ chức, cá nhân thực hiện việc thiết kế, xây dựng, huấn\nluyện, kiểm thử hoặc tinh chỉnh toàn bộ hoặc một phần mô hình, thuật toán hoặc\nhệ thống trí tuệ nhân tạo và có quyền kiểm soát trực tiếp đối với phương pháp kỹ\nthuật, dữ liệu huấn luyện hoặc tham số mô hình.\n\n4. Nhà cung cấp là tổ chức, cá nhân đưa hệ thống trí tuệ nhân tạo ra thị trường\nhoặc đưa vào sử dụng dưới tên, thương hiệu hoặc nhãn hiệu của mình, không phụ\nCÔNG BÁO/Số 40/Ngày 22-01-2026 6\nthuộc hệ thống đó do họ tự phát triển hay được phát triển bởi bên thứ ba.\n\n5. Bên triển khai là tổ chức, cá nhân sử dụng hệ thống trí tuệ nhân tạo thuộc\nphạm vi kiểm soát của mình trong hoạt động nghề nghiệp, thương mại hoặc cung\ncấp dị ch v ụ; không bao gồ m trư ờng h ợp s ử dụng cho m ục đích cá nhân, phi\nthương mại.\n\n6. Người sử dụng là tổ chức, cá nhân trực tiếp tương tác với hệ thống trí tuệ\nnhân tạo hoặc sử dụng kết quả đầu ra của hệ thống đó.\n\n7. Người bị ảnh hưởng là tổ chức, cá nhân bị tác động trực tiếp hoặc gián tiếp\nđến quyền, lợi ích hợp pháp, tính mạng, sức khỏe, tài sản, uy tín hoặc cơ hội tiếp\ncận dịch vụ do việc triển khai hoặc do kết quả đầu ra của hệ thống trí tuệ nhân tạo.\n\n8. Sự cố nghiêm trọng là sự kiện xảy ra trong hoạt động của hệ thống trí tuệ\nnhân tạo, gây ra hoặc có nguy cơ gây ra thiệt hại đáng kể đến tính mạng, sức khỏe,\nquyền con người, tài sản, an ninh mạng, trật tự công cộng, môi trường hoặc làm\ngián đoạn hoạt động của hệ thống thông tin quan trọng về an ninh quốc gia.",
+        "content_sha256": "c513e53befd4dce36f65e9cc35b06fc7d54afdf86e410210c8ce24e936bfb984",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 3",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 1–2"
+      },
+      {
+        "content": "Điều 34. Hiệu lực thi hành\nLuật này có hiệu lực thi hành từ ngày 01 tháng 3 năm 2026, trừ các nội dung\nliên quan quy định tại Điều 35 của Luật này.",
+        "content_sha256": "82c2c09c439ef4f98a599d9f966036f6a250561bf7224277160f7604d0608c8c",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 34",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 19–19"
+      },
+      {
+        "content": "Điều 35. Điều khoản chuyển tiếp\n\n1. Đối với các h ệ thống trí tu ệ nhân tạo đã đư ợc đưa vào ho ạt động trước\nngày Lu ật này có hi ệu lự c thi hành, nhà cung c ấp và bên tri ển khai có trách\nnhiệm thực hiện các nghĩa vụ tuân thủ theo quy định của Luật này trong thời hạn\nsau đây:\n\na) 18 tháng kể từ ngày Luật này có hiệu lực thi hành đối với hệ thống trí tuệ\nnhân tạo trong lĩnh vực y tế, giáo dục và tài chính;\n\nb) 12 tháng kể từ ngày Luật này có hi ệu lực thi hành đ ối với các hệ thống\nCÔNG BÁO/Số 40/Ngày 22-01-2026 24\ntrí tuệ nhân tạo không thuộc trường hợp quy định tại điểm a khoản này.\n\n2. Trong thời hạn quy đị nh tại khoản 1 Điều này, hệ thống trí tuệ nhân tạo\nđược tiếp tục hoạt động, trừ trường hợp cơ quan quản lý nhà nước về trí tuệ nhân\ntạo xác định hệ thống có nguy cơ gây thiệt hại nghiêm trọng thì có quyền yêu cầu\ntạm dừng hoặc chấm dứt hoạt động.\nLuật này được Quốc hội nước Cộng hòa xã hội chủ nghĩa Việt Nam khóa XV,\nKỳ họp thứ 10 thông qua ngày 10 tháng 12 năm 2025.\nCHỦ TỊCH QUỐC HỘI\nTrần Thanh Mẫn",
+        "content_sha256": "604afc6dd8bc9bbce8ca946f87c3b6e56e544322ffe1681ea18deff106da92b7",
+        "document_id": "134-2025-QH15",
+        "locator": "Điều 35",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "134-2025-QH15 · Công báo PDF trang 19–20"
+      },
+      {
+        "content": "Điều 45. Hiệu lực thi hành\nNghị định này có hiệu lực thi hành từ ngày 01 tháng 5 năm 2026.",
+        "content_sha256": "e8a869627301db5b598c48d581386a87a36f2cfd6413066b425734b91c8c0656",
+        "document_id": "142-2026-ND-CP",
+        "locator": "Điều 45",
+        "source_kind": "OFFICIAL_PINNED_LAW",
+        "title": "142-2026-ND-CP · Công báo PDF trang 44–44"
+      }
+    ],
+    "lifecycleHistory": [],
+    "lifecycleStage": "INITIAL",
+    "lifecycleState": "COMPLETE",
+    "outcomeBinding": {
+      "actualVerdict": "APPLICABLE_COMPLIANT",
+      "caseId": "lattice-VN-AI-RISK-VERSION",
+      "lifecycleState": "COMPLETE",
+      "passed": false,
+      "runId": "lcsp400-r4-vn-ai-scripted-final",
+      "stage": "INITIAL",
+      "threadId": "6dfdcf22-0cfc-41d7-99aa-d172fb63a35e",
+      "trialIndex": 0
+    },
+    "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
+    "repositorySnapshot": {
+      "commit_sha": "bd5b47d3675828169fe14d33f18875e4901a5a1c8736d8fe63745dd4dc3c712b",
+      "fixture_dir": "evals\\fixtures\\policy-baseline\\lattice",
+      "repo_id": "policy-lattice",
+      "snapshot_kind": "SYNTHETIC_FIXTURE",
+      "untrusted_code_execution_allowed": false
+    },
+    "ruleDefinitions": [
+      {
+        "applicability_conditions": [
+          "Development Activity Scope theo LCSP-424. Kiểm tra chủ thể và điều kiện riêng của mỗi nghĩa vụ. Đối chiếu assessedOn và firstOperatedOn với Điều 34–35 Luật 134 và Điều 45 Nghị định 142. Đối với hệ thống hoạt động trước ngày 01/03/2026, dùng sector để xác định mốc chuyển tiếp 12 hoặc 18 tháng. Khi thời hạn chưa đến, chỉ ghi nhận không áp dụng tại ngày đánh giá."
+        ],
+        "concept": "RISK_DOSSIER",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Đối với hệ thống rủi ro trung bình hoặc cao, hồ sơ phân loại trước khi đưa vào sử dụng phải nêu phiên bản hệ thống. Chỉ kiểm tra trường phiên bản đã đối chiếu trong hồ sơ tương ứng hoặc tài liệu tương đương được phép. Không kết luận về thành phần hồ sơ khác."
+          }
+        ],
+        "exceptions": [],
+        "legal_requirement_id": "LR-VN-AI-RISK-VERSION",
+        "requirement_proposition": "Đối với hệ thống rủi ro trung bình hoặc cao, hồ sơ phân loại trước khi đưa vào sử dụng phải nêu phiên bản hệ thống.",
+        "requirement_title": "VN-AI-RISK-VERSION",
+        "rule_id": "VN-AI-RISK-VERSION"
+      }
+    ],
+    "ruleSetVersionId": "VN-AI-RISK-VERSION-v3",
+    "runId": "lcsp400-r4-vn-ai-scripted-final",
+    "runResult": {
+      "checkpointId": null,
+      "errorType": null,
+      "executionId": "8dac4d47-7162-421b-8b6f-93bc036bade7",
+      "promptManifestSha256": "99324baf8f141e1e7a598220608e62a02122d63191620b5809d7280946194bf3",
+      "state": "SUCCEEDED",
+      "threadId": "6dfdcf22-0cfc-41d7-99aa-d172fb63a35e"
+    },
+    "targetRuleIds": [
+      "VN-AI-RISK-VERSION"
+    ],
+    "threadId": "6dfdcf22-0cfc-41d7-99aa-d172fb63a35e",
+    "trialIndex": 0
+  },
+  "observedOutputSha256": "5760a19812d502161a572ff7b8eef4d2ee2711ebc49d5cd659c2a8e5d08471df",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": false
+  },
+  "recoveryObserved": false,
+  "runId": "lcsp400-r4-vn-ai-scripted-final",
+  "runResult": {
+    "checkpointId": null,
+    "errorType": null,
+    "executionId": "8dac4d47-7162-421b-8b6f-93bc036bade7",
+    "promptManifestSha256": "99324baf8f141e1e7a598220608e62a02122d63191620b5809d7280946194bf3",
+    "state": "SUCCEEDED",
+    "threadId": "6dfdcf22-0cfc-41d7-99aa-d172fb63a35e"
+  },
+  "stage": "INITIAL",
+  "threadId": "6dfdcf22-0cfc-41d7-99aa-d172fb63a35e",
+  "toolCalls": [
+    {
+      "input": "{}",
+      "tool": "get_assessment_context"
+    },
+    {
+      "input": "{}",
+      "tool": "get_pinned_rule_set"
+    },
+    {
+      "input": "{'document_id': '142-2026-ND-CP', 'locator': 'Điều 12'}",
+      "tool": "read_legal_source"
+    },
+    {
+      "input": "{'path': 'release-evidence.json', 'start_line': 1, 'end_line': 14}",
+      "tool": "cite_repository_source"
+    },
+    {
+      "input": "{'assessment_rule_id': 'VN-AI-RISK-VERSION', 'applicability': 'APPLICABLE', 'rationale': 'Verified in pinned repository source.', 'legal_context_ids': ['LR-VN-AI-RISK-VERSION'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-lattice-vn-ai-risk-version-1'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'MET', 'rationale': 'Verified.', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'ev-lattice-vn-ai-risk-version-1'}]}], 'compliance': 'COMPLIANT'}",
+      "tool": "submit_rule_decision"
+    },
+    {
+      "input": "{}",
+      "tool": "request_finalization"
+    },
+    {
+      "input": "{'summary': 'Compliant.', 'findings': [{'assessment_rule_id': 'VN-AI-RISK-VERSION', 'summary': 'Compliant.'}]}",
+      "tool": "submit_final_report"
+    }
+  ],
+  "trialIndex": 0
+}
