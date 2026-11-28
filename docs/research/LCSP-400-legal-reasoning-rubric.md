@@ -75,6 +75,8 @@ uv run pytest tests/test_legal_reasoning_r2_hardening.py::test_standalone_scorin
 uv run pytest tests/test_legal_reasoning_rubric.py tests/test_legal_reasoning_r2_hardening.py tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_vietnam_p14_integration.py -q
 ```
 
+That integration suite also exercises the positive `score_dataset()` route using temporary, simulated review metadata bound to a saved SCRIPTED output. The test asserts `P14_VERIFIED_SCRIPTED_DIAGNOSTIC` and `NOT_AUTHENTICATED_BY_TOOL`; its temporary records are not committed, are not genuine review, and do not affect the canonical candidate or review-overlay datasets.
+
 For a future authorized live baseline, first obtain genuine legal-gold review, output review, and explicit approval for a model route. From `deepagents/`, execute a unique run ID and score its exact saved artifacts:
 
 ```powershell

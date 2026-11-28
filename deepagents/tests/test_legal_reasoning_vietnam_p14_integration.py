@@ -239,3 +239,129 @@ def test_nonempty_scripted_artifacts_integrate_and_empty_or_partial_mapping_stay
     assert partial_report["executionCohort"]["executedCaseCount"] == 1
     assert partial_report["executionCohort"]["executedTrialCount"] == 1
     assert partial_report["scoringStatus"] == "NOT_SCORED"
+
+
+def test_bound_review_fixture_reaches_score_dataset_without_claiming_human_quality(
+    scripted_vn_run, tmp_path
+):
+    """Exercise score routing with temporary simulated reviews, never as human evidence."""
+    baseline = integrate_p14_artifacts(**_run_args(scripted_vn_run))
+    candidates = load_dataset(CANDIDATES)
+    candidate = candidates[0]
+    dimensions = {
+        "applicability": "APPLICABILITY",
+        "compliance": "COMPLIANCE",
+        "actor": "ACTOR",
+        "conditions": "CONDITIONS",
+        "exceptions": "EXCEPTIONS",
+        "evidenceSufficiency": "EVIDENCE_SUFFICIENCY",
+        "unsupportedConclusion": "UNSUPPORTED_CONCLUSION",
+    }
+    gold_judgments = [
+        {
+            "dimension": dimensions[field],
+            "label": value["label"],
+            "rationale": "Temporary test fixture.",
+        }
+        for field, value in candidate["expected"].items()
+        if value is not None
+    ]
+    gold_reviewer = {
+        "reviewerType": "HUMAN",
+        "reviewerId": "test-reviewer-gold-1",
+        "identityVerificationRef": "https://reviews.acme.com/records/lcsp400-test-gold",
+        "reviewedAt": "2026-11-28T10:00:00Z",
+        "decision": "CONFIRM",
+        "dimensionsReviewed": [row["dimension"] for row in gold_judgments],
+        "dimensionJudgments": gold_judgments,
+    }
+    candidate_overlay = {
+        "overlayVersion": "LCSP-400-REVIEW-OVERLAY-V1",
+        "candidateDatasetSha256": canonical_digest(candidates),
+        "caseReviews": [
+            {
+                "caseId": candidate["caseId"],
+                "candidateRecordSha256": canonical_digest(candidate),
+                "reviewStatus": "REVIEWED",
+                "reviewers": [gold_reviewer],
+                "reviewerDisagreements": [],
+                "adjudication": None,
+                "uncertaintyReason": None,
+                "exclusionReason": None,
+                "expectedOverrides": {},
+            }
+        ],
+    }
+    candidate_overlay_path = tmp_path / "test-only-review-overlay.json"
+    candidate_overlay_path.write_text(json.dumps(candidate_overlay), encoding="utf-8")
+
+    observed = next(
+        row
+        for row in baseline["normalizedObservedOutputs"]
+        if row["caseId"] == candidate["caseId"]
+    )
+    binding = observed["p14Binding"]
+    conditions_label = candidate["expected"]["conditions"]["label"]
+    output_reviewer = {
+        "reviewerType": "HUMAN",
+        "reviewerId": "test-reviewer-output-1",
+        "identityVerificationRef": "https://reviews.acme.com/records/lcsp400-test-output",
+        "reviewedAt": "2026-11-28T10:01:00Z",
+        "decision": "CONFIRM",
+        "dimensionsReviewed": ["CONDITIONS"],
+        "dimensionJudgments": [
+            {
+                "dimension": "CONDITIONS",
+                "label": conditions_label,
+                "rationale": "Temporary output-binding test fixture.",
+            }
+        ],
+    }
+    output_review = {
+        "reviewSetVersion": "LCSP-400-OBSERVED-OUTPUT-REVIEWS-V1",
+        "reviewSetKind": "HUMAN_REVIEW",
+        "reviews": [
+            {
+                "candidateCaseId": candidate["caseId"],
+                "p14CaseId": observed["p14CaseId"],
+                "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+                "evaluationStage": binding["evaluationStage"],
+                "lifecycleStage": binding["lifecycleStage"],
+                "trialIndex": binding["trialIndex"],
+                "p14Binding": binding,
+                "humanJudgments": {
+                    "conditions": {
+                        "label": conditions_label,
+                        "reviewStatus": "REVIEWED",
+                        "reviewers": [output_reviewer],
+                        "reviewerDisagreements": [],
+                        "adjudication": None,
+                        "targetBinding": binding,
+                    }
+                },
+            }
+        ],
+    }
+    output_review_path = tmp_path / "test-only-output-review.json"
+    output_review_path.write_text(json.dumps(output_review), encoding="utf-8")
+
+    report = integrate_p14_artifacts(
+        **_run_args(
+            scripted_vn_run,
+            review_overlay_path=candidate_overlay_path,
+            dimension_reviews_path=output_review_path,
+        )
+    )
+
+    assert report["scoringStatus"] == "SCORED"
+    assert report["reviewedGoldDenominator"] > 0
+    assert report["reviewAuthenticityStatus"] == "NOT_AUTHENTICATED_BY_TOOL"
+    assert report["actualExecutionStatus"] == "SCRIPTED_EXECUTED"
+    assert report["actualExecutionBaseline"] == "NOT_RUN"
+    scored = next(
+        row
+        for row in report["rubricReportsByTargetAndTrial"]
+        if row["scoringStatus"] == "SCORED"
+    )
+    assert scored["reportClassification"] == "P14_VERIFIED_SCRIPTED_DIAGNOSTIC"
+    assert scored["qualityClaimStatus"] == "SCRIPTED_DIAGNOSTIC_ONLY"
