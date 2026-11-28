@@ -1,5 +1,6 @@
 import type { LegalSourceDeletionImpactProps } from "../../types/legal-source-lifecycle.types";
 import { resolveAppMessage as t } from "@/lib/i18n";
+import { formatLocaleDateTimeWithYear } from "@/lib/date-format";
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 
 /**
@@ -51,7 +52,8 @@ export function LegalSourceDeletionImpactPanel({
         ))}
       </dl>
       <p className="break-all text-xs text-muted-foreground">
-        {t("pages.legalLifecycle.snapshot")}: {impact.snapshot.generatedAt}
+        {t("pages.legalLifecycle.snapshot")}:{" "}
+        {formatLocaleDateTimeWithYear(impact.snapshot.generatedAt)}
       </p>
       <p className="text-xs">{t("pages.legalLifecycle.auditPreserved")}</p>
       {impact.eligibility.blockers.length ? (

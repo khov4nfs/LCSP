@@ -151,7 +151,6 @@ test("deletion blocks protected references and shows a validated receipt only af
   page,
   context,
 }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await context.addCookies([
     {
       name: "lcsp_session",
@@ -213,29 +212,24 @@ test("deletion blocks protected references and shows a validated receipt only af
     { exact: true },
   );
   await expect(slugInput).toHaveValue("");
-  await dialog.getByRole("button", { name: "Copy slug", exact: true }).click();
-  await expect(dialog.getByText("Slug copied", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    fixture.source.slug,
-  );
-  await expect(slugInput).toHaveValue("");
-  await slugInput.scrollIntoViewIfNeeded();
-  await page.screenshot({
-    path: `${evidence}/deletion-slug-copy.png`,
-    fullPage: true,
-    animations: "disabled",
-  });
-  await page.evaluate(() => {
-    navigator.clipboard.writeText = async () => {
-      throw new Error("Clipboard denied for test");
-    };
-  });
-  await dialog.getByRole("button", { name: "Copy slug", exact: true }).click();
   await expect(
-    dialog.getByText("Could not copy. Select and copy the slug manually.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+    dialog.getByRole("button", { name: "Copy slug", exact: true }),
+  ).toHaveCount(0);
+  await expect(dialog.locator("code")).toHaveCount(0);
+  await expect(dialog.locator("#legal-source-delete-confirm-help")).toHaveCount(
+    0,
+  );
+  const snapshot = dialog.getByText(/^Snapshot generated at:/);
+  const expectedTimestamp = await page.evaluate(
+    (iso) =>
+      new Intl.DateTimeFormat("en", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(iso)),
+    fixture.impact.snapshot.generatedAt,
+  );
+  await expect(snapshot).toContainText(expectedTimestamp);
+  await expect(snapshot).not.toContainText(fixture.impact.snapshot.generatedAt);
   await slugInput.fill(`"${fixture.source.slug}"`);
   await expect(confirm).toBeDisabled();
   await dialog
