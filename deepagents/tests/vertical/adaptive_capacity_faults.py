@@ -35,6 +35,7 @@ data = json.loads(input_file.read_text())
 assert directory == Path(data["dir"]), "Fixture directory mismatch"
 root = Path(__file__).resolve().parents[3]
 fixture_prefix = "lcsp364.active-faults." + directory.name.rsplit("-", 1)[-1]
+key = os.environ["WORKER_API_KEY"]
 # Why: Worker startup capability recovery sweeps the local recovery store and decrypts in-flight envelopes.
 # How: Supply WORKER_ENVELOPE_ENCRYPTION_KEY, WORKER_RECOVERY_DB_PATH, WORKER_API_KEY, and base URL
 # so child worker bridges (bridge-a, bridge-b) complete startup recovery without failing closed.
@@ -63,7 +64,6 @@ import httpx
 import pika
 import psycopg
 
-key = os.environ["WORKER_API_KEY"]
 jobs = {j["label"]: j for j in data["jobs"]}
 held = {jobs[label]["assessmentId"] for label in ["active", "short", "crash"]}
 
