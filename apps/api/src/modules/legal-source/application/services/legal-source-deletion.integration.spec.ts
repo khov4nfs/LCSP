@@ -17,6 +17,7 @@ import {
 } from "@prisma/client";
 import { describe, expect, it, beforeAll, afterAll } from "@jest/globals";
 import {
+  LEGAL_SOURCE_DELETION_BLOCKERS,
   LEGAL_SOURCE_DELETION_ERROR_CODES,
   LEGAL_SOURCE_DELETION_REASON_CODES,
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
@@ -58,6 +59,39 @@ database("Legal Source permanent deletion PostgreSQL integration", () => {
 
   afterAll(async () => {
     await prisma?.$disconnect();
+  });
+
+  it("keeps a source ineligible while native preparation cancellation is pending", async () => {
+    // Why: CANCEL_REQUESTED does not prove the worker has stopped using source-owned data.
+    // How: Persist a run in that state and ask the real deletion impact query for its blockers.
+    // Invariant: Source deletion remains fenced until a terminal native outcome is durable.
+    const source = await prisma.legalSource.create({
+      data: {
+        slug: `cancel-pending-${randomUUID()}`,
+        name: "Pending cancellation source",
+      },
+    });
+    const version = await prisma.legalSourceVersion.create({
+      data: {
+        legalSourceId: source.id,
+        version: `cancel-pending-version-${randomUUID()}`,
+        sourceManifest: {},
+      },
+    });
+    await prisma.ruleSetPreparationRun.create({
+      data: {
+        idempotencyKey: randomUUID(),
+        legalSourceVersionId: version.id,
+        requestedBy: actorId,
+        correlationId: randomUUID(),
+        executionState: AgentExecutionState.CANCEL_REQUESTED,
+      },
+    });
+    const impact = await service.getImpact(source.id, randomUUID());
+    expect(impact.eligibility.eligibleAtSnapshot).toBe(false);
+    expect(impact.eligibility.blockers).toContain(
+      LEGAL_SOURCE_DELETION_BLOCKERS.nonterminalWorkExists,
+    );
   });
 
   it("deletes an active source, generated preparation tree, immutable inventory, and preserves audit/outbox receipt", async () => {
