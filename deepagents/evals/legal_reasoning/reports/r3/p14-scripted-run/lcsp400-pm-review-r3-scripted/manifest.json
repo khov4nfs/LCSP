@@ -57,7 +57,7 @@
       "trialIndex": 1
     }
   ],
-  "gitCommitSha": "987dfd99161b9e64041c158a85943ce024193e6a",
+  "gitCommitSha": "0b6f2637e9f00baf5964a96257a800d8fc777eb6",
   "goldReviewerRevision": "gold-pilot-r1",
   "instructionBundle": {
     "approvalIdentity": "NOT_REQUIRED",
@@ -131,7 +131,7 @@
       "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
     }
   },
-  "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+  "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
   "model": {
     "adapterClass": "SimpleNamespace",
     "configuredModelId": "offline-scripted"
@@ -155,7 +155,7 @@
     "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "repoPinsSha256": "bf101e1ce7d3af96952bec9d6a705cd6ed1fd18d6b82966ff68d2589c68afa39",
     "ruleSetPinsSha256": "d03e87ac2df4348042327d3835d17c8bc9f0ce9fc0facd854c1bda45119264b0",
-    "runConfigSha256": "5b4888ac9381c4232e0f8c7bb83a92f262806d301c62488cf86bf2def12fc989"
+    "runConfigSha256": "46e9373ba0e57a54d61136d8a490bf0eeafe25a5b5a3a5a3b25b26eef6a67340"
   },
   "toolDescriptionsSha256": {
     "accept_case_fact": "f9eb98f924ea644f4161c53e0484863442a2e0d2fd01c854823d3d6c9329c50f",

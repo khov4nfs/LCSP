@@ -1,5 +1,5 @@
 {
-  "assessmentId": "ec058467-d270-4fdf-88f1-5e9d6d918d65",
+  "assessmentId": "a06d393f-cc9f-4ea3-95c2-6a9938c524bd",
   "authorityViolations": [],
   "caseId": "CASE-02",
   "checkpointId": null,
@@ -111,7 +111,7 @@
         "scopeId": "ASSESSMENT"
       },
       "expectedDecisionRevision": 0,
-      "idempotencyKey": "decision:87a3b4d8-439a-4687-a1fe-fcc1c1d6e250:0c2c30f6c71bda05dffe27ef"
+      "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
     },
     "actualVerdict": "APPLICABLE_COMPLIANT",
     "assessmentDecisions": [
@@ -163,10 +163,10 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:87a3b4d8-439a-4687-a1fe-fcc1c1d6e250:0c2c30f6c71bda05dffe27ef"
+        "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
       }
     ],
-    "assessmentId": "ec058467-d270-4fdf-88f1-5e9d6d918d65",
+    "assessmentId": "a06d393f-cc9f-4ea3-95c2-6a9938c524bd",
     "authorityViolations": [],
     "caseId": "CASE-02",
     "corpusPin": {
@@ -295,7 +295,7 @@
         "actualVerdict": "WAITING_FOR_HUMAN",
         "lifecycleState": "WAITING_FOR_HUMAN",
         "stage": "WAITING_FOR_HUMAN",
-        "traceSha256": "78d2921400d79af0a0d8cdd0ef3cc58942f5fd24af9a10cb66364f4a0ba0938f"
+        "traceSha256": "1cd2b333ab0333ca230cf9376b7127b56942f5a45fb7e2cfe79cb8a7fc10f1e9"
       }
     ],
     "lifecycleStage": "RESUME_FINAL",
@@ -307,7 +307,7 @@
       "passed": true,
       "runId": "lcsp400-pm-review-r3-scripted",
       "stage": "RESUME_FINAL",
-      "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+      "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
       "trialIndex": 0
     },
     "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -344,18 +344,18 @@
     "runResult": {
       "checkpointId": null,
       "errorType": null,
-      "executionId": "e2ea7476-9ceb-4694-b167-ca5414f32877",
-      "promptManifestSha256": "953509d921abb66cbd69f4843de6dea798fa6dd4ca8e8370a9c097c36262c4b5",
+      "executionId": "09c46dad-1b16-4ae5-9b9b-cfca8760ee7d",
+      "promptManifestSha256": "18c0efaa418b38256cbf267ea6af7c00a935293eb9ea37a27b09dac493475591",
       "state": "SUCCEEDED",
-      "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250"
+      "threadId": "b59aa426-454e-4395-bf75-14af102ea27f"
     },
     "targetRuleIds": [
       "ER-DEMO-02"
     ],
-    "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+    "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
     "trialIndex": 0
   },
-  "observedOutputSha256": "68467b8fb9fd1cb4b55a9cecc0c8361059160101053cf0cb53d7ba4548173189",
+  "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
   "outcomeBinding": {
     "actualVerdict": "APPLICABLE_COMPLIANT",
     "lifecycleState": "COMPLETE",
@@ -366,13 +366,13 @@
   "runResult": {
     "checkpointId": null,
     "errorType": null,
-    "executionId": "e2ea7476-9ceb-4694-b167-ca5414f32877",
-    "promptManifestSha256": "953509d921abb66cbd69f4843de6dea798fa6dd4ca8e8370a9c097c36262c4b5",
+    "executionId": "09c46dad-1b16-4ae5-9b9b-cfca8760ee7d",
+    "promptManifestSha256": "18c0efaa418b38256cbf267ea6af7c00a935293eb9ea37a27b09dac493475591",
     "state": "SUCCEEDED",
-    "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250"
+    "threadId": "b59aa426-454e-4395-bf75-14af102ea27f"
   },
   "stage": "RESUME_FINAL",
-  "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+  "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
   "toolCalls": [
     {
       "input": "{'assessment_rule_id': 'ER-DEMO-02', 'criterion_ids': ['C-1'], 'question': 'Who owns the notification_owner duty for context_wizard_needs_input?', 'unresolved_fact': 'notification_owner', 'decision_impact': ['Determines operational duty.'], 'resolution_attempts': ['Checked pinned repository source.'], 'control_type': 'FREE_TEXT', 'choices': []}",

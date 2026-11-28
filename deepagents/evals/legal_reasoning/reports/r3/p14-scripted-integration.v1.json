@@ -19,60 +19,60 @@
       "cohortCaseId": "p14-case-01-initial",
       "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "62137c5d4e3324284fdf78bfdfbddabbe81df02c2dcaaa8167d1dea6fa2f4fc9",
+      "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
       "p14CaseId": "CASE-01",
       "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
-      "traceSha256": "d92040ecfe48ea93d53f6322fb8c4c1c1eaeaff0e83bac59ced1c6b0af04b500",
+      "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
       "trialIndex": 0
     },
     {
       "cohortCaseId": "p14-case-01-initial",
       "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+      "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
       "p14CaseId": "CASE-01",
       "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
-      "traceSha256": "11ae9674db1d342f6ad33de143afc3f6092bbc07324689dd6d62b25850cf5c62",
+      "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
       "trialIndex": 1
     },
     {
       "cohortCaseId": "p14-case-02-resume-final",
       "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
       "lifecycleStage": "RESUME_FINAL",
-      "observedOutputSha256": "68467b8fb9fd1cb4b55a9cecc0c8361059160101053cf0cb53d7ba4548173189",
+      "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
       "p14CaseId": "CASE-02",
       "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
-      "traceSha256": "5ed337701876109c756f44c37cc44afa62c0b2b63c00487e30e90719d926c614",
+      "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
       "trialIndex": 0
     },
     {
       "cohortCaseId": "p14-case-02-resume-final",
       "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
       "lifecycleStage": "RESUME_FINAL",
-      "observedOutputSha256": "121022917340bd752233c46381b89a31d671d6259afc474bf8179c733b883cb9",
+      "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
       "p14CaseId": "CASE-02",
       "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
-      "traceSha256": "514a0d956e036d993cbf135d23cb05709bcd02863167a45c6007bf75a364d493",
+      "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
       "trialIndex": 1
     },
     {
       "cohortCaseId": "p14-case-17-initial",
       "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "1c0a538f42776cc62e59ccf5f748386b27db967e43cd492589609ebec2eae36a",
+      "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
       "p14CaseId": "CASE-17",
       "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
-      "traceSha256": "2e7694b9fd0567096a5c19a1919374e6b64b4d5456bcaff589b95f37699a9187",
+      "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
       "trialIndex": 0
     },
     {
       "cohortCaseId": "p14-case-17-initial",
       "executionStatus": "EXECUTED_OUTPUT_AVAILABLE",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "f4d3d9a122a7d3d0acd55de968a766452a8e7e1ca5557fb69f16d002ebb5a398",
+      "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
       "p14CaseId": "CASE-17",
       "scoringStatus": "NOT_SCORED_NO_REVIEWED_SHARED_GOLD",
-      "traceSha256": "5b0e98cda16d691b1effd3381eef8b986d98c1097ca3ddbadd496c73c3630238",
+      "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
       "trialIndex": 1
     }
   ],
@@ -124,60 +124,60 @@
       "candidateCaseId": "p14-case-01-initial",
       "evaluationStage": "ASSESSMENT_ROOT",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "62137c5d4e3324284fdf78bfdfbddabbe81df02c2dcaaa8167d1dea6fa2f4fc9",
+      "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
       "p14CaseId": "CASE-01",
-      "threadId": "0e70dec7-1fea-4a0d-a6c1-bbab70a98be8",
-      "traceSha256": "d92040ecfe48ea93d53f6322fb8c4c1c1eaeaff0e83bac59ced1c6b0af04b500",
+      "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+      "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
       "trialIndex": 0
     },
     {
       "candidateCaseId": "p14-case-01-initial",
       "evaluationStage": "ASSESSMENT_ROOT",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+      "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
       "p14CaseId": "CASE-01",
-      "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
-      "traceSha256": "11ae9674db1d342f6ad33de143afc3f6092bbc07324689dd6d62b25850cf5c62",
+      "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+      "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
       "trialIndex": 1
     },
     {
       "candidateCaseId": "p14-case-02-resume-final",
       "evaluationStage": "ASSESSMENT_ROOT",
       "lifecycleStage": "RESUME_FINAL",
-      "observedOutputSha256": "68467b8fb9fd1cb4b55a9cecc0c8361059160101053cf0cb53d7ba4548173189",
+      "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
       "p14CaseId": "CASE-02",
-      "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
-      "traceSha256": "5ed337701876109c756f44c37cc44afa62c0b2b63c00487e30e90719d926c614",
+      "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+      "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
       "trialIndex": 0
     },
     {
       "candidateCaseId": "p14-case-02-resume-final",
       "evaluationStage": "ASSESSMENT_ROOT",
       "lifecycleStage": "RESUME_FINAL",
-      "observedOutputSha256": "121022917340bd752233c46381b89a31d671d6259afc474bf8179c733b883cb9",
+      "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
       "p14CaseId": "CASE-02",
-      "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
-      "traceSha256": "514a0d956e036d993cbf135d23cb05709bcd02863167a45c6007bf75a364d493",
+      "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+      "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
       "trialIndex": 1
     },
     {
       "candidateCaseId": "p14-case-17-initial",
       "evaluationStage": "ASSESSMENT_ROOT",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "1c0a538f42776cc62e59ccf5f748386b27db967e43cd492589609ebec2eae36a",
+      "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
       "p14CaseId": "CASE-17",
-      "threadId": "c4cebeb2-534d-44ca-8ed4-14435adefa74",
-      "traceSha256": "2e7694b9fd0567096a5c19a1919374e6b64b4d5456bcaff589b95f37699a9187",
+      "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+      "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
       "trialIndex": 0
     },
     {
       "candidateCaseId": "p14-case-17-initial",
       "evaluationStage": "ASSESSMENT_ROOT",
       "lifecycleStage": "INITIAL",
-      "observedOutputSha256": "f4d3d9a122a7d3d0acd55de968a766452a8e7e1ca5557fb69f16d002ebb5a398",
+      "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
       "p14CaseId": "CASE-17",
-      "threadId": "d8a8366d-374e-441e-b0fa-4178ef0627c4",
-      "traceSha256": "5b0e98cda16d691b1effd3381eef8b986d98c1097ca3ddbadd496c73c3630238",
+      "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+      "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
       "trialIndex": 1
     }
   ],
@@ -223,7 +223,7 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:0e70dec7-1fea-4a0d-a6c1-bbab70a98be8:f7f43a74b0dd3a6141233f92"
+        "idempotencyKey": "decision:2bbb139f-3bb2-489a-adaa-c7ff5e26771f:f7f43a74b0dd3a6141233f92"
       },
       "caseId": "p14-case-01-initial",
       "dimensionPredictions": {
@@ -249,7 +249,7 @@
       "lifecycleStage": "INITIAL",
       "normalizationSource": "P14_SAVED_ARTIFACTS",
       "observationKind": "GENERATED_LCSP_OUTPUT",
-      "observedOutputSha256": "62137c5d4e3324284fdf78bfdfbddabbe81df02c2dcaaa8167d1dea6fa2f4fc9",
+      "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
       "p14Binding": {
         "candidateCaseId": "p14-case-01-initial",
         "corpusId": "vn-pdpl-2025",
@@ -261,16 +261,16 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "62137c5d4e3324284fdf78bfdfbddabbe81df02c2dcaaa8167d1dea6fa2f4fc9",
+        "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
         "p14CaseId": "CASE-01",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-16e21ad3807f",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "0e70dec7-1fea-4a0d-a6c1-bbab70a98be8",
-        "traceSha256": "d92040ecfe48ea93d53f6322fb8c4c1c1eaeaff0e83bac59ced1c6b0af04b500",
+        "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+        "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
         "trialIndex": 0
       },
       "p14CaseId": "CASE-01",
@@ -314,7 +314,7 @@
             "scopeId": "ASSESSMENT"
           },
           "expectedDecisionRevision": 0,
-          "idempotencyKey": "decision:0e70dec7-1fea-4a0d-a6c1-bbab70a98be8:f7f43a74b0dd3a6141233f92"
+          "idempotencyKey": "decision:2bbb139f-3bb2-489a-adaa-c7ff5e26771f:f7f43a74b0dd3a6141233f92"
         },
         "actualVerdict": "APPLICABLE_COMPLIANT",
         "assessmentDecisions": [
@@ -356,10 +356,10 @@
               "scopeId": "ASSESSMENT"
             },
             "expectedDecisionRevision": 0,
-            "idempotencyKey": "decision:0e70dec7-1fea-4a0d-a6c1-bbab70a98be8:f7f43a74b0dd3a6141233f92"
+            "idempotencyKey": "decision:2bbb139f-3bb2-489a-adaa-c7ff5e26771f:f7f43a74b0dd3a6141233f92"
           }
         ],
-        "assessmentId": "311c30ab-93d4-416e-bec0-4d19787a4148",
+        "assessmentId": "43a09b7d-5986-4cea-a788-311b71b61d8f",
         "authorityViolations": [],
         "caseId": "CASE-01",
         "corpusPin": {
@@ -429,7 +429,7 @@
           "passed": true,
           "runId": "lcsp400-pm-review-r3-scripted",
           "stage": "INITIAL",
-          "threadId": "0e70dec7-1fea-4a0d-a6c1-bbab70a98be8",
+          "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
           "trialIndex": 0
         },
         "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -467,15 +467,15 @@
         "runResult": {
           "checkpointId": null,
           "errorType": null,
-          "executionId": "1e0669fa-1d9f-4f4f-98a2-0bf3d2d13206",
-          "promptManifestSha256": "01693e421cc0e0fc499b2587eee15b76ae9ad867dc960df2f1402450ed3981a2",
+          "executionId": "6f453624-a66f-4fa2-99aa-441f9a2beb6c",
+          "promptManifestSha256": "3bb25d32ddae6a8336b79766e6f88196687e72f6d4c74b4284a059b34792171f",
           "state": "SUCCEEDED",
-          "threadId": "0e70dec7-1fea-4a0d-a6c1-bbab70a98be8"
+          "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f"
         },
         "targetRuleIds": [
           "ER-DEMO-01"
         ],
-        "threadId": "0e70dec7-1fea-4a0d-a6c1-bbab70a98be8",
+        "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
         "trialIndex": 0
       },
       "stage": "ASSESSMENT_ROOT",
@@ -490,19 +490,19 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "62137c5d4e3324284fdf78bfdfbddabbe81df02c2dcaaa8167d1dea6fa2f4fc9",
+        "observedOutputSha256": "84613ec279a8da367c7d42296ed3608de78c9a3a680dedc2c96a156bd85cd65b",
         "p14CaseId": "CASE-01",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-16e21ad3807f",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "0e70dec7-1fea-4a0d-a6c1-bbab70a98be8",
-        "traceSha256": "d92040ecfe48ea93d53f6322fb8c4c1c1eaeaff0e83bac59ced1c6b0af04b500",
+        "threadId": "2bbb139f-3bb2-489a-adaa-c7ff5e26771f",
+        "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
         "trialIndex": 0
       },
-      "traceSha256": "d92040ecfe48ea93d53f6322fb8c4c1c1eaeaff0e83bac59ced1c6b0af04b500",
+      "traceSha256": "bef227b7e0ffe44aa279fb4ae413d400de9c7e913f54bc839b8082fb18629076",
       "trialIndex": 0
     },
     {
@@ -544,7 +544,7 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:c4cebeb2-534d-44ca-8ed4-14435adefa74:ea401c0eb81bf43fde5bd8fe"
+        "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
       },
       "caseId": "p14-case-17-initial",
       "dimensionPredictions": {
@@ -570,7 +570,7 @@
       "lifecycleStage": "INITIAL",
       "normalizationSource": "P14_SAVED_ARTIFACTS",
       "observationKind": "GENERATED_LCSP_OUTPUT",
-      "observedOutputSha256": "1c0a538f42776cc62e59ccf5f748386b27db967e43cd492589609ebec2eae36a",
+      "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
       "p14Binding": {
         "candidateCaseId": "p14-case-17-initial",
         "corpusId": "vn-pdpl-2025",
@@ -582,16 +582,16 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "1c0a538f42776cc62e59ccf5f748386b27db967e43cd492589609ebec2eae36a",
+        "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
         "p14CaseId": "CASE-17",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-e697ed5e29c9",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "c4cebeb2-534d-44ca-8ed4-14435adefa74",
-        "traceSha256": "2e7694b9fd0567096a5c19a1919374e6b64b4d5456bcaff589b95f37699a9187",
+        "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+        "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
         "trialIndex": 0
       },
       "p14CaseId": "CASE-17",
@@ -635,7 +635,7 @@
             "scopeId": "ASSESSMENT"
           },
           "expectedDecisionRevision": 0,
-          "idempotencyKey": "decision:c4cebeb2-534d-44ca-8ed4-14435adefa74:ea401c0eb81bf43fde5bd8fe"
+          "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
         },
         "actualVerdict": "APPLICABLE_NON_COMPLIANT",
         "assessmentDecisions": [
@@ -677,10 +677,10 @@
               "scopeId": "ASSESSMENT"
             },
             "expectedDecisionRevision": 0,
-            "idempotencyKey": "decision:c4cebeb2-534d-44ca-8ed4-14435adefa74:ea401c0eb81bf43fde5bd8fe"
+            "idempotencyKey": "decision:00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e:ea401c0eb81bf43fde5bd8fe"
           }
         ],
-        "assessmentId": "793f9867-c41f-49b2-ae3d-28a9e01cd736",
+        "assessmentId": "d5b32274-b4fb-4bc2-a59a-50f2fadb1263",
         "authorityViolations": [],
         "caseId": "CASE-17",
         "corpusPin": {
@@ -750,7 +750,7 @@
           "passed": true,
           "runId": "lcsp400-pm-review-r3-scripted",
           "stage": "INITIAL",
-          "threadId": "c4cebeb2-534d-44ca-8ed4-14435adefa74",
+          "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
           "trialIndex": 0
         },
         "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -787,15 +787,15 @@
         "runResult": {
           "checkpointId": null,
           "errorType": null,
-          "executionId": "44da3965-a9ca-4493-a912-48ee074784eb",
-          "promptManifestSha256": "60c8e76d3a7ffc48bf7f0b13fbcfaa918c37f8c97808b96e305b4091577ad535",
+          "executionId": "c1e160f4-edf9-4b7f-887e-7ae9a0947700",
+          "promptManifestSha256": "b1421d96c3642e0e0bb3baa706fe33ac8e0949c0559ad741e7ebe0e8f70d2e3b",
           "state": "SUCCEEDED",
-          "threadId": "c4cebeb2-534d-44ca-8ed4-14435adefa74"
+          "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e"
         },
         "targetRuleIds": [
           "ER-DEMO-01"
         ],
-        "threadId": "c4cebeb2-534d-44ca-8ed4-14435adefa74",
+        "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
         "trialIndex": 0
       },
       "stage": "ASSESSMENT_ROOT",
@@ -810,19 +810,19 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "1c0a538f42776cc62e59ccf5f748386b27db967e43cd492589609ebec2eae36a",
+        "observedOutputSha256": "9f4d1c3eb2a2a262caab279bbd42bd42b156e8248e301a994525f227bee1f4de",
         "p14CaseId": "CASE-17",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-e697ed5e29c9",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "c4cebeb2-534d-44ca-8ed4-14435adefa74",
-        "traceSha256": "2e7694b9fd0567096a5c19a1919374e6b64b4d5456bcaff589b95f37699a9187",
+        "threadId": "00e8a4b5-b92a-4b1a-8e9d-8d0d2bf7f03e",
+        "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
         "trialIndex": 0
       },
-      "traceSha256": "2e7694b9fd0567096a5c19a1919374e6b64b4d5456bcaff589b95f37699a9187",
+      "traceSha256": "ad8057af789b7926a38f7a86aaaaefad0772921b22e4fa8a90df25353f259859",
       "trialIndex": 0
     },
     {
@@ -864,7 +864,7 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+        "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
       },
       "caseId": "p14-case-01-initial",
       "dimensionPredictions": {
@@ -890,7 +890,7 @@
       "lifecycleStage": "INITIAL",
       "normalizationSource": "P14_SAVED_ARTIFACTS",
       "observationKind": "GENERATED_LCSP_OUTPUT",
-      "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+      "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
       "p14Binding": {
         "candidateCaseId": "p14-case-01-initial",
         "corpusId": "vn-pdpl-2025",
@@ -902,16 +902,16 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+        "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
         "p14CaseId": "CASE-01",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-16e21ad3807f",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
-        "traceSha256": "11ae9674db1d342f6ad33de143afc3f6092bbc07324689dd6d62b25850cf5c62",
+        "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+        "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
         "trialIndex": 1
       },
       "p14CaseId": "CASE-01",
@@ -955,7 +955,7 @@
             "scopeId": "ASSESSMENT"
           },
           "expectedDecisionRevision": 0,
-          "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+          "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
         },
         "actualVerdict": "APPLICABLE_COMPLIANT",
         "assessmentDecisions": [
@@ -997,10 +997,10 @@
               "scopeId": "ASSESSMENT"
             },
             "expectedDecisionRevision": 0,
-            "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+            "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
           }
         ],
-        "assessmentId": "ba5d7358-f7c9-42f2-99cb-d93b23d55aea",
+        "assessmentId": "ec422dfe-7cd4-4035-82d6-d45904dceb0c",
         "authorityViolations": [],
         "caseId": "CASE-01",
         "corpusPin": {
@@ -1070,7 +1070,7 @@
           "passed": true,
           "runId": "lcsp400-pm-review-r3-scripted",
           "stage": "INITIAL",
-          "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+          "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
           "trialIndex": 1
         },
         "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -1108,15 +1108,15 @@
         "runResult": {
           "checkpointId": null,
           "errorType": null,
-          "executionId": "92d1d9bc-a786-4bf0-9abc-932b9ffc630d",
-          "promptManifestSha256": "f43549e2dcf8e947eff5ce2dad8bea2d78ff7b8b157c98e614194973a4c59867",
+          "executionId": "22fb7365-de60-4fab-8d7f-e3d7f79ad3cc",
+          "promptManifestSha256": "a5bc5942457c670dd7039758e7856bcb65b95709f99379b8d4600238233a82aa",
           "state": "SUCCEEDED",
-          "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1"
+          "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f"
         },
         "targetRuleIds": [
           "ER-DEMO-01"
         ],
-        "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+        "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
         "trialIndex": 1
       },
       "stage": "ASSESSMENT_ROOT",
@@ -1131,19 +1131,19 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+        "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
         "p14CaseId": "CASE-01",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-16e21ad3807f",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
-        "traceSha256": "11ae9674db1d342f6ad33de143afc3f6092bbc07324689dd6d62b25850cf5c62",
+        "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
+        "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
         "trialIndex": 1
       },
-      "traceSha256": "11ae9674db1d342f6ad33de143afc3f6092bbc07324689dd6d62b25850cf5c62",
+      "traceSha256": "306eb31c2f5e37884b031d9151e7eb50767383d9646a07c3ca7d0d8643c92841",
       "trialIndex": 1
     },
     {
@@ -1185,7 +1185,7 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:d8a8366d-374e-441e-b0fa-4178ef0627c4:ea401c0eb81bf43fde5bd8fe"
+        "idempotencyKey": "decision:2dc48f83-07ad-4628-bbf3-e45e9e53c5a1:ea401c0eb81bf43fde5bd8fe"
       },
       "caseId": "p14-case-17-initial",
       "dimensionPredictions": {
@@ -1211,7 +1211,7 @@
       "lifecycleStage": "INITIAL",
       "normalizationSource": "P14_SAVED_ARTIFACTS",
       "observationKind": "GENERATED_LCSP_OUTPUT",
-      "observedOutputSha256": "f4d3d9a122a7d3d0acd55de968a766452a8e7e1ca5557fb69f16d002ebb5a398",
+      "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
       "p14Binding": {
         "candidateCaseId": "p14-case-17-initial",
         "corpusId": "vn-pdpl-2025",
@@ -1223,16 +1223,16 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "f4d3d9a122a7d3d0acd55de968a766452a8e7e1ca5557fb69f16d002ebb5a398",
+        "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
         "p14CaseId": "CASE-17",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-e697ed5e29c9",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "d8a8366d-374e-441e-b0fa-4178ef0627c4",
-        "traceSha256": "5b0e98cda16d691b1effd3381eef8b986d98c1097ca3ddbadd496c73c3630238",
+        "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+        "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
         "trialIndex": 1
       },
       "p14CaseId": "CASE-17",
@@ -1276,7 +1276,7 @@
             "scopeId": "ASSESSMENT"
           },
           "expectedDecisionRevision": 0,
-          "idempotencyKey": "decision:d8a8366d-374e-441e-b0fa-4178ef0627c4:ea401c0eb81bf43fde5bd8fe"
+          "idempotencyKey": "decision:2dc48f83-07ad-4628-bbf3-e45e9e53c5a1:ea401c0eb81bf43fde5bd8fe"
         },
         "actualVerdict": "APPLICABLE_NON_COMPLIANT",
         "assessmentDecisions": [
@@ -1318,10 +1318,10 @@
               "scopeId": "ASSESSMENT"
             },
             "expectedDecisionRevision": 0,
-            "idempotencyKey": "decision:d8a8366d-374e-441e-b0fa-4178ef0627c4:ea401c0eb81bf43fde5bd8fe"
+            "idempotencyKey": "decision:2dc48f83-07ad-4628-bbf3-e45e9e53c5a1:ea401c0eb81bf43fde5bd8fe"
           }
         ],
-        "assessmentId": "cbf3cb4d-4f9e-47fe-afb8-339b2723f6ed",
+        "assessmentId": "6355fb5c-8817-42c6-a824-1e2e95f1c961",
         "authorityViolations": [],
         "caseId": "CASE-17",
         "corpusPin": {
@@ -1391,7 +1391,7 @@
           "passed": true,
           "runId": "lcsp400-pm-review-r3-scripted",
           "stage": "INITIAL",
-          "threadId": "d8a8366d-374e-441e-b0fa-4178ef0627c4",
+          "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
           "trialIndex": 1
         },
         "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -1428,15 +1428,15 @@
         "runResult": {
           "checkpointId": null,
           "errorType": null,
-          "executionId": "bfff40ca-aeb3-4023-9de1-b2cf3e4a4806",
-          "promptManifestSha256": "fda00bc39bac09427c16954cb2f3dd9b737fcae01556b7305b6c0e5774feede2",
+          "executionId": "35477ec3-969f-4292-94de-b5da09979329",
+          "promptManifestSha256": "bf7098db1348d4a83c0a57af6167d3833763ae1398ab29b96a9ecaa683fb031e",
           "state": "SUCCEEDED",
-          "threadId": "d8a8366d-374e-441e-b0fa-4178ef0627c4"
+          "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1"
         },
         "targetRuleIds": [
           "ER-DEMO-01"
         ],
-        "threadId": "d8a8366d-374e-441e-b0fa-4178ef0627c4",
+        "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
         "trialIndex": 1
       },
       "stage": "ASSESSMENT_ROOT",
@@ -1451,19 +1451,19 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "INITIAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "f4d3d9a122a7d3d0acd55de968a766452a8e7e1ca5557fb69f16d002ebb5a398",
+        "observedOutputSha256": "63d2485fb86cff2220e8896a43fd720ed124fed55caae1ea14da48ec58f5556a",
         "p14CaseId": "CASE-17",
         "p14RuleId": "ER-DEMO-01",
         "repositoryCommitSha": "synthetic-e697ed5e29c9",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "d8a8366d-374e-441e-b0fa-4178ef0627c4",
-        "traceSha256": "5b0e98cda16d691b1effd3381eef8b986d98c1097ca3ddbadd496c73c3630238",
+        "threadId": "2dc48f83-07ad-4628-bbf3-e45e9e53c5a1",
+        "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
         "trialIndex": 1
       },
-      "traceSha256": "5b0e98cda16d691b1effd3381eef8b986d98c1097ca3ddbadd496c73c3630238",
+      "traceSha256": "1aa8ba7cbdc0fac168764e399781f2bc8f8ba503c26a3a750d04f0d158d04fef",
       "trialIndex": 1
     },
     {
@@ -1515,7 +1515,7 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:87a3b4d8-439a-4687-a1fe-fcc1c1d6e250:0c2c30f6c71bda05dffe27ef"
+        "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
       },
       "caseId": "p14-case-02-resume-final",
       "dimensionPredictions": {
@@ -1560,7 +1560,7 @@
       "lifecycleStage": "RESUME_FINAL",
       "normalizationSource": "P14_SAVED_ARTIFACTS",
       "observationKind": "GENERATED_LCSP_OUTPUT",
-      "observedOutputSha256": "68467b8fb9fd1cb4b55a9cecc0c8361059160101053cf0cb53d7ba4548173189",
+      "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
       "p14Binding": {
         "candidateCaseId": "p14-case-02-resume-final",
         "corpusId": "vn-pdpl-2025",
@@ -1572,16 +1572,16 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "RESUME_FINAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "68467b8fb9fd1cb4b55a9cecc0c8361059160101053cf0cb53d7ba4548173189",
+        "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
         "p14CaseId": "CASE-02",
         "p14RuleId": "ER-DEMO-02",
         "repositoryCommitSha": "synthetic-de4b5964d365",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
-        "traceSha256": "5ed337701876109c756f44c37cc44afa62c0b2b63c00487e30e90719d926c614",
+        "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+        "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
         "trialIndex": 0
       },
       "p14CaseId": "CASE-02",
@@ -1635,7 +1635,7 @@
             "scopeId": "ASSESSMENT"
           },
           "expectedDecisionRevision": 0,
-          "idempotencyKey": "decision:87a3b4d8-439a-4687-a1fe-fcc1c1d6e250:0c2c30f6c71bda05dffe27ef"
+          "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
         },
         "actualVerdict": "APPLICABLE_COMPLIANT",
         "assessmentDecisions": [
@@ -1687,10 +1687,10 @@
               "scopeId": "ASSESSMENT"
             },
             "expectedDecisionRevision": 0,
-            "idempotencyKey": "decision:87a3b4d8-439a-4687-a1fe-fcc1c1d6e250:0c2c30f6c71bda05dffe27ef"
+            "idempotencyKey": "decision:b59aa426-454e-4395-bf75-14af102ea27f:0c2c30f6c71bda05dffe27ef"
           }
         ],
-        "assessmentId": "ec058467-d270-4fdf-88f1-5e9d6d918d65",
+        "assessmentId": "a06d393f-cc9f-4ea3-95c2-6a9938c524bd",
         "authorityViolations": [],
         "caseId": "CASE-02",
         "corpusPin": {
@@ -1819,7 +1819,7 @@
             "actualVerdict": "WAITING_FOR_HUMAN",
             "lifecycleState": "WAITING_FOR_HUMAN",
             "stage": "WAITING_FOR_HUMAN",
-            "traceSha256": "78d2921400d79af0a0d8cdd0ef3cc58942f5fd24af9a10cb66364f4a0ba0938f"
+            "traceSha256": "1cd2b333ab0333ca230cf9376b7127b56942f5a45fb7e2cfe79cb8a7fc10f1e9"
           }
         ],
         "lifecycleStage": "RESUME_FINAL",
@@ -1831,7 +1831,7 @@
           "passed": true,
           "runId": "lcsp400-pm-review-r3-scripted",
           "stage": "RESUME_FINAL",
-          "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+          "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
           "trialIndex": 0
         },
         "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -1868,15 +1868,15 @@
         "runResult": {
           "checkpointId": null,
           "errorType": null,
-          "executionId": "e2ea7476-9ceb-4694-b167-ca5414f32877",
-          "promptManifestSha256": "953509d921abb66cbd69f4843de6dea798fa6dd4ca8e8370a9c097c36262c4b5",
+          "executionId": "09c46dad-1b16-4ae5-9b9b-cfca8760ee7d",
+          "promptManifestSha256": "18c0efaa418b38256cbf267ea6af7c00a935293eb9ea37a27b09dac493475591",
           "state": "SUCCEEDED",
-          "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250"
+          "threadId": "b59aa426-454e-4395-bf75-14af102ea27f"
         },
         "targetRuleIds": [
           "ER-DEMO-02"
         ],
-        "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
+        "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
         "trialIndex": 0
       },
       "stage": "ASSESSMENT_ROOT",
@@ -1891,19 +1891,19 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "RESUME_FINAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "68467b8fb9fd1cb4b55a9cecc0c8361059160101053cf0cb53d7ba4548173189",
+        "observedOutputSha256": "e2460976416338592d86614376a77f7ef91b72263fea648bd780adc221820c24",
         "p14CaseId": "CASE-02",
         "p14RuleId": "ER-DEMO-02",
         "repositoryCommitSha": "synthetic-de4b5964d365",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "87a3b4d8-439a-4687-a1fe-fcc1c1d6e250",
-        "traceSha256": "5ed337701876109c756f44c37cc44afa62c0b2b63c00487e30e90719d926c614",
+        "threadId": "b59aa426-454e-4395-bf75-14af102ea27f",
+        "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
         "trialIndex": 0
       },
-      "traceSha256": "5ed337701876109c756f44c37cc44afa62c0b2b63c00487e30e90719d926c614",
+      "traceSha256": "77cf30aeaa76264851fe925ca3ee7dc5a55af15cd66127d02c616fd75a74cb4d",
       "trialIndex": 0
     },
     {
@@ -1955,7 +1955,7 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:f00aea1e-2891-455a-a55c-d40c7989f621:0c2c30f6c71bda05dffe27ef"
+        "idempotencyKey": "decision:6c2f9030-bedf-4e31-abbc-23bb828b1dbd:0c2c30f6c71bda05dffe27ef"
       },
       "caseId": "p14-case-02-resume-final",
       "dimensionPredictions": {
@@ -2000,7 +2000,7 @@
       "lifecycleStage": "RESUME_FINAL",
       "normalizationSource": "P14_SAVED_ARTIFACTS",
       "observationKind": "GENERATED_LCSP_OUTPUT",
-      "observedOutputSha256": "121022917340bd752233c46381b89a31d671d6259afc474bf8179c733b883cb9",
+      "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
       "p14Binding": {
         "candidateCaseId": "p14-case-02-resume-final",
         "corpusId": "vn-pdpl-2025",
@@ -2012,16 +2012,16 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "RESUME_FINAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "121022917340bd752233c46381b89a31d671d6259afc474bf8179c733b883cb9",
+        "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
         "p14CaseId": "CASE-02",
         "p14RuleId": "ER-DEMO-02",
         "repositoryCommitSha": "synthetic-de4b5964d365",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
-        "traceSha256": "514a0d956e036d993cbf135d23cb05709bcd02863167a45c6007bf75a364d493",
+        "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+        "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
         "trialIndex": 1
       },
       "p14CaseId": "CASE-02",
@@ -2075,7 +2075,7 @@
             "scopeId": "ASSESSMENT"
           },
           "expectedDecisionRevision": 0,
-          "idempotencyKey": "decision:f00aea1e-2891-455a-a55c-d40c7989f621:0c2c30f6c71bda05dffe27ef"
+          "idempotencyKey": "decision:6c2f9030-bedf-4e31-abbc-23bb828b1dbd:0c2c30f6c71bda05dffe27ef"
         },
         "actualVerdict": "APPLICABLE_COMPLIANT",
         "assessmentDecisions": [
@@ -2127,10 +2127,10 @@
               "scopeId": "ASSESSMENT"
             },
             "expectedDecisionRevision": 0,
-            "idempotencyKey": "decision:f00aea1e-2891-455a-a55c-d40c7989f621:0c2c30f6c71bda05dffe27ef"
+            "idempotencyKey": "decision:6c2f9030-bedf-4e31-abbc-23bb828b1dbd:0c2c30f6c71bda05dffe27ef"
           }
         ],
-        "assessmentId": "830f3b51-6c94-4296-ba24-eeebc7662b66",
+        "assessmentId": "e7b3542b-8073-4496-934a-d608fc5ce4cf",
         "authorityViolations": [],
         "caseId": "CASE-02",
         "corpusPin": {
@@ -2259,7 +2259,7 @@
             "actualVerdict": "WAITING_FOR_HUMAN",
             "lifecycleState": "WAITING_FOR_HUMAN",
             "stage": "WAITING_FOR_HUMAN",
-            "traceSha256": "3233972d5a6e3319aba001c0475aa204e27c4a236e2bfaa79ebaac0fa19676b2"
+            "traceSha256": "362f5ec9541567e2765a82b7cd550d81b6c93b887a059fda4ead5d575f362d8b"
           }
         ],
         "lifecycleStage": "RESUME_FINAL",
@@ -2271,7 +2271,7 @@
           "passed": true,
           "runId": "lcsp400-pm-review-r3-scripted",
           "stage": "RESUME_FINAL",
-          "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+          "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
           "trialIndex": 1
         },
         "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -2308,15 +2308,15 @@
         "runResult": {
           "checkpointId": null,
           "errorType": null,
-          "executionId": "0b479da5-a80b-485f-90fd-99111818f1e5",
-          "promptManifestSha256": "c653289020e3a644b12cb225d5cd39101ab3bf159d9be68974e6b590a73853a0",
+          "executionId": "453a3ff5-819f-481e-88c9-2ab8ef41a82e",
+          "promptManifestSha256": "cd683b58252749ba46603dbb72de7156f906d3f178c637f0ce58f180a5e4132b",
           "state": "SUCCEEDED",
-          "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621"
+          "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd"
         },
         "targetRuleIds": [
           "ER-DEMO-02"
         ],
-        "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+        "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
         "trialIndex": 1
       },
       "stage": "ASSESSMENT_ROOT",
@@ -2331,19 +2331,19 @@
         "legalSourceId": "vn-pdpl-2025",
         "legalSourceVersion": "2025.1",
         "lifecycleStage": "RESUME_FINAL",
-        "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+        "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
         "modelRoute": "offline-scripted",
-        "observedOutputSha256": "121022917340bd752233c46381b89a31d671d6259afc474bf8179c733b883cb9",
+        "observedOutputSha256": "00788f42d00db3c79dc069c0cf97e1b0244d060e2cca8845bf85e7064e440b87",
         "p14CaseId": "CASE-02",
         "p14RuleId": "ER-DEMO-02",
         "repositoryCommitSha": "synthetic-de4b5964d365",
         "ruleSetVersionId": "rs-demo-v1",
         "runId": "lcsp400-pm-review-r3-scripted",
-        "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
-        "traceSha256": "514a0d956e036d993cbf135d23cb05709bcd02863167a45c6007bf75a364d493",
+        "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
+        "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
         "trialIndex": 1
       },
-      "traceSha256": "514a0d956e036d993cbf135d23cb05709bcd02863167a45c6007bf75a364d493",
+      "traceSha256": "3945373c147b898b93f529a2199642c3d82b18660e3388fbf19f59ae3220ff5a",
       "trialIndex": 1
     }
   ],
@@ -2387,14 +2387,14 @@
       "providerCost": null
     },
     "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
-    "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+    "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
     "mode": "SCRIPTED",
     "modelRoute": "offline-scripted",
     "p14CasesDatasetSha256": "9772c405eb8f5d0d56a76453c3d5d7419f505e6313f4562f61a112889517eb79",
     "promptSha256": {
       "assessment-root": "0a4357b9be60039711c2e08da14d77a4aa7ab33722e4e9278f9356ced37b6f5f"
     },
-    "repositoryCommitSha": "987dfd99161b9e64041c158a85943ce024193e6a",
+    "repositoryCommitSha": "0b6f2637e9f00baf5964a96257a800d8fc777eb6",
     "runId": "lcsp400-pm-review-r3-scripted",
     "skillFingerprints": {
       "available": {
@@ -2417,7 +2417,7 @@
       "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       "repoPinsSha256": "bf101e1ce7d3af96952bec9d6a705cd6ed1fd18d6b82966ff68d2589c68afa39",
       "ruleSetPinsSha256": "d03e87ac2df4348042327d3835d17c8bc9f0ce9fc0facd854c1bda45119264b0",
-      "runConfigSha256": "5b4888ac9381c4232e0f8c7bb83a92f262806d301c62488cf86bf2def12fc989"
+      "runConfigSha256": "46e9373ba0e57a54d61136d8a490bf0eeafe25a5b5a3a5a3b25b26eef6a67340"
     },
     "splitManifestSha256": "199a09bccb62298653208303b3d77944652c094f214cc4425813627f9a7824ef",
     "trialCount": 8

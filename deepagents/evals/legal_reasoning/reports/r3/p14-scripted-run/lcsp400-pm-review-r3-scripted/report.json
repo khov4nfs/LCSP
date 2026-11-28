@@ -42,7 +42,7 @@
     "outOfScopeRuleRejection": "NOT_TESTED",
     "unverifiedReferenceRejection": "NOT_TESTED"
   },
-  "manifestSha256": "5cd6f62fce187db1908dbe1cd3c4fe22e6b4e88e6879f85ee1a4119dff04c0f6",
+  "manifestSha256": "b516ccc34f1324cf99687aef34dfc4baab7b4f29e18e3293db09f1312c78cdd5",
   "manualSemanticReviewP15": {
     "expertVerified": {
       "authorityRespectedRate": null,
@@ -68,11 +68,11 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 577.23,
-        "meanMs": 347.024,
-        "minMs": 235.87,
-        "p50Ms": 307.637,
-        "p95Ms": 427.136
+        "maxMs": 750.695,
+        "meanMs": 379.5,
+        "minMs": 222.057,
+        "p50Ms": 291.297,
+        "p95Ms": 564.458
       },
       "passPowK": {
         "pass^1": {
@@ -176,11 +176,11 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 577.23,
-        "meanMs": 347.024,
-        "minMs": 235.87,
-        "p50Ms": 307.637,
-        "p95Ms": 427.136
+        "maxMs": 750.695,
+        "meanMs": 379.5,
+        "minMs": 222.057,
+        "p50Ms": 291.297,
+        "p95Ms": 564.458
       },
       "passPowK": {
         "pass^1": {

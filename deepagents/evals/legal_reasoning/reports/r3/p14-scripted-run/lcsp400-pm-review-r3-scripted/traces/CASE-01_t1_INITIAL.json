@@ -1,5 +1,5 @@
 {
-  "assessmentId": "ba5d7358-f7c9-42f2-99cb-d93b23d55aea",
+  "assessmentId": "ec422dfe-7cd4-4035-82d6-d45904dceb0c",
   "authorityViolations": [],
   "caseId": "CASE-01",
   "checkpointId": null,
@@ -81,7 +81,7 @@
         "scopeId": "ASSESSMENT"
       },
       "expectedDecisionRevision": 0,
-      "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+      "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
     },
     "actualVerdict": "APPLICABLE_COMPLIANT",
     "assessmentDecisions": [
@@ -123,10 +123,10 @@
           "scopeId": "ASSESSMENT"
         },
         "expectedDecisionRevision": 0,
-        "idempotencyKey": "decision:58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1:f7f43a74b0dd3a6141233f92"
+        "idempotencyKey": "decision:777e3267-022b-4acf-b9f4-df8c25c4181f:f7f43a74b0dd3a6141233f92"
       }
     ],
-    "assessmentId": "ba5d7358-f7c9-42f2-99cb-d93b23d55aea",
+    "assessmentId": "ec422dfe-7cd4-4035-82d6-d45904dceb0c",
     "authorityViolations": [],
     "caseId": "CASE-01",
     "corpusPin": {
@@ -196,7 +196,7 @@
       "passed": true,
       "runId": "lcsp400-pm-review-r3-scripted",
       "stage": "INITIAL",
-      "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+      "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
       "trialIndex": 1
     },
     "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -234,18 +234,18 @@
     "runResult": {
       "checkpointId": null,
       "errorType": null,
-      "executionId": "92d1d9bc-a786-4bf0-9abc-932b9ffc630d",
-      "promptManifestSha256": "f43549e2dcf8e947eff5ce2dad8bea2d78ff7b8b157c98e614194973a4c59867",
+      "executionId": "22fb7365-de60-4fab-8d7f-e3d7f79ad3cc",
+      "promptManifestSha256": "a5bc5942457c670dd7039758e7856bcb65b95709f99379b8d4600238233a82aa",
       "state": "SUCCEEDED",
-      "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1"
+      "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f"
     },
     "targetRuleIds": [
       "ER-DEMO-01"
     ],
-    "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+    "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
     "trialIndex": 1
   },
-  "observedOutputSha256": "522f0227570f08298afd60fb42df3729a79d68f22b8e6095c3eb154db551271c",
+  "observedOutputSha256": "195653c3a4ed886029b637a62c21232babb9ed55b299873090c96c4fca025769",
   "outcomeBinding": {
     "actualVerdict": "APPLICABLE_COMPLIANT",
     "lifecycleState": "COMPLETE",
@@ -256,13 +256,13 @@
   "runResult": {
     "checkpointId": null,
     "errorType": null,
-    "executionId": "92d1d9bc-a786-4bf0-9abc-932b9ffc630d",
-    "promptManifestSha256": "f43549e2dcf8e947eff5ce2dad8bea2d78ff7b8b157c98e614194973a4c59867",
+    "executionId": "22fb7365-de60-4fab-8d7f-e3d7f79ad3cc",
+    "promptManifestSha256": "a5bc5942457c670dd7039758e7856bcb65b95709f99379b8d4600238233a82aa",
     "state": "SUCCEEDED",
-    "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1"
+    "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f"
   },
   "stage": "INITIAL",
-  "threadId": "58cc02d2-a1d1-4a8d-b7a6-3be6826ccce1",
+  "threadId": "777e3267-022b-4acf-b9f4-df8c25c4181f",
   "toolCalls": [
     {
       "input": "{}",

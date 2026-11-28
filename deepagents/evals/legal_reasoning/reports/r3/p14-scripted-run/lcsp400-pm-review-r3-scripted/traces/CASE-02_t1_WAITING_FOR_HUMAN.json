@@ -1,8 +1,8 @@
 {
-  "assessmentId": "830f3b51-6c94-4296-ba24-eeebc7662b66",
+  "assessmentId": "e7b3542b-8073-4496-934a-d608fc5ce4cf",
   "authorityViolations": [],
   "caseId": "CASE-02",
-  "checkpointId": "1f1eb167-9c6a-6a4f-8023-3e51115ff5c7",
+  "checkpointId": "1f1eb171-708a-692f-8023-48c106c18922",
   "clientCalls": [
     "claim",
     "context",
@@ -37,7 +37,7 @@
     "actualAssessmentDecision": null,
     "actualVerdict": "WAITING_FOR_HUMAN",
     "assessmentDecisions": [],
-    "assessmentId": "830f3b51-6c94-4296-ba24-eeebc7662b66",
+    "assessmentId": "e7b3542b-8073-4496-934a-d608fc5ce4cf",
     "authorityViolations": [],
     "caseId": "CASE-02",
     "corpusPin": {
@@ -109,7 +109,7 @@
       "passed": true,
       "runId": "lcsp400-pm-review-r3-scripted",
       "stage": "WAITING_FOR_HUMAN",
-      "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+      "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
       "trialIndex": 1
     },
     "outputVersion": "P14-OBSERVED-ASSESSMENT-OUTPUT-V1",
@@ -144,20 +144,20 @@
     "ruleSetVersionId": "rs-demo-v1",
     "runId": "lcsp400-pm-review-r3-scripted",
     "runResult": {
-      "checkpointId": "1f1eb167-9c6a-6a4f-8023-3e51115ff5c7",
+      "checkpointId": "1f1eb171-708a-692f-8023-48c106c18922",
       "errorType": null,
-      "executionId": "fe69bacf-6700-4dfe-8cf2-db599709f7dc",
-      "promptManifestSha256": "48d12660d58d3cb9e6d1f52e23ed157b210b5e54fd7e0b2e0e43c49f9b915333",
+      "executionId": "8d109f35-54b7-49e9-897b-cdd4f542ffed",
+      "promptManifestSha256": "a53b781a206dfbd181f198cbcd5c6a6e01ba069cd298fb30d35e096cd78e50df",
       "state": "INTERRUPTED",
-      "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621"
+      "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd"
     },
     "targetRuleIds": [
       "ER-DEMO-02"
     ],
-    "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+    "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
     "trialIndex": 1
   },
-  "observedOutputSha256": "f00bffacff7f9064ad19a40de113517233cde2df80cc9131c927fa1900960606",
+  "observedOutputSha256": "07efda11ad1939a65d1f6507e68321f1cabc1948e26a7b30c8149f14b2f2c004",
   "outcomeBinding": {
     "actualVerdict": "WAITING_FOR_HUMAN",
     "lifecycleState": "WAITING_FOR_HUMAN",
@@ -166,15 +166,15 @@
   "recoveryObserved": false,
   "runId": "lcsp400-pm-review-r3-scripted",
   "runResult": {
-    "checkpointId": "1f1eb167-9c6a-6a4f-8023-3e51115ff5c7",
+    "checkpointId": "1f1eb171-708a-692f-8023-48c106c18922",
     "errorType": null,
-    "executionId": "fe69bacf-6700-4dfe-8cf2-db599709f7dc",
-    "promptManifestSha256": "48d12660d58d3cb9e6d1f52e23ed157b210b5e54fd7e0b2e0e43c49f9b915333",
+    "executionId": "8d109f35-54b7-49e9-897b-cdd4f542ffed",
+    "promptManifestSha256": "a53b781a206dfbd181f198cbcd5c6a6e01ba069cd298fb30d35e096cd78e50df",
     "state": "INTERRUPTED",
-    "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621"
+    "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd"
   },
   "stage": "WAITING_FOR_HUMAN",
-  "threadId": "f00aea1e-2891-455a-a55c-d40c7989f621",
+  "threadId": "6c2f9030-bedf-4e31-abbc-23bb828b1dbd",
   "toolCalls": [
     {
       "input": "{}",
