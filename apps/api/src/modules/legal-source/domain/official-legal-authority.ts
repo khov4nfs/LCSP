@@ -89,7 +89,7 @@ export type OfficialLegalDocument = (typeof OFFICIAL_LEGAL_CORPUS)[number];
  * Execution flow:
  * 1. Match the URL against the configured publication and download pins.
  * Failure cases:
- * - Unknown and lookalike URLs return undefined.
+ * - An unlisted publication URL or a lookalike host returns undefined, so the caller cannot treat it as a pinned original.
  * Side effects:
  * - Pure lookup; no network, model or human review.
  */
@@ -108,7 +108,7 @@ export function resolveOfficialLegalDocument(
  * Execution flow:
  * 1. Normalize the existing digest prefix and locate the corresponding corpus entry.
  * Failure cases:
- * - Unknown digests return undefined and confer no normative authority.
+ * - An unmatched original document digest returns undefined; an altered PDF cannot inherit the identity of a pinned official document.
  * Side effects:
  * - Pure lookup; no parsing or modification of legal text.
  */
