@@ -73,14 +73,19 @@ describe("WorkerApiKeyGuard", () => {
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
-  it("[RED][ASM-WORKER-01] accepts the previous key during a bounded rotation window", () => {
+  it("accepts only the configured WORKER_API_KEY even if a previous key is present", () => {
     const previousKey = "previous-secret-worker-key-67890";
     const guard = makeGuard(VALID_KEY, previousKey);
-    const ctx = makeContext({ "x-worker-api-key": previousKey });
 
-    // Rotation must support an overlap key so rolling workers do not lose
-    // authenticated access while the common secret is replaced.
-    expect(guard.canActivate(ctx)).toBe(true);
+    // Why: ASM-WORKER-01 was withdrawn when the product accepted one worker key.
+    // How: A stale key is rejected even if legacy config exposes it, while the current key works.
+    // Invariant: This test must not force previous-key rotation into production authorization.
+    expect(() =>
+      guard.canActivate(makeContext({ "x-worker-api-key": previousKey })),
+    ).toThrow(UnauthorizedException);
+    expect(
+      guard.canActivate(makeContext({ "x-worker-api-key": VALID_KEY })),
+    ).toBe(true);
   });
 
   it("preserves correlationId from header when rejecting", () => {

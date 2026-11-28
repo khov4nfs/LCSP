@@ -40,6 +40,11 @@ export const ADMIN_NAV_ITEMS = [
     icon: ScaleIcon,
   },
   {
+    href: "/admin/model-reconciliation",
+    labelKey: "pages.admin.sidebar.navModelReconciliation",
+    icon: ActivityIcon,
+  },
+  {
     href: "/admin/compliance-rule-sets",
     labelKey: "pages.admin.sidebar.navComplianceRuleSets",
     icon: BookOpenIcon,

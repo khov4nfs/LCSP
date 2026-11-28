@@ -177,6 +177,28 @@ describe("microcredit pricing and usage settlement contracts", () => {
       ).toBe(0n);
     });
 
+    it("prices the worker cache fixture using rates per million tokens", () => {
+      // Why: The Python worker fixture previously treated the weighted numerator as microcredits.
+      // How: Price the same disjoint input, cache, and output buckets with the authoritative calculator.
+      // Invariant: Rates are microcredits per million tokens and cache reads are excluded from inputTokens.
+      expect(
+        calculateMicrocreditCharge({
+          usage: {
+            inputTokens: 200n,
+            cachedInputTokens: 800n,
+            outputTokens: 500n,
+            reasoningTokens: 150n,
+          },
+          ratesMicrocreditsPerMillion: {
+            input: 10_000_000n,
+            cachedInput: 2_000_000n,
+            output: 30_000_000n,
+            reasoningPolicy: TOKEN_BUCKET_POLICIES.includedInOutput,
+          },
+        }),
+      ).toBe(18_600n);
+    });
+
     it("handles reasoning, cachedInput, and cacheWrite bucket policies and fails closed on errors", () => {
       // SEPARATE_RATE reasoning
       expect(

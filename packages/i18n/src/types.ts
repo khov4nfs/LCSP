@@ -3079,6 +3079,7 @@ export type PagesMessages = {
       navUsage: string;
       navBilling: string;
       navPricing: string;
+      navModelReconciliation: string;
       administrationLabel: string;
       administrationDescription: string;
       roleAdminLabel: string;
@@ -3324,6 +3325,78 @@ export type PagesMessages = {
       confirmSuspend: string;
       suspending: string;
       defaultReason: string;
+    };
+    modelReconciliation: {
+      title: string;
+      description: string;
+      readOnly: string;
+      decision: {
+        action: string;
+        maintainExposure: string;
+        flagIntegrityReview: string;
+        escalate: string;
+        confirmNoUsage: string;
+        auditRationale: string;
+        artifactId: string;
+        submit: string;
+        success: string;
+        error: string;
+      };
+      compensation: {
+        title: string;
+        originalLedgerEntryId: string;
+        remaining: string;
+        amount: string;
+        reason: string;
+        submit: string;
+        success: string;
+        error: string;
+      };
+      loading: string;
+      errorTitle: string;
+      errorDescription: string;
+      retry: string;
+      refresh: string;
+      empty: string;
+      inspect: string;
+      close: string;
+      detailTitle: string;
+      detailDescription: string;
+      detailLoading: string;
+      detailError: string;
+      none: string;
+      columns: {
+        caseId: string;
+        state: string;
+        provider: string;
+        invocationId: string;
+        exposure: string;
+        createdAt: string;
+        action: string;
+      };
+      fields: {
+        correlationId: string;
+        admissionId: string;
+        walletId: string;
+        userId: string;
+        model: string;
+        debitMode: string;
+        coverage: string;
+        artifactId: string;
+        artifactVerified: string;
+        auditRationale: string;
+      };
+      verified: string;
+      unverified: string;
+      states: {
+        OPEN: string;
+        EVIDENCE_PENDING: string;
+        INTEGRITY_REVIEW: string;
+        SETTLED_WITH_USAGE: string;
+        CONFIRMED_NO_USAGE: string;
+        ESCALATED: string;
+        CLOSED: string;
+      };
     };
     pricing: {
       title: string;

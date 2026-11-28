@@ -1802,8 +1802,7 @@ export const enPages = {
       capabilityOneTitle: "Orchestrated assessment",
       capabilityOneDescription:
         "One Legal AI engine reviews the pinned repository and compliance rule set, asks only when a business fact is missing, and validates completion.",
-      capabilityOneMeta:
-        "Setup · Analysis · Expert review · Completion",
+      capabilityOneMeta: "Setup · Analysis · Expert review · Completion",
       capabilityTwoTitle: "Controlled connectors",
       capabilityTwoDescription:
         "Connect GitHub, Bitbucket, or Azure DevOps while keeping repository and workspace scope explicit.",
@@ -2848,32 +2847,23 @@ export const enPages = {
         detectAccountFromCredential:
           "Account will be detected from the credential.",
         disconnect: "Disconnect",
-        disconnectConfirmTitle:
-          "Disconnect this provider?",
+        disconnectConfirmTitle: "Disconnect this provider?",
         disconnectConfirmDescription:
           "This permanently deletes the stored access token. Repositories connected through it can no longer be scanned until you connect the provider again.",
-        disconnectConfirm:
-          "Disconnect",
-        disconnecting:
-          "Disconnecting…",
-        disconnectSuccessTitle:
-          "Provider disconnected",
+        disconnectConfirm: "Disconnect",
+        disconnecting: "Disconnecting…",
+        disconnectSuccessTitle: "Provider disconnected",
         disconnectFailedDescription:
           "We could not disconnect the provider. Nothing was changed. Try again.",
         disconnectReauthCancelled:
           "Identity confirmation was canceled. The provider is still connected.",
-        connectionExpired:
-          "Expired",
-        connectionNeedsAttention:
-          "Needs attention",
-        statusLoading:
-          "Loading provider connections…",
-        loadFailedTitle:
-          "Provider connections could not be loaded",
+        connectionExpired: "Expired",
+        connectionNeedsAttention: "Needs attention",
+        statusLoading: "Loading provider connections…",
+        loadFailedTitle: "Provider connections could not be loaded",
         loadFailedDescription:
           "The connection status is unknown, so no provider is shown as connected or disconnected. Try again.",
-        retry:
-          "Retry",
+        retry: "Retry",
         noneConnectedDescription:
           "No Git provider is connected yet. Connect one to scan your repositories.",
         enterNewPat: "Enter a new PAT",
@@ -3444,6 +3434,7 @@ export const enPages = {
       navUsage: "AI token usage",
       navBilling: "Billing & Revenue",
       navPricing: "Model pricing",
+      navModelReconciliation: "Model reconciliation",
       administrationLabel: "Administration",
       administrationDescription:
         "System-level billing, payments, prepaid credits, and reconciliation.",
@@ -3710,6 +3701,84 @@ export const enPages = {
       suspending: "Suspending...",
       defaultReason: "Administrative suspension",
     },
+    modelReconciliation: {
+      title: "Model invocation reconciliation",
+      description:
+        "Investigate uncertain provider calls and submit audited decisions.",
+      readOnly: "Investigation and audited decisions",
+      decision: {
+        action: "Decision",
+        maintainExposure: "Maintain exposure",
+        flagIntegrityReview: "Flag integrity review",
+        escalate: "Escalate",
+        confirmNoUsage:
+          "Confirm no usage (verified provider evidence required)",
+        auditRationale: "Audit rationale (at least 10 characters)",
+        artifactId: "Verified provider artifact ID",
+        submit: "Submit audited decision",
+        success:
+          "Decision recorded. Refresh the case to inspect its new state.",
+        error: "The decision was not recorded. Review the case and retry.",
+      },
+      compensation: {
+        title: "Compensate a verified model debit",
+        originalLedgerEntryId: "Original debit ledger entry",
+        remaining: "Remaining compensable microcredits",
+        amount: "Amount to compensate (microcredits)",
+        reason: "Reason for compensation (at least 5 characters)",
+        submit: "Submit audited compensation",
+        success:
+          "Compensation recorded. The remaining amount has been refreshed.",
+        error: "Compensation was not recorded. Refresh the case and retry.",
+      },
+      loading: "Loading reconciliation cases…",
+      errorTitle: "Unable to load reconciliation cases",
+      errorDescription:
+        "The billing service could not provide the current case queue. Retry before making an operational decision.",
+      retry: "Retry",
+      refresh: "Refresh",
+      empty: "No reconciliation cases were found.",
+      inspect: "Inspect case",
+      close: "Close case detail",
+      detailTitle: "Reconciliation case detail",
+      detailDescription:
+        "Admission authority and provider evidence for the selected invocation.",
+      detailLoading: "Loading case evidence…",
+      detailError: "Case evidence could not be loaded.",
+      none: "Not recorded",
+      columns: {
+        caseId: "Case ID",
+        state: "State",
+        provider: "Provider",
+        invocationId: "Invocation ID",
+        exposure: "Retained exposure (microcredits)",
+        createdAt: "Created (UTC)",
+        action: "Details",
+      },
+      fields: {
+        correlationId: "Provider correlation ID",
+        admissionId: "Admission ID",
+        walletId: "Wallet ID",
+        userId: "Customer ID",
+        model: "Resolved model",
+        debitMode: "Debit mode",
+        coverage: "Provider log coverage (UTC)",
+        artifactId: "Evidence artifact ID",
+        artifactVerified: "Evidence verified",
+        auditRationale: "Audit rationale",
+      },
+      verified: "Verified",
+      unverified: "Not verified",
+      states: {
+        OPEN: "Open",
+        EVIDENCE_PENDING: "Evidence pending",
+        INTEGRITY_REVIEW: "Integrity review",
+        SETTLED_WITH_USAGE: "Settled with usage",
+        CONFIRMED_NO_USAGE: "Confirmed no usage",
+        ESCALATED: "Escalated",
+        CLOSED: "Closed",
+      },
+    },
     pricing: {
       title: "Model pricing",
       description:
@@ -3745,7 +3814,8 @@ export const enPages = {
         activeAssignments: "Active & scheduled",
         assignmentsSubtitle: "Effective or upcoming UTC assignment intervals",
         draftsAndSnapshots: "Drafts & snapshots",
-        draftsAndSnapshotsSubtitle: "Mutable drafts vs immutable tariff history",
+        draftsAndSnapshotsSubtitle:
+          "Mutable drafts vs immutable tariff history",
       },
       filters: {
         title: "Filter pricing policies",
@@ -3760,7 +3830,8 @@ export const enPages = {
         coverageGapOnly: "Coverage gaps only",
         apply: "Apply filters",
         reset: "Reset filters",
-        invalidFilters: "Enter valid provider, model, scope, or status filters.",
+        invalidFilters:
+          "Enter valid provider, model, scope, or status filters.",
       },
       sections: {
         coverageTitle: "Effective pricing coverage",
@@ -3840,7 +3911,8 @@ export const enPages = {
         coverageGap: "Coverage gap",
         openEnded: "Open-ended",
         none: "—",
-        perMillionTokens: "{microcredits} microcredits / 1M ({credits} credits)",
+        perMillionTokens:
+          "{microcredits} microcredits / 1M ({credits} credits)",
         creditsPerMillion: "{credits} credits / 1M",
         microcreditsUnit: "microcredits / 1M",
         inspect: "Inspect",

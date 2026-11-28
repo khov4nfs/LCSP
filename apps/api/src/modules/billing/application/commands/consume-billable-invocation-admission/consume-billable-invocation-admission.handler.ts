@@ -1,5 +1,6 @@
 import { HttpStatus, Inject, Injectable } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import {
   ADMISSION_STATES,
   BILLING_ERROR_CODES,
@@ -23,6 +24,14 @@ export type ConsumeAdmissionExecutionResult = {
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Why: These are transaction-local result discriminators, not public execution statuses.
+// How: Distinct lowercase names let the handler commit an expiry before translating it to an HTTP problem.
+// Invariant: The outward admission state still comes from the shared ADMISSION_STATES contract.
+const CONSUME_TRANSACTION_RESULTS = {
+  committed: "committed",
+  expired: "expired",
+} as const;
 
 @Injectable()
 @CommandHandler(ConsumeBillableInvocationAdmissionCommand)
@@ -156,7 +165,7 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
       // Invariants: In-flight calls are not affected by unconsumed admission TTL expiration.
       if (admission.state === ADMISSION_STATES.IN_FLIGHT) {
         return {
-          kind: "SUCCESS" as const,
+          kind: CONSUME_TRANSACTION_RESULTS.committed,
           data: {
             admissionId: admission.id,
             invocationId: admission.invocationId,
@@ -189,7 +198,7 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
             version: { increment: 1 },
           },
         });
-        return { kind: "EXPIRED" as const };
+        return { kind: CONSUME_TRANSACTION_RESULTS.expired };
       }
 
       // Verify active execution authority of the EXACT run
@@ -300,7 +309,8 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
         `;
         finalUtcNow = postPrepLockTime?.now ?? dbUtcNow;
 
-        if (!prepRun || prepRun.executionState !== "RUNNING") {
+        // Why: Preparation leases must use the same canonical execution-state value as the Assessment runtime.
+        if (!prepRun || prepRun.executionState !== AGENT_EXECUTION_STATES.RUNNING) {
           throw problemException(
             BILLING_ERROR_CODES.admissionContextMismatch,
             correlationId,
@@ -328,7 +338,7 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
             version: { increment: 1 },
           },
         });
-        return { kind: "EXPIRED" as const };
+        return { kind: CONSUME_TRANSACTION_RESULTS.expired };
       }
 
       // Re-verify approved execution lease deadline against finalUtcNow immediately before state transition
@@ -362,7 +372,7 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
       });
 
       return {
-        kind: "SUCCESS" as const,
+        kind: CONSUME_TRANSACTION_RESULTS.committed,
         data: {
           admissionId: updated.id,
           invocationId: updated.invocationId,
@@ -373,7 +383,7 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
       };
     });
 
-    if (result.kind === "EXPIRED") {
+    if (result.kind === CONSUME_TRANSACTION_RESULTS.expired) {
       throw problemException(
         BILLING_ERROR_CODES.admissionExpired,
         correlationId,

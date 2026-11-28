@@ -1,6 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
-  CUSTOMER_USAGE_PRICING,
   USAGE_TOKEN_FIELDS,
   adminUsageAnalyticsSchema,
   customerUsageQuerySchema,
@@ -48,10 +47,10 @@ describe("Customer Usage selling estimate", () => {
         new GetCustomerUsageQuery("owner", customerUsageQuerySchema.parse({})),
       );
       expect(result.sellingPrice).toEqual({
-        version: CUSTOMER_USAGE_PRICING.version,
-        multiplier: "1.8",
-        knownSubtotalUsd: "0.018",
-        estimatedTotalUsd: incomplete ? null : "0.018",
+        version: "lcsp-usage-1.2-v1",
+        multiplier: "1.2",
+        knownSubtotalUsd: "0.012",
+        estimatedTotalUsd: incomplete ? null : "0.012",
       });
       expect(result.summary).toEqual(before.summary);
       expect(report).toEqual(before);

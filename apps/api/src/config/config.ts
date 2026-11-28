@@ -273,7 +273,6 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       then: paymentQrTemplateSchema().min(1).required(),
       otherwise: paymentQrTemplateSchema().allow("").default(""),
     }),
-    BILLING_ADMISSION_MASTER_KEY: Joi.string().trim().allow("").default(""),
     // Why: Dedicated background sweeper recovers abandoned in-flight model leases.
     // How: Validate enabled boolean (default true) and positive integer interval (minimum 1000ms, default 60000ms).
     // Invariants: Sweeper timing is fully configurable and validated during boot.

@@ -15,6 +15,13 @@ import {
 } from "../src/assessment-domain/index.ts";
 
 describe("assessment budget kernel contracts", () => {
+  it("exposes a distinct wallet payment pause reason", () => {
+    // Customer top-up must not be confused with an admin runtime budget extension.
+    expect(ASSESSMENT_BUDGET_REASONS).toHaveProperty(
+      "PAYMENT_REQUIRED",
+      "PAYMENT_REQUIRED",
+    );
+  });
   it("validates workload scopes and budget reasons", () => {
     expect(WORKLOAD_SCOPES.ASSESSMENT_ROOT).toBe("ASSESSMENT_ROOT");
     expect(WORKLOAD_SCOPES.RULE_SET_PREPARATION).toBe("RULE_SET_PREPARATION");

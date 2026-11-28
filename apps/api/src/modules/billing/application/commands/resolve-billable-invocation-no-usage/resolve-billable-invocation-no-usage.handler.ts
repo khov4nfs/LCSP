@@ -37,6 +37,7 @@ export class ResolveBillableInvocationNoUsageHandler implements ICommandHandler<
    *
    * Business rules:
    * - Must be executed by an Admin with RBAC permissions.
+   * - The authenticated Admin user ID, not a generic role label, is recorded as the resolver.
    * - Provider must be authoritatively known to record client correlation IDs.
    * - Provider audit log artifact must exist in durable database storage with verified=true.
    * - The provider log window must encompass the entire potential dispatch window (from admittedAt through dispatch timeout).
@@ -73,7 +74,22 @@ export class ResolveBillableInvocationNoUsageHandler implements ICommandHandler<
   async execute(
     command: ResolveBillableInvocationNoUsageCommand,
   ): Promise<ResolveNoUsageExecutionResult> {
-    const { payload, correlationId = "recon-resolve-no-usage" } = command;
+    const {
+      payload,
+      actorId,
+      correlationId = "recon-resolve-no-usage",
+    } = command;
+
+    // Why: Every exposure release needs an attributable Admin decision in the durable case.
+    // How: Reject commands lacking the authenticated actor before any transaction can mutate state.
+    // Invariant: A generic role label cannot stand in for the real deciding principal.
+    if (!actorId) {
+      throw problemException(
+        BILLING_ERROR_CODES.validationFailed,
+        correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
 
     // Invariant: Automated CONFIRMED_NO_USAGE slot release is kept strictly closed by default
     // until an audited operational provider log ingestion channel is provisioned.
@@ -231,7 +247,7 @@ export class ResolveBillableInvocationNoUsageHandler implements ICommandHandler<
           coverageStart,
           coverageEnd,
           resolvedAt: now,
-          resolvedBy: "admin",
+          resolvedBy: actorId,
           auditRationale: payload.auditRationale,
           version: 1,
         },
@@ -242,7 +258,7 @@ export class ResolveBillableInvocationNoUsageHandler implements ICommandHandler<
           coverageStart,
           coverageEnd,
           resolvedAt: now,
-          resolvedBy: "admin",
+          resolvedBy: actorId,
           auditRationale: payload.auditRationale,
           version: { increment: 1 },
         },

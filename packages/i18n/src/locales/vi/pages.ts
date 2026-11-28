@@ -1800,8 +1800,7 @@ export const viPages = {
       outputRemediation:
         "Đề xuất khắc phục và công việc rà soát mã có mục tiêu",
       outputVerification: "Kết quả xác minh và lịch sử quét lại có mục tiêu",
-      humanContextTitle:
-        "Chuyên môn của bạn, áp dụng đúng nơi cần thiết.",
+      humanContextTitle: "Chuyên môn của bạn, áp dụng đúng nơi cần thiết.",
       findingsTitle: "Rà soát phát hiện với bằng chứng đã được đính kèm.",
       remediationEyebrow: "Khắc phục + xác minh",
       verificationTitle:
@@ -2852,32 +2851,23 @@ export const viPages = {
         detectAccountFromCredential:
           "Tài khoản sẽ được nhận diện từ credential.",
         disconnect: "Ngắt kết nối",
-        disconnectConfirmTitle:
-          "Ngắt kết nối provider này?",
+        disconnectConfirmTitle: "Ngắt kết nối provider này?",
         disconnectConfirmDescription:
           "Token truy cập đã lưu sẽ bị xóa vĩnh viễn. Các repository kết nối qua token này sẽ không thể quét được cho đến khi bạn kết nối lại provider.",
-        disconnectConfirm:
-          "Ngắt kết nối",
-        disconnecting:
-          "Đang ngắt kết nối…",
-        disconnectSuccessTitle:
-          "Đã ngắt kết nối provider",
+        disconnectConfirm: "Ngắt kết nối",
+        disconnecting: "Đang ngắt kết nối…",
+        disconnectSuccessTitle: "Đã ngắt kết nối provider",
         disconnectFailedDescription:
           "Không thể ngắt kết nối provider. Chưa có thay đổi nào được áp dụng. Vui lòng thử lại.",
         disconnectReauthCancelled:
           "Đã hủy xác nhận danh tính. Provider vẫn đang được kết nối.",
-        connectionExpired:
-          "Đã hết hạn",
-        connectionNeedsAttention:
-          "Cần xử lý",
-        statusLoading:
-          "Đang tải kết nối provider…",
-        loadFailedTitle:
-          "Không thể tải kết nối provider",
+        connectionExpired: "Đã hết hạn",
+        connectionNeedsAttention: "Cần xử lý",
+        statusLoading: "Đang tải kết nối provider…",
+        loadFailedTitle: "Không thể tải kết nối provider",
         loadFailedDescription:
           "Chưa xác định được trạng thái kết nối nên không provider nào được hiển thị là đã hoặc chưa kết nối. Vui lòng thử lại.",
-        retry:
-          "Thử lại",
+        retry: "Thử lại",
         noneConnectedDescription:
           "Chưa kết nối provider Git nào. Hãy kết nối một provider để quét repository của bạn.",
         enterNewPat: "Nhập PAT mới",
@@ -3450,6 +3440,7 @@ export const viPages = {
       navUsage: "Sử dụng token AI",
       navBilling: "Thanh toán & Doanh thu",
       navPricing: "Bảng giá mô hình",
+      navModelReconciliation: "Đối soát lượt gọi mô hình",
       administrationLabel: "Quản trị hệ thống",
       administrationDescription:
         "Billing hệ thống, thanh toán, credit trả trước và đối soát.",
@@ -3717,6 +3708,81 @@ export const viPages = {
       suspending: "Đang khóa...",
       defaultReason: "Tạm khóa bởi quản trị viên",
     },
+    modelReconciliation: {
+      title: "Đối soát lượt gọi mô hình",
+      description:
+        "Điều tra lượt gọi chưa rõ kết quả và gửi quyết định có kiểm toán.",
+      readOnly: "Điều tra và quyết định có kiểm toán",
+      decision: {
+        action: "Quyết định",
+        maintainExposure: "Giữ mức phơi nhiễm",
+        flagIntegrityReview: "Chuyển rà soát toàn vẹn",
+        escalate: "Chuyển cấp",
+        confirmNoUsage: "Xác nhận không sử dụng (cần bằng chứng đã xác thực)",
+        auditRationale: "Lý do kiểm toán (ít nhất 10 ký tự)",
+        artifactId: "Mã bằng chứng nhà cung cấp đã xác thực",
+        submit: "Gửi quyết định có kiểm toán",
+        success: "Đã ghi quyết định. Làm mới hồ sơ để xem trạng thái mới.",
+        error: "Chưa ghi được quyết định. Kiểm tra hồ sơ và thử lại.",
+      },
+      compensation: {
+        title: "Bồi hoàn khoản trừ mô hình đã xác thực",
+        originalLedgerEntryId: "Bút toán trừ tiền gốc",
+        remaining: "Số microcredit còn có thể bồi hoàn",
+        amount: "Số microcredit cần bồi hoàn",
+        reason: "Lý do bồi hoàn (ít nhất 5 ký tự)",
+        submit: "Gửi yêu cầu bồi hoàn có kiểm toán",
+        success: "Đã ghi bồi hoàn và làm mới số tiền còn lại.",
+        error: "Chưa ghi được bồi hoàn. Làm mới hồ sơ và thử lại.",
+      },
+      loading: "Đang tải hồ sơ đối soát…",
+      errorTitle: "Không tải được hồ sơ đối soát",
+      errorDescription:
+        "Dịch vụ billing chưa trả được hàng đợi hiện tại. Hãy thử lại trước khi đưa ra quyết định vận hành.",
+      retry: "Thử lại",
+      refresh: "Làm mới",
+      empty: "Không tìm thấy hồ sơ đối soát nào.",
+      inspect: "Xem hồ sơ",
+      close: "Đóng chi tiết hồ sơ",
+      detailTitle: "Chi tiết hồ sơ đối soát",
+      detailDescription:
+        "Thẩm quyền admission và bằng chứng nhà cung cấp của lượt gọi được chọn.",
+      detailLoading: "Đang tải bằng chứng…",
+      detailError: "Không tải được bằng chứng của hồ sơ.",
+      none: "Chưa ghi nhận",
+      columns: {
+        caseId: "Mã hồ sơ",
+        state: "Trạng thái",
+        provider: "Nhà cung cấp",
+        invocationId: "Mã lượt gọi",
+        exposure: "Phơi nhiễm đang giữ (microcredits)",
+        createdAt: "Tạo lúc (UTC)",
+        action: "Chi tiết",
+      },
+      fields: {
+        correlationId: "Mã liên kết nhà cung cấp",
+        admissionId: "Mã admission",
+        walletId: "Mã ví",
+        userId: "Mã khách hàng",
+        model: "Mô hình đã chọn",
+        debitMode: "Chế độ trừ tiền",
+        coverage: "Khoảng log nhà cung cấp (UTC)",
+        artifactId: "Mã bằng chứng",
+        artifactVerified: "Bằng chứng đã xác thực",
+        auditRationale: "Lý do kiểm toán",
+      },
+      verified: "Đã xác thực",
+      unverified: "Chưa xác thực",
+      states: {
+        OPEN: "Đang mở",
+        EVIDENCE_PENDING: "Chờ bằng chứng",
+        INTEGRITY_REVIEW: "Rà soát toàn vẹn",
+        SETTLED_WITH_USAGE: "Đã đối soát có sử dụng",
+        CONFIRMED_NO_USAGE: "Xác nhận không sử dụng",
+        ESCALATED: "Đã chuyển cấp",
+        CLOSED: "Đã đóng",
+      },
+    },
     pricing: {
       title: "Bảng giá mô hình",
       description:
@@ -3748,7 +3814,8 @@ export const viPages = {
         allowlistedModels: "Mô hình trong danh sách cho phép",
         allowlistedSubtitle: "Tuyến mô hình hợp lệ để phân giải biểu giá",
         coverageGaps: "Khoảng trống độ phủ",
-        coverageGapsSubtitle: "Mô hình được phép nhưng chưa có biểu giá hiệu lực",
+        coverageGapsSubtitle:
+          "Mô hình được phép nhưng chưa có biểu giá hiệu lực",
         activeAssignments: "Đang hiệu lực & sắp áp dụng",
         assignmentsSubtitle: "Khoảng thời gian UTC đang chạy hoặc theo lịch",
         draftsAndSnapshots: "Bản nháp & bản chụp",
@@ -3767,7 +3834,8 @@ export const viPages = {
         coverageGapOnly: "Chỉ hiện khoảng trống độ phủ",
         apply: "Áp dụng bộ lọc",
         reset: "Đặt lại bộ lọc",
-        invalidFilters: "Vui lòng nhập nhà cung cấp, mô hình, phạm vi hoặc trạng thái hợp lệ.",
+        invalidFilters:
+          "Vui lòng nhập nhà cung cấp, mô hình, phạm vi hoặc trạng thái hợp lệ.",
       },
       sections: {
         coverageTitle: "Độ phủ biểu giá hiệu lực",

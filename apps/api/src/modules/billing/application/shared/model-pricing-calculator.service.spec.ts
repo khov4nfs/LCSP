@@ -247,6 +247,69 @@ describe("ModelPricingCalculatorService", () => {
     expect(zeroResult.chargeCreditsDecimal).toBe("0");
   });
 
+  it("bounds every supported cache and reasoning bucket within the admitted token limits", () => {
+    // Why: Admission must reserve enough for the most expensive valid tariff breakdown before provider dispatch.
+    // How: Compare the new bound against actual canonical charges for ordinary, cache read, aggregate write, split write, and reasoning scenarios.
+    // Invariant: No scenario with at most 1,000 input-side tokens and 100 output-side tokens exceeds the stamped exposure.
+    const calculator = createServiceWithAllowlist();
+    const rates = {
+      input: 3_000_000n,
+      output: 15_000_000n,
+      reasoningPolicy: TOKEN_BUCKET_POLICIES.separateRate,
+      reasoning: 2_000_000n,
+      cachedInputPolicy: TOKEN_BUCKET_POLICIES.separateRate,
+      cachedInput: 1_000_000n,
+      cacheWritePolicy: TOKEN_BUCKET_POLICIES.separateRate,
+      cacheWrite: 20_000_000n,
+      cacheWrite5m: 21_000_000n,
+      cacheWrite1h: 23_000_000n,
+    };
+    const maximum = calculator.calculateMaximumExposure({
+      inputTokensUpperBound: 1_000n,
+      outputTokensUpperBound: 100n,
+      ratesMicrocreditsPerMillion: rates,
+    });
+    expect(maximum).toBe(24_700n);
+
+    const boundedUsages = [
+      { inputTokens: 1_000n, outputTokens: 100n, reasoningTokens: 100n },
+      {
+        inputTokens: 300n,
+        cachedInputTokens: 700n,
+        outputTokens: 100n,
+        reasoningTokens: 100n,
+      },
+      {
+        inputTokens: 0n,
+        cacheWriteTokens: 1_000n,
+        outputTokens: 100n,
+        reasoningTokens: 100n,
+      },
+      {
+        inputTokens: 0n,
+        cacheWrite5mTokens: 400n,
+        cacheWrite1hTokens: 600n,
+        outputTokens: 100n,
+        reasoningTokens: 100n,
+      },
+    ];
+    for (const usage of boundedUsages) {
+      expect(
+        calculator.calculateCharge({
+          usage,
+          ratesMicrocreditsPerMillion: rates,
+        }).chargeMicrocredits,
+      ).toBeLessThanOrEqual(maximum);
+    }
+    expect(
+      calculator.calculateMaximumExposure({
+        inputTokensUpperBound: 0n,
+        outputTokensUpperBound: 0n,
+        ratesMicrocreditsPerMillion: rates,
+      }),
+    ).toBe(0n);
+  });
+
   it("never imports or synthesizes 1.8x customer-pricing or official-reference-pricing defaults", () => {
     const source = readFileSync(
       resolve(

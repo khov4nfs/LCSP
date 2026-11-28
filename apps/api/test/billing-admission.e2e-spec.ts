@@ -1,9 +1,13 @@
 import * as assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import type { AddressInfo } from "node:net";
 import { mkdirSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const execFileAsync = promisify(execFile);
 
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -12,6 +16,7 @@ import { PrismaClient } from "@prisma/client";
 import {
   ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
+  BILLING_AUDIT_EVENT_TYPES,
   BILLING_ERROR_CODES,
   BILLING_ROLLOUT_MODES,
   MODEL_PRICING_SCOPES,
@@ -38,6 +43,27 @@ const apiRoot = resolve(testDir, "..");
 const WORKER_TEST_API_KEY = "test-worker-internal-api-key";
 const defaultLeaseToken = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const defaultRunId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
+function listeningPort(application: INestApplication): number {
+  // Why: Nest's generic HTTP-server return is untyped, while these tests require a real bound port.
+  // How: Narrow the Node server surface and validate the address before building the worker URL.
+  // Invariant: A missing listener fails before a Python subprocess can call an unintended endpoint.
+  const server = application.getHttpServer() as {
+    address(): AddressInfo | string | null;
+  };
+  const address = server.address();
+  assert.ok(address && typeof address !== "string" && address.port > 0);
+  return address.port;
+}
+
+function pythonResult(line: string): Record<string, unknown> {
+  // Why: JSON.parse returns any, which can conceal malformed subprocess output.
+  // How: Require an object before its individual fields are asserted by the caller.
+  // Invariant: Python stdout is never trusted as a typed success receipt without validation.
+  const value: unknown = JSON.parse(line);
+  assert.ok(value && typeof value === "object" && !Array.isArray(value));
+  return value as Record<string, unknown>;
+}
 
 function ensureIdempotentMigrateDeploy(): void {
   const cacheHome = resolve(apiRoot, ".cache");
@@ -84,6 +110,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
 
     app = moduleFixture.createNestApplication();
     await app.init();
+    await app.listen(0);
   });
 
   afterAll(async () => {
@@ -93,6 +120,8 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
 
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(`
+      ALTER TABLE "BillableInvocationAdmission" ENABLE TRIGGER "BillableInvocationAdmission_initial_exposure_insert";
+      ALTER TABLE "BillableInvocationAdmission" ENABLE TRIGGER "BillableInvocationAdmission_initial_exposure_immutable";
       TRUNCATE TABLE
         "ModelOutputEvaluation",
         "ModelUsageReceipt",
@@ -182,6 +211,458 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
     publishedAssignmentId = assignment.id;
   });
 
+  // Why: The callback cannot be exposed until retention and delivery semantics are approved.
+  // How: Keep this acceptance scenario as a pending contract while route registration is disabled.
+  // Invariant: The current application has no worker-callable verdict writer.
+  it.skip("A3 pending retention: binds rule-authoring rejection to one immutable journal row and physical receipt", async () => {
+    // Why: A future DOMAIN_REJECTED verdict needs a durable evaluator event beyond a callback's self-claim.
+    // How: Publish the actual CUSTOM_PROGRESS shape and inspect the persisted journal row by server event ID.
+    // Invariant: Rejection evidence must remain bound to one preparation run and tool call.
+    const source = await prisma.legalSourceVersion.create({
+      data: { version: `causation-${randomUUID()}`, sourceManifest: {} },
+    });
+    const preparationRunId = `prep-causation-${randomUUID()}`;
+    const admissionId = randomUUID();
+    const invocationId = randomUUID();
+    await prisma.ruleSetPreparationRun.create({
+      data: {
+        id: preparationRunId,
+        legalSourceVersionId: source.id,
+        requestedBy: "SYSTEM",
+        executionState: "RUNNING",
+        correlationId: `corr-${preparationRunId}`,
+        idempotencyKey: `idem-${preparationRunId}`,
+      },
+    });
+    const published = await httpRequest(app)
+      .post("/internal/assessment-runtime/agent-stream-events")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        preparation_run_id: preparationRunId,
+        run_id: preparationRunId,
+        event_type: "CUSTOM_PROGRESS",
+        data: {
+          activity_kind: "RULE_AUTHORING_TOOL_REJECTED",
+          rejection: {
+            toolCallId: "call-a",
+            physicalInvocationId: invocationId,
+            rejectionCode: "CLAIM_IDENTITY_CONFLICT",
+            sequence: 1,
+            argsFingerprint: "a".repeat(32),
+          },
+        },
+      });
+    assert.equal(published.status, 202);
+    const eventId = successBody<{ recorded: boolean; eventId: string }>(
+      published,
+    ).eventId;
+    const rows = await prisma.assessmentRuntimeEvent.findMany({
+      where: { preparationRunId },
+    });
+    const matched = rows.find((row) => {
+      const output = row.outputSummaryJson as {
+        agentStreamEvent?: { eventId?: string };
+      } | null;
+      return output?.agentStreamEvent?.eventId === eventId;
+    });
+    assert.ok(matched);
+    assert.equal(matched.runId, preparationRunId);
+    const output = matched.outputSummaryJson as {
+      agentStreamEvent: {
+        data?: { rejection?: { toolCallId?: string; rejectionCode?: string } };
+      };
+    };
+    assert.equal(output.agentStreamEvent.data?.rejection?.toolCallId, "call-a");
+    assert.equal(
+      output.agentStreamEvent.data?.rejection?.rejectionCode,
+      "CLAIM_IDENTITY_CONFLICT",
+    );
+    // Why: The DB unique index covers rejection events only; ordinary progress
+    // may legitimately reuse this worker event ID in the same run.
+    // How: Publish that coexistence before the verdict callback.
+    // Invariant: A future evaluator must scope its journal query to rejection
+    // kind and boundary, otherwise a normal event can falsely make it ambiguous.
+    const unrelatedProgress = await httpRequest(app)
+      .post("/internal/assessment-runtime/agent-stream-events")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        preparation_run_id: preparationRunId,
+        run_id: preparationRunId,
+        event_type: "CUSTOM_PROGRESS",
+        event_id: eventId,
+        data: { activity_kind: "OTHER" },
+      });
+    assert.equal(unrelatedProgress.status, 202);
+
+    // Why: A worker callback alone cannot prove a rejected tool belongs to a paid physical response.
+    // How: Seed the exact settled admission/receipt/evaluation chain and reference the persisted event.
+    // Invariant: Only the pinned call ID may transition the evaluation; financial receipt stays unchanged.
+    await prisma.billableInvocationAdmission.create({
+      data: {
+        id: admissionId,
+        invocationId,
+        admissionRequestId: randomUUID(),
+        requestFingerprint: "rejection-fixture",
+        logicalOperationId: randomUUID(),
+        attemptOrdinal: 1,
+        fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+        preparationRunId,
+        runId: preparationRunId,
+        agentRole: "rule-preparation",
+        operationType: "PREPARATION",
+        requestedModel: "claude-sonnet-4-6",
+        resolvedProvider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        runtimePolicyVersion: "RULE_SET_PREPARATION_SYSTEM@1.0",
+        appliedMaxOutputTokens: 100,
+        maximumExposureMicrocredits: 0n,
+        initialExposureMicrocredits: 1n,
+        capabilityDigest: "a".repeat(64),
+        state: ADMISSION_STATES.SETTLED,
+        expiresAt: new Date(Date.now() + 300_000),
+        settledAt: new Date(),
+        correlationId: `corr-${preparationRunId}`,
+      },
+    });
+    await prisma.modelUsageReceipt.create({
+      data: {
+        admissionId,
+        invocationId,
+        providerCompletionState: "COMPLETED",
+        operationType: "PREPARATION",
+        runtimePolicyVersion: "RULE_SET_PREPARATION_SYSTEM@1.0",
+        toolCallIds: ["call-a"],
+        calculatedMicrocredits: 1n,
+        debitedMicrocredits: 0n,
+        chargedMicrocredits: 0n,
+        settledAt: new Date(),
+      },
+    });
+    await prisma.modelOutputEvaluation.create({
+      data: {
+        admissionId,
+        invocationId,
+        operationType: "PREPARATION",
+        evaluationState: "NOT_EVALUATED",
+        providerCompletionState: "COMPLETED",
+        correlationId: `corr-${preparationRunId}`,
+      },
+    });
+    // Why: A provider can reuse one tool-call ID in two legitimate physical responses.
+    // How: Pin a second receipt to the same tool ID, then prove the journal's
+    // physicalInvocationId selects only its matching admission.
+    // Invariant: The shared tool ID alone never authorizes a verdict on another receipt.
+    const otherAdmissionId = randomUUID();
+    const otherInvocationId = randomUUID();
+    await prisma.billableInvocationAdmission.create({
+      data: {
+        id: otherAdmissionId,
+        invocationId: otherInvocationId,
+        admissionRequestId: randomUUID(),
+        requestFingerprint: "rejection-duplicate-tool-fixture",
+        logicalOperationId: randomUUID(),
+        attemptOrdinal: 1,
+        fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+        preparationRunId,
+        runId: preparationRunId,
+        agentRole: "rule-preparation",
+        operationType: "PREPARATION",
+        requestedModel: "claude-sonnet-4-6",
+        resolvedProvider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        runtimePolicyVersion: "RULE_SET_PREPARATION_SYSTEM@1.0",
+        appliedMaxOutputTokens: 100,
+        maximumExposureMicrocredits: 0n,
+        initialExposureMicrocredits: 1n,
+        capabilityDigest: "b".repeat(64),
+        state: ADMISSION_STATES.SETTLED,
+        expiresAt: new Date(Date.now() + 300_000),
+        settledAt: new Date(),
+        correlationId: `corr-${preparationRunId}`,
+      },
+    });
+    await prisma.modelUsageReceipt.create({
+      data: {
+        admissionId: otherAdmissionId,
+        invocationId: otherInvocationId,
+        providerCompletionState: "COMPLETED",
+        operationType: "PREPARATION",
+        runtimePolicyVersion: "RULE_SET_PREPARATION_SYSTEM@1.0",
+        toolCallIds: ["call-a"],
+        calculatedMicrocredits: 1n,
+        debitedMicrocredits: 0n,
+        chargedMicrocredits: 0n,
+        settledAt: new Date(),
+      },
+    });
+    await prisma.modelOutputEvaluation.create({
+      data: {
+        admissionId: otherAdmissionId,
+        invocationId: otherInvocationId,
+        operationType: "PREPARATION",
+        evaluationState: "NOT_EVALUATED",
+        providerCompletionState: "COMPLETED",
+        correlationId: `corr-${preparationRunId}`,
+      },
+    });
+
+    const verdict = {
+      admissionId,
+      invocationId,
+      preparationRunId,
+      runId: preparationRunId,
+      eventId,
+      toolCallId: "call-a",
+      rejectionCode: "CLAIM_IDENTITY_CONFLICT",
+      evaluatorVersion: "rule-authoring-v1",
+    };
+    const unauthenticated = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .send(verdict);
+    assert.equal(unauthenticated.status, 401);
+    const forgedEvent = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({ ...verdict, eventId: randomUUID() });
+    assert.equal(forgedEvent.status, 403);
+    const wrongPhysicalReceipt = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        ...verdict,
+        admissionId: otherAdmissionId,
+        invocationId: otherInvocationId,
+      });
+    assert.equal(wrongPhysicalReceipt.status, 403);
+    assert.equal(
+      (
+        await prisma.modelOutputEvaluation.findUnique({
+          where: { invocationId: otherInvocationId },
+        })
+      )?.evaluationState,
+      "NOT_EVALUATED",
+    );
+    assert.equal(
+      (
+        await prisma.modelOutputEvaluation.findUnique({
+          where: { invocationId },
+        })
+      )?.evaluationState,
+      "NOT_EVALUATED",
+    );
+    const decided = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(verdict);
+    assert.equal(decided.status, 200);
+    assert.equal(
+      (
+        await prisma.modelOutputEvaluation.findUnique({
+          where: { invocationId },
+        })
+      )?.evaluationState,
+      "DOMAIN_REJECTED",
+    );
+    const replay = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(verdict);
+    assert.equal(replay.status, 200);
+    const unrelated = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({ ...verdict, toolCallId: "call-not-in-receipt" });
+    assert.ok(
+      unrelated.status === 403 ||
+        unrelated.status === 409 ||
+        unrelated.status === 422,
+    );
+    assert.equal(
+      (await prisma.modelUsageReceipt.findUnique({ where: { invocationId } }))
+        ?.debitedMicrocredits,
+      0n,
+    );
+    assert.equal(
+      await prisma.auditEvent.count({
+        where: {
+          resourceId: admissionId,
+          eventType: BILLING_AUDIT_EVENT_TYPES.outputDomainRejected,
+        },
+      }),
+      1,
+    );
+    // Why: Worker event IDs are accepted metadata; a duplicate must not make DB row order authoritative.
+    // How: Publish a second journal row carrying the same ID and retry the verdict callback.
+    // Invariant: Ambiguous event evidence fails closed, including for a previously accepted callback.
+    const duplicateEvent = await httpRequest(app)
+      .post("/internal/assessment-runtime/agent-stream-events")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        preparation_run_id: preparationRunId,
+        run_id: preparationRunId,
+        event_type: "CUSTOM_PROGRESS",
+        event_id: eventId,
+        data: {
+          activity_kind: "RULE_AUTHORING_TOOL_REJECTED",
+          rejection: {
+            toolCallId: "call-a",
+            rejectionCode: "CLAIM_IDENTITY_CONFLICT",
+          },
+        },
+      });
+    assert.equal(duplicateEvent.status, 409);
+    const ambiguous = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(verdict);
+    assert.equal(ambiguous.status, 200);
+
+    // Why: Worker event IDs are only unique within one run, while evaluatorEventId is global.
+    // How: Reuse the same worker event ID in another run and assert the server journal IDs differ.
+    // Invariant: Two legitimate physical invocations in separate runs can both receive a verdict.
+    const secondRunId = `prep-causation-${randomUUID()}`;
+    const secondAdmissionId = randomUUID();
+    const secondInvocationId = randomUUID();
+    await prisma.ruleSetPreparationRun.create({
+      data: {
+        id: secondRunId,
+        legalSourceVersionId: source.id,
+        requestedBy: "SYSTEM",
+        executionState: "RUNNING",
+        correlationId: `corr-${secondRunId}`,
+        idempotencyKey: `idem-${secondRunId}`,
+      },
+    });
+    const secondPublished = await httpRequest(app)
+      .post("/internal/assessment-runtime/agent-stream-events")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        preparation_run_id: secondRunId,
+        run_id: secondRunId,
+        event_type: "CUSTOM_PROGRESS",
+        event_id: eventId,
+        data: {
+          activity_kind: "RULE_AUTHORING_TOOL_REJECTED",
+          rejection: {
+            toolCallId: "call-a",
+            physicalInvocationId: secondInvocationId,
+            rejectionCode: "CLAIM_IDENTITY_CONFLICT",
+          },
+        },
+      });
+    assert.equal(secondPublished.status, 202);
+    await prisma.billableInvocationAdmission.create({
+      data: {
+        id: secondAdmissionId,
+        invocationId: secondInvocationId,
+        admissionRequestId: randomUUID(),
+        requestFingerprint: "rejection-cross-run-fixture",
+        logicalOperationId: randomUUID(),
+        attemptOrdinal: 1,
+        fundingPrincipal: ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+        preparationRunId: secondRunId,
+        runId: secondRunId,
+        agentRole: "rule-preparation",
+        operationType: "PREPARATION",
+        requestedModel: "claude-sonnet-4-6",
+        resolvedProvider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        runtimePolicyVersion: "RULE_SET_PREPARATION_SYSTEM@1.0",
+        appliedMaxOutputTokens: 100,
+        maximumExposureMicrocredits: 0n,
+        initialExposureMicrocredits: 1n,
+        capabilityDigest: "c".repeat(64),
+        state: ADMISSION_STATES.SETTLED,
+        expiresAt: new Date(Date.now() + 300_000),
+        settledAt: new Date(),
+        correlationId: `corr-${secondRunId}`,
+      },
+    });
+    await prisma.modelUsageReceipt.create({
+      data: {
+        admissionId: secondAdmissionId,
+        invocationId: secondInvocationId,
+        providerCompletionState: "COMPLETED",
+        operationType: "PREPARATION",
+        runtimePolicyVersion: "RULE_SET_PREPARATION_SYSTEM@1.0",
+        toolCallIds: ["call-a"],
+        calculatedMicrocredits: 1n,
+        debitedMicrocredits: 0n,
+        chargedMicrocredits: 0n,
+        settledAt: new Date(),
+      },
+    });
+    await prisma.modelOutputEvaluation.create({
+      data: {
+        admissionId: secondAdmissionId,
+        invocationId: secondInvocationId,
+        operationType: "PREPARATION",
+        evaluationState: "NOT_EVALUATED",
+        providerCompletionState: "COMPLETED",
+        correlationId: `corr-${secondRunId}`,
+      },
+    });
+    const secondVerdict = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        ...verdict,
+        admissionId: secondAdmissionId,
+        invocationId: secondInvocationId,
+        preparationRunId: secondRunId,
+        runId: secondRunId,
+      });
+    assert.equal(secondVerdict.status, 200);
+    const [firstEvaluation, secondEvaluation] = await Promise.all([
+      prisma.modelOutputEvaluation.findUnique({ where: { invocationId } }),
+      prisma.modelOutputEvaluation.findUnique({
+        where: { invocationId: secondInvocationId },
+      }),
+    ]);
+    assert.equal(secondEvaluation?.evaluationState, "DOMAIN_REJECTED");
+    assert.notEqual(
+      firstEvaluation?.evaluatorEventId,
+      secondEvaluation?.evaluatorEventId,
+    );
+    // Why: Old or ambiguous worker events may identify a tool call but omit its physical invocation.
+    // How: Publish that weaker evidence and verify it cannot mark the other receipt as rejected.
+    // Invariant: Missing physical identity always leaves NOT_EVALUATED unchanged.
+    const unboundEvent = await httpRequest(app)
+      .post("/internal/assessment-runtime/agent-stream-events")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        preparation_run_id: preparationRunId,
+        run_id: preparationRunId,
+        event_type: "CUSTOM_PROGRESS",
+        data: {
+          activity_kind: "RULE_AUTHORING_TOOL_REJECTED",
+          rejection: {
+            toolCallId: "call-a",
+            rejectionCode: "CLAIM_IDENTITY_CONFLICT",
+          },
+        },
+      });
+    assert.equal(unboundEvent.status, 202);
+    const unboundVerdict = await httpRequest(app)
+      .post("/internal/billing/output-evaluations/domain-rejected")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        ...verdict,
+        admissionId: otherAdmissionId,
+        invocationId: otherInvocationId,
+        eventId: successBody<{ eventId: string }>(unboundEvent).eventId,
+      });
+    assert.equal(unboundVerdict.status, 403);
+    assert.equal(
+      (
+        await prisma.modelOutputEvaluation.findUnique({
+          where: { invocationId: otherInvocationId },
+        })
+      )?.evaluationState,
+      "NOT_EVALUATED",
+    );
+  });
+
   it("rejects unauthenticated worker admission requests with HTTP 401", async () => {
     const payload: BillableInvocationAdmissionRequest = {
       admissionRequestId: "req-auth-test-1",
@@ -257,6 +738,171 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
       (dbAdmission as Record<string, unknown>).debitMode,
       MODEL_USAGE_DEBIT_MODES.OFF,
       "Persistence debitMode must be stored as MODEL_USAGE_DEBIT_MODES.OFF",
+    );
+  });
+
+  it("rejects customer admission when an allowlisted model has no active tariff", async () => {
+    // Why: Worker tests simulate a missing-price response; this verifies the real server makes the same decision.
+    // How: Remove the dedicated test assignment, then request admission for its otherwise valid model and lease.
+    // Invariant: No capability or billable invocation may be issued without a published effective tariff.
+    await prisma.customerModelTariffAssignment.delete({
+      where: { id: publishedAssignmentId },
+    });
+    const payload: BillableInvocationAdmissionRequest = {
+      admissionRequestId: "req-customer-no-active-tariff",
+      logicalOperationId: "op-customer-no-active-tariff",
+      attemptOrdinal: 1,
+      runId: defaultRunId,
+      assessmentId,
+      executionLeaseToken: defaultLeaseToken,
+      agentRole: "assessment-root",
+      operationType: "SYNTHESIS",
+      requestedProvider: "anthropic",
+      requestedModel: "claude-sonnet-4-6",
+      inputTokensUpperBound: 1000,
+      outputTokensUpperBound: 1000,
+    };
+
+    const response = await httpRequest(app)
+      .post("/internal/billing/admission/request")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(payload);
+
+    assert.equal(response.status, 422);
+    assert.equal(
+      problemBody(response).code,
+      BILLING_ERROR_CODES.modelPricingNoCoverage,
+    );
+    assert.equal(
+      await prisma.billableInvocationAdmission.count({
+        where: { admissionRequestId: payload.admissionRequestId },
+      }),
+      0,
+    );
+  });
+
+  it.each([
+    {
+      name: "cutover v2 wallet",
+      accountingUnitVersion: 2,
+      expectedStatus: 201,
+    },
+    { name: "legacy v1 wallet", accountingUnitVersion: 1, expectedStatus: 402 },
+  ])(
+    "uses the authoritative unit for $name with fractional positive balance",
+    async ({ accountingUnitVersion, expectedStatus }) => {
+      // Why: A cutover wallet can own half a credit while its legacy whole-credit projection is zero.
+      // How: Pin the wallet version and compare admission against the relevant authoritative balance.
+      // Invariant: A version-1 wallet cannot spend shadow microcredits before cutover.
+      await prisma.billingWallet.update({
+        where: { id: customerWalletId },
+        data: {
+          accountingUnitVersion,
+          availableCredits: 0n,
+          balanceMicrocredits: 500_000n,
+        },
+      });
+      const res = await httpRequest(app)
+        .post("/internal/billing/admission/request")
+        .set("x-worker-api-key", WORKER_TEST_API_KEY)
+        .send({
+          admissionRequestId: `req-fractional-${accountingUnitVersion}`,
+          logicalOperationId: `op-fractional-${accountingUnitVersion}`,
+          attemptOrdinal: 1,
+          runId: defaultRunId,
+          assessmentId,
+          executionLeaseToken: defaultLeaseToken,
+          agentRole: "assessment-root",
+          operationType: "SYNTHESIS",
+          requestedProvider: "anthropic",
+          requestedModel: "claude-sonnet-4-6",
+          inputTokensUpperBound: 100,
+          outputTokensUpperBound: 100,
+        });
+      assert.equal(res.status, expectedStatus);
+      if (expectedStatus === 201) {
+        const admission = successBody<BillableInvocationAdmissionResponse>(res);
+        const persisted =
+          await prisma.billableInvocationAdmission.findUniqueOrThrow({
+            where: { id: admission.admissionId },
+          });
+        assert.equal(persisted.walletId, customerWalletId);
+      } else {
+        assert.equal(
+          problemBody(res).code,
+          BILLING_ERROR_CODES.paymentRequired,
+        );
+      }
+    },
+  );
+
+  it("G-04 RED: admitted exposure covers a permitted cache-write bucket priced above ordinary input", async () => {
+    // Why: Admission currently prices the input bound only at the ordinary input rate, although a published tariff may charge cache writes at a higher rate.
+    // How: Replace this test's active tariff interval with a cache-write tariff, then compare the admitted exposure with a valid all-cache-write invocation.
+    // Invariant: Within declared token bounds, settlement must not exceed the amount admitted solely because a priced bucket was omitted from exposure.
+    const now = new Date();
+    const transition = new Date(now.getTime() - 30_000);
+    await prisma.customerModelTariffAssignment.update({
+      where: { id: publishedAssignmentId },
+      data: { effectiveTo: transition },
+    });
+    const snapshot = await prisma.customerModelTariffSnapshot.create({
+      data: {
+        scope: MODEL_PRICING_SCOPES.exactModel,
+        provider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        normalizedScopeKey: "EXACT_MODEL:anthropic:claude-sonnet-4-6",
+        version: 2,
+        accountingUnitVersion: 1,
+        inputMicrocreditsPerMillion: 3_000_000n,
+        outputMicrocreditsPerMillion: 15_000_000n,
+        reasoningPolicy: TOKEN_BUCKET_POLICIES.unsupported,
+        cachedInputPolicy: TOKEN_BUCKET_POLICIES.unsupported,
+        cacheWritePolicy: TOKEN_BUCKET_POLICIES.separateRate,
+        cacheWriteMicrocreditsPerMillion: 20_000_000n,
+        idempotencyKey: `publish-g04-cache-write-${randomUUID()}`,
+        requestFingerprint: "b".repeat(64),
+        publishedBy: "system-test",
+        auditReason: "G-04 exposure regression fixture",
+      },
+    });
+    await prisma.customerModelTariffAssignment.create({
+      data: {
+        tariffSnapshotId: snapshot.id,
+        scope: MODEL_PRICING_SCOPES.exactModel,
+        normalizedScopeKey: "EXACT_MODEL:anthropic:claude-sonnet-4-6",
+        effectiveFrom: transition,
+        effectiveTo: null,
+        createdBy: "system-test",
+      },
+    });
+
+    const payload: BillableInvocationAdmissionRequest = {
+      admissionRequestId: `req-g04-cache-write-${randomUUID()}`,
+      logicalOperationId: `op-g04-cache-write-${randomUUID()}`,
+      attemptOrdinal: 1,
+      runId: defaultRunId,
+      assessmentId,
+      executionLeaseToken: defaultLeaseToken,
+      agentRole: "assessment-root",
+      operationType: "SYNTHESIS",
+      requestedProvider: "anthropic",
+      requestedModel: "claude-sonnet-4-6",
+      inputTokensUpperBound: 1_000,
+      outputTokensUpperBound: 1,
+    };
+    const res = await httpRequest(app)
+      .post("/internal/billing/admission/request")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(payload);
+
+    assert.equal(res.status, 201);
+    const admission = successBody<BillableInvocationAdmissionResponse>(res);
+    assert.equal(admission.tariffSnapshotId, snapshot.id);
+    // 1,000 cache-write tokens * 20,000,000 per million plus one output token * 15,000,000 per million.
+    assert.ok(
+      BigInt(admission.initialExposureMicrocredits ?? "0") >= 20_015n,
+      `Admitted ${admission.initialExposureMicrocredits} microcredits, but an in-bound cache-write call can cost 20,015`,
     );
   });
 
@@ -371,6 +1017,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
         debitMode: MODEL_USAGE_DEBIT_MODES.OFF,
         appliedMaxOutputTokens: 4096,
         maximumExposureMicrocredits: 5_000_000n,
+        initialExposureMicrocredits: 5_000_000n,
         capabilityDigest: "c".repeat(64),
         state: ADMISSION_STATES.OUTCOME_UNKNOWN, // Unresolved state!
         admittedAt: new Date(Date.now() - 60_000),
@@ -567,6 +1214,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
         debitMode: MODEL_USAGE_DEBIT_MODES.OFF,
         appliedMaxOutputTokens: 4096,
         maximumExposureMicrocredits: 5_000_000n,
+        initialExposureMicrocredits: 5_000_000n,
         capabilityDigest: expiredCapDigest,
         state: ADMISSION_STATES.ADMITTED,
         admittedAt: new Date(Date.now() - 400_000), // 400s ago
@@ -910,6 +1558,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
         runtimePolicyVersion: "1.0",
         appliedMaxOutputTokens: 4096,
         maximumExposureMicrocredits: 61_440_000n,
+        initialExposureMicrocredits: 61_440_000n,
         capabilityDigest,
         state: ADMISSION_STATES.IN_FLIGHT,
         version: 2,
@@ -953,6 +1602,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
         id: prepRunId,
         legalSourceVersionId: source.id,
         requestedBy: "SYSTEM",
+        executionState: "RUNNING",
         correlationId: `corr-${prepRunId}`,
         idempotencyKey: `idem-${prepRunId}`,
       },
@@ -1020,6 +1670,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
         id: prepRunId,
         legalSourceVersionId: source.id,
         requestedBy: "SYSTEM",
+        executionState: "RUNNING",
         correlationId: `corr-${prepRunId}`,
         idempotencyKey: `idem-${prepRunId}`,
       },
@@ -1238,6 +1889,7 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
         runtimePolicyVersion: "WP8_PILOT_V1",
         appliedMaxOutputTokens: 4096,
         maximumExposureMicrocredits: 61_440_000n,
+        initialExposureMicrocredits: 61_440_000n,
         capabilityDigest: "digest-" + "e".repeat(32),
         state: ADMISSION_STATES.ADMITTED,
         admittedAt: new Date(Date.now() - 360_000),
@@ -1266,6 +1918,780 @@ describe("WP8 Phase B: Server-issued Admission Control & Concurrency Slot (Postg
       dbRecord.state,
       ADMISSION_STATES.EXPIRED,
       "PostgreSQL record MUST be committed as EXPIRED even though the HTTP response was an error (422)",
+    );
+  });
+
+  it("Middleware-to-API Integration (G-06): UsageMeteringMiddleware and WorkerApiClient drive server admission and consume against live NestJS API on Postgres test DB", async () => {
+    // 1. Ensure ephemeral port is open and server is listening
+    const port = listeningPort(app);
+    assert.ok(port > 0, "Server must be listening on an ephemeral port");
+    const apiBaseUrl = `http://127.0.0.1:${port}`;
+
+    // 2. Setup DB fixtures on disposable Postgres test DB
+    const source = await prisma.legalSourceVersion.create({
+      data: {
+        version: `sys-src-worker-integ-${randomUUID()}`,
+        sourceManifest: {},
+      },
+    });
+    const prepRunId = `prep-run-worker-integ-${randomUUID()}`;
+    await prisma.ruleSetPreparationRun.create({
+      data: {
+        id: prepRunId,
+        legalSourceVersionId: source.id,
+        requestedBy: "SYSTEM",
+        executionState: "RUNNING",
+        correlationId: `corr-${prepRunId}`,
+        idempotencyKey: `idem-${prepRunId}`,
+      },
+    });
+
+    const activePolicy = await prisma.platformSponsorshipPolicySnapshot.create({
+      data: {
+        policyName: "RULE_SET_PREPARATION_SYSTEM",
+        policyVersion: `WP8_PREPARATION_${randomUUID()}`,
+        provider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        inputMicrocreditsPerMillion: 3_000_000n,
+        outputMicrocreditsPerMillion: 15_000_000n,
+        effectiveFrom: new Date(Date.now() - 3600_000),
+        effectiveTo: null,
+      },
+    });
+
+    // 3. Execute python runner invoking WorkerApiClient and UsageMeteringMiddleware with real HTTP
+    const pythonScript = `
+import asyncio
+import json
+import sys
+from middleware.usage_metering import UsageMeteringMiddleware, AgentRunState, activate_agent_run_state
+from tools.common.capabilities.platform.api_client import WorkerApiClient
+from test_selected_rule_preparation import GovernedSelectedFixtureModel
+from langchain_core.messages import HumanMessage
+
+base_url = sys.argv[1]
+worker_key = sys.argv[2]
+prep_run_id = sys.argv[3]
+
+client = WorkerApiClient(base_url, worker_key)
+model = GovernedSelectedFixtureModel()
+middleware = UsageMeteringMiddleware()
+
+state = AgentRunState(
+    run_id=prep_run_id,
+    preparation_run_id=prep_run_id,
+    agent_role="rule-set-preparation",
+    api_client=client,
+)
+
+class Req:
+    def __init__(self, m):
+        self.model = m
+        self.messages = [HumanMessage(content="test rule")]
+        self.preparation_run_id = prep_run_id
+        self.logical_operation_id = "op-worker-integ-1"
+
+async def run():
+    with activate_agent_run_state(state):
+        req = Req(model)
+        resp = await middleware.awrap_model_call(req, lambda r: model.ainvoke(r.messages))
+        return resp
+
+resp = asyncio.run(run())
+print(json.dumps({"success": True, "calls": len(model.calls)}))
+`;
+
+    const repoRoot = resolve(apiRoot, "../..");
+    const pythonBin = resolve(repoRoot, "deepagents/.venv/bin/python");
+
+    const { stdout } = await execFileAsync(
+      pythonBin,
+      ["-c", pythonScript, apiBaseUrl, WORKER_TEST_API_KEY, prepRunId],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          PYTHONPATH: `${resolve(repoRoot, "deepagents")}:${resolve(repoRoot, "deepagents/tests")}`,
+          PYTHONWARNINGS: "ignore",
+          WORKER_ENVELOPE_ENCRYPTION_KEY:
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
+        encoding: "utf-8",
+      },
+    );
+
+    const lastJsonLine =
+      stdout
+        .trim()
+        .split("\n")
+        .filter((l) => l.startsWith("{"))
+        .pop() ?? "{}";
+    console.log("FULL SOURCE STDOUT:", stdout);
+    const parsed = pythonResult(lastJsonLine);
+    assert.equal(parsed.success, true);
+    assert.equal(parsed.calls, 1, "Model must have been called exactly once");
+
+    // 4. Verify DB state in PostgreSQL: BillableInvocationAdmission was created and consumed to IN_FLIGHT
+    const admission = await prisma.billableInvocationAdmission.findFirst({
+      where: { preparationRunId: prepRunId },
+    });
+    assert.ok(admission, "Admission record must exist in PostgreSQL");
+    assert.equal(
+      admission.fundingPrincipal,
+      ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+    );
+    assert.ok(
+      admission.state === ADMISSION_STATES.IN_FLIGHT ||
+        admission.state === ADMISSION_STATES.OUTCOME_UNKNOWN ||
+        admission.state === ADMISSION_STATES.SETTLED,
+      "Admission must be transitioned to IN_FLIGHT, OUTCOME_UNKNOWN, or SETTLED by worker execution",
+    );
+    assert.equal(admission.sponsorshipPolicySnapshotId, activePolicy.id);
+    assert.equal(admission.requestedModel, "claude-sonnet-4-6");
+    assert.ok(admission.consumedAt !== null, "consumedAt must be stamped");
+  });
+
+  it("Middleware-to-API Integration (G-06 Fail-Closed): WorkerApiClient fails closed with HTTP 404 when preparationRunId is not found on server", async () => {
+    const port = listeningPort(app);
+    const apiBaseUrl = `http://127.0.0.1:${port}`;
+
+    // Non-existent preparationRunId in DB: Server must return HTTP 404 NOT_FOUND per line 282
+    const unapprovedPrepRunId = `unapproved-run-${randomUUID()}`;
+
+    const pythonScript = `
+import asyncio
+import json
+import sys
+from middleware.usage_metering import UsageMeteringMiddleware, PaidAdmissionError, AgentRunState, activate_agent_run_state
+from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
+from test_selected_rule_preparation import GovernedSelectedFixtureModel
+from langchain_core.messages import HumanMessage
+
+base_url = sys.argv[1]
+worker_key = sys.argv[2]
+prep_run_id = sys.argv[3]
+
+client = WorkerApiClient(base_url, worker_key)
+model = GovernedSelectedFixtureModel()
+middleware = UsageMeteringMiddleware()
+
+state = AgentRunState(
+    run_id=prep_run_id,
+    preparation_run_id=prep_run_id,
+    agent_role="rule-set-preparation",
+    api_client=client,
+)
+
+class Req:
+    def __init__(self, m):
+        self.model = m
+        self.messages = [HumanMessage(content="test rule")]
+        self.preparation_run_id = prep_run_id
+        self.logical_operation_id = "op-worker-failclosed-1"
+
+async def run():
+    with activate_agent_run_state(state):
+        req = Req(model)
+        try:
+            resp = await middleware.awrap_model_call(req, lambda r: model.ainvoke(r.messages))
+            return {"denied": False, "calls": len(model.calls)}
+        except WorkerCallbackError as e:
+            return {
+                "denied": True,
+                "error": type(e).__name__,
+                "statusCode": getattr(e, "status_code", None),
+                "message": str(e),
+                "calls": len(model.calls),
+            }
+        except PaidAdmissionError as e:
+            return {
+                "denied": True,
+                "error": type(e).__name__,
+                "statusCode": None,
+                "message": str(e),
+                "calls": len(model.calls),
+            }
+
+res = asyncio.run(run())
+print(json.dumps(res))
+`;
+
+    const repoRoot = resolve(apiRoot, "../..");
+    const pythonBin = resolve(repoRoot, "deepagents/.venv/bin/python");
+
+    const { stdout } = await execFileAsync(
+      pythonBin,
+      [
+        "-c",
+        pythonScript,
+        apiBaseUrl,
+        WORKER_TEST_API_KEY,
+        unapprovedPrepRunId,
+      ],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          PYTHONPATH: `${resolve(repoRoot, "deepagents")}:${resolve(repoRoot, "deepagents/tests")}`,
+          PYTHONWARNINGS: "ignore",
+          WORKER_ENVELOPE_ENCRYPTION_KEY:
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
+        encoding: "utf-8",
+      },
+    );
+
+    const lastJsonLine =
+      stdout
+        .trim()
+        .split("\n")
+        .filter((l) => l.startsWith("{"))
+        .pop() ?? "{}";
+    const parsed = pythonResult(lastJsonLine);
+    assert.equal(parsed.denied, true, "Must have been denied by server");
+    assert.equal(
+      parsed.statusCode,
+      404,
+      "Server must return HTTP 404 NOT_FOUND for non-existent preparationRunId",
+    );
+    assert.ok(
+      typeof parsed.message === "string" && parsed.message.includes("404"),
+      "Error message must indicate HTTP 404",
+    );
+    assert.equal(
+      parsed.calls,
+      0,
+      "Zero provider calls when admission is denied",
+    );
+
+    // Confirm no admission record exists
+    const admission = await prisma.billableInvocationAdmission.findFirst({
+      where: { preparationRunId: unapprovedPrepRunId },
+    });
+    assert.equal(
+      admission,
+      null,
+      "No admission record must be created for unapproved run",
+    );
+  });
+
+  it("HARDENING-G04-1: rejects non-positive token bounds (upper bound = 0) with HTTP 422 before admission", async () => {
+    const payload = {
+      admissionRequestId: `adm-zero-bound-${randomUUID()}`,
+      logicalOperationId: `op-zero-bound-${randomUUID()}`,
+      attemptOrdinal: 1,
+      runId: defaultRunId,
+      assessmentId,
+      executionLeaseToken: defaultLeaseToken,
+      agentRole: "assessment-root",
+      operationType: "SYNTHESIS",
+      requestedProvider: "anthropic",
+      requestedModel: "claude-sonnet-4-6",
+      inputTokensUpperBound: 0, // Bound = 0 must reject
+      outputTokensUpperBound: 1000,
+    };
+
+    const res = await httpRequest(app)
+      .post("/internal/billing/admission/request")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(payload);
+
+    assert.equal(res.status, 422, "Must reject with HTTP 422");
+    assert.equal(problemBody(res).code, BILLING_ERROR_CODES.validationFailed);
+
+    const admission = await prisma.billableInvocationAdmission.findFirst({
+      where: { admissionRequestId: payload.admissionRequestId },
+    });
+    assert.equal(
+      admission,
+      null,
+      "Zero admissions created on boundary rejection",
+    );
+  });
+
+  it("HARDENING-G04-2: initialExposureMicrocredits is mandatory on insert and strictly immutable at database tier (rejects UPDATE including NULL -> value)", async () => {
+    // 1. Issuing admission records initialExposureMicrocredits matching maximumExposureMicrocredits
+    const validPayload = {
+      admissionRequestId: `adm-immut-snap-${randomUUID()}`,
+      logicalOperationId: `op-immut-snap-${randomUUID()}`,
+      attemptOrdinal: 1,
+      runId: defaultRunId,
+      assessmentId,
+      executionLeaseToken: defaultLeaseToken,
+      agentRole: "assessment-root",
+      operationType: "SYNTHESIS",
+      requestedProvider: "anthropic",
+      requestedModel: "claude-sonnet-4-6",
+      inputTokensUpperBound: 1000,
+      outputTokensUpperBound: 2000,
+    };
+
+    const res = await httpRequest(app)
+      .post("/internal/billing/admission/request")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(validPayload);
+    assert.equal(res.status, 201);
+
+    const [row] = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        initialExposureMicrocredits: bigint | null;
+        maximumExposureMicrocredits: bigint;
+      }>
+    >`
+      SELECT id, "initialExposureMicrocredits", "maximumExposureMicrocredits"
+      FROM "BillableInvocationAdmission"
+      WHERE "admissionRequestId" = ${validPayload.admissionRequestId}
+    `;
+    assert.ok(row, "Admission row must exist");
+    assert.ok(
+      row.initialExposureMicrocredits !== null,
+      "initialExposureMicrocredits must be populated on insert",
+    );
+    assert.equal(
+      row.initialExposureMicrocredits,
+      row.maximumExposureMicrocredits,
+      "initialExposureMicrocredits must match approved maximumExposureMicrocredits",
+    );
+
+    // 2. Database tier rejects direct INSERT with NULL initialExposureMicrocredits
+    const invalidId = randomUUID();
+    await assert.rejects(
+      async () => {
+        await prisma.$executeRaw`
+          INSERT INTO "BillableInvocationAdmission" (
+            id, "invocationId", "admissionRequestId", "requestFingerprint", "logicalOperationId",
+            "attemptOrdinal", "fundingPrincipal", "runId", "agentRole", "operationType",
+            "requestedModel", "resolvedProvider", "resolvedModel", "runtimePolicyVersion",
+            "appliedMaxOutputTokens", "maximumExposureMicrocredits", "capabilityDigest",
+            "expiresAt", "correlationId", "initialExposureMicrocredits", "updatedAt"
+          ) VALUES (
+            ${invalidId}, ${"inv-" + invalidId}, ${"adm-req-" + invalidId}, 'fp-inv', ${"op-" + invalidId},
+            1, 'PLATFORM_SPONSORED', 'run-inv', 'rule-set-preparation', 'PREPARATION',
+            'claude-sonnet-4-6', 'anthropic', 'claude-sonnet-4-6', 'WP8_TEST',
+            1000, 0, 'digest-inv', NOW() + INTERVAL '1 hour', 'corr-inv', NULL, NOW()
+          )
+        `;
+      },
+      /initialExposureMicrocredits is mandatory on insert/,
+      "Database trigger MUST reject any new INSERT lacking initialExposureMicrocredits",
+    );
+
+    // 3. Database tier rejects direct UPDATE mutating initialExposureMicrocredits
+    await assert.rejects(
+      async () => {
+        await prisma.$executeRaw`
+          UPDATE "BillableInvocationAdmission"
+          SET "initialExposureMicrocredits" = 999999
+          WHERE id = ${row.id}
+        `;
+      },
+      /initialExposureMicrocredits is immutable/,
+      "Database trigger MUST reject any modification to initialExposureMicrocredits",
+    );
+
+    // 4. Database tier rejects mutating NULL -> value for historical records
+    const histId = randomUUID();
+    try {
+      await prisma.$executeRaw`ALTER TABLE "BillableInvocationAdmission" DISABLE TRIGGER "BillableInvocationAdmission_initial_exposure_insert";`;
+      await prisma.$executeRaw`
+        INSERT INTO "BillableInvocationAdmission" (
+          id, "invocationId", "admissionRequestId", "requestFingerprint", "logicalOperationId",
+          "attemptOrdinal", "fundingPrincipal", "runId", "agentRole", "operationType",
+          "requestedModel", "resolvedProvider", "resolvedModel", "runtimePolicyVersion",
+          "appliedMaxOutputTokens", "maximumExposureMicrocredits", "capabilityDigest",
+          "expiresAt", "correlationId", "initialExposureMicrocredits", "updatedAt"
+        ) VALUES (
+          ${histId}, ${"inv-" + histId}, ${"adm-req-" + histId}, 'fp-hist', ${"op-" + histId},
+          1, 'PLATFORM_SPONSORED', 'run-hist', 'rule-set-preparation', 'PREPARATION',
+          'claude-sonnet-4-6', 'anthropic', 'claude-sonnet-4-6', 'WP8_HIST',
+          1000, 0, 'digest-hist', NOW() + INTERVAL '1 hour', 'corr-hist', NULL, NOW()
+        )
+      `;
+    } finally {
+      await prisma.$executeRaw`ALTER TABLE "BillableInvocationAdmission" ENABLE TRIGGER "BillableInvocationAdmission_initial_exposure_insert";`;
+    }
+
+    await assert.rejects(
+      async () => {
+        await prisma.$executeRaw`
+          UPDATE "BillableInvocationAdmission"
+          SET "initialExposureMicrocredits" = 500000
+          WHERE id = ${histId}
+        `;
+      },
+      /initialExposureMicrocredits is immutable/,
+      "Database trigger MUST reject mutating historical NULL to a fabricated number",
+    );
+  });
+
+  it("HARDENING-G04-3: replay of historical admission lacking snapshot preserves null and does not fabricate 0", async () => {
+    // Rationale ("Why"): Historical admissions closed before migration 20261127090000 have initialExposureMicrocredits = NULL
+    // and maximumExposureMicrocredits = 0. Replaying them must preserve the explicit absence of initial snapshot (null)
+    // rather than fabricating "0" as if the initial exposure was zero.
+    // Mechanism ("How"): Insert historical record with NULL snapshot, execute exact idempotent replay request, and assert initialExposureMicrocredits is null.
+    // Invariants: Does not corrupt audit trail by fabricating historical values.
+    const histAdmissionId = `adm-hist-null-${randomUUID()}`;
+    const histInvocationId = `inv-hist-null-${randomUUID()}`;
+    const histReqId = `req-hist-null-${randomUUID()}`;
+    const histLogicalOpId = `op-hist-null-${randomUUID()}`;
+
+    const replayReq: BillableInvocationAdmissionRequest = {
+      admissionRequestId: histReqId,
+      logicalOperationId: histLogicalOpId,
+      attemptOrdinal: 1,
+      runId: defaultRunId,
+      assessmentId,
+      executionLeaseToken: defaultLeaseToken,
+      agentRole: "assessment-root",
+      operationType: "SYNTHESIS",
+      requestedProvider: "anthropic",
+      requestedModel: "claude-sonnet-4-6",
+      inputTokensUpperBound: 1000,
+      outputTokensUpperBound: 4096,
+    };
+
+    const fingerprint = computeAdmissionRequestFingerprint(replayReq);
+
+    // Disable trigger to insert historical legacy record with NULL initialExposureMicrocredits and maximumExposureMicrocredits = 0 (closed)
+    await prisma.$executeRaw`ALTER TABLE "BillableInvocationAdmission" DISABLE TRIGGER "BillableInvocationAdmission_initial_exposure_insert";`;
+    try {
+      await prisma.$executeRaw`
+        INSERT INTO "BillableInvocationAdmission" (
+          "id", "invocationId", "admissionRequestId", "requestFingerprint", "logicalOperationId",
+          "attemptOrdinal", "fundingPrincipal", "userId", "walletId", "assessmentId",
+          "runId", "executionLeaseToken", "agentRole", "operationType", "requestedModel", "resolvedProvider",
+          "resolvedModel", "appliedMaxOutputTokens", "maximumExposureMicrocredits", "runtimePolicyVersion",
+          "capabilityDigest", "state", "admittedAt", "expiresAt", "correlationId",
+          "rolloutMode", "debitMode", "initialExposureMicrocredits", "createdAt", "updatedAt"
+        ) VALUES (
+          ${histAdmissionId}, ${histInvocationId}, ${histReqId}, ${fingerprint}, ${histLogicalOpId},
+          1, 'CUSTOMER_WALLET', ${customerUserId}, ${customerWalletId}, ${assessmentId},
+          ${defaultRunId}, ${defaultLeaseToken}, 'assessment-root', 'SYNTHESIS', 'claude-sonnet-4-6', 'anthropic',
+          'claude-sonnet-4-6', 4096, 0, 'WP8_TEST',
+          'hist-digest', 'SETTLED', NOW(), NOW() + INTERVAL '1 hour', 'hist-corr',
+          'ADMISSION_REQUIRED', 'OFF', NULL, NOW(), NOW()
+        );
+      `;
+    } finally {
+      await prisma.$executeRaw`ALTER TABLE "BillableInvocationAdmission" ENABLE TRIGGER "BillableInvocationAdmission_initial_exposure_insert";`;
+    }
+
+    // Replay the exact request
+    const res = await httpRequest(app)
+      .post("/internal/billing/admission/request")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(replayReq);
+
+    assert.equal(res.status, 200);
+    const body = successBody<BillableInvocationAdmissionResponse>(res);
+    assert.equal(body.admissionId, histAdmissionId);
+    assert.equal(body.maximumExposureMicrocredits, "0");
+    // Invariant: initialExposureMicrocredits must preserve NULL ("không có snapshot lịch sử") and NOT fabricate "0"
+    assert.strictEqual(
+      body.initialExposureMicrocredits,
+      null,
+      "Replay of historical record lacking snapshot MUST return null, not fabricated 0",
+    );
+  });
+
+  it("RuleSetPreparationBoundary-to-API Integration (G-06 Selected-Rule E2E): RuleSetPreparationBoundary.handle() drives real HTTP admission & consume against live NestJS API on Postgres test DB", async () => {
+    const port = listeningPort(app);
+    const apiBaseUrl = `http://127.0.0.1:${port}`;
+
+    const source = await prisma.legalSourceVersion.create({
+      data: {
+        version: `sys-src-bnd-selected-${randomUUID()}`,
+        sourceManifest: {},
+      },
+    });
+    const prepRunId = `prep-run-bnd-sel-${randomUUID()}`;
+    await prisma.ruleSetPreparationRun.create({
+      data: {
+        id: prepRunId,
+        legalSourceVersionId: source.id,
+        requestedBy: "SYSTEM",
+        executionState: "RUNNING",
+        correlationId: `corr-${prepRunId}`,
+        idempotencyKey: `idem-${prepRunId}`,
+      },
+    });
+
+    const activePolicy = await prisma.platformSponsorshipPolicySnapshot.create({
+      data: {
+        policyName: "RULE_SET_PREPARATION_SYSTEM",
+        policyVersion: `WP8_PREPARATION_SEL_${randomUUID()}`,
+        provider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        inputMicrocreditsPerMillion: 3_000_000n,
+        outputMicrocreditsPerMillion: 15_000_000n,
+        effectiveFrom: new Date(Date.now() - 3600_000),
+        effectiveTo: null,
+      },
+    });
+
+    const resultId = `res-bnd-sel-${randomUUID()}`;
+
+    const pythonScript = `
+import asyncio
+import json
+import sys
+from unittest.mock import patch
+from rule_set_preparation.boundary import RuleSetPreparationBoundary
+from tools.common.capabilities.platform.api_client import WorkerApiClient
+from test_selected_rule_preparation import GovernedSelectedFixtureModel
+
+base_url = sys.argv[1]
+worker_key = sys.argv[2]
+prep_run_id = sys.argv[3]
+result_id = sys.argv[4]
+
+client = WorkerApiClient(base_url, worker_key)
+client.claim_selected_rule_preparation = lambda run_id: {
+    "revision": 1,
+    "input": {"ruleId": "r1", "title": "Test Rule", "citations": []},
+    "resultId": result_id,
+}
+client.record_selected_rule_instructions = lambda run_id, r: {"recorded": True}
+client.complete_selected_rule_preparation = lambda *args: {"completed": True}
+
+model = GovernedSelectedFixtureModel()
+with patch("rule_set_preparation.selected_rule.resolve_agent_model", return_value=model):
+    from types import SimpleNamespace
+    cfg = SimpleNamespace(nestjs_api_base_url=base_url, worker_api_key=worker_key)
+    boundary = RuleSetPreparationBoundary(cfg, api_client=client)
+    res = boundary.handle({"preparationRunId": prep_run_id, "preparationRuleResultId": result_id}, "corr-bnd-selected")
+    print(json.dumps({"success": True, "res": res, "calls": len(model.calls)}))
+`;
+
+    const repoRoot = resolve(apiRoot, "../..");
+    const pythonBin = resolve(repoRoot, "deepagents/.venv/bin/python");
+
+    const { stdout } = await execFileAsync(
+      pythonBin,
+      [
+        "-c",
+        pythonScript,
+        apiBaseUrl,
+        WORKER_TEST_API_KEY,
+        prepRunId,
+        resultId,
+      ],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          PYTHONPATH: `${resolve(repoRoot, "deepagents")}:${resolve(repoRoot, "deepagents/tests")}`,
+          PYTHONWARNINGS: "ignore",
+          WORKER_ENVELOPE_ENCRYPTION_KEY:
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
+        encoding: "utf-8",
+      },
+    );
+
+    const lastJsonLine =
+      stdout
+        .trim()
+        .split("\n")
+        .filter((l) => l.startsWith("{"))
+        .pop() ?? "{}";
+    console.log("FULL SOURCE STDOUT:", stdout);
+    const parsed = pythonResult(lastJsonLine);
+    assert.equal(parsed.success, true);
+    assert.equal(
+      parsed.calls,
+      1,
+      "Model must have been called exactly once through boundary",
+    );
+
+    const admission = await prisma.billableInvocationAdmission.findFirst({
+      where: { preparationRunId: prepRunId },
+    });
+    assert.ok(admission, "Admission record must exist in PostgreSQL");
+    assert.equal(
+      admission.fundingPrincipal,
+      ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+    );
+    assert.ok(
+      admission.state === ADMISSION_STATES.IN_FLIGHT ||
+        admission.state === ADMISSION_STATES.OUTCOME_UNKNOWN ||
+        admission.state === ADMISSION_STATES.SETTLED,
+      `Admission state was ${admission.state}`,
+    );
+    assert.equal(admission.sponsorshipPolicySnapshotId, activePolicy.id);
+    assert.ok(
+      admission.initialExposureMicrocredits !== null,
+      "initialExposureMicrocredits must be stamped",
+    );
+    assert.equal(
+      admission.initialExposureMicrocredits,
+      admission.maximumExposureMicrocredits,
+    );
+  });
+
+  it("RuleSetPreparationBoundary-to-API Integration (G-06 Full-Source E2E): RuleSetPreparationBoundary.handle() drives real HTTP admission & consume for whole-source run against live NestJS API on Postgres test DB", async () => {
+    const port = listeningPort(app);
+    const apiBaseUrl = `http://127.0.0.1:${port}`;
+
+    const source = await prisma.legalSourceVersion.create({
+      data: {
+        version: `sys-src-bnd-full-${randomUUID()}`,
+        sourceManifest: {},
+      },
+    });
+    const prepRunId = `prep-run-bnd-full-${randomUUID()}`;
+    await prisma.ruleSetPreparationRun.create({
+      data: {
+        id: prepRunId,
+        legalSourceVersionId: source.id,
+        requestedBy: "SYSTEM",
+        executionState: "RUNNING",
+        correlationId: `corr-${prepRunId}`,
+        idempotencyKey: `idem-${prepRunId}`,
+      },
+    });
+
+    const activePolicy = await prisma.platformSponsorshipPolicySnapshot.create({
+      data: {
+        policyName: "RULE_SET_PREPARATION_SYSTEM",
+        policyVersion: `WP8_PREPARATION_FULL_${randomUUID()}`,
+        provider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        inputMicrocreditsPerMillion: 3_000_000n,
+        outputMicrocreditsPerMillion: 15_000_000n,
+        effectiveFrom: new Date(Date.now() - 3600_000),
+        effectiveTo: null,
+      },
+    });
+
+    const pythonScript = `
+import asyncio
+import json
+import sys
+import os
+from unittest.mock import patch
+from rule_set_preparation.boundary import RuleSetPreparationBoundary
+from tools.common.capabilities.platform.api_client import WorkerApiClient
+from test_rule_set_preparation_runner_admission import GovernedRunnerModel, setup_governed_runner
+from test_rule_set_preparation_agent import _bundle
+import rule_set_preparation.agent as preparation_agent
+from rule_set_preparation.review_frontier import ReviewFrontier
+
+base_url = sys.argv[1]
+worker_key = sys.argv[2]
+prep_run_id = sys.argv[3]
+
+class DummyPatch:
+    def setattr(self, target, name, val):
+        if isinstance(target, str):
+            mod_name, attr = target.rsplit(".", 1)
+            import importlib
+            mod = importlib.import_module(mod_name)
+            setattr(mod, attr, val)
+        else:
+            setattr(target, name, val)
+    def setenv(self, k, v):
+        os.environ[k] = v
+
+setup_governed_runner(DummyPatch())
+
+client = WorkerApiClient(base_url, worker_key)
+client.claim_rule_set_preparation = lambda run_id: _bundle()
+client.validate_compliance_rule_set = lambda run_id, packet: {"outcome": "PASSED", "failures": []}
+client.submit_compliance_rule_set = lambda run_id, key, packet: {"state": "ACTIVATED", "submissionId": "sub-1"}
+client.source_review_operation = lambda *args, **kwargs: {
+    "outcome": "PASSED",
+    "frontierRevision": 1,
+    "frontierFingerprint": "a" * 64,
+    "frontierStateFingerprint": "b" * 64,
+    "progress": {},
+    "records": [],
+    "nextOffset": None,
+}
+
+timeline = []
+model = GovernedRunnerModel()
+model.timeline = timeline
+
+original_tools = preparation_agent.build_rule_set_tools
+def legacy_tools(context):
+    graph = context.source_graph
+    context.inventory = None
+    context.source_graph = None
+    try:
+        return original_tools(context)
+    finally:
+        context.source_graph = graph
+
+with patch.object(preparation_agent, "build_rule_set_tools", legacy_tools), \\
+     patch.object(ReviewFrontier, "restore", lambda self, **kw: None), \\
+     patch("model_policy.resolve_agent_model", return_value=model):
+    from types import SimpleNamespace
+    cfg = SimpleNamespace(nestjs_api_base_url=base_url, worker_api_key=worker_key)
+    boundary = RuleSetPreparationBoundary(cfg, api_client=client)
+    res = boundary.handle({"preparationRunId": prep_run_id}, "corr-bnd-full")
+    print(json.dumps({"success": True, "res": res, "calls": len(model.calls), "timeline": timeline}))
+`;
+
+    const repoRoot = resolve(apiRoot, "../..");
+    const pythonBin = resolve(repoRoot, "deepagents/.venv/bin/python");
+
+    const { stdout } = await execFileAsync(
+      pythonBin,
+      ["-c", pythonScript, apiBaseUrl, WORKER_TEST_API_KEY, prepRunId],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          PYTHONPATH: `${resolve(repoRoot, "deepagents")}:${resolve(repoRoot, "deepagents/tests")}`,
+          PYTHONWARNINGS: "ignore",
+          WORKER_ENVELOPE_ENCRYPTION_KEY:
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        },
+        encoding: "utf-8",
+      },
+    );
+
+    const lastJsonLine =
+      stdout
+        .trim()
+        .split("\n")
+        .filter((l) => l.startsWith("{"))
+        .pop() ?? "{}";
+    console.log("FULL SOURCE STDOUT:", stdout);
+    const parsed = pythonResult(lastJsonLine);
+    assert.equal(parsed.success, true);
+    assert.ok(
+      typeof parsed.calls === "number" && parsed.calls >= 1,
+      "Model must have been called through whole-source runner",
+    );
+
+    const admission = await prisma.billableInvocationAdmission.findFirst({
+      where: { preparationRunId: prepRunId },
+    });
+    assert.ok(
+      admission,
+      "Admission record must exist in PostgreSQL for full-source run",
+    );
+    assert.equal(
+      admission.fundingPrincipal,
+      ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED,
+    );
+    assert.ok(
+      admission.state === ADMISSION_STATES.IN_FLIGHT ||
+        admission.state === ADMISSION_STATES.OUTCOME_UNKNOWN ||
+        admission.state === ADMISSION_STATES.SETTLED,
+      `Admission state was ${admission.state}`,
+    );
+    assert.equal(admission.sponsorshipPolicySnapshotId, activePolicy.id);
+    assert.ok(
+      admission.initialExposureMicrocredits !== null,
+      "initialExposureMicrocredits must be stamped",
+    );
+    assert.equal(
+      admission.initialExposureMicrocredits,
+      admission.maximumExposureMicrocredits,
     );
   });
 });

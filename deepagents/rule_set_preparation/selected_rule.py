@@ -14,8 +14,12 @@ from langchain.agents.structured_output import ToolStrategy
 from langgraph.errors import NodeCancelledError
 from middleware.agent_run_budget import AgentRunBudgetMiddleware, _positive_env
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.usage_metering import AgentRoleMiddleware
-from middleware.usage_metering import _safe_provider_error_code
+from middleware.usage_metering import (
+    AgentRoleMiddleware,
+    AgentRunState,
+    _safe_provider_error_code,
+    activate_agent_run_state,
+)
 from model_policy import resolve_agent_model
 from provider_credentials import llm_provider_timeout_seconds
 from orchestration.graph_execution import agent_graph_config
@@ -96,7 +100,17 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
                 checkpointer=False,
             )
             publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_PREPARATION", "result_revision": claim["revision"], "instruction_sha256": receipt["fingerprint"]})
-            response = asyncio.run(_invoke_selected_rule(agent, {"messages": [{"role": "user", "content": json.dumps(claim["input"], ensure_ascii=False)}]}))
+            # Why: Bind authoritative server-issued preparationRunId context to the model execution thread (G-06, ADR-028).
+            # Mechanism: Initialize AgentRunState with preparation_run_id and activate it around the agent invocation.
+            # Invariants: UsageMeteringMiddleware requires verified preparationRunId before requesting admission; fails closed without it.
+            run_state = AgentRunState(
+                run_id=run_id,
+                preparation_run_id=run_id,
+                agent_role="rule-set-preparation",
+                api_client=api if hasattr(api, "request_invocation_admission") else None,
+            )
+            with activate_agent_run_state(run_state):
+                response = asyncio.run(_invoke_selected_rule(agent, {"messages": [{"role": "user", "content": json.dumps(claim["input"], ensure_ascii=False)}]}))
             output = response.get("structured_response")
             if not isinstance(output, dict):
                 raise ValueError("SELECTED_RULE_STRUCTURED_RESULT_MISSING")

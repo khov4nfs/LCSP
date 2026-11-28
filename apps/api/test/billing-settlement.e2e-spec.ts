@@ -21,7 +21,6 @@
 
 import * as assert from "node:assert/strict";
 import * as crypto from "node:crypto";
-import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
@@ -32,26 +31,23 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import {
-  ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
   BILLING_AUDIT_EVENT_TYPES,
   BILLING_ERROR_CODES,
-  BILLING_ROLLOUT_MODES,
+  BILLING_INTEGRITY_REASONS,
   MODEL_PRICING_SCOPES,
   MODEL_USAGE_DEBIT_MODES,
+  OUTPUT_EVALUATION_STATES,
   PROVIDER_COMPLETION_STATES,
   RECONCILIATION_CASE_STATES,
   TOKEN_BUCKET_POLICIES,
   computeWorkerPreSocketRejectionHmac,
-  deriveAdmissionCapabilityDigest,
-  deriveAdmissionCapabilitySecret,
   type BillableInvocationAdmissionRequest,
   type BillableInvocationAdmissionResponse,
   type BillableInvocationAdmissionConsume,
   type BillableInvocationSettlementRequest,
   type BillableInvocationSettlementResponse,
   type BillableInvocationCancelRequest,
-  type ReconciliationNoUsageResolutionRequest,
 } from "@lcsp/contracts/billing";
 
 import { AppModule } from "../src/app.module.js";
@@ -96,6 +92,7 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
   let prisma: PrismaClient;
   let artifactService: ReconciliationArtifactService;
   let adminToken: string;
+  let adminUserId: string;
   let customerToken: string;
   let customerUserId: string;
   let customerWalletId: string;
@@ -151,6 +148,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     await resetAuthWorkspaceDatabase(prisma);
     const fixture = await seedAuthWorkspaceFixture(prisma);
     customerUserId = fixture.approvedUser.id;
+    // Why: The reconciliation audit must identify the authenticated Admin fixture,
+    // not a generic role label that cannot establish who made the decision.
+    adminUserId = fixture.noMembershipUser.id;
 
     const adminSignIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "nomembership@acme.test",
@@ -335,6 +335,10 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
 
     assert.equal(body.settled, true);
     assert.equal(body.debitMode, MODEL_USAGE_DEBIT_MODES.SHADOW);
+    // Why: Shadow settlement is only a simulation and cannot require a payment for a debit it never made.
+    // How: Check the server-owned payment decision on the terminal SHADOW response.
+    // Invariant: Only a live ON wallet debit may produce paymentRequired=true.
+    assert.equal(body.paymentRequired, false);
     assert.equal(body.calculatedMicrocredits, "45000");
     assert.equal(body.debitedMicrocredits, "0");
     assert.equal(body.shadowMicrocredits, "45000");
@@ -345,9 +349,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       where: { invocationId: admission.invocationId },
     });
     assert.ok(receipt, "ModelUsageReceipt record must exist in DB");
-    assert.equal((receipt as any).calculatedMicrocredits, 45_000n);
-    assert.equal((receipt as any).debitedMicrocredits, 0n);
-    assert.equal((receipt as any).shadowMicrocredits, 45_000n);
+    assert.equal(receipt.calculatedMicrocredits, 45_000n);
+    assert.equal(receipt.debitedMicrocredits, 0n);
+    assert.equal(receipt.shadowMicrocredits, 45_000n);
     assert.equal(receipt.chargedMicrocredits, 0n);
 
     // Verify zero financial transaction in CreditLedgerEntry
@@ -399,6 +403,18 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     assert.equal(settleData.state, ADMISSION_STATES.SETTLED);
     assert.equal(settleData.slotReleased, true);
 
+    // Why: A provider receipt proves usage, while downstream schema/domain acceptance has not run yet.
+    // How: Verify a separate evaluation row is pinned to the settled physical invocation.
+    // Invariant: Settlement must never fabricate ACCEPTED or DOMAIN_REJECTED from provider completion.
+    const evaluation = await prisma.modelOutputEvaluation.findUnique({
+      where: { invocationId: admission.invocationId },
+    });
+    assert.equal(evaluation?.admissionId, admission.admissionId);
+    assert.equal(
+      evaluation?.evaluationState,
+      OUTPUT_EVALUATION_STATES.NOT_EVALUATED,
+    );
+
     // Assert audit event persisted in database
     const audit = await prisma.auditEvent.findFirst({
       where: {
@@ -411,13 +427,162 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       "AuditEvent for usage settlement must be persisted in database",
     );
     assert.equal(audit.eventType, BILLING_AUDIT_EVENT_TYPES.usageSettled);
-    assert.equal((audit.payload as any).calculatedMicrocredits, "22500");
+    // Why: Audit payloads are JSON; check their shape before reading the priced amount.
+    assert.ok(
+      audit.payload &&
+        typeof audit.payload === "object" &&
+        !Array.isArray(audit.payload),
+    );
+    assert.equal(
+      (audit.payload as Record<string, unknown>).calculatedMicrocredits,
+      "22500",
+    );
 
     // Concurrency slot must now be FREE: next request on same wallet must succeed
     const nextAdmission = await requestAdmissionHelper(
       "req-settle-next-slot-available",
     );
     assert.equal(nextAdmission.state, ADMISSION_STATES.ADMITTED);
+  });
+
+  it("RED Test 2I: pins exact tool-call IDs in immutable receipt and rejects changed replay", async () => {
+    // Why: A later evaluator cannot prove a domain rejection belongs to this paid output without a pinned call ID.
+    // How: Settle with two IDs, inspect the receipt, then replay with one changed ID.
+    // Invariant: The second request must not rewrite the receipt or evaluation state.
+    const admission = await requestAdmissionHelper("req-settle-tool-causation");
+    await consumeAdmissionHelper(admission);
+    const payload: BillableInvocationSettlementRequest = {
+      admissionId: admission.admissionId,
+      invocationId: admission.invocationId,
+      capabilityToken: admission.capabilityToken,
+      attemptOrdinal: 1,
+      providerCompletionState: PROVIDER_COMPLETION_STATES.COMPLETED,
+      inputTokens: 1,
+      outputTokens: 1,
+      totalTokens: 2,
+      toolCallIds: ["call-a", "call-b"],
+    };
+    const first = await httpRequest(app)
+      .post("/internal/billing/usage/settle")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(payload);
+    assert.equal(first.status, 200);
+    const receipt = await prisma.modelUsageReceipt.findUnique({
+      where: { invocationId: admission.invocationId },
+    });
+    assert.deepEqual(receipt?.toolCallIds, ["call-a", "call-b"]);
+
+    const replay = await httpRequest(app)
+      .post("/internal/billing/usage/settle")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({ ...payload, toolCallIds: ["call-a", "call-c"] });
+    assert.equal(replay.status, 409);
+    const unchanged = await prisma.modelUsageReceipt.findUnique({
+      where: { invocationId: admission.invocationId },
+    });
+    assert.deepEqual(unchanged?.toolCallIds, ["call-a", "call-b"]);
+  });
+
+  it("preserves two legitimate settlements when a provider reuses a tool-call ID within one run", async () => {
+    // Why: Provider IDs are opaque and can be reused across separate physical calls.
+    // How: Settle two sequential admissions in one run with the same tool-call ID.
+    // Invariant: Output causation ambiguity must not discard a provider receipt or hold the wallet slot.
+    const first = await requestAdmissionHelper("req-settle-reused-tool-id-first");
+    await consumeAdmissionHelper(first);
+    const firstResult = await httpRequest(app)
+      .post("/internal/billing/usage/settle")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        admissionId: first.admissionId,
+        invocationId: first.invocationId,
+        capabilityToken: first.capabilityToken,
+        attemptOrdinal: 1,
+        providerCompletionState: PROVIDER_COMPLETION_STATES.COMPLETED,
+        inputTokens: 1,
+        outputTokens: 1,
+        totalTokens: 2,
+        toolCallIds: ["reused-call"],
+      });
+    assert.equal(firstResult.status, 200);
+
+    const second = await requestAdmissionHelper("req-settle-reused-tool-id-second");
+    await consumeAdmissionHelper(second);
+    const secondResult = await httpRequest(app)
+      .post("/internal/billing/usage/settle")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        admissionId: second.admissionId,
+        invocationId: second.invocationId,
+        capabilityToken: second.capabilityToken,
+        attemptOrdinal: 1,
+        providerCompletionState: PROVIDER_COMPLETION_STATES.COMPLETED,
+        inputTokens: 1,
+        outputTokens: 1,
+        totalTokens: 2,
+        toolCallIds: ["reused-call"],
+      });
+    assert.equal(secondResult.status, 200);
+
+    const receipts = await prisma.modelUsageReceipt.findMany({
+      where: { admissionId: { in: [first.admissionId, second.admissionId] } },
+      select: { admissionId: true, invocationId: true, toolCallIds: true },
+    });
+    assert.equal(receipts.length, 2);
+    assert.deepEqual(
+      new Set(receipts.map((receipt) => receipt.invocationId)),
+      new Set([first.invocationId, second.invocationId]),
+    );
+    assert.ok(receipts.every((receipt) => receipt.toolCallIds.includes("reused-call")));
+  });
+
+  it("rejects noncanonical tool-call arrays at the database boundary", async () => {
+    // Why: A direct DB writer could bypass the HTTP schema and pin forged or ambiguous causation.
+    // How: Insert a receipt with each invalid array and require the database CHECK to reject it.
+    // Invariant: Stored tool IDs remain bounded, unique, sorted and printable ASCII.
+    const admission = await requestAdmissionHelper(
+      "req-db-tool-call-constraint",
+    );
+    for (const ids of [
+      ["call-b", "call-a"],
+      ["call-a", "call-a"],
+      [""],
+      ["call-😀"],
+      ["a".repeat(201)],
+      Array.from(
+        { length: 65 },
+        (_, index) => `call-${String(index).padStart(2, "0")}`,
+      ),
+    ]) {
+      let accepted = false;
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`
+            INSERT INTO "ModelUsageReceipt"
+              ("id", "admissionId", "invocationId", "providerCompletionState", "operationType", "runtimePolicyVersion", "toolCallIds")
+            VALUES
+              (${crypto.randomUUID()}, ${admission.admissionId}, ${admission.invocationId}, 'COMPLETED'::"ProviderCompletionState", 'SYNTHESIS', 'pilot', ${ids}::text[])
+          `;
+          accepted = true;
+          // Why: An unexpected acceptance must never leave bad fixture data behind for migrations or later tests.
+          // How: Force this probe transaction to roll back before asserting the failed invariant.
+          // Invariant: Only the final canonical insert may persist in the disposable test DB.
+          throw new Error("rollback invalid tool-call probe");
+        });
+      } catch (error) {
+        assert.equal(
+          accepted,
+          false,
+          `Database accepted noncanonical toolCallIds: ${JSON.stringify(ids)}`,
+        );
+        assert.match(String(error), /23514|check constraint/i);
+      }
+    }
+    await prisma.$executeRaw`
+      INSERT INTO "ModelUsageReceipt"
+        ("id", "admissionId", "invocationId", "providerCompletionState", "operationType", "runtimePolicyVersion", "toolCallIds")
+      VALUES
+        (${crypto.randomUUID()}, ${admission.admissionId}, ${admission.invocationId}, 'COMPLETED'::"ProviderCompletionState", 'SYNTHESIS', 'pilot', ${["call-a", "call-b"]}::text[])
+    `;
   });
 
   // -------------------------------------------------------------------------
@@ -554,6 +719,163 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       successBody<BillableInvocationSettlementResponse>(roundingSettleRes);
     assert.equal(roundingBody.settled, true);
     assert.equal(roundingBody.calculatedMicrocredits, "1");
+    // Why: Zero is a measured count, while null means the provider did not report that bucket.
+    // How: Inspect the durable receipt after a successful zero-token settlement.
+    // Invariant: Financial audit must distinguish explicit zero from missing provider evidence.
+    const roundingReceipt = await prisma.modelUsageReceipt.findUniqueOrThrow({
+      where: { invocationId: roundingAdmission.invocationId },
+    });
+    assert.equal(roundingReceipt.inputTokens, 0n);
+    assert.equal(roundingReceipt.outputTokens, 0n);
+  });
+
+  it("RED Test 2G: customer unsupported priced bucket creates integrity review without settling or releasing exposure", async () => {
+    // Why: A valid customer tariff can mark cache reads unsupported, yet a provider can still report them.
+    // How: Admit under that published tariff and settle a completed response containing cached input.
+    // Invariant: Missing pricing authority must retain evidence, slot, and exposure without a receipt or debit.
+    await prisma.customerModelTariffAssignment.deleteMany({
+      where: { tariffSnapshotId: publishedSnapshotId },
+    });
+    const unsupportedSnapshot = await prisma.customerModelTariffSnapshot.create(
+      {
+        data: {
+          scope: MODEL_PRICING_SCOPES.exactModel,
+          provider: "anthropic",
+          resolvedModel: "claude-sonnet-4-6",
+          normalizedScopeKey: "EXACT_MODEL:anthropic:claude-sonnet-4-6",
+          version: 2,
+          accountingUnitVersion: 1,
+          inputMicrocreditsPerMillion: 3_000_000n,
+          outputMicrocreditsPerMillion: 15_000_000n,
+          reasoningPolicy: TOKEN_BUCKET_POLICIES.unsupported,
+          cachedInputPolicy: TOKEN_BUCKET_POLICIES.unsupported,
+          cacheWritePolicy: TOKEN_BUCKET_POLICIES.unsupported,
+          idempotencyKey: `publish-unsupported-${Date.now()}`,
+          requestFingerprint: "a".repeat(64),
+          publishedBy: "system-test",
+          auditReason: "Reproduce unsupported customer cache usage",
+        },
+      },
+    );
+    await prisma.customerModelTariffAssignment.create({
+      data: {
+        tariffSnapshotId: unsupportedSnapshot.id,
+        scope: MODEL_PRICING_SCOPES.exactModel,
+        normalizedScopeKey: "EXACT_MODEL:anthropic:claude-sonnet-4-6",
+        effectiveFrom: new Date(Date.now() - 3_600_000),
+        createdBy: "system-test",
+      },
+    });
+    const admission = await requestAdmissionHelper(
+      "req-customer-unsupported-bucket",
+    );
+    await consumeAdmissionHelper(admission);
+    const response = await httpRequest(app)
+      .post("/internal/billing/usage/settle")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        admissionId: admission.admissionId,
+        invocationId: admission.invocationId,
+        capabilityToken: admission.capabilityToken,
+        attemptOrdinal: 1,
+        providerCompletionState: PROVIDER_COMPLETION_STATES.COMPLETED,
+        inputTokens: 100,
+        cachedInputTokens: 1,
+        outputTokens: 20,
+        totalTokens: 121,
+        providerResponseId: "resp-customer-unsupported-cache",
+      });
+    assert.equal(response.status, 200);
+    const result = successBody<BillableInvocationSettlementResponse>(response);
+    assert.equal(result.settled, false);
+    assert.equal(result.slotReleased, false);
+    const retained = await prisma.billableInvocationAdmission.findUniqueOrThrow(
+      {
+        where: { id: admission.admissionId },
+      },
+    );
+    assert.equal(retained.state, ADMISSION_STATES.OUTCOME_UNKNOWN);
+    assert.ok(retained.maximumExposureMicrocredits > 0n);
+    assert.equal(
+      await prisma.modelUsageReceipt.findUnique({
+        where: { invocationId: admission.invocationId },
+      }),
+      null,
+    );
+    const reconCase = await prisma.billingReconciliationCase.findUniqueOrThrow({
+      where: { invocationId: admission.invocationId },
+    });
+    assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
+    assert.equal(
+      (reconCase.conflictingPayload as { reason?: string } | null)?.reason,
+      BILLING_INTEGRITY_REASONS.unsupportedPricedBucket,
+    );
+  });
+
+  it("RED Test 2H: split cache-write rates survive settlement and immutable receipt", async () => {
+    // Why: A published tariff can charge 5-minute and 1-hour cache writes differently.
+    // How: Send both buckets through worker HTTP settlement and inspect exact integer charge and receipt.
+    // Invariant: Aggregate cache-write tokens cannot replace the split buckets when their rates differ.
+    await prisma.customerModelTariffAssignment.deleteMany({
+      where: { tariffSnapshotId: publishedSnapshotId },
+    });
+    const splitSnapshot = await prisma.customerModelTariffSnapshot.create({
+      data: {
+        scope: MODEL_PRICING_SCOPES.exactModel,
+        provider: "anthropic",
+        resolvedModel: "claude-sonnet-4-6",
+        normalizedScopeKey: "EXACT_MODEL:anthropic:claude-sonnet-4-6",
+        version: 2,
+        accountingUnitVersion: 1,
+        inputMicrocreditsPerMillion: 3_000_000n,
+        outputMicrocreditsPerMillion: 15_000_000n,
+        reasoningPolicy: TOKEN_BUCKET_POLICIES.unsupported,
+        cachedInputPolicy: TOKEN_BUCKET_POLICIES.unsupported,
+        cacheWritePolicy: TOKEN_BUCKET_POLICIES.separateRate,
+        cacheWrite5mMicrocreditsPerMillion: 600_000n,
+        cacheWrite1hMicrocreditsPerMillion: 3_000_000n,
+        idempotencyKey: `publish-split-${Date.now()}`,
+        requestFingerprint: "b".repeat(64),
+        publishedBy: "system-test",
+        auditReason: "Reproduce split cache-write settlement",
+      },
+    });
+    await prisma.customerModelTariffAssignment.create({
+      data: {
+        tariffSnapshotId: splitSnapshot.id,
+        scope: MODEL_PRICING_SCOPES.exactModel,
+        normalizedScopeKey: "EXACT_MODEL:anthropic:claude-sonnet-4-6",
+        effectiveFrom: new Date(Date.now() - 3_600_000),
+        createdBy: "system-test",
+      },
+    });
+    const admission = await requestAdmissionHelper("req-split-cache-write");
+    await consumeAdmissionHelper(admission);
+    const response = await httpRequest(app)
+      .post("/internal/billing/usage/settle")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send({
+        admissionId: admission.admissionId,
+        invocationId: admission.invocationId,
+        capabilityToken: admission.capabilityToken,
+        attemptOrdinal: 1,
+        providerCompletionState: PROVIDER_COMPLETION_STATES.COMPLETED,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 2,
+        cacheWriteTokens: 2,
+        cacheWrite5mTokens: 1,
+        cacheWrite1hTokens: 1,
+        providerResponseId: "resp-split-cache-write",
+      });
+    assert.equal(response.status, 200);
+    const result = successBody<BillableInvocationSettlementResponse>(response);
+    assert.equal(result.calculatedMicrocredits, "3");
+    const receipt = await prisma.modelUsageReceipt.findUniqueOrThrow({
+      where: { invocationId: admission.invocationId },
+    });
+    assert.equal(receipt.cacheWrite5mTokens, 1n);
+    assert.equal(receipt.cacheWrite1hTokens, 1n);
   });
 
   // -------------------------------------------------------------------------
@@ -599,8 +921,13 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     });
     assert.ok(reconCase, "BillingReconciliationCase must be created");
     assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
+    assert.ok(
+      reconCase.conflictingPayload &&
+        typeof reconCase.conflictingPayload === "object" &&
+        !Array.isArray(reconCase.conflictingPayload),
+    );
     assert.equal(
-      (reconCase.conflictingPayload as any).reason,
+      (reconCase.conflictingPayload as Record<string, unknown>).reason,
       "MISSING_PINNED_TARIFF_SNAPSHOT",
     );
 
@@ -643,8 +970,8 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
   // RED Test 2F: Usage Exceeding Admitted Maximum Exposure Routes to INTEGRITY_REVIEW
   // -------------------------------------------------------------------------
   it("RED Test 2F: usage exceeding admitted maximum exposure routes to INTEGRITY_REVIEW, retains exposure, and keeps slot blocked (ADR-028 Line 138)", async () => {
-    // Request admission with small token bounds: 100 input, 100 output
-    // Maximum exposure = 100 * 3 + 100 * 15 = 1,800 microcredits
+    // Small token bounds keep the later usage above the admitted exposure. The
+    // server now includes the most expensive cache bucket when sizing that bound.
     const admission = await requestAdmissionHelper(
       "req-settle-excessive-usage",
       {
@@ -657,9 +984,11 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     const initialAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(initialAdm?.maximumExposureMicrocredits, 1800n);
+    assert.ok(initialAdm);
+    const admittedExposure = initialAdm.maximumExposureMicrocredits;
+    assert.ok(admittedExposure > 0n && admittedExposure < 30_000n);
 
-    // Settle with usage far exceeding admitted exposure: 5k input, 1k output = 15k + 15k = 30,000 microcredits > 1,800
+    // Settle with 30,000 microcredits of usage, above the server-issued bound.
     const settlePayload: BillableInvocationSettlementRequest = {
       admissionId: admission.admissionId,
       invocationId: admission.invocationId,
@@ -689,17 +1018,17 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     });
     assert.ok(reconCase, "BillingReconciliationCase must be created");
     assert.equal(reconCase.state, RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW);
-    assert.equal(
-      (reconCase.conflictingPayload as any).reason,
-      "EXCESSIVE_USAGE_BEYOND_ADMITTED_EXPOSURE",
+    assert.ok(
+      reconCase.conflictingPayload &&
+        typeof reconCase.conflictingPayload === "object" &&
+        !Array.isArray(reconCase.conflictingPayload),
     );
+    const anomaly = reconCase.conflictingPayload as Record<string, unknown>;
+    assert.equal(anomaly.reason, "EXCESSIVE_USAGE_BEYOND_ADMITTED_EXPOSURE");
+    assert.equal(anomaly.calculatedMicrocredits, "30000");
     assert.equal(
-      (reconCase.conflictingPayload as any).calculatedMicrocredits,
-      "30000",
-    );
-    assert.equal(
-      (reconCase.conflictingPayload as any).maximumExposureMicrocredits,
-      "1800",
+      anomaly.maximumExposureMicrocredits,
+      admittedExposure.toString(),
     );
 
     // Concurrency slot must remain BLOCKED: next request fails with 429/409
@@ -730,7 +1059,7 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     const dbAdm = await prisma.billableInvocationAdmission.findUnique({
       where: { id: admission.admissionId },
     });
-    assert.equal(dbAdm?.maximumExposureMicrocredits, 1800n);
+    assert.equal(dbAdm?.maximumExposureMicrocredits, admittedExposure);
 
     // Verify zero ModelUsageReceipt persisted in SETTLED state
     const receipt = await prisma.modelUsageReceipt.findUnique({
@@ -1464,6 +1793,9 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
       });
       assert.ok(dbCase, "BillingReconciliationCase record must exist in DB");
       assert.equal(dbCase.state, "CONFIRMED_NO_USAGE");
+      // Why: Persist the real Admin actor ID so later audits can attribute the
+      // no-usage decision instead of accepting an untraceable role literal.
+      assert.equal(dbCase.resolvedBy, adminUserId);
 
       // Next admission request on wallet must now SUCCEED
       const freedRes = await requestAdmissionHelper("req-recon-freed-slot");
@@ -1665,6 +1997,24 @@ describe("WP8 Phase C: Shadow Settlement, Token Accounting & Reconciliation Boun
     });
     assert.equal(dbAdmA?.state, ADMISSION_STATES.CONFIRMED_NO_USAGE);
     assert.equal(dbAdmA?.maximumExposureMicrocredits, 0n);
+
+    // Why: A worker can lose the first HTTP response after the cancellation committed.
+    // How: Replay the same capability and verify the terminal receipt without another state write.
+    // Invariant: Recovery may clear its encrypted envelope, while an IN_FLIGHT race still returns 409 below.
+    const replayCancelA = await httpRequest(app)
+      .post("/internal/billing/admission/cancel")
+      .set("x-worker-api-key", WORKER_TEST_API_KEY)
+      .send(cancelPayloadA);
+    assert.equal(replayCancelA.status, 200);
+    assert.equal(
+      successBody<{ slotReleased: boolean }>(replayCancelA).slotReleased,
+      true,
+    );
+    const dbAdmAAfterReplay =
+      await prisma.billableInvocationAdmission.findUnique({
+        where: { invocationId: admissionA.invocationId },
+      });
+    assert.equal(dbAdmAAfterReplay?.version, dbAdmA?.version);
 
     // Slot is immediately free
     const nextAdmA = await requestAdmissionHelper("req-cancel-freed-slot");

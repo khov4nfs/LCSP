@@ -69,6 +69,9 @@ export const billableInvocationAdmissionResponseSchema = z.object({
     .optional(),
   appliedMaxOutputTokens: z.number().int().positive(),
   maximumExposureMicrocredits: z.string().regex(/^\d+$/),
+  // Invariant (WP8-G04): Initial snapshot is immutable from creation.
+  // Legacy historical admissions closed prior to migration return null ("không có snapshot lịch sử"), never fabricated 0.
+  initialExposureMicrocredits: z.string().regex(/^\d+$/).nullable().optional(),
   capabilityToken: z.string().trim().min(32).max(128),
   admittedAt: z.string().datetime(),
   expiresAt: z.string().datetime(),

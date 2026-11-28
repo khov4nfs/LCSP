@@ -294,6 +294,116 @@ export class ModelPricingCalculatorService {
   }
 
   /**
+   * Business purpose: Bound the monetary exposure of one customer-funded model invocation before provider dispatch.
+   *
+   * Business rules:
+   * - Interpret the input token bound as the total input-side tokens across ordinary, cache-read, and cache-write buckets.
+   * - Price each tariff-supported input bucket as though it consumed the entire input bound, and retain the highest charge.
+   * - Include a full output-bound reasoning charge when the published reasoning policy prices it separately.
+   * - Use the exact settlement calculator and immutable tariff rates; never synthesize a markup or mutate a published snapshot.
+   *
+   * Execution flow:
+   * 1. Validate non-negative token bounds and complete tariff rates.
+   * 2. Enumerate each input-side bucket that the tariff permits at the input bound.
+   * 3. Price every candidate with the canonical integer calculator and return the largest microcredit charge.
+   *
+   * Failure cases:
+   * - Reject negative bounds or incomplete tariff policies through the existing typed billing errors.
+   * - Unsupported cache and reasoning buckets are never fabricated as billable candidates.
+   *
+   * Side effects:
+   * - Pure calculation; no wallet, database, or provider mutation.
+   */
+  calculateMaximumExposure(input: {
+    inputTokensUpperBound: bigint;
+    outputTokensUpperBound: bigint;
+    ratesMicrocreditsPerMillion: MicrocreditTariffRates;
+  }): bigint {
+    // Why: A valid cache-write or reasoning breakdown can cost more than ordinary input/output tokens.
+    // How: Price the full bounded token volume in each allowed bucket using the same calculator as settlement.
+    // Invariant: Every candidate uses disjoint input buckets and the pinned tariff; no runtime FX or arbitrary cap is added.
+    const {
+      inputTokensUpperBound,
+      outputTokensUpperBound,
+      ratesMicrocreditsPerMillion: rates,
+    } = input;
+    if (inputTokensUpperBound < 0n || outputTokensUpperBound < 0n) {
+      throw new InvalidBillingInputError(
+        "Model token upper bounds must be non-negative",
+      );
+    }
+    this.assertCompleteTariffRates(rates);
+
+    const reasoningTokens =
+      rates.reasoningPolicy === TOKEN_BUCKET_POLICIES.separateRate ||
+      rates.reasoningPolicy === TOKEN_BUCKET_POLICIES.useOutputRate
+        ? outputTokensUpperBound
+        : undefined;
+    const outputUsage = {
+      outputTokens: outputTokensUpperBound,
+      ...(reasoningTokens === undefined ? {} : { reasoningTokens }),
+    };
+    const candidates: MicrocreditUsageBuckets[] = [
+      { inputTokens: inputTokensUpperBound, ...outputUsage },
+    ];
+
+    if (
+      rates.cachedInputPolicy !== TOKEN_BUCKET_POLICIES.unsupported &&
+      (rates.cachedInputPolicy === TOKEN_BUCKET_POLICIES.useOutputRate ||
+        rates.cachedInput !== undefined)
+    ) {
+      candidates.push({
+        inputTokens: 0n,
+        cachedInputTokens: inputTokensUpperBound,
+        ...outputUsage,
+      });
+    }
+    if (
+      rates.cacheWritePolicy !== TOKEN_BUCKET_POLICIES.unsupported &&
+      (rates.cacheWritePolicy === TOKEN_BUCKET_POLICIES.useOutputRate ||
+        rates.cacheWrite !== undefined)
+    ) {
+      candidates.push({
+        inputTokens: 0n,
+        cacheWriteTokens: inputTokensUpperBound,
+        ...outputUsage,
+      });
+    }
+    if (
+      rates.cacheWritePolicy !== TOKEN_BUCKET_POLICIES.unsupported &&
+      rates.cacheWrite5m !== undefined
+    ) {
+      candidates.push({
+        inputTokens: 0n,
+        cacheWrite5mTokens: inputTokensUpperBound,
+        ...outputUsage,
+      });
+    }
+    if (
+      rates.cacheWritePolicy !== TOKEN_BUCKET_POLICIES.unsupported &&
+      rates.cacheWrite1h !== undefined
+    ) {
+      candidates.push({
+        inputTokens: 0n,
+        cacheWrite1hTokens: inputTokensUpperBound,
+        ...outputUsage,
+      });
+    }
+
+    let maximumExposureMicrocredits = 0n;
+    for (const usage of candidates) {
+      const charge = this.calculateCharge({
+        usage,
+        ratesMicrocreditsPerMillion: rates,
+      }).chargeMicrocredits;
+      if (charge > maximumExposureMicrocredits) {
+        maximumExposureMicrocredits = charge;
+      }
+    }
+    return maximumExposureMicrocredits;
+  }
+
+  /**
    * Business purpose: Resolve the effective tariff for an allowlisted model and compute a deterministic preview charge.
    *
    * Business rules:

@@ -9,6 +9,8 @@ import {
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
+import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
+import { ASSESSMENT_BUDGET_REASONS } from "@lcsp/contracts/assessment-domain";
 import {
   ASSESSMENT_ROOT_BOUNDARY,
   ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES,
@@ -35,6 +37,154 @@ const actor = {
 };
 
 describe("runtime control registration", () => {
+  it.each([
+    {
+      name: "empty v2 wallet",
+      availableCredits: 0n,
+      balanceMicrocredits: 0n,
+      accountingUnitVersion: 2,
+      allowed: false,
+    },
+    {
+      name: "positive v2 wallet",
+      availableCredits: 5n,
+      balanceMicrocredits: 5_000_000n,
+      accountingUnitVersion: 2,
+      allowed: true,
+    },
+    {
+      name: "fractional v2 wallet",
+      availableCredits: 0n,
+      balanceMicrocredits: 500_000n,
+      accountingUnitVersion: 2,
+      allowed: true,
+    },
+    {
+      name: "uncutover v1 wallet",
+      availableCredits: 0n,
+      balanceMicrocredits: 500_000n,
+      accountingUnitVersion: 1,
+      allowed: false,
+    },
+  ])(
+    "rechecks $name before customer Continue from payment pause",
+    async ({
+      availableCredits,
+      balanceMicrocredits,
+      accountingUnitVersion,
+      allowed,
+    }) => {
+      // Top-up alone does not resume work; customer Continue requires a fresh wallet read.
+      const updateMany = jest
+        .fn<() => Promise<any>>()
+        .mockResolvedValue({ count: 1 });
+      const enqueue = jest.fn<() => Promise<any>>().mockResolvedValue({});
+      const tx = {
+        $queryRaw: jest
+          .fn<() => Promise<unknown[]>>()
+          .mockResolvedValue([
+            { id: "assessment", ownerId: "actor" },
+            { assessmentId: "assessment" },
+          ]),
+        assessmentRuntime: {
+          findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+            assessmentId: "assessment",
+            threadId: "root-thread",
+            checkpointNamespace: "assessment",
+            currentExecutionId: "stopped-run",
+          }),
+        },
+        assessmentRuntimeTurn: {
+          findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+            id: "stopped-run",
+            assessmentId: "assessment",
+            threadId: "root-thread",
+            boundary: ASSESSMENT_ROOT_BOUNDARY,
+            logicalRunId: "logical-run",
+            state: States.stopped,
+            requestId: "stop-request",
+            checkpointJson: { checkpointId: "cp-1" },
+          }),
+          updateMany,
+        },
+        assessment: {
+          findUniqueOrThrow: jest.fn<() => Promise<any>>().mockResolvedValue({
+            id: "assessment",
+            ownerId: "actor",
+            lifecycleState: "PAUSED",
+            runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
+            blockerReference: {
+              reason: ASSESSMENT_BUDGET_REASONS.PAYMENT_REQUIRED,
+            },
+            domainCase: {
+              repositorySnapshotId: "snap-1",
+              ruleSetVersionId: "ver-1",
+              repositoryScanJobId: "job-1",
+              repositoryCommit: "sha-1",
+              ruleSet: { lifecycleState: "ACTIVE" },
+            },
+          }),
+          update: jest.fn<() => Promise<any>>().mockResolvedValue({}),
+        },
+        billingWallet: {
+          findUnique: jest
+            .fn<(args?: any) => Promise<any>>()
+            .mockResolvedValue({
+              availableCredits,
+              balanceMicrocredits,
+              accountingUnitVersion,
+            }),
+        },
+        repositorySnapshot: {
+          findUnique: jest.fn<() => Promise<any>>().mockResolvedValue({
+            id: "snap-1",
+            assessmentId: "assessment",
+            commitSha: "sha-1",
+          }),
+        },
+        assessmentHumanRequest: {
+          count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+        },
+      };
+      const controls = new AssessmentRuntimeControlService(
+        {
+          $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+            work(tx),
+        } as unknown as PrismaService,
+        { enqueue } as unknown as OutboxRepository,
+        {} as AssessmentLifecycleCoordinator,
+      );
+      const request = controls.request({
+        assessmentId: "assessment",
+        actor,
+        correlationId: "corr",
+        action: Actions.resume,
+        targetRunId: "stopped-run",
+      });
+      if (!allowed) {
+        await expect(request).rejects.toMatchObject({
+          status: 402,
+          response: { problem: { code: BILLING_ERROR_CODES.paymentRequired } },
+        });
+        expect(updateMany).not.toHaveBeenCalled();
+        expect(enqueue).not.toHaveBeenCalled();
+      } else {
+        await expect(request).resolves.toMatchObject({
+          state: States.resumeRequested,
+        });
+        expect(updateMany).toHaveBeenCalled();
+        expect(enqueue).toHaveBeenCalled();
+      }
+      expect(tx.billingWallet.findUnique).toHaveBeenCalledWith({
+        where: { userId: "actor" },
+        select: {
+          availableCredits: true,
+          balanceMicrocredits: true,
+          accountingUnitVersion: true,
+        },
+      });
+    },
+  );
   it.each([Actions.stop, Actions.resume])(
     "rejects %s without a native registration instead of reporting completion",
     async (action) => {

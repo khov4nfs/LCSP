@@ -64,6 +64,15 @@ export const OUTPUT_EVALUATION_STATES = {
   NOT_EVALUATED: "NOT_EVALUATED",
 } as const;
 
+/**
+ * Why: Only a real rule-authoring tool refusal can support this narrow domain verdict.
+ * How: Pin the journal activity kind shared by worker evidence and the billing callback.
+ * Invariant: Other progress or generic failure events cannot be treated as DOMAIN_REJECTED.
+ */
+export const RULE_PREPARATION_REJECTION_ACTIVITY_KINDS = {
+  ruleAuthoringToolRejected: "RULE_AUTHORING_TOOL_REJECTED",
+} as const;
+
 export type OutputEvaluationState =
   (typeof OUTPUT_EVALUATION_STATES)[keyof typeof OUTPUT_EVALUATION_STATES];
 
@@ -180,13 +189,35 @@ export const billableInvocationSettlementRequestSchema = z.object({
   inputTokens: z.number().int().nonnegative().optional(),
   cachedInputTokens: z.number().int().nonnegative().optional(),
   cacheWriteTokens: z.number().int().nonnegative().optional(),
+  // Why: Provider cache writes may have distinct 5-minute and 1-hour prices in the pinned tariff.
+  // How: Preserve split counts through strict settlement parsing for canonical calculation and receipt evidence.
+  // Invariant: Never discard a priced bucket before the server calculates a customer charge.
+  cacheWrite5mTokens: z.number().int().nonnegative().optional(),
+  cacheWrite1hTokens: z.number().int().nonnegative().optional(),
   outputTokens: z.number().int().nonnegative().optional(),
   reasoningTokens: z.number().int().nonnegative().optional(),
   totalTokens: z.number().int().nonnegative().optional(),
+  // Why: A later evaluator must name a tool call actually emitted by this paid model response.
+  // How: Pin a bounded, sorted, duplicate-free list in the immutable settlement receipt.
+  // Invariant: The list contains identities only; prompt, tool arguments and output stay out of billing records.
+  // Why: JavaScript UTF-16 sort and PostgreSQL C collation disagree on some Unicode IDs.
+  // How: Limit identity bytes to printable ASCII so API and database canonical ordering match.
+  // Invariant: Unknown provider ID formats fail closed instead of creating ambiguous billing evidence.
+  toolCallIds: z.array(z.string().min(1).max(200).regex(/^[!-~]+$/)).max(64)
+    .refine((ids) => ids.every((id, index) => index === 0 || ids[index - 1]! < id), {
+      message: "toolCallIds must be sorted and unique",
+    }).optional(),
   workerClaimedPreSocketError: z.boolean().optional(),
   workerClaimFailureCategory: z.string().trim().max(100).optional(),
   workerClaimTimestamp: z.string().datetime().optional(),
   workerClaimSignature: z.string().trim().max(128).optional(),
+}).superRefine((input, context) => {
+  // Why: An unknown provider outcome does not prove that any tool call was emitted.
+  // How: Accept physical tool-call evidence only with a confirmed completed response.
+  // Invariant: Reconciliation cannot inherit fabricated causation from an unresolved invocation.
+  if (input.toolCallIds?.length && input.providerCompletionState !== PROVIDER_COMPLETION_STATES.COMPLETED) {
+    context.addIssue({ code: "custom", path: ["toolCallIds"], message: "toolCallIds require COMPLETED outcome" });
+  }
 });
 
 export type BillableInvocationSettlementRequest = z.infer<
@@ -206,11 +237,35 @@ export const billableInvocationSettlementResponseSchema = z.object({
   shadowMicrocredits: z.string().regex(/^\d+$/).nullable(),
   chargedMicrocredits: z.string().regex(/^\d+$/),
   slotReleased: z.boolean(),
+  // Why: A final settled model call can exhaust the shared wallet without another admission to return 402.
+  // How: Server returns the post-settlement decision pinned to the immutable receipt for worker checkpointing.
+  // Invariant: OFF/SHADOW and non-terminal outcomes never request a payment pause.
+  paymentRequired: z.boolean(),
   settledAt: z.string().datetime().nullable(),
 });
 
 export type BillableInvocationSettlementResponse = z.infer<
   typeof billableInvocationSettlementResponseSchema
+>;
+
+/**
+ * Why: A rule-authoring rejection is a downstream business evaluation, never a provider usage outcome.
+ * How: Restrict the callback to one persisted rejection event and one pinned tool call from a settled response.
+ * Invariants: This phase does not accept generic verdicts or customer-wallet output evaluation writes.
+ */
+export const rulePreparationDomainRejectionRequestSchema = z.strictObject({
+  admissionId: z.string().trim().min(1).max(200),
+  invocationId: z.string().trim().min(1).max(200),
+  preparationRunId: z.string().trim().min(1).max(200),
+  runId: z.string().trim().min(1).max(200),
+  eventId: z.string().uuid(),
+  toolCallId: z.string().min(1).max(200).regex(/^[!-~]+$/),
+  rejectionCode: z.string().min(1).max(100).regex(/^[A-Z0-9_]+$/),
+  evaluatorVersion: z.string().trim().min(1).max(100),
+});
+
+export type RulePreparationDomainRejectionRequest = z.infer<
+  typeof rulePreparationDomainRejectionRequestSchema
 >;
 
 /**
@@ -262,6 +317,190 @@ export const sweepExpiredLeasesResponseSchema = z.object({
 
 export type SweepExpiredLeasesResponse = z.infer<
   typeof sweepExpiredLeasesResponseSchema
+>;
+
+/**
+ * Decision actions available to an authorized Admin when resolving a BillingReconciliationCase.
+ * Rationale ("Why"): ADR-028 Line 155 mandates explicit audited decisions to either confirm no-usage
+ * with verified log evidence, maintain exposure under integrity review, or escalate for manual review.
+ * Invariants & Constraints: Defined as frozen `as const` SCREAMING_SNAKE_CASE object.
+ */
+export const RECONCILIATION_DECISION_ACTIONS = {
+  confirmNoUsage: "CONFIRM_NO_USAGE",
+  maintainExposure: "MAINTAIN_EXPOSURE",
+  flagIntegrityReview: "FLAG_INTEGRITY_REVIEW",
+  escalate: "ESCALATE",
+} as const;
+
+export type ReconciliationDecisionAction =
+  (typeof RECONCILIATION_DECISION_ACTIONS)[keyof typeof RECONCILIATION_DECISION_ACTIONS];
+
+/**
+ * Admin query parameters for listing BillingReconciliationCase records.
+ */
+export const billingAdminReconciliationCaseListQuerySchema = z.object({
+  state: z
+    .enum([
+      RECONCILIATION_CASE_STATES.OPEN,
+      RECONCILIATION_CASE_STATES.EVIDENCE_PENDING,
+      RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+      RECONCILIATION_CASE_STATES.SETTLED_WITH_USAGE,
+      RECONCILIATION_CASE_STATES.CONFIRMED_NO_USAGE,
+      RECONCILIATION_CASE_STATES.ESCALATED,
+      RECONCILIATION_CASE_STATES.CLOSED,
+    ])
+    .optional(),
+  provider: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+export type BillingAdminReconciliationCaseListQuery = z.infer<
+  typeof billingAdminReconciliationCaseListQuerySchema
+>;
+
+/**
+ * Summary representation of a BillingReconciliationCase in admin queue.
+ */
+export const billingReconciliationCaseItemSchema = z.object({
+  caseId: z.string().trim().min(1).max(200),
+  invocationId: z.string().trim().min(1).max(200),
+  admissionId: z.string().trim().min(1).max(200),
+  state: z.string().trim().min(1).max(100),
+  provider: z.string().trim().min(1).max(100),
+  providerCorrelationId: z.string().trim().min(1).max(200),
+  providerLogArtifactId: z.string().trim().min(1).max(200).nullable(),
+  coverageStart: z.string().datetime().nullable(),
+  coverageEnd: z.string().datetime().nullable(),
+  resolvedAt: z.string().datetime().nullable(),
+  resolvedBy: z.string().trim().min(1).max(200).nullable(),
+  auditRationale: z.string().trim().nullable(),
+  conflictDetectedAt: z.string().datetime().nullable(),
+  hasConflictingPayload: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  admission: z.object({
+    walletId: z.string().trim().nullable(),
+    userId: z.string().trim().nullable(),
+    maximumExposureMicrocredits: z.string().regex(/^\d+$/),
+    state: z.string().trim(),
+    admittedAt: z.string().datetime(),
+    consumedAt: z.string().datetime().nullable(),
+    expiresAt: z.string().datetime(),
+  }),
+});
+
+export type BillingReconciliationCaseItem = z.infer<
+  typeof billingReconciliationCaseItemSchema
+>;
+
+/**
+ * Detailed representation of a BillingReconciliationCase with full evidence linkage.
+ */
+export const billingReconciliationCaseDetailResponseSchema = z.object({
+  caseId: z.string().trim().min(1).max(200),
+  invocationId: z.string().trim().min(1).max(200),
+  admissionId: z.string().trim().min(1).max(200),
+  state: z.string().trim().min(1).max(100),
+  provider: z.string().trim().min(1).max(100),
+  providerCorrelationId: z.string().trim().min(1).max(200),
+  providerLogArtifactId: z.string().trim().min(1).max(200).nullable(),
+  coverageStart: z.string().datetime().nullable(),
+  coverageEnd: z.string().datetime().nullable(),
+  resolvedAt: z.string().datetime().nullable(),
+  resolvedBy: z.string().trim().min(1).max(200).nullable(),
+  auditRationale: z.string().trim().nullable(),
+  conflictDetectedAt: z.string().datetime().nullable(),
+  conflictingPayload: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  admission: z.object({
+    id: z.string().trim().min(1).max(200),
+    invocationId: z.string().trim().min(1).max(200),
+    walletId: z.string().trim().nullable(),
+    userId: z.string().trim().nullable(),
+    maximumExposureMicrocredits: z.string().regex(/^\d+$/),
+    state: z.string().trim(),
+    rolloutMode: z.string().trim(),
+    debitMode: z.string().trim(),
+    requestedModel: z.string().trim(),
+    resolvedProvider: z.string().trim(),
+    resolvedModel: z.string().trim(),
+    admittedAt: z.string().datetime(),
+    consumedAt: z.string().datetime().nullable(),
+    expiresAt: z.string().datetime(),
+  }),
+  evidenceArtifact: z
+    .object({
+      artifactId: z.string().trim(),
+      provider: z.string().trim(),
+      sha256: z.string().trim(),
+      coverageStart: z.string().datetime(),
+      coverageEnd: z.string().datetime(),
+      verified: z.boolean(),
+      ingestedAt: z.string().datetime(),
+    })
+    .nullable(),
+  // Why: Admin compensation must refer to an existing debit and a server-computed remaining ceiling.
+  // How: Expose only the case-bound immutable ledger identity and decimal microcredit amounts.
+  // Invariant: A missing or ineligible debit cannot be presented as compensable.
+  compensationPreview: z
+    .object({
+      originalLedgerEntryId: z.string().trim().min(1).max(200),
+      originalDebitMicrocredits: z.string().regex(/^\d+$/),
+      totalCompensatedMicrocredits: z.string().regex(/^\d+$/),
+      remainingUncompensatedMicrocredits: z.string().regex(/^\d+$/),
+    })
+    .nullable(),
+});
+
+export type BillingReconciliationCaseDetailResponse = z.infer<
+  typeof billingReconciliationCaseDetailResponseSchema
+>;
+
+/**
+ * Request payload for Admin manual decision on a BillingReconciliationCase.
+ * Rationale ("Why"): ADR-028 Line 155 & Line 173 mandate audited Admin decisions.
+ * Mechanism ("How"): Binds decision, idempotency key, audit rationale, and stored provider log artifact ID.
+ * Invariants & Constraints: Strict schema rejecting unknown fields; does not trust client-supplied coverage metadata.
+ */
+export const reconciliationCaseDecisionRequestSchema = z
+  .object({
+    decision: z.enum([
+      RECONCILIATION_DECISION_ACTIONS.confirmNoUsage,
+      RECONCILIATION_DECISION_ACTIONS.maintainExposure,
+      RECONCILIATION_DECISION_ACTIONS.flagIntegrityReview,
+      RECONCILIATION_DECISION_ACTIONS.escalate,
+    ]),
+    idempotencyKey: z.string().trim().min(1).max(200),
+    auditRationale: z.string().trim().min(10).max(1000),
+    providerLogArtifactId: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
+export type ReconciliationCaseDecisionRequest = z.infer<
+  typeof reconciliationCaseDecisionRequestSchema
+>;
+
+/**
+ * Response payload for an audited Admin decision on a BillingReconciliationCase.
+ */
+export const reconciliationCaseDecisionResponseSchema = z.object({
+  decided: z.boolean(),
+  caseId: z.string().trim().min(1).max(200),
+  invocationId: z.string().trim().min(1).max(200),
+  admissionId: z.string().trim().min(1).max(200),
+  previousState: z.string().trim().min(1).max(100),
+  newState: z.string().trim().min(1).max(100),
+  decision: z.string().trim().min(1).max(100),
+  slotReleased: z.boolean(),
+  auditRationale: z.string().trim().min(10).max(1000),
+  decidedAt: z.string().datetime(),
+  decidedBy: z.string().trim().min(1).max(200),
+});
+
+export type ReconciliationCaseDecisionResponse = z.infer<
+  typeof reconciliationCaseDecisionResponseSchema
 >;
 
 /**

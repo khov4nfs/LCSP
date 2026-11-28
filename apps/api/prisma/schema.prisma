@@ -1916,6 +1916,7 @@ model BillableInvocationAdmission {
   debitMode                   ModelUsageDebitMode            @default(OFF)
   appliedMaxOutputTokens      Int
   maximumExposureMicrocredits BigInt
+  initialExposureMicrocredits BigInt?
   capabilityDigest            String
   state                       AdmissionState                 @default(ADMITTED)
   version                     Int                            @default(1)
@@ -1985,6 +1986,10 @@ model ModelUsageReceipt {
   modelStep                Int?
   attemptOrdinal           Int?
   providerResponseId       String?
+  // Why: Later domain rejection must be scoped to a tool call emitted by this physical model response.
+  // How: Persist only bounded call IDs in the immutable usage receipt, never tool arguments or outputs.
+  // Invariant: Evaluation cannot introduce a new toolCallId after settlement.
+  toolCallIds              String[]                    @default([])
   inputTokens              BigInt?
   cachedInputTokens        BigInt?
   cacheWriteTokens         BigInt?
@@ -1998,6 +2003,8 @@ model ModelUsageReceipt {
   debitedMicrocredits      BigInt                      @default(0)
   shadowMicrocredits       BigInt?
   chargedMicrocredits      BigInt?
+  // Server-owned post-debit solvency snapshot keeps lost-response settlement replay stable after later top-ups.
+  paymentRequired          Boolean                     @default(false)
   settlementIdempotencyKey String?                     @unique
   settledAt                DateTime?                   @db.Timestamptz(3)
   createdAt                DateTime                    @default(now()) @db.Timestamptz(3)
@@ -2017,6 +2024,11 @@ model ModelOutputEvaluation {
   evaluationState         OutputEvaluationState        @default(NOT_EVALUATED)
   providerCompletionState ProviderCompletionState?
   evaluatorVersion        String?
+  // Why: A repeated worker callback must replay one persisted evaluator event without changing the verdict.
+  // How: Store the server-journal event identity and a fingerprint of exact callback fields.
+  // Invariant: Conflicting callbacks never overwrite a completed evaluation.
+  evaluatorEventId        String?                      @unique
+  evaluationFingerprint   String?
   reasonCode              String?
   correlationId           String
   evaluatedAt             DateTime                     @default(now()) @db.Timestamptz(3)
@@ -2061,6 +2073,22 @@ model BillingReconciliationCase {
 
   @@index([state])
   @@index([admissionId])
+}
+
+/// Durable, unique idempotency receipt for BillingReconciliationCase administrative decisions.
+model BillingReconciliationDecisionReceipt {
+  id                    String   @id @default(uuid())
+  caseId                String
+  idempotencyKey        String   @unique
+  requestFingerprint    String
+  decision              String
+  auditRationale        String
+  providerLogArtifactId String?
+  decidedBy             String
+  responseSnapshot      Json
+  createdAt             DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([caseId])
 }
 
 /// Durable, server-authenticated provider audit log artifact for independent reconciliation.

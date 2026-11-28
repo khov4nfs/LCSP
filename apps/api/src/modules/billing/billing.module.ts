@@ -67,6 +67,9 @@ import { SweepExpiredInvocationLeasesHandler } from "./application/commands/swee
 import { CompensateBillingDebitHandler } from "./application/commands/compensate-billing-debit/compensate-billing-debit.handler.js";
 import { BillingReconciliationSweeperService } from "./infrastructure/scheduling/billing-reconciliation-sweeper.service.js";
 import { ResolveBillableInvocationNoUsageHandler } from "./application/commands/resolve-billable-invocation-no-usage/resolve-billable-invocation-no-usage.handler.js";
+import { DecideBillingReconciliationCaseHandler } from "./application/commands/decide-billing-reconciliation-case/decide-billing-reconciliation-case.handler.js";
+import { ListBillingReconciliationCasesHandler } from "./application/queries/list-billing-reconciliation-cases/list-billing-reconciliation-cases.handler.js";
+import { GetBillingReconciliationCaseDetailHandler } from "./application/queries/get-billing-reconciliation-case-detail/get-billing-reconciliation-case-detail.handler.js";
 import { GetModelPricingOverviewHandler } from "./application/queries/get-model-pricing-overview/get-model-pricing-overview.handler.js";
 import { GetModelTariffDraftHandler } from "./application/queries/get-model-tariff-draft/get-model-tariff-draft.handler.js";
 import { GetModelTariffSnapshotHandler } from "./application/queries/get-model-tariff-snapshot/get-model-tariff-snapshot.handler.js";
@@ -127,6 +130,9 @@ import { CustomerUsageController } from "./presentation/http/customer-usage.cont
     CompensateBillingDebitHandler,
     BillingReconciliationSweeperService,
     ResolveBillableInvocationNoUsageHandler,
+    DecideBillingReconciliationCaseHandler,
+    ListBillingReconciliationCasesHandler,
+    GetBillingReconciliationCaseDetailHandler,
     GetModelPricingOverviewHandler,
     GetModelTariffDraftHandler,
     GetModelTariffSnapshotHandler,

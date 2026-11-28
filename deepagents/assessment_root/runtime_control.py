@@ -12,6 +12,7 @@ from middleware.durable_budget_kernel import (
     evaluate_workload_admission,
 )
 from orchestration.agent_stream import publish_agent_stream_event
+from middleware.usage_metering import active_agent_run_state
 from tools.common.capabilities.platform.logging import get_logger
 
 logger = get_logger(__name__)
@@ -99,15 +100,16 @@ class RootRuntimeControl(AgentMiddleware):
         Business rules:
         - Updates progress counters and emits non-blocking diagnostic telemetry on repeated loops.
         - Preserves progress when case revision or domain entities advance.
-        - Only cooperative stop requests or hard call/token budget denials trigger graph interrupt.
+        - A terminal ON debit that depleted the customer wallet pauses after the completed model step is checkpointed.
+        - Cooperative stop requests and hard call/token budget denials also trigger graph interrupt.
 
         Execution flow:
         1. Evaluate intra-execution progress using updated state; emit non-blocking diagnostic telemetry if stalled.
-        2. Check for stop request or hard call/token budget denial from server.
-        3. Interrupt if stop or budget limit is triggered; otherwise continue.
+        2. Interrupt on the server-owned payment decision after the model response has entered graph state.
+        3. Check for stop or hard budget denial; otherwise continue.
 
         Failure cases:
-        - Server budget denial or stop command raises native graph interrupt.
+        - Customer payment depletion, server budget denial or stop command raises native graph interrupt.
 
         Side effects:
         - May emit diagnostic telemetry or interrupt native graph execution for checkpoint persistence.
@@ -118,6 +120,19 @@ class RootRuntimeControl(AgentMiddleware):
         stall = self._evaluate_intra_execution_progress(state)
         if stall:
             self._emit_no_progress_diagnostic(stall["detection"])
+        # Why: The model node is already durable here, so Continue cannot redispatch the settled provider response.
+        # How: Emit a native payment interrupt from after_model, before any further model or tool work.
+        # Invariant: The marker is overwritten by billing middleware and survives a model-node checkpoint.
+        run_state = active_agent_run_state()
+        messages = state.get("messages", []) if isinstance(state, dict) else getattr(state, "messages", [])
+        last_message = messages[-1] if messages else None
+        metadata = getattr(last_message, "response_metadata", None)
+        durable_payment_decision = (
+            isinstance(metadata, dict)
+            and metadata.get("_lcsp_payment_required_after_settlement") is True
+        )
+        if durable_payment_decision or (run_state is not None and run_state.payment_required_after_settlement):
+            interrupt({"reason": "PAYMENT_REQUIRED", "targetExecutionId": self.execution_id})
         return self._pause_if_requested()
 
     def _evaluate_intra_execution_progress(self, state: Any) -> dict[str, Any] | None:

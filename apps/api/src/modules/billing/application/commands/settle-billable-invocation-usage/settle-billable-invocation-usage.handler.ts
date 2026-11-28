@@ -7,26 +7,36 @@ import {
   ADMISSION_STATES,
   BILLING_AUDIT_EVENT_TYPES,
   BILLING_ERROR_CODES,
+  BILLING_INTEGRITY_REASONS,
   BILLING_ROLLOUT_MODES,
   CREDIT_LEDGER_SOURCES,
   MODEL_USAGE_DEBIT_MODES,
+  OUTPUT_EVALUATION_STATES,
   PROVIDER_COMPLETION_STATES,
   RECONCILIATION_CASE_STATES,
   TOKEN_BUCKET_POLICIES,
   deriveAdmissionCapabilityDigest,
   type BillableInvocationSettlementRequest,
+  type MicrocreditTariffRates,
   type MicrocreditUsageBuckets,
-  type TokenBucketPolicy,
 } from "@lcsp/contracts/billing";
-import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
+import {
+  OUTBOX_AGGREGATE_TYPES,
+  OUTBOX_STATUSES,
+} from "@lcsp/contracts/outbox";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import {
   toPrismaAdmissionState,
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
   toPrismaBillingReconciliationState,
+  toPrismaCreditLedgerSource,
+  toPrismaOutboxAggregateType,
+  toPrismaOutputEvaluationState,
+  toPrismaProviderCompletionState,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { ModelPricingIncompleteRatesError } from "../../../domain/billing.errors.js";
 import { ModelPricingCalculatorService } from "../../shared/model-pricing-calculator.service.js";
 import { BillingRolloutAuthorityService } from "../../shared/billing-rollout-authority.service.js";
 import { SettleBillableInvocationUsageCommand } from "./settle-billable-invocation-usage.command.js";
@@ -41,6 +51,7 @@ export type SettleUsageExecutionResult = {
   shadowMicrocredits: string | null;
   chargedMicrocredits: string;
   slotReleased: boolean;
+  paymentRequired: boolean;
   settledAt: string | null;
 };
 
@@ -48,7 +59,7 @@ export type SettleUsageExecutionResult = {
  * Business purpose: Compute deterministic settlement fingerprint for idempotent replay detection and conflict rejection.
  *
  * Business rules:
- * - Includes canonical token counts, attempt ordinal, completion state, response ID, finish reason, and status.
+ * - Includes canonical token counts (including split cache-write counts), attempt ordinal, completion state, response ID, finish reason, and status.
  * - Format is deterministic SHA-256 digest.
  *
  * Execution flow:
@@ -87,6 +98,17 @@ function computeSettlementFingerprint(
     payload.cacheWriteTokens !== undefined && payload.cacheWriteTokens !== null
       ? payload.cacheWriteTokens
       : "",
+    // Why: Two cache-write TTL buckets can have different prices even when their aggregate is unchanged.
+    // How: Bind both split counts to the settlement replay fingerprint.
+    // Invariant: A changed 5m/1h distribution cannot replay an earlier receipt under the same invocation.
+    payload.cacheWrite5mTokens !== undefined &&
+    payload.cacheWrite5mTokens !== null
+      ? payload.cacheWrite5mTokens
+      : "",
+    payload.cacheWrite1hTokens !== undefined &&
+    payload.cacheWrite1hTokens !== null
+      ? payload.cacheWrite1hTokens
+      : "",
     payload.reasoningTokens !== undefined && payload.reasoningTokens !== null
       ? payload.reasoningTokens
       : "",
@@ -96,6 +118,15 @@ function computeSettlementFingerprint(
     payload.providerResponseId ?? "",
     payload.finishReason ?? "",
     payload.responseStatus ?? "",
+    // Why: A changed tool-call list must never replay against the original immutable receipt.
+    // How: Include the canonical sorted IDs in the settlement fingerprint.
+    // Invariant: An absent list and an explicit empty list carry the same lack of causation evidence.
+    // Why: Legacy settled receipts were fingerprinted before tool-call evidence existed.
+    // How: Add a versioned suffix only when the new immutable evidence is nonempty.
+    // Invariant: Identical pre-upgrade settlement replays still match their stored fingerprint.
+    ...(payload.toolCallIds?.length
+      ? [`TOOL_CALL_IDS_V1:${JSON.stringify(payload.toolCallIds)}`]
+      : []),
   ].join(":");
   return crypto.createHash("sha256").update(canonical).digest("hex");
 }
@@ -129,12 +160,14 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
    *      Must NOT transition to SETTLED or release slot. Keeps case in OUTCOME_UNKNOWN with full exposure and open reconciliation case.
    *   4. If COMPLETED and pinned tariff snapshot or sponsorship policy snapshot is missing/unresolvable:
    *      Must NOT transition to SETTLED or release slot with 0 microcredits. Retains exposure and routes to BILLING_INTEGRITY_REVIEW.
+   *   Customer and platform usage containing buckets not priced by the pinned policy also enters integrity review.
    *   5. If COMPLETED and calculated usage exceeds admitted maximumExposureMicrocredits (ADR-028 Line 138):
    *      Does NOT silently expand debt or settle. Retains bounded exposure, holds concurrency slot, and enters BILLING_INTEGRITY_REVIEW.
    *   6. If COMPLETED with valid tokens within exposure:
    *      Calculates microcredits using canonical ModelPricingCalculatorService (handling cache, reasoning, and rounding consistently with Admin preview).
    *      Persists ModelUsageReceipt with field isolation and settlementIdempotencyKey.
    *      Settles strictly under pinned issuance debit authority (OFF stays OFF, SHADOW stays SHADOW, ON debits only when active authority is ON).
+   *      ON settlement pins the post-debit payment-required decision on its immutable receipt for final-call checkpointing and replay.
    *      Transitions admission to SETTLED, releases slot, updates reconciliation case to SETTLED_WITH_USAGE, and records AuditEvent.
    *   7. Any failure, timeout, or worker pre-socket error claim transitions to DISPATCH_UNKNOWN or OUTCOME_UNKNOWN,
    *      retaining maximum exposure, keeping slot held, and opening a BillingReconciliationCase.
@@ -149,7 +182,8 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
    * 7. Resolve pinned tariff rates; if missing or unresolvable, route to BILLING_INTEGRITY_REVIEW.
    * 8. Perform canonical pricing calculation; if charge exceeds maximum exposure, route to BILLING_INTEGRITY_REVIEW.
    * 9. Persist ModelUsageReceipt, mark admission SETTLED, release slot, and emit AuditEvent.
-   * 10. Commit transaction and return execution result.
+   * 10. Return the pinned payment-required decision from the locked post-debit balance; OFF/SHADOW remain false.
+   * 11. Commit transaction and return execution result.
    *
    * Failure cases:
    * - Throws 404 NOT_FOUND if admission does not exist.
@@ -441,6 +475,10 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
                 ? existingReceipt.chargedMicrocredits.toString()
                 : "0",
               slotReleased: true,
+              // Why: Replay must return the original post-debit decision even after a later top-up.
+              // How: Read the immutable usage receipt snapshot rather than the current wallet balance.
+              // Invariant: One invocation cannot change its payment pause decision on retry.
+              paymentRequired: existingReceipt.paymentRequired,
               settledAt: existingReceipt.settledAt
                 ? existingReceipt.settledAt.toISOString()
                 : now.toISOString(),
@@ -506,12 +544,13 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
             shadowMicrocredits: null,
             chargedMicrocredits: "0",
             slotReleased: false,
+            paymentRequired: false,
             settledAt: null,
           };
         }
 
         // Canonical Pricing Calculation using ModelPricingCalculatorService
-        let rates: TariffRatesMicrocreditsPerMillion | null = null;
+        let rates: MicrocreditTariffRates | null = null;
         if (admission.tariffSnapshotId) {
           const tariff = await tx.customerModelTariffSnapshot.findUnique({
             where: { id: admission.tariffSnapshotId },
@@ -605,8 +644,113 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
             shadowMicrocredits: null,
             chargedMicrocredits: "0",
             slotReleased: false,
+            paymentRequired: false,
             settledAt: null,
           };
+        }
+
+        // Why: Customer and platform tariffs can both forbid a provider-reported priced bucket.
+        // How: Compare nonzero reported buckets with the pinned tariff policy before settlement.
+        // Invariant: Unsupported usage holds exposure and slot for audited reconciliation, never HTTP 500 or silent zero pricing.
+        const reportedCacheWrite =
+          (payload.cacheWriteTokens ?? 0) > 0 ||
+          (payload.cacheWrite5mTokens ?? 0) > 0 ||
+          (payload.cacheWrite1hTokens ?? 0) > 0;
+        const unsupportedPricedBuckets =
+          (rates.cachedInputPolicy === TOKEN_BUCKET_POLICIES.unsupported &&
+            (payload.cachedInputTokens ?? 0) > 0) ||
+          (rates.cacheWritePolicy === TOKEN_BUCKET_POLICIES.unsupported &&
+            reportedCacheWrite) ||
+          (rates.reasoningPolicy === TOKEN_BUCKET_POLICIES.unsupported &&
+            (payload.reasoningTokens ?? 0) > 0);
+        /**
+         * Business purpose: Preserve an unresolved billable invocation when its pinned tariff cannot price actual provider usage.
+         * Business rules:
+         * - Neither customer nor platform usage may settle or release exposure under missing bucket authority.
+         * Execution flow:
+         * 1. Mark outcome unknown.
+         * 2. Persist provider evidence and the pricing reason in integrity review.
+         * 3. Return a held-slot result.
+         * Failure cases:
+         * - Database failure rolls back the entire transition; no partial receipt or customer debit is written.
+         * Side effects:
+         * - Updates admission and reconciliation case within the caller's transaction.
+         */
+        const failClosedPricing = async (
+          reason: string,
+        ): Promise<SettleUsageExecutionResult> => {
+          // Why: A pricing calculator failure must not become an HTTP 500 that loses the provider's completed evidence.
+          // How: Commit the unresolved state and case together, preserving the existing exposure and slot.
+          // Invariant: No receipt, debit, or terminal state is created when the tariff cannot price usage.
+          await tx.billableInvocationAdmission.update({
+            where: { id: admission.id },
+            data: {
+              state: ADMISSION_STATES.OUTCOME_UNKNOWN,
+              version: { increment: 1 },
+            },
+          });
+          await tx.billingReconciliationCase.upsert({
+            where: { invocationId: admission.invocationId },
+            create: {
+              caseId: `case-${admission.invocationId}`,
+              invocationId: admission.invocationId,
+              admissionId: admission.id,
+              state: RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+              provider: admission.resolvedProvider,
+              providerCorrelationId: admission.correlationId,
+              conflictingPayload: {
+                reason,
+                inputTokens: payload.inputTokens,
+                cachedInputTokens: payload.cachedInputTokens ?? 0,
+                cacheWriteTokens: payload.cacheWriteTokens ?? 0,
+                cacheWrite5mTokens: payload.cacheWrite5mTokens ?? 0,
+                cacheWrite1hTokens: payload.cacheWrite1hTokens ?? 0,
+                reasoningTokens: payload.reasoningTokens ?? 0,
+                outputTokens: payload.outputTokens,
+                totalTokens: payload.totalTokens,
+                providerResponseId: payload.providerResponseId ?? null,
+                reportedAt: now.toISOString(),
+              },
+              conflictDetectedAt: now,
+              version: 1,
+            },
+            update: {
+              state: RECONCILIATION_CASE_STATES.INTEGRITY_REVIEW,
+              conflictingPayload: {
+                reason,
+                inputTokens: payload.inputTokens,
+                cachedInputTokens: payload.cachedInputTokens ?? 0,
+                cacheWriteTokens: payload.cacheWriteTokens ?? 0,
+                cacheWrite5mTokens: payload.cacheWrite5mTokens ?? 0,
+                cacheWrite1hTokens: payload.cacheWrite1hTokens ?? 0,
+                reasoningTokens: payload.reasoningTokens ?? 0,
+                outputTokens: payload.outputTokens,
+                totalTokens: payload.totalTokens,
+                providerResponseId: payload.providerResponseId ?? null,
+                reportedAt: now.toISOString(),
+              },
+              conflictDetectedAt: now,
+              version: { increment: 1 },
+            },
+          });
+          return {
+            settled: false,
+            state: ADMISSION_STATES.OUTCOME_UNKNOWN,
+            rolloutMode: admission.rolloutMode,
+            debitMode,
+            calculatedMicrocredits: "0",
+            debitedMicrocredits: "0",
+            shadowMicrocredits: null,
+            chargedMicrocredits: "0",
+            slotReleased: false,
+            paymentRequired: false,
+            settledAt: null,
+          };
+        };
+        if (unsupportedPricedBuckets) {
+          return failClosedPricing(
+            BILLING_INTEGRITY_REASONS.unsupportedPricedBucket,
+          );
         }
 
         const usage: MicrocreditUsageBuckets = {
@@ -622,6 +766,17 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
             payload.cacheWriteTokens !== null
               ? BigInt(payload.cacheWriteTokens)
               : undefined,
+          // Why: Pinned tariffs may charge the two cache-write TTL buckets at different rates.
+          // How: Pass both validated split counts into the canonical calculator.
+          // Invariant: Aggregate writes and split writes must reconcile; neither is silently dropped.
+          cacheWrite5mTokens:
+            payload.cacheWrite5mTokens !== undefined
+              ? BigInt(payload.cacheWrite5mTokens)
+              : undefined,
+          cacheWrite1hTokens:
+            payload.cacheWrite1hTokens !== undefined
+              ? BigInt(payload.cacheWrite1hTokens)
+              : undefined,
           reasoningTokens:
             payload.reasoningTokens !== undefined &&
             payload.reasoningTokens !== null
@@ -629,11 +784,23 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
               : undefined,
         };
 
-        const chargeResult = this.modelPricingCalculator.calculateCharge({
-          usage,
-          ratesMicrocreditsPerMillion: rates,
-        });
-        const calculatedMicrocredits = chargeResult.chargeMicrocredits;
+        let calculatedMicrocredits: bigint;
+        try {
+          calculatedMicrocredits = this.modelPricingCalculator.calculateCharge({
+            usage,
+            ratesMicrocreditsPerMillion: rates,
+          }).chargeMicrocredits;
+        } catch (error: unknown) {
+          // Why: A published rate can be incomplete for a newly observed provider token bucket.
+          // How: Convert only typed pricing incompleteness into durable integrity review; rethrow unrelated failures.
+          // Invariant: Arbitrary programmer or database errors never get masked as a pricing decision.
+          if (error instanceof ModelPricingIncompleteRatesError) {
+            return failClosedPricing(
+              BILLING_ERROR_CODES.modelPricingIncompleteRates,
+            );
+          }
+          throw error;
+        }
 
         // Invariant (ADR-028 Line 138): Provider usage beyond the admitted maximum exposure does not silently expand debt;
         // it enters BILLING_INTEGRITY_REVIEW. The concurrency slot remains blocked and exposure is bounded at admitted ceiling.
@@ -705,6 +872,7 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
             shadowMicrocredits: null,
             chargedMicrocredits: "0",
             slotReleased: false,
+            paymentRequired: false,
             settledAt: null,
           };
         }
@@ -712,17 +880,16 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
         let debitedMicrocredits = 0n;
         let chargedMicrocredits = 0n;
         let shadowMicrocredits: bigint | null = null;
+        let paymentRequired = false;
 
+        // Why: Platform-sponsored usage has no customer wallet and must never enter debit or customer shadow accounting.
+        // How: Only customer-funded admissions enter the ON/SHADOW financial branches; all other outcomes retain zero debit.
+        // Invariant: A platform-sponsored receipt may record calculated usage but cannot create a customer ledger debit.
         if (
           admission.fundingPrincipal ===
-          ADMISSION_FUNDING_PRINCIPALS.PLATFORM_SPONSORED
+            ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET &&
+          debitMode === MODEL_USAGE_DEBIT_MODES.ON
         ) {
-          // ADR-028 Line 140: Platform sponsored calls are never debited to customer wallets.
-          // chargedMicrocredits reflects the actual customer debit (0), while calculatedMicrocredits reflects rate computation.
-          debitedMicrocredits = 0n;
-          chargedMicrocredits = 0n;
-          shadowMicrocredits = null;
-        } else if (debitMode === MODEL_USAGE_DEBIT_MODES.ON) {
           if (!lockedWallet) {
             // Unreachable due to upfront check, but enforced fail closed
             throw problemException(
@@ -741,6 +908,10 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
           // Invariants: Single atomic transaction committing 5 records; wallet.version strictly increments.
           const newBalanceMicrocredits =
             lockedWallet.balanceMicrocredits - calculatedMicrocredits;
+          // Why: The last paid invocation can empty the wallet without a later admission to return 402.
+          // How: Decide depletion from the signed post-debit balance while the wallet row is locked.
+          // Invariant: OFF/SHADOW/platform outcomes never request a customer payment checkpoint.
+          paymentRequired = newBalanceMicrocredits <= 0n;
           const newAvailableCredits =
             newBalanceMicrocredits > 0n
               ? newBalanceMicrocredits / 1_000_000n
@@ -761,7 +932,9 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
               walletId: lockedWallet.id,
               idempotencyKey: `debit-${admission.id}`,
               source: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
-              ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+              ledgerSource: toPrismaCreditLedgerSource(
+                CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
+              ),
               deltaCredits: -(calculatedMicrocredits / 1_000_000n),
               deltaMicrocredits: -calculatedMicrocredits,
               accountingUnitVersion: lockedWallet.accountingUnitVersion ?? 2,
@@ -773,7 +946,9 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
           await tx.outboxMessage.create({
             data: {
               id: crypto.randomUUID(),
-              aggregateType: OUTBOX_AGGREGATE_TYPES.billingWallet as any,
+              aggregateType: toPrismaOutboxAggregateType(
+                OUTBOX_AGGREGATE_TYPES.billingWallet,
+              ),
               aggregateId: lockedWallet.id,
               eventType: BILLING_AUDIT_EVENT_TYPES.usageSettled,
               payload: {
@@ -787,17 +962,16 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
                 settledAt: now.toISOString(),
                 correlationId: correlationId ?? null,
               },
-              status: "PENDING",
+              // Why: Wallet settlement events enter the canonical pending outbox state in the same transaction as debit.
+              status: OUTBOX_STATUSES.pending,
             },
           });
-        } else if (debitMode === MODEL_USAGE_DEBIT_MODES.SHADOW) {
-          debitedMicrocredits = 0n;
-          chargedMicrocredits = 0n;
+        } else if (
+          admission.fundingPrincipal ===
+            ADMISSION_FUNDING_PRINCIPALS.CUSTOMER_WALLET &&
+          debitMode === MODEL_USAGE_DEBIT_MODES.SHADOW
+        ) {
           shadowMicrocredits = calculatedMicrocredits;
-        } else {
-          debitedMicrocredits = 0n;
-          chargedMicrocredits = 0n;
-          shadowMicrocredits = null;
         }
 
         // Persist ModelUsageReceipt with field isolation and idempotency key
@@ -812,30 +986,70 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
             runtimePolicyVersion: admission.runtimePolicyVersion,
             durationMs: payload.durationMs ?? null,
             providerResponseId: payload.providerResponseId ?? null,
-            inputTokens: payload.inputTokens
-              ? BigInt(payload.inputTokens)
-              : null,
-            cachedInputTokens: payload.cachedInputTokens
-              ? BigInt(payload.cachedInputTokens)
-              : null,
-            cacheWriteTokens: payload.cacheWriteTokens
-              ? BigInt(payload.cacheWriteTokens)
-              : null,
-            outputTokens: payload.outputTokens
-              ? BigInt(payload.outputTokens)
-              : null,
-            reasoningTokens: payload.reasoningTokens
-              ? BigInt(payload.reasoningTokens)
-              : null,
-            totalTokens: payload.totalTokens
-              ? BigInt(payload.totalTokens)
-              : null,
+            // Why: An explicit zero is verified provider evidence, distinct from an unreported bucket.
+            // How: Test definedness instead of truthiness when persisting normalized token counts.
+            // Invariant: Receipt replay and audit retain exact integer counts, including zero.
+            inputTokens:
+              payload.inputTokens !== undefined
+                ? BigInt(payload.inputTokens)
+                : null,
+            cachedInputTokens:
+              payload.cachedInputTokens !== undefined
+                ? BigInt(payload.cachedInputTokens)
+                : null,
+            cacheWriteTokens:
+              payload.cacheWriteTokens !== undefined
+                ? BigInt(payload.cacheWriteTokens)
+                : null,
+            cacheWrite5mTokens:
+              payload.cacheWrite5mTokens !== undefined
+                ? BigInt(payload.cacheWrite5mTokens)
+                : null,
+            cacheWrite1hTokens:
+              payload.cacheWrite1hTokens !== undefined
+                ? BigInt(payload.cacheWrite1hTokens)
+                : null,
+            outputTokens:
+              payload.outputTokens !== undefined
+                ? BigInt(payload.outputTokens)
+                : null,
+            reasoningTokens:
+              payload.reasoningTokens !== undefined
+                ? BigInt(payload.reasoningTokens)
+                : null,
+            totalTokens:
+              payload.totalTokens !== undefined
+                ? BigInt(payload.totalTokens)
+                : null,
             calculatedMicrocredits,
             debitedMicrocredits,
             shadowMicrocredits,
             chargedMicrocredits,
+            paymentRequired,
             settlementIdempotencyKey: settlementFingerprint,
+            // Why: A downstream domain verdict must refer to a tool call from this physical response.
+            // How: Pin only canonical identifiers in the immutable receipt at settlement.
+            // Invariant: No model content or tool arguments are stored in billing evidence.
+            toolCallIds: payload.toolCallIds ?? [],
             settledAt: now,
+          },
+        });
+
+        // Why: Confirmed provider usage does not prove the output passed downstream schema or domain checks.
+        // How: Create a separate evaluation record for this exact physical invocation in the settlement transaction.
+        // Invariant: Billing remains based on provider usage; no acceptance verdict is invented during settlement.
+        await tx.modelOutputEvaluation.create({
+          data: {
+            invocationId: admission.invocationId,
+            admissionId: admission.id,
+            operationType: admission.operationType,
+            evaluationState: toPrismaOutputEvaluationState(
+              OUTPUT_EVALUATION_STATES.NOT_EVALUATED,
+            ),
+            providerCompletionState: toPrismaProviderCompletionState(
+              payload.providerCompletionState,
+            ),
+            correlationId,
           },
         });
 
@@ -904,6 +1118,7 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
             shadowMicrocredits !== null ? shadowMicrocredits.toString() : null,
           chargedMicrocredits: chargedMicrocredits.toString(),
           slotReleased: true,
+          paymentRequired,
           settledAt: now.toISOString(),
         };
       }
@@ -947,6 +1162,7 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
           shadowMicrocredits: null,
           chargedMicrocredits: "0",
           slotReleased: false,
+          paymentRequired: false,
           settledAt: null,
         };
       }
@@ -987,22 +1203,20 @@ export class SettleBillableInvocationUsageHandler implements ICommandHandler<
         shadowMicrocredits: null,
         chargedMicrocredits: "0",
         slotReleased: false,
+        paymentRequired: false,
         settledAt: null,
       };
     });
 
     // Why: When customer wallet is missing, the transition to BILLING_INTEGRITY_REVIEW and reconciliation case
     // are committed in the database transaction above. Now we reject the HTTP call with 422 Unprocessable Entity.
-    if (
-      "failClosedIntegrityReview" in result &&
-      result.failClosedIntegrityReview
-    ) {
+    if ("failClosedIntegrityReview" in result) {
       throw problemException(BILLING_ERROR_CODES.notFound, correlationId, {
         status: HttpStatus.UNPROCESSABLE_ENTITY,
       });
     }
 
-    if ("raceConflict" in result && result.raceConflict) {
+    if ("raceConflict" in result) {
       await this.prisma.billingReconciliationCase.updateMany({
         where: { invocationId: admission.invocationId },
         data: {

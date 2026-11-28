@@ -170,7 +170,7 @@ The form separates evidence from editable assumptions:
 - customer tariff rates in integer microcredits for every supported usage bucket;
 - effective scope and interval.
 
-Initial planning values (`26,500 VND/USD`, `10%` infrastructure overhead and multiplier `1.8`) are editable draft inputs, never hard-coded runtime values. Suggested tariff and projected margin are previews only. Runtime settlement later uses the immutable published customer tariff and does not fetch FX, add tax or recompute markup.
+Current planning values (`26,500 VND/USD`, `10%` infrastructure overhead and multiplier `1.2`) are editable draft inputs, never hard-coded runtime values. Suggested tariff and projected margin are previews only. Runtime settlement later uses the immutable published customer tariff and does not fetch FX, add tax or recompute markup.
 
 Preview must identify missing provider buckets, stale evidence, unsupported model aliases, overlap, and rounding effects. A missing required rate blocks publication rather than becoming zero.
 

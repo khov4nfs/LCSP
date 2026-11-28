@@ -27,13 +27,10 @@ import { SweepExpiredInvocationLeasesCommand } from "./sweep-expired-invocation-
 
 @Injectable()
 @CommandHandler(SweepExpiredInvocationLeasesCommand)
-export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
-  SweepExpiredInvocationLeasesCommand,
-  SweepExpiredLeasesResponse
-> {
-  private readonly logger = new Logger(
-    SweepExpiredInvocationLeasesHandler.name,
-  );
+export class SweepExpiredInvocationLeasesHandler
+  implements ICommandHandler<SweepExpiredInvocationLeasesCommand, SweepExpiredLeasesResponse>
+{
+  private readonly logger = new Logger(SweepExpiredInvocationLeasesHandler.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -42,9 +39,10 @@ export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
    * reconciliation cases so financial exposure is strictly preserved and slots remain held.
    *
    * Business rules:
-   * - Only admissions currently in IN_FLIGHT state with `expiresAt <= now` are eligible for sweep.
+   * - Only admissions currently in IN_FLIGHT state with `inFlightLeaseExpiresAt <= now` are eligible for sweep; admission TTL does not end an in-flight call.
    * - Transition to DISPATCH_UNKNOWN must strictly retain `maximumExposureMicrocredits` without zeroing or reduction.
    * - A `BillingReconciliationCase` must be opened in `OPEN` state linked to the admission and invocation.
+   * - Provider correlation must be copied from the locked admission, not inferred from its invocation ID.
    * - Preserving maximum exposure guarantees that the concurrency slot remains blocked from unverified retries.
    *
    * Execution flow:
@@ -102,13 +100,9 @@ export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
         await this.prisma.$transaction(async (tx) => {
           // Re-fetch with row lock to avoid race conditions with concurrent worker settlement
           const locked = await tx.$queryRaw<
-            Array<{
-              id: string;
-              state: string;
-              inFlightLeaseExpiresAt: Date | null;
-            }>
+            Array<{ id: string; state: string; inFlightLeaseExpiresAt: Date | null; correlationId: string }>
           >`
-            SELECT id, state, "inFlightLeaseExpiresAt"
+            SELECT id, state, "inFlightLeaseExpiresAt", "correlationId"
             FROM "BillableInvocationAdmission"
             WHERE id = ${candidate.id}
             FOR UPDATE
@@ -116,8 +110,7 @@ export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
 
           if (
             !locked.length ||
-            locked[0]?.state !==
-              toPrismaAdmissionState(ADMISSION_STATES.IN_FLIGHT) ||
+            locked[0]?.state !== toPrismaAdmissionState(ADMISSION_STATES.IN_FLIGHT) ||
             !locked[0]?.inFlightLeaseExpiresAt ||
             locked[0].inFlightLeaseExpiresAt.getTime() > now.getTime()
           ) {
@@ -143,18 +136,17 @@ export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
               caseId,
               invocationId: candidate.invocationId,
               admissionId: candidate.id,
-              state: toPrismaBillingReconciliationState(
-                RECONCILIATION_CASE_STATES.OPEN,
-              ),
+              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.OPEN),
               provider: candidate.resolvedProvider,
-              providerCorrelationId: candidate.invocationId,
+              // Why: Evidence lookup must use the ID sent to the provider, which can differ from invocationId.
+              // How: Persist the correlation ID read under the admission row lock.
+              // Invariant: Admin must not confirm no usage by searching provider logs for the wrong identity.
+              providerCorrelationId: locked[0].correlationId,
               auditRationale:
                 "Swept expired IN_FLIGHT lease to DISPATCH_UNKNOWN; awaiting provider usage receipt or verified no-usage evidence",
             },
             update: {
-              state: toPrismaBillingReconciliationState(
-                RECONCILIATION_CASE_STATES.OPEN,
-              ),
+              state: toPrismaBillingReconciliationState(RECONCILIATION_CASE_STATES.OPEN),
               updatedAt: now,
             },
           });
@@ -166,9 +158,7 @@ export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
               eventType: BILLING_AUDIT_EVENT_TYPES.leaseSwept,
               actorId: "system:reconciliation-sweeper",
               correlationId: correlationId ?? `sweep-${candidate.invocationId}`,
-              resourceType: toPrismaAuditResourceType(
-                AUDIT_RESOURCE_TYPES.httpRoute,
-              ),
+              resourceType: toPrismaAuditResourceType(AUDIT_RESOURCE_TYPES.httpRoute),
               resourceId: candidate.id,
               decision: toPrismaAuthDecision(AUDIT_DECISIONS.allow),
               payload: {
@@ -177,8 +167,7 @@ export class SweepExpiredInvocationLeasesHandler implements ICommandHandler<
                 previousState: ADMISSION_STATES.IN_FLIGHT,
                 newState: ADMISSION_STATES.DISPATCH_UNKNOWN,
                 sweptAt: now.toISOString(),
-                exposureRetainedMicrocredits:
-                  candidate.maximumExposureMicrocredits.toString(),
+                exposureRetainedMicrocredits: candidate.maximumExposureMicrocredits.toString(),
               },
             },
           });

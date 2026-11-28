@@ -17,6 +17,10 @@ export const ASSESSMENT_BUDGET_REASONS = {
   BUDGET_EXHAUSTED: "BUDGET_EXHAUSTED",
   AGENT_BUDGET_REACHED: "AGENT_BUDGET_REACHED",
   BUDGET_UNAVAILABLE: "BUDGET_UNAVAILABLE",
+  // Why: A depleted shared wallet is repaired by customer top-up and Continue, never by an admin budget extension.
+  // How: Keep its pause reason distinct from runtime model-call and token ceilings.
+  // Invariant: This value conveys an admission refusal; it does not debit or reserve credits.
+  PAYMENT_REQUIRED: "PAYMENT_REQUIRED",
 } as const;
 export type AssessmentBudgetReason =
   (typeof ASSESSMENT_BUDGET_REASONS)[keyof typeof ASSESSMENT_BUDGET_REASONS];

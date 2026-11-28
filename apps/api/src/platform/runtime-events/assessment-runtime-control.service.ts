@@ -36,6 +36,7 @@ import {
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
+import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable, Optional } from "@nestjs/common";
 import {
@@ -240,6 +241,7 @@ export class AssessmentRuntimeControlService {
    * Business rules:
    * - Stop is accepted only when the current execution turn is running, and will pause at the next native checkpoint boundary.
    * - Resume is accepted only when the current execution is stopped and paused with valid snapshot and pins.
+   * - A PAYMENT_REQUIRED pause can resume only after the owner-bound shared wallet has spendable balance in its authoritative accounting unit; payment itself never resumes work.
    * - Only `ADMIN` actors may supply `budgetExtension`; non-admins are rejected with `403 Forbidden`.
    * - Admin overrides carrying `idempotencyKey` replay cleanly on matching request fingerprints and fail with `409 IDEMPOTENCY_CONFLICT` on mutated fingerprints.
    * - If `expectedVersion` is supplied, it must match the current extension version (0 when none exists) or fail with `409 Conflict`; repeated extensions must have strictly increasing version numbers and append historical extensions to an immutable lineage array.
@@ -248,13 +250,14 @@ export class AssessmentRuntimeControlService {
    * Execution flow:
    * 1. Authorize the caller and load the canonical target runtime and current execution turn under pessimistic transaction lock.
    * 2. Enforce admin role for `budgetExtension` and evaluate `idempotencyKey` replay/conflict before turn-state short-circuits.
-   * 3. Verify target run identity, turn state, boundary invariants, checkpoint/pin prerequisites, `expectedVersion`, and strictly monotonic version progression.
+   * 3. Verify target run identity, turn state, boundary invariants, checkpoint/pin prerequisites, wallet solvency for payment pauses, `expectedVersion`, and strictly monotonic version progression.
    * 4. Persist the canonical `BUDGET_OVERRIDE_AUTHORIZED` `AuditEvent`, update `blockerReference`, transition turn state, and enqueue the `ROOT_REQUESTED` outbox command atomically.
    *
    * Failure cases:
    * - Non-admin `budgetExtension` throws `403 Forbidden`.
    * - Reused `idempotencyKey` with differing payload throws `409 ASSESSMENT_IDEMPOTENCY_CONFLICT`.
    * - Stale `expectedVersion`, stale extension version, stale target runs, invalid states, mismatched pins, open human blockers, or unextended budget exhaustion reject with `409 Conflict`.
+   * - A missing or empty wallet on a PAYMENT_REQUIRED pause rejects Continue with `402 PAYMENT_REQUIRED` before an outbox command is created.
    *
    * Side effects:
    * - Atomically updates turn state, persists `blockerReference` extension lineage, writes canonical `AuditEvent`, and enqueues transactional outbox messages.
@@ -425,6 +428,35 @@ export class AssessmentRuntimeControlService {
       if (!stop) {
         const assessment =
           preloadedAssessment ?? (await loadAssessmentWithPins());
+        if (
+          (assessment.blockerReference as Record<string, unknown> | null)
+            ?.reason === ASSESSMENT_BUDGET_REASONS.PAYMENT_REQUIRED
+        ) {
+          // Why: A top-up alone does not restart Assessment work, and whole-credit projections omit positive fractional microcredits.
+          // How: Read the owner-bound wallet and apply its authoritative accounting unit before changing the turn or enqueueing work.
+          // Invariant: Version 1 uses legacy credits, version 2 uses signed microcredits, and later admission still row-locks and rechecks.
+          const wallet = await tx.billingWallet.findUnique({
+            where: { userId: assessment.ownerId },
+            select: {
+              availableCredits: true,
+              balanceMicrocredits: true,
+              accountingUnitVersion: true,
+            },
+          });
+          const hasSpendableBalance =
+            wallet?.accountingUnitVersion === 2
+              ? wallet.balanceMicrocredits > 0n
+              : wallet?.accountingUnitVersion === 1
+                ? wallet.availableCredits > 0n
+                : false;
+          if (!hasSpendableBalance) {
+            throw problemException(
+              BILLING_ERROR_CODES.paymentRequired,
+              input.correlationId,
+              { status: HttpStatus.PAYMENT_REQUIRED },
+            );
+          }
+        }
         const pins = assessment.domainCase;
         const snapshot = pins?.repositorySnapshotId
           ? await tx.repositorySnapshot.findUnique({

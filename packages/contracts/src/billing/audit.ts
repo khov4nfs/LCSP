@@ -4,6 +4,10 @@ export const BILLING_AUDIT_EVENT_TYPES = {
   reconciliationDecided: "billing.reconciliation.decided",
   reconciliationSettled: "billing.reconciliation.settled",
   usageSettled: "billing.invocation.usage_settled",
+  // Why: A downstream rejection may be recorded after financial settlement.
+  // How: Audit the evaluation transition separately from the immutable provider receipt.
+  // Invariant: This event cannot change a wallet or ledger balance.
+  outputDomainRejected: "billing.invocation.output_domain_rejected",
   leaseSwept: "billing.reconciliation.lease_swept",
   compensationIssued: "billing.debit.compensated",
 } as const;

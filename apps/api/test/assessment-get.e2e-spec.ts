@@ -2,7 +2,10 @@ import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
-import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
+import {
+  assessmentAdminMetadataSchema,
+  type AssessmentDetail,
+} from "@lcsp/contracts/assessment-domain";
 /**
  * MW-asmt-002: Get Assessment Endpoint.
  * Role-only RBAC coverage for the current single-tenant assessment model.
@@ -110,7 +113,9 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
     assert.equal(problemCode(result), ASSESSMENT_ERROR_CODES.notFound);
   });
 
-  it("ADMIN reaches the read route but fails closed for customer-owned assessment", async () => {
+  // Why: ADMIN may inspect operational metadata for an assessment but must not
+  // receive customer case content. The strict schema rejects any extra field.
+  it("ADMIN reads only allowlisted metadata for customer-owned assessment", async () => {
     const assessmentId = await createAssessment();
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "nomembership@acme.test",
@@ -123,8 +128,20 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
       .get(`/assessments/${assessmentId}`)
       .set("Authorization", `Bearer ${adminToken}`);
 
-    assert.equal(result.status, 404);
-    assert.equal(problemCode(result), ASSESSMENT_ERROR_CODES.notFound);
+    assert.equal(result.status, 200);
+    const body = assessmentAdminMetadataSchema.parse(successBody(result));
+    assert.equal(body.assessment_id, assessmentId);
+    assert.equal(body.name, "Detail Test Assessment");
+    assert.deepEqual(Object.keys(body).sort(), [
+      "assessment_id",
+      "correlationId",
+      "created_at",
+      "execution_state",
+      "lifecycle_state",
+      "name",
+      "owner_id",
+      "updated_at",
+    ]);
   });
 
   it("response has no risk/severity/non-compliant wording", async () => {

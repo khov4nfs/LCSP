@@ -21,6 +21,7 @@ describe("WP8 G-07 Billing Compensation Contracts", () => {
     expect(BILLING_ERROR_CODES.debitNotEligible).toBe("BILLING_DEBIT_NOT_ELIGIBLE");
     expect(BILLING_ERROR_CODES.compensationLimitExceeded).toBe("BILLING_COMPENSATION_LIMIT_EXCEEDED");
     expect(BILLING_ERROR_CODES.compensationAmountInvalid).toBe("BILLING_COMPENSATION_AMOUNT_INVALID");
+    expect(BILLING_ERROR_CODES.compensationSnapshotCorrupt).toBe("BILLING_COMPENSATION_SNAPSHOT_CORRUPT");
     expect(BILLING_AUDIT_EVENT_TYPES.compensationIssued).toBe("billing.debit.compensated");
     expect(CREDIT_LEDGER_SOURCES.COMPENSATION).toBe("COMPENSATION");
     expect(BILLING_ACTIONS.compensation).toBe("billing:debit:compensate");

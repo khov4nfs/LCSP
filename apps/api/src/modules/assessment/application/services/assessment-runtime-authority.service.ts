@@ -943,7 +943,11 @@ export class AssessmentRuntimeAuthority {
           input.reason === ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
-          input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED;
+          input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED ||
+          // Why: A rejected paid admission must retain the native checkpoint so the customer can continue after top-up.
+          // How: Treat only the explicit wallet denial as a valid pause reason; preserve the existing checkpoint and lease guards.
+          // Invariant: This does not grant a budget extension or charge the wallet.
+          input.reason === ASSESSMENT_BUDGET_REASONS.PAYMENT_REQUIRED;
 
         if (
           !input.checkpointId ||

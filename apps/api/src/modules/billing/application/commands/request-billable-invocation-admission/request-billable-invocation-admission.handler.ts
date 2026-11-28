@@ -2,9 +2,7 @@ import {
   ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
   BILLING_ERROR_CODES,
-  BILLING_ROLLOUT_MODES,
   DEFAULT_ADMISSION_TTL_SECONDS,
-  MODEL_USAGE_DEBIT_MODES,
   PILOT_MAX_IN_FLIGHT_INVOCATIONS_PER_WALLET,
   computeAdmissionRequestFingerprint,
   deriveAdmissionCapabilityDigest,
@@ -19,6 +17,7 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { ModelPricingNoCoverageError } from "../../../domain/billing.errors.js";
 import {
   MODEL_PRICING_REPOSITORY,
   type ModelPricingRepositoryPort,
@@ -58,7 +57,7 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
    * - Token bounds (inputTokensUpperBound > 0, outputTokensUpperBound > 0) are strictly mandatory; no synthetic numeric defaults are permitted.
    * - Enforces exactly 1 active invocation slot per wallet during pilot (includes ADMITTED, IN_FLIGHT, OUTCOME_UNKNOWN, DISPATCH_UNKNOWN, BILLING_INTEGRITY_REVIEW).
    * - Row-level locking on BillingWallet ensures concurrent requests serialize deterministically.
-   * - Customer wallet must have positive balance and sufficient microcredits to cover maximum exposure.
+   * - Customer wallet solvency uses signed microcredits after cutover (version 2) and legacy credits before cutover (version 1); a fractional positive version-2 balance remains spendable.
    * - Idempotent replays matching context return the existing admission (HTTP 200) with reconstructed capability token.
    * - Replaying unconsumed expired admission commits state EXPIRED to PostgreSQL before returning HTTP 422.
    * - Pins server-authoritative rolloutMode and debitMode at issuance time (ADR-028 Line 206-217):
@@ -154,54 +153,92 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
           { status: HttpStatus.FORBIDDEN },
         );
       }
+      let replay = existing;
       if (
         existing.state === ADMISSION_STATES.ADMITTED &&
         existing.expiresAt.getTime() <= dbUtcNow.getTime()
       ) {
-        await this.prisma.billableInvocationAdmission.update({
-          where: { id: existing.id },
-          data: {
-            state: ADMISSION_STATES.EXPIRED,
-            version: { increment: 1 },
-          },
-        });
-        throw problemException(
-          BILLING_ERROR_CODES.admissionExpired,
-          correlationId,
-          { status: HttpStatus.UNPROCESSABLE_ENTITY },
-        );
+        // Why: Consume can win after this replay reads ADMITTED but before expiry is persisted.
+        // How: Expire only the same state and version; reread if CAS loses to the consume transaction.
+        // Invariant: A live IN_FLIGHT provider call must never be overwritten to EXPIRED or free its slot.
+        const expired =
+          await this.prisma.billableInvocationAdmission.updateMany({
+            where: {
+              id: existing.id,
+              state: ADMISSION_STATES.ADMITTED,
+              version: existing.version,
+              expiresAt: { lte: dbUtcNow },
+            },
+            data: {
+              state: ADMISSION_STATES.EXPIRED,
+              version: { increment: 1 },
+            },
+          });
+        if (expired.count === 1) {
+          throw problemException(
+            BILLING_ERROR_CODES.admissionExpired,
+            correlationId,
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+          );
+        }
+        const refreshed =
+          await this.prisma.billableInvocationAdmission.findUnique({
+            where: { id: existing.id },
+          });
+        if (!refreshed || refreshed.state === ADMISSION_STATES.ADMITTED) {
+          throw problemException(
+            BILLING_ERROR_CODES.concurrencyConflict,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (refreshed.state === ADMISSION_STATES.EXPIRED) {
+          throw problemException(
+            BILLING_ERROR_CODES.admissionExpired,
+            correlationId,
+            { status: HttpStatus.UNPROCESSABLE_ENTITY },
+          );
+        }
+        replay = refreshed;
       }
 
       // Reconstruct capability token using HMAC
       const capabilityToken = deriveAdmissionCapabilitySecret(
         serverSecret,
-        existing.admissionRequestId,
-        existing.requestFingerprint,
-        existing.invocationId,
+        replay.admissionRequestId,
+        replay.requestFingerprint,
+        replay.invocationId,
       );
 
       return {
         isReplay: true,
         data: {
-          admissionId: existing.id,
-          invocationId: existing.invocationId,
-          admissionRequestId: existing.admissionRequestId,
-          fundingPrincipal: existing.fundingPrincipal,
-          state: existing.state,
-          rolloutMode: existing.rolloutMode,
-          debitMode: existing.debitMode,
-          tariffSnapshotId: existing.tariffSnapshotId ?? null,
-          tariffAssignmentId: existing.tariffAssignmentId ?? null,
+          admissionId: replay.id,
+          invocationId: replay.invocationId,
+          admissionRequestId: replay.admissionRequestId,
+          fundingPrincipal: replay.fundingPrincipal,
+          state: replay.state,
+          rolloutMode: replay.rolloutMode,
+          debitMode: replay.debitMode,
+          tariffSnapshotId: replay.tariffSnapshotId ?? null,
+          tariffAssignmentId: replay.tariffAssignmentId ?? null,
           sponsorshipPolicySnapshotId:
-            existing.sponsorshipPolicySnapshotId ?? null,
-          appliedMaxOutputTokens: existing.appliedMaxOutputTokens,
-          resolvedProvider: existing.resolvedProvider,
-          resolvedModel: existing.resolvedModel,
+            replay.sponsorshipPolicySnapshotId ?? null,
+          appliedMaxOutputTokens: replay.appliedMaxOutputTokens,
+          resolvedProvider: replay.resolvedProvider,
+          resolvedModel: replay.resolvedModel,
           maximumExposureMicrocredits:
-            existing.maximumExposureMicrocredits.toString(),
+            replay.maximumExposureMicrocredits.toString(),
+          // Invariant (WP8-G04): Preserve true historical state.
+          // For legacy historical records closed prior to migration 20261127090000, initialExposureMicrocredits is NULL.
+          // We MUST return null to indicate the absence of a historical snapshot, NEVER falling back to maximumExposureMicrocredits (which is 0n on closed records).
+          initialExposureMicrocredits:
+            replay.initialExposureMicrocredits !== null
+              ? replay.initialExposureMicrocredits.toString()
+              : null,
           capabilityToken,
-          admittedAt: existing.admittedAt.toISOString(),
-          expiresAt: existing.expiresAt.toISOString(),
+          admittedAt: replay.admittedAt.toISOString(),
+          expiresAt: replay.expiresAt.toISOString(),
         },
       };
     }
@@ -323,10 +360,20 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
               id: string;
               availableCredits: bigint;
               balanceMicrocredits: bigint;
+              accountingUnitVersion: number;
             }>
-          >`SELECT id, "availableCredits", "balanceMicrocredits" FROM "BillingWallet" WHERE "userId" = ${userId} FOR UPDATE;`;
+          >`SELECT id, "availableCredits", "balanceMicrocredits", "accountingUnitVersion" FROM "BillingWallet" WHERE "userId" = ${userId} FOR UPDATE;`;
 
-          if (!lockedWallet || lockedWallet.availableCredits <= 0n) {
+          // Why: The public whole-credit projection may be zero while a cutover wallet still owns positive fractional microcredits.
+          // How: Use the signed microcredit ledger projection only for version 2; version 1 still derives authority from legacy credits.
+          // Invariant: Unknown accounting versions fail closed, and shadow microcredits cannot fund a pre-cutover wallet.
+          const hasSpendableBalance =
+            lockedWallet?.accountingUnitVersion === 2
+              ? lockedWallet.balanceMicrocredits > 0n
+              : lockedWallet?.accountingUnitVersion === 1
+                ? lockedWallet.availableCredits > 0n
+                : false;
+          if (!hasSpendableBalance) {
             throw problemException(
               BILLING_ERROR_CODES.paymentRequired,
               correlationId,
@@ -562,15 +609,15 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
             candidates,
           });
 
-          const charge = this.modelPricingCalculator.calculateCharge({
-            ratesMicrocreditsPerMillion: tariff.ratesMicrocreditsPerMillion,
-            usage: {
-              inputTokens: BigInt(payload.inputTokensUpperBound),
-              outputTokens: BigInt(payload.outputTokensUpperBound),
-            },
-          });
-
-          maximumExposureMicrocredits = charge.chargeMicrocredits;
+          // Why: A published cache or reasoning bucket may cost more than ordinary input/output tokens.
+          // How: Reserve the largest canonical tariff charge possible within the admitted token bounds.
+          // Invariant: Settlement still charges actual usage; this only bounds pre-dispatch exposure.
+          maximumExposureMicrocredits =
+            this.modelPricingCalculator.calculateMaximumExposure({
+              inputTokensUpperBound: BigInt(payload.inputTokensUpperBound),
+              outputTokensUpperBound: BigInt(payload.outputTokensUpperBound),
+              ratesMicrocreditsPerMillion: tariff.ratesMicrocreditsPerMillion,
+            });
           tariffSnapshotId = tariff.snapshotId;
           tariffAssignmentId = tariff.assignmentId;
           pricingResolution = tariff.scope;
@@ -630,6 +677,7 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
             debitMode,
             appliedMaxOutputTokens: payload.outputTokensUpperBound,
             maximumExposureMicrocredits,
+            initialExposureMicrocredits: maximumExposureMicrocredits,
             capabilityDigest,
             state: ADMISSION_STATES.ADMITTED,
             admittedAt: dbUtcNow,
@@ -657,6 +705,11 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
             resolvedModel: admission.resolvedModel,
             maximumExposureMicrocredits:
               admission.maximumExposureMicrocredits.toString(),
+            // Invariant (WP8-G04): New admissions always have initialExposureMicrocredits populated on creation
+            initialExposureMicrocredits:
+              admission.initialExposureMicrocredits !== null
+                ? admission.initialExposureMicrocredits.toString()
+                : null,
             capabilityToken,
             admittedAt: admission.admittedAt.toISOString(),
             expiresAt: admission.expiresAt.toISOString(),
@@ -664,6 +717,16 @@ export class RequestBillableInvocationAdmissionHandler implements ICommandHandle
         };
       });
     } catch (err: unknown) {
+      // Why: A missing effective tariff is a governed business denial, not an unexpected server failure.
+      // How: Translate the calculator's typed error into the canonical 422 problem response.
+      // Invariant: No admission or capability is issued when a customer model has no active price.
+      if (err instanceof ModelPricingNoCoverageError) {
+        throw problemException(
+          BILLING_ERROR_CODES.modelPricingNoCoverage,
+          correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
       // Why: Catch PostgreSQL unique constraint violations (code P2002) on (logicalOperationId, attemptOrdinal)
       // or admissionRequestId when two concurrent requests race to create an attempt.
       // How: Map P2002 cleanly to 409 BILLING_CONCURRENCY_CONFLICT so clients receive canonical HTTP problem envelope.

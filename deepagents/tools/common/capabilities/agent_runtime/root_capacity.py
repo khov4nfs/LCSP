@@ -133,7 +133,71 @@ class MeasuredPostgresSaver(PostgresSaver):
         - Persists pending writes and aggregate timing without retaining their payloads.
         """
         with checkpoint_observation():
-            return super().put_writes(config, writes, task_id, task_path)
+            saved = super().put_writes(config, writes, task_id, task_path)
+        # Why: A paid answer is recoverable until LangGraph has durably recorded the exact model output.
+        # How: Inspect only a successful native model pending-write acknowledgement and verify all identities.
+        # Invariant: Failed writes, other channels or another physical invocation retain the encrypted response.
+        self._delete_checkpointed_model_response(config, writes, task_id, task_path)
+        return saved
+
+    @staticmethod
+    def _delete_checkpointed_model_response(config, writes, task_id, task_path):
+        """Business purpose: Erase an encrypted paid response after its exact model write is durable.
+
+        Business rules:
+        - Require an Assessment Root execution ID, model task path, and complete message channel write.
+        - Match the server-issued physical invocation marker and serialized answer against a terminal response.
+        Execution flow:
+        1. Resolve the execution and graph task from native checkpoint arguments.
+        2. Load the terminal encrypted response and compare its saved messages with pending writes.
+        3. Delete only that admission's response row after native put_writes succeeds.
+        Failure cases:
+        - Missing identities, key, store, mismatch or local cleanup failure retain ciphertext for TTL recovery.
+        Side effects:
+        - May delete one worker-local encrypted response; never changes billing or checkpoint state.
+        """
+        # Why: A checkpoint write already committed to Postgres cannot be rolled back by local cleanup.
+        # How: Treat cleanup as best effort; failures leave ciphertext for bounded retention.
+        # Invariant: No user content or capability secret is logged.
+        try:
+            metadata = config.get("metadata") if isinstance(config, dict) else None
+            run_id = metadata.get("assessment_root_execution_id") if isinstance(metadata, dict) else None
+            if (
+                not isinstance(run_id, str) or not run_id
+                or not isinstance(task_id, str) or not task_id
+                or not isinstance(task_path, str) or task_path.rsplit(",", 1)[-1].strip() != "model"
+            ):
+                return
+            from langchain_core.messages import AIMessage, message_to_dict
+            from middleware.capability_recovery import CapabilityRecoveryStore
+            from middleware.envelope_encryption import WorkerEnvelopeKeyring
+
+            messages = None
+            # Native LangGraph passes a deque of task writes; accept that concrete shape as well.
+            if isinstance(writes, (list, tuple, deque)):
+                message_writes = [value for channel, value in writes if channel == "messages"]
+                if len(message_writes) == 1 and isinstance(message_writes[0], list):
+                    messages = message_writes[0]
+            if not messages or not all(isinstance(message, AIMessage) for message in messages):
+                return
+            invocation_ids = {
+                message.additional_kwargs.get("_lcsp_physical_invocation_id") for message in messages
+            }
+            if len(invocation_ids) != 1 or not all(isinstance(item, str) and item for item in invocation_ids):
+                return
+            db_path = Path(os.environ.get("WORKER_RECOVERY_DB_PATH", ".data/worker_recovery.db"))
+            if not db_path.is_file():
+                return
+            store = CapabilityRecoveryStore(db_path, WorkerEnvelopeKeyring.from_env())
+            record = store.get_terminal_model_response_record(run_id, f"graph-task:{task_id}")
+            if (
+                record is not None
+                and record["invocationId"] in invocation_ids
+                and record["response"].get("result") == [message_to_dict(message) for message in messages]
+            ):
+                store.delete_model_response(record["admissionId"])
+        except Exception:
+            LOGGER.warning("MODEL_RESPONSE_CHECKPOINT_CLEANUP_DEFERRED", exc_info=False)
 
 
 def _read_number(path: Path) -> int | None:

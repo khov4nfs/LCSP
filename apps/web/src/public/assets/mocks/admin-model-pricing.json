@@ -234,9 +234,9 @@
         "providerPriceSource": "Anthropic / OpenAI Official Reference Sheet",
         "providerPriceVersion": "2026-11",
         "providerCurrency": "USD",
-        "referenceFxVndPerUsd": "25450.00",
-        "infrastructureOverheadPercent": 12,
-        "markupMultiplier": 1.8,
+        "referenceFxVndPerUsd": "26500.00",
+        "infrastructureOverheadPercent": 10,
+        "markupMultiplier": 1.2,
         "notes": "Planning draft awaiting Admin API publish review."
       },
       "publishedSnapshotId": null,

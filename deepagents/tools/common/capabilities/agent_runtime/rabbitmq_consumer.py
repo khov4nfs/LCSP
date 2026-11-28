@@ -202,9 +202,10 @@ def run_consumer() -> None:
     Execution flow:
     1. Resolve capacity and dependencies, connect and consume, then reconnect or close on shutdown.
     Failure cases:
-    - Invalid capacity fails before consumption; connection loss or shutdown requeues unsettled deliveries.
+    - Startup capability recovery failure, missing worker client, or invalid capacity aborts process before broker connection.
+    - Connection loss or shutdown requeues unsettled deliveries.
     Side effects:
-    - Starts workers and broker consumers; only connection-thread callbacks settle their own deliveries.
+    - Starts background workers and broker consumers; recovers leaked in-flight capability envelopes on startup.
     """
     load_runtime_env()
     logging.basicConfig(
@@ -216,8 +217,15 @@ def run_consumer() -> None:
 
     # Undelivered usage telemetry is retried independently of model traffic.
     usage_client = _worker_client_or_none()
-    if usage_client is not None:
-        start_background_worker(resolve_usage_recovery_store_path(), usage_client)
+    if usage_client is None:
+        raise RuntimeError("Worker API client unavailable: cannot run startup capability recovery")
+
+    start_background_worker(resolve_usage_recovery_store_path(), usage_client)
+    # Why (ADR-028 & G-06/G-07): Recover in-flight capability envelopes leaked from crashes before consuming new jobs.
+    # How: Sweeps local recovery store and settles with authoritative /internal/billing/usage/settle.
+    # Invariants: If recovery fails, worker fails closed immediately; 0 tasks consumed until recovery succeeds.
+    from middleware.capability_recovery import sweep_and_recover_capabilities_on_startup
+    sweep_and_recover_capabilities_on_startup(usage_client)
 
     rabbitmq_url = os.getenv("RABBITMQ_URL")
     if not rabbitmq_url:

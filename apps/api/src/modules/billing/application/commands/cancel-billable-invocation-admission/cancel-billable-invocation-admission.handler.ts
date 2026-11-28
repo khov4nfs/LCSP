@@ -32,14 +32,16 @@ export class CancelBillableInvocationAdmissionHandler implements ICommandHandler
    * - If consume won the race and transitioned the admission to IN_FLIGHT, cancellation must fail with 409 Conflict.
    * - Valid cancellation releases the wallet's concurrency slot and sets maximumExposureMicrocredits to 0.
    * - Capability token digest must match the stored record.
+   * - Repeating a confirmed cancellation with the same capability returns its terminal result without another write.
    *
    * Execution flow:
    * 1. Query admission record by admissionId and invocationId.
    * 2. Verify capability token digest against stored digest.
    * 3. In an atomic transaction with row lock:
-   *    a. If state is already IN_FLIGHT, reject with 409 Conflict (admissionAlreadyInFlight).
-   *    b. If state is not ADMITTED, reject with 422 Unprocessable (admissionInvalidState).
-   *    c. Atomically update state to CONFIRMED_NO_USAGE, set maximumExposureMicrocredits = 0, increment version.
+   *    a. If already CONFIRMED_NO_USAGE, replay the terminal slot-release receipt.
+   *    b. If IN_FLIGHT, reject with 409 Conflict (admissionAlreadyInFlight).
+   *    c. If not ADMITTED, reject with 422 Unprocessable (admissionInvalidState).
+   *    d. Otherwise update state to CONFIRMED_NO_USAGE, set exposure to 0, and increment version.
    * 4. Return success result with slotReleased = true.
    *
    * Failure cases:
@@ -100,6 +102,18 @@ export class CancelBillableInvocationAdmissionHandler implements ICommandHandler
           correlationId,
           { status: HttpStatus.NOT_FOUND },
         );
+      }
+
+      // Why: A worker may lose the response after the server committed a pre-consume cancellation.
+      // How: Return the locked terminal receipt again without touching its version or exposure.
+      // Invariant: The capability digest was verified above; IN_FLIGHT still cannot be worker-released.
+      if (locked.state === ADMISSION_STATES.CONFIRMED_NO_USAGE) {
+        return {
+          admissionId: admission.id,
+          invocationId: admission.invocationId,
+          state: ADMISSION_STATES.CONFIRMED_NO_USAGE,
+          slotReleased: true,
+        };
       }
 
       if (locked.state === ADMISSION_STATES.IN_FLIGHT) {

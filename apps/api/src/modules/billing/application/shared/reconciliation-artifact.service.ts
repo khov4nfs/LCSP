@@ -458,6 +458,28 @@ export class ReconciliationArtifactService {
       return { verified: false, error: "incomplete_coverage" };
     }
 
+    // Cryptographic signature re-verification against registered AUDITED key:
+    // Never trust the database boolean `verified` column alone; re-verify Ed25519 signature authority.
+    const statement = this.computeCanonicalStatement({
+      provider: artifact.provider,
+      artifactId: artifact.artifactId,
+      sha256: artifact.sha256,
+      coverageStart: artifact.coverageStart,
+      coverageEnd: artifact.coverageEnd,
+      finalizedWatermark: artifact.finalizedWatermark,
+    });
+
+    const sigResult = this.verifyProviderSignature(
+      artifact.provider,
+      statement,
+      artifact.providerSignature,
+      artifact.signingKeyId,
+    );
+
+    if (!sigResult.valid || !sigResult.isAudited) {
+      return { verified: false, error: "unverified_artifact_source" };
+    }
+
     if (
       params.coverageStart < artifact.coverageStart ||
       params.coverageEnd > artifact.coverageEnd

@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { ConfigService } from "@nestjs/config";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import {
   ADMISSION_STATES,
   BILLING_ERROR_CODES,
@@ -68,7 +69,8 @@ export class HeartbeatBillableInvocationAdmissionHandler implements ICommandHand
     state: string;
     inFlightLeaseExpiresAt: string;
   }> {
-    const { payload, correlationId } = command;
+    const { payload } = command;
+    const correlationId = command.correlationId ?? "";
 
     return await this.prisma.$transaction(async (tx) => {
       // 1. Lock and fetch admission row
@@ -244,7 +246,8 @@ export class HeartbeatBillableInvocationAdmissionHandler implements ICommandHand
         `;
         dbUtcNow = postLockTime?.now ?? new Date();
 
-        if (!prepRun || prepRun.executionState !== "RUNNING") {
+        // Why: Heartbeat must compare the preparation run to the canonical runtime state, not a copied literal.
+        if (!prepRun || prepRun.executionState !== AGENT_EXECUTION_STATES.RUNNING) {
           throw problemException(
             BILLING_ERROR_CODES.admissionContextMismatch,
             correlationId,

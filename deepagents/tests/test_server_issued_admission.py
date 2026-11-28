@@ -15,6 +15,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
+from middleware.failure_policy import PaidAdmissionError
 from middleware.usage_metering import UsageMeteringMiddleware, InFlightAdmissionRecoveryError
 from orchestration import localization
 from conftest import use_model_routes
@@ -271,7 +272,12 @@ def test_retry_and_fallback_issue_fresh_admission_with_incremented_ordinal(monke
             err = Exception("Transient provider 503")
             err.status_code = 503
             raise err
-        return _mock_response("retry success")
+        response = _mock_response("retry success")
+        # Why: Provider metadata is untrusted and can name the wrong paid physical attempt.
+        # How: Forge the first attempt's ID and require middleware to replace it with the second server ID.
+        # Invariant: The downstream evaluator must not bind a retry's verdict to a prior invocation.
+        response.response_metadata["_lcsp_physical_invocation_id"] = "inv-1"
+        return response
 
     from middleware.model_governance import ModelRetryMiddleware
     retry_middleware = ModelRetryMiddleware(max_retries=2)
@@ -279,10 +285,12 @@ def test_retry_and_fallback_issue_fresh_admission_with_incremented_ordinal(monke
 
     req = _valid_model_request()
 
-    retry_middleware.wrap_model_call(
+    response = retry_middleware.wrap_model_call(
         req,
         lambda r: metering_middleware.wrap_model_call(r, mock_provider_handler),
     )
+
+    assert response.response_metadata["_lcsp_physical_invocation_id"] == "inv-2"
 
     # Must have requested two distinct admissions with attemptOrdinal 1 and 2
     assert len(mock_client.admission_requests) >= 2, (
@@ -347,6 +355,30 @@ def test_in_flight_admission_recovery_only_delivers_evidence_no_redispatch(monke
     assert provider_dispatched_count == 0, (
         "Replay of an IN_FLIGHT admission through wrap_model_call must NEVER dispatch a second provider invocation"
     )
+
+
+def test_settled_admission_replay_never_consumes_or_redispatches(monkeypatch):
+    # Why: A graph crash can replay the same logical step after the provider call was already settled.
+    # How: Return the server's idempotent SETTLED admission for that step at the real middleware boundary.
+    # Invariant: A terminal replay cannot consume again, invoke the provider, or create fresh exposure.
+    client = MockWorkerApiClient()
+    client.preset_admission_response = {
+        **MockWorkerApiClient().request_invocation_admission({}),
+        "state": "SETTLED",
+    }
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *args, **kwargs: client,
+    )
+    provider_calls = []
+    with pytest.raises(PaidAdmissionError, match="ADMISSION_NOT_DISPATCHABLE"):
+        UsageMeteringMiddleware().wrap_model_call(
+            _valid_model_request(),
+            lambda _req: provider_calls.append("provider"),
+        )
+    assert len(client.admission_requests) == 1
+    assert client.consume_requests == []
+    assert provider_calls == []
 
 
 def test_localization_is_governed_by_admission():
@@ -498,6 +530,108 @@ def test_input_tokens_upper_bound_uses_hard_route_limit_not_loose_estimate(monke
     )
 
 
+def test_request_input_bound_cannot_understate_route_exposure(monkeypatch):
+    """A request-local hint must not lower the provider route's admitted input ceiling."""
+    mock_client = MockWorkerApiClient()
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *args, **kwargs: mock_client,
+    )
+    request = _valid_model_request()
+    # Why: A per-request token estimate is not a provider-enforced maximum; trusting it underprices exposure.
+    # How: Inject a deliberately low hint and inspect the actual server admission payload.
+    # Invariant: The route's hard context-window ceiling remains the source of the input bound.
+    request.input_tokens_upper_bound = 1
+
+    UsageMeteringMiddleware().wrap_model_call(request, lambda _: _mock_response("ok"))
+
+    assert len(mock_client.admission_requests) == 1
+    assert mock_client.admission_requests[0]["inputTokensUpperBound"] == 1_000_000
+
+
+def test_input_bound_matches_provider_when_routes_share_model_name(monkeypatch):
+    """A model name shared across providers must not borrow another route's context ceiling."""
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {
+                "first": {
+                    "provider": "anthropic",
+                    "protocol": "anthropic",
+                    "model": "shared-model",
+                    "options": {"context_window_tokens": 1_000_000, "max_output_tokens": 4_096},
+                },
+                "second": {
+                    "provider": "google_genai",
+                    "protocol": "google_genai",
+                    "model": "shared-model",
+                    "options": {"context_window_tokens": 2_000_000, "max_output_tokens": 4_096},
+                },
+            },
+            "roles": {"default": "first", "other": "second"},
+        },
+    )
+    mock_client = MockWorkerApiClient()
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *args, **kwargs: mock_client,
+    )
+    request = _valid_model_request(provider="google_genai", model_name="shared-model")
+    request.model.protocol = "google_genai"
+
+    # Why: Route ordering must never reduce the exposure admitted for another provider.
+    # How: Check the actual server payload for the second route's larger context ceiling.
+    # Invariant: A shared model name alone cannot identify the model's financial authority.
+    UsageMeteringMiddleware().wrap_model_call(request, lambda _: _mock_response("ok"))
+    assert mock_client.admission_requests[0]["inputTokensUpperBound"] == 2_000_000
+
+
+def test_request_model_settings_cannot_raise_provider_output_above_admission_bound(monkeypatch):
+    """A request override must not dispatch more output tokens than the admission priced."""
+    mock_client = MockWorkerApiClient()
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *args, **kwargs: mock_client,
+    )
+    request = _valid_model_request()
+    request.model_settings = {"max_tokens": 131_072}
+    request.override = lambda **changes: SimpleNamespace(**{**vars(request), **changes})
+    dispatched_settings = []
+
+    # Why: A caller-supplied model setting can otherwise override the route's enforced output cap.
+    # How: Capture the provider-facing request after middleware prepares model_settings.
+    # Invariant: Provider max_tokens must not exceed outputTokensUpperBound priced at admission.
+    UsageMeteringMiddleware().wrap_model_call(
+        request,
+        lambda prepared: (dispatched_settings.append(prepared.model_settings), _mock_response("ok"))[1],
+    )
+
+    admitted_output_bound = mock_client.admission_requests[0]["outputTokensUpperBound"]
+    assert admitted_output_bound == 4_096
+    assert dispatched_settings[0]["max_tokens"] == admitted_output_bound
+
+
+def test_smaller_request_output_cap_remains_effective(monkeypatch):
+    """A caller's smaller valid output cap remains effective within the admitted ceiling."""
+    mock_client = MockWorkerApiClient()
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *args, **kwargs: mock_client,
+    )
+    request = _valid_model_request()
+    request.model_settings = {"max_tokens": 1_024}
+    request.override = lambda **changes: SimpleNamespace(**{**vars(request), **changes})
+    provider_settings = []
+
+    UsageMeteringMiddleware().wrap_model_call(
+        request,
+        lambda prepared: (provider_settings.append(prepared.model_settings), _mock_response("ok"))[1],
+    )
+
+    assert mock_client.admission_requests[0]["outputTokensUpperBound"] == 4_096
+    assert provider_settings[0]["max_tokens"] == 1_024
+
+
 @pytest.mark.asyncio
 async def test_async_model_call_uses_server_issued_invocation_id(monkeypatch):
     """ADR-028 & Root Cause 1: awrap_model_call MUST use server-issued invocationId throughout.
@@ -550,7 +684,7 @@ async def test_async_model_call_uses_server_issued_invocation_id(monkeypatch):
     async def async_provider_handler(r):
         return _mock_response("async ok")
 
-    await middleware.awrap_model_call(req, async_provider_handler)
+    response = await middleware.awrap_model_call(req, async_provider_handler)
 
     assert len(admitted_invocation_ids) == 1
     assert len(recorded_invocation_ids) == 1
@@ -561,6 +695,7 @@ async def test_async_model_call_uses_server_issued_invocation_id(monkeypatch):
     assert recorded_invocation_ids[0] == server_invocation_id, (
         f"Expected _record to use server invocationId '{server_invocation_id}', got '{recorded_invocation_ids[0]}'"
     )
+    assert response.response_metadata["_lcsp_physical_invocation_id"] == server_invocation_id
 
 
 @pytest.mark.asyncio
@@ -781,6 +916,46 @@ def test_model_call_heartbeat_renews_in_flight_lease(monkeypatch):
     assert call_args["admissionId"] == "adm-test-hb-1"
     assert call_args["invocationId"] == "inv-server-assigned-hb-1"
     assert call_args["capabilityToken"] == "cap-token-" + "a" * 32
+
+
+def test_unverified_model_route_identity_fails_closed_zero_admission_zero_provider_calls(monkeypatch):
+    """RED test: Model lacking verified route identity must fail closed with 0 admission requests and 0 provider calls."""
+    mock_client = MockWorkerApiClient()
+    monkeypatch.setattr(
+        "tools.common.capabilities.platform.api_client.WorkerApiClient",
+        lambda *args, **kwargs: mock_client,
+    )
+    # Bypass legacy assert_model_identity to test server admission fail-closed enforcement directly
+    monkeypatch.setattr("middleware.usage_metering.assert_model_identity", lambda *args, **kwargs: None)
+    middleware = UsageMeteringMiddleware()
+
+    # Model without provider or model_name, and not in registry or route table
+    unverified_model = SimpleNamespace(
+        profile={"max_output_tokens": 4096, "context_window_tokens": 1000000},
+        options={"max_output_tokens": 4096},
+    )
+    req = SimpleNamespace(
+        model=unverified_model,
+        messages=[HumanMessage(content="Hello")],
+        tools=[],
+        run_id="run-unverified-identity-1",
+        logical_operation_id="op-unverified-1",
+        execution_lease_token="lease-unverified-1",
+        assessment_id="asm-unverified-1",
+    )
+
+    provider_calls = []
+    def provider_handler(r):
+        provider_calls.append(r)
+        return _mock_response("ok")
+
+    from middleware.failure_policy import PaidAdmissionError
+    with pytest.raises(PaidAdmissionError) as exc_info:
+        middleware.wrap_model_call(req, provider_handler)
+
+    assert exc_info.value.reason == "UNBOUND_MODEL_ROUTE"
+    assert len(mock_client.admission_requests) == 0, "Zero server admission requests when model route identity is unverified"
+    assert len(provider_calls) == 0, "Zero provider model calls when model route identity is unverified"
 
 
 

@@ -113,10 +113,13 @@ describe("Admin model pricing governance (Postgres e2e)", () => {
   });
 
   beforeEach(async () => {
-    // CustomerModelTariffSnapshot has a BEFORE UPDATE OR DELETE trigger, so TRUNCATE TABLE
-    // cleanly resets WP8 tables without violating append-only row immutability.
+    // Why: PostgreSQL requires every referencing table in a TRUNCATE statement, and
+    // reconciliation cases now reference admissions. Enumerating the exact WP8 tables
+    // keeps this test reset bounded; CASCADE could silently clear unrelated fixtures.
+    // TRUNCATE preserves the immutable snapshot UPDATE/DELETE trigger invariant.
     await prisma.$executeRawUnsafe(`
       TRUNCATE TABLE
+        "BillingReconciliationCase",
         "ModelOutputEvaluation",
         "ModelUsageReceipt",
         "BillableInvocationAdmission",

@@ -39,7 +39,22 @@ export const BILLING_ERROR_CODES = {
   debitNotEligible: "BILLING_DEBIT_NOT_ELIGIBLE",
   compensationLimitExceeded: "BILLING_COMPENSATION_LIMIT_EXCEEDED",
   compensationAmountInvalid: "BILLING_COMPENSATION_AMOUNT_INVALID",
+  compensationSnapshotCorrupt: "BILLING_COMPENSATION_SNAPSHOT_CORRUPT",
+  // BillingReconciliationCase error codes (ADR-028 Line 155 & Line 173)
+  reconciliationCaseNotFound: "BILLING_RECONCILIATION_CASE_NOT_FOUND",
+  reconciliationCaseInvalidState: "BILLING_RECONCILIATION_CASE_INVALID_STATE",
+  workerSelfReleaseDisallowed: "BILLING_WORKER_SELF_RELEASE_DISALLOWED",
 } as const;
 
 export type BillingErrorCode =
   (typeof BILLING_ERROR_CODES)[keyof typeof BILLING_ERROR_CODES];
+
+// Why: An unsupported priced token bucket cannot be silently settled under a platform sponsorship snapshot.
+// How: Keep the persisted reconciliation reason in the shared billing value set for API and audit consumers.
+// Invariant: A completed provider response with incomplete pricing authority retains its slot and exposure.
+export const BILLING_INTEGRITY_REASONS = {
+  unsupportedPricedBucket: "UNSUPPORTED_PRICED_BUCKET",
+} as const;
+
+export type BillingIntegrityReason =
+  (typeof BILLING_INTEGRITY_REASONS)[keyof typeof BILLING_INTEGRITY_REASONS];

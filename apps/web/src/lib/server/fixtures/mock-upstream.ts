@@ -185,6 +185,34 @@ export async function getMockUpstreamResponse(
     return okResult(userDetail);
   }
 
+  // Why: The Admin case UI needs a deterministic local read-only fixture for browser inspection.
+  // How: Expose only an Admin mock actor's queue and exact case detail from one JSON asset.
+  // Invariant: Mock data is never a real provider receipt and never authorizes a decision or debit.
+  if (
+    pathname.startsWith("/admin/billing/reconciliation/cases") &&
+    init.bearerToken?.includes("admin")
+  ) {
+    const mock = await readMockJson<{
+      items: unknown[];
+      detail: { caseId: string } & Record<string, unknown>;
+    }>("admin-model-reconciliation.json");
+    const base = "/admin/billing/reconciliation/cases";
+    if (pathname === base) {
+      const params = new URLSearchParams(pathStr.split("?")[1] ?? "");
+      const page = Number(params.get("page") ?? "1");
+      const pageSize = Number(params.get("pageSize") ?? "20");
+      return okResult({
+        items: page === 1 ? mock.items.slice(0, pageSize) : [],
+        total: mock.items.length,
+        page,
+        pageSize,
+      });
+    }
+    if (pathname === `${base}/${mock.detail.caseId}`) {
+      return okResult(mock.detail);
+    }
+  }
+
   // 4. Admin Model Pricing (Read-Only Overview)
   // Why: Enables deterministic local mock-mode inspection of /admin/pricing without live backend settlement cutover.
   // How: Reads the schema-validated fixture asset and applies optional query filters identically to the backend overview query.
