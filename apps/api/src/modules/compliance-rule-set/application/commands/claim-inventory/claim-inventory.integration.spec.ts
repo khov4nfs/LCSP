@@ -13,6 +13,7 @@ import {
   CLAIM_INVENTORY_ACTIONS as A,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
   CLAIM_INVENTORY_GAPS as G,
+  PREPARATION_EXECUTION_CONTRACTS,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   legalSourceFactory,
@@ -81,6 +82,7 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       where: { id },
       data: {
         executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1,
+        scopeReviewRequested: false,
       },
     });
     await new ClaimRuleSetPreparationHandler(
@@ -89,7 +91,12 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       fixtureSourceAuthority,
     ).execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: id },
+        {
+          preparationRunId: id,
+          supportedExecutionContracts: [
+            PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1,
+          ],
+        },
         randomUUID(),
       ),
     );
@@ -309,7 +316,12 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       fixtureSourceAuthority,
     ).execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: id },
+        {
+          preparationRunId: id,
+          supportedExecutionContracts: [
+            PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1,
+          ],
+        },
         randomUUID(),
       ),
     );
@@ -384,6 +396,8 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       where: { id },
       data: {
         executionContract: PreparationExecutionContract.CLAIM_INVENTORY_V1,
+        // Represent the legacy claim-first path before Development review became mandatory.
+        scopeReviewRequested: false,
       },
     });
     await new ClaimRuleSetPreparationHandler(
@@ -392,7 +406,12 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       fixtureSourceAuthority,
     ).execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: id },
+        {
+          preparationRunId: id,
+          supportedExecutionContracts: [
+            PREPARATION_EXECUTION_CONTRACTS.CLAIM_INVENTORY_V1,
+          ],
+        },
         randomUUID(),
       ),
     );

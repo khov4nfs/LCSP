@@ -16,6 +16,7 @@ import {
   AgentExecutionState,
   ArtifactLifecycleState,
   AuthUserRole,
+  PreparationTargetActivityScope,
   PrismaClient,
   RuleSetPreparationFailureReason,
 } from "@prisma/client";
@@ -193,7 +194,7 @@ describeDatabase(
       });
       b = await publish();
       key = randomUUID();
-    });
+    }, 20_000); // Both fixture publications freeze inventory and complete independent scope review.
     afterEach(async () => {
       jest.restoreAllMocks();
       await prisma.ruleSetPreparationRun.updateMany({
@@ -359,6 +360,37 @@ describeDatabase(
         handler.execute(command(b, a, randomUUID())),
         Errors.TARGET_NOT_ELIGIBLE,
       );
+    });
+    it("keeps the active Development Rule Set and historical pins when reactivation targets FULL_SOURCE", async () => {
+      // On this disposable database, represent a pre-cutover publication with the default historical scope.
+      await prisma.complianceRuleSetVersion.update({
+        where: { id: a },
+        data: {
+          targetActivityScope: PreparationTargetActivityScope.FULL_SOURCE,
+        },
+      });
+      const before = await snapshot();
+      await expectProblem(
+        handler.execute(command()),
+        Errors.TARGET_NOT_ELIGIBLE,
+      );
+      expect(await snapshot()).toEqual(before);
+    });
+    it("rejects a Development target without approval for its current inventory revision", async () => {
+      const target = await prisma.complianceRuleSetVersion.findUniqueOrThrow({
+        where: { id: a },
+      });
+      // Simulate a historical mismatch between the archived run and its approved revision.
+      await prisma.ruleSetPreparationRun.update({
+        where: { id: target.preparationRunId! },
+        data: { claimInventoryRevision: { increment: 1 } },
+      });
+      const before = await snapshot();
+      await expectProblem(
+        handler.execute(command()),
+        Errors.TARGET_NOT_ELIGIBLE,
+      );
+      expect(await snapshot()).toEqual(before);
     });
     it("fails closed with no ACTIVE authority", async () => {
       await prisma.complianceRuleSetVersion.update({

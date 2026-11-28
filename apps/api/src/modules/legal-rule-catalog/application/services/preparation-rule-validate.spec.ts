@@ -268,13 +268,18 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
 });
 
 describe("PreparationRuleService.validate", () => {
-  it("accepts a structurally valid empty result without writing anything", async () => {
+  it("requires scope review for empty output without writing anything", async () => {
     const { subject, write } = service({
       executionState: AgentExecutionState.RUNNING,
       receipt,
     });
-    await expect(subject.validate(draft, "cid")).resolves.toEqual({
-      valid: true,
+    await expect(subject.validate(draft, "cid")).rejects.toMatchObject({
+      response: {
+        problem: {
+          code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+          meta: { path: "output.legalRequirements" },
+        },
+      },
     });
     expect(write).not.toHaveBeenCalled();
   });

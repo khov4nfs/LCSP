@@ -500,18 +500,24 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         randomUUID(),
       ),
     );
-    const submittedWhileCancellationHeld = await Promise.race([
-      submission.then(
-        () => true,
-        () => true,
-      ),
-      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 25)),
-    ]);
-    // Network waiting must not hold the run row lock; submission sees the durable fence.
-    expect(submittedWhileCancellationHeld).toBe(true);
-    await expect(submission).rejects.toMatchObject({ status: 409 });
-    allowCancellationToSettle();
-    await cancellation;
+    // Prove submission sees the fence while the native request is still blocked.
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        expect(submission).rejects.toMatchObject({ status: 409 }),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(
+            () =>
+              reject(new Error("Submission waited for native cancellation")),
+            2_000,
+          );
+        }),
+      ]);
+    } finally {
+      clearTimeout(deadline);
+      allowCancellationToSettle();
+      await cancellation;
+    }
     expect(
       await prisma.ruleSetPreparationRun.findUniqueOrThrow({
         where: { id: running.preparationRunId },
