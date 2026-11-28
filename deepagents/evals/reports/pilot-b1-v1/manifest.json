@@ -657,7 +657,7 @@
       "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
     }
   },
-  "manifestSha256": "337fbc1cd06056d7f80700e3c425a96183e749353a0d49715fd2f2b08be1ab9c",
+  "manifestSha256": "cb967bb333d3de39c9c8bb5546b708a6b3168d9f31b25c7fb92f2929539b14ee",
   "model": {
     "adapterClass": "SimpleNamespace",
     "configuredModelId": "offline-scripted"
@@ -672,7 +672,7 @@
   "semanticAcceptance": "NOT_ESTABLISHED_BY_FINGERPRINT",
   "sourcePins": {
     "b1RetrievalConfigSha256": "59ed793a892f70b78f705af244067d2583d6877c2201f82590e51bfce907abcb",
-    "casesDatasetSha256": "31377fcd82a23ae51ccb37b5811c373e5e5f3783531008f4989bfe94551609d5",
+    "casesDatasetSha256": "dc80116910bc535a8e5f2fcb798d998239026499178bbc062923a0f78bb231bf",
     "corpusPinsSha256": "06fadf0494cd7f14688ba9ad9dd237c8e2e83845e8e72911859e051d26db8fab",
     "expectedInventorySha256": "b47f8b4bd419579ba160276cb9e5e76349f22a19a96964a9d781ef98f4ea82ee",
     "repoPinsSha256": "38450cde2d2230d38d5362361e81a1010ca963fe2bde4bc74f84fc62e82e0913",

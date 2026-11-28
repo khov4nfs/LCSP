@@ -193,3 +193,8 @@
 - **Root Cause**: A constrained flex scroll body allowed child cards to shrink, and the nested dialog's default focus return target no longer existed after the parent action prompt unmounted.
 - **Resolution & Invariant**: Keep content cards at intrinsic height and scroll the dialog body; wrap account identifiers instead of truncating them. Consumer-specific header sizing must remain opt-in. When a controlled nested dialog can outlive its trigger, provide a stable mounted focus target and verify Tab, Shift+Tab, Escape, reopen, and restoration without changing authorization or proof handling.
 
+### [2026-11-28] [PYTHON/ARCHIVES] Rootless fixture members match verified root metadata
+- **Context / Symptom**: Four Docker release integrations declared `VERIFIED_ROOTLESS` and expected `src/app.py`, but hydration reported the file missing; the shared TAR also allowed its nested `repo/.lcsp/repository.json` test payload through sanitization.
+- **Root Cause**: The fixture encoded every member beneath `repo/` while both the fake snapshot client and HTTP fixtures declared that no provider wrapper existed. The sanitizer correctly preserved all paths when wrapper metadata was absent.
+- **Resolution & Invariant**: Keep archive fixture member paths repository-relative whenever transport metadata says `VERIFIED_ROOTLESS`. Rootless semantics preserve legitimate top-level directories; only exact verified wrapper metadata may remove one. Assert the shared fixture's sanitized paths and reserved `.lcsp` omission, while retaining contradictory metadata and pinned-tree rejection coverage.
+
