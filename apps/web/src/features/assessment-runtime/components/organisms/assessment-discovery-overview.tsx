@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ASSESSMENT_DISCOVERY_RUN_STATUSES,
   DISCOVERY_RULE_CANDIDATE_STATES,
+  type DiscoveryInterviewProposal,
 } from "@lcsp/contracts/assessment-domain";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -20,9 +21,12 @@ import {
   useAssessmentDiscoveryUseCasesQuery,
   useStartAssessmentDiscovery,
 } from "@/lib/api/assessment-discovery-queries";
-
-import { AssessmentDiscoveryInterview } from "./assessment-discovery-interview";
+import { computeDiscoveryProgress } from "../../utils/discovery-interaction";
 import { copy } from "../../utils/conversation-copy";
+import { DiscoveryProgress } from "../molecules/discovery-progress";
+import { SuggestedAnswerDecision } from "../molecules/suggested-answer-decision";
+import { SuggestedRuleList } from "../molecules/suggested-rule-list";
+import { AssessmentDiscoveryInterview } from "./assessment-discovery-interview";
 
 type RuleLabel = {
   assessmentRuleId: string;
@@ -30,18 +34,19 @@ type RuleLabel = {
 };
 
 /**
- * Business purpose: Let customers understand source Discovery and rule candidates before choosing audit scope.
+ * Business purpose: Let customers understand source Discovery, resolve context questions, and review rule candidates before choosing audit scope.
  * Business rules:
  * - Discovery is explicitly started by the customer and never selects or decides a rule.
  * - Preview is bounded; missing and unlisted candidates cannot imply legal non-applicability.
  * - A failed request keeps its stable key for retry; a completed failed run uses a new key.
+ * - Continuation to rule selection is permitted only when the actual discovery state permits.
  * - Suggestions may populate the customer's editable selection only on explicit click after all candidate pages load, never authorize an audit.
  * Execution flow:
  * 1. Restore latest pin-bound run, allowing refresh and server-side polling during a scan.
  * 2. Start discovery only when the user requests it and no selected audit exists.
- * 3. Page the full use-case/question inventory and allow owner-reviewed pre-scope answers without selecting rules.
+ * 3. Render `DiscoveryProgress`, `AssessmentDiscoveryInterview`, `SuggestedRuleList`, and gated `SuggestedAnswerDecision`.
  * Failure cases:
- * - API, ownership, worker and incomplete-coverage failures are explicit without fabricated results.
+ * - API, ownership, worker, no-AI, and incomplete-coverage failures are explicit without fabricated results.
  * Side effects:
  * - May enqueue one deterministic scan; never creates a rule audit or compliance decision.
  */
@@ -51,17 +56,37 @@ export function AssessmentDiscoveryOverview({
   canDiscover,
   canChooseCandidates,
   onChooseCandidates,
+  onContinueToRuleSelection,
 }: {
   assessmentId: string;
   rules: RuleLabel[];
   canDiscover: boolean;
   canChooseCandidates: boolean;
   onChooseCandidates: (assessmentRuleIds: string[]) => void;
+  onContinueToRuleSelection?: () => void;
 }) {
   const latest = useAssessmentDiscoveryLatestQuery(assessmentId);
   const start = useStartAssessmentDiscovery(assessmentId);
   const retryKey = useRef<string | null>(null);
   const [visibleQuestionCount, setVisibleQuestionCount] = useState(10);
+  const [interviewState, setInterviewState] = useState<{
+    latestByQuestion: Map<string, DiscoveryInterviewProposal>;
+    reviewComplete: boolean;
+  }>({
+    latestByQuestion: new Map(),
+    reviewComplete: false,
+  });
+
+  const handleInterviewStateChange = useCallback(
+    (next: {
+      latestByQuestion: Map<string, DiscoveryInterviewProposal>;
+      reviewComplete: boolean;
+    }) => {
+      setInterviewState(next);
+    },
+    [],
+  );
+
   const ruleNames = useMemo(
     () => new Map(rules.map((rule) => [rule.assessmentRuleId, rule.concept])),
     [rules],
@@ -80,6 +105,7 @@ export function AssessmentDiscoveryOverview({
   const running =
     run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.queued ||
     run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.running;
+  const failed = run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.failed;
   const available = run?.discovery.available ? run.discovery.discovery : null;
   const visibleCandidates =
     candidatePages.data?.pages.flatMap((page) => page.items) ??
@@ -98,6 +124,7 @@ export function AssessmentDiscoveryOverview({
             // Identical prompts may refer to different AI features.
             useCaseName: useCase.name,
             question,
+            rangeIds: useCase.invocationRangeIds,
           })),
         )
         .map((entry) => [`${entry.useCaseId}::${entry.question}`, entry]),
@@ -107,21 +134,37 @@ export function AssessmentDiscoveryOverview({
   const canExpandQuestions =
     questionEntries.length > visibleQuestionCount ||
     questionPages.hasNextPage === true;
-  const selectableCandidateIds =
+  const allCandidatesLoaded =
     candidatePages.isSuccess &&
     !candidatePages.hasNextPage &&
-    visibleCandidates.length === available?.ruleCandidateCount
-      ? visibleCandidates
-          .filter(
-            (candidate) =>
-              candidate.state === DISCOVERY_RULE_CANDIDATE_STATES.candidate &&
-              rules.some(
-                (rule) => rule.assessmentRuleId === candidate.assessmentRuleId,
-              ),
-          )
-          .map((candidate) => candidate.assessmentRuleId)
-      : [];
+    visibleCandidates.length === available?.ruleCandidateCount;
+  const selectableCandidateIds = allCandidatesLoaded
+    ? visibleCandidates
+        .filter(
+          (candidate) =>
+            candidate.state === DISCOVERY_RULE_CANDIDATE_STATES.candidate &&
+            rules.some(
+              (rule) => rule.assessmentRuleId === candidate.assessmentRuleId,
+            ),
+        )
+        .map((candidate) => candidate.assessmentRuleId)
+    : [];
   const showStart = canDiscover && !running;
+
+  const progress = useMemo(
+    () =>
+      computeDiscoveryProgress({
+        run,
+        summary: available,
+        questionKeys: questionEntries.map(
+          (entry) => `${entry.useCaseId}::${entry.question}`,
+        ),
+        latestByQuestion: interviewState.latestByQuestion,
+        interviewLoaded:
+          questionEntries.length === 0 || interviewState.reviewComplete,
+      }),
+    [run, available, questionEntries, interviewState],
+  );
 
   /**
    * Business purpose: Enqueue the customer's explicit source discovery without altering rule selection.
@@ -155,7 +198,7 @@ export function AssessmentDiscoveryOverview({
           {copy("ruleAudit.discovery.description")}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         {showStart ? (
           <Button
             type="button"
@@ -165,7 +208,7 @@ export function AssessmentDiscoveryOverview({
             onClick={() => void startDiscovery()}
           >
             {copy(
-              run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.failed
+              failed
                 ? "ruleAudit.discovery.retry"
                 : "ruleAudit.discovery.start",
             )}
@@ -183,25 +226,53 @@ export function AssessmentDiscoveryOverview({
             {copy("ruleAudit.discovery.running")}
           </p>
         ) : null}
-        {run?.status === ASSESSMENT_DISCOVERY_RUN_STATUSES.failed ? (
+        {failed ? (
           <Alert role="status">
             <AlertDescription>
               {copy("ruleAudit.discovery.failed")}
             </AlertDescription>
           </Alert>
         ) : null}
+
         {available ? (
-          <div className="space-y-3 text-sm">
-            <p role="status">
+          <div className="space-y-4 text-sm">
+            <DiscoveryProgress
+              progress={progress}
+              candidateCount={available.ruleCandidateCount}
+              knownGapCount={available.knownGapCount}
+              isRunning={running}
+              isFailed={failed}
+            />
+
+            <p role="status" className="text-muted-foreground">
               {copy("ruleAudit.discovery.summary", {
                 useCases: available.aiUseCaseCount,
                 candidates: available.ruleCandidateCount,
                 gaps: available.knownGapCount,
               })}
             </p>
-            <p className="text-muted-foreground">
-              {copy("ruleAudit.discovery.investigationOnly")}
-            </p>
+
+            {progress.isNoAi ? (
+              <Alert role="status">
+                <AlertDescription>
+                  <span className="font-medium">
+                    {copy("ruleAudit.discovery.noAiTitle")}
+                  </span>{" "}
+                  {copy("ruleAudit.discovery.noAiBody")}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {progress.isInterrupted ? (
+              <Alert role="status">
+                <AlertDescription>
+                  {copy("ruleAudit.discovery.interruptedWarning", {
+                    gaps: available.knownGapCount,
+                  })}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             {questionPages.isError ? (
               <Alert variant="destructive" role="alert">
                 <AlertDescription>
@@ -209,6 +280,7 @@ export function AssessmentDiscoveryOverview({
                 </AlertDescription>
               </Alert>
             ) : null}
+
             {questionEntries.length > 0 || questionPages.hasNextPage ? (
               <section
                 aria-label={copy("ruleAudit.discovery.contextQuestions")}
@@ -225,7 +297,9 @@ export function AssessmentDiscoveryOverview({
                     assessmentId={assessmentId}
                     runId={run.runId}
                     questions={visibleQuestions}
+                    previewRanges={available.preview.ranges}
                     canEdit={canDiscover}
+                    onInterviewStateChange={handleInterviewStateChange}
                   />
                 ) : null}
                 {canExpandQuestions ? (
@@ -247,75 +321,33 @@ export function AssessmentDiscoveryOverview({
                 ) : null}
               </section>
             ) : null}
-            {candidatePages.isError ? (
-              <Alert variant="destructive" role="alert">
-                <AlertDescription>
-                  {copy("ruleAudit.discovery.candidateLoadFailed")}
-                </AlertDescription>
-              </Alert>
+
+            <SuggestedRuleList
+              candidates={visibleCandidates}
+              totalCandidates={available.ruleCandidateCount}
+              allPagesLoaded={allCandidatesLoaded}
+              hasNextPage={candidatePages.hasNextPage === true}
+              isFetchingNextPage={candidatePages.isFetchingNextPage}
+              loadFailed={candidatePages.isError}
+              ruleNames={ruleNames}
+              previewRanges={available.preview.ranges}
+              hasRejectedContext={progress.rejectedCount > 0}
+              canChooseCandidates={canChooseCandidates}
+              selectableCandidateIds={selectableCandidateIds}
+              onChooseCandidates={onChooseCandidates}
+              onLoadMore={() => void candidatePages.fetchNextPage()}
+            />
+
+            {onContinueToRuleSelection ? (
+              <SuggestedAnswerDecision
+                canContinue={progress.canContinue}
+                hasPendingProposal={false}
+                canConfirmPending={false}
+                canReview={false}
+                isReviewPending={false}
+                onContinueToRuleSelection={onContinueToRuleSelection}
+              />
             ) : null}
-            {available.ruleCandidateCount > 0 ? (
-              <div className="space-y-2">
-                <p className="font-medium">
-                  {copy(
-                    candidatePages.isSuccess && !candidatePages.hasNextPage
-                      ? "ruleAudit.discovery.allCandidates"
-                      : "ruleAudit.discovery.preview",
-                    {
-                      shown: visibleCandidates.length,
-                      total: available.ruleCandidateCount,
-                    },
-                  )}
-                </p>
-                <ul className="max-h-72 space-y-2 overflow-y-auto">
-                  {visibleCandidates.map((candidate) => (
-                    <li
-                      key={candidate.assessmentRuleId}
-                      className="rounded-lg border p-3"
-                    >
-                      <p className="font-medium">
-                        {ruleNames.get(candidate.assessmentRuleId) ??
-                          candidate.assessmentRuleId}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {candidate.state ===
-                        DISCOVERY_RULE_CANDIDATE_STATES.needsContext
-                          ? copy("ruleAudit.discovery.needsContext")
-                          : copy("ruleAudit.discovery.candidate")}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        {candidate.rationale}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-                {canChooseCandidates && selectableCandidateIds.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onChooseCandidates(selectableCandidateIds)}
-                  >
-                    {copy("ruleAudit.discovery.selectCandidateRules")}
-                  </Button>
-                ) : null}
-                {candidatePages.hasNextPage ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={candidatePages.isFetchingNextPage}
-                    onClick={() => void candidatePages.fetchNextPage()}
-                  >
-                    {copy("ruleAudit.discovery.loadMore")}
-                  </Button>
-                ) : null}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">
-                {copy("ruleAudit.discovery.noCandidates")}
-              </p>
-            )}
           </div>
         ) : null}
       </CardContent>
