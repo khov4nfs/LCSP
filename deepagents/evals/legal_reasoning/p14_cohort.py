@@ -1,4 +1,4 @@
-"""Exact identity pins for a small P14 SCRIPTED integration cohort."""
+"""Exact identity pins for LCSP-400 P14 SCRIPTED integration cohorts."""
 
 from __future__ import annotations
 
@@ -45,13 +45,14 @@ def fixture_fingerprints(
     """Business purpose: Pin the exact legal fixture, proposition, scenario, repository, and case reused by the cohort.
 
     Business rules:
-    - This function verifies fixture identity only; synthetic fixture text is never treated as legal authority.
-    - The selected rule and provision must exist in the same immutable P14 case object.
+    - Synthetic engineering fixtures and official law cases retain distinct source classifications.
+    - Official provisions must be unique by document/locator and match their exact content digests.
+    - The selected rule and all provisions must exist in the same immutable P14 case object.
 
     Execution flow:
-    1. Resolve one selected rule, legal provision, and lifecycle stage from the case.
-    2. Verify provision text bytes match its declared content digest.
-    3. Fingerprint each distinct source, proposition, scenario, repository tree, and whole-case object.
+    1. Resolve one selected rule, legal provisions, and lifecycle stage from the case.
+    2. Verify every provision's text bytes and source classification.
+    3. Fingerprint the selected source set, proposition, scenario, repository tree, and whole-case object.
 
     Failure cases:
     - Raises ValueError when the rule/stage is unknown, the content digest is invalid, or the pinned repository fixture is missing.
@@ -62,23 +63,47 @@ def fixture_fingerprints(
     rule = next(
         (item for item in case.rule_definitions if item.rule_id == rule_id), None
     )
-    provision = case.legal_provisions[0] if len(case.legal_provisions) == 1 else None
-    if rule is None or provision is None:
-        raise ValueError("P14_COHORT_RULE_OR_SINGLE_PROVISION_REQUIRED")
+    provisions = list(case.legal_provisions)
+    if rule is None or not provisions:
+        raise ValueError("P14_COHORT_RULE_OR_PROVISION_REQUIRED")
     if stage not in {item.stage for item in case.gold_rubric.stages}:
         raise ValueError("P14_COHORT_LIFECYCLE_STAGE_INVALID")
-    content_digest = sha256(provision.content.encode("utf-8")).hexdigest()
-    if content_digest != provision.content_sha256:
-        raise ValueError("P14_COHORT_PROVISION_CONTENT_DIGEST_MISMATCH")
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
-    tree_digest = _hash_repo_fixture_tree(repo_root)
-    return {
-        "legalSourceSha256": stable_hash(
+    if len(provisions) == 1 and provisions[0].source_kind == "SYNTHETIC_PINNED_LAW":
+        provision = provisions[0]
+        content_digest = sha256(provision.content.encode("utf-8")).hexdigest()
+        if content_digest != provision.content_sha256:
+            raise ValueError("P14_COHORT_PROVISION_CONTENT_DIGEST_MISMATCH")
+        legal_source_digest = stable_hash(
             {
                 "corpusPin": case.corpus_pin.model_dump(),
                 "provision": provision.model_dump(),
             }
-        ),
+        )
+    else:
+        if any(
+            provision.source_kind != "OFFICIAL_PINNED_LAW" for provision in provisions
+        ):
+            raise ValueError("P14_COHORT_MIXED_LEGAL_SOURCE_KINDS")
+        identities = [(item.document_id, item.locator) for item in provisions]
+        if len(identities) != len(set(identities)):
+            raise ValueError("P14_COHORT_DUPLICATE_OFFICIAL_PROVISION")
+        content_digests = []
+        for provision in provisions:
+            digest = sha256(provision.content.encode("utf-8")).hexdigest()
+            if digest != provision.content_sha256:
+                raise ValueError("P14_COHORT_PROVISION_CONTENT_DIGEST_MISMATCH")
+            content_digests.append(digest)
+        content_digest = stable_hash(content_digests)
+        legal_source_digest = stable_hash(
+            {
+                "corpusPin": case.corpus_pin.model_dump(),
+                "provisions": [item.model_dump() for item in provisions],
+            }
+        )
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    tree_digest = _hash_repo_fixture_tree(repo_root)
+    return {
+        "legalSourceSha256": legal_source_digest,
         "provisionContentSha256": content_digest,
         "targetPropositionSha256": sha256(
             rule.requirement_proposition.encode("utf-8")
@@ -126,10 +151,10 @@ def cohort_digest(cohort: dict[str, Any]) -> str:
 
 
 def load_cohort(path: str | Path) -> dict[str, Any]:
-    """Business purpose: Load a versioned, integrity-checked engineering-only P14 cohort.
+    """Business purpose: Load a versioned P14 cohort with explicit source classification.
 
     Business rules:
-    - Only explicitly synthetic SCRIPTED integration cohorts are accepted here.
+    - Synthetic smoke cohorts and official Vietnamese source cohorts use distinct versioned classifications.
     - Every row has a unique stable cohort ID and a fixed DEV/HOLDOUT assignment.
 
     Execution flow:
@@ -143,10 +168,14 @@ def load_cohort(path: str | Path) -> dict[str, Any]:
     - Reads the selected local evaluation artifact only.
     """
     cohort = json.loads(Path(path).read_text(encoding="utf-8"))
+    accepted_kinds = {
+        COHORT_VERSION: {"SYNTHETIC_P14_FIXTURE_ENGINEERING_ONLY"},
+        "LCSP-400-P14-SHARED-COHORT-V2": {"OFFICIAL_VN_SOURCE_PINNED_P14_CASES"},
+    }
     if (
         not isinstance(cohort, dict)
-        or cohort.get("cohortVersion") != COHORT_VERSION
-        or cohort.get("cohortKind") != "SYNTHETIC_P14_FIXTURE_ENGINEERING_ONLY"
+        or cohort.get("cohortKind")
+        not in accepted_kinds.get(cohort.get("cohortVersion"), set())
         or cohort.get("cohortSha256") != cohort_digest(cohort)
         or not isinstance(cohort.get("cases"), list)
         or not cohort["cases"]
@@ -155,6 +184,31 @@ def load_cohort(path: str | Path) -> dict[str, Any]:
     ids = [row.get("cohortCaseId") for row in cohort["cases"] if isinstance(row, dict)]
     if len(ids) != len(cohort["cases"]) or len(ids) != len(set(ids)):
         raise ValueError("P14_COHORT_CASE_ID_INVALID")
+    if cohort.get("cohortVersion") == "LCSP-400-P14-SHARED-COHORT-V2":
+        allowed_fields = {
+            "cohortCaseId",
+            "candidateCaseId",
+            "p14CaseId",
+            "evaluationStage",
+            "lifecycleStage",
+            "targetRuleId",
+            "splitGroupId",
+            "split",
+            "sourceKind",
+            "jurisdiction",
+            "corpusId",
+            "corpusVersion",
+            "corpusDigestSha256",
+            "fixtureFingerprints",
+        }
+        if any(
+            not isinstance(row, dict)
+            or set(row) != allowed_fields
+            or row.get("sourceKind") != "OFFICIAL_PINNED_LAW"
+            or row.get("jurisdiction") != "VIETNAM"
+            for row in cohort["cases"]
+        ):
+            raise ValueError("P14_OFFICIAL_COHORT_ROW_INVALID")
     return cohort
 
 

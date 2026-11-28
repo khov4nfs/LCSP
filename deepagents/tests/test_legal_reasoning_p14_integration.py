@@ -30,7 +30,9 @@ from evals.scorer import validate_run_artifacts_for_scoring
 
 DEEPAGENTS = Path(__file__).resolve().parents[1]
 P14_CASES_SOURCE = DEEPAGENTS / "evals" / "fixtures" / "benchmark" / "cases.json"
-P14_REVIEWS = DEEPAGENTS / "evals" / "fixtures" / "benchmark" / "manual_reviews_p15.json"
+P14_REVIEWS = (
+    DEEPAGENTS / "evals" / "fixtures" / "benchmark" / "manual_reviews_p15.json"
+)
 CASE_MAP = PACKAGE_ROOT / "p14-case-map.v2.json"
 COHORT = PACKAGE_ROOT / "p14-shared-cohort.v1.json"
 SPLITS = PACKAGE_ROOT / "evaluation-splits.v1.json"
@@ -38,7 +40,9 @@ SPLITS = PACKAGE_ROOT / "evaluation-splits.v1.json"
 
 def test_run_config_accepts_only_full_git_object_ids():
     expected = "a" * 40
-    assert RunConfig(mode="SCRIPTED", git_commit_sha=expected).git_commit_sha == expected
+    assert (
+        RunConfig(mode="SCRIPTED", git_commit_sha=expected).git_commit_sha == expected
+    )
     with pytest.raises(ValueError, match="INVALID_GIT_COMMIT_SHA"):
         RunConfig(mode="SCRIPTED", git_commit_sha="abcdef1")
 
@@ -54,29 +58,32 @@ def saved_p14_run(tmp_path_factory):
     git_commit_sha = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=DEEPAGENTS, text=True
     ).strip()
-    assert p14_cli_main(
-        [
-            "run",
-            "--cases",
-            str(cases_path),
-            "--mode",
-            "SCRIPTED",
-            "--split",
-            "ALL",
-            "--trials",
-            "2",
-            "--k",
-            "1",
-            "--run-id",
-            run_id,
-            "--git-commit-sha",
-            git_commit_sha,
-            "--output-dir",
-            str(output_dir),
-            "--evaluation-split-manifest",
-            str(SPLITS),
-        ]
-    ) == 0
+    assert (
+        p14_cli_main(
+            [
+                "run",
+                "--cases",
+                str(cases_path),
+                "--mode",
+                "SCRIPTED",
+                "--split",
+                "ALL",
+                "--trials",
+                "2",
+                "--k",
+                "1",
+                "--run-id",
+                run_id,
+                "--git-commit-sha",
+                git_commit_sha,
+                "--output-dir",
+                str(output_dir),
+                "--evaluation-split-manifest",
+                str(SPLITS),
+            ]
+        )
+        == 0
+    )
     return output_dir / run_id
 
 
@@ -156,21 +163,34 @@ def _test_review_overlay(path: Path, records: list[dict]) -> Path:
     return path
 
 
-def _copy_run_with_trace_mutation(saved_p14_run: Path, tmp_path: Path, case_id: str, stage: str, mutate):
+def _copy_run_with_trace_mutation(
+    saved_p14_run: Path, tmp_path: Path, case_id: str, stage: str, mutate
+):
     """Copy one real P14 run and mutate one saved trace while keeping its trial index explicit."""
     copied = tmp_path / "copied-run"
     shutil.copytree(saved_p14_run, copied)
     trial_path = copied / "trials.jsonl"
-    trial_rows = [json.loads(line) for line in trial_path.read_text(encoding="utf-8").splitlines() if line]
-    target = next(row for row in trial_rows if row["case_id"] == case_id and row["stage"] == stage)
+    trial_rows = [
+        json.loads(line)
+        for line in trial_path.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
+    target = next(
+        row for row in trial_rows if row["case_id"] == case_id and row["stage"] == stage
+    )
     trace_path = copied / target["trace_path"]
     trace = json.loads(trace_path.read_text(encoding="utf-8"))
     mutate(trace)
-    trace_bytes = (json.dumps(trace, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+    trace_bytes = (
+        json.dumps(trace, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
     trace_path.write_bytes(trace_bytes)
     target["trace_sha256"] = sha256(trace_bytes).hexdigest()
     trial_path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in trial_rows),
+        "".join(
+            json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+            for row in trial_rows
+        ),
         encoding="utf-8",
     )
     return copied
@@ -194,9 +214,12 @@ def test_saved_p14_offline_run_validates_and_remains_not_scored(saved_p14_run):
     assert first["verifiedArtifactReport"] is True
     assert first["verifiedSemanticMetrics"] is False
     assert first["artifactClassification"] == "P14_SCRIPTED_EXECUTION_ARTIFACTS"
-    assert first["runMetadata"]["repositoryCommitSha"] == json.loads(
-        (saved_p14_run / "manifest.json").read_text(encoding="utf-8")
-    )["gitCommitSha"]
+    assert (
+        first["runMetadata"]["repositoryCommitSha"]
+        == json.loads((saved_p14_run / "manifest.json").read_text(encoding="utf-8"))[
+            "gitCommitSha"
+        ]
+    )
     assert first["caseMapping"]["candidateCaseCount"] == 30
     assert first["caseMapping"]["p14BenchmarkCaseCount"] == 3
     assert first["caseMapping"]["sharedExecutableCandidateCount"] == 3
@@ -210,16 +233,28 @@ def test_saved_p14_offline_run_validates_and_remains_not_scored(saved_p14_run):
     assert len(first["mappedTrialBindings"]) == 6
     assert first["scriptedExecutionVerification"] == "PASS"
     assert first["runMetadata"]["mode"] == "SCRIPTED"
-    assert first["runMetadata"]["splitManifestSha256"] == load_split_manifest(SPLITS)["splitDigest"]
+    assert (
+        first["runMetadata"]["splitManifestSha256"]
+        == load_split_manifest(SPLITS)["splitDigest"]
+    )
     assert first["humanReviewedQualityMetrics"] == "NOT_SCORED"
     assert first["reviewedGoldDenominator"] == 0
     assert len(first["normalizedObservedOutputs"]) == 6
-    hitl_predictions = [row for row in first["normalizedObservedOutputs"] if row["p14CaseId"] == "CASE-02"]
+    hitl_predictions = [
+        row
+        for row in first["normalizedObservedOutputs"]
+        if row["p14CaseId"] == "CASE-02"
+    ]
     assert {row["trialIndex"] for row in hitl_predictions} == {0, 1}
     assert all(row["hitl"]["state"] == "RESOLVED" for row in hitl_predictions)
     assert all(row["reviewPayload"]["assessmentDecisions"] for row in hitl_predictions)
-    assert all(row["reviewPayload"]["targetRuleIds"] == ["ER-DEMO-02"] for row in hitl_predictions)
-    assert all(row["reviewPayload"]["hitl"]["resolvedRequests"] for row in hitl_predictions)
+    assert all(
+        row["reviewPayload"]["targetRuleIds"] == ["ER-DEMO-02"]
+        for row in hitl_predictions
+    )
+    assert all(
+        row["reviewPayload"]["hitl"]["resolvedRequests"] for row in hitl_predictions
+    )
     assert all(row["reviewPayload"]["lifecycleHistory"] for row in hitl_predictions)
     assert first["pinnedInputs"]["caseMappingSha256"]
     assert first["p14ReviewDiagnostics"]["seededUnverifiedCount"] == 0
@@ -228,7 +263,10 @@ def test_saved_p14_offline_run_validates_and_remains_not_scored(saved_p14_run):
     assert first["scoringStatus"] == "NOT_SCORED"
     assert first["humanReviewedQualityMetrics"] == "NOT_SCORED"
     assert first["actualExecutionBaseline"] == "NOT_RUN"
-    assert all(row["scoringStatus"] == "NOT_SCORED" for row in first["rubricReportsByTargetAndTrial"])
+    assert all(
+        row["scoringStatus"] == "NOT_SCORED"
+        for row in first["rubricReportsByTargetAndTrial"]
+    )
     assert first["executionCohort"] == {
         "mappingStatus": "MAPPED",
         "mappedCaseCount": 3,
@@ -313,7 +351,9 @@ def test_empty_exact_mapping_is_valid_and_stale_snapshots_fail_closed(saved_p14_
         )
 
 
-def test_mapping_rejects_unknown_case_wrong_target_and_wrong_lifecycle_stage(saved_p14_run):
+def test_mapping_rejects_unknown_case_wrong_target_and_wrong_lifecycle_stage(
+    saved_p14_run,
+):
     manifest, candidate_cases, p14_cases, mapping, pins = _inputs(saved_p14_run)
     cohort = load_cohort(COHORT)
     split_manifest = load_split_manifest(SPLITS)
@@ -346,7 +386,9 @@ def test_mapping_rejects_unknown_case_wrong_target_and_wrong_lifecycle_stage(sav
         )
 
     wrong_target = deepcopy(mapping)
-    wrong_target["caseMappings"] = [{**entry, "evaluationTarget": "FIXED_CLAIM_DIAGNOSTIC"}]
+    wrong_target["caseMappings"] = [
+        {**entry, "evaluationTarget": "FIXED_CLAIM_DIAGNOSTIC"}
+    ]
     with pytest.raises(ValueError, match="P14_CASE_MAPPING_ENTRY_INVALID"):
         validate_case_mapping(
             wrong_target,
@@ -372,7 +414,9 @@ def test_mapping_rejects_unknown_case_wrong_target_and_wrong_lifecycle_stage(sav
         )
 
 
-def test_seeded_or_synthetic_dimension_review_sets_never_enter_actual_review_path(tmp_path):
+def test_seeded_or_synthetic_dimension_review_sets_never_enter_actual_review_path(
+    tmp_path,
+):
     seeded = tmp_path / "seeded-reviews.json"
     seeded.write_text(
         json.dumps(
@@ -392,7 +436,9 @@ def test_p14_artifact_and_review_trial_identity_integrity(saved_p14_run):
     manifest = json.loads((saved_p14_run / "manifest.json").read_text(encoding="utf-8"))
     outcomes = [
         TrialOutcome.model_validate_json(line)
-        for line in (saved_p14_run / "trials.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (saved_p14_run / "trials.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
         if line.strip()
     ]
     with pytest.raises(ValueError, match="SCORING_DUPLICATE_TRIAL_REJECTED"):
@@ -444,7 +490,9 @@ def test_output_review_cannot_be_reused_for_another_trial_or_digest():
             "p14Binding": {**binding, field: value},
             "humanJudgments": {},
         }
-        with pytest.raises(ValueError, match="P14_DIMENSION_REVIEW_OUTPUT_BINDING_MISMATCH"):
+        with pytest.raises(
+            ValueError, match="P14_DIMENSION_REVIEW_OUTPUT_BINDING_MISMATCH"
+        ):
             _validate_dimension_review(row, binding, {})
 
 
@@ -455,9 +503,7 @@ def test_p14_workflow_uses_review_overlay_without_mutating_candidate_snapshot(
     candidate_cases = load_dataset(candidate_path)
     case = candidate_cases[0]
     expectations = {
-        field: value
-        for field, value in case["expected"].items()
-        if value is not None
+        field: value for field, value in case["expected"].items() if value is not None
     }
     judgments = [
         {
@@ -515,12 +561,19 @@ def test_p14_workflow_uses_review_overlay_without_mutating_candidate_snapshot(
 
     assert report["annotationReviewInventory"]["reviewStatusCounts"]["REVIEWED"] == 1
     assert report["annotationReviewInventory"]["candidateAnnotationCount"] == 29
-    assert report["annotationReviewInventory"]["reviewAuthenticity"] == "NOT_AUTHENTICATED_BY_TOOL"
+    assert (
+        report["annotationReviewInventory"]["reviewAuthenticity"]
+        == "NOT_AUTHENTICATED_BY_TOOL"
+    )
     assert report["reviewOverlaySha256"]
-    assert all(row["reviewStatus"] == "CANDIDATE" for row in load_dataset(candidate_path))
+    assert all(
+        row["reviewStatus"] == "CANDIDATE" for row in load_dataset(candidate_path)
+    )
 
 
-def test_missing_observed_output_is_counted_as_executed_missing_output(tmp_path, saved_p14_run):
+def test_missing_observed_output_is_counted_as_executed_missing_output(
+    tmp_path, saved_p14_run
+):
     copied = _copy_run_with_trace_mutation(
         saved_p14_run,
         tmp_path,
@@ -533,15 +586,24 @@ def test_missing_observed_output_is_counted_as_executed_missing_output(tmp_path,
         for line in (copied / "trials.jsonl").read_text(encoding="utf-8").splitlines()
         if line
     ]
-    target = next(row for row in trial_rows if row["case_id"] == "CASE-01" and row["stage"] == "INITIAL")
+    target = next(
+        row
+        for row in trial_rows
+        if row["case_id"] == "CASE-01" and row["stage"] == "INITIAL"
+    )
     trace_path = copied / target["trace_path"]
     trace = json.loads(trace_path.read_text(encoding="utf-8"))
     trace.pop("observedOutputSha256", None)
-    trace_bytes = (json.dumps(trace, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+    trace_bytes = (
+        json.dumps(trace, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    ).encode("utf-8")
     trace_path.write_bytes(trace_bytes)
     target["trace_sha256"] = sha256(trace_bytes).hexdigest()
     (copied / "trials.jsonl").write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in trial_rows),
+        "".join(
+            json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+            for row in trial_rows
+        ),
         encoding="utf-8",
     )
     report = integrate_p14_artifacts(
@@ -553,14 +615,24 @@ def test_missing_observed_output_is_counted_as_executed_missing_output(tmp_path,
         )
     )
 
-    missing = [row for row in report["caseExecutionRecords"] if row["executionStatus"] == "EXECUTED_MISSING_OUTPUT"]
+    missing = [
+        row
+        for row in report["caseExecutionRecords"]
+        if row["executionStatus"] == "EXECUTED_MISSING_OUTPUT"
+    ]
     assert report["caseMapping"]["executedMissingOutputCount"] == 1
     assert len(missing) == 1
-    assert missing[0]["scoringStatus"] == "NOT_SCORED"
+    assert missing[0]["scoringStatus"] == "MISSING_PREDICTION_COUNTS_AS_ERROR"
+    assert report["scoringStatus"] == "NOT_SCORED"
+    assert (
+        report["scoringReason"] == "NO_REVIEWED_LEGAL_GOLD_FOR_EXACT_EXECUTION_COHORT"
+    )
     assert report["scoringStatus"] == "NOT_SCORED"
 
 
-def test_observed_output_digest_and_outcome_binding_tampering_fail_closed(tmp_path, saved_p14_run):
+def test_observed_output_digest_and_outcome_binding_tampering_fail_closed(
+    tmp_path, saved_p14_run
+):
     changed_digest = _copy_run_with_trace_mutation(
         saved_p14_run,
         tmp_path / "digest",
@@ -622,12 +694,16 @@ def test_observed_output_digest_and_outcome_binding_tampering_fail_closed(tmp_pa
         )
 
 
-def test_changed_trace_bytes_and_unexecuted_trials_remain_visible(tmp_path, saved_p14_run):
+def test_changed_trace_bytes_and_unexecuted_trials_remain_visible(
+    tmp_path, saved_p14_run
+):
     changed_trace = tmp_path / "changed-trace"
     shutil.copytree(saved_p14_run, changed_trace)
     trial_rows = [
         json.loads(line)
-        for line in (changed_trace / "trials.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (changed_trace / "trials.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
         if line
     ]
     trace_path = changed_trace / trial_rows[0]["trace_path"]
@@ -646,7 +722,9 @@ def test_changed_trace_bytes_and_unexecuted_trials_remain_visible(tmp_path, save
     shutil.copytree(saved_p14_run, incomplete)
     kept = [row for row in trial_rows if row["case_id"] != "CASE-17"]
     (incomplete / "trials.jsonl").write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in kept),
+        "".join(
+            json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in kept
+        ),
         encoding="utf-8",
     )
     report = integrate_p14_artifacts(
@@ -662,13 +740,23 @@ def test_changed_trace_bytes_and_unexecuted_trials_remain_visible(tmp_path, save
     assert report["missingExpectedTrialCount"] == 2
     assert report["executionCohort"]["notExecutedCaseCount"] == 1
     assert report["executionCohort"]["notExecutedTrialCount"] == 2
-    assert sum(row["executionStatus"] == "NOT_EXECUTED" for row in report["caseExecutionRecords"]) == 2
+    assert (
+        sum(
+            row["executionStatus"] == "NOT_EXECUTED"
+            for row in report["caseExecutionRecords"]
+        )
+        == 2
+    )
     assert report["scoringStatus"] == "NOT_SCORED"
 
 
-def test_zero_and_partial_mapping_cohorts_do_not_become_missing_or_scored(tmp_path, saved_p14_run):
+def test_zero_and_partial_mapping_cohorts_do_not_become_missing_or_scored(
+    tmp_path, saved_p14_run
+):
     _, candidates, _, mapping, _ = _inputs(saved_p14_run)
-    reviewed_overlay = _test_review_overlay(tmp_path / "reviewed-overlay.json", candidates)
+    reviewed_overlay = _test_review_overlay(
+        tmp_path / "reviewed-overlay.json", candidates
+    )
     empty_mapping = deepcopy(mapping)
     empty_mapping["caseMappings"] = []
     empty_mapping_path = tmp_path / "empty-map.json"
@@ -681,7 +769,9 @@ def test_zero_and_partial_mapping_cohorts_do_not_become_missing_or_scored(tmp_pa
         )
     )
 
-    assert empty_report["annotationReviewInventory"]["reviewStatusCounts"]["REVIEWED"] == 1
+    assert (
+        empty_report["annotationReviewInventory"]["reviewStatusCounts"]["REVIEWED"] == 1
+    )
     assert empty_report["caseMapping"]["mappedCaseCount"] == 0
     assert empty_report["executionCohort"]["mappingStatus"] == "NO_EXECUTABLE_MAPPING"
     assert empty_report["scoringStatus"] == "NOT_SCORED"
@@ -720,7 +810,9 @@ def test_counterfactual_membership_cannot_leak_across_pinned_split_groups():
 
     assert len(split["groups"]) == 1
     assert split["groups"][0]["caseIds"] == ["pair-left", "pair-right"]
-    assert split["splitDigest"] == build_split_manifest(candidates, cohort)["splitDigest"]
+    assert (
+        split["splitDigest"] == build_split_manifest(candidates, cohort)["splitDigest"]
+    )
     changed = deepcopy(candidates)
     changed[1]["counterfactualPair"]["pairId"] = "different-pair"
     assert build_split_manifest(changed, cohort)["splitDigest"] != split["splitDigest"]

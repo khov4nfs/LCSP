@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,14 @@ REVIEWER_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{1,127}$")
 REVIEW_REFERENCE_PATTERN = re.compile(
     r"^(?:https://[^\s]+|urn:lcsp-review:[A-Za-z0-9._:/-]+|synthetic-fixture-only://[A-Za-z0-9._:/-]+)$"
 )
-SYNTHETIC_REVIEW_MARKERS = ("synthetic", "fixture", "seeded", ".invalid", ".test", "example.")
+SYNTHETIC_REVIEW_MARKERS = (
+    "synthetic",
+    "fixture",
+    "seeded",
+    ".invalid",
+    ".test",
+    "example.",
+)
 P14_BINDING_FIELDS = {
     "runId",
     "manifestSha256",
@@ -50,7 +57,9 @@ P14_BINDING_FIELDS = {
 }
 
 
-def _valid_review_identity(reviewer_id: Any, identity_ref: Any, *, allow_synthetic: bool) -> bool:
+def _valid_review_identity(
+    reviewer_id: Any, identity_ref: Any, *, allow_synthetic: bool
+) -> bool:
     """Business purpose: Check the structure of a human-review identity reference.
 
     Business rules:
@@ -70,16 +79,18 @@ def _valid_review_identity(reviewer_id: Any, identity_ref: Any, *, allow_synthet
     Side effects:
     - None: performs local string validation only.
     """
-    if not isinstance(reviewer_id, str) or not REVIEWER_ID_PATTERN.fullmatch(reviewer_id):
-        return False
-    if not isinstance(identity_ref, str) or not REVIEW_REFERENCE_PATTERN.fullmatch(identity_ref):
-        return False
-    if not allow_synthetic and any(
-        marker in reviewer_id.casefold() or marker in identity_ref.casefold()
-        for marker in SYNTHETIC_REVIEW_MARKERS
+    if not isinstance(reviewer_id, str) or not REVIEWER_ID_PATTERN.fullmatch(
+        reviewer_id
     ):
         return False
-    return True
+    if not isinstance(identity_ref, str) or not REVIEW_REFERENCE_PATTERN.fullmatch(
+        identity_ref
+    ):
+        return False
+    return allow_synthetic or all(
+        marker not in reviewer_id.casefold() and marker not in identity_ref.casefold()
+        for marker in SYNTHETIC_REVIEW_MARKERS
+    )
 
 
 def _valid_utc_timestamp(value: Any) -> bool:
@@ -103,7 +114,9 @@ def _valid_utc_timestamp(value: Any) -> bool:
     if not isinstance(value, str):
         return False
     try:
-        parsed = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
+        parsed = datetime.fromisoformat(
+            value[:-1] + "+00:00" if value.endswith("Z") else value
+        )
     except ValueError:
         return False
     return parsed.tzinfo is not None and parsed.utcoffset() == timedelta(0)
@@ -144,9 +157,9 @@ def _valid_p14_binding(binding: Any) -> bool:
         value = binding.get(name)
         if not isinstance(value, str) or not value.strip():
             return False
-    if not re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", binding["repositoryCommitSha"]):
-        return False
-    return True
+    return bool(
+        re.fullmatch(r"(?:[a-f0-9]{40}|[a-f0-9]{64})", binding["repositoryCommitSha"])
+    )
 
 
 def validate_dataset(
@@ -178,9 +191,14 @@ def validate_dataset(
     Side effects:
     - None: validates in-memory files and returns counts without changing annotations.
     """
-    schema = json.loads(
-        (PACKAGE_ROOT / "annotation.schema.v1.json").read_text(encoding="utf-8")
-    )
+    dataset_versions = {row.get("datasetVersion") for row in records}
+    schema_name = {
+        "LCSP-400-LEGAL-REASONING-CANDIDATES-V1": "annotation.schema.v1.json",
+        "LCSP-400-VIETNAM-AI-CANDIDATES-V1": "annotation.schema.vn-ai.v1.json",
+    }.get(next(iter(dataset_versions)) if len(dataset_versions) == 1 else None)
+    if schema_name is None:
+        raise ValueError("ANNOTATION_DATASET_VERSION_UNSUPPORTED")
+    schema = json.loads((PACKAGE_ROOT / schema_name).read_text(encoding="utf-8"))
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     dimensions = rubric["dimensions"]
     labels_by_dimension = {
@@ -212,9 +230,13 @@ def validate_dataset(
                 raise ValueError(f"FIXED_DIAGNOSTIC_TARGET_INVALID:{case_id}")
         elif fixed is not None:
             raise ValueError(f"FIXED_DIAGNOSTIC_TARGET_INVALID:{case_id}")
-        elif target == "ACTUAL_ASSESSMENT_OUTPUT" and record["stage"] != "ASSESSMENT_ROOT":
-            raise ValueError(f"EVALUATION_TARGET_STAGE_MISMATCH:{case_id}")
-        elif target == "RULE_SET_PREPARATION_OUTPUT" and record["stage"] != "RULE_SET_PREPARATION":
+        elif (
+            target == "ACTUAL_ASSESSMENT_OUTPUT"
+            and record["stage"] != "ASSESSMENT_ROOT"
+        ) or (
+            target == "RULE_SET_PREPARATION_OUTPUT"
+            and record["stage"] != "RULE_SET_PREPARATION"
+        ):
             raise ValueError(f"EVALUATION_TARGET_STAGE_MISMATCH:{case_id}")
         gold_dimensions = _expected_dimensions(record)
         if not gold_dimensions:
@@ -272,26 +294,60 @@ def validate_dataset(
                     raise ValueError(
                         f"REVIEW_JUDGMENT_LABEL_INVALID:{case_id}:{dimension}:{judgment['label']}"
                     )
-        source = source_by_id.get(record["legalSource"]["sourceId"])
-        if source is None:
-            raise ValueError(f"LEGAL_SOURCE_UNKNOWN:{case_id}")
-        legal_ref = record["legalSource"]
-        if legal_ref["sourceVersion"] != source["sourceVersion"]:
-            raise ValueError(f"LEGAL_SOURCE_VERSION_MISMATCH:{case_id}")
-        if legal_ref["sourceUrl"] != source["sourceUrl"]:
-            raise ValueError(f"LEGAL_SOURCE_URL_MISMATCH:{case_id}")
-        provision_ids = set(source["provisions"])
-        if (
-            not legal_ref["provisionRefs"]
-            or not set(legal_ref["provisionRefs"]) <= provision_ids
-        ):
-            raise ValueError(f"LEGAL_PROVISION_REFERENCE_INVALID:{case_id}")
-        allowed_citations = {
-            source["provisions"][provision_id]["citation"]
-            for provision_id in legal_ref["provisionRefs"]
-        }
-        if set(legal_ref["citations"]) != allowed_citations:
-            raise ValueError(f"LEGAL_CITATION_MISMATCH:{case_id}")
+        legal_references = [
+            record["legalSource"],
+            *record.get("relatedLegalSources", []),
+        ]
+        source_ids = [reference["sourceId"] for reference in legal_references]
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError(f"LEGAL_SOURCE_DUPLICATE:{case_id}")
+        referenced_provisions: set[str] = set()
+        for legal_ref in legal_references:
+            source = source_by_id.get(legal_ref["sourceId"])
+            if source is None:
+                raise ValueError(
+                    f"LEGAL_SOURCE_UNKNOWN:{case_id}:{legal_ref['sourceId']}"
+                )
+            if legal_ref["sourceVersion"] != source["sourceVersion"]:
+                raise ValueError(f"LEGAL_SOURCE_VERSION_MISMATCH:{case_id}")
+            if legal_ref["sourceUrl"] != source["sourceUrl"]:
+                raise ValueError(f"LEGAL_SOURCE_URL_MISMATCH:{case_id}")
+            provision_ids = set(source["provisions"])
+            if (
+                not legal_ref["provisionRefs"]
+                or not set(legal_ref["provisionRefs"]) <= provision_ids
+            ):
+                raise ValueError(f"LEGAL_PROVISION_REFERENCE_INVALID:{case_id}")
+            allowed_citations = {
+                source["provisions"][provision_id]["citation"]
+                for provision_id in legal_ref["provisionRefs"]
+            }
+            if set(legal_ref["citations"]) != allowed_citations:
+                raise ValueError(f"LEGAL_CITATION_MISMATCH:{case_id}")
+            referenced_provisions.update(
+                f"{legal_ref['sourceId']}:{provision_id}"
+                for provision_id in legal_ref["provisionRefs"]
+            )
+        if record["datasetVersion"] == "LCSP-400-VIETNAM-AI-CANDIDATES-V1":
+            target = record["targetObligation"]
+            if (
+                target["semanticGroupId"] != record["semanticGroupId"]
+                or not set(target["provisionRefs"]) <= referenced_provisions
+                or not target["targetRuleId"]
+                or not target["proposition"].strip()
+            ):
+                raise ValueError(f"LEGAL_TARGET_BINDING_INVALID:{case_id}")
+            if source_pins.get("jurisdiction") != "VIETNAM":
+                raise ValueError(f"LEGAL_SOURCE_JURISDICTION_INVALID:{case_id}")
+            if any(
+                source.get("jurisdiction") != "VIETNAM"
+                or source.get("sourceKind") != "OFFICIAL_PINNED_LAW"
+                or not re.fullmatch(r"[a-f0-9]{64}", source.get("pdfSha256", ""))
+                for source in (
+                    source_by_id[row["sourceId"]] for row in legal_references
+                )
+            ):
+                raise ValueError(f"LEGAL_SOURCE_AUTHORITY_INVALID:{case_id}")
         if record["adjudication"] is not None:
             for resolution in record["adjudication"]["resolvedLabels"]:
                 dimension = resolution["dimension"]
@@ -410,20 +466,36 @@ def _validate_review_record(
         judgments = reviewer.get("dimensionJudgments", [])
         dimensions = [row.get("dimension") for row in judgments]
         if len(set(dimensions)) != len(dimensions):
-            raise ValueError(f"DUPLICATE_REVIEW_DIMENSION:{record['caseId']}:{reviewer['reviewerId']}")
+            raise ValueError(
+                f"DUPLICATE_REVIEW_DIMENSION:{record['caseId']}:{reviewer['reviewerId']}"
+            )
         if set(reviewer.get("dimensionsReviewed", [])) != set(dimensions):
-            raise ValueError(f"REVIEW_DIMENSIONS_MISMATCH:{record['caseId']}:{reviewer['reviewerId']}")
+            raise ValueError(
+                f"REVIEW_DIMENSIONS_MISMATCH:{record['caseId']}:{reviewer['reviewerId']}"
+            )
         revised = False
         for judgment in judgments:
             dimension = judgment["dimension"]
             if dimension not in expected_dimensions:
-                raise ValueError(f"REVIEW_DIMENSION_NOT_EXPECTED:{record['caseId']}:{dimension}")
-            if reviewer["decision"] == "CONFIRM" and judgment["label"] != expected_dimensions[dimension]:
-                raise ValueError(f"REVIEW_DECISION_LABEL_MISMATCH:{record['caseId']}:{dimension}")
-            if judgment.get("priorLabel") is not None and judgment["priorLabel"] != judgment["label"]:
+                raise ValueError(
+                    f"REVIEW_DIMENSION_NOT_EXPECTED:{record['caseId']}:{dimension}"
+                )
+            if (
+                reviewer["decision"] == "CONFIRM"
+                and judgment["label"] != expected_dimensions[dimension]
+            ):
+                raise ValueError(
+                    f"REVIEW_DECISION_LABEL_MISMATCH:{record['caseId']}:{dimension}"
+                )
+            if (
+                judgment.get("priorLabel") is not None
+                and judgment["priorLabel"] != judgment["label"]
+            ):
                 revised = True
         if reviewer["decision"] == "REVISE" and not revised:
-            raise ValueError(f"REVIEW_REVISION_UNRECORDED:{record['caseId']}:{reviewer['reviewerId']}")
+            raise ValueError(
+                f"REVIEW_REVISION_UNRECORDED:{record['caseId']}:{reviewer['reviewerId']}"
+            )
     recorded_by_reviewer = {
         reviewer["reviewerId"]: {
             judgment["dimension"]: judgment["label"]
@@ -512,7 +584,9 @@ def _validate_review_record(
                 raise ValueError(f"DUPLICATE_ADJUDICATION_DIMENSION:{record['caseId']}")
             for dimension, row in resolved.items():
                 if row["label"] != expected_dimensions.get(dimension):
-                    raise ValueError(f"ADJUDICATION_LABEL_MISMATCH:{record['caseId']}:{dimension}")
+                    raise ValueError(
+                        f"ADJUDICATION_LABEL_MISMATCH:{record['caseId']}:{dimension}"
+                    )
             unresolved = set()
             for dimension, final_label in expected_dimensions.items():
                 labels = reviewer_labels.get(dimension, {})
@@ -528,19 +602,21 @@ def _validate_review_record(
                 ):
                     unresolved.add(dimension)
             if not unresolved <= set(resolved):
-                raise ValueError(f"ADJUDICATION_RESOLUTION_INCOMPLETE:{record['caseId']}")
+                raise ValueError(
+                    f"ADJUDICATION_RESOLUTION_INCOMPLETE:{record['caseId']}"
+                )
             if set(resolved) - set(expected_dimensions):
                 raise ValueError(f"ADJUDICATION_DIMENSION_INVALID:{record['caseId']}")
-            if adjudication["outcome"] == "REVISE":
-                if not any(
-                    row.get("priorLabel") is not None
-                    and row["priorLabel"] != row["label"]
-                    for row in resolved_rows
-                ):
-                    raise ValueError(f"ADJUDICATION_REVISION_UNRECORDED:{record['caseId']}")
+            if adjudication["outcome"] == "REVISE" and not any(
+                row.get("priorLabel") is not None and row["priorLabel"] != row["label"]
+                for row in resolved_rows
+            ):
+                raise ValueError(f"ADJUDICATION_REVISION_UNRECORDED:{record['caseId']}")
         elif status == "REVIEWED":
             if disagreement_rows:
-                raise ValueError(f"UNRESOLVED_DISAGREEMENT_NOT_ELIGIBLE:{record['caseId']}")
+                raise ValueError(
+                    f"UNRESOLVED_DISAGREEMENT_NOT_ELIGIBLE:{record['caseId']}"
+                )
             for dimension, final_label in expected_dimensions.items():
                 values = reviewer_labels.get(dimension, {})
                 decisions = {
@@ -553,7 +629,9 @@ def _validate_review_record(
                     or any(label != final_label for label in values.values())
                     or decisions != {"CONFIRM"}
                 ):
-                    raise ValueError(f"REVIEWED_LABEL_NOT_CONFIRMED:{record['caseId']}:{dimension}")
+                    raise ValueError(
+                        f"REVIEWED_LABEL_NOT_CONFIRMED:{record['caseId']}:{dimension}"
+                    )
 
 
 def _expected_dimensions(record: dict[str, Any]) -> dict[str, Any]:

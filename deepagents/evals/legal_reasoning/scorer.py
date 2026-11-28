@@ -39,13 +39,26 @@ SEMANTIC_DIMENSIONS = (
 )
 EVIDENCE_DIMENSIONS = ("EVIDENCE_SUFFICIENCY",)
 PREPARATION_BINDING_FIELDS = {
-    "bindingKind", "candidateCaseId", "runId", "manifestSha256", "sourceId",
-    "sourceVersion", "provisionRefs", "claimId", "claimSha256", "outputSha256",
-    "instructionBundleDigest", "skillVersionDigest",
+    "bindingKind",
+    "candidateCaseId",
+    "runId",
+    "manifestSha256",
+    "sourceId",
+    "sourceVersion",
+    "provisionRefs",
+    "claimId",
+    "claimSha256",
+    "outputSha256",
+    "instructionBundleDigest",
+    "skillVersionDigest",
 }
 FIXED_CLAIM_BINDING_FIELDS = {
-    "bindingKind", "candidateCaseId", "candidateDatasetSha256", "claimSha256",
-    "rubricVersion", "sourcePinsSha256",
+    "bindingKind",
+    "candidateCaseId",
+    "candidateDatasetSha256",
+    "claimSha256",
+    "rubricVersion",
+    "sourcePinsSha256",
 }
 
 
@@ -54,6 +67,8 @@ def score_dataset(
     predictions: dict[str, Any],
     rubric: dict[str, Any],
     source_pins: dict[str, Any],
+    *,
+    scoring_case_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """Business purpose: Compare observed categorical outputs with genuinely reviewed legal labels.
 
@@ -63,12 +78,15 @@ def score_dataset(
       semantic judgments of free text must arrive as separately reviewed human judgments.
     - Missing and unknown predictions remain in the denominator and confusion matrix; no result is
       reported as an accuracy score when the eligible denominator is zero.
+    - When supplied, scoring_case_ids bounds the denominator to actual expected executions; unrelated
+      and not-executed candidates remain coverage inventory only.
 
     Execution flow:
     1. Validate dataset provenance, labels, and review states, then validate unique prediction IDs.
     2. Resolve one prediction per expected dimension, using an explicit field or a reviewed judgment.
     3. Build stage/dimension confusion matrices and per-class precision, recall, F1, and coverage.
     4. Return separately grouped semantic and evidence reports with deterministic ordering.
+       An optional execution cohort restricts case-level scoring without changing annotation validation.
 
     Failure cases:
     - Invalid gold, duplicate identifiers, malformed outputs, or unsupported domain mappings raise
@@ -99,7 +117,18 @@ def score_dataset(
         raise ValueError("PREDICTIONS_EVALUATION_TARGET_INVALID")
     if (evaluation_target == "SYNTHETIC_SCORER_VERIFICATION") != synthetic_test_mode:
         raise ValueError("SYNTHETIC_SCORER_ISOLATION_REQUIRED")
-    target_records = [row for row in records if row["evaluationTarget"] == evaluation_target]
+    target_records = [
+        row for row in records if row["evaluationTarget"] == evaluation_target
+    ]
+    if scoring_case_ids is not None:
+        if any(not isinstance(case_id, str) for case_id in scoring_case_ids):
+            raise TypeError("SCORING_CASE_ID_INVALID")
+        target_ids = {row["caseId"] for row in target_records}
+        if not scoring_case_ids <= target_ids:
+            raise ValueError("SCORING_CASE_ID_OUTSIDE_TARGET")
+        target_records = [
+            row for row in target_records if row["caseId"] in scoring_case_ids
+        ]
     prediction_rows = predictions.get("casePredictions")
     if not isinstance(prediction_rows, list):
         raise TypeError("PREDICTIONS_CASES_REQUIRED")
@@ -256,7 +285,8 @@ def _score_dimension(
     applicable = [
         row
         for row in records
-        if _expected_for_target(row, evaluation_target).get(_field_name(dimension)) is not None
+        if _expected_for_target(row, evaluation_target).get(_field_name(dimension))
+        is not None
     ]
     eligible = [row for row in applicable if _eligible(row)]
     by_stage: dict[str, Any] = {}
@@ -274,7 +304,9 @@ def _score_dimension(
                 synthetic_test_mode=synthetic_test_mode,
             )
             stage_metric["applicableCaseCount"] = len(stage_applicable)
-            stage_metric["eligibleReviewedGoldCount"] = 0 if synthetic_test_mode else len(stage_eligible)
+            stage_metric["eligibleReviewedGoldCount"] = (
+                0 if synthetic_test_mode else len(stage_eligible)
+            )
             stage_metric["eligibleScoredAnnotationCount"] = len(stage_eligible)
             by_stage[stage] = stage_metric
     metric = _calculate_metric(
@@ -292,8 +324,12 @@ def _score_dimension(
             "applicableCaseCount": len(applicable),
             "eligibleReviewedGoldCount": 0 if synthetic_test_mode else len(eligible),
             "eligibleScoredAnnotationCount": len(eligible),
-            "syntheticFixtureScoredCaseCount": len(eligible) if synthetic_test_mode else 0,
-            "reviewCoverage": None if synthetic_test_mode else _ratio(len(eligible), total_reviewable),
+            "syntheticFixtureScoredCaseCount": len(eligible)
+            if synthetic_test_mode
+            else 0,
+            "reviewCoverage": None
+            if synthetic_test_mode
+            else _ratio(len(eligible), total_reviewable),
             "excludedCaseCount": sum(
                 1 for row in applicable if row["reviewStatus"] == "EXCLUDED"
             ),
@@ -359,7 +395,9 @@ def _calculate_metric(
             spec,
             synthetic_test_mode=synthetic_test_mode,
         )
-        gold = _expected_for_target(record, evaluation_target)[_field_name(dimension)]["label"]
+        gold = _expected_for_target(record, evaluation_target)[_field_name(dimension)][
+            "label"
+        ]
         if predicted is None:
             predicted = MISSING
             missing += 1
@@ -378,11 +416,12 @@ def _calculate_metric(
     ]
     prediction_labels = list(metric_labels)
     prediction_labels.extend(
-        sentinel for sentinel in (MISSING, UNKNOWN) if any(predicted == sentinel for _, predicted in pairs)
+        sentinel
+        for sentinel in (MISSING, UNKNOWN)
+        if any(predicted == sentinel for _, predicted in pairs)
     )
     matrix = {
-        gold: {predicted: 0 for predicted in prediction_labels}
-        for gold in gold_labels
+        gold: {predicted: 0 for predicted in prediction_labels} for gold in gold_labels
     }
     for gold, predicted in pairs:
         matrix[gold][predicted] += 1
@@ -472,9 +511,8 @@ def _prediction_label(
     if dimension in {"APPLICABILITY", "COMPLIANCE"}:
         if prediction.get("normalizationSource") == "P14_SAVED_ARTIFACTS":
             normalized_labels = prediction.get("evaluationLabelPredictions")
-            if (
-                not _valid_p14_binding(prediction.get("p14Binding"))
-                or not isinstance(normalized_labels, dict)
+            if not _valid_p14_binding(prediction.get("p14Binding")) or not isinstance(
+                normalized_labels, dict
             ):
                 return UNKNOWN
             value = normalized_labels.get(_field_name(dimension))
@@ -610,18 +648,40 @@ def _valid_review_target_binding(binding: Any, prediction: dict[str, Any]) -> bo
     if not isinstance(binding, dict):
         return False
     if target == "RULE_SET_PREPARATION_OUTPUT":
-        if set(binding) != PREPARATION_BINDING_FIELDS or binding.get("bindingKind") != target:
+        if (
+            set(binding) != PREPARATION_BINDING_FIELDS
+            or binding.get("bindingKind") != target
+        ):
             return False
         if binding.get("candidateCaseId") != prediction.get("caseId"):
             return False
-        for field in ("manifestSha256", "claimSha256", "outputSha256", "skillVersionDigest"):
-            if not isinstance(binding.get(field), str) or not re.fullmatch(r"[a-f0-9]{64}", binding[field]):
+        for field in (
+            "manifestSha256",
+            "claimSha256",
+            "outputSha256",
+            "skillVersionDigest",
+        ):
+            if not isinstance(binding.get(field), str) or not re.fullmatch(
+                r"[a-f0-9]{64}", binding[field]
+            ):
                 return False
-        if not isinstance(binding.get("instructionBundleDigest"), str) or not binding["instructionBundleDigest"].strip():
+        if (
+            not isinstance(binding.get("instructionBundleDigest"), str)
+            or not binding["instructionBundleDigest"].strip()
+        ):
             return False
-        if not all(isinstance(binding.get(field), str) and binding[field].strip() for field in ("runId", "sourceId", "sourceVersion", "claimId")):
+        if not all(
+            isinstance(binding.get(field), str) and binding[field].strip()
+            for field in ("runId", "sourceId", "sourceVersion", "claimId")
+        ):
             return False
-        if not isinstance(binding.get("provisionRefs"), list) or not binding["provisionRefs"] or any(not isinstance(row, str) or not row for row in binding["provisionRefs"]):
+        if (
+            not isinstance(binding.get("provisionRefs"), list)
+            or not binding["provisionRefs"]
+            or any(
+                not isinstance(row, str) or not row for row in binding["provisionRefs"]
+            )
+        ):
             return False
         prediction_fields = {
             "runId": "runId",
@@ -684,11 +744,16 @@ def _is_synthetic_test_execution(
         predictions.get("syntheticOnly") is True
         and predictions.get("sourceKind") == "SYNTHETIC_TEST_FIXTURE"
         and bool(all_ids)
-        and all(isinstance(case_id, str) and case_id.startswith("synthetic-") for case_id in all_ids)
+        and all(
+            isinstance(case_id, str) and case_id.startswith("synthetic-")
+            for case_id in all_ids
+        )
     )
 
 
-def _assessment_domain_labels(raw_dimensions: dict[str, Any]) -> tuple[str | None, str | None]:
+def _assessment_domain_labels(
+    raw_dimensions: dict[str, Any],
+) -> tuple[str | None, str | None]:
     """Business purpose: Normalize Assessment Root applicability and compliance as one contract pair.
 
     Business rules:
@@ -769,7 +834,10 @@ def _valid_human_judgment(
         reviewer_ids: list[str] = []
         dimension_labels: dict[str, dict[str, str]] = {}
         for reviewer in reviewers:
-            if not isinstance(reviewer, dict) or reviewer.get("reviewerType") != "HUMAN":
+            if (
+                not isinstance(reviewer, dict)
+                or reviewer.get("reviewerType") != "HUMAN"
+            ):
                 return False
             reviewer_id = reviewer.get("reviewerId")
             if not _valid_review_identity(
@@ -787,8 +855,14 @@ def _valid_human_judgment(
             dimensions = reviewer.get("dimensionsReviewed")
             if not isinstance(judgments, list) or not isinstance(dimensions, list):
                 return False
-            names = [item.get("dimension") for item in judgments if isinstance(item, dict)]
-            if len(names) != len(judgments) or len(names) != len(set(names)) or set(names) != set(dimensions):
+            names = [
+                item.get("dimension") for item in judgments if isinstance(item, dict)
+            ]
+            if (
+                len(names) != len(judgments)
+                or len(names) != len(set(names))
+                or set(names) != set(dimensions)
+            ):
                 return False
             if set(dimensions) != {dimension}:
                 return False
@@ -799,11 +873,16 @@ def _valid_human_judgment(
                     or not item.get("rationale")
                 ):
                     return False
-                dimension_labels.setdefault(item["dimension"], {})[reviewer_id] = item["label"]
+                dimension_labels.setdefault(item["dimension"], {})[reviewer_id] = item[
+                    "label"
+                ]
             target = next(item for item in judgments if item["dimension"] == dimension)
             if target["label"] not in set(spec["labels"]):
                 return False
-            if reviewer["decision"] == "CONFIRM" and target["label"] != judgment["label"]:
+            if (
+                reviewer["decision"] == "CONFIRM"
+                and target["label"] != judgment["label"]
+            ):
                 return False
             if reviewer["decision"] == "REVISE" and (
                 judgment["reviewStatus"] != "ADJUDICATED"
@@ -816,11 +895,17 @@ def _valid_human_judgment(
         disagreement_rows = judgment.get("reviewerDisagreements")
         if not isinstance(disagreement_rows, list):
             return False
-        disagreements = {row.get("dimension"): row for row in disagreement_rows if isinstance(row, dict)}
+        disagreements = {
+            row.get("dimension"): row
+            for row in disagreement_rows
+            if isinstance(row, dict)
+        }
         if len(disagreements) != len(disagreement_rows):
             return False
         conflicting_dimensions = {
-            name for name, values in dimension_labels.items() if len(set(values.values())) > 1
+            name
+            for name, values in dimension_labels.items()
+            if len(set(values.values())) > 1
         }
         if set(disagreements) != conflicting_dimensions:
             return False
@@ -843,7 +928,9 @@ def _valid_human_judgment(
         actual = dimension_labels.get(dimension, {})
         conflicting = dimension in conflicting_dimensions
         if judgment["reviewStatus"] == "REVIEWED":
-            if disagreement_rows or any(label != judgment["label"] for label in actual.values()):
+            if disagreement_rows or any(
+                label != judgment["label"] for label in actual.values()
+            ):
                 return False
             if any(row.get("decision") != "CONFIRM" for row in reviewers):
                 return False
@@ -871,11 +958,12 @@ def _valid_human_judgment(
             resolutions = adjudication.get("resolvedLabels")
             if not isinstance(resolutions, list):
                 return False
-            resolved = {row.get("dimension"): row for row in resolutions if isinstance(row, dict)}
-            if (
-                len(resolved) != len(resolutions)
-                or set(resolved) != {dimension}
-            ):
+            resolved = {
+                row.get("dimension"): row
+                for row in resolutions
+                if isinstance(row, dict)
+            }
+            if len(resolved) != len(resolutions) or set(resolved) != {dimension}:
                 return False
             if resolved[dimension].get("label") != judgment["label"]:
                 return False
@@ -917,18 +1005,26 @@ def _valid_human_judgment(
                 return False
             resolution = judgment["adjudication"]["resolvedLabels"]
             resolved = {row.get("dimension"): row for row in resolution}
-            if dimension not in resolved or resolved[dimension].get("label") != judgment["label"]:
+            if (
+                dimension not in resolved
+                or resolved[dimension].get("label") != judgment["label"]
+            ):
                 return False
         if not synthetic_test_mode:
             binding = prediction.get("targetBinding", prediction.get("p14Binding"))
-            if not _valid_review_target_binding(binding, prediction) or judgment.get("targetBinding") != binding:
+            if (
+                not _valid_review_target_binding(binding, prediction)
+                or judgment.get("targetBinding") != binding
+            ):
                 return False
         return True
     except (AttributeError, KeyError, TypeError, ValueError):
         return False
 
 
-def _expected_for_target(record: dict[str, Any], evaluation_target: str) -> dict[str, Any]:
+def _expected_for_target(
+    record: dict[str, Any], evaluation_target: str
+) -> dict[str, Any]:
     """Business purpose: Keep legal-outcome gold separate from fixed-claim diagnostic gold.
 
     Business rules:
@@ -1193,9 +1289,11 @@ def main() -> int:
     parser.add_argument("--dataset", type=Path, required=True)
     parser.add_argument("--predictions", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--rubric", type=Path, default=PACKAGE_ROOT / "rubric.v1.json")
     parser.add_argument(
-        "--source-pins", type=Path, default=PACKAGE_ROOT / "source-pins.v1.json"
+        "--rubric", type=Path, default=PACKAGE_ROOT / "rubric.vn-ai.v1.json"
+    )
+    parser.add_argument(
+        "--source-pins", type=Path, default=PACKAGE_ROOT / "source-pins.vn-ai.v1.json"
     )
     args = parser.parse_args()
     from evals.legal_reasoning.validation import load_dataset

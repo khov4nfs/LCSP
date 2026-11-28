@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
@@ -20,11 +21,12 @@ from evals.legal_reasoning.p14_cohort import (
     fixture_fingerprints,
     load_cohort,
 )
-from evals.legal_reasoning.review_overlay import (
-    REVIEW_OVERLAY_PATH,
-    merge_review_overlay,
+from evals.legal_reasoning.review_overlay import merge_review_overlay
+from evals.legal_reasoning.scorer import (
+    _assessment_domain_labels,
+    _canonical_sha256,
+    score_dataset,
 )
-from evals.legal_reasoning.scorer import _assessment_domain_labels, _canonical_sha256
 from evals.legal_reasoning.splits import load_split_manifest, validate_split_membership
 from evals.legal_reasoning.validation import PACKAGE_ROOT, load_dataset
 from evals.run_manifest import stable_hash
@@ -35,16 +37,21 @@ from evals.scorer import (
 )
 
 MAPPING_VERSION = "LCSP-400-P14-CASE-MAP-V2"
+OFFICIAL_MAPPING_VERSION = "LCSP-400-P14-CASE-MAP-V3"
 ASSESSMENT_VERDICT_MAP = {
     "APPLICABLE_COMPLIANT": (
-        "APPLICABLE", "COMPLIANT", "APPLICABLE", "SUPPORTED_COMPLIANCE"
+        "APPLICABLE",
+        "COMPLIANT",
+        "APPLICABLE",
+        "SUPPORTED_COMPLIANCE",
     ),
     "APPLICABLE_NON_COMPLIANT": (
-        "APPLICABLE", "NON_COMPLIANT", "APPLICABLE", "SUPPORTED_NON_COMPLIANCE"
+        "APPLICABLE",
+        "NON_COMPLIANT",
+        "APPLICABLE",
+        "SUPPORTED_NON_COMPLIANCE",
     ),
-    "NOT_APPLICABLE": (
-        "NOT_APPLICABLE", None, "NOT_APPLICABLE", "NOT_APPLICABLE"
-    ),
+    "NOT_APPLICABLE": ("NOT_APPLICABLE", None, "NOT_APPLICABLE", "NOT_APPLICABLE"),
     "UNRESOLVED": ("UNRESOLVED", "UNRESOLVED", "UNRESOLVED", "UNRESOLVED"),
 }
 
@@ -98,28 +105,58 @@ def integrate_p14_artifacts(
     p14_cases = load_benchmark_cases(Path(p14_cases_path))
     p14_case_by_id = {case.case_id: case for case in p14_cases}
     candidate_cases = load_dataset(candidate_cases_path)
-    rubric = _read_json(Path(rubric_path) if rubric_path else PACKAGE_ROOT / "rubric.v1.json")
+    vietnam_cases = (
+        bool(candidate_cases)
+        and candidate_cases[0].get("datasetVersion")
+        == "LCSP-400-VIETNAM-AI-CANDIDATES-V1"
+    )
+    rubric = _read_json(
+        Path(rubric_path)
+        if rubric_path
+        else PACKAGE_ROOT
+        / ("rubric.vn-ai.v1.json" if vietnam_cases else "rubric.v1.json")
+    )
     source_pins = _read_json(
-        Path(source_pins_path) if source_pins_path else PACKAGE_ROOT / "source-pins.v1.json"
+        Path(source_pins_path)
+        if source_pins_path
+        else PACKAGE_ROOT
+        / ("source-pins.vn-ai.v1.json" if vietnam_cases else "source-pins.v1.json")
     )
     shared_cohort = load_cohort(
-        shared_cohort_path or PACKAGE_ROOT / "p14-shared-cohort.v1.json"
+        shared_cohort_path
+        or PACKAGE_ROOT
+        / (
+            "p14-shared-cohort.vn-ai.v2.json"
+            if vietnam_cases
+            else "p14-shared-cohort.v1.json"
+        )
     )
     split_manifest = load_split_manifest(
-        split_manifest_path or PACKAGE_ROOT / "evaluation-splits.v1.json"
+        split_manifest_path
+        or PACKAGE_ROOT
+        / (
+            "evaluation-splits.vn-ai.v2.json"
+            if vietnam_cases
+            else "evaluation-splits.v1.json"
+        )
     )
     mapping = _read_json(Path(case_mapping_path))
+    selected_overlay = (
+        Path(review_overlay_path)
+        if review_overlay_path
+        else PACKAGE_ROOT
+        / (
+            "review-overlay.vn-ai.v1.json"
+            if vietnam_cases
+            else "review-overlay.v1.json"
+        )
+    )
     effective_candidate_cases = merge_review_overlay(
-        candidate_cases,
-        review_overlay_path or REVIEW_OVERLAY_PATH,
-        rubric,
-        source_pins,
+        candidate_cases, selected_overlay, rubric, source_pins
     )
 
     expected_inventory = manifest.get("expectedTrialInventory") or []
-    observed_keys = {
-        (row.case_id, row.trial_index, row.stage) for row in raw_outcomes
-    }
+    observed_keys = {(row.case_id, row.trial_index, row.stage) for row in raw_outcomes}
     missing_inventory = [
         row
         for row in expected_inventory
@@ -155,7 +192,12 @@ def integrate_p14_artifacts(
     )
     dimension_reviews = _load_dimension_reviews(dimension_reviews_path)
     dimension_review_by_key = {
-        (row["candidateCaseId"], row["p14CaseId"], row["lifecycleStage"], row["trialIndex"]): row
+        (
+            row["candidateCaseId"],
+            row["p14CaseId"],
+            row["lifecycleStage"],
+            row["trialIndex"],
+        ): row
         for row in dimension_reviews
     }
 
@@ -164,7 +206,9 @@ def integrate_p14_artifacts(
     trial_metadata = build_trial_metadata_map(manifest, raw_outcomes)
     outcomes_by_case_stage: dict[tuple[str, str], list[TrialOutcome]] = {}
     for outcome in raw_outcomes:
-        outcomes_by_case_stage.setdefault((outcome.case_id, outcome.stage), []).append(outcome)
+        outcomes_by_case_stage.setdefault((outcome.case_id, outcome.stage), []).append(
+            outcome
+        )
     cohort_by_id = {row["cohortCaseId"]: row for row in shared_cohort["cases"]}
     for entry in mapping["caseMappings"]:
         cohort_case = cohort_by_id[entry["cohortCaseId"]]
@@ -173,8 +217,10 @@ def integrate_p14_artifacts(
             (p14_case.case_id, entry["lifecycleStage"]), []
         )
         expected_target_trials = [
-            row for row in expected_inventory
-            if row["caseId"] == p14_case.case_id and row["stage"] == entry["lifecycleStage"]
+            row
+            for row in expected_inventory
+            if row["caseId"] == p14_case.case_id
+            and row["stage"] == entry["lifecycleStage"]
         ]
         present_target_trials = {row.trial_index for row in matching_outcomes}
         for expected_trial in expected_target_trials:
@@ -204,8 +250,13 @@ def integrate_p14_artifacts(
             trace_path = _resolve_trace(Path(trials_path).parent, outcome.trace_path)
             trace_bytes = trace_path.read_bytes()
             trace_doc = json.loads(trace_bytes.decode("utf-8"))
-            if not outcome.trace_sha256 or _sha256_bytes(trace_bytes) != outcome.trace_sha256:
-                raise ValueError(f"P14_TRACE_BYTE_DIGEST_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+            if (
+                not outcome.trace_sha256
+                or _sha256_bytes(trace_bytes) != outcome.trace_sha256
+            ):
+                raise ValueError(
+                    f"P14_TRACE_BYTE_DIGEST_MISMATCH:{outcome.case_id}:{outcome.trial_index}"
+                )
             output = _observed_output_from_trace(
                 trace_doc,
                 outcome=outcome,
@@ -214,6 +265,25 @@ def integrate_p14_artifacts(
                 outcomes_by_case_stage=outcomes_by_case_stage,
             )
             if output is None:
+                candidate_case_id = entry.get(
+                    "candidateCaseId", cohort_case["cohortCaseId"]
+                )
+                normalized_by_trial.setdefault(
+                    ("ACTUAL_ASSESSMENT_OUTPUT", outcome.stage, outcome.trial_index), []
+                ).append(
+                    {
+                        "caseId": candidate_case_id,
+                        "p14CaseId": outcome.case_id,
+                        "stage": "ASSESSMENT_ROOT",
+                        "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
+                        "observationKind": "GENERATED_LCSP_OUTPUT",
+                        "dimensionPredictions": {},
+                        "humanJudgments": {},
+                        "lifecycleStage": outcome.stage,
+                        "trialIndex": outcome.trial_index,
+                        "executionStatus": "EXECUTED_MISSING_OUTPUT",
+                    }
+                )
                 execution_records.append(
                     {
                         "cohortCaseId": cohort_case["cohortCaseId"],
@@ -222,7 +292,7 @@ def integrate_p14_artifacts(
                         "trialIndex": outcome.trial_index,
                         "executionStatus": "EXECUTED_MISSING_OUTPUT",
                         "traceSha256": outcome.trace_sha256,
-                        "scoringStatus": "NOT_SCORED",
+                        "scoringStatus": "MISSING_PREDICTION_COUNTS_AS_ERROR",
                     }
                 )
                 continue
@@ -237,7 +307,9 @@ def integrate_p14_artifacts(
                 metadata=meta,
             )
             decision = output.get("actualAssessmentDecision") or {}
-            decision_body = decision.get("decision", decision) if isinstance(decision, dict) else {}
+            decision_body = (
+                decision.get("decision", decision) if isinstance(decision, dict) else {}
+            )
             raw_dimensions = {
                 field: decision_body[field]
                 for field in ("applicability", "compliance")
@@ -253,8 +325,14 @@ def integrate_p14_artifacts(
                     normalized_compliance = "UNRESOLVED"
             applicability = raw_dimensions.get("applicability")
             compliance = raw_dimensions.get("compliance")
+            candidate_case_id = entry.get(
+                "candidateCaseId", cohort_case["cohortCaseId"]
+            )
             review_key = (
-                cohort_case["cohortCaseId"], outcome.case_id, outcome.stage, outcome.trial_index
+                candidate_case_id,
+                outcome.case_id,
+                outcome.stage,
+                outcome.trial_index,
             )
             dimension_review = dimension_review_by_key.pop(review_key, None)
             human_judgments = (
@@ -263,7 +341,7 @@ def integrate_p14_artifacts(
                 else {}
             )
             prediction = {
-                "caseId": cohort_case["cohortCaseId"],
+                "caseId": candidate_case_id,
                 "p14CaseId": outcome.case_id,
                 "stage": "ASSESSMENT_ROOT",
                 "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
@@ -318,13 +396,14 @@ def integrate_p14_artifacts(
     }
     mapping_inventory["executableCaseCount"] = len(executed_case_ids)
     mapping_inventory["mappedTrialCount"] = sum(
-        1 for row in execution_records
-        if row["executionStatus"] in {"EXECUTED_MISSING_OUTPUT", "EXECUTED_OUTPUT_AVAILABLE"}
+        1
+        for row in execution_records
+        if row["executionStatus"]
+        in {"EXECUTED_MISSING_OUTPUT", "EXECUTED_OUTPUT_AVAILABLE"}
     )
     mapping_inventory["mappedCaseWithoutTrialCount"] = sum(
         not any(
-            row["cohortCaseId"] == case_id
-            and row["executionStatus"] != "NOT_EXECUTED"
+            row["cohortCaseId"] == case_id and row["executionStatus"] != "NOT_EXECUTED"
             for row in execution_records
         )
         for case_id in mapped_case_ids
@@ -332,42 +411,129 @@ def integrate_p14_artifacts(
     mapping_inventory["notExecutedTrialCount"] = sum(
         row["executionStatus"] == "NOT_EXECUTED" for row in execution_records
     )
-    mapping_inventory["notExecutedCaseCount"] = mapping_inventory["mappedCaseWithoutTrialCount"]
+    mapping_inventory["notExecutedCaseCount"] = mapping_inventory[
+        "mappedCaseWithoutTrialCount"
+    ]
     mapping_inventory["executedMissingOutputCount"] = sum(
         row["executionStatus"] == "EXECUTED_MISSING_OUTPUT" for row in execution_records
     )
     mapping_inventory["outputAvailableCount"] = sum(
-        row["executionStatus"] == "EXECUTED_OUTPUT_AVAILABLE" for row in execution_records
+        row["executionStatus"] == "EXECUTED_OUTPUT_AVAILABLE"
+        for row in execution_records
     )
-    mapping_inventory["scoringEligibleCaseCount"] = 0
+    p14_mode = (
+        raw_outcomes[0].mode
+        if raw_outcomes
+        else manifest.get("runConfig", {}).get("mode", "UNKNOWN")
+    )
+    structurally_reviewed_ids = {
+        row["caseId"]
+        for row in effective_candidate_cases
+        if (
+            row.get("reviewStatus") == "REVIEWED"
+            and not row.get("reviewerDisagreements")
+        )
+        or (
+            row.get("reviewStatus") == "ADJUDICATED"
+            and row.get("adjudication", {}).get("outcome") in {"CONFIRM", "REVISE"}
+        )
+    }
+    execution_candidate_ids = {
+        cohort_by_id[row["cohortCaseId"]].get("candidateCaseId", row["cohortCaseId"])
+        for row in execution_records
+        if row["executionStatus"] != "NOT_EXECUTED"
+    }
+    mapping_inventory["scoringEligibleCaseCount"] = len(
+        execution_candidate_ids & structurally_reviewed_ids
+    )
     mapping_inventory["expectedExecutionCount"] = sum(
-        1 for row in execution_records
-        if row.get("trialIndex") is not None
+        1 for row in execution_records if row.get("trialIndex") is not None
     )
 
-    rubric_reports = [
-        {
-            "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
-            "scoringStatus": "NOT_SCORED",
-            "reason": "SHARED_COHORT_HAS_NO_HUMAN_REVIEWED_LEGAL_GOLD",
-            "denominator": 0,
-            "macroF1": None,
-            "falsePositives": None,
-            "falseNegatives": None,
+    rubric_reports = []
+    for trial_key in sorted(normalized_by_trial):
+        target, lifecycle, trial_index = trial_key
+        prediction_rows = sorted(
+            normalized_by_trial[trial_key], key=lambda row: row["caseId"]
+        )
+        trial_prediction_case_ids = {row["caseId"] for row in prediction_rows}
+        candidate_target_case_ids = {
+            row["caseId"]
+            for row in effective_candidate_cases
+            if row["evaluationTarget"] == target
         }
-    ]
+        trial_scoring_case_ids = trial_prediction_case_ids & candidate_target_case_ids
+        normalized_input = {
+            "predictionVersion": "LCSP-400-NORMALIZED-PREDICTIONS-V1",
+            "evaluationTarget": target,
+            "sourceKind": "P14_VALIDATED_ARTIFACTS",
+            "syntheticOnly": False,
+            "runMetadata": {
+                "runId": manifest.get("runId"),
+                "lifecycleStage": lifecycle,
+                "trialIndex": trial_index,
+                "mode": p14_mode,
+            },
+            "casePredictions": prediction_rows,
+        }
+        scored = score_dataset(
+            effective_candidate_cases,
+            normalized_input,
+            rubric,
+            source_pins,
+            scoring_case_ids=trial_scoring_case_ids,
+        )
+        scored["reportClassification"] = (
+            "P14_VERIFIED_SCRIPTED_DIAGNOSTIC"
+            if p14_mode == "SCRIPTED"
+            else "P14_VERIFIED_LIVE_ARTIFACTS"
+            if p14_mode == "LIVE"
+            else "P14_VERIFIED_OFFLINE_FIXTURE_DIAGNOSTIC"
+        )
+        scored["executionProvenanceStatus"] = (
+            "VALIDATED_P14_MANIFEST_TRACE_OUTPUT_AND_OUTCOME_BINDING"
+        )
+        scored["verifiedExecutionMetrics"] = scored["scoringStatus"] == "SCORED"
+        scored["qualityClaimStatus"] = (
+            "SCRIPTED_DIAGNOSTIC_ONLY"
+            if p14_mode == "SCRIPTED"
+            else "LIVE_QUALITY_METRICS"
+            if p14_mode == "LIVE" and scored["verifiedExecutionMetrics"]
+            else "NOT_SCORED"
+        )
+        scored["lifecycleStage"] = lifecycle
+        scored["trialIndex"] = trial_index
+        scored["executionCaseCount"] = len(trial_prediction_case_ids)
+        scored["scoringCohortCaseCount"] = len(trial_scoring_case_ids)
+        rubric_reports.append(scored)
 
-    p14_mode = raw_outcomes[0].mode if raw_outcomes else manifest.get("runConfig", {}).get("mode", "UNKNOWN")
+    scored_reports = [row for row in rubric_reports if row["scoringStatus"] == "SCORED"]
+    reviewed_gold_denominator = sum(
+        metric["denominator"]
+        for report in scored_reports
+        for metric in report["perDimension"].values()
+    )
+    scoring_status = "SCORED" if scored_reports else "NOT_SCORED"
+    scoring_reason = (
+        None
+        if scored_reports
+        else "NO_EXECUTED_MAPPED_OUTPUTS"
+        if not rubric_reports
+        else "NO_REVIEWED_LEGAL_GOLD_FOR_EXACT_EXECUTION_COHORT"
+    )
+
     seeded_review_count = p14_review_diagnostics["seededUnverified"]["totalReviewed"]
     p14_expert_flagged_count = p14_review_diagnostics["expertVerified"]["totalReviewed"]
     return {
         "integrationReportVersion": "LCSP-400-P14-INTEGRATION-REPORT-V1",
-        "artifactValidationStatus": "INCOMPLETE_EXECUTION" if missing_inventory else "VALIDATED",
+        "artifactValidationStatus": "INCOMPLETE_EXECUTION"
+        if missing_inventory
+        else "VALIDATED",
         "artifactProvenanceStatus": "VALIDATED_P14_ARTIFACT_BYTES"
         if not missing_inventory
         else "VALIDATED_P14_ARTIFACT_BYTES_WITH_INCOMPLETE_EXECUTION",
         "verifiedArtifactReport": True,
-        "verifiedSemanticMetrics": False,
+        "verifiedSemanticMetrics": bool(scored_reports and p14_mode == "LIVE"),
         "artifactClassification": {
             "OFFLINE_FIXTURE": "P14_OFFLINE_FIXTURE_ARTIFACTS",
             "SCRIPTED": "P14_SCRIPTED_EXECUTION_ARTIFACTS",
@@ -386,7 +552,9 @@ def integrate_p14_artifacts(
             "manifestSha256": manifest.get("manifestSha256"),
             "mode": p14_mode,
             "trialCount": len(raw_outcomes),
-            "p14CasesDatasetSha256": manifest.get("sourcePins", {}).get("casesDatasetSha256"),
+            "p14CasesDatasetSha256": manifest.get("sourcePins", {}).get(
+                "casesDatasetSha256"
+            ),
             "repositoryCommitSha": manifest.get("gitCommitSha"),
             "modelRoute": (manifest.get("model") or {}).get("configuredModelId"),
             "instructionBundleDigest": _manifest_instruction_digest(manifest),
@@ -408,14 +576,20 @@ def integrate_p14_artifacts(
             "expectedTrialCount": mapping_inventory["expectedExecutionCount"],
             "executedTrialCount": mapping_inventory["mappedTrialCount"],
             "notExecutedTrialCount": mapping_inventory["notExecutedTrialCount"],
-            "executedMissingOutputCount": mapping_inventory["executedMissingOutputCount"],
+            "executedMissingOutputCount": mapping_inventory[
+                "executedMissingOutputCount"
+            ],
             "outputAvailableCount": mapping_inventory["outputAvailableCount"],
             "scoringEligibleCaseCount": mapping_inventory["scoringEligibleCaseCount"],
             "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION",
         },
         "caseExecutionRecords": sorted(
             execution_records,
-            key=lambda row: (row["cohortCaseId"], row.get("lifecycleStage", ""), row.get("trialIndex", -1)),
+            key=lambda row: (
+                row["cohortCaseId"],
+                row.get("lifecycleStage", ""),
+                row.get("trialIndex", -1),
+            ),
         ),
         "missingExpectedTrialCount": len(missing_inventory),
         "missingExpectedTrials": sorted(
@@ -436,7 +610,11 @@ def integrate_p14_artifacts(
             "groupCounts": split_manifest["splitGroupCounts"],
             "currentP14CaseMembership": {
                 case_id: split_membership[
-                    next(row["cohortCaseId"] for row in shared_cohort["cases"] if row["p14CaseId"] == case_id)
+                    next(
+                        row["cohortCaseId"]
+                        for row in shared_cohort["cases"]
+                        if row["p14CaseId"] == case_id
+                    )
                 ]
                 for case_id in sorted(row.case_id for row in p14_cases)
             },
@@ -452,19 +630,22 @@ def integrate_p14_artifacts(
                     "trialIndex": prediction["p14Binding"]["trialIndex"],
                     "threadId": prediction["p14Binding"]["threadId"],
                     "traceSha256": prediction["p14Binding"]["traceSha256"],
-                    "observedOutputSha256": prediction["p14Binding"]["observedOutputSha256"],
+                    "observedOutputSha256": prediction["p14Binding"][
+                        "observedOutputSha256"
+                    ],
                 }
                 for rows in normalized_by_trial.values()
                 for prediction in rows
+                if isinstance(prediction.get("p14Binding"), dict)
             ),
             key=lambda row: (
-                row["candidateCaseId"], row["lifecycleStage"], row["trialIndex"]
+                row["candidateCaseId"],
+                row["lifecycleStage"],
+                row["trialIndex"],
             ),
         ),
         "annotationReviewInventory": _review_inventory(effective_candidate_cases),
-        "reviewOverlaySha256": _sha256_file(
-            Path(review_overlay_path) if review_overlay_path else REVIEW_OVERLAY_PATH
-        ),
+        "reviewOverlaySha256": _sha256_file(selected_overlay),
         "p14ReviewDiagnostics": {
             "seededUnverifiedCount": seeded_review_count,
             "p14ExpertVerifiedFlagCount": p14_expert_flagged_count,
@@ -476,16 +657,43 @@ def integrate_p14_artifacts(
             "note": "P14's binary verdict review fields do not constitute LCSP-400 dimension judgments. The separate dimension-review contract checks structure and trace binding, not reviewer authenticity.",
         },
         "rubricReportsByTargetAndTrial": rubric_reports,
-        "scoringStatus": "NOT_SCORED"
-        if mapping_inventory["scoringEligibleCaseCount"] == 0
-        else "SCORED",
-        "humanReviewedQualityMetrics": "NOT_SCORED",
-        "reviewedGoldDenominator": 0,
-        "scoringReason": "NO_REVIEWED_LEGAL_GOLD_FOR_EXACT_EXECUTION_COHORT",
+        "scoringStatus": scoring_status,
+        "humanReviewedQualityMetrics": (
+            "NOT_SCORED"
+            if not scored_reports
+            else "SCRIPTED_DIAGNOSTIC_ONLY"
+            if p14_mode == "SCRIPTED"
+            else "OFFLINE_FIXTURE_DIAGNOSTIC_ONLY"
+            if p14_mode == "OFFLINE_FIXTURE"
+            else "SCORED_PER_TRIAL"
+        ),
+        "reviewedGoldDenominator": reviewed_gold_denominator,
+        "scoringReason": scoring_reason,
         "scriptedExecutionVerification": "PASS"
         if p14_mode == "SCRIPTED" and mapping_inventory["outputAvailableCount"] > 0
         else "NOT_VERIFIED",
-        "actualExecutionBaseline": "NOT_RUN",
+        "actualExecutionStatus": "NOT_RUN"
+        if not raw_outcomes
+        else f"{p14_mode}_EXECUTED"
+        if not missing_inventory
+        else f"{p14_mode}_EXECUTED_INCOMPLETE",
+        "executionArtifactStatus": "VALIDATED_P14_ARTIFACT_BYTES",
+        "reviewedGoldAvailabilityStatus": "STRUCTURALLY_REVIEWED_GOLD_PRESENT"
+        if structurally_reviewed_ids
+        else "NO_REVIEWED_GOLD",
+        "reviewAuthenticityStatus": "NOT_AUTHENTICATED_BY_TOOL",
+        "liveQualityMetricStatus": "SCORED"
+        if p14_mode == "LIVE" and scored_reports
+        else "NOT_SCORED",
+        "actualExecutionBaseline": (
+            "NOT_RUN"
+            if p14_mode != "LIVE" or not raw_outcomes
+            else "LIVE_EXECUTED_NO_REVIEWER_USABLE_OUTPUT"
+            if mapping_inventory["outputAvailableCount"] == 0
+            else "LIVE_EXECUTED_SCORED"
+            if scored_reports
+            else "LIVE_EXECUTED_UNSCORED_NO_REVIEWED_GOLD"
+        ),
     }
 
 
@@ -522,7 +730,10 @@ def validate_case_mapping(
     Side effects:
     - Reads the exact local P14 repository fixture trees to verify their saved manifest pins.
     """
-    if not isinstance(mapping, dict) or mapping.get("mappingVersion") != MAPPING_VERSION:
+    if not isinstance(mapping, dict) or mapping.get("mappingVersion") not in {
+        MAPPING_VERSION,
+        OFFICIAL_MAPPING_VERSION,
+    }:
         raise ValueError("P14_CASE_MAPPING_VERSION_INVALID")
     mapping_rows = mapping.get("caseMappings")
     pinned_inputs = mapping.get("pinnedInputs")
@@ -545,19 +756,37 @@ def validate_case_mapping(
         raise ValueError("P14_CASE_MAPPING_COHORT_SNAPSHOT_STALE")
     if expected_pins.get("splitManifestSha256") != split_manifest.get("splitDigest"):
         raise ValueError("P14_CASE_MAPPING_SPLIT_SNAPSHOT_STALE")
-    if manifest.get("sourcePins", {}).get("caseSplitManifestSha256") != split_manifest.get("splitDigest"):
+    if manifest.get("sourcePins", {}).get(
+        "caseSplitManifestSha256"
+    ) != split_manifest.get("splitDigest"):
         raise ValueError("P14_MANIFEST_SPLIT_SNAPSHOT_MISMATCH")
 
     p14_by_id = {case.case_id: case for case in p14_case_list}
     cohort_by_id = {row["cohortCaseId"]: row for row in shared_cohort["cases"]}
     if set(p14_by_id) != {row["p14CaseId"] for row in shared_cohort["cases"]}:
         raise ValueError("P14_CASE_MAPPING_COHORT_CASE_INVENTORY_MISMATCH")
+    if mapping["mappingVersion"] == OFFICIAL_MAPPING_VERSION:
+        return _validate_official_vn_mapping(
+            mapping,
+            candidate_cases,
+            p14_case_list,
+            manifest,
+            source_pins,
+            shared_cohort,
+            split_manifest,
+            p14_by_id,
+            cohort_by_id,
+        )
     seen_cohort: set[str] = set()
     seen_p14: set[str] = set()
     repo_tree_pins: dict[str, dict[str, str]] = {}
     for entry in mapping_rows:
         if not isinstance(entry, dict) or set(entry) != {
-            "cohortCaseId", "p14CaseId", "evaluationStage", "lifecycleStage", "p14RuleId"
+            "cohortCaseId",
+            "p14CaseId",
+            "evaluationStage",
+            "lifecycleStage",
+            "p14RuleId",
         }:
             raise ValueError("P14_CASE_MAPPING_ENTRY_INVALID")
         cohort_id = entry["cohortCaseId"]
@@ -582,12 +811,20 @@ def validate_case_mapping(
         if lifecycle not in {stage.stage for stage in p14_case.gold_rubric.stages}:
             raise ValueError(f"P14_CASE_MAPPING_LIFECYCLE_STAGE_MISMATCH:{cohort_id}")
         p14_rule = next(
-            (rule for rule in p14_case.rule_definitions if rule.rule_id == entry.get("p14RuleId")),
+            (
+                rule
+                for rule in p14_case.rule_definitions
+                if rule.rule_id == entry.get("p14RuleId")
+            ),
             None,
         )
         if p14_rule is None:
             raise ValueError(f"P14_CASE_MAPPING_RULE_MISMATCH:{cohort_id}")
-        provision = p14_case.legal_provisions[0] if len(p14_case.legal_provisions) == 1 else None
+        provision = (
+            p14_case.legal_provisions[0]
+            if len(p14_case.legal_provisions) == 1
+            else None
+        )
         if (
             provision is None
             or cohort_row.get("jurisdiction") != "VN_FIXTURE_LABEL_ONLY"
@@ -599,7 +836,9 @@ def validate_case_mapping(
             or cohort_row.get("documentId") != provision.document_id
             or cohort_row.get("provisionLocator") != provision.locator
         ):
-            raise ValueError(f"P14_CASE_MAPPING_LEGAL_SOURCE_CROSSBIND_MISMATCH:{cohort_id}")
+            raise ValueError(
+                f"P14_CASE_MAPPING_LEGAL_SOURCE_CROSSBIND_MISMATCH:{cohort_id}"
+            )
         if cohort_row.get("fixtureFingerprints") != fixture_fingerprints(
             p14_case, lifecycle, p14_rule.rule_id
         ):
@@ -610,18 +849,27 @@ def validate_case_mapping(
         repo_tree_pins[repo.repo_id] = {
             "snapshotKind": repo.snapshot_kind,
             "commitSha": repo.commit_sha,
-            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / repo.fixture_dir).resolve()),
+            "treeSha256": _hash_repo_fixture_tree(
+                (DEEPAGENTS_ROOT / repo.fixture_dir).resolve()
+            ),
         }
-        if cohort_row.get("split") != p14_case.split or cohort_row.get("split") not in {"DEV", "HOLDOUT"}:
+        if cohort_row.get("split") != p14_case.split or cohort_row.get("split") not in {
+            "DEV",
+            "HOLDOUT",
+        }:
             raise ValueError(f"P14_CASE_MAPPING_SPLIT_MISMATCH:{cohort_id}")
     for p14_case in p14_case_list:
         repo = p14_case.repo_pin
         repo_tree_pins[repo.repo_id] = {
             "snapshotKind": repo.snapshot_kind,
             "commitSha": repo.commit_sha,
-            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / repo.fixture_dir).resolve()),
+            "treeSha256": _hash_repo_fixture_tree(
+                (DEEPAGENTS_ROOT / repo.fixture_dir).resolve()
+            ),
         }
-    if stable_hash(repo_tree_pins) != manifest.get("sourcePins", {}).get("repoPinsSha256"):
+    if stable_hash(repo_tree_pins) != manifest.get("sourcePins", {}).get(
+        "repoPinsSha256"
+    ):
         raise ValueError("P14_CASE_MAPPING_REPOSITORY_TREE_SNAPSHOT_MISMATCH")
 
     split_members = {
@@ -631,7 +879,9 @@ def validate_case_mapping(
     }
     for cohort_row in shared_cohort["cases"]:
         if split_members.get(cohort_row["cohortCaseId"]) != cohort_row["split"]:
-            raise ValueError(f"P14_CASE_MAPPING_SPLIT_GROUP_MISMATCH:{cohort_row['cohortCaseId']}")
+            raise ValueError(
+                f"P14_CASE_MAPPING_SPLIT_GROUP_MISMATCH:{cohort_row['cohortCaseId']}"
+            )
 
     target_counts = Counter(row["evaluationTarget"] for row in candidate_cases)
     fixed_diagnostic_count = target_counts.get("FIXED_CLAIM_DIAGNOSTIC", 0)
@@ -657,6 +907,348 @@ def validate_case_mapping(
             "FIXED_CLAIM_DIAGNOSTIC_NOT_GENERATED_OUTPUT": fixed_diagnostic_count,
         },
     }
+
+
+def _validate_official_vn_mapping(
+    mapping: dict[str, Any],
+    candidate_cases: list[dict[str, Any]],
+    p14_cases: list[BenchmarkCase],
+    manifest: dict[str, Any],
+    source_pins: dict[str, Any],
+    shared_cohort: dict[str, Any],
+    split_manifest: dict[str, Any],
+    p14_by_id: dict[str, BenchmarkCase],
+    cohort_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Business purpose: Prove exact correspondence between Vietnamese candidate facts and official P14 cases.
+
+    Business rules:
+    - The official corpus PDFs, extraction receipt, provision bytes, candidate proposition, P14 rule, scenario evidence, repository tree, stage, and split must match exactly.
+    - Independent valid hashes do not establish semantic correspondence, and approximate legal crosswalks are rejected.
+
+    Execution flow:
+    1. Revalidate official source pins and provision content against the checked-in corpus.
+    2. Compare each map row with its candidate, cohort, P14 case, target rule, repository evidence, and split.
+    3. Return the validated execution inventory.
+
+    Failure cases:
+    - Foreign sources, wrong PDF/version/article, changed facts, repository, rule, lifecycle, split, or duplicate IDs raise a validation error.
+
+    Side effects:
+    - Reads official legal corpus and P14 fixture bytes; writes nothing."""
+    from evals.policy_baseline import CORPUS, _load_legal_context
+
+    if (
+        source_pins.get("jurisdiction") != "VIETNAM"
+        or shared_cohort.get("cohortKind") != "OFFICIAL_VN_SOURCE_PINNED_P14_CASES"
+    ):
+        raise ValueError("P14_VN_OFFICIAL_SOURCE_CLASSIFICATION_INVALID")
+    context, corpus_sources = _load_legal_context()
+    official = source_pins.get("officialCorpus", {})
+    legal_manifest = _read_json(CORPUS / "manifest.json")
+    expected_corpus = {
+        "corpusId": shared_cohort.get("corpusId"),
+        "version": shared_cohort.get("corpusVersion"),
+        "corpusDigestSha256": shared_cohort.get("corpusDigestSha256"),
+        "manifestSha256": corpus_sources["manifestSha256"],
+        "selectorsSha256": corpus_sources["selectorsSha256"],
+        "ingestionReceiptSha256": corpus_sources["ingestionReceiptSha256"],
+    }
+    if official != expected_corpus or official.get("corpusDigestSha256") != stable_hash(
+        corpus_sources
+    ):
+        raise ValueError("P14_VN_OFFICIAL_CORPUS_PIN_MISMATCH")
+    if not all(
+        shared_cohort.get(field) == official.get(cohort_field)
+        for field, cohort_field in (
+            ("corpusId", "corpusId"),
+            ("corpusVersion", "version"),
+            ("corpusDigestSha256", "corpusDigestSha256"),
+        )
+    ):
+        raise ValueError("P14_VN_COHORT_CORPUS_MISMATCH")
+    docs = {row["number"]: row for row in legal_manifest["documents"]}
+    source_by_id = {row["sourceId"]: row for row in source_pins.get("sources", [])}
+    expected_source_ids = {"VN_LAW_134_2025_QH15", "VN_DECREE_142_2026_ND_CP"}
+    if set(source_by_id) != expected_source_ids:
+        raise ValueError("P14_VN_SOURCE_ID_INVALID")
+    document_by_source = {
+        "VN_LAW_134_2025_QH15": "134-2025-QH15",
+        "VN_DECREE_142_2026_ND_CP": "142-2026-ND-CP",
+    }
+    provision_count = 0
+    expected_context_refs = set()
+    for context_key, verified in context.items():
+        number = verified.document_id
+        source_id = (
+            "VN_LAW_134_2025_QH15"
+            if number == "134-2025-QH15"
+            else "VN_DECREE_142_2026_ND_CP"
+        )
+        article_match = re.search(r"([0-9]+)", verified.locator)
+        if not article_match:
+            raise ValueError("P14_VN_VERIFIED_LOCATOR_INVALID")
+        expected_context_refs.add(
+            (
+                source_id,
+                f"article-{article_match.group(1)}",
+                verified.locator,
+                verified.content_sha256,
+            )
+        )
+    actual_context_refs = set()
+    for source_id, source in source_by_id.items():
+        number = document_by_source[source_id]
+        document = docs[number]
+        expected_version = f"{number}@pdf-sha256:{document['sha256']}"
+        if (
+            source.get("jurisdiction") != "VIETNAM"
+            or source.get("sourceKind") != "OFFICIAL_PINNED_LAW"
+            or source.get("documentNumber") != number
+            or source.get("sourceUrl") != document["sourcePage"]
+            or source.get("pdfSha256") != document["sha256"]
+            or source.get("sourceVersion") != expected_version
+        ):
+            raise ValueError(f"P14_VN_SOURCE_PIN_INVALID:{source_id}")
+        for provision_id, provision in source.get("provisions", {}).items():
+            actual_context_refs.add(
+                (
+                    source_id,
+                    provision_id,
+                    provision.get("locator"),
+                    provision.get("contentSha256"),
+                )
+            )
+        provision_count += len(source.get("provisions", {}))
+    if actual_context_refs != expected_context_refs:
+        raise ValueError("P14_VN_SOURCE_PROVISION_INVENTORY_MISMATCH")
+    candidates = {row["caseId"]: row for row in candidate_cases}
+    if len(candidates) != len(candidate_cases):
+        raise ValueError("P14_VN_CANDIDATE_ID_DUPLICATE")
+    split_membership = {
+        case_id: group["split"]
+        for group in split_manifest["groups"]
+        for case_id in group["caseIds"]
+    }
+    seen_cohort: set[str] = set()
+    seen_candidate: set[str] = set()
+    seen_p14: set[str] = set()
+    for entry in mapping.get("caseMappings", []):
+        if not isinstance(entry, dict) or set(entry) != {
+            "cohortCaseId",
+            "candidateCaseId",
+            "p14CaseId",
+            "evaluationStage",
+            "lifecycleStage",
+            "p14RuleId",
+        }:
+            raise ValueError("P14_VN_MAP_ENTRY_INVALID")
+        cohort_id, candidate_id, p14_id = (
+            entry["cohortCaseId"],
+            entry["candidateCaseId"],
+            entry["p14CaseId"],
+        )
+        if (
+            cohort_id in seen_cohort
+            or candidate_id in seen_candidate
+            or p14_id in seen_p14
+        ):
+            raise ValueError("P14_VN_MAP_DUPLICATE_ID")
+        seen_cohort.add(cohort_id)
+        seen_candidate.add(candidate_id)
+        seen_p14.add(p14_id)
+        cohort_row, candidate, case = (
+            cohort_by_id.get(cohort_id),
+            candidates.get(candidate_id),
+            p14_by_id.get(p14_id),
+        )
+        if cohort_row is None or candidate is None or case is None:
+            raise ValueError("P14_VN_MAP_TARGET_NOT_FOUND")
+        binding = candidate.get("executionBinding", {})
+        target = candidate.get("targetObligation", {})
+        if (
+            cohort_row.get("candidateCaseId") != candidate_id
+            or cohort_row.get("p14CaseId") != p14_id
+            or binding.get("p14CaseId") != p14_id
+            or binding.get("evaluationStage") != entry["evaluationStage"]
+            or binding.get("lifecycleStage") != entry["lifecycleStage"]
+            or binding.get("targetRuleId") != entry["p14RuleId"]
+            or entry["evaluationStage"] != "ASSESSMENT_ROOT"
+            or candidate.get("evaluationTarget") != "ACTUAL_ASSESSMENT_OUTPUT"
+            or candidate.get("stage") != "ASSESSMENT_ROOT"
+        ):
+            raise ValueError(f"P14_VN_TARGET_BINDING_MISMATCH:{candidate_id}")
+        rule = next(
+            (row for row in case.rule_definitions if row.rule_id == entry["p14RuleId"]),
+            None,
+        )
+        if rule is None or rule.rule_id not in case.rule_set_pin.rule_ids:
+            raise ValueError(f"P14_VN_RULE_BINDING_MISMATCH:{p14_id}")
+        if (
+            target.get("targetRuleId") != rule.rule_id
+            or target.get("proposition") != rule.requirement_proposition
+            or target.get("conditions") != list(rule.applicability_conditions)
+            or target.get("exceptions") != list(rule.exceptions)
+        ):
+            raise ValueError(f"P14_VN_PROPOSITION_BINDING_MISMATCH:{candidate_id}")
+        if (
+            case.corpus_pin.corpus_id != official["corpusId"]
+            or case.corpus_pin.version != official["version"]
+            or case.corpus_pin.digest_sha256 != official["corpusDigestSha256"]
+            or cohort_row.get("sourceKind") != "OFFICIAL_PINNED_LAW"
+            or cohort_row.get("jurisdiction") != "VIETNAM"
+            or cohort_row.get("corpusId") != case.corpus_pin.corpus_id
+            or cohort_row.get("corpusVersion") != case.corpus_pin.version
+            or cohort_row.get("corpusDigestSha256") != case.corpus_pin.digest_sha256
+        ):
+            raise ValueError(f"P14_VN_CASE_CORPUS_MISMATCH:{p14_id}")
+        actual_refs = set()
+        for provision in case.legal_provisions:
+            if provision.source_kind != "OFFICIAL_PINNED_LAW":
+                raise ValueError(f"P14_VN_PROVISION_NOT_OFFICIAL:{p14_id}")
+            match = re.search(r"([0-9]+)", provision.locator)
+            if not match:
+                raise ValueError(f"P14_VN_PROVISION_LOCATOR_INVALID:{p14_id}")
+            article = match.group(1)
+            context_key = (
+                "law-" if provision.document_id == "134-2025-QH15" else "decree-"
+            ) + article
+            source_id = (
+                "VN_LAW_134_2025_QH15"
+                if provision.document_id == "134-2025-QH15"
+                else "VN_DECREE_142_2026_ND_CP"
+            )
+            pinned_source = source_by_id.get(source_id, {})
+            pinned_provision = pinned_source.get("provisions", {}).get(
+                f"article-{article}", {}
+            )
+            verified = context.get(context_key)
+            if (
+                verified is None
+                or verified.model_dump() != provision.model_dump()
+                or pinned_provision.get("locator") != provision.locator
+                or pinned_provision.get("contentSha256") != provision.content_sha256
+            ):
+                raise ValueError(
+                    f"P14_VN_PROVISION_BYTES_MISMATCH:{p14_id}:{context_key}"
+                )
+            actual_refs.add(f"{source_id}:article-{article}")
+        candidate_refs = set(target.get("provisionRefs", []))
+        referenced = set()
+        for legal_ref in [
+            candidate.get("legalSource", {}),
+            *candidate.get("relatedLegalSources", []),
+        ]:
+            source = source_by_id.get(legal_ref.get("sourceId"), {})
+            if legal_ref.get("sourceVersion") != source.get(
+                "sourceVersion"
+            ) or legal_ref.get("sourceUrl") != source.get("sourceUrl"):
+                raise ValueError(f"P14_VN_CANDIDATE_SOURCE_MISMATCH:{candidate_id}")
+            for ref in legal_ref.get("provisionRefs", []):
+                pinned = source.get("provisions", {}).get(ref)
+                if pinned is None or pinned.get("citation") not in legal_ref.get(
+                    "citations", []
+                ):
+                    raise ValueError(
+                        f"P14_VN_CANDIDATE_PROVISION_MISMATCH:{candidate_id}"
+                    )
+                referenced.add(f"{source['sourceId']}:{ref}")
+        if candidate_refs != actual_refs or referenced != actual_refs:
+            raise ValueError(f"P14_VN_SOURCE_RULE_CROSSBIND_MISMATCH:{candidate_id}")
+        fingerprints = fixture_fingerprints(case, entry["lifecycleStage"], rule.rule_id)
+        if (
+            cohort_row.get("fixtureFingerprints") != fingerprints
+            or binding.get("fixtureFingerprints") != fingerprints
+        ):
+            raise ValueError(f"P14_VN_FIXTURE_FINGERPRINT_MISMATCH:{candidate_id}")
+        if binding.get("releaseEvidenceSha256") != _sha256_file_for_repo(case):
+            raise ValueError(f"P14_VN_SCENARIO_EVIDENCE_MISMATCH:{candidate_id}")
+        evidence_path = (
+            DEEPAGENTS_ROOT / case.repo_pin.fixture_dir
+        ).resolve() / "release-evidence.json"
+        facts = json.loads(evidence_path.read_text(encoding="utf-8"))
+        expected_facts = [
+            f"{key}={json.dumps(value, ensure_ascii=False, sort_keys=True)}"
+            for key, value in sorted(facts.items())
+        ]
+        if candidate.get("scenarioFacts") != expected_facts:
+            raise ValueError(f"P14_VN_SCENARIO_FACTS_MISMATCH:{candidate_id}")
+        if (
+            entry["lifecycleStage"]
+            not in {row.stage for row in case.gold_rubric.stages}
+            or cohort_row.get("lifecycleStage") != entry["lifecycleStage"]
+            or cohort_row.get("targetRuleId") != rule.rule_id
+            or cohort_row.get("evaluationStage") != "ASSESSMENT_ROOT"
+            or cohort_row.get("split") != case.split
+            or split_membership.get(candidate_id) != case.split
+            or split_membership.get(cohort_id) != case.split
+        ):
+            raise ValueError(f"P14_VN_STAGE_OR_SPLIT_MISMATCH:{candidate_id}")
+    eligible_candidates = {
+        row["caseId"]
+        for row in candidate_cases
+        if row.get("reviewStatus") == "REVIEWED"
+        and not row.get("reviewerDisagreements")
+        or row.get("reviewStatus") == "ADJUDICATED"
+        and row.get("adjudication", {}).get("outcome") in {"CONFIRM", "REVISE"}
+    }
+    mapped = len(seen_cohort)
+    assessment_count = sum(
+        row.get("evaluationTarget") == "ACTUAL_ASSESSMENT_OUTPUT"
+        for row in candidate_cases
+    )
+    fixed_count = sum(
+        row.get("evaluationTarget") == "FIXED_CLAIM_DIAGNOSTIC"
+        for row in candidate_cases
+    )
+    rsp_count = sum(
+        row.get("evaluationTarget") == "RULE_SET_PREPARATION_OUTPUT"
+        for row in candidate_cases
+    )
+    return {
+        "candidateCaseCount": len(candidate_cases),
+        "p14BenchmarkCaseCount": len(p14_cases),
+        "sharedExecutableCandidateCount": len(shared_cohort["cases"]),
+        "mappedCaseCount": mapped,
+        "mappedSharedExecutableCaseCount": mapped,
+        "mappedCandidateLegalGoldCaseCount": len(seen_candidate & eligible_candidates),
+        "fixedOutputDiagnosticCaseCount": fixed_count,
+        "unsupportedCaseCount": max(0, assessment_count - mapped) + rsp_count,
+        "excludedDiagnosticCaseCount": fixed_count,
+        "assessmentOutputCandidateCount": assessment_count,
+        "ruleSetPreparationCandidateCount": rsp_count,
+        "officialProvisionCount": provision_count,
+        "mappingPolicy": "EXACT_OFFICIAL_VN_SOURCE_AND_SAME_P14_CASE_IDENTITY_NO_LEGAL_CROSSWALK",
+        "unmappedReasonCounts": {
+            "NO_EXACT_P14_CASE_MAPPING": max(0, assessment_count - mapped),
+            "P14_DOES_NOT_EXECUTE_RULE_SET_PREPARATION": rsp_count,
+            "FIXED_CLAIM_DIAGNOSTIC_NOT_GENERATED_OUTPUT": fixed_count,
+        },
+    }
+
+
+def _sha256_file_for_repo(case: BenchmarkCase) -> str:
+    """Business purpose: Recompute the exact release-evidence fingerprint for one P14 repository fixture.
+
+    Business rules:
+    - Only bytes at the evidence path inside the pinned repository fixture can satisfy this identity check.
+    - The digest proves byte identity and does not establish the legal meaning of the evidence.
+
+    Execution flow:
+    1. Resolve the pinned fixture directory and evidence filename.
+    2. Read the exact bytes and return their lowercase SHA-256 digest.
+
+    Failure cases:
+    - Missing or unreadable evidence bytes raise an I/O error and fail the candidate cross-binding.
+
+    Side effects:
+    - Reads one local fixture file only."""
+    path = (
+        DEEPAGENTS_ROOT / case.repo_pin.fixture_dir
+    ).resolve() / "release-evidence.json"
+    from hashlib import sha256
+
+    return sha256(path.read_bytes()).hexdigest()
 
 
 def _normalize_assessment_verdict(
@@ -732,7 +1324,8 @@ def _review_inventory(candidate_cases: list[dict[str, Any]]) -> dict[str, Any]:
         "structurallyReviewedAnnotationCount": counts.get("REVIEWED", 0)
         + counts.get("ADJUDICATED", 0),
         "provisionalOrUncertainAnnotationCount": sum(
-            counts.get(status, 0) for status in ("INDEPENDENT_REVIEW", "PROVISIONAL", "UNCERTAIN")
+            counts.get(status, 0)
+            for status in ("INDEPENDENT_REVIEW", "PROVISIONAL", "UNCERTAIN")
         ),
         "excludedAnnotationCount": counts.get("EXCLUDED", 0),
         "unresolvedDisagreementCount": sum(
@@ -913,13 +1506,16 @@ def _binding_for(
     Side effects:
     - None: returns metadata without modifying artifacts.
     """
-    provision = p14_case.legal_provisions[0]
+    provision_refs = sorted(
+        {f"{row.document_id}#{row.locator}" for row in p14_case.legal_provisions}
+    )
+    citation_refs = sorted({row.locator for row in p14_case.legal_provisions})
     source_id = p14_case.corpus_pin.corpus_id
     source_version = p14_case.corpus_pin.version
     return {
         "runId": outcome.run_id,
         "manifestSha256": manifest["manifestSha256"],
-        "candidateCaseId": entry.get("cohortCaseId", entry.get("candidateCaseId")),
+        "candidateCaseId": entry.get("candidateCaseId", entry.get("cohortCaseId")),
         "p14CaseId": outcome.case_id,
         "evaluationStage": entry["evaluationStage"],
         "lifecycleStage": outcome.stage,
@@ -935,8 +1531,8 @@ def _binding_for(
         "instructionBundleDigest": metadata.get("instructionBundleDigest", ""),
         "legalSourceId": source_id,
         "legalSourceVersion": source_version,
-        "legalProvisionRefs": f"{provision.document_id}#{provision.locator}",
-        "legalCitations": provision.locator,
+        "legalProvisionRefs": ";".join(provision_refs),
+        "legalCitations": ";".join(citation_refs),
         "p14RuleId": entry["p14RuleId"],
     }
 
@@ -979,7 +1575,9 @@ def _observed_output_from_trace(
         "mode": outcome.mode,
     }
     if any(trace_doc.get(key) != value for key, value in identity.items()):
-        raise ValueError(f"P14_TRACE_IDENTITY_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+        raise ValueError(
+            f"P14_TRACE_IDENTITY_MISMATCH:{outcome.case_id}:{outcome.trial_index}"
+        )
     root_binding = trace_doc.get("outcomeBinding")
     if not isinstance(root_binding, dict) or any(
         root_binding.get(key) != value
@@ -989,7 +1587,9 @@ def _observed_output_from_trace(
             "lifecycleState": outcome.lifecycle_state,
         }.items()
     ):
-        raise ValueError(f"P14_TRACE_OUTCOME_BINDING_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+        raise ValueError(
+            f"P14_TRACE_OUTCOME_BINDING_MISMATCH:{outcome.case_id}:{outcome.trial_index}"
+        )
 
     if outcome.mode == "OFFLINE_FIXTURE":
         fixture_output = trace_doc.get("output")
@@ -1000,7 +1600,9 @@ def _observed_output_from_trace(
     if not isinstance(output, dict):
         return None
     if trace_doc.get("observedOutputSha256") != _canonical_sha256(output):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_DIGEST_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_DIGEST_MISMATCH:{outcome.case_id}:{outcome.trial_index}"
+        )
     output_identity = {
         "runId": outcome.run_id,
         "caseId": outcome.case_id,
@@ -1012,7 +1614,9 @@ def _observed_output_from_trace(
         "lifecycleState": outcome.lifecycle_state,
     }
     if any(output.get(key) != value for key, value in output_identity.items()):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_IDENTITY_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_IDENTITY_MISMATCH:{outcome.case_id}:{outcome.trial_index}"
+        )
     nested_binding = output.get("outcomeBinding")
     if not isinstance(nested_binding, dict) or any(
         nested_binding.get(key) != value
@@ -1027,7 +1631,9 @@ def _observed_output_from_trace(
             "passed": outcome.passed,
         }.items()
     ):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_OUTCOME_MISMATCH:{outcome.case_id}:{outcome.trial_index}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_OUTCOME_MISMATCH:{outcome.case_id}:{outcome.trial_index}"
+        )
     if (
         output.get("ruleSetVersionId") != p14_case.rule_set_pin.rule_set_version_id
         or output.get("targetRuleIds") != list(p14_case.rule_set_pin.rule_ids)
@@ -1039,35 +1645,61 @@ def _observed_output_from_trace(
         or output.get("corpusPin") != p14_case.corpus_pin.model_dump()
         or mapping_entry.get("p14RuleId") not in output.get("targetRuleIds", [])
     ):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_SOURCE_OR_RULE_MISMATCH:{outcome.case_id}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_SOURCE_OR_RULE_MISMATCH:{outcome.case_id}"
+        )
     decisions = output.get("assessmentDecisions")
     evidence = output.get("evidenceRecords")
     facts = output.get("facts")
     refs = output.get("evidenceReferences")
     hitl = output.get("hitl")
-    if not isinstance(decisions, list) or not isinstance(evidence, dict) or not isinstance(facts, list):
+    if (
+        not isinstance(decisions, list)
+        or not isinstance(evidence, dict)
+        or not isinstance(facts, list)
+    ):
         raise TypeError(f"P14_OBSERVED_OUTPUT_CONTENT_INVALID:{outcome.case_id}")
     known_refs = set(evidence) | {
-        row.get("factId") for row in facts if isinstance(row, dict) and isinstance(row.get("factId"), str)
+        row.get("factId")
+        for row in facts
+        if isinstance(row, dict) and isinstance(row.get("factId"), str)
     }
-    if not isinstance(refs, list) or any(not isinstance(ref, str) or ref not in known_refs for ref in refs):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_EVIDENCE_REFERENCE_INVALID:{outcome.case_id}")
-    if not isinstance(hitl, dict) or hitl.get("state") not in {"NONE", "OPEN", "RESOLVED"}:
+    if not isinstance(refs, list) or any(
+        not isinstance(ref, str) or ref not in known_refs for ref in refs
+    ):
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_EVIDENCE_REFERENCE_INVALID:{outcome.case_id}"
+        )
+    if not isinstance(hitl, dict) or hitl.get("state") not in {
+        "NONE",
+        "OPEN",
+        "RESOLVED",
+    }:
         raise ValueError(f"P14_OBSERVED_OUTPUT_HITL_INVALID:{outcome.case_id}")
     if hitl["state"] == "OPEN" and not hitl.get("openRequestIds"):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_HITL_OPEN_REQUEST_MISSING:{outcome.case_id}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_HITL_OPEN_REQUEST_MISSING:{outcome.case_id}"
+        )
     if hitl["state"] == "RESOLVED" and not hitl.get("resolvedRequests"):
-        raise ValueError(f"P14_OBSERVED_OUTPUT_HITL_RESOLUTION_MISSING:{outcome.case_id}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_HITL_RESOLUTION_MISSING:{outcome.case_id}"
+        )
     for decision in decisions:
         body = decision.get("decision", decision) if isinstance(decision, dict) else {}
         if body.get("assessmentRuleId") not in output["targetRuleIds"]:
-            raise ValueError(f"P14_OBSERVED_OUTPUT_DECISION_RULE_INVALID:{outcome.case_id}")
+            raise ValueError(
+                f"P14_OBSERVED_OUTPUT_DECISION_RULE_INVALID:{outcome.case_id}"
+            )
     history = output.get("lifecycleHistory")
     if not isinstance(history, list):
-        raise TypeError(f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_INVALID:{outcome.case_id}")
+        raise TypeError(
+            f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_INVALID:{outcome.case_id}"
+        )
     for prior in history:
         if not isinstance(prior, dict):
-            raise TypeError(f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_INVALID:{outcome.case_id}")
+            raise TypeError(
+                f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_INVALID:{outcome.case_id}"
+            )
         matching = outcomes_by_case_stage.get((outcome.case_id, prior.get("stage")), [])
         if not any(
             item.trial_index == outcome.trial_index
@@ -1076,12 +1708,16 @@ def _observed_output_from_trace(
             and item.lifecycle_state == prior.get("lifecycleState")
             for item in matching
         ):
-            raise ValueError(f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_MISMATCH:{outcome.case_id}")
+            raise ValueError(
+                f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_MISMATCH:{outcome.case_id}"
+            )
     if output.get("runResult", {}).get("state") != "SUCCEEDED" or not decisions:
         return None
     selected = output.get("actualAssessmentDecision")
     if selected != decisions[-1]:
-        raise ValueError(f"P14_OBSERVED_OUTPUT_DECISION_SNAPSHOT_MISMATCH:{outcome.case_id}")
+        raise ValueError(
+            f"P14_OBSERVED_OUTPUT_DECISION_SNAPSHOT_MISMATCH:{outcome.case_id}"
+        )
     return output
 
 
@@ -1123,7 +1759,11 @@ def _manifest_instruction_digest(manifest: dict[str, Any]) -> str | None:
     - None: reads in-memory manifest metadata.
     """
     bundle = manifest.get("instructionBundle") or {}
-    return bundle.get("enRuntimeBundleDigest") or bundle.get("viSourceInventoryDigest") or bundle.get("id")
+    return (
+        bundle.get("enRuntimeBundleDigest")
+        or bundle.get("viSourceInventoryDigest")
+        or bundle.get("id")
+    )
 
 
 def _resolve_trace(base_dir: Path, trace_path: str | None) -> Path:

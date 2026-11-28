@@ -10,6 +10,7 @@ from typing import Any
 from evals.legal_reasoning.p14_cohort import canonical_digest
 
 SPLIT_VERSION = "LCSP-400-DEV-HOLDOUT-SPLIT-V1"
+VIETNAM_SPLIT_VERSION = "LCSP-400-DEV-HOLDOUT-SPLIT-V2"
 RELATED_PROVISION_GROUPS = {
     "GDPR_ART_3_": "GDPR_TERRITORIAL_SCOPE",
     "GDPR_RECITAL_23": "GDPR_TERRITORIAL_SCOPE",
@@ -23,12 +24,12 @@ def _semantic_grouping_keys(record: dict[str, Any]) -> set[str]:
 
     Business rules:
     - A counterfactual pair keeps its members together.
-    - Repeated and explicitly related source provisions share one group.
+    - Explicit semantic groups join near-duplicate tasks; legacy rows group by source provision.
     - This grouping is evaluation metadata and does not decide the legal meaning of a provision.
 
     Execution flow:
-    1. Collect source/provision keys and any counterfactual pair key.
-    2. Resolve them through the stable, documented provision-family policy.
+    1. Collect an explicit semantic group or legacy source/provision keys, plus any pair key.
+    2. Resolve legacy rows through the stable provision-family policy.
     3. Return the keys used to join this case to every materially related case.
 
     Failure cases:
@@ -37,11 +38,17 @@ def _semantic_grouping_keys(record: dict[str, Any]) -> set[str]:
     Side effects:
     - None: reads annotation metadata only.
     """
+    semantic_group = record.get("semanticGroupId")
+    pair = record.get("counterfactualPair")
+    if semantic_group:
+        keys = {f"EXPLICIT_SEMANTIC_GROUP:{semantic_group}"}
+        if pair:
+            keys.add(f"PAIR:{pair['pairId']}")
+        return keys
     source = record.get("legalSource") or {}
     refs = sorted(source.get("provisionRefs") or [])
     if not source.get("sourceId") or not refs:
         raise ValueError(f"SPLIT_SOURCE_REFERENCE_MISSING:{record.get('caseId')}")
-    pair = record.get("counterfactualPair")
     keys = [f"{source['sourceId']}:{ref}" for ref in refs]
     if pair:
         keys.append(f"PAIR:{pair['pairId']}")
@@ -63,12 +70,12 @@ def build_split_manifest(
 
     Business rules:
     - Candidate cases sharing legal provisions or a counterfactual pair stay in one split group.
-    - The compact shared SCRIPTED engineering cohort is DEV-only and cannot support generalization claims.
+    - Mapped P14 cases share the candidate's split; standalone engineering cases remain separate.
     - Split membership derives from a versioned stable hash rule and is fully enumerated in the artifact.
 
     Execution flow:
-    1. Group canonical candidate records and shared P14 engineering cases.
-    2. Assign candidate groups using the fixed SHA-256 bucket rule; assign the shared cohort to DEV.
+    1. Group canonical candidate records and mapped P14 cases by provision, pair, and explicit group keys.
+    2. Assign joined groups using the fixed SHA-256 bucket rule and record every member.
     3. Pin dataset/cohort inputs, group counts, assignments, and the full artifact digest.
 
     Failure cases:
@@ -146,20 +153,34 @@ def build_split_manifest(
             owner = key_owner.setdefault(key, case_id)
             union(case_id, owner)
 
-    component_keys: dict[str, set[str]] = {}
-    for case_id, keys in row_keys.items():
-        component_keys.setdefault(find(case_id), set()).update(keys)
-    for case_id in sorted(candidate_ids):
-        root = find(case_id)
-        group_id = min(component_keys[root])
-        groups.setdefault(group_id, []).append(case_id)
     cohort_ids: set[str] = set()
+    cohort_group_owner: dict[str, str] = {}
     for record in cohort.get("cases", []):
         case_id = record["cohortCaseId"]
         if case_id in cohort_ids or case_id in candidate_ids:
             raise ValueError(f"SPLIT_DUPLICATE_COHORT_CASE:{case_id}")
         cohort_ids.add(case_id)
-        groups.setdefault(record["splitGroupId"], []).append(case_id)
+        parent[case_id] = case_id
+        group_id = record.get("splitGroupId")
+        if not isinstance(group_id, str) or not group_id:
+            raise ValueError(f"SPLIT_COHORT_GROUP_ID_INVALID:{case_id}")
+        row_keys[case_id] = {group_id}
+        owner = cohort_group_owner.setdefault(group_id, case_id)
+        if owner != case_id:
+            union(case_id, owner)
+        candidate_id = record.get("candidateCaseId")
+        if candidate_id is not None:
+            if candidate_id not in candidate_ids:
+                raise ValueError(f"SPLIT_COHORT_CANDIDATE_UNKNOWN:{case_id}")
+            union(case_id, candidate_id)
+
+    component_keys: dict[str, set[str]] = {}
+    for case_id, keys in row_keys.items():
+        component_keys.setdefault(find(case_id), set()).update(keys)
+    for case_id in sorted(candidate_ids | cohort_ids):
+        root = find(case_id)
+        group_id = min(component_keys[root])
+        groups.setdefault(group_id, []).append(case_id)
 
     grouped_rows = []
     for group_id, case_ids in sorted(groups.items()):
@@ -172,10 +193,20 @@ def build_split_manifest(
         grouped_rows.append(
             {"groupId": group_id, "split": split, "caseIds": sorted(case_ids)}
         )
+    is_vietnam = any(
+        record.get("datasetVersion") == "LCSP-400-VIETNAM-AI-CANDIDATES-V1"
+        for record in candidate_records
+    )
     body = {
-        "splitVersion": SPLIT_VERSION,
-        "splitId": "lcsp400-legal-reasoning-v1-frozen",
-        "assignmentRule": "SHA256(groupId)[0:8] mod 5 == 0 => HOLDOUT; otherwise DEV; shared SCRIPTED engineering cohort => DEV",
+        "splitVersion": VIETNAM_SPLIT_VERSION if is_vietnam else SPLIT_VERSION,
+        "splitId": "lcsp400-legal-reasoning-v2-frozen"
+        if is_vietnam
+        else "lcsp400-legal-reasoning-v1-frozen",
+        "assignmentRule": (
+            "SHA256(groupId)[0:8] mod 5 == 0 => HOLDOUT; otherwise DEV; mapped P14 execution cases inherit their candidate group"
+            if is_vietnam
+            else "SHA256(groupId)[0:8] mod 5 == 0 => HOLDOUT; otherwise DEV; shared SCRIPTED engineering cohort => DEV"
+        ),
         "candidateDatasetSha256": canonical_digest(candidate_records),
         "sharedCohortSha256": cohort.get("cohortSha256"),
         "candidateCaseCount": len(candidate_ids),
@@ -216,7 +247,7 @@ def load_split_manifest(path: str | Path) -> dict[str, Any]:
     manifest = json.loads(Path(path).read_text(encoding="utf-8"))
     if (
         not isinstance(manifest, dict)
-        or manifest.get("splitVersion") != SPLIT_VERSION
+        or manifest.get("splitVersion") not in {SPLIT_VERSION, VIETNAM_SPLIT_VERSION}
         or manifest.get("splitDigest")
         != canonical_digest(
             {key: value for key, value in manifest.items() if key != "splitDigest"}
@@ -285,5 +316,13 @@ def validate_split_membership(
         if row.get("split") != cohort_row["split"]:
             raise ValueError(
                 f"EVALUATION_SPLIT_P14_SPLIT_MISMATCH:{row.get('case_id')}"
+            )
+    for row in cohort.get("cases", []):
+        candidate_id = row.get("candidateCaseId")
+        if candidate_id is not None and membership.get(candidate_id) != membership.get(
+            row["cohortCaseId"]
+        ):
+            raise ValueError(
+                f"EVALUATION_SPLIT_CANDIDATE_COHORT_MISMATCH:{candidate_id}"
             )
     return dict(sorted(membership.items()))
