@@ -1,0 +1,37 @@
+{
+  "caseId": "CASE-11",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "WAITING_FOR_HUMAN",
+    "lifecycleState": "WAITING_FOR_HUMAN",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-11-1": {
+        "commitSha": "synthetic-de4b5964d365",
+        "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc",
+        "end_line": 3,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/retention.py",
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 2
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-11-1"
+    ],
+    "hitlState": "OPEN",
+    "lifecycleState": "WAITING_FOR_HUMAN",
+    "persistedState": {
+      "lifecycleState": "WAITING_FOR_HUMAN",
+      "openHumanRequests": 1
+    },
+    "verdict": "WAITING_FOR_HUMAN"
+  },
+  "runId": "pilot-v1",
+  "stage": "WAITING_FOR_HUMAN",
+  "threadId": "77549661-3039-4868-bd9d-dd7f1794bf12",
+  "trialIndex": 3
+}

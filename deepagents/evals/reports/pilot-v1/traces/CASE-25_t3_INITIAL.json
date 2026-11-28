@@ -1,0 +1,37 @@
+{
+  "caseId": "CASE-25",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "NOT_APPLICABLE",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-25-1": {
+        "commitSha": "synthetic-e10f3784e411",
+        "contentSha256": "3e44152e24304bb85294f94f2b65761ea57ef5311afa23b8a694bb2b00436dd0",
+        "end_line": 6,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/cli.py",
+        "repositoryId": "repo-03-internal-cli",
+        "start_line": 4
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-25-1"
+    ],
+    "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "verdict": "NOT_APPLICABLE"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "7456c118-66f8-4d3b-a811-800ff03ee4e1",
+  "trialIndex": 3
+}

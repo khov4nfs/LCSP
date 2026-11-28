@@ -1,0 +1,37 @@
+{
+  "caseId": "CASE-09",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-09-1": {
+        "commitSha": "synthetic-514f09d5ab84",
+        "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557",
+        "end_line": 6,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/transfer.py",
+        "repositoryId": "repo-07-cross-border",
+        "start_line": 4
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-09-1"
+    ],
+    "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "8a9163fe-7c42-42db-8481-b9e8f8dec558",
+  "trialIndex": 2
+}

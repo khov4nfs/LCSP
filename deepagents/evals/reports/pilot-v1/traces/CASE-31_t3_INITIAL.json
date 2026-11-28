@@ -1,0 +1,37 @@
+{
+  "caseId": "CASE-31",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-31-1": {
+        "commitSha": "synthetic-1058f7c84f5c",
+        "contentSha256": "15d30daea9fffd86fb4e3ef0d7162b65ea7edca2075a4ca44933454168d5783e",
+        "end_line": 7,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/breach.py",
+        "repositoryId": "repo-08-breach-sla",
+        "start_line": 4
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-31-1"
+    ],
+    "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "05c0adc7-3564-4249-b94d-65f39f65e9b4",
+  "trialIndex": 3
+}

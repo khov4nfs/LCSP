@@ -1,0 +1,37 @@
+{
+  "caseId": "CASE-21",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-21-1": {
+        "commitSha": "synthetic-16e21ad3807f",
+        "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc",
+        "end_line": 8,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/consent.py",
+        "repositoryId": "repo-01-consent-app",
+        "start_line": 4
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-21-1"
+    ],
+    "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "bafe5c21-878b-4ea7-9277-4e0235f09403",
+  "trialIndex": 1
+}

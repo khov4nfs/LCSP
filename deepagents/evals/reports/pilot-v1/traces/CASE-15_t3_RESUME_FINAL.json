@@ -1,0 +1,45 @@
+{
+  "caseId": "CASE-15",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-15-1": {
+        "commitSha": "synthetic-de4b5964d365",
+        "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc",
+        "end_line": 3,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/retention.py",
+        "repositoryId": "repo-04-hitl-retention",
+        "start_line": 2
+      },
+      "fact-case-15-1": {
+        "answer": "Data Protection Office owns retention and notification.",
+        "caseRevision": 1,
+        "evidenceType": "HUMAN_CONFIRMED_FACT",
+        "requestId": "hr-case-15-1",
+        "status": "RESOLVED"
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-15-1",
+      "fact-case-15-1"
+    ],
+    "hitlState": "RESOLVED",
+    "lifecycleState": "COMPLETE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "verdict": "APPLICABLE_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "RESUME_FINAL",
+  "threadId": "6743bcb7-5a13-4e3f-9093-c8d07c1d4115",
+  "trialIndex": 3
+}

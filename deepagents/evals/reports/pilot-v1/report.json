@@ -1,0 +1,271 @@
+{
+  "faultInjectionRecovery": {
+    "authorityViolations": 0,
+    "failedTrials": 0,
+    "failuresByCode": {},
+    "latency": {
+      "maxMs": 0.001,
+      "meanMs": 0.0,
+      "minMs": 0.0,
+      "p50Ms": 0.0,
+      "p95Ms": 0.001
+    },
+    "passPowK": {
+      "pass^1": {
+        "eligibleUnits": 4,
+        "k": 1,
+        "score": 1.0,
+        "totalUnits": 4
+      },
+      "pass^3": {
+        "eligibleUnits": 4,
+        "k": 3,
+        "score": 1.0,
+        "totalUnits": 4
+      },
+      "pass^5": {
+        "eligibleUnits": 4,
+        "k": 5,
+        "score": 1.0,
+        "totalUnits": 4
+      }
+    },
+    "passedTrials": 20,
+    "totalTrials": 20,
+    "usage": {
+      "cachedInputTokens": null,
+      "costCurrencies": [],
+      "failedAttempts": 0,
+      "inputTokens": null,
+      "logicalTrials": 20,
+      "outputTokens": null,
+      "physicalAttempts": 0,
+      "physicalAttemptsVerified": false,
+      "providerCost": null,
+      "scriptedInvocations": 0,
+      "simulatedProviderCalls": 0,
+      "unverifiedCallbackCalls": 0
+    }
+  },
+  "invariantCoverage": {
+    "completionGateOpenHitl": "NOT_TESTED",
+    "completionGateUndecidedRule": "NOT_TESTED",
+    "crossAssessmentIsolation": "NOT_TESTED",
+    "outOfScopeRuleRejection": "NOT_TESTED",
+    "unverifiedReferenceRejection": "NOT_TESTED"
+  },
+  "manifestSha256": "d36ca95b2cc28c58e75d184506f26a9ccb44087397ba0e48e424962f3cb0ec96",
+  "manualSemanticReviewP15": {
+    "expertVerified": {
+      "authorityRespectedRate": null,
+      "evidenceAcceptableRate": null,
+      "overallSemanticPassRate": null,
+      "totalReviewed": 0,
+      "verdictAgreementRate": null
+    },
+    "seededUnverified": {
+      "authorityRespectedRate": 1.0,
+      "evidenceAcceptableRate": 1.0,
+      "overallSemanticPassRate": 1.0,
+      "totalReviewed": 15,
+      "verdictAgreementRate": 1.0
+    }
+  },
+  "mode": "OFFLINE_FIXTURE",
+  "runId": "pilot-v1",
+  "schemaVersion": "LCSP_BENCHMARK_REPORT_V1",
+  "semanticReliability": {
+    "dev": {
+      "authorityViolations": 0,
+      "failedTrials": 0,
+      "failuresByCode": {},
+      "latency": {
+        "maxMs": 0.002,
+        "meanMs": 0.0,
+        "minMs": 0.0,
+        "p50Ms": 0.0,
+        "p95Ms": 0.001
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 22,
+          "k": 1,
+          "score": 1.0,
+          "totalUnits": 22
+        },
+        "pass^3": {
+          "eligibleUnits": 22,
+          "k": 3,
+          "score": 1.0,
+          "totalUnits": 22
+        },
+        "pass^5": {
+          "eligibleUnits": 22,
+          "k": 5,
+          "score": 1.0,
+          "totalUnits": 22
+        }
+      },
+      "passedTrials": 110,
+      "totalTrials": 110,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 110,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    },
+    "holdout": {
+      "authorityViolations": 0,
+      "failedTrials": 0,
+      "failuresByCode": {},
+      "latency": {
+        "maxMs": 0.001,
+        "meanMs": 0.0,
+        "minMs": 0.0,
+        "p50Ms": 0.0,
+        "p95Ms": 0.001
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 14,
+          "k": 1,
+          "score": 1.0,
+          "totalUnits": 14
+        },
+        "pass^3": {
+          "eligibleUnits": 14,
+          "k": 3,
+          "score": 1.0,
+          "totalUnits": 14
+        },
+        "pass^5": {
+          "eligibleUnits": 14,
+          "k": 5,
+          "score": 1.0,
+          "totalUnits": 14
+        }
+      },
+      "passedTrials": 70,
+      "totalTrials": 70,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 70,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    },
+    "negativeControls": {
+      "authorityViolations": 0,
+      "failedTrials": 0,
+      "failuresByCode": {},
+      "latency": {
+        "maxMs": 0.001,
+        "meanMs": 0.0,
+        "minMs": 0.0,
+        "p50Ms": 0.0,
+        "p95Ms": 0.001
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 18,
+          "k": 1,
+          "score": 1.0,
+          "totalUnits": 18
+        },
+        "pass^3": {
+          "eligibleUnits": 18,
+          "k": 3,
+          "score": 1.0,
+          "totalUnits": 18
+        },
+        "pass^5": {
+          "eligibleUnits": 18,
+          "k": 5,
+          "score": 1.0,
+          "totalUnits": 18
+        }
+      },
+      "passedTrials": 90,
+      "totalTrials": 90,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 90,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    },
+    "overall": {
+      "authorityViolations": 0,
+      "failedTrials": 0,
+      "failuresByCode": {},
+      "latency": {
+        "maxMs": 0.002,
+        "meanMs": 0.0,
+        "minMs": 0.0,
+        "p50Ms": 0.0,
+        "p95Ms": 0.001
+      },
+      "passPowK": {
+        "pass^1": {
+          "eligibleUnits": 36,
+          "k": 1,
+          "score": 1.0,
+          "totalUnits": 36
+        },
+        "pass^3": {
+          "eligibleUnits": 36,
+          "k": 3,
+          "score": 1.0,
+          "totalUnits": 36
+        },
+        "pass^5": {
+          "eligibleUnits": 36,
+          "k": 5,
+          "score": 1.0,
+          "totalUnits": 36
+        }
+      },
+      "passedTrials": 180,
+      "totalTrials": 180,
+      "usage": {
+        "cachedInputTokens": null,
+        "costCurrencies": [],
+        "failedAttempts": 0,
+        "inputTokens": null,
+        "logicalTrials": 180,
+        "outputTokens": null,
+        "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
+        "providerCost": null,
+        "scriptedInvocations": 0,
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
+      }
+    }
+  }
+}

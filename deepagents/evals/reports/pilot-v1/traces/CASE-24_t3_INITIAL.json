@@ -1,0 +1,37 @@
+{
+  "caseId": "CASE-24",
+  "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_NON_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
+  "output": {
+    "authorityViolation": false,
+    "evidenceRecords": {
+      "ev-case-24-1": {
+        "commitSha": "synthetic-e697ed5e29c9",
+        "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20",
+        "end_line": 6,
+        "evidenceType": "REPOSITORY_SOURCE",
+        "path": "src/audit_log.py",
+        "repositoryId": "repo-02-audit-gap",
+        "start_line": 4
+      }
+    },
+    "evidenceRefs": [
+      "ev-case-24-1"
+    ],
+    "hitlState": "NONE",
+    "lifecycleState": "COMPLETE",
+    "persistedState": {
+      "lifecycleState": "COMPLETE",
+      "openHumanRequests": 0
+    },
+    "verdict": "APPLICABLE_NON_COMPLIANT"
+  },
+  "runId": "pilot-v1",
+  "stage": "INITIAL",
+  "threadId": "ed74bc7b-4abe-4156-af65-025b1319bc5c",
+  "trialIndex": 3
+}
