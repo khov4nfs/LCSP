@@ -1,46 +1,68 @@
 {
   "law-1": {
     "document": "134-2025-QH15",
-    "locator": "art-1"
+    "locator": "art-1",
+    "pageStart": 1,
+    "pageEnd": 1
   },
   "law-2": {
     "document": "134-2025-QH15",
-    "locator": "art-2"
+    "locator": "art-2",
+    "pageStart": 1,
+    "pageEnd": 1
   },
   "law-3": {
     "document": "134-2025-QH15",
-    "locator": "art-3"
+    "locator": "art-3",
+    "pageStart": 1,
+    "pageEnd": 2
   },
   "law-10": {
     "document": "134-2025-QH15",
-    "locator": "art-10"
+    "locator": "art-10",
+    "pageStart": 5,
+    "pageEnd": 6
   },
   "law-11": {
     "document": "134-2025-QH15",
-    "locator": "art-11"
+    "locator": "art-11",
+    "pageStart": 6,
+    "pageEnd": 6
   },
   "law-34": {
     "document": "134-2025-QH15",
-    "locator": "art-34"
+    "locator": "art-34",
+    "pageStart": 19,
+    "pageEnd": 19
   },
   "law-35": {
     "document": "134-2025-QH15",
-    "locator": "art-35"
+    "locator": "art-35",
+    "pageStart": 19,
+    "pageEnd": 20
   },
   "decree-12": {
     "document": "142-2026-ND-CP",
-    "locator": "art-12"
+    "locator": "art-12",
+    "pageStart": 9,
+    "pageEnd": 10
   },
   "decree-16": {
     "document": "142-2026-ND-CP",
-    "locator": "art-16"
+    "locator": "art-16",
+    "pageStart": 14,
+    "pageEnd": 14
   },
   "decree-17": {
     "document": "142-2026-ND-CP",
-    "locator": "art-17"
+    "locator": "art-17",
+    "pageStart": 14,
+    "pageEnd": 15
   },
   "decree-45": {
     "document": "142-2026-ND-CP",
-    "locator": "art-45"
+    "locator": "art-45",
+    "pageStart": 44,
+    "pageEnd": 44
   }
 }

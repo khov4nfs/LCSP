@@ -149,11 +149,74 @@ def test_legal_context_rejects_fixture_edits_against_unchanged_pdf(
     message,
 ):
     """An editable fixture cannot replace text or retarget an official article identity."""
-    selectors = {"law-1": {"document": "134-2025-QH15", "locator": "art-1", **override}}
+    selectors = {
+        "law-1": {
+            "document": "134-2025-QH15",
+            "locator": "art-1",
+            "pageStart": 1,
+            "pageEnd": 1,
+            **override,
+        }
+    }
     (tmp_path / "legal-context.json").write_text(json.dumps(selectors))
     monkeypatch.setattr(policy_baseline, "FIXTURES", tmp_path)
     with pytest.raises(error, match=message):
         _load_legal_context()
+
+
+def test_legal_context_rejects_ambiguous_article_in_verified_extraction(
+    tmp_path, monkeypatch
+):
+    """The real decree repeats Article 3 locators in an appendix."""
+    selectors = {
+        "decree-3": {
+            "document": "142-2026-ND-CP",
+            "locator": "art-3",
+            "pageStart": 2,
+            "pageEnd": 3,
+        }
+    }
+    (tmp_path / "legal-context.json").write_text(json.dumps(selectors))
+    monkeypatch.setattr(policy_baseline, "FIXTURES", tmp_path)
+    with pytest.raises(ValueError, match=r"POLICY_SOURCE_LOCATOR_AMBIGUOUS:.*::dup-"):
+        _load_legal_context()
+
+
+def test_article_continuation_requires_matching_locator_hierarchy_and_pages():
+    """Split chunks remain eligible only when they reconstruct one source locator."""
+    selector = policy_baseline.ArticleSelector(
+        document="142-2026-ND-CP",
+        locator="art-17",
+        pageStart=14,
+        pageEnd=15,
+    )
+    base = "art-17::cl-5::pt-a"
+    hierarchy = {
+        "articleNumber": "17",
+        "clauseNumber": "5",
+        "pointLabel": "a",
+        "partOf": base,
+    }
+    parts = [
+        {
+            "locator": f"{base}::part-{part}",
+            "hierarchy": hierarchy,
+            "pageStart": page,
+            "pageEnd": page,
+        }
+        for part, page in ((1, 14), (2, 15))
+    ]
+    policy_baseline._validate_article_chunks(parts, selector)
+    for mutation, error in (
+        ({"locator": f"{base}::part-3"}, "CONTINUATION_DRIFT"),
+        ({"hierarchy": {**hierarchy, "clauseNumber": "6"}}, "HIERARCHY_DRIFT"),
+        ({"pageStart": 16, "pageEnd": 16}, "PAGE_DRIFT"),
+        ({"locator": f"{base}::part-2::dup-2"}, "LOCATOR_AMBIGUOUS"),
+    ):
+        with pytest.raises(ValueError, match=f"POLICY_SOURCE_{error}"):
+            policy_baseline._validate_article_chunks(
+                [parts[0], {**parts[1], **mutation}], selector
+            )
 
 
 def test_citation_to_correct_repo_but_wrong_span_fails_evidence_gate():

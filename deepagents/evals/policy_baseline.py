@@ -104,12 +104,14 @@ class OpenMarking(VerifiedObservation):
 
 
 class ArticleSelector(BaseModel):
-    """An allowlisted article identity. Content and page spans come from ingestion."""
+    """An allowlisted article identity and its verified physical PDF page span."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     document: str
     locator: str
+    pageStart: int = Field(ge=1, strict=True)
+    pageEnd: int = Field(ge=1, strict=True)
 
 
 class EvidenceGap(BaseModel):
@@ -160,6 +162,86 @@ class ReferenceSnapshot(BaseModel):
 
     split: BenchmarkSplit
     cases: dict[str, ReferenceCase]
+
+
+def _validate_article_chunks(
+    chunks: list[dict[str, Any]],
+    selector: ArticleSelector,
+) -> None:
+    """Business purpose: Prevent ambiguous citations when assembling a verified article.
+    Business rules:
+    - A duplicate occurrence requires review of the source, even outside the pinned page span.
+    - Ordered continuation parts must share the original locator and hierarchy.
+    Execution flow:
+    1. Reject duplicate occurrences and confirm article identity and page coverage.
+    2. Check each chunk's clause, point, continuation identity and source order.
+    Failure cases:
+    - Reject missing, ambiguous, misidentified or out-of-order source chunks.
+    Side effects:
+    - Validates already verified extraction data in memory.
+    """
+    locator = selector.locator
+    if not chunks:
+        raise ValueError(f"POLICY_SOURCE_LOCATOR_MISSING:{locator}")
+    # Page pins cannot silently disambiguate a repeated legal heading.
+    for chunk in chunks:
+        if re.search(r"::dup-[0-9]+(?:$|::)", chunk["locator"]):
+            raise ValueError(f"POLICY_SOURCE_LOCATOR_AMBIGUOUS:{chunk['locator']}")
+
+    article_fields = (
+        "chapterNumber",
+        "chapterTitle",
+        "articleNumber",
+        "articleHeading",
+    )
+    article_identity = tuple(
+        chunks[0]["hierarchy"].get(field) for field in article_fields
+    )
+    previous_end = selector.pageStart
+    previous_base = None
+    previous_hierarchy = None
+    previous_part = 0
+    seen_bases = set()
+    for chunk in chunks:
+        chunk_locator = chunk["locator"]
+        hierarchy = chunk["hierarchy"]
+        if (
+            locator != f"art-{hierarchy.get('articleNumber')}"
+            or tuple(hierarchy.get(field) for field in article_fields)
+            != article_identity
+        ):
+            raise ValueError(f"POLICY_SOURCE_HIERARCHY_DRIFT:{chunk_locator}")
+
+        expected_base = locator
+        if "clauseNumber" in hierarchy:
+            expected_base += f"::cl-{hierarchy['clauseNumber']}"
+        if "pointLabel" in hierarchy:
+            expected_base += f"::pt-{hierarchy['pointLabel']}"
+        base, separator, part = chunk_locator.partition("::part-")
+        if base != expected_base:
+            raise ValueError(f"POLICY_SOURCE_HIERARCHY_DRIFT:{chunk_locator}")
+        if base == previous_base:
+            valid_part = (
+                separator
+                and previous_part > 0
+                and part == str(previous_part + 1)
+                and hierarchy == previous_hierarchy
+            )
+        else:
+            valid_part = base not in seen_bases and (not separator or part == "1")
+        if not valid_part or hierarchy.get("partOf") != (base if separator else None):
+            raise ValueError(f"POLICY_SOURCE_CONTINUATION_DRIFT:{chunk_locator}")
+
+        start, end = chunk["pageStart"], chunk["pageEnd"]
+        if not previous_end <= start <= end <= selector.pageEnd:
+            raise ValueError(f"POLICY_SOURCE_PAGE_DRIFT:{chunk_locator}")
+        previous_end = end
+        previous_base, previous_hierarchy = base, hierarchy
+        previous_part = int(part) if separator else 0
+        seen_bases.add(base)
+
+    if chunks[0]["pageStart"] != selector.pageStart or previous_end != selector.pageEnd:
+        raise ValueError(f"POLICY_SOURCE_PAGE_DRIFT:{locator}")
 
 
 def _load_legal_context() -> tuple[dict[str, LegalProvisionFixture], dict[str, Any]]:
@@ -233,13 +315,11 @@ def _load_legal_context() -> tuple[dict[str, LegalProvisionFixture], dict[str, A
             if chunk["locator"] == locator
             or chunk["locator"].startswith(f"{locator}::")
         ]
-        if not chunks:
-            raise ValueError(f"POLICY_SOURCE_LOCATOR_MISSING:{key}")
-        first = min(chunk["pageStart"] for chunk in chunks)
-        last = max(chunk["pageEnd"] for chunk in chunks)
+        _validate_article_chunks(chunks, selector)
         # Clause lead-ins carry the regulated actor and exceptions for point-only chunks.
         hierarchy = chunks[0]["hierarchy"]
-        parts = [hierarchy["articleHeading"]] if chunks[0]["locator"] != locator else []
+        first_base = chunks[0]["locator"].partition("::part-")[0]
+        parts = [hierarchy["articleHeading"]] if first_base != locator else []
         if hierarchy.get("articleLeadIn") and parts:
             parts.append(hierarchy["articleLeadIn"])
         seen_clauses = set()
@@ -260,7 +340,7 @@ def _load_legal_context() -> tuple[dict[str, LegalProvisionFixture], dict[str, A
         context[key] = LegalProvisionFixture(
             document_id=number,
             locator=f"Điều {article}",
-            title=f"{number} · Công báo PDF trang {first}–{last}",
+            title=f"{number} · Công báo PDF trang {selector.pageStart}–{selector.pageEnd}",
             content=content,
             content_sha256=digest(content),
             source_kind="OFFICIAL_PINNED_LAW",
