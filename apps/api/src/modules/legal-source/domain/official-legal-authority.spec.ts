@@ -10,7 +10,9 @@ import {
 describe("official legal corpus admission identity", () => {
   it("pins nine distinct official publication and original identities", () => {
     expect(OFFICIAL_LEGAL_CORPUS).toHaveLength(9);
-    expect(new Set(OFFICIAL_LEGAL_CORPUS.map((row) => row.sha256)).size).toBe(9);
+    expect(new Set(OFFICIAL_LEGAL_CORPUS.map((row) => row.sha256)).size).toBe(
+      9,
+    );
     for (const row of OFFICIAL_LEGAL_CORPUS) {
       expect(resolveOfficialLegalDocument(row.sourcePage)).toBe(row);
       expect(resolveOfficialLegalDocument(row.downloadUrl)).toBe(row);
