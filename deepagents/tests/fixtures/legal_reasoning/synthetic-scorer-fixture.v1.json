@@ -1,0 +1,719 @@
+{
+  "fixtureType": "SYNTHETIC_SCORER_VERIFICATION_ONLY",
+  "warning": "All review identities and labels below are synthetic test controls. This file is not human-reviewed gold and is never part of candidate-cases.v1.jsonl.",
+  "annotations": [
+    {
+      "caseId": "synthetic-rsp-actor",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "RULE_SET_PREPARATION",
+      "primaryDimension": "ACTOR",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "actor": {
+          "label": "CORRECT",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "ACTOR"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "ACTOR",
+              "label": "CORRECT",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-rsp-condition",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "RULE_SET_PREPARATION",
+      "primaryDimension": "CONDITIONS",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "conditions": {
+          "label": "COMPLETE",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "CONDITIONS"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "CONDITIONS",
+              "label": "COMPLETE",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-applicable",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "APPLICABILITY",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "applicability": {
+          "label": "APPLICABLE",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "APPLICABILITY"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "APPLICABILITY",
+              "label": "APPLICABLE",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-not-applicable",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "APPLICABILITY",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "applicability": {
+          "label": "NOT_APPLICABLE",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "APPLICABILITY"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "APPLICABILITY",
+              "label": "NOT_APPLICABLE",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-unresolved",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "APPLICABILITY",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "applicability": {
+          "label": "UNRESOLVED",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "APPLICABILITY"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "APPLICABILITY",
+              "label": "UNRESOLVED",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-compliance",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "COMPLIANCE",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "compliance": {
+          "label": "SUPPORTED_NON_COMPLIANCE",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "COMPLIANCE"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "COMPLIANCE",
+              "label": "SUPPORTED_NON_COMPLIANCE",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-evidence-partial",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "EVIDENCE_SUFFICIENCY",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "evidenceSufficiency": {
+          "label": "PARTIAL",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "EVIDENCE_SUFFICIENCY"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "EVIDENCE_SUFFICIENCY",
+              "label": "PARTIAL",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-evidence-missing",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "EVIDENCE_SUFFICIENCY",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "evidenceSufficiency": {
+          "label": "CONTRADICTORY",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "EVIDENCE_SUFFICIENCY"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "EVIDENCE_SUFFICIENCY",
+              "label": "CONTRADICTORY",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    },
+    {
+      "caseId": "synthetic-ar-unsupported",
+      "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+      "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+      "stage": "ASSESSMENT_ROOT",
+      "primaryDimension": "UNSUPPORTED_CONCLUSION",
+      "caseDescription": "Synthetic scorer control, never legal ground truth.",
+      "legalSource": {
+        "sourceId": "EU_GDPR_2016_679_OJ",
+        "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+        "citations": [
+          "Article 33(1)"
+        ],
+        "provisionRefs": [
+          "GDPR_ART_33_1"
+        ]
+      },
+      "scenarioFacts": [
+        "Synthetic control fact only."
+      ],
+      "claimUnderReview": null,
+      "expected": {
+        "unsupportedConclusion": {
+          "label": "NONE",
+          "details": [
+            "Synthetic scorer fixture label; not reviewed legal ground truth."
+          ]
+        }
+      },
+      "annotationRationale": "Synthetic fixture to check arithmetic and review gates; not an actual annotation.",
+      "evidenceReferences": [
+        {
+          "referenceId": "GDPR_ART_33_1",
+          "kind": "PUBLIC_LEGAL_SOURCE",
+          "description": "A controller notifies the competent supervisory authority without undue delay and, where feasible, within 72 hours after awareness, unless the breach is unlikely to create a rights-and-freedoms risk; reasons accompany a later notice."
+        }
+      ],
+      "reviewStatus": "REVIEWED",
+      "reviewers": [
+        {
+          "reviewerType": "HUMAN",
+          "reviewerId": "SYNTHETIC_FIXTURE_REVIEWER_A",
+          "identityVerificationRef": "synthetic-fixture-only://reviewer-a",
+          "reviewedAt": "2026-11-28T00:00:00Z",
+          "decision": "CONFIRM",
+          "dimensionsReviewed": [
+            "UNSUPPORTED_CONCLUSION"
+          ],
+          "dimensionJudgments": [
+            {
+              "dimension": "UNSUPPORTED_CONCLUSION",
+              "label": "NONE",
+              "rationale": "Synthetic test-only judgment."
+            }
+          ]
+        }
+      ],
+      "reviewerDisagreements": [],
+      "adjudication": null,
+      "uncertaintyReason": null,
+      "exclusionReason": null,
+      "counterfactualPair": null
+    }
+  ],
+  "predictions": {
+    "predictionVersion": "LCSP-400-NORMALIZED-PREDICTIONS-V1",
+    "sourceKind": "SYNTHETIC_TEST_FIXTURE",
+    "syntheticOnly": true,
+    "casePredictions": [
+      {
+        "caseId": "synthetic-rsp-actor",
+        "stage": "RULE_SET_PREPARATION",
+        "dimensionPredictions": {},
+        "humanJudgments": {
+          "actor": {
+            "label": "CORRECT",
+            "reviewStatus": "REVIEWED",
+            "reviewerDisagreements": [],
+            "reviewers": [
+              {
+                "reviewerType": "HUMAN",
+                "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
+                "identityVerificationRef": "synthetic-fixture-only://judge-a",
+                "reviewedAt": "2026-11-28T00:00:00Z"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "caseId": "synthetic-rsp-condition",
+        "stage": "RULE_SET_PREPARATION",
+        "dimensionPredictions": {},
+        "humanJudgments": {
+          "conditions": {
+            "label": "PARTIAL",
+            "reviewStatus": "REVIEWED",
+            "reviewerDisagreements": [],
+            "reviewers": [
+              {
+                "reviewerType": "HUMAN",
+                "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
+                "identityVerificationRef": "synthetic-fixture-only://judge-a",
+                "reviewedAt": "2026-11-28T00:00:00Z"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "caseId": "synthetic-ar-applicable",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {
+          "applicability": "APPLICABLE"
+        },
+        "humanJudgments": {}
+      },
+      {
+        "caseId": "synthetic-ar-not-applicable",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {
+          "applicability": "APPLICABLE"
+        },
+        "humanJudgments": {}
+      },
+      {
+        "caseId": "synthetic-ar-unresolved",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {},
+        "humanJudgments": {
+          "applicability": {
+            "label": "UNRESOLVED",
+            "reviewStatus": "REVIEWED",
+            "reviewerDisagreements": [],
+            "reviewers": [
+              {
+                "reviewerType": "HUMAN",
+                "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
+                "identityVerificationRef": "synthetic-fixture-only://judge-a",
+                "reviewedAt": "2026-11-28T00:00:00Z"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "caseId": "synthetic-ar-compliance",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {
+          "compliance": "COMPLIANT"
+        },
+        "humanJudgments": {}
+      },
+      {
+        "caseId": "synthetic-ar-evidence-partial",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {},
+        "humanJudgments": {
+          "evidenceSufficiency": {
+            "label": "PARTIAL",
+            "reviewStatus": "REVIEWED",
+            "reviewerDisagreements": [],
+            "reviewers": [
+              {
+                "reviewerType": "HUMAN",
+                "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
+                "identityVerificationRef": "synthetic-fixture-only://judge-a",
+                "reviewedAt": "2026-11-28T00:00:00Z"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "caseId": "synthetic-ar-evidence-missing",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {},
+        "humanJudgments": {}
+      },
+      {
+        "caseId": "synthetic-ar-unsupported",
+        "stage": "ASSESSMENT_ROOT",
+        "dimensionPredictions": {},
+        "humanJudgments": {
+          "unsupportedConclusion": {
+            "label": "UNKNOWN_TEST_LABEL",
+            "reviewStatus": "REVIEWED",
+            "reviewerDisagreements": [],
+            "reviewers": [
+              {
+                "reviewerType": "HUMAN",
+                "reviewerId": "SYNTHETIC_FIXTURE_JUDGE_A",
+                "identityVerificationRef": "synthetic-fixture-only://judge-a",
+                "reviewedAt": "2026-11-28T00:00:00Z"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

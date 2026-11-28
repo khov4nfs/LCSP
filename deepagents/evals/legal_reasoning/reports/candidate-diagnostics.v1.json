@@ -1,0 +1,68 @@
+{
+  "actualExecutionBaseline": {
+    "reason": "No compatible authorized LCSP run artifact was supplied for R1.",
+    "status": "NOT_RUN"
+  },
+  "candidateAnnotationCount": 30,
+  "caseCount": 30,
+  "counterfactualPairCount": 4,
+  "datasetCanonicalSha256": "f21ee0a6ed28ad6685ca00dc4096b7f2b81fb2813bb2e819a1cb36f291c854c8",
+  "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+  "excludedAnnotationCount": 0,
+  "humanReviewedAnnotationCount": 0,
+  "humanReviewedSemanticEvaluation": {
+    "eligibleReviewedCases": 0,
+    "status": "NOT_STARTED"
+  },
+  "primaryDimensionCounts": {
+    "ACTOR": 4,
+    "APPLICABILITY": 6,
+    "COMPLIANCE": 6,
+    "CONDITIONS": 3,
+    "EVIDENCE_SUFFICIENCY": 4,
+    "EXCEPTIONS": 3,
+    "UNSUPPORTED_CONCLUSION": 4
+  },
+  "provisionalAnnotationCount": 0,
+  "qualityMetrics": null,
+  "reportClassification": "CANDIDATE_ANNOTATION_DIAGNOSTICS_ONLY",
+  "reportVersion": "LCSP-400-CANDIDATE-ANNOTATION-DIAGNOSTICS-V1",
+  "reviewStatusCounts": {
+    "ADJUDICATED": 0,
+    "CANDIDATE": 30,
+    "EXCLUDED": 0,
+    "INDEPENDENT_REVIEW": 0,
+    "PROVISIONAL": 0,
+    "REVIEWED": 0,
+    "UNCERTAIN": 0
+  },
+  "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+  "sourcePin": {
+    "sourceId": "EU_GDPR_2016_679_OJ",
+    "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/pdf",
+    "sourceVersion": "CELEX:32016R0679@OJ-L119-2016-05-04-EN"
+  },
+  "stageCounts": {
+    "ASSESSMENT_ROOT": 24,
+    "RULE_SET_PREPARATION": 6
+  },
+  "unresolvedDisagreementCount": 0,
+  "verifiedCitationReferenceCount": 15,
+  "verifiedCitationReferences": [
+    "Article 2(2)(c)",
+    "Article 28(10)",
+    "Article 3(1)",
+    "Article 3(2)(a)",
+    "Article 3(2)(b)",
+    "Article 30(5)",
+    "Article 32(1)",
+    "Article 33(1)",
+    "Article 33(2)",
+    "Article 34(1)",
+    "Article 34(3)(a)",
+    "Article 34(3)(b)",
+    "Article 34(3)(c)",
+    "Article 35(1)",
+    "Recital 23"
+  ]
+}

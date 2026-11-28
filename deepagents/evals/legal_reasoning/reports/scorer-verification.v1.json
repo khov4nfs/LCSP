@@ -1,0 +1,1363 @@
+{
+  "actualExecutionBaseline": {
+    "status": "NOT_RUN"
+  },
+  "candidateDatasetUsed": false,
+  "coverage": {
+    "candidateAnnotationCount": 0,
+    "excludedAnnotationCount": 0,
+    "extraPredictionCaseCount": 0,
+    "humanReviewedAnnotationCount": 9,
+    "missingPredictionCaseCount": 0,
+    "provisionalOrUncertainAnnotationCount": 0,
+    "reviewStatusCounts": {
+      "REVIEWED": 9
+    },
+    "unresolvedDisagreementCount": 0
+  },
+  "datasetVersion": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1",
+  "evidenceQuality": {
+    "byDimension": {
+      "EVIDENCE_SUFFICIENCY": {
+        "applicableCaseCount": 2,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "CONTRADICTORY": {
+              "CONTRADICTORY": 0,
+              "PARTIAL": 0,
+              "__MISSING__": 1
+            },
+            "PARTIAL": {
+              "CONTRADICTORY": 0,
+              "PARTIAL": 1,
+              "__MISSING__": 0
+            },
+            "__MISSING__": {
+              "CONTRADICTORY": 0,
+              "PARTIAL": 0,
+              "__MISSING__": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "PARTIAL",
+            "CONTRADICTORY",
+            "__MISSING__"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 2,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "EVIDENCE_SUFFICIENCY",
+        "eligibleReviewedGoldCount": 2,
+        "excludedCaseCount": 0,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "PARTIAL",
+          "CONTRADICTORY",
+          "__MISSING__"
+        ],
+        "macroF1": 0.333333,
+        "missingPredictionCount": 1,
+        "perClass": {
+          "CONTRADICTORY": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "PARTIAL": {
+            "f1": 1.0,
+            "falseNegatives": 0,
+            "falsePositives": 0,
+            "precision": 1.0,
+            "predictedSupport": 1,
+            "recall": 1.0,
+            "support": 1
+          },
+          "__MISSING__": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          }
+        },
+        "predictionCoverage": 0.5,
+        "reviewCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-evidence-missing",
+          "synthetic-ar-evidence-partial"
+        ],
+        "scoringCoverage": 0.5,
+        "status": "SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 0
+      }
+    },
+    "dimensionIds": [
+      "EVIDENCE_SUFFICIENCY"
+    ],
+    "note": "Evidence sufficiency is scored separately from semantic conclusions."
+  },
+  "fixtureWarning": "All review identities and labels below are synthetic test controls. This file is not human-reviewed gold and is never part of candidate-cases.v1.jsonl.",
+  "humanReviewedSemanticEvaluation": {
+    "eligibleReviewedCases": 0,
+    "status": "NOT_STARTED"
+  },
+  "perDimension": {
+    "ACTOR": {
+      "applicableCaseCount": 1,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {
+          "CORRECT": {
+            "CORRECT": 1
+          }
+        },
+        "columns": "PREDICTION",
+        "labels": [
+          "CORRECT"
+        ],
+        "rows": "GOLD"
+      },
+      "denominator": 1,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "ACTOR",
+      "eligibleReviewedGoldCount": 1,
+      "excludedCaseCount": 0,
+      "falseNegatives": 0,
+      "falsePositives": 0,
+      "invalidPredictionCount": 0,
+      "labels": [
+        "CORRECT"
+      ],
+      "macroF1": 1.0,
+      "missingPredictionCount": 0,
+      "perClass": {
+        "CORRECT": {
+          "f1": 1.0,
+          "falseNegatives": 0,
+          "falsePositives": 0,
+          "precision": 1.0,
+          "predictedSupport": 1,
+          "recall": 1.0,
+          "support": 1
+        }
+      },
+      "predictionCoverage": 1.0,
+      "reviewCoverage": 1.0,
+      "reviewedCaseIds": [
+        "synthetic-rsp-actor"
+      ],
+      "scoringCoverage": 1.0,
+      "status": "SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 0
+    },
+    "APPLICABILITY": {
+      "applicableCaseCount": 3,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {
+          "APPLICABLE": {
+            "APPLICABLE": 1,
+            "NOT_APPLICABLE": 0,
+            "UNRESOLVED": 0
+          },
+          "NOT_APPLICABLE": {
+            "APPLICABLE": 1,
+            "NOT_APPLICABLE": 0,
+            "UNRESOLVED": 0
+          },
+          "UNRESOLVED": {
+            "APPLICABLE": 0,
+            "NOT_APPLICABLE": 0,
+            "UNRESOLVED": 1
+          }
+        },
+        "columns": "PREDICTION",
+        "labels": [
+          "APPLICABLE",
+          "NOT_APPLICABLE",
+          "UNRESOLVED"
+        ],
+        "rows": "GOLD"
+      },
+      "denominator": 3,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "APPLICABILITY",
+      "eligibleReviewedGoldCount": 3,
+      "excludedCaseCount": 0,
+      "falseNegatives": 1,
+      "falsePositives": 1,
+      "invalidPredictionCount": 0,
+      "labels": [
+        "APPLICABLE",
+        "NOT_APPLICABLE",
+        "UNRESOLVED"
+      ],
+      "macroF1": 0.555556,
+      "missingPredictionCount": 0,
+      "perClass": {
+        "APPLICABLE": {
+          "f1": 0.666667,
+          "falseNegatives": 0,
+          "falsePositives": 1,
+          "precision": 0.5,
+          "predictedSupport": 2,
+          "recall": 1.0,
+          "support": 1
+        },
+        "NOT_APPLICABLE": {
+          "f1": 0.0,
+          "falseNegatives": 1,
+          "falsePositives": 0,
+          "precision": null,
+          "predictedSupport": 0,
+          "recall": 0.0,
+          "support": 1
+        },
+        "UNRESOLVED": {
+          "f1": 1.0,
+          "falseNegatives": 0,
+          "falsePositives": 0,
+          "precision": 1.0,
+          "predictedSupport": 1,
+          "recall": 1.0,
+          "support": 1
+        }
+      },
+      "predictionCoverage": 1.0,
+      "reviewCoverage": 1.0,
+      "reviewedCaseIds": [
+        "synthetic-ar-applicable",
+        "synthetic-ar-not-applicable",
+        "synthetic-ar-unresolved"
+      ],
+      "scoringCoverage": 1.0,
+      "status": "SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 0
+    },
+    "COMPLIANCE": {
+      "applicableCaseCount": 1,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {
+          "SUPPORTED_COMPLIANCE": {
+            "SUPPORTED_COMPLIANCE": 0,
+            "SUPPORTED_NON_COMPLIANCE": 0
+          },
+          "SUPPORTED_NON_COMPLIANCE": {
+            "SUPPORTED_COMPLIANCE": 1,
+            "SUPPORTED_NON_COMPLIANCE": 0
+          }
+        },
+        "columns": "PREDICTION",
+        "labels": [
+          "SUPPORTED_COMPLIANCE",
+          "SUPPORTED_NON_COMPLIANCE"
+        ],
+        "rows": "GOLD"
+      },
+      "denominator": 1,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "COMPLIANCE",
+      "eligibleReviewedGoldCount": 1,
+      "excludedCaseCount": 0,
+      "falseNegatives": 1,
+      "falsePositives": 1,
+      "invalidPredictionCount": 0,
+      "labels": [
+        "SUPPORTED_COMPLIANCE",
+        "SUPPORTED_NON_COMPLIANCE"
+      ],
+      "macroF1": 0.0,
+      "missingPredictionCount": 0,
+      "perClass": {
+        "SUPPORTED_COMPLIANCE": {
+          "f1": 0.0,
+          "falseNegatives": 0,
+          "falsePositives": 1,
+          "precision": 0.0,
+          "predictedSupport": 1,
+          "recall": null,
+          "support": 0
+        },
+        "SUPPORTED_NON_COMPLIANCE": {
+          "f1": 0.0,
+          "falseNegatives": 1,
+          "falsePositives": 0,
+          "precision": null,
+          "predictedSupport": 0,
+          "recall": 0.0,
+          "support": 1
+        }
+      },
+      "predictionCoverage": 1.0,
+      "reviewCoverage": 1.0,
+      "reviewedCaseIds": [
+        "synthetic-ar-compliance"
+      ],
+      "scoringCoverage": 1.0,
+      "status": "SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 0
+    },
+    "CONDITIONS": {
+      "applicableCaseCount": 1,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {
+          "COMPLETE": {
+            "COMPLETE": 0,
+            "PARTIAL": 1
+          },
+          "PARTIAL": {
+            "COMPLETE": 0,
+            "PARTIAL": 0
+          }
+        },
+        "columns": "PREDICTION",
+        "labels": [
+          "COMPLETE",
+          "PARTIAL"
+        ],
+        "rows": "GOLD"
+      },
+      "denominator": 1,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "CONDITIONS",
+      "eligibleReviewedGoldCount": 1,
+      "excludedCaseCount": 0,
+      "falseNegatives": 1,
+      "falsePositives": 1,
+      "invalidPredictionCount": 0,
+      "labels": [
+        "COMPLETE",
+        "PARTIAL"
+      ],
+      "macroF1": 0.0,
+      "missingPredictionCount": 0,
+      "perClass": {
+        "COMPLETE": {
+          "f1": 0.0,
+          "falseNegatives": 1,
+          "falsePositives": 0,
+          "precision": null,
+          "predictedSupport": 0,
+          "recall": 0.0,
+          "support": 1
+        },
+        "PARTIAL": {
+          "f1": 0.0,
+          "falseNegatives": 0,
+          "falsePositives": 1,
+          "precision": 0.0,
+          "predictedSupport": 1,
+          "recall": null,
+          "support": 0
+        }
+      },
+      "predictionCoverage": 1.0,
+      "reviewCoverage": 1.0,
+      "reviewedCaseIds": [
+        "synthetic-rsp-condition"
+      ],
+      "scoringCoverage": 1.0,
+      "status": "SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 0
+    },
+    "EVIDENCE_SUFFICIENCY": {
+      "applicableCaseCount": 2,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {
+          "CONTRADICTORY": {
+            "CONTRADICTORY": 0,
+            "PARTIAL": 0,
+            "__MISSING__": 1
+          },
+          "PARTIAL": {
+            "CONTRADICTORY": 0,
+            "PARTIAL": 1,
+            "__MISSING__": 0
+          },
+          "__MISSING__": {
+            "CONTRADICTORY": 0,
+            "PARTIAL": 0,
+            "__MISSING__": 0
+          }
+        },
+        "columns": "PREDICTION",
+        "labels": [
+          "PARTIAL",
+          "CONTRADICTORY",
+          "__MISSING__"
+        ],
+        "rows": "GOLD"
+      },
+      "denominator": 2,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "EVIDENCE_SUFFICIENCY",
+      "eligibleReviewedGoldCount": 2,
+      "excludedCaseCount": 0,
+      "falseNegatives": 1,
+      "falsePositives": 1,
+      "invalidPredictionCount": 0,
+      "labels": [
+        "PARTIAL",
+        "CONTRADICTORY",
+        "__MISSING__"
+      ],
+      "macroF1": 0.333333,
+      "missingPredictionCount": 1,
+      "perClass": {
+        "CONTRADICTORY": {
+          "f1": 0.0,
+          "falseNegatives": 1,
+          "falsePositives": 0,
+          "precision": null,
+          "predictedSupport": 0,
+          "recall": 0.0,
+          "support": 1
+        },
+        "PARTIAL": {
+          "f1": 1.0,
+          "falseNegatives": 0,
+          "falsePositives": 0,
+          "precision": 1.0,
+          "predictedSupport": 1,
+          "recall": 1.0,
+          "support": 1
+        },
+        "__MISSING__": {
+          "f1": 0.0,
+          "falseNegatives": 0,
+          "falsePositives": 1,
+          "precision": 0.0,
+          "predictedSupport": 1,
+          "recall": null,
+          "support": 0
+        }
+      },
+      "predictionCoverage": 0.5,
+      "reviewCoverage": 1.0,
+      "reviewedCaseIds": [
+        "synthetic-ar-evidence-missing",
+        "synthetic-ar-evidence-partial"
+      ],
+      "scoringCoverage": 0.5,
+      "status": "SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 0
+    },
+    "EXCEPTIONS": {
+      "applicableCaseCount": 0,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {},
+        "columns": "PREDICTION",
+        "labels": [],
+        "rows": "GOLD"
+      },
+      "denominator": 0,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "EXCEPTIONS",
+      "eligibleReviewedGoldCount": 0,
+      "excludedCaseCount": 0,
+      "falseNegatives": 0,
+      "falsePositives": 0,
+      "invalidPredictionCount": 0,
+      "labels": [],
+      "macroF1": null,
+      "missingPredictionCount": 0,
+      "perClass": {},
+      "predictionCoverage": null,
+      "reviewCoverage": null,
+      "reviewedCaseIds": [],
+      "scoringCoverage": null,
+      "status": "NOT_SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 0
+    },
+    "UNSUPPORTED_CONCLUSION": {
+      "applicableCaseCount": 1,
+      "candidateCaseCount": 0,
+      "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+      "confusionMatrix": {
+        "cells": {
+          "NONE": {
+            "NONE": 0,
+            "__UNKNOWN__": 1
+          },
+          "__UNKNOWN__": {
+            "NONE": 0,
+            "__UNKNOWN__": 0
+          }
+        },
+        "columns": "PREDICTION",
+        "labels": [
+          "NONE",
+          "__UNKNOWN__"
+        ],
+        "rows": "GOLD"
+      },
+      "denominator": 1,
+      "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+      "dimension": "UNSUPPORTED_CONCLUSION",
+      "eligibleReviewedGoldCount": 1,
+      "excludedCaseCount": 0,
+      "falseNegatives": 1,
+      "falsePositives": 1,
+      "invalidPredictionCount": 1,
+      "labels": [
+        "NONE",
+        "__UNKNOWN__"
+      ],
+      "macroF1": 0.0,
+      "missingPredictionCount": 0,
+      "perClass": {
+        "NONE": {
+          "f1": 0.0,
+          "falseNegatives": 1,
+          "falsePositives": 0,
+          "precision": null,
+          "predictedSupport": 0,
+          "recall": 0.0,
+          "support": 1
+        },
+        "__UNKNOWN__": {
+          "f1": 0.0,
+          "falseNegatives": 0,
+          "falsePositives": 1,
+          "precision": 0.0,
+          "predictedSupport": 1,
+          "recall": null,
+          "support": 0
+        }
+      },
+      "predictionCoverage": 1.0,
+      "reviewCoverage": 1.0,
+      "reviewedCaseIds": [
+        "synthetic-ar-unsupported"
+      ],
+      "scoringCoverage": 0.0,
+      "status": "SCORED",
+      "uncertainOrProvisionalCaseCount": 0,
+      "unknownPredictionCount": 1
+    }
+  },
+  "perStage": {
+    "ASSESSMENT_ROOT": {
+      "APPLICABILITY": {
+        "applicableCaseCount": 3,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "APPLICABLE": {
+              "APPLICABLE": 1,
+              "NOT_APPLICABLE": 0,
+              "UNRESOLVED": 0
+            },
+            "NOT_APPLICABLE": {
+              "APPLICABLE": 1,
+              "NOT_APPLICABLE": 0,
+              "UNRESOLVED": 0
+            },
+            "UNRESOLVED": {
+              "APPLICABLE": 0,
+              "NOT_APPLICABLE": 0,
+              "UNRESOLVED": 1
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "APPLICABLE",
+            "NOT_APPLICABLE",
+            "UNRESOLVED"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 3,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "APPLICABILITY",
+        "eligibleReviewedGoldCount": 3,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "APPLICABLE",
+          "NOT_APPLICABLE",
+          "UNRESOLVED"
+        ],
+        "macroF1": 0.555556,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "APPLICABLE": {
+            "f1": 0.666667,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.5,
+            "predictedSupport": 2,
+            "recall": 1.0,
+            "support": 1
+          },
+          "NOT_APPLICABLE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "UNRESOLVED": {
+            "f1": 1.0,
+            "falseNegatives": 0,
+            "falsePositives": 0,
+            "precision": 1.0,
+            "predictedSupport": 1,
+            "recall": 1.0,
+            "support": 1
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-applicable",
+          "synthetic-ar-not-applicable",
+          "synthetic-ar-unresolved"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "unknownPredictionCount": 0
+      },
+      "COMPLIANCE": {
+        "applicableCaseCount": 1,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "SUPPORTED_COMPLIANCE": {
+              "SUPPORTED_COMPLIANCE": 0,
+              "SUPPORTED_NON_COMPLIANCE": 0
+            },
+            "SUPPORTED_NON_COMPLIANCE": {
+              "SUPPORTED_COMPLIANCE": 1,
+              "SUPPORTED_NON_COMPLIANCE": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "SUPPORTED_COMPLIANCE",
+            "SUPPORTED_NON_COMPLIANCE"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "COMPLIANCE",
+        "eligibleReviewedGoldCount": 1,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "SUPPORTED_COMPLIANCE",
+          "SUPPORTED_NON_COMPLIANCE"
+        ],
+        "macroF1": 0.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "SUPPORTED_COMPLIANCE": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          },
+          "SUPPORTED_NON_COMPLIANCE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-compliance"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "unknownPredictionCount": 0
+      },
+      "EVIDENCE_SUFFICIENCY": {
+        "applicableCaseCount": 2,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "CONTRADICTORY": {
+              "CONTRADICTORY": 0,
+              "PARTIAL": 0,
+              "__MISSING__": 1
+            },
+            "PARTIAL": {
+              "CONTRADICTORY": 0,
+              "PARTIAL": 1,
+              "__MISSING__": 0
+            },
+            "__MISSING__": {
+              "CONTRADICTORY": 0,
+              "PARTIAL": 0,
+              "__MISSING__": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "PARTIAL",
+            "CONTRADICTORY",
+            "__MISSING__"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 2,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "EVIDENCE_SUFFICIENCY",
+        "eligibleReviewedGoldCount": 2,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "PARTIAL",
+          "CONTRADICTORY",
+          "__MISSING__"
+        ],
+        "macroF1": 0.333333,
+        "missingPredictionCount": 1,
+        "perClass": {
+          "CONTRADICTORY": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "PARTIAL": {
+            "f1": 1.0,
+            "falseNegatives": 0,
+            "falsePositives": 0,
+            "precision": 1.0,
+            "predictedSupport": 1,
+            "recall": 1.0,
+            "support": 1
+          },
+          "__MISSING__": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          }
+        },
+        "predictionCoverage": 0.5,
+        "reviewedCaseIds": [
+          "synthetic-ar-evidence-missing",
+          "synthetic-ar-evidence-partial"
+        ],
+        "scoringCoverage": 0.5,
+        "status": "SCORED",
+        "unknownPredictionCount": 0
+      },
+      "UNSUPPORTED_CONCLUSION": {
+        "applicableCaseCount": 1,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "NONE": {
+              "NONE": 0,
+              "__UNKNOWN__": 1
+            },
+            "__UNKNOWN__": {
+              "NONE": 0,
+              "__UNKNOWN__": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "NONE",
+            "__UNKNOWN__"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "UNSUPPORTED_CONCLUSION",
+        "eligibleReviewedGoldCount": 1,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 1,
+        "labels": [
+          "NONE",
+          "__UNKNOWN__"
+        ],
+        "macroF1": 0.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "NONE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "__UNKNOWN__": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-unsupported"
+        ],
+        "scoringCoverage": 0.0,
+        "status": "SCORED",
+        "unknownPredictionCount": 1
+      }
+    },
+    "RULE_SET_PREPARATION": {
+      "ACTOR": {
+        "applicableCaseCount": 1,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "CORRECT": {
+              "CORRECT": 1
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "CORRECT"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "ACTOR",
+        "eligibleReviewedGoldCount": 1,
+        "falseNegatives": 0,
+        "falsePositives": 0,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "CORRECT"
+        ],
+        "macroF1": 1.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "CORRECT": {
+            "f1": 1.0,
+            "falseNegatives": 0,
+            "falsePositives": 0,
+            "precision": 1.0,
+            "predictedSupport": 1,
+            "recall": 1.0,
+            "support": 1
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-rsp-actor"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "unknownPredictionCount": 0
+      },
+      "CONDITIONS": {
+        "applicableCaseCount": 1,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "COMPLETE": {
+              "COMPLETE": 0,
+              "PARTIAL": 1
+            },
+            "PARTIAL": {
+              "COMPLETE": 0,
+              "PARTIAL": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "COMPLETE",
+            "PARTIAL"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "CONDITIONS",
+        "eligibleReviewedGoldCount": 1,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "COMPLETE",
+          "PARTIAL"
+        ],
+        "macroF1": 0.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "COMPLETE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "PARTIAL": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-rsp-condition"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "unknownPredictionCount": 0
+      }
+    }
+  },
+  "provenance": {
+    "deepAgentAccuracyClaim": "NOT_MADE",
+    "fixtureOnly": true,
+    "inputDigests": {
+      "annotationsCanonicalSha256": "9eeaf33fb185c0e79f218a54e3e2b735ad322629032527163c8cf7b5a00f8d47",
+      "predictionsCanonicalSha256": "9df560cea7ef47e96e6aa68c64cdbf07b2b3ba8d6bdaa6f79bc39d5cdb43919d",
+      "rubricCanonicalSha256": "ab6c9e71e7e3f3e7a3a921ccb5d137a0f27dbd218050482171de3309bedaac24",
+      "sourcePinsCanonicalSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14"
+    },
+    "predictionSource": "SYNTHETIC_TEST_FIXTURE",
+    "productionAcceptance": "NOT_PROVEN",
+    "runMetadata": {}
+  },
+  "reportClassification": "SYNTHETIC_SCORER_VERIFICATION_ONLY",
+  "reportVersion": "LCSP-400-SCORER-REPORT-V1",
+  "rubricVersion": "LCSP-400-LEGAL-REASONING-RUBRIC-V1",
+  "scoringStatus": "SCORED",
+  "semanticQuality": {
+    "byDimension": {
+      "ACTOR": {
+        "applicableCaseCount": 1,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "CORRECT": {
+              "CORRECT": 1
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "CORRECT"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "ACTOR",
+        "eligibleReviewedGoldCount": 1,
+        "excludedCaseCount": 0,
+        "falseNegatives": 0,
+        "falsePositives": 0,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "CORRECT"
+        ],
+        "macroF1": 1.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "CORRECT": {
+            "f1": 1.0,
+            "falseNegatives": 0,
+            "falsePositives": 0,
+            "precision": 1.0,
+            "predictedSupport": 1,
+            "recall": 1.0,
+            "support": 1
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-rsp-actor"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 0
+      },
+      "APPLICABILITY": {
+        "applicableCaseCount": 3,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "APPLICABLE": {
+              "APPLICABLE": 1,
+              "NOT_APPLICABLE": 0,
+              "UNRESOLVED": 0
+            },
+            "NOT_APPLICABLE": {
+              "APPLICABLE": 1,
+              "NOT_APPLICABLE": 0,
+              "UNRESOLVED": 0
+            },
+            "UNRESOLVED": {
+              "APPLICABLE": 0,
+              "NOT_APPLICABLE": 0,
+              "UNRESOLVED": 1
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "APPLICABLE",
+            "NOT_APPLICABLE",
+            "UNRESOLVED"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 3,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "APPLICABILITY",
+        "eligibleReviewedGoldCount": 3,
+        "excludedCaseCount": 0,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "APPLICABLE",
+          "NOT_APPLICABLE",
+          "UNRESOLVED"
+        ],
+        "macroF1": 0.555556,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "APPLICABLE": {
+            "f1": 0.666667,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.5,
+            "predictedSupport": 2,
+            "recall": 1.0,
+            "support": 1
+          },
+          "NOT_APPLICABLE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "UNRESOLVED": {
+            "f1": 1.0,
+            "falseNegatives": 0,
+            "falsePositives": 0,
+            "precision": 1.0,
+            "predictedSupport": 1,
+            "recall": 1.0,
+            "support": 1
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-applicable",
+          "synthetic-ar-not-applicable",
+          "synthetic-ar-unresolved"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 0
+      },
+      "COMPLIANCE": {
+        "applicableCaseCount": 1,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "SUPPORTED_COMPLIANCE": {
+              "SUPPORTED_COMPLIANCE": 0,
+              "SUPPORTED_NON_COMPLIANCE": 0
+            },
+            "SUPPORTED_NON_COMPLIANCE": {
+              "SUPPORTED_COMPLIANCE": 1,
+              "SUPPORTED_NON_COMPLIANCE": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "SUPPORTED_COMPLIANCE",
+            "SUPPORTED_NON_COMPLIANCE"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "COMPLIANCE",
+        "eligibleReviewedGoldCount": 1,
+        "excludedCaseCount": 0,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "SUPPORTED_COMPLIANCE",
+          "SUPPORTED_NON_COMPLIANCE"
+        ],
+        "macroF1": 0.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "SUPPORTED_COMPLIANCE": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          },
+          "SUPPORTED_NON_COMPLIANCE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-compliance"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 0
+      },
+      "CONDITIONS": {
+        "applicableCaseCount": 1,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "COMPLETE": {
+              "COMPLETE": 0,
+              "PARTIAL": 1
+            },
+            "PARTIAL": {
+              "COMPLETE": 0,
+              "PARTIAL": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "COMPLETE",
+            "PARTIAL"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "CONDITIONS",
+        "eligibleReviewedGoldCount": 1,
+        "excludedCaseCount": 0,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 0,
+        "labels": [
+          "COMPLETE",
+          "PARTIAL"
+        ],
+        "macroF1": 0.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "COMPLETE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "PARTIAL": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-rsp-condition"
+        ],
+        "scoringCoverage": 1.0,
+        "status": "SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 0
+      },
+      "EXCEPTIONS": {
+        "applicableCaseCount": 0,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {},
+          "columns": "PREDICTION",
+          "labels": [],
+          "rows": "GOLD"
+        },
+        "denominator": 0,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "EXCEPTIONS",
+        "eligibleReviewedGoldCount": 0,
+        "excludedCaseCount": 0,
+        "falseNegatives": 0,
+        "falsePositives": 0,
+        "invalidPredictionCount": 0,
+        "labels": [],
+        "macroF1": null,
+        "missingPredictionCount": 0,
+        "perClass": {},
+        "predictionCoverage": null,
+        "reviewCoverage": null,
+        "reviewedCaseIds": [],
+        "scoringCoverage": null,
+        "status": "NOT_SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 0
+      },
+      "UNSUPPORTED_CONCLUSION": {
+        "applicableCaseCount": 1,
+        "candidateCaseCount": 0,
+        "classInclusionRule": "Union of labels with gold or prediction support; absent labels are omitted.",
+        "confusionMatrix": {
+          "cells": {
+            "NONE": {
+              "NONE": 0,
+              "__UNKNOWN__": 1
+            },
+            "__UNKNOWN__": {
+              "NONE": 0,
+              "__UNKNOWN__": 0
+            }
+          },
+          "columns": "PREDICTION",
+          "labels": [
+            "NONE",
+            "__UNKNOWN__"
+          ],
+          "rows": "GOLD"
+        },
+        "denominator": 1,
+        "denominatorRule": "Every eligible reviewed gold case for this dimension, including missing and unknown predictions.",
+        "dimension": "UNSUPPORTED_CONCLUSION",
+        "eligibleReviewedGoldCount": 1,
+        "excludedCaseCount": 0,
+        "falseNegatives": 1,
+        "falsePositives": 1,
+        "invalidPredictionCount": 1,
+        "labels": [
+          "NONE",
+          "__UNKNOWN__"
+        ],
+        "macroF1": 0.0,
+        "missingPredictionCount": 0,
+        "perClass": {
+          "NONE": {
+            "f1": 0.0,
+            "falseNegatives": 1,
+            "falsePositives": 0,
+            "precision": null,
+            "predictedSupport": 0,
+            "recall": 0.0,
+            "support": 1
+          },
+          "__UNKNOWN__": {
+            "f1": 0.0,
+            "falseNegatives": 0,
+            "falsePositives": 1,
+            "precision": 0.0,
+            "predictedSupport": 1,
+            "recall": null,
+            "support": 0
+          }
+        },
+        "predictionCoverage": 1.0,
+        "reviewCoverage": 1.0,
+        "reviewedCaseIds": [
+          "synthetic-ar-unsupported"
+        ],
+        "scoringCoverage": 0.0,
+        "status": "SCORED",
+        "uncertainOrProvisionalCaseCount": 0,
+        "unknownPredictionCount": 1
+      }
+    },
+    "dimensionIds": [
+      "APPLICABILITY",
+      "COMPLIANCE",
+      "ACTOR",
+      "CONDITIONS",
+      "EXCEPTIONS",
+      "UNSUPPORTED_CONCLUSION"
+    ],
+    "note": "Read each dimension separately; no cross-dimension accuracy is computed."
+  }
+}

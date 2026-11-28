@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lcsp.example/evals/legal-reasoning/annotation.schema.v1.json",
+  "title": "LCSP-400 candidate legal reasoning annotation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "caseId", "datasetVersion", "rubricVersion", "stage", "primaryDimension",
+    "caseDescription", "legalSource", "scenarioFacts", "claimUnderReview", "expected",
+    "annotationRationale", "evidenceReferences", "reviewStatus", "reviewers",
+    "reviewerDisagreements", "adjudication", "uncertaintyReason", "exclusionReason",
+    "counterfactualPair"
+  ],
+  "properties": {
+    "caseId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,95}$"},
+    "datasetVersion": {"const": "LCSP-400-LEGAL-REASONING-CANDIDATES-V1"},
+    "rubricVersion": {"const": "LCSP-400-LEGAL-REASONING-RUBRIC-V1"},
+    "stage": {"enum": ["RULE_SET_PREPARATION", "ASSESSMENT_ROOT"]},
+    "primaryDimension": {
+      "enum": ["APPLICABILITY", "COMPLIANCE", "ACTOR", "CONDITIONS", "EXCEPTIONS", "EVIDENCE_SUFFICIENCY", "UNSUPPORTED_CONCLUSION"]
+    },
+    "caseDescription": {"type": "string", "minLength": 20},
+    "legalSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "sourceVersion", "sourceUrl", "citations", "provisionRefs"],
+      "properties": {
+        "sourceId": {"type": "string", "minLength": 1},
+        "sourceVersion": {"type": "string", "minLength": 1},
+        "sourceUrl": {"type": "string", "format": "uri"},
+        "citations": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "provisionRefs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "scenarioFacts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "claimUnderReview": {"type": ["string", "null"]},
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {"$ref": "#/$defs/expectation"},
+        "compliance": {"$ref": "#/$defs/expectation"},
+        "actor": {"$ref": "#/$defs/expectation"},
+        "conditions": {"$ref": "#/$defs/expectation"},
+        "exceptions": {"$ref": "#/$defs/expectation"},
+        "evidenceSufficiency": {"$ref": "#/$defs/expectation"},
+        "unsupportedConclusion": {"$ref": "#/$defs/expectation"}
+      },
+      "minProperties": 1
+    },
+    "annotationRationale": {"type": "string", "minLength": 20},
+    "evidenceReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["referenceId", "kind", "description"],
+        "properties": {
+          "referenceId": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["PUBLIC_LEGAL_SOURCE", "SYNTHETIC_SCENARIO_FACT", "SYNTHETIC_REPOSITORY_EVIDENCE"]},
+          "description": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "reviewStatus": {"enum": ["CANDIDATE", "INDEPENDENT_REVIEW", "REVIEWED", "ADJUDICATED", "PROVISIONAL", "UNCERTAIN", "EXCLUDED"]},
+    "reviewers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reviewerType", "reviewerId", "identityVerificationRef", "reviewedAt", "decision", "dimensionsReviewed", "dimensionJudgments"],
+        "properties": {
+          "reviewerType": {"const": "HUMAN"},
+          "reviewerId": {"type": "string", "minLength": 1},
+          "identityVerificationRef": {"type": "string", "minLength": 1},
+          "reviewedAt": {"type": "string", "format": "date-time"},
+          "decision": {"enum": ["CONFIRM", "REVISE", "UNSURE"]},
+          "dimensionsReviewed": {"type": "array", "uniqueItems": true, "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "dimensionJudgments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["dimension", "label", "rationale"],
+              "properties": {
+                "dimension": {"type": "string", "minLength": 1},
+                "label": {"type": "string", "minLength": 1},
+                "rationale": {"type": "string", "minLength": 1}
+              }
+            }
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "reviewerDisagreements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dimension", "reviewerIds", "issue", "proposedLabels"],
+        "properties": {
+          "dimension": {"type": "string", "minLength": 1},
+          "reviewerIds": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string"}},
+          "issue": {"type": "string", "minLength": 1},
+          "proposedLabels": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["reviewerId", "label"],
+              "properties": {"reviewerId": {"type": "string"}, "label": {"type": "string"}}
+            }
+          }
+        }
+      }
+    },
+    "adjudication": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviewerType", "reviewerId", "identityVerificationRef", "reviewEvidenceRef", "outcome", "rationale", "adjudicatedAt", "resolvedLabels"],
+          "properties": {
+            "reviewerType": {"const": "HUMAN"},
+            "reviewerId": {"type": "string", "minLength": 1},
+            "identityVerificationRef": {"type": "string", "minLength": 1},
+            "reviewEvidenceRef": {"type": "string", "minLength": 1},
+            "outcome": {"enum": ["CONFIRM", "REVISE", "EXCLUDE", "REMAIN_UNCERTAIN"]},
+            "rationale": {"type": "string", "minLength": 1},
+            "adjudicatedAt": {"type": "string", "format": "date-time"},
+            "resolvedLabels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["dimension", "label", "rationale"],
+                "properties": {
+                  "dimension": {"type": "string", "minLength": 1},
+                  "label": {"type": "string", "minLength": 1},
+                  "rationale": {"type": "string", "minLength": 1}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "uncertaintyReason": {"type": ["string", "null"]},
+    "exclusionReason": {"type": ["string", "null"]},
+    "counterfactualPair": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pairId", "counterpartCaseId", "changedMaterialFact"],
+          "properties": {
+            "pairId": {"type": "string", "minLength": 1},
+            "counterpartCaseId": {"type": "string", "minLength": 1},
+            "changedMaterialFact": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "expectation": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label", "details"],
+          "properties": {
+            "label": {"type": "string", "minLength": 1},
+            "details": {"type": "array", "items": {"type": "string"}},
+            "confidence": {"enum": ["CANDIDATE", "UNCERTAIN"]}
+          }
+        }
+      ]
+    }
+  }
+}
