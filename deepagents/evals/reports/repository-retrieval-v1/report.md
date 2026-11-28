@@ -1,5 +1,10 @@
 # P13 cross-file repository evidence retrieval
 
+This historical run measured **symbol-conditioned retrieval**. The inputs
+supplied exact symbol names, and the natural-language questions were annotations.
+See the [review follow-up](../repository-retrieval-v2/report.md) for the query-only
+cohort and counterevidence coverage.
+
 Baseline checkout: `develop` at `8e3497fc22f4178119b6021a5f5db802dc723e6c`. The experiment adapts cross-file retrieval evaluation to LCSP source citations. RepoBench evaluates retrieval and code completion, and RepoGraph evaluates repository navigation for software engineering. [RepoBench (ICLR 2024)](https://proceedings.iclr.cc/paper_files/paper/2024/hash/d191ba4c8923ed8fd8935b7c98658b5f-Abstract-Conference.html) · [RepoGraph (ICLR 2025)](https://arxiv.org/abs/2410.14684)
 
 ## Design
