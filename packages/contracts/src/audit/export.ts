@@ -19,6 +19,11 @@ export const AUDIT_ERROR_CODES = {
 export const AUDIT_EVENT_TYPES = {
   exportGenerated: "AUDIT_EXPORT_GENERATED",
   sessionExported: "ASSESSMENT_SESSION_EXPORTED",
+  // Why: Catalog mutations need one canonical audit identity across API writers and audit readers.
+  // How: Preserve the existing creation value and add an update value for transactional metadata changes.
+  // Invariant: Published audit event names remain stable for historical records.
+  legalSourceCreated: "LEGAL_SOURCE_CREATED",
+  legalSourceUpdated: "LEGAL_SOURCE_UPDATED",
   legalSourceDeleted: "LEGAL_SOURCE_DELETED",
 } as const;
 

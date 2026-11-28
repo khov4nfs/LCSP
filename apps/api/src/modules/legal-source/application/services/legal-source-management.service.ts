@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { discardDraftDocumentGraphs } from "./discard-draft-document-graph.js";
 
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import {
+  AUDIT_DECISIONS,
+  AUDIT_EVENT_TYPES,
+  AUDIT_RESOURCE_TYPES,
+} from "@lcsp/contracts/audit";
 import {
   LEGAL_SOURCE_DOCUMENT_INGESTION_STATES as States,
   LEGAL_SOURCE_LIFECYCLE_STATUSES as Lifecycle,
@@ -47,26 +51,61 @@ const VERSION_INCLUDE = {
 } as const;
 
 /**
- * Business purpose: Recognize the database uniqueness conflict used to resolve legal-source slug collisions.
+ * Business purpose: Recognize only the legal-source slug collision eligible for a generated-slug retry.
  *
  * Business rules:
- * - Only Prisma known-request errors with code P2002 count as unique violations.
- * - Other database and application failures must propagate unchanged to the caller.
+ * - Only P2002 for LegalSource.slug counts; an AuditEvent failure must never trigger another source creation.
+ * - The installed Prisma adapter may report the exact index in nested driver metadata.
  *
  * Execution flow:
- * 1. Check the Prisma error class and its stable error code.
- * 2. Return whether both identify a unique-constraint violation.
+ * 1. Check the Prisma error class, code, and model when available.
+ * 2. Match the exact slug field or index in Prisma or adapter metadata.
  *
  * Failure cases:
- * - Errors without Prisma's P2002 uniqueness code return false so callers preserve their original handling.
+ * - An AuditEvent P2002 or unknown target returns false, preserving the original transaction failure instead of retrying source creation.
  *
  * Side effects:
  * - None: the helper classifies an error without changing persistence or the error object.
  */
-function isUniqueViolation(error: unknown): boolean {
+function isSlugUniqueViolation(error: unknown): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== "P2002"
+  )
+    return false;
+  // Why: A failed audit insert can also report P2002 and must roll back the catalog mutation.
+  // How: Match only the slug constraint, including Prisma 7 adapter metadata.
+  // Invariant: An unrelated unique conflict is never translated into slugTaken or retried.
+  const meta = error.meta;
+  if (typeof meta?.modelName === "string" && meta.modelName !== "LegalSource")
+    return false;
+  if (Array.isArray(meta?.target))
+    return meta.target.length === 1 && meta.target[0] === "slug";
+  if (meta?.target === "LegalSource_slug_key") return true;
+  if (
+    typeof meta !== "object" ||
+    meta === null ||
+    meta.modelName !== "LegalSource"
+  )
+    return false;
+  const adapter = meta.driverAdapterError;
+  if (typeof adapter !== "object" || adapter === null || !("cause" in adapter))
+    return false;
+  const cause = adapter.cause;
+  if (
+    typeof cause !== "object" ||
+    cause === null ||
+    !("kind" in cause) ||
+    !("constraint" in cause)
+  )
+    return false;
+  const constraint = cause.constraint;
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
+    cause.kind === "UniqueConstraintViolation" &&
+    typeof constraint === "object" &&
+    constraint !== null &&
+    "index" in constraint &&
+    constraint.index === "LegalSource_slug_key"
   );
 }
 
@@ -166,14 +205,14 @@ export class LegalSourceManagementService {
    * Execution flow:
    * 1. Select the explicit or generated slug base.
    * 2. Try to create the source, adding a suffix after generated-slug uniqueness conflicts.
-   * 3. Write the creation audit event and reload the created source detail.
+   * 3. Create the source and write the audit in one transaction, then reload the committed detail.
    *
    * Failure cases:
    * - An explicit slug collision or exhaustion of generated candidates raises `slugTaken` with HTTP 409.
-   * - Non-unique persistence, audit, or reload failures propagate; creation and audit are not wrapped in one transaction here.
+   * - A failed audit rolls back source creation; only the exact slug constraint permits retry.
    *
    * Side effects:
-   * - Creates a LegalSource row and writes a `LEGAL_SOURCE_CREATED` audit record; the follow-up detail read is read-only.
+   * - Creates a LegalSource row and its creation AuditEvent atomically; the follow-up detail read is read-only.
    */
   async createSource(input: {
     actorId: string;
@@ -185,26 +224,35 @@ export class LegalSourceManagementService {
     for (let attempt = 1; attempt <= 25; attempt += 1) {
       const slug = attempt === 1 ? base : `${base}-${attempt}`;
       try {
-        const created = await this.prisma.legalSource.create({
-          data: {
-            slug,
-            name: input.request.name,
-            description: input.request.description ?? null,
-            createdBy: input.actorId,
-          },
+        // Why: A source without its required Admin audit cannot be safely attributed or retried.
+        // How: Commit the source and audit together; only read detail after the commit.
+        // Invariant: Audit failure leaves no source row for this slug candidate.
+        const createdId = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.legalSource.create({
+            data: {
+              slug,
+              name: input.request.name,
+              description: input.request.description ?? null,
+              createdBy: input.actorId,
+            },
+          });
+          await this.audit.writeInTx(
+            {
+              eventType: AUDIT_EVENT_TYPES.legalSourceCreated,
+              actorId: input.actorId,
+              resourceType: AUDIT_RESOURCE_TYPES.legalSourceVersion,
+              resourceId: created.id,
+              decision: AUDIT_DECISIONS.allow,
+              correlationId: input.correlationId,
+              payload: { legalSourceId: created.id, slug },
+            },
+            tx,
+          );
+          return created.id;
         });
-        await this.audit.write({
-          eventType: "LEGAL_SOURCE_CREATED",
-          actorId: input.actorId,
-          resourceType: AUDIT_RESOURCE_TYPES.legalSourceVersion,
-          resourceId: created.id,
-          decision: AUDIT_DECISIONS.allow,
-          correlationId: input.correlationId,
-          payload: { legalSourceId: created.id, slug },
-        });
-        return this.getSource(created.id, input.correlationId);
+        return this.getSource(createdId, input.correlationId);
       } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
+        if (!isSlugUniqueViolation(error)) throw error;
         if (explicit) {
           throw problemException(Errors.slugTaken, input.correlationId, {
             status: HttpStatus.CONFLICT,
@@ -226,13 +274,14 @@ export class LegalSourceManagementService {
    *
    * Execution flow:
    * 1. Confirm that the source identifier exists.
-   * 2. Persist only the provided editable fields and reload the source detail.
+   * 2. Persist only the provided editable fields and its actor-attributed audit in one transaction.
+   * 3. Reload the committed source detail.
    *
    * Failure cases:
-   * - A missing source raises `sourceNotFound` with HTTP 404; persistence or reload errors propagate.
+   * - A missing source raises `sourceNotFound` with HTTP 404; audit failure rolls back the update.
    *
    * Side effects:
-   * - Updates the LegalSource row; it does not write an audit event in this method.
+   * - Updates the LegalSource row and writes a metadata-update AuditEvent atomically.
    */
   async updateSource(input: {
     sourceId: string;
@@ -240,21 +289,39 @@ export class LegalSourceManagementService {
     correlationId: string;
     request: UpdateLegalSourceRequest;
   }): Promise<LegalSourceDetail> {
-    const existing = await this.prisma.legalSource.findUnique({
-      where: { id: input.sourceId },
-      select: { id: true },
-    });
-    if (!existing) throw this.notFound(input.correlationId);
-    await this.prisma.legalSource.update({
-      where: { id: input.sourceId },
-      data: {
+    // Why: An Admin metadata change without audit loses who approved the visible source identity.
+    // How: Verify existence, update fields, and persist the audit under one transaction.
+    // Invariant: A rejected or audit-failed change cannot leave an updated source row.
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.legalSource.findUnique({
+        where: { id: input.sourceId },
+        select: { id: true },
+      });
+      if (!existing) throw this.notFound(input.correlationId);
+      const changes = {
         ...(input.request.name !== undefined
           ? { name: input.request.name }
           : {}),
         ...(input.request.description !== undefined
           ? { description: input.request.description }
           : {}),
-      },
+      };
+      await tx.legalSource.update({
+        where: { id: input.sourceId },
+        data: changes,
+      });
+      await this.audit.writeInTx(
+        {
+          eventType: AUDIT_EVENT_TYPES.legalSourceUpdated,
+          actorId: input.actorId,
+          resourceType: AUDIT_RESOURCE_TYPES.legalSourceVersion,
+          resourceId: input.sourceId,
+          decision: AUDIT_DECISIONS.allow,
+          correlationId: input.correlationId,
+          payload: { legalSourceId: input.sourceId, changes },
+        },
+        tx,
+      );
     });
     return this.getSource(input.sourceId, input.correlationId);
   }

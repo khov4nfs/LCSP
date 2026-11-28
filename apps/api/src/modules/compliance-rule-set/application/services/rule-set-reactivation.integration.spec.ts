@@ -125,7 +125,9 @@ describeDatabase(
             // Why: Start now pins DIRECT_DRAFT_V1; the worker fixture must advertise that contract.
             // How: Claim negotiates the pinned run contract before the reactivation scenario begins.
             // Invariant: The test exercises reactivation, not an unsupported worker claim.
-            supportedExecutionContracts: [PreparationExecutionContract.DIRECT_DRAFT_V1],
+            supportedExecutionContracts: [
+              PreparationExecutionContract.DIRECT_DRAFT_V1,
+            ],
           },
           randomUUID(),
         ),
