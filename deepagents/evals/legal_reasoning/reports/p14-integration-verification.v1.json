@@ -41,13 +41,13 @@
     "note": "P14's binary verdict review fields do not constitute LCSP-400 dimension judgments. The separate dimension-review contract checks structure and trace binding, not reviewer authenticity.",
     "p14ExpertVerifiedFlagCount": 0,
     "reviewAuthenticity": "NOT_AUTHENTICATED_BY_TOOL",
-    "seededUnverifiedCount": 15,
+    "seededUnverifiedCount": 0,
     "usedAsLcsp400Gold": false
   },
   "pinnedInputs": {
     "candidateDatasetSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
-    "caseMappingSha256": "7b3030c72a655225ff4b0551b16eabf79ab83a1f919282a726b142525064d04a",
-    "p14CasesDatasetSha256": "1142ee2190b52341c91e76e692b0e740634ea189f75d1f5b286d912e3a4416c2",
+    "caseMappingSha256": "f7669cbb1be123e7f6b12dfe0672b4601da8d7c11f06327979fd09bde1bf2f30",
+    "p14CasesDatasetSha256": "dc80116910bc535a8e5f2fcb798d998239026499178bbc062923a0f78bb231bf",
     "sourcePinsSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14"
   },
   "reviewOverlaySha256": "e14eaa2423ee7c88d53d31440ff9c78ba66bfc1fda0f174c74c37eb5c702d291",
@@ -108,9 +108,7 @@
             "unknownPredictionCount": 0
           }
         },
-        "dimensionIds": [
-          "EVIDENCE_SUFFICIENCY"
-        ],
+        "dimensionIds": ["EVIDENCE_SUFFICIENCY"],
         "note": "Evidence sufficiency is scored separately from semantic conclusions."
       },
       "p14LifecycleStage": "NO_MAPPED_LIFECYCLE_STAGE",
@@ -581,19 +579,19 @@
         "fixtureOnly": false,
         "inputDigests": {
           "annotationsCanonicalSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
-          "predictionsCanonicalSha256": "289a458269b52cdb8abf44337cb5bb971eda0a8a63a5cb2fb6d0a51af43b0601",
+          "predictionsCanonicalSha256": "4f8e24aa547237aa03920cb18786d8ee8719f61849c36cb643adb91116916780",
           "rubricCanonicalSha256": "ab6c9e71e7e3f3e7a3a921ccb5d137a0f27dbd218050482171de3309bedaac24",
           "sourcePinsCanonicalSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14"
         },
         "predictionSource": "P14_SAVED_ARTIFACTS",
         "productionAcceptance": "NOT_PROVEN",
         "runMetadata": {
-          "casesDatasetSha256": "1142ee2190b52341c91e76e692b0e740634ea189f75d1f5b286d912e3a4416c2",
+          "casesDatasetSha256": "dc80116910bc535a8e5f2fcb798d998239026499178bbc062923a0f78bb231bf",
           "lifecycleStage": "NO_MAPPED_LIFECYCLE_STAGE",
-          "manifestSha256": "d36ca95b2cc28c58e75d184506f26a9ccb44087397ba0e48e424962f3cb0ec96",
+          "manifestSha256": "74819ceea5d3125e8234c6fa27863f5647d929b06d20ed9071e020a38d80827b",
           "mode": null,
           "repositoryCommitSha": null,
-          "runId": "pilot-v1",
+          "runId": "lcsp400-p14-offline-v1",
           "trialIndex": -1
         }
       },
@@ -881,9 +879,7 @@
             "unknownPredictionCount": 0
           }
         },
-        "dimensionIds": [
-          "EVIDENCE_SUFFICIENCY"
-        ],
+        "dimensionIds": ["EVIDENCE_SUFFICIENCY"],
         "note": "Evidence sufficiency is scored separately from semantic conclusions."
       },
       "p14LifecycleStage": "NO_MAPPED_LIFECYCLE_STAGE",
@@ -1264,19 +1260,19 @@
         "fixtureOnly": false,
         "inputDigests": {
           "annotationsCanonicalSha256": "71229ffbfb3019d123b7f43433bb1a4be457f1efe999a9c054e9b4a0dd92aa68",
-          "predictionsCanonicalSha256": "11b37478f855e6a7a038a219f4f3b34ab1acb97987fde6d14cfb7635699e1317",
+          "predictionsCanonicalSha256": "89028c26b4d474a1c3386276483bcfd0ce9d38aa1ce8aa3fa8dc12ae0a5206b0",
           "rubricCanonicalSha256": "ab6c9e71e7e3f3e7a3a921ccb5d137a0f27dbd218050482171de3309bedaac24",
           "sourcePinsCanonicalSha256": "a5fdf13e65287a2e3e4d0a0897346d6e79ad2edfc7a006daf754dd0d22dcbe14"
         },
         "predictionSource": "P14_SAVED_ARTIFACTS",
         "productionAcceptance": "NOT_PROVEN",
         "runMetadata": {
-          "casesDatasetSha256": "1142ee2190b52341c91e76e692b0e740634ea189f75d1f5b286d912e3a4416c2",
+          "casesDatasetSha256": "dc80116910bc535a8e5f2fcb798d998239026499178bbc062923a0f78bb231bf",
           "lifecycleStage": "NO_MAPPED_LIFECYCLE_STAGE",
-          "manifestSha256": "d36ca95b2cc28c58e75d184506f26a9ccb44087397ba0e48e424962f3cb0ec96",
+          "manifestSha256": "74819ceea5d3125e8234c6fa27863f5647d929b06d20ed9071e020a38d80827b",
           "mode": null,
           "repositoryCommitSha": null,
-          "runId": "pilot-v1",
+          "runId": "lcsp400-p14-offline-v1",
           "trialIndex": -1
         }
       },
@@ -1520,15 +1516,15 @@
       "providerCost": null
     },
     "instructionBundleDigest": "lcsp-fact-need-provenance-r4-2026-11-16",
-    "manifestSha256": "d36ca95b2cc28c58e75d184506f26a9ccb44087397ba0e48e424962f3cb0ec96",
+    "manifestSha256": "74819ceea5d3125e8234c6fa27863f5647d929b06d20ed9071e020a38d80827b",
     "mode": "OFFLINE_FIXTURE",
     "modelRoute": "offline-scripted",
-    "p14CasesDatasetSha256": "1142ee2190b52341c91e76e692b0e740634ea189f75d1f5b286d912e3a4416c2",
+    "p14CasesDatasetSha256": "dc80116910bc535a8e5f2fcb798d998239026499178bbc062923a0f78bb231bf",
     "promptSha256": {
       "assessment-root": "0a4357b9be60039711c2e08da14d77a4aa7ab33722e4e9278f9356ced37b6f5f"
     },
     "repositoryCommitSha": null,
-    "runId": "pilot-v1",
+    "runId": "lcsp400-p14-offline-v1",
     "skillFingerprints": {
       "available": {
         "assessment-automated-outcomes": "6db9ab0245df225bfd9ac7ba9008dc99b5fe82f0206a735ffafb626f2de5e9c9",
@@ -1540,18 +1536,18 @@
       "selected": {}
     },
     "sourcePins": {
-      "casesDatasetSha256": "1142ee2190b52341c91e76e692b0e740634ea189f75d1f5b286d912e3a4416c2",
+      "casesDatasetSha256": "dc80116910bc535a8e5f2fcb798d998239026499178bbc062923a0f78bb231bf",
       "corpusPinsSha256": "de2d47c00bb213036bbc14fe31b803de2cebdcac06309bcab6088bbd374b99a4",
-      "expectedInventorySha256": "579f54e621eea00477a1384226b142720f7debbd559b092391751c43ab7b4536",
+      "expectedInventorySha256": "dcc280dd9ebb23fc6f2be61cc18e6b7919b0fdb723d81bd62c4220bdd8e3b9d0",
       "goldRubricSha256": "3861137fee53a432ed9e87d757e51c3c59d874a1e92a983d191d4fccf278b04f",
       "governanceMode": "OFFLINE_TEST_BYPASS",
       "hitlFixtureSha256": "80be0fbafbb044787f64c6b04f70542dca8a7b968f9cb28f3fd00795a56ccc61",
       "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "repoPinsSha256": "38450cde2d2230d38d5362361e81a1010ca963fe2bde4bc74f84fc62e82e0913",
-      "ruleSetPinsSha256": "88962005b149c72e936d0b77e8ef97ee8b1e352a53f6a185ff32263bda517159",
-      "runConfigSha256": "8347266c6457c87029ea5b3f513391b38fc7746ace96e1de899894de5207bf48"
+      "repoPinsSha256": "6e7ad6ff7bb73b1de26db1d8a345fa1621e6e169a8e457aef0bdb0f2b35ecb5c",
+      "ruleSetPinsSha256": "fb3419eda8c83bb2f5fc2e0e52d5f8325b092e434931f3cef9f1823eafd096c7",
+      "runConfigSha256": "19555e933c2ae455bc1197098b3ad16407b2091cfb67bb4bdb2193dd47418290"
     },
-    "trialCount": 200
+    "trialCount": 40
   },
   "scoringStatus": "NOT_SCORED"
 }
