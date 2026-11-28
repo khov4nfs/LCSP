@@ -486,6 +486,8 @@ def _score_subset(
     Business rules:
     - Separates FULL, PARTIAL, INCORRECT, and MISSED atomic obligations with explicit denominators.
     - Tracks grounding, duplication, source coverage, actor accuracy, applicability accuracy, exception preservation, and chain integrity.
+    - Counts missed assessable gold in end-to-end coverage and uses matched gold for conditional conversion.
+    - Citation integrity is mechanical; semantic grounding requires independent review.
     - Flags critical errors (UNGROUNDED_OBLIGATION, MISSING_EXCEPTION, MODALITY_INVERSION, MISSING_OBLIGATION) in failedCases.
 
     Execution flow:
@@ -495,7 +497,7 @@ def _score_subset(
     4. Aggregate precision, recall, coverage, grounding, duplication, actor/applicability/exception rates, and chain integrity.
 
     Failure cases:
-    - Zero denominators return None for rates rather than raising ZeroDivisionError.
+    - New rates return None when their denominator is empty or semantic review is unavailable.
 
     Side effects:
     - None: pure evaluation calculation.
@@ -573,7 +575,7 @@ def _score_subset(
     preserved_exception_total = 0
     claims_to_reqs = 0
     reqs_to_rules = 0
-    expected_rules_total = 0
+    matched_assessable_gold = 0
     non_assessable_correct = 0
     covered_nodes: set[str] = set()
     failed_cases: list[dict[str, Any]] = []
@@ -657,13 +659,16 @@ def _score_subset(
             })
 
         # Chain integrity: semanticClaim -> LegalRequirement -> AssessmentRule
-        if primary.get("hasClaim") and primary.get("hasRequirement"):
+        has_claim_and_requirement = primary.get("hasClaim") and primary.get("hasRequirement")
+        if has_claim_and_requirement:
             claims_to_reqs += 1
         expected_assessable = bool(item["expectedAssessmentRule"]["expectedAssessable"])
         if expected_assessable:
-            expected_rules_total += 1
+            matched_assessable_gold += 1
             if primary.get("hasAssessmentRule"):
-                reqs_to_rules += 1
+                # Coverage requires the complete structural chain.
+                if has_claim_and_requirement:
+                    reqs_to_rules += 1
             else:
                 case_errors.append("CHAIN_MISSING_ASSESSMENT_RULE")
         else:
@@ -697,6 +702,10 @@ def _score_subset(
     total_gold = len(obligations)
     total_predicted = len(scoped_preds)
     non_assessable_gold = sum(1 for item in obligations if not item["expectedAssessmentRule"]["expectedAssessable"])
+    # Count gold directly so an extraction miss still lowers end-to-end coverage.
+    assessable_gold = total_gold - non_assessable_gold
+    matched_to_rules_rate = reqs_to_rules / matched_assessable_gold if matched_assessable_gold else None
+    citation_integrity_rate = len(grounded_preds) / total_predicted if total_predicted else None
 
     # P1-03: Report grounded predictions that were not matched to any gold obligation.
     # These are NOT errors (gold may be incomplete), but must appear in analysis for transparency.
@@ -722,7 +731,10 @@ def _score_subset(
             "totalGoldSourceNodes": len(split_nodes),
             "totalGoldExceptions": gold_exception_total,
             "matchedObligations": matched_count,
-            "expectedAssessableRules": expected_rules_total,
+            # Retain the V1 conditional denominator for existing report readers.
+            "expectedAssessableRules": matched_assessable_gold,
+            "matchedAssessableGoldObligations": matched_assessable_gold,
+            "expectedAssessableGoldObligations": assessable_gold,
             "expectedNonAssessableRequirements": non_assessable_gold,
         },
         "classifications": {
@@ -738,7 +750,12 @@ def _score_subset(
             "lenientRecall": (full_count + partial_count) / total_gold if total_gold else 0.0,
             "sourceUnitCoverage": len(covered_nodes) / len(split_nodes) if split_nodes else 0.0,
             "obligationCoverage": (full_count + partial_count) / total_gold if total_gold else 0.0,
-            "groundingRate": len(grounded_preds) / total_predicted if total_predicted else 1.0,
+            # Preserve the V1 citation alias while exposing its measured scope.
+            "groundingRate": citation_integrity_rate if citation_integrity_rate is not None else 1.0,
+            "citationIntegrityRate": citation_integrity_rate,
+            "semanticGroundingRate": None,
+            # Every mechanically valid citation is pending semantic review.
+            "groundingReviewRequiredCount": len(grounded_preds),
             "ungroundedCount": len(ungrounded_preds),
             "duplicateCount": duplicate_count,
             "duplicationRate": duplicate_count / total_predicted if total_predicted else 0.0,
@@ -746,7 +763,9 @@ def _score_subset(
             "applicabilityAccuracy": applicability_correct / matched_count if matched_count else 0.0,
             "exceptionPreservationRate": preserved_exception_total / gold_exception_total if gold_exception_total else 1.0,
             "claimsToRequirementsRate": claims_to_reqs / matched_count if matched_count else 0.0,
-            "requirementsToRulesRate": reqs_to_rules / expected_rules_total if expected_rules_total else 1.0,
+            "requirementsToRulesRate": matched_to_rules_rate if matched_to_rules_rate is not None else 1.0,
+            "matchedAssessableToRulesRate": matched_to_rules_rate,
+            "endToEndAssessableRuleCoverage": reqs_to_rules / assessable_gold if assessable_gold else None,
             "nonAssessableAccuracy": non_assessable_correct / non_assessable_gold if non_assessable_gold else 1.0,
         },
         "criticalErrorCounts": critical_counts,
@@ -832,7 +851,7 @@ def compare_direct_draft_vs_preparation(
     Execution flow:
     1. Verify source version identity and optional model version parity.
     2. Run evaluate_xtrareg_chain on both DIRECT_DRAFT and FULL_PREPARATION outputs.
-    3. Compute holdout metric deltas (strictRecall, groundingRate, exceptionPreservationRate, duplicationRate).
+    3. Compute holdout deltas including citation integrity when both arms have predictions.
     4. Emit deltas with an explicit diagnostic status.
 
     Failure cases:
@@ -872,11 +891,19 @@ def compare_direct_draft_vs_preparation(
     p_hold = prep_report["splits"]["HOLDOUT"]["metrics"]
     p_crit = sum(prep_report["splits"]["HOLDOUT"]["criticalErrorCounts"].values())
     d_crit = sum(direct_report["splits"]["HOLDOUT"]["criticalErrorCounts"].values())
+    prep_citation_rate = p_hold["citationIntegrityRate"]
+    direct_citation_rate = d_hold["citationIntegrityRate"]
 
     deltas = {
         "strictRecallDelta": p_hold["strictRecall"] - d_hold["strictRecall"],
         "lenientRecallDelta": p_hold["lenientRecall"] - d_hold["lenientRecall"],
         "groundingRateDelta": p_hold["groundingRate"] - d_hold["groundingRate"],
+        # A missing prediction set has no citation rate to compare.
+        "citationIntegrityRateDelta": (
+            prep_citation_rate - direct_citation_rate
+            if prep_citation_rate is not None and direct_citation_rate is not None
+            else None
+        ),
         "exceptionPreservationDelta": p_hold["exceptionPreservationRate"] - d_hold["exceptionPreservationRate"],
         "duplicationRateDelta": p_hold["duplicationRate"] - d_hold["duplicationRate"],
         "criticalErrorDelta": p_crit - d_crit,

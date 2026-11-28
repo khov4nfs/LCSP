@@ -82,6 +82,7 @@ def test_valid_citation_to_unrelated_evidence_does_not_receive_full_credit():
     other = gold["obligations"][1]["citation"]
     claim["sourceNodeIds"] = other["sourceNodeIds"]
     claim["sourceQuote"] = other["sourceQuote"]
+    candidate["semanticGraph"]["claims"][1]["sourceQuote"] = "quote outside the pinned source"
 
     report = evaluate_xtrareg_chain(gold, source, candidate)
 
@@ -89,6 +90,32 @@ def test_valid_citation_to_unrelated_evidence_does_not_receive_full_credit():
         case["obligationId"] == claim["obligationId"]
         and "CITATION_REVIEW_REQUIRED" in case["errorCodes"]
         for case in report["failedCases"]
+    )
+    metrics = report["splits"]["ALL"]["metrics"]
+    assert metrics["citationIntegrityRate"] == pytest.approx(29 / 30)
+    assert metrics["semanticGroundingRate"] is None
+    assert metrics["groundingReviewRequiredCount"] == 29
+
+
+def test_chain_coverage_counts_missed_assessable_gold():
+    gold, source = _load_gold_and_source()
+    candidate = _build_smoke_test_full_prep_from_gold(gold)
+    assessable = [
+        item for item in gold["obligations"]
+        if item["split"] == "HOLDOUT" and item["expectedAssessmentRule"]["expectedAssessable"]
+    ]
+    missed_id = assessable[0]["obligationId"]
+    candidate["semanticGraph"]["claims"] = [
+        claim for claim in candidate["semanticGraph"]["claims"] if claim["obligationId"] != missed_id
+    ]
+
+    holdout = evaluate_xtrareg_chain(gold, source, candidate)["splits"]["HOLDOUT"]
+
+    assert holdout["denominators"]["expectedAssessableGoldObligations"] == len(assessable)
+    assert holdout["denominators"]["matchedAssessableGoldObligations"] == len(assessable) - 1
+    assert holdout["metrics"]["matchedAssessableToRulesRate"] == 1.0
+    assert holdout["metrics"]["endToEndAssessableRuleCoverage"] == pytest.approx(
+        (len(assessable) - 1) / len(assessable)
     )
 
 
