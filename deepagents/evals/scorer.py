@@ -669,23 +669,6 @@ def validate_run_artifacts_for_scoring(
             raise ValueError(f"SCORING_DUPLICATE_TRIAL_REJECTED:{key}")
         seen.add(key)
         observed_modes[key] = item.mode
-        if not item.trace_path or not item.trace_sha256:
-            raise ValueError(f"SCORING_TRACE_METADATA_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
-        trace_file = _resolve_trace_file(item.trace_path, base_dir)
-        if not trace_file.is_file():
-            raise ValueError(f"SCORING_TRACE_FILE_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
-        raw_trace = trace_file.read_bytes()
-        actual_sha = sha256(raw_trace).hexdigest()
-        if actual_sha != item.trace_sha256:
-            raise ValueError(f"SCORING_TRACE_DIGEST_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
-        trace_doc = json.loads(raw_trace.decode("utf-8"))
-        binding = trace_doc.get("outcomeBinding")
-        if not isinstance(binding, Mapping) or (
-            binding.get("passed") != item.passed
-            or binding.get("actualVerdict") != item.actual_verdict
-            or binding.get("lifecycleState") != item.lifecycle_state
-        ):
-            raise ValueError(f"SCORING_OUTCOME_TRACE_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
     if len(modes) > 1:
         raise ValueError(f"SCORING_MIXED_MODES_REJECTED:{sorted(modes)}")
 
@@ -704,6 +687,34 @@ def validate_run_artifacts_for_scoring(
         for key, exp_mode in expected_map.items():
             if exp_mode and observed_modes.get(key) != exp_mode:
                 raise ValueError(f"SCORING_MODE_MISMATCH:{key}:{observed_modes.get(key)}!={exp_mode}")
+
+    for item in outcomes:
+        if not item.trace_path or not item.trace_sha256:
+            raise ValueError(f"SCORING_TRACE_METADATA_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
+        trace_file = _resolve_trace_file(item.trace_path, base_dir)
+        if not trace_file.is_file():
+            raise ValueError(f"SCORING_TRACE_FILE_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
+        raw_trace = trace_file.read_bytes()
+        actual_sha = sha256(raw_trace).hexdigest()
+        if actual_sha != item.trace_sha256:
+            raise ValueError(f"SCORING_TRACE_DIGEST_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
+        trace_doc = json.loads(raw_trace.decode("utf-8"))
+        if (
+            trace_doc.get("runId") != item.run_id
+            or trace_doc.get("caseId") != item.case_id
+            or trace_doc.get("trialIndex") != item.trial_index
+            or trace_doc.get("threadId") != item.thread_id
+            or trace_doc.get("stage") != item.stage
+            or trace_doc.get("mode") != item.mode
+        ):
+            raise ValueError(f"SCORING_TRACE_IDENTITY_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
+        binding = trace_doc.get("outcomeBinding")
+        if not isinstance(binding, Mapping) or (
+            binding.get("passed") != item.passed
+            or binding.get("actualVerdict") != item.actual_verdict
+            or binding.get("lifecycleState") != item.lifecycle_state
+        ):
+            raise ValueError(f"SCORING_OUTCOME_TRACE_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
 
 
 def build_benchmark_report(

@@ -206,6 +206,14 @@ def test_regression_incomplete_inventory_and_trace_tampering_rejected(tmp_path):
     with pytest.raises(ValueError, match="SCORING_TRACE_METADATA_MISSING"):
         validate_run_artifacts_for_scoring(manifest, [no_hash, *outcomes[1:]], base_dir=tmp_path / "inv-run")
 
+    # Swapping trace_path and trace_sha256 between two trials with identical outcomes -> SCORING_TRACE_IDENTITY_MISMATCH
+    swapped_trace = outcomes[0].model_copy(update={
+        "trace_path": outcomes[1].trace_path,
+        "trace_sha256": outcomes[1].trace_sha256,
+    })
+    with pytest.raises(ValueError, match="SCORING_TRACE_IDENTITY_MISMATCH"):
+        validate_run_artifacts_for_scoring(manifest, [swapped_trace, *outcomes[1:]], base_dir=tmp_path / "inv-run")
+
     # Tampering with passed=false/actual_verdict in trials.jsonl without changing trace -> SCORING_OUTCOME_TRACE_MISMATCH
     tampered_outcome = outcomes[0].model_copy(update={"passed": not outcomes[0].passed})
     with pytest.raises(ValueError, match="SCORING_OUTCOME_TRACE_MISMATCH"):
