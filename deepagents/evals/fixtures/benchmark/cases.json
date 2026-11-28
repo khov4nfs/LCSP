@@ -13,7 +13,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -57,7 +57,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -84,11 +85,11 @@
               "ev-case-01-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -591,7 +592,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -635,7 +636,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -662,11 +664,11 @@
               "ev-case-05-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -717,7 +719,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -761,7 +763,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -788,11 +791,11 @@
               "ev-case-06-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -1545,7 +1548,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -1589,7 +1592,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -1616,11 +1620,11 @@
               "ev-case-12-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -2123,7 +2127,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -2167,7 +2171,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -2194,11 +2199,11 @@
               "ev-case-16-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -2749,7 +2754,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -2793,7 +2798,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -2820,11 +2826,11 @@
               "ev-case-21-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -4202,7 +4208,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -4246,7 +4252,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -4273,11 +4280,11 @@
               "ev-case-32-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }
@@ -4453,7 +4460,7 @@
       "locale": "en",
       "repo_pin": {
         "repo_id": "repo-01-consent-app",
-        "commit_sha": "synthetic-3c64440fb16d",
+        "commit_sha": "synthetic-16e21ad3807f",
         "fixture_dir": "evals/fixtures/benchmark/repos/repo-01-consent-app",
         "untrusted_code_execution_allowed": false,
         "snapshot_kind": "SYNTHETIC_FIXTURE"
@@ -4497,7 +4504,8 @@
                 ],
                 "required_text_substrings": [
                   "def collect_user_consent",
-                  "Purpose is required"
+                  "opt_in: bool",
+                  "Explicit opt-in"
                 ],
                 "fact_to_prove": "Explicit purpose check in consent collection"
               }
@@ -4524,11 +4532,11 @@
               "ev-case-34-1": {
                 "evidenceType": "REPOSITORY_SOURCE",
                 "repositoryId": "repo-01-consent-app",
-                "commitSha": "synthetic-3c64440fb16d",
+                "commitSha": "synthetic-16e21ad3807f",
                 "path": "src/consent.py",
                 "start_line": 4,
                 "end_line": 8,
-                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
+                "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc"
               }
             }
           }

@@ -165,8 +165,10 @@ class TrialUsage(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    # Real external provider model calls (including retries/failures); 0 in OFFLINE/SCRIPTED/simulated.
+    # Real external provider model calls from reconciled governance receipts; 0 if unverified/offline.
     physical_attempts: int = Field(ge=0, default=0)
+    physical_attempts_verified: bool = False
+    unverified_callback_calls: int = Field(ge=0, default=0)
     failed_attempts: int = Field(ge=0, default=0)
     simulated_provider_calls: int = Field(ge=0, default=0)
     scripted_invocations: int = Field(ge=0, default=0)

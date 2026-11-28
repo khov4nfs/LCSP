@@ -1,12 +1,17 @@
 {
   "caseId": "CASE-21",
   "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
   "output": {
     "authorityViolation": false,
     "evidenceRecords": {
       "ev-case-21-1": {
-        "commitSha": "synthetic-3c64440fb16d",
-        "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64",
+        "commitSha": "synthetic-16e21ad3807f",
+        "contentSha256": "01a33827df2d4e32d10fcb0d2fc51fbe8078cfa5ab16678b61fa203e2fdcd7dc",
         "end_line": 8,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/consent.py",
@@ -27,6 +32,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "c870624d-7010-4694-aa70-9a3b2e06f7e2",
+  "threadId": "c29dd32f-6fcd-4b6b-b007-68b9dd5c08f3",
   "trialIndex": 2
 }

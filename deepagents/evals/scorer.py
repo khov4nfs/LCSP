@@ -130,15 +130,18 @@ def verify_evidence_integrity(
     - Reads pinned fixture files (read-only) when repo_fixture_root is provided.
     """
     observed_set = set(observed_refs)
-    required_set = set(required_refs)
-    if not required_set.issubset(observed_set):
-        return False
-    all_to_verify = set(observed_set)
-    if decision_referenced_ids is not None:
-        ref_set = set(decision_referenced_ids)
-        if not ref_set.issubset(observed_set):
+    # Only enforce sequential required_refs when no semantic GoldEvidenceCriterion is defined.
+    if not required_criteria:
+        required_set = set(required_refs)
+        if not required_set.issubset(observed_set):
             return False
-        all_to_verify.update(ref_set)
+    all_to_verify = set(observed_set)
+    decision_set: set[str] | None = None
+    if decision_referenced_ids is not None:
+        decision_set = set(decision_referenced_ids)
+        if not decision_set.issubset(observed_set):
+            return False
+        all_to_verify.update(decision_set)
     if not all_to_verify and not required_criteria:
         return True
     if observed_evidence_records is None:
@@ -198,9 +201,11 @@ def verify_evidence_integrity(
         else:
             return False
 
+    # When a decision actually cited references, semantic criteria must be met by those cited refs.
+    criterion_pool = decision_set if (decision_set is not None and len(decision_set) > 0) else all_to_verify
     for crit in required_criteria:
         matched = False
-        for ref_id in all_to_verify:
+        for ref_id in criterion_pool:
             rec = observed_evidence_records[ref_id]
             if rec.get("evidenceType") != crit.evidence_type:
                 continue
@@ -412,6 +417,8 @@ def _usage_totals(outcomes: Sequence[TrialOutcome]) -> dict[str, Any]:
         "scriptedInvocations": sum(o.usage.scripted_invocations for o in outcomes),
         "simulatedProviderCalls": sum(o.usage.simulated_provider_calls for o in outcomes),
         "physicalAttempts": sum(o.usage.physical_attempts for o in outcomes),
+        "physicalAttemptsVerified": all(o.usage.physical_attempts_verified for o in outcomes) if outcomes else False,
+        "unverifiedCallbackCalls": sum(o.usage.unverified_callback_calls for o in outcomes),
         "failedAttempts": sum(o.usage.failed_attempts for o in outcomes),
         "inputTokens": sum(input_tokens) if input_tokens else None,
         "cachedInputTokens": sum(cached_tokens) if cached_tokens else None,
@@ -667,9 +674,18 @@ def validate_run_artifacts_for_scoring(
         trace_file = _resolve_trace_file(item.trace_path, base_dir)
         if not trace_file.is_file():
             raise ValueError(f"SCORING_TRACE_FILE_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
-        actual_sha = sha256(trace_file.read_bytes()).hexdigest()
+        raw_trace = trace_file.read_bytes()
+        actual_sha = sha256(raw_trace).hexdigest()
         if actual_sha != item.trace_sha256:
             raise ValueError(f"SCORING_TRACE_DIGEST_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
+        trace_doc = json.loads(raw_trace.decode("utf-8"))
+        binding = trace_doc.get("outcomeBinding")
+        if not isinstance(binding, Mapping) or (
+            binding.get("passed") != item.passed
+            or binding.get("actualVerdict") != item.actual_verdict
+            or binding.get("lifecycleState") != item.lifecycle_state
+        ):
+            raise ValueError(f"SCORING_OUTCOME_TRACE_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
     if len(modes) > 1:
         raise ValueError(f"SCORING_MIXED_MODES_REJECTED:{sorted(modes)}")
 

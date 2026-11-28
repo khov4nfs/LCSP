@@ -206,6 +206,11 @@ def test_regression_incomplete_inventory_and_trace_tampering_rejected(tmp_path):
     with pytest.raises(ValueError, match="SCORING_TRACE_METADATA_MISSING"):
         validate_run_artifacts_for_scoring(manifest, [no_hash, *outcomes[1:]], base_dir=tmp_path / "inv-run")
 
+    # Tampering with passed=false/actual_verdict in trials.jsonl without changing trace -> SCORING_OUTCOME_TRACE_MISMATCH
+    tampered_outcome = outcomes[0].model_copy(update={"passed": not outcomes[0].passed})
+    with pytest.raises(ValueError, match="SCORING_OUTCOME_TRACE_MISMATCH"):
+        validate_run_artifacts_for_scoring(manifest, [tampered_outcome, *outcomes[1:]], base_dir=tmp_path / "inv-run")
+
     # Tampering with an on-disk trace file -> SCORING_TRACE_DIGEST_MISMATCH
     trace_file = tmp_path / "inv-run" / outcomes[0].trace_path
     trace_file.write_text('{"tampered": true}\n', encoding="utf-8")
@@ -334,19 +339,21 @@ def test_regression_gold_evidence_content_criterion_and_hitl_resolves_fact_false
     from hashlib import sha256
     from evals.benchmark_schema import HitlFixtureAnswer
 
-    # 1. Citing only line 1 (docstring) of src/consent.py fails CASE-01 GoldEvidenceCriterion
+    # 1. Citing only line 1 (docstring) with the EXACT expected ID ev-case-01-1 and valid provenance fails GoldEvidenceCriterion
     case = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])[0]
     exp = case.gold_rubric.stages[0]
     repo_root = Path(__file__).resolve().parent.parent / case.repo_pin.fixture_dir
-    line1 = (repo_root / "src/consent.py").read_text(encoding="utf-8").splitlines()[0]
+    lines = (repo_root / "src/consent.py").read_text(encoding="utf-8").splitlines()
+    line1 = lines[0]
+    impl_excerpt = "\n".join(lines[3:8])
     docstring_only = grade_trial(
         run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
         expectation=exp, is_negative_control=False, is_fault_injection=False,
         observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
-        observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
+        observed_evidence_refs=("ev-case-01-1",), observed_hitl_state="NONE",
         observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
         authority_violation=False,
-        observed_evidence_records={"ev-1": {
+        observed_evidence_records={"ev-case-01-1": {
             "evidenceType": "REPOSITORY_SOURCE", "repositoryId": case.repo_pin.repo_id,
             "commitSha": case.repo_pin.commit_sha, "path": "src/consent.py",
             "start_line": 1, "end_line": 1, "contentSha256": sha256(line1.encode()).hexdigest(),
@@ -355,6 +362,51 @@ def test_regression_gold_evidence_content_criterion_and_hitl_resolves_fact_false
         repo_fixture_root=repo_root, graph_executed=True,
     )
     assert docstring_only.passed is False and docstring_only.evidence_match is False
+
+    # 1b. Order-independent evidence ID (ev-case-01-99) PASSES when GoldEvidenceCriterion is met
+    reordered_id = grade_trial(
+        run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
+        expectation=exp, is_negative_control=False, is_fault_injection=False,
+        observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
+        observed_evidence_refs=("ev-case-01-99",), observed_hitl_state="NONE",
+        observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
+        authority_violation=False,
+        observed_evidence_records={"ev-case-01-99": {
+            "evidenceType": "REPOSITORY_SOURCE", "repositoryId": case.repo_pin.repo_id,
+            "commitSha": case.repo_pin.commit_sha, "path": "src/consent.py",
+            "start_line": 4, "end_line": 8, "contentSha256": sha256(impl_excerpt.encode()).hexdigest(),
+        }},
+        decision_referenced_ids=("ev-case-01-99",),
+        expected_repo_id=case.repo_pin.repo_id, expected_commit_sha=case.repo_pin.commit_sha,
+        repo_fixture_root=repo_root, graph_executed=True,
+    )
+    assert reordered_id.passed is True and reordered_id.evidence_match is True
+
+    # 1c. Decision citing insufficient ev-b while ev-a sits unused -> FAIL (no false positive)
+    unused_good_ev = grade_trial(
+        run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
+        expectation=exp, is_negative_control=False, is_fault_injection=False,
+        observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
+        observed_evidence_refs=("ev-a", "ev-b"), observed_hitl_state="NONE",
+        observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
+        authority_violation=False,
+        observed_evidence_records={
+            "ev-a": {
+                "evidenceType": "REPOSITORY_SOURCE", "repositoryId": case.repo_pin.repo_id,
+                "commitSha": case.repo_pin.commit_sha, "path": "src/consent.py",
+                "start_line": 4, "end_line": 8, "contentSha256": sha256(impl_excerpt.encode()).hexdigest(),
+            },
+            "ev-b": {
+                "evidenceType": "REPOSITORY_SOURCE", "repositoryId": case.repo_pin.repo_id,
+                "commitSha": case.repo_pin.commit_sha, "path": "src/consent.py",
+                "start_line": 1, "end_line": 1, "contentSha256": sha256(line1.encode()).hexdigest(),
+            },
+        },
+        decision_referenced_ids=("ev-b",),
+        expected_repo_id=case.repo_pin.repo_id, expected_commit_sha=case.repo_pin.commit_sha,
+        repo_fixture_root=repo_root, graph_executed=True,
+    )
+    assert unused_good_ev.passed is False and unused_good_ev.evidence_match is False
 
     # 2. HITL resolves_fact=False does NOT create HUMAN_CONFIRMED_FACT, and unknown request_id fails closed
     client = _BenchmarkRuntimeClient(case, "t1", "a1", locale="vi")

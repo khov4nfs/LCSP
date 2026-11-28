@@ -40,9 +40,11 @@
       "logicalTrials": 20,
       "outputTokens": null,
       "physicalAttempts": 0,
+      "physicalAttemptsVerified": false,
       "providerCost": null,
       "scriptedInvocations": 0,
-      "simulatedProviderCalls": 0
+      "simulatedProviderCalls": 0,
+      "unverifiedCallbackCalls": 0
     }
   },
   "invariantCoverage": {
@@ -52,7 +54,7 @@
     "outOfScopeRuleRejection": "NOT_TESTED",
     "unverifiedReferenceRejection": "NOT_TESTED"
   },
-  "manifestSha256": "f1e7c0de5fa4316431c28ee6e2754a747c9ab6b6e65fbba6f2e9f521c093e305",
+  "manifestSha256": "d36ca95b2cc28c58e75d184506f26a9ccb44087397ba0e48e424962f3cb0ec96",
   "manualSemanticReviewP15": {
     "expertVerified": {
       "authorityRespectedRate": null,
@@ -114,9 +116,11 @@
         "logicalTrials": 110,
         "outputTokens": null,
         "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
         "providerCost": null,
         "scriptedInvocations": 0,
-        "simulatedProviderCalls": 0
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
       }
     },
     "holdout": {
@@ -160,9 +164,11 @@
         "logicalTrials": 70,
         "outputTokens": null,
         "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
         "providerCost": null,
         "scriptedInvocations": 0,
-        "simulatedProviderCalls": 0
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
       }
     },
     "negativeControls": {
@@ -206,9 +212,11 @@
         "logicalTrials": 90,
         "outputTokens": null,
         "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
         "providerCost": null,
         "scriptedInvocations": 0,
-        "simulatedProviderCalls": 0
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
       }
     },
     "overall": {
@@ -252,9 +260,11 @@
         "logicalTrials": 180,
         "outputTokens": null,
         "physicalAttempts": 0,
+        "physicalAttemptsVerified": false,
         "providerCost": null,
         "scriptedInvocations": 0,
-        "simulatedProviderCalls": 0
+        "simulatedProviderCalls": 0,
+        "unverifiedCallbackCalls": 0
       }
     }
   }

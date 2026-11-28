@@ -1,6 +1,11 @@
 {
   "caseId": "CASE-09",
   "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "APPLICABLE_COMPLIANT",
+    "lifecycleState": "COMPLETE",
+    "passed": true
+  },
   "output": {
     "authorityViolation": false,
     "evidenceRecords": {
@@ -27,6 +32,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "4f45723e-7ad1-4748-9f1a-844aff38c8f8",
+  "threadId": "6bc4e4a7-92dd-4855-b9d8-16c85a105fc9",
   "trialIndex": 4
 }

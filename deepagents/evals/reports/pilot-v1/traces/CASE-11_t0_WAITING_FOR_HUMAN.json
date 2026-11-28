@@ -1,6 +1,11 @@
 {
   "caseId": "CASE-11",
   "mode": "OFFLINE_FIXTURE",
+  "outcomeBinding": {
+    "actualVerdict": "WAITING_FOR_HUMAN",
+    "lifecycleState": "WAITING_FOR_HUMAN",
+    "passed": true
+  },
   "output": {
     "authorityViolation": false,
     "evidenceRecords": {
@@ -27,6 +32,6 @@
   },
   "runId": "pilot-v1",
   "stage": "WAITING_FOR_HUMAN",
-  "threadId": "23ce4ad0-9166-4f30-be60-813bae496337",
+  "threadId": "4df1527a-da40-4d11-8574-553d5da19848",
   "trialIndex": 0
 }

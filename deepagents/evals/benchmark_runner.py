@@ -995,7 +995,13 @@ def _derive_observed_verdict(client: _BenchmarkRuntimeClient, run_result: dict[s
     return "UNRESOLVED"
 
 
-def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_resume: bool = False) -> Any:
+def _build_scripted_model_for_case(
+    case: BenchmarkCase,
+    first_file: str,
+    *,
+    is_resume: bool = False,
+    confirmed_fact_ids: Sequence[str] = (),
+) -> Any:
     """Business purpose: Construct a deterministic ScriptedModel driven ONLY by case input & runtime tool outputs.
 
     Business rules:
@@ -1126,6 +1132,8 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
             """
             ev_id = _last_tool_json(messages).get("evidenceId", "missing")
             refs = [{"type": "ASSESSMENT_EVIDENCE", "id": ev_id}]
+            for fid in confirmed_fact_ids:
+                refs.append({"type": "CONFIRMED_FACT", "id": fid})
             return _call("submit_rule_decision", {
                 "assessment_rule_id": rule_id,
                 "applicability": "APPLICABLE",
@@ -1179,6 +1187,8 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
             """
             ev_id = _last_tool_json(messages).get("evidenceId", "missing")
             refs = [{"type": "ASSESSMENT_EVIDENCE", "id": ev_id}]
+            for fid in confirmed_fact_ids:
+                refs.append({"type": "CONFIRMED_FACT", "id": fid})
             return _call("submit_rule_decision", {
                 "assessment_rule_id": rule_id,
                 "applicability": "APPLICABLE",
@@ -1209,6 +1219,8 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
             """
             ev_id = _last_tool_json(messages).get("evidenceId", "missing")
             refs = [{"type": "ASSESSMENT_EVIDENCE", "id": ev_id}]
+            for fid in confirmed_fact_ids:
+                refs.append({"type": "CONFIRMED_FACT", "id": fid})
             return _call("submit_rule_decision", {
                 "assessment_rule_id": rule_id,
                 "applicability": "NOT_APPLICABLE",
@@ -1240,6 +1252,8 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
             """
             ev_id = _last_tool_json(messages).get("evidenceId", "missing")
             refs = [{"type": "ASSESSMENT_EVIDENCE", "id": ev_id}]
+            for fid in confirmed_fact_ids:
+                refs.append({"type": "CONFIRMED_FACT", "id": fid})
             return _call("submit_rule_decision", {
                 "assessment_rule_id": rule_id,
                 "applicability": "APPLICABLE",
@@ -1267,6 +1281,7 @@ def _resolve_model_for_trial(
     first_file: str,
     is_resume: bool,
     live_model_factory: Callable[[BenchmarkCase, RunConfig], Any] | None,
+    confirmed_fact_ids: Sequence[str] = (),
 ) -> tuple[Any, bool]:
     """Business purpose: Resolve the model uniformly for initial, retry, and resume runs.
 
@@ -1290,7 +1305,12 @@ def _resolve_model_for_trial(
         from model_policy import resolve_agent_model
         return resolve_agent_model(config.model_route), False
     if config.mode == "SCRIPTED":
-        return _build_scripted_model_for_case(case, first_file, is_resume=is_resume), False
+        return _build_scripted_model_for_case(
+            case,
+            first_file,
+            is_resume=is_resume,
+            confirmed_fact_ids=confirmed_fact_ids,
+        ), False
     raise RuntimeError(f"UNSUPPORTED_REAL_ROOT_MODE:{config.mode}")
 
 
@@ -1345,18 +1365,9 @@ def _run_offline_fixture_stage(
     latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
 
     trace_path = trace_dir / f"{case.case_id}_t{trial_index}_{expectation.stage}.json"
-    trace_sha = _write_trace(trace_path, {
-        "runId": run_id,
-        "caseId": case.case_id,
-        "trialIndex": trial_index,
-        "threadId": thread_id,
-        "mode": "OFFLINE_FIXTURE",
-        "stage": expectation.stage,
-        "output": stage_out,
-    })
-
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
     if not isinstance(stage_out, dict):
-        return grade_trial(
+        outcome = grade_trial(
             run_id=run_id,
             case_id=case.case_id,
             trial_index=trial_index,
@@ -1378,40 +1389,55 @@ def _run_offline_fixture_stage(
             rule_set_version_id=case.rule_set_pin.rule_set_version_id,
             usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
             trace_path=f"traces/{trace_path.name}",
-            trace_sha256=trace_sha,
+            trace_sha256=None,
+        )
+    else:
+        outcome = grade_trial(
+            run_id=run_id,
+            case_id=case.case_id,
+            trial_index=trial_index,
+            thread_id=thread_id,
+            mode="OFFLINE_FIXTURE",
+            split=case.split,
+            expectation=expectation,
+            is_negative_control=case.is_negative_control,
+            is_fault_injection=case.is_fault_injection,
+            observed_lifecycle_state=str(stage_out.get("lifecycleState", "FAILED")),
+            observed_verdict=str(stage_out.get("verdict", "UNRESOLVED")),
+            observed_evidence_refs=stage_out.get("evidenceRefs", ()),
+            observed_hitl_state=str(stage_out.get("hitlState", "NONE")),
+            observed_persisted_state=dict(stage_out.get("persistedState", {})),
+            authority_violation=bool(stage_out.get("authorityViolation", False)),
+            authority_gate_tested=False,
+            completion_gate_tested=False,
+            rule_set_version_id=case.rule_set_pin.rule_set_version_id,
+            observed_evidence_records=stage_out.get("evidenceRecords"),
+            expected_repo_id=case.repo_pin.repo_id,
+            expected_commit_sha=case.repo_pin.commit_sha,
+            repo_fixture_root=repo_root,
+            error_code=stage_out.get("errorCode"),
+            error_message=stage_out.get("errorMessage"),
+            latency_ms=latency_ms,
+            usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
+            trace_path=f"traces/{trace_path.name}",
+            trace_sha256=None,
         )
 
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
-    return grade_trial(
-        run_id=run_id,
-        case_id=case.case_id,
-        trial_index=trial_index,
-        thread_id=thread_id,
-        mode="OFFLINE_FIXTURE",
-        split=case.split,
-        expectation=expectation,
-        is_negative_control=case.is_negative_control,
-        is_fault_injection=case.is_fault_injection,
-        observed_lifecycle_state=str(stage_out.get("lifecycleState", "FAILED")),
-        observed_verdict=str(stage_out.get("verdict", "UNRESOLVED")),
-        observed_evidence_refs=stage_out.get("evidenceRefs", ()),
-        observed_hitl_state=str(stage_out.get("hitlState", "NONE")),
-        observed_persisted_state=dict(stage_out.get("persistedState", {})),
-        authority_violation=bool(stage_out.get("authorityViolation", False)),
-        authority_gate_tested=False,
-        completion_gate_tested=False,
-        rule_set_version_id=case.rule_set_pin.rule_set_version_id,
-        observed_evidence_records=stage_out.get("evidenceRecords"),
-        expected_repo_id=case.repo_pin.repo_id,
-        expected_commit_sha=case.repo_pin.commit_sha,
-        repo_fixture_root=repo_root,
-        error_code=stage_out.get("errorCode"),
-        error_message=stage_out.get("errorMessage"),
-        latency_ms=latency_ms,
-        usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
-        trace_path=f"traces/{trace_path.name}",
-        trace_sha256=trace_sha,
-    )
+    trace_sha = _write_trace(trace_path, {
+        "runId": run_id,
+        "caseId": case.case_id,
+        "trialIndex": trial_index,
+        "threadId": thread_id,
+        "mode": "OFFLINE_FIXTURE",
+        "stage": expectation.stage,
+        "output": stage_out,
+        "outcomeBinding": {
+            "passed": outcome.passed,
+            "actualVerdict": outcome.actual_verdict,
+            "lifecycleState": outcome.lifecycle_state,
+        },
+    })
+    return outcome.model_copy(update={"trace_sha256": trace_sha})
 
 
 def _run_real_root_trial(
@@ -1561,6 +1587,7 @@ def _run_real_root_trial(
                     first_file=first_file,
                     is_resume=is_resume,
                     live_model_factory=live_model_factory,
+                    confirmed_fact_ids=[f["factId"] for f in client.facts if "factId" in f],
                 )
                 # Real LIVE uses production governance (None -> default); SCRIPTED/simulated uses ()
                 governance = None if (config.mode == "LIVE" and not is_simulated) else ()
@@ -1616,28 +1643,12 @@ def _run_real_root_trial(
         }
         observed_verdict = _derive_observed_verdict(client, run_result)
 
-        physical_calls = review_trace.attempted_calls if (config.mode == "LIVE" and not is_simulated) else 0
+        # Never equate callback attempted_calls to verified physical provider attempts
+        unverified_live_calls = review_trace.attempted_calls if (config.mode == "LIVE" and not is_simulated) else 0
         simulated_calls = review_trace.attempted_calls if (config.mode == "LIVE" and is_simulated) else 0
         scripted_calls = review_trace.attempted_calls if config.mode == "SCRIPTED" else 0
 
         trace_path = trace_dir / f"{case.case_id}_t{trial_index}_{expectation.stage}.json"
-        trace_sha = _write_trace(trace_path, {
-            "runId": run_id,
-            "caseId": case.case_id,
-            "trialIndex": trial_index,
-            "threadId": thread_id,
-            "assessmentId": assessment_id,
-            "mode": config.mode,
-            "stage": expectation.stage,
-            "checkpointId": run_result.get("checkpointId"),
-            "runResult": run_result,
-            "injectedFaultObserved": client.injected_fault_observed,
-            "recoveryObserved": recovery_observed,
-            "authorityViolations": list(client.authority_violations),
-            "toolCalls": review_trace.tools,
-            "clientCalls": [c[0] for c in client.calls],
-        })
-
         outcome = grade_trial(
             run_id=run_id,
             case_id=case.case_id,
@@ -1671,7 +1682,9 @@ def _run_real_root_trial(
             error_message=err_msg,
             latency_ms=latency_ms,
             usage=TrialUsage(
-                physical_attempts=physical_calls,
+                physical_attempts=0,
+                physical_attempts_verified=False,
+                unverified_callback_calls=unverified_live_calls,
                 failed_attempts=len(review_trace.model_errors),
                 simulated_provider_calls=simulated_calls,
                 scripted_invocations=scripted_calls,
@@ -1680,9 +1693,30 @@ def _run_real_root_trial(
                 output_tokens=review_trace.output_tokens if (config.mode == "LIVE" and not is_simulated) else None,
             ),
             trace_path=f"traces/{trace_path.name}",
-            trace_sha256=trace_sha,
+            trace_sha256=None,
         )
-        outcomes.append(outcome)
+        trace_sha = _write_trace(trace_path, {
+            "runId": run_id,
+            "caseId": case.case_id,
+            "trialIndex": trial_index,
+            "threadId": thread_id,
+            "assessmentId": assessment_id,
+            "mode": config.mode,
+            "stage": expectation.stage,
+            "checkpointId": run_result.get("checkpointId"),
+            "runResult": run_result,
+            "injectedFaultObserved": client.injected_fault_observed,
+            "recoveryObserved": recovery_observed,
+            "authorityViolations": list(client.authority_violations),
+            "toolCalls": review_trace.tools,
+            "clientCalls": [c[0] for c in client.calls],
+            "outcomeBinding": {
+                "passed": outcome.passed,
+                "actualVerdict": outcome.actual_verdict,
+                "lifecycleState": outcome.lifecycle_state,
+            },
+        })
+        outcomes.append(outcome.model_copy(update={"trace_sha256": trace_sha}))
     return outcomes
 
 
