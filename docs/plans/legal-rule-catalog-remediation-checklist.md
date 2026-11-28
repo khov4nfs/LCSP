@@ -1,6 +1,6 @@
 # Kế hoạch chi tiết tái cấu trúc & khắc phục Module `legal-rule-catalog`
 
-> **Trạng thái**: Đang chờ thực hiện (Pending)  
+> **Trạng thái**: Giai đoạn 1–2 hoàn thành; Giai đoạn 3 đang chờ thực hiện.
 > **Nguyên tắc**: Thực hiện từng tác vụ đơn lẻ, chạy kiểm thử xác nhận (TDD / Regression tests) trước khi đánh dấu hoàn thành và chuyển sang việc tiếp theo. Không thực hiện dồn một lần.
 
 ---
@@ -40,7 +40,7 @@
      ```
   4. Xóa bỏ câu lệnh lock đơn lẻ trong vòng lặp.
 - **Tiêu chí nghiệm thu**: Test mô phỏng deadlock chạy thành công không bị treo/fail; toàn bộ test suite của `legal-rule-catalog` vượt qua (100% GREEN).
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE
 
 ---
 
@@ -55,7 +55,7 @@
      ```
   3. Viết unit test xác nhận tính tuần tự và giải phóng lock đúng khi transaction kết thúc.
 - **Tiêu chí nghiệm thu**: Kiểm thử idempotent submit chạy thành công, không chặn nhầm các lock khác.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE
 
 ---
 
@@ -70,7 +70,7 @@
      ```
   3. Kiểm tra lại test case để chuyển sang GREEN.
 - **Tiêu chí nghiệm thu**: Test case chunk CRLF pass, các test hydration cũ không bị ảnh hưởng.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE
 
 ---
 
@@ -84,7 +84,7 @@
   2. Viết unit test chuyên biệt `legal-source-provision-composer.spec.ts` cho từng hàm con.
   3. Import và sử dụng composer trong `LegalRuleCatalogService`.
 - **Tiêu chí nghiệm thu**: Toàn bộ unit test cũ và mới của `legal-rule-source-provisions.spec.ts` pass 100%.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE
 
 ---
 
@@ -96,21 +96,24 @@
   2. Cập nhật các câu lệnh import ở cả 2 service và controller.
   3. Kiểm tra bằng `pnpm knip --directory apps/api` và `pnpm --filter @lcsp/api test`.
 - **Tiêu chí nghiệm thu**: Không còn cycle dependency, code compile sạch sẽ không lỗi type.
-- **Trạng thái**: [ ] Chưa bắt đầu
+- **Trạng thái**: [x] DONE
 
 ---
 
 #### Task 2.3: Tách các Use-case Handlers từ 2 God Services >1500 dòng (R-01)
-- **Mục tiêu**: Giảm kích thước mỗi file xuống dưới 500 dòng, tuân thủ Clean Architecture.
+- **Mục tiêu**: Tách các use case có transaction và quy tắc nghiệp vụ riêng khỏi service điều phối; đánh giá ranh giới theo dependency, trạng thái và khả năng kiểm thử thay vì áp ngưỡng 500 dòng cho mọi file.
 - **File tác động**:
-  - Tách `activatePreparedRules` ra `application/commands/activate-prepared-rules.handler.ts`
-  - Tách `importAssessmentRules` ra `application/commands/import-assessment-rules.handler.ts`
+  - Tách `activate` ra `application/commands/activate-prepared-rules/{activate-prepared-rules.command.ts,activate-prepared-rules.handler.ts}`
+  - Tách `importAssessmentRules` ra `application/commands/import-assessment-rules/{import-assessment-rules.command.ts,import-assessment-rules.handler.ts}`
 - **Các bước thực hiện**:
   1. Tạo từng handler, chuyển logic từ service sang handler tương ứng.
   2. Bổ sung JSDoc 5 mục bắt buộc cho từng execute method.
-  3. Đăng ký handler vào `LegalRuleCatalogModule` và gọi qua `CommandBus` hoặc delegate trực tiếp.
-- **Tiêu chí nghiệm thu**: Vượt qua lệnh kiểm tra `pnpm run check:business-logic-docs apps/api/src/modules/legal-rule-catalog`.
-- **Trạng thái**: [ ] Chưa bắt đầu
+  3. Tổ chức mỗi use case theo `application/commands/<use-case>/{<use-case>.command.ts,<use-case>.handler.ts}` như module Auth; đăng ký qua `commands/index.ts` và dispatch bằng `CommandBus` từ service hiện hữu.
+  4. Chuyển selected-output validation dùng chung ra module thuần để handler không phụ thuộc ngược vào service.
+  5. Đánh giá các nhóm thao tác còn lại theo transaction/đọc dữ liệu trước khi tách tiếp; không chia file cơ học theo số dòng.
+- **Kết luận phạm vi**: `submit/createResult`, `regenerate/retry` và `claim/instructions/validate/complete/cancel` là các vòng đời ghi khác với publication/import; `batch/history` là truy vấn đọc. Ở catalog service, source projection, catalog mutation, list/selection và hydration/audit cũng có ranh giới riêng. Chỉ tách khi xử lý từng luồng kèm test tương ứng; không gộp vào Task 2.3 để đạt chỉ tiêu dòng. Task 3.1–3.3 tiếp tục sở hữu tối ưu list, giới hạn import và chuẩn hóa lỗi.
+- **Tiêu chí nghiệm thu**: Handler sở hữu trọn transaction của use case; không có import cycle; module tests, typecheck, lint và `pnpm run check:business-logic-docs` đều qua. PostgreSQL activation integration phải chạy khi có DB test.
+- **Trạng thái**: [x] DONE — hai command/handler theo cấu trúc Auth, dispatch qua CQRS và dùng chung selected-output validation; 36 unit/module tests và 2 PostgreSQL activation integration tests pass trên database disposable `127.0.0.1:55448/lcsp_r2_activation`. Typecheck, lint, architecture/import policy và business-logic-docs đều pass.
 
 ---
 

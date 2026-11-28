@@ -118,6 +118,7 @@ const doc = await prisma.document.findFirst({
 - [ ] Run architecture boundary check: `pnpm run check:architecture`
 - [ ] Run business logic documentation audit: `pnpm run check:business-logic-docs`
 - [ ] Run import policy check: `pnpm run check:imports`
+- [ ] Before adding a command or query, inspect a comparable API module (such as `auth`) and match its use-case folder, typed request/command, handler registration index, and CQRS dispatch; keep shared validation outside service-to-handler callback wiring.
 - [ ] Verify explanatory comments are added on all changed code, especially core domain, RBAC, transactions, and security boundaries.
 - [ ] For changes to Assessment Root admission queries, run the full PostgreSQL capacity integration spec so the 10,001-command fairness case runs after the smaller fixtures.
 - [ ] For PAT rotation changes, run PostgreSQL regressions for expiry, rollback and concurrent disconnect so stale rotations cannot restore credentials.
