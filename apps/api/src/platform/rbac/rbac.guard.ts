@@ -1,6 +1,7 @@
 import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import type { AuthErrorCode } from "@lcsp/contracts/auth";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { BILLING_ACTIONS } from "@lcsp/contracts/billing";
 import {
   RBAC_DECISIONS,
   RBAC_REASON_CODES,
@@ -8,6 +9,7 @@ import {
   type RbacDecision,
   type RbacReasonCode,
 } from "@lcsp/contracts/rbac";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
   HttpStatus,
   Inject,
@@ -24,7 +26,6 @@ import {
   AUTHORIZATION_DECISION_REPOSITORY,
   type AuthorizationDecisionRepository,
 } from "./authorization-decision.repository.js";
-import { createCorrelationId } from "../security/crypto.utils.js";
 import { problemException } from "../http/filters/error.factory.js";
 import { RE_AUTH_FOR_SENSITIVE_ROUTE_METADATA_KEY } from "../security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { isSensitiveActionVerificationFresh } from "../security/sensitive-route-policy.js";
@@ -33,7 +34,9 @@ import {
   RBAC_METADATA_KEY,
   type RbacMetadata,
 } from "./decorators/rbac-metadata.js";
+import { RBAC_ACTIONS_METADATA_KEY } from "./decorators/require-actions.decorator.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
+import { normalizeCorrelationId } from "./correlation-id.js";
 
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.httpRoute;
 
@@ -75,9 +78,9 @@ export class RbacGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const correlationId =
-      headerString(request.headers?.["x-correlation-id"]) ??
-      createCorrelationId();
+    const correlationId = normalizeCorrelationId(
+      request.headers?.["x-correlation-id"],
+    );
     request.correlationId = correlationId;
 
     const requestKey = requestMethodAndPath(request);
@@ -146,11 +149,21 @@ export class RbacGuard implements CanActivate {
         resourceId,
         correlationId,
       });
+      const sessionMetadata = session.metadata as
+        Record<string, unknown> | null | undefined;
+      const sessionPermissions = sessionMetadata?.permissions;
+      const permissions: readonly string[] = Array.isArray(sessionPermissions)
+        ? (sessionPermissions as string[])
+        : user.role === AUTH_USER_ROLES.admin
+          ? Object.values(BILLING_ACTIONS)
+          : [];
+
       request.rbacContext = {
         userId: session.userId,
         sessionId: session.id,
         role: user.role,
         scope: resourceId,
+        permissions,
       };
       await this.recordDecision({
         actorId: session.userId,
@@ -179,6 +192,37 @@ export class RbacGuard implements CanActivate {
       throw this.rbacDenied(correlationId);
     }
 
+    // Resolve caller action permissions (ADR-028 Line 173-174)
+    const sessionMetadata = session.metadata as
+      Record<string, unknown> | null | undefined;
+    const sessionPermissions = sessionMetadata?.permissions;
+    const permissions: readonly string[] = Array.isArray(sessionPermissions)
+      ? (sessionPermissions as string[])
+      : user.role === AUTH_USER_ROLES.admin
+        ? Object.values(BILLING_ACTIONS)
+        : [];
+
+    // Enforce action-level permissions if declared via @RequireActions decorator
+    const requiredActions = this.reflector.getAllAndOverride<
+      readonly string[] | undefined
+    >(RBAC_ACTIONS_METADATA_KEY, [context.getHandler(), context.getClass()]);
+    if (requiredActions && requiredActions.length > 0) {
+      const hasAllActions = requiredActions.every((action) =>
+        permissions.includes(action),
+      );
+      if (!hasAllActions) {
+        await this.recordDecision({
+          actorId: session.userId,
+          sessionId: session.id,
+          resourceId,
+          decision: LOCAL_RBAC_DECISIONS.deny,
+          reasonCode: RBAC_REASON_CODES.denied,
+          correlationId,
+        });
+        throw this.rbacDenied(correlationId);
+      }
+    }
+
     await this.enforceSensitiveReauth({
       required: requiresSensitiveReauth,
       session,
@@ -191,6 +235,7 @@ export class RbacGuard implements CanActivate {
       sessionId: session.id,
       role: user.role,
       scope: resourceId,
+      permissions,
     };
     await this.recordDecision({
       actorId: session.userId,
@@ -309,17 +354,21 @@ export class RbacGuard implements CanActivate {
         correlationId: input.correlationId,
       });
     } catch (error) {
+      // Repository rejection means both canonical AuditEvent and durable
+      // fallback failed. DENY remains fail-closed; an unauditable ALLOW stops
+      // with a masked dependency response instead of silently losing evidence.
       this.logger.error(
-        `Failed to write authorization AuditEvent (decision=${input.decision}): ${(error as Error).message}`,
+        `Authorization audit unavailable decision=${input.decision} correlationId=${input.correlationId} failure=${error instanceof Error ? error.name : typeof error}`,
       );
+      if (input.decision === LOCAL_RBAC_DECISIONS.allow) {
+        throw problemException(
+          SHARED_ERROR_CODES.upstreamUnavailable,
+          input.correlationId,
+          { status: HttpStatus.SERVICE_UNAVAILABLE },
+        );
+      }
     }
   }
-}
-
-function headerString(value: string | string[] | undefined): string | null {
-  if (typeof value === "string" && value.trim().length > 0) return value;
-  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-  return null;
 }
 
 function readStringAttribute(value: unknown): string | undefined {

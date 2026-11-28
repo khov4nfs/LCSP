@@ -32,11 +32,6 @@ import {
 
 export const SESSION_EXPORT_SCHEMA_VERSION = "assessment.session.v1";
 
-export {
-  ASSESSMENT_SESSION_REPORT_STATES,
-  type AssessmentSessionReportState,
-} from "@lcsp/contracts/assessment-domain";
-
 /**
  * Business purpose: Distinguish an unavailable finalized report from authorization
  * or runtime failures, so session metrics may still be exported without misrepresenting

@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { MODEL_USAGE_DEBIT_MODES } from "@lcsp/contracts/billing";
 import { config, createConfigValidationSchema } from "./config.js";
 
 const VALIDATION_WORKSPACE_ROOT = resolve("test-workspace");
@@ -19,6 +20,8 @@ const VALID_ENV = {
   OUTBOX_POLL_INTERVAL_MS: "1000",
   OUTBOX_BATCH_SIZE: "50",
   OUTBOX_MAX_ATTEMPTS: "5",
+  OUTBOX_BROKER_CONNECT_TIMEOUT_MS: "5000",
+  OUTBOX_BROKER_PUBLISH_TIMEOUT_MS: "5000",
   MFA_SECRET_ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
   GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
   GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
@@ -292,11 +295,13 @@ describe("configValidationSchema", () => {
       expect(result.value).not.toHaveProperty(removed);
   });
 
-  it("keeps only customer-payment keys in the billing config", () => {
+  it("keeps only customer-payment and billing engine keys in the billing config", () => {
     const previous = process.env;
     process.env = { ...VALID_ENV };
     try {
       expect(Object.keys(config().billing).sort()).toEqual([
+        "admissionMasterKey",
+        "reconciliationSweeper",
         "sePayAccountHolder",
         "sePayBankAccountNumber",
         "sePayBankName",
@@ -453,6 +458,8 @@ describe("config()", () => {
         pollIntervalMs: 1000,
         batchSize: 50,
         maxAttempts: 5,
+        brokerConnectTimeoutMs: 5000,
+        brokerPublishTimeoutMs: 5000,
       },
       githubCredentialPersistence: {
         activeKekVersion: VALID_ENV.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,
@@ -469,6 +476,11 @@ describe("config()", () => {
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
       orchestration: { debug: false },
       billing: {
+        admissionMasterKey: "",
+        reconciliationSweeper: {
+          enabled: true,
+          intervalMs: 60000,
+        },
         sePayBankName: "Test Bank",
         sePayBankAccountNumber: "1234567890",
         sePayAccountHolder: "LCSP TEST",
@@ -482,11 +494,73 @@ describe("config()", () => {
         artifactStoragePath: "",
         snapshotArchiveCacheDir: "",
       },
+      modelUsageDebit: {
+        mode: MODEL_USAGE_DEBIT_MODES.OFF,
+      },
       providerAvailability: {
         bitbucketRestEnabled: false,
         azureDevOpsRestEnabled: false,
         externalIdentitySchemaReady: false,
       },
+    });
+  });
+
+  describe("WP8 MODEL_USAGE_DEBIT = OFF Config Gate (RED Tests)", () => {
+    it("defaults MODEL_USAGE_DEBIT to OFF when unset or blank in schema and config()", () => {
+      const unset = validate(VALID_ENV);
+      expect(unset.error).toBeUndefined();
+      expect((unset.value as Record<string, unknown>).MODEL_USAGE_DEBIT).toBe(
+        MODEL_USAGE_DEBIT_MODES.OFF,
+      );
+
+      const blank = validate({ ...VALID_ENV, MODEL_USAGE_DEBIT: "   " });
+      expect(blank.error).toBeUndefined();
+      expect((blank.value as Record<string, unknown>).MODEL_USAGE_DEBIT).toBe(
+        MODEL_USAGE_DEBIT_MODES.OFF,
+      );
+
+      delete process.env.MODEL_USAGE_DEBIT;
+      expect(config().modelUsageDebit).toEqual({
+        mode: MODEL_USAGE_DEBIT_MODES.OFF,
+      });
+
+      process.env.MODEL_USAGE_DEBIT = "";
+      expect(config().modelUsageDebit).toEqual({
+        mode: MODEL_USAGE_DEBIT_MODES.OFF,
+      });
+    });
+
+    it("accepts OFF and SHADOW in validation schema and config()", () => {
+      const shadowValidation = validate({
+        ...VALID_ENV,
+        MODEL_USAGE_DEBIT: MODEL_USAGE_DEBIT_MODES.SHADOW,
+      });
+      expect(shadowValidation.error).toBeUndefined();
+
+      process.env.MODEL_USAGE_DEBIT = " SHADOW ";
+      expect(config().modelUsageDebit).toEqual({
+        mode: MODEL_USAGE_DEBIT_MODES.SHADOW,
+      });
+    });
+
+    it("rejects ON and invalid MODEL_USAGE_DEBIT values in schema and config()", () => {
+      const onValidation = validate({
+        ...VALID_ENV,
+        MODEL_USAGE_DEBIT: MODEL_USAGE_DEBIT_MODES.ON,
+      });
+      expect(onValidation.error?.message).toContain("MODEL_USAGE_DEBIT");
+
+      const invalidValidation = validate({
+        ...VALID_ENV,
+        MODEL_USAGE_DEBIT: "ENABLED",
+      });
+      expect(invalidValidation.error?.message).toContain("MODEL_USAGE_DEBIT");
+
+      process.env.MODEL_USAGE_DEBIT = MODEL_USAGE_DEBIT_MODES.ON;
+      expect(() => config()).toThrow("MODEL_USAGE_DEBIT");
+
+      process.env.MODEL_USAGE_DEBIT = "ENABLED";
+      expect(() => config()).toThrow("MODEL_USAGE_DEBIT");
     });
   });
 

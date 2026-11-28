@@ -25,6 +25,9 @@ function buildHandler() {
   const findById = jest
     .fn<AssessmentRepository["findById"]>()
     .mockResolvedValue(null);
+  const findByIdForOwner = jest
+    .fn<AssessmentRepository["findByIdForOwner"]>()
+    .mockResolvedValue(null);
   const findMany = jest
     .fn<AssessmentRepository["findMany"]>()
     .mockResolvedValue({ items: [], total: 0 });
@@ -32,6 +35,7 @@ function buildHandler() {
     save,
     saveInTx,
     findById,
+    findByIdForOwner,
     findMany,
   };
 
@@ -119,6 +123,10 @@ describe("CreateAssessmentHandler", () => {
     expect(result.assessment_id).toBeTruthy();
     expect(result.correlationId).toBe("corr-1");
     expect(saveInTx).toHaveBeenCalledTimes(1);
+    expect(saveInTx.mock.calls[0][0].isNew).toBe(false);
+    expect(saveInTx.mock.calls[0][0].expectedUpdatedAt).toEqual(
+      saveInTx.mock.calls[0][0].updatedAt,
+    );
     expect(initializeInTx).toHaveBeenCalledTimes(1);
     expect(transitionInTx).toHaveBeenCalledTimes(1);
   });

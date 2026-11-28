@@ -71,6 +71,11 @@ from test_rule_set_preparation_agent import (
 from test_rule_set_preparation_native_isolation_preparation import (
     RuleSetPreparationScriptedModel,
 )
+from test_rule_set_preparation_runner_admission import (
+    GovernedRunnerApi,
+    GovernedRunnerModel,
+    setup_governed_runner,
+)
 from tools.common.capabilities.agent_runtime.invocation import invoke_boundary
 
 SALT = "0" * 64
@@ -99,7 +104,6 @@ def _make_test_api() -> FakeApi:
                 "AGENT_BUDGET_REACHED",
                 "CALL_LIMIT_EXCEEDED",
                 "TOKEN_LIMIT_EXCEEDED",
-                "NO_PROGRESS_LIMIT_EXCEEDED",
                 "BUDGET_EXHAUSTED",
             }
             return {
@@ -123,12 +127,17 @@ def _reset_model_routes_cache():
 def test_01_agent_runtime_boundary_preexisting_state_and_hard_ceiling(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Why: The boundary must preserve server admission even when it enters with an existing runtime state.
+    # How: Run a registered governed model behind an API double that records admission and consume.
+    # Invariant: The local hard ceiling journal remains observable without calling a live billing endpoint.
+    setup_governed_runner(monkeypatch)
     db_path = tmp_path / "recovery.sqlite3"
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(db_path))
     monkeypatch.setenv("NESTJS_API_BASE_URL", "http://localhost:3000")
     monkeypatch.setenv("WORKER_API_KEY", "test-worker-key")
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "5")
-    monkeypatch.setenv("LCSP_RSP_MAX_TOTAL_TOKENS", "2000000")
+    # The governed fixture needs three physical calls at its 1M + 4,096 token route ceiling.
+    monkeypatch.setenv("LCSP_RSP_MAX_TOTAL_TOKENS", "4000000")
 
     from middleware import usage_metering
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, resp=None: None)
@@ -149,18 +158,23 @@ def test_01_agent_runtime_boundary_preexisting_state_and_hard_ceiling(
         lambda *a, **kw: None,
     )
 
-    packet = _packet()
-    model = _make_scripted_model([
-        _call("read_file", {"file_path": INDEX_PATH}, "c1"),
-        _call("validate_compliance_rule_set", {"packet": packet}, "c2"),
-        AIMessage(content="DONE"),
-    ])
+    model = GovernedRunnerModel()
 
-    api = _make_test_api()
+    api = GovernedRunnerApi()
     run_id = "11111111-1111-4111-8111-111111111111"
 
     def custom_runner(api_client: Any, r_id: str, **kwargs: Any) -> dict[str, Any]:
-        return run_rule_set_preparation(api, r_id, model=model, work_dir=tmp_path)
+        # The boundary has already activated a transport state with its own API client.
+        # Bind the offline admission double for this invocation and restore that state afterward.
+        state = active_agent_run_state()
+        previous_client = state.api_client if state is not None else None
+        if state is not None:
+            state.api_client = api
+        try:
+            return run_rule_set_preparation(api, r_id, model=model, work_dir=tmp_path)
+        finally:
+            if state is not None:
+                state.api_client = previous_client
 
     monkeypatch.setattr(
         "rule_set_preparation.boundary.run_rule_set_preparation", custom_runner
@@ -175,6 +189,7 @@ def test_01_agent_runtime_boundary_preexisting_state_and_hard_ceiling(
                 correlation_id="corr-1",
             )
             assert result["status"] == "COMPLETED"
+            assert len(api.admissions) == len(api.consumes) == len(model.calls)
 
     # Verify durable reservation was written to SQLite
     with sqlite3.connect(db_path) as db:
@@ -189,6 +204,10 @@ def test_01_agent_runtime_boundary_preexisting_state_and_hard_ceiling(
 def test_02_direct_runner_no_preexisting_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Why: A direct full-source runner still needs server authority even with a local hard ceiling.
+    # How: Supply the current admission API double and a registered governed model.
+    # Invariant: The runner creates its own run state and persists local attempt evidence.
+    setup_governed_runner(monkeypatch)
     db_path = tmp_path / "recovery.sqlite3"
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(db_path))
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "3")
@@ -198,14 +217,9 @@ def test_02_direct_runner_no_preexisting_state(
 
     assert active_agent_run_state() is None
 
-    packet = _packet()
-    model = _make_scripted_model([
-        _call("read_file", {"file_path": INDEX_PATH}, "c1"),
-        _call("validate_compliance_rule_set", {"packet": packet}, "c2"),
-        AIMessage(content="DONE"),
-    ])
+    model = GovernedRunnerModel()
 
-    api = _make_test_api()
+    api = GovernedRunnerApi()
     run_id = "22222222-2222-4222-8222-222222222222"
 
     with isolated_test_scripted_models():
@@ -213,6 +227,7 @@ def test_02_direct_runner_no_preexisting_state(
         with offline_instruction_bundle():
             result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
             assert result["state"] == "PAUSED" or result.get("submission") is not None
+            assert len(api.admissions) == len(api.consumes) == len(model.calls)
 
     with sqlite3.connect(db_path) as db:
         rows = db.execute("SELECT count(*) FROM inference_attempts WHERE run_id=?", (run_id,)).fetchone()
@@ -225,39 +240,40 @@ def test_02_direct_runner_no_preexisting_state(
 def test_03_context_propagation_into_agent_invoke(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Why: Inspect the real runner context after server admission is bound, without a live HTTP callback.
+    # How: Use the current governed API/model fixture and preserve the hard workload ceiling.
+    # Invariant: The active run remains bounded and the outer runnable config stays isolated.
+    setup_governed_runner(monkeypatch)
     db_path = tmp_path / "recovery.sqlite3"
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(db_path))
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "5")
 
     captured_context: dict[str, Any] = {}
 
-    class ContextInspectingModel(RuleSetPreparationScriptedModel):
+    class ContextInspectingModel(GovernedRunnerModel):
         def _generate(self, messages: Any, stop: Any = None, run_manager: Any = None, **kwargs: Any) -> Any:
             captured_context["active_state"] = active_agent_run_state()
             captured_context["bounded_scope"] = _bounded_scope.get()
             captured_context["runnable_config"] = var_child_runnable_config.get()
             return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
-    packet = _packet()
-    model = ContextInspectingModel(responses=[
-        _call("read_file", {"file_path": INDEX_PATH}, "c1"),
-        _call("validate_compliance_rule_set", {"packet": packet}, "c2"),
-        AIMessage(content="DONE"),
-    ])
+    model = ContextInspectingModel()
 
     from middleware import usage_metering
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, resp=None: None)
 
-    api = _make_test_api()
+    api = GovernedRunnerApi()
     run_id = "33333333-3333-4333-8333-333333333333"
 
     # Set an outer runner runnable config to verify isolation
-    var_child_runnable_config.set({"outer_saver": "postgres_checkpoint_saver"})
-
-    with isolated_test_scripted_models():
-        register_test_scripted_model(model, "primary", credential_salt=SALT)
-        with offline_instruction_bundle():
-            run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+    context_token = var_child_runnable_config.set({"outer_saver": "postgres_checkpoint_saver"})
+    try:
+        with isolated_test_scripted_models():
+            register_test_scripted_model(model, "primary", credential_salt=SALT)
+            with offline_instruction_bundle():
+                run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
+    finally:
+        var_child_runnable_config.reset(context_token)
 
     st = captured_context.get("active_state")
     assert st is not None, "active_agent_run_state() was not propagated into agent.invoke"
@@ -276,28 +292,25 @@ def test_03_context_propagation_into_agent_invoke(
 def test_04_every_physical_attempt_receives_reservation_before_dispatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Why: The local hard ceiling and server-issued per-call admission are separate guards.
+    # How: Keep a one-call budget while observing the API admission/consume and model sequence.
+    # Invariant: The second physical dispatch is denied before the provider runs.
+    setup_governed_runner(monkeypatch)
     db_path = tmp_path / "recovery.sqlite3"
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(db_path))
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "1")
 
-    dispatched_calls: list[int] = []
-
-    class DispatchTrackingModel(RuleSetPreparationScriptedModel):
-        def _generate(self, messages: Any, stop: Any = None, run_manager: Any = None, **kwargs: Any) -> Any:
-            dispatched_calls.append(len(dispatched_calls) + 1)
-            return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
-
-    packet = _packet()
-    model = DispatchTrackingModel(responses=[
-        _call("read_file", {"file_path": INDEX_PATH}, "c1"),
-        _call("validate_compliance_rule_set", {"packet": packet}, "c2"),
-        AIMessage(content="DONE"),
-    ])
+    model = GovernedRunnerModel()
 
     from middleware import usage_metering
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, resp=None: None)
 
-    api = _make_test_api()
+    class LimitedGovernedApi(GovernedRunnerApi):
+        def fail_rule_set_preparation(self, run_id: str, reason: str) -> dict[str, Any]:
+            self.calls.append(("fail", (run_id, reason)))
+            return {"preparationRunId": run_id, "executionState": "PAUSED"}
+
+    api = LimitedGovernedApi()
     run_id = "44444444-4444-4444-8444-444444444444"
 
     with isolated_test_scripted_models():
@@ -307,7 +320,8 @@ def test_04_every_physical_attempt_receives_reservation_before_dispatch(
             assert result["state"] == "PAUSED"
 
     # Only 1 call was dispatched because call 2 was prevented by the budget/reservation boundary
-    assert len(dispatched_calls) == 1
+    assert len(model.calls) == 1
+    assert len(api.admissions) == len(api.consumes) == 1
 
     with sqlite3.connect(db_path) as db:
         attempts = db.execute("SELECT attempt_id, state FROM inference_attempts WHERE run_id=? ORDER BY rowid", (run_id,)).fetchall()
@@ -650,6 +664,10 @@ def test_09_retry_fallback_separate_invocation_ids(
 def test_10_no_configured_cumulative_ceiling_monitoring_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Why: A missing cumulative workload ceiling does not waive per-call server admission.
+    # How: Keep workload limits unset while using the current server-issued admission fixture.
+    # Invariant: Every model call still receives a capability and CAS consume before dispatch.
+    setup_governed_runner(monkeypatch)
     monkeypatch.delenv("LCSP_WORKLOAD_LIMITS_RULE_SET_PREPARATION", raising=False)
     monkeypatch.delenv("LCSP_RSP_MAX_MODEL_CALLS", raising=False)
     monkeypatch.delenv("LCSP_RSP_MAX_INPUT_TOKENS", raising=False)
@@ -661,15 +679,9 @@ def test_10_no_configured_cumulative_ceiling_monitoring_only(
     from middleware import usage_metering
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, resp=None: None)
 
-    packet = _packet()
-    model = _make_scripted_model([
-        _call("read_file", {"file_path": INDEX_PATH}, "c1"),
-        _call("validate_compliance_rule_set", {"packet": packet}, "c2"),
-        _call("submit_compliance_rule_set", {"packet": packet}, "c3"),
-        AIMessage(content="DONE"),
-    ])
+    model = GovernedRunnerModel()
 
-    api = _make_test_api()
+    api = GovernedRunnerApi()
     run_id = "10101010-1010-4010-8010-101010101010"
 
     with offline_instruction_bundle():
@@ -677,6 +689,8 @@ def test_10_no_configured_cumulative_ceiling_monitoring_only(
         assert result["state"] == "SUCCEEDED"
         assert result.get("submission") is not None
         assert result["failureReason"] is None
+        assert len(api.admissions) == len(api.consumes) == len(model.calls)
+        assert len(model.calls) > 0
 
 
 # ==============================================================================

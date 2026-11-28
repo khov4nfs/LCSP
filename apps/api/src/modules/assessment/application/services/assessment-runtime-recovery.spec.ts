@@ -15,7 +15,6 @@ import {
   claimAssessmentRootExecutionRequestSchema,
   assessmentRootClaimSchema,
   ASSESSMENT_BUDGET_REASONS,
-  ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import {
@@ -1343,7 +1342,40 @@ describe("unknown response review on the existing native thread", () => {
     });
   });
 
-  it("denies claimRoot with NO_PROGRESS_LIMIT_REACHED when 15 consecutive turns lack progress and overrideNoProgress is not set", async () => {
+  it("pauses a paid Assessment invocation with a distinct wallet blocker", async () => {
+    // A 402 from billable admission must retain the native checkpoint for customer Continue.
+    const f = fixture(Lifecycle.ACTIVE);
+    Object.assign(f.row, {
+      leaseToken: null,
+      leaseExpiresAt: null,
+      executionState: Execution.INTERRUPTED,
+    });
+    const claim = await f.authority.claimRoot({
+      assessmentId: f.assessmentId,
+      correlationId: randomUUID(),
+      runtimeRunId: randomUUID(),
+    });
+    const cp = randomUUID();
+    const result = await f.authority.finishExecution({
+      assessmentId: f.assessmentId,
+      leaseToken: claim.leaseToken,
+      correlationId: randomUUID(),
+      toState: Execution.PAUSED,
+      checkpointId: cp,
+      reason: ASSESSMENT_BUDGET_REASONS.PAYMENT_REQUIRED,
+    });
+    expect(result.executionState).toBe(Execution.PAUSED);
+    expect(f.tx.assessment.update.mock.calls[0]?.[0]).toMatchObject({
+      where: { id: f.assessmentId },
+      data: {
+        blockerReference: {
+          reason: ASSESSMENT_BUDGET_REASONS.PAYMENT_REQUIRED,
+        },
+      },
+    });
+  });
+
+  it("admits claimRoot even when 15 consecutive turns lack progress because NO_PROGRESS_LIMIT_EXCEEDED is retired as a blocker", async () => {
     const originalEnv = process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT;
     process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = "15";
     try {
@@ -1360,28 +1392,12 @@ describe("unknown response review on the existing native thread", () => {
         .fn<() => Promise<typeof turns>>()
         .mockResolvedValue(turns);
 
-      let error:
-        | {
-            getStatus?: () => number;
-            getResponse?: () => { problem?: { code?: string } };
-          }
-        | undefined;
-      try {
-        await f.authority.claimRoot({
-          assessmentId: f.assessmentId,
-          correlationId: randomUUID(),
-        });
-      } catch (err: unknown) {
-        error = err as {
-          getStatus?: () => number;
-          getResponse?: () => { problem?: { code?: string } };
-        };
-      }
-      expect(error).toBeDefined();
-      expect(error?.getStatus?.()).toBe(409);
-      expect(error?.getResponse?.()?.problem?.code).toBe(
-        ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
-      );
+      const claim = await f.authority.claimRoot({
+        assessmentId: f.assessmentId,
+        correlationId: randomUUID(),
+      });
+      expect(claim).toBeDefined();
+      expect(claim.leaseToken).toBeDefined();
     } finally {
       if (originalEnv !== undefined) {
         process.env.LCSP_ASSESSMENT_NO_PROGRESS_LIMIT = originalEnv;

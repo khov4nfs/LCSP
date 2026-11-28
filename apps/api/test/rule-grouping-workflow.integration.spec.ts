@@ -443,6 +443,7 @@ integration("persisted grouping proposal and independent review", () => {
       new OutboxRepository(db as PrismaService),
       new AssessmentCaseSupport(),
       localization,
+      { write: () => Promise.resolve() } as never,
     );
     const selected: SubmitRuleAudit = {
       idempotencyKey: randomUUID(),

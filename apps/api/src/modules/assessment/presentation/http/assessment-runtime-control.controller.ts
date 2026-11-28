@@ -4,6 +4,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   Post,
   Req,
@@ -119,7 +120,15 @@ export class AssessmentRuntimeControlController {
     );
   }
 
+  /**
+   * Why: Legacy customer-namespaced admin override endpoint retained during the compatibility window.
+   * How: Emits `Deprecation: true` header and forwards to the identical `ControlAssessmentRuntimeCommand`
+   *      (including `idempotencyKey` and `expectedVersion`) used by canonical
+   *      `POST /admin/assessments/:assessmentId/budget-extension` so logic never diverges.
+   * Invariants: Strictly ADMIN-only (`AUTH_USER_ROLES.admin`).
+   */
   @Post("extend-budget")
+  @Header("Deprecation", "true")
   @RequireRoles(AUTH_USER_ROLES.admin)
   async extendBudget(
     @Param("assessmentId", idPipe()) assessmentId: string,
@@ -138,6 +147,8 @@ export class AssessmentRuntimeControlController {
           req.correlationId ?? assessmentId,
           locale,
           body.budgetExtension,
+          body.idempotencyKey,
+          body.expectedVersion,
         ),
       ),
     );

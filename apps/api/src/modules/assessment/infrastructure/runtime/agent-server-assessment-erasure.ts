@@ -27,6 +27,8 @@ export class AgentServerAssessmentErasure implements AssessmentRuntimeErasurePor
       process.env.WORKER_API_KEY;
     if (!baseUrl || !key)
       throw new Error("Assessment runtime erasure is not configured");
+    // Explanatory comment:
+    // Enforce 10s timeout to prevent hanging DB transactions on agent server unresponsiveness.
     const response = await fetch(
       new URL("/internal/assessment-erasure", baseUrl),
       {
@@ -36,7 +38,7 @@ export class AgentServerAssessmentErasure implements AssessmentRuntimeErasurePor
           "X-Worker-Api-Key": key,
         },
         body: JSON.stringify(input),
-        signal: AbortSignal.timeout(40_000),
+        signal: AbortSignal.timeout(10_000),
       },
     );
     if (!response.ok)

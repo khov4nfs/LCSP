@@ -15,8 +15,12 @@ from langchain.agents.structured_output import ToolStrategy
 from langgraph.errors import NodeCancelledError
 from middleware.agent_run_budget import AgentRunBudgetMiddleware, _positive_env
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.usage_metering import AgentRoleMiddleware
-from middleware.usage_metering import _safe_provider_error_code
+from middleware.usage_metering import (
+    AgentRoleMiddleware,
+    AgentRunState,
+    _safe_provider_error_code,
+    activate_agent_run_state,
+)
 from model_policy import resolve_agent_model
 from provider_credentials import llm_provider_timeout_seconds
 from orchestration.graph_execution import agent_graph_config
@@ -194,19 +198,31 @@ def run_selected_rule_preparation(api: Any, run_id: str, *, model: Any | None = 
                 middleware=[AgentRoleMiddleware("rule-set-preparation"), AgentRunBudgetMiddleware(run_quotas={"model_calls": _positive_env("LCSP_RSP_MAX_MODEL_CALLS", 4)}), *MODEL_GOVERNANCE_MIDDLEWARE],
                 checkpointer=False,
             )
+            # Why: Instruction receipts record revision and content; the stream must not assume
+            # an optional fingerprint was added by a particular API client implementation.
             publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_PREPARATION", "result_revision": claim["revision"]})
+            # Why: Bind authoritative server-issued preparationRunId context to the model execution thread (G-06, ADR-028).
+            # Mechanism: Initialize AgentRunState with preparation_run_id and activate it around the agent invocation.
+            # Invariants: Every initial and repair call requires verified preparationRunId before admission.
+            run_state = AgentRunState(
+                run_id=run_id,
+                preparation_run_id=run_id,
+                agent_role="rule-set-preparation",
+                api_client=api if hasattr(api, "request_invocation_admission") else None,
+            )
             started = time.monotonic()
-            response = asyncio.run(_invoke_selected_rule(agent, {"messages": [{"role": "user", "content": json.dumps(claim["input"], ensure_ascii=False)}]}))
-            output = _structured_output(response)
-            for _ in range(_max_repairs()):
-                rejection = _draft_rejection(api, run_id, output)
-                remaining = llm_provider_timeout_seconds() - (time.monotonic() - started)
-                if rejection is None or remaining < _MIN_REPAIR_SECONDS:
-                    break
-                logger.info("Selected rule draft repair run_id=%s correlation_id=%s validation_paths=%s", run_id, get_correlationId(), ",".join(rejection.issue_paths))
-                publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_REPAIR", "result_revision": claim["revision"]})
-                response = asyncio.run(_invoke_selected_rule(agent, {"messages": _repair_messages(claim["input"], output, rejection)}, timeout=remaining))
+            with activate_agent_run_state(run_state):
+                response = asyncio.run(_invoke_selected_rule(agent, {"messages": [{"role": "user", "content": json.dumps(claim["input"], ensure_ascii=False)}]}))
                 output = _structured_output(response)
+                for _ in range(_max_repairs()):
+                    rejection = _draft_rejection(api, run_id, output)
+                    remaining = llm_provider_timeout_seconds() - (time.monotonic() - started)
+                    if rejection is None or remaining < _MIN_REPAIR_SECONDS:
+                        break
+                    logger.info("Selected rule draft repair run_id=%s correlation_id=%s validation_paths=%s", run_id, get_correlationId(), ",".join(rejection.issue_paths))
+                    publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={"activity_kind": "SELECTED_RULE_REPAIR", "result_revision": claim["revision"]})
+                    response = asyncio.run(_invoke_selected_rule(agent, {"messages": _repair_messages(claim["input"], output, rejection)}, timeout=remaining))
+                    output = _structured_output(response)
             settling = True
             api.complete_selected_rule_preparation(run_id, "SUCCEEDED", output, None)
     except NodeCancelledError:

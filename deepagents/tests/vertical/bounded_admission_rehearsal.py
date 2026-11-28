@@ -10,6 +10,7 @@ import sqlite3
 import subprocess
 import sys
 import threading
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -21,23 +22,24 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from middleware.failure_policy import PaidAdmissionError
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, _GovernedInternalModelRunnable
 from middleware import token_fallback
-from middleware.usage_metering import AgentRoleMiddleware, activate_agent_run_state, active_agent_role
+from middleware.usage_metering import AgentRoleMiddleware, UsageMeteringMiddleware, activate_agent_run_state, active_agent_role
 from middleware.paid_admission import TokenRunBudget, TokenPolicy, fingerprint, recover_admission, request_identity
 from model_policy import load_model_routes
 from conftest import use_model_routes
-from test_paid_admission import native, answer, budget_for
+from test_paid_admission import native, answer, budget_for, offline_server_state
 from vertical.live_preparation import LiveUsage, recover_usage
 
 
 REHEARSAL_MODEL_ROUTES = {
     "routes": {
-        "primary": {"provider": "miraiapi", "model": "model-gamma"},
-        "fallback": {"provider": "inception", "model": "model-delta"},
-        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite"},
+        "primary": {"provider": "miraiapi", "model": "model-gamma", "options": {"max_output_tokens": 65536}},
+        "fallback": {"provider": "inception", "model": "model-delta", "options": {"max_output_tokens": 65536}},
+        "fallback-01": {"provider": "google_genai", "model": "gemini-3.5-flash-lite", "options": {"max_output_tokens": 65536}},
         "fallback-02": {
             "provider": "apx",
             "protocol": "anthropic",
             "model": "claude-sonnet-4-6-free",
+            "options": {"max_output_tokens": 65536},
         },
     },
     "roles": {
@@ -56,7 +58,13 @@ def main(output: str, *, token_only: bool = False) -> dict:
     class OfflineQuotaError(Exception):
         status_code = 402
     with pytest.MonkeyPatch.context() as patch:
-        use_model_routes(patch, REHEARSAL_MODEL_ROUTES)
+        # Why: The offline rehearsal must exercise the current server-issued gate before each model call.
+        # How: Provide a test-only admission authority and durable-envelope seam alongside the local budget.
+        # Invariant: This fixture never weakens production MISSING_EXECUTION_CONTEXT checks or calls a live provider.
+        rehearsal_routes = json.loads(json.dumps(REHEARSAL_MODEL_ROUTES))
+        for route in rehearsal_routes["routes"].values():
+            route["options"].setdefault("context_window_tokens", 1000000)
+        use_model_routes(patch, rehearsal_routes)
         for key in ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]:
             patch.setenv(key, "offline-admission-key")
         load_model_routes.cache_clear()
@@ -79,6 +87,11 @@ def main(output: str, *, token_only: bool = False) -> dict:
         budget_file.write_text(budget.model_dump_json(indent=2) + "\n")
         state = LiveUsage(budget.run_id, str(target / "usage.json"), budget=budget,
                           budget_fingerprint=fingerprint(budget.model_dump(mode="json")), bounded=True)
+        offline_server_state(state)
+        recovery_store = SimpleNamespace(record_in_flight_admission=lambda _envelope: None,
+                                         record_usage_evidence=lambda _invocation_id, _usage: None,
+                                         remove_admission_recovery=lambda _admission_id: None)
+        patch.setattr(UsageMeteringMiddleware, "_get_recovery_store", lambda _self: recovery_store)
         patch.setattr(token_fallback, "provider_token_source", lambda p:
             ("MIRAI_API_KEY", ("offline-admission-key", "offline-rotated-key")) if p == "miraiapi" else None)
         token_fallback._DEAD_CREDENTIAL_SLOTS.clear()

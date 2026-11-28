@@ -6,6 +6,7 @@ import {
   ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS,
 } from "@lcsp/contracts/assessment-domain";
 import {
+  ASSESSMENT_ERROR_CODES,
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_ACTIVITY_KINDS,
@@ -16,6 +17,7 @@ import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
 } from "@lcsp/contracts/evidence";
 import { asRecord } from "@lcsp/contracts/shared";
+import { RULE_PREPARATION_REJECTION_ACTIVITY_KINDS } from "@lcsp/contracts/billing";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
@@ -36,136 +38,193 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
     private readonly authority: AssessmentRuntimeAuthority,
     private readonly events: AssessmentEventAppender,
   ) {}
+  /**
+   * Ingests and broadcasts agent runtime stream events within an execution boundary.
+   *
+   * Business purpose:
+   * Streams live agent execution progress, LLM token usages, and tool outputs to subscribers while preventing spoofing across execution boundaries.
+   *
+   * Business rules:
+   * - Caller must hold a valid execution lease token matching the active assessment runtime run, OR refer to a valid preparation run.
+   * - Rule set preparation stream events must not specify an assessment_id (prevents cross-boundary timeline spoofing).
+   * - The run_id in the event payload must match the verified execution ID.
+   *
+   * Execution flow:
+   * 1. Validate boundary: if preparation_run_id is provided, reject if assessment_id is also supplied; otherwise authorize via runtime authority lease.
+   * 2. Verify payload run_id matches verified execution run ID.
+   * 3. Normalize namespace, text, and payload metadata.
+   * 4. Persist and broadcast agent stream event via runtime events service.
+   * 5. If model completion event, correlate LLM token usage with persisted authority and update assessment counters.
+   * 6. Return persisted event summary.
+   *
+   * Failure cases:
+   * - Invalid lease token or mismatched execution run ID: throws FORBIDDEN with EXECUTION_LEASE_INVALID.
+   * - Preparation run with foreign assessment_id: throws BAD_REQUEST with INVALID_REQUEST.
+   *
+   * Side effects:
+   * - Writes stream events to event log and broadcasts via server-sent events.
+   * - Updates token usage counters in database transaction.
+   */
   async execute(command: PublishAgentStreamEventCommand) {
     const payload = command.payload;
     const correlationId = command.correlationId?.trim() ?? randomUUID();
-    return this.prisma.$transaction(async (tx) => {
-      const preparationRunId = payload.preparation_run_id?.trim() ?? null;
-      const assessmentRun = preparationRunId
-        ? null
-        : await this.authority.authorizeInTx(tx, {
-            assessmentId: payload.assessment_id as string,
-            leaseToken: command.leaseToken,
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const preparationRunId = payload.preparation_run_id?.trim() ?? null;
+        // Explanatory comment:
+        // Prevent cross-tenant event spoofing: a rule set preparation stream event must not be associated with a foreign assessmentId without verification.
+        if (preparationRunId && payload.assessment_id) {
+          throw problemException(
+            ASSESSMENT_ERROR_CODES.invalidRequest,
             correlationId,
-            requireActive: false,
-          });
-      const preparationRun = preparationRunId
-        ? await tx.ruleSetPreparationRun.findUnique({
-            where: { id: preparationRunId },
-            select: { id: true },
-          })
-        : null;
-      const executionId = preparationRun?.id ?? assessmentRun?.executionId;
-      if (!executionId || payload.run_id !== executionId) {
-        throw problemException(
-          ASSESSMENT_DOMAIN_ERROR_CODES.EXECUTION_LEASE_INVALID,
-          correlationId,
-          { status: HttpStatus.FORBIDDEN },
+            { status: HttpStatus.BAD_REQUEST },
+          );
+        }
+        const assessmentRun = preparationRunId
+          ? null
+          : await this.authority.authorizeInTx(tx, {
+              assessmentId: payload.assessment_id as string,
+              leaseToken: command.leaseToken,
+              correlationId,
+              requireActive: false,
+            });
+        const preparationRun = preparationRunId
+          ? await tx.ruleSetPreparationRun.findUnique({
+              where: { id: preparationRunId },
+              select: { id: true },
+            })
+          : null;
+        const executionId = preparationRun?.id ?? assessmentRun?.executionId;
+        if (!executionId || payload.run_id !== executionId) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.EXECUTION_LEASE_INVALID,
+            correlationId,
+            { status: HttpStatus.FORBIDDEN },
+          );
+        }
+        const namespace = Array.isArray(payload.namespace)
+          ? payload.namespace.filter(
+              (item): item is string => typeof item === "string",
+            )
+          : [];
+        const event = await this.runtimeEvents.publishAgentStreamEvent(
+          {
+            eventId: optionalText(payload.event_id),
+            clientSequence:
+              typeof payload.client_sequence === "number" &&
+              Number.isSafeInteger(payload.client_sequence)
+                ? payload.client_sequence
+                : null,
+            ...(payload.assessment_id
+              ? { assessmentId: payload.assessment_id.trim() }
+              : {}),
+            boundaryType: preparationRunId
+              ? AGENT_STREAM_BOUNDARY_TYPES.ruleSetPreparation
+              : AGENT_STREAM_BOUNDARY_TYPES.assessment,
+            boundaryId: preparationRunId ?? payload.assessment_id?.trim(),
+            preparationRunId,
+            runId: payload.run_id.trim(),
+            correlationId,
+            eventType: payload.event_type,
+            source: optionalText(payload.source),
+            agentName: optionalText(payload.agent_name),
+            subagentName: optionalText(payload.subagent_name),
+            namespace,
+            nodeName: optionalText(payload.node_name),
+            messageId: optionalText(payload.message_id),
+            toolName: optionalText(payload.tool_name),
+            toolCallId: optionalText(payload.tool_call_id),
+            status: optionalText(payload.status),
+            text: optionalStreamText(payload.text),
+            data: {
+              ...(asRecord(payload.data) ?? {}),
+              runtimeRunId: executionId,
+            },
+          },
+          tx,
         );
-      }
-      const namespace = Array.isArray(payload.namespace)
-        ? payload.namespace.filter(
-            (item): item is string => typeof item === "string",
-          )
-        : [];
-      const event = await this.runtimeEvents.publishAgentStreamEvent(
-        {
-          eventId: optionalText(payload.event_id),
-          clientSequence:
-            typeof payload.client_sequence === "number" &&
-            Number.isSafeInteger(payload.client_sequence)
-              ? payload.client_sequence
-              : null,
-          ...(payload.assessment_id
-            ? { assessmentId: payload.assessment_id.trim() }
-            : {}),
-          boundaryType: preparationRunId
-            ? AGENT_STREAM_BOUNDARY_TYPES.ruleSetPreparation
-            : AGENT_STREAM_BOUNDARY_TYPES.assessment,
-          boundaryId: preparationRunId ?? payload.assessment_id?.trim(),
-          preparationRunId,
-          runId: payload.run_id.trim(),
-          correlationId,
-          eventType: payload.event_type,
-          source: optionalText(payload.source),
-          agentName: optionalText(payload.agent_name),
-          subagentName: optionalText(payload.subagent_name),
-          namespace,
-          nodeName: optionalText(payload.node_name),
-          messageId: optionalText(payload.message_id),
-          toolName: optionalText(payload.tool_name),
-          toolCallId: optionalText(payload.tool_call_id),
-          status: optionalText(payload.status),
-          text: optionalStreamText(payload.text),
-          data: {
-            ...(asRecord(payload.data) ?? {}),
-            runtimeRunId: executionId,
-          },
-        },
-        tx,
-      );
-      if (
-        !preparationRunId &&
-        event &&
-        (event.eventType ===
-          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
-          event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolResult)
-      ) {
-        const isModel =
-          event.eventType ===
-          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted;
-        const invocationId = optionalText(asRecord(event.data)?.invocation_id);
-        // Display counters from the persisted usage authority, never from model/tool text.
-        const usage =
-          isModel && invocationId
-            ? await tx.llmUsageEvent.findFirst({
-                where: {
-                  assessmentId: event.assessmentId,
-                  runId: executionId,
+        if (
+          !preparationRunId &&
+          event &&
+          (event.eventType ===
+            ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
+            event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolResult)
+        ) {
+          const isModel =
+            event.eventType ===
+            ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted;
+          const invocationId = optionalText(
+            asRecord(event.data)?.invocation_id,
+          );
+          // Display counters from the persisted usage authority, never from model/tool text.
+          const usage =
+            isModel && invocationId
+              ? await tx.llmUsageEvent.findFirst({
+                  where: {
+                    assessmentId: event.assessmentId,
+                    runId: executionId,
+                    invocationId,
+                  },
+                  select: {
+                    inputTokens: true,
+                    outputTokens: true,
+                    totalTokens: true,
+                  },
+                })
+              : null;
+          const tokens =
+            usage &&
+            usage.inputTokens !== null &&
+            usage.outputTokens !== null &&
+            usage.totalTokens !== null
+              ? assessmentEventTokenUsageSchema.safeParse({
                   invocationId,
-                },
-                select: {
-                  inputTokens: true,
-                  outputTokens: true,
-                  totalTokens: true,
-                },
-              })
-            : null;
-        const tokens =
-          usage &&
-          usage.inputTokens !== null &&
-          usage.outputTokens !== null &&
-          usage.totalTokens !== null
-            ? assessmentEventTokenUsageSchema.safeParse({
-                invocationId,
-                promptTokens: Number(usage.inputTokens),
-                completionTokens: Number(usage.outputTokens),
-                totalTokens: Number(usage.totalTokens),
-              })
-            : null;
-        await this.events.appendInTx(tx, {
-          assessmentId: event.assessmentId as string,
-          correlationId,
-          eventId: deterministicUuid(
-            `${event.assessmentId}:${executionId}:${event.eventType}:${isModel ? (invocationId ?? optionalText(asRecord(event.data)?.model_step_id) ?? event.eventId) : (event.toolCallId ?? event.eventId)}`,
-          ),
-          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
-          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.ASSESSMENT_ROOT,
-          executionId,
-          ...(event.toolCallId ? { toolCallId: event.toolCallId } : {}),
-          payload: {
-            kind: isModel
-              ? ASSESSMENT_ACTIVITY_KINDS.MODEL
-              : ASSESSMENT_ACTIVITY_KINDS.TOOL,
-            labelKey: isModel
-              ? ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS.MODEL_STEP_COMPLETED
-              : ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS.REPOSITORY_INSPECTED,
-          },
-          ...(tokens?.success ? { tokenUsage: tokens.data } : {}),
-          auditActor: ROOT_AUDIT_ACTOR,
+                  promptTokens: Number(usage.inputTokens),
+                  completionTokens: Number(usage.outputTokens),
+                  totalTokens: Number(usage.totalTokens),
+                })
+              : null;
+          await this.events.appendInTx(tx, {
+            assessmentId: event.assessmentId as string,
+            correlationId,
+            eventId: deterministicUuid(
+              `${event.assessmentId}:${executionId}:${event.eventType}:${isModel ? (invocationId ?? optionalText(asRecord(event.data)?.model_step_id) ?? event.eventId) : (event.toolCallId ?? event.eventId)}`,
+            ),
+            eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
+            actorType: ASSESSMENT_EVENT_ACTOR_TYPES.ASSESSMENT_ROOT,
+            executionId,
+            ...(event.toolCallId ? { toolCallId: event.toolCallId } : {}),
+            payload: {
+              kind: isModel
+                ? ASSESSMENT_ACTIVITY_KINDS.MODEL
+                : ASSESSMENT_ACTIVITY_KINDS.TOOL,
+              labelKey: isModel
+                ? ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS.MODEL_STEP_COMPLETED
+                : ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS.REPOSITORY_INSPECTED,
+            },
+            ...(tokens?.success ? { tokenUsage: tokens.data } : {}),
+            auditActor: ROOT_AUDIT_ACTOR,
+          });
+        }
+        return { recorded: event !== null, eventId: event?.eventId ?? null };
+      });
+    } catch (error: unknown) {
+      // Why: the rejection journal's run/event unique index can reject a replay after
+      // the earlier event committed. Map only that conflict to the public problem
+      // contract; unrelated database failures must retain their normal handling.
+      const failure = error as { code?: unknown };
+      const isRejectionEvent =
+        Boolean(payload.preparation_run_id) &&
+        payload.event_type ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.customProgress &&
+        asRecord(payload.data)?.activity_kind ===
+          RULE_PREPARATION_REJECTION_ACTIVITY_KINDS.ruleAuthoringToolRejected;
+      if (failure.code === "P2002" && isRejectionEvent) {
+        throw problemException(ASSESSMENT_ERROR_CODES.conflict, correlationId, {
+          status: HttpStatus.CONFLICT,
         });
       }
-      return { recorded: event !== null, eventId: event?.eventId ?? null };
-    });
+      throw error;
+    }
   }
 }

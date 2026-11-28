@@ -181,6 +181,7 @@ class _FakeModel:
     def __init__(self, provider: str, model_name: str | None = None):
         self.provider = provider
         self.model_name = model_name or MODEL_FOR[provider]
+        self.profile = {"max_output_tokens": 65536}
 
 
 class _FakeRequest:

@@ -39,6 +39,19 @@ export class RbacPreflightService {
     private readonly decisions: AuthorizationDecisionRepository,
   ) {}
 
+  /**
+   * Business purpose: Decide whether a worker request may execute under the configured RBAC role requirement.
+   * Business rules:
+   * - Only an active persisted user holding one required role may receive ALLOW.
+   * - ALLOW requires durable decision evidence; any unauditable ALLOW is converted to a fail-closed DENY.
+   * Execution flow:
+   * 1. Load the user, validate active status and role membership, and persist the resulting RBAC decision.
+   * 2. Return ALLOW only after audit persistence succeeds; otherwise record and return a load-error DENY.
+   * Failure cases:
+   * - Missing, suspended, unauthorized, repository, or ALLOW-audit failures return DENY with a canonical reason.
+   * Side effects:
+   * - Reads one user and persists primary or durable-fallback authorization evidence.
+   */
   async evaluate(input: RbacPreflightInput): Promise<RbacPreflightResult> {
     try {
       const user = await this.users.findById(input.userId);
@@ -65,7 +78,7 @@ export class RbacPreflightService {
       };
     } catch (error) {
       this.logger.error(
-        `RBAC preflight evaluation failed (requiredRoles=${input.requiredRoles.join(",")}): ${(error as Error).message}`,
+        `RBAC preflight evaluation failed requiredRoles=${input.requiredRoles.join(",")} correlationId=${input.correlationId} failure=${error instanceof Error ? error.name : typeof error}`,
       );
       await this.recordDecision(
         input,
@@ -92,6 +105,18 @@ export class RbacPreflightService {
     };
   }
 
+  /**
+   * Business purpose: Persist evidence for one worker RBAC outcome without weakening a denial during an audit outage.
+   * Business rules:
+   * - DENY remains authoritative when evidence persistence fails; ALLOW failure must propagate to the fail-closed caller path.
+   * Execution flow:
+   * 1. Append the normalized actor, worker resource, decision, reason, and correlation fields.
+   * 2. On persistence failure, emit bounded diagnostics and rethrow only an ALLOW failure.
+   * Failure cases:
+   * - Repository failure rejects ALLOW but is deliberately swallowed for an already-decided DENY.
+   * Side effects:
+   * - Writes canonical or durable-fallback authorization evidence and may emit one sanitized error log.
+   */
   private async recordDecision(
     input: RbacPreflightInput,
     decision: RbacDecision,
@@ -108,9 +133,13 @@ export class RbacPreflightService {
         correlationId: input.correlationId,
       });
     } catch (error) {
+      // DENY must remain DENY even if evidence persistence is unavailable.
+      // ALLOW may proceed only when the repository persisted primary or
+      // fallback evidence, so rejection is propagated to evaluate's deny path.
       this.logger.error(
-        `Failed to write authorization AuditEvent for worker preflight (requiredRoles=${input.requiredRoles.join(",")}): ${(error as Error).message}`,
+        `Worker preflight authorization audit unavailable decision=${decision} correlationId=${input.correlationId} failure=${error instanceof Error ? error.name : typeof error}`,
       );
+      if (decision === RBAC_DECISIONS.allow) throw error;
     }
   }
 }

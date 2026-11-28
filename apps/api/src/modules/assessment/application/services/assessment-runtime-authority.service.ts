@@ -24,13 +24,10 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ROOT_CAPACITY_REASONS,
   type AssessmentRootClaim,
-  WORKLOAD_SCOPES,
-  resolveConfiguredBudgetLimits,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { Prisma, OutboxStatus } from "@prisma/client";
-import { calculateConsecutiveTurnsWithoutProgress } from "./assessment-progress-tracker.js";
 
 function extractSavedLocale(data: unknown): string | undefined {
   if (typeof data === "string") {
@@ -497,45 +494,10 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.CONFLICT },
         );
       }
-      const blockerRef =
-        row.blockerReference &&
-        typeof row.blockerReference === "object" &&
-        !Array.isArray(row.blockerReference)
-          ? (row.blockerReference as Record<string, unknown>)
-          : {};
-      const overrideNoProgress = blockerRef.overrideNoProgress === true;
-      const configuredNoProgressLimit = resolveConfiguredBudgetLimits(
-        process.env,
-        WORKLOAD_SCOPES.ASSESSMENT_ROOT,
-      ).noProgressLimit;
-      if (
-        configuredNoProgressLimit !== null &&
-        !overrideNoProgress &&
-        !safePauseResume &&
-        !recoveringHumanInterrupt &&
-        !humanAnswerReview &&
-        !failedHumanAnswerReview &&
-        !recoveredExecution
-      ) {
-        const consecutiveTurnsWithoutProgress =
-          await calculateConsecutiveTurnsWithoutProgress(
-            tx,
-            input.assessmentId,
-          );
-        if (consecutiveTurnsWithoutProgress >= configuredNoProgressLimit) {
-          throw problemException(
-            ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED,
-            input.correlationId,
-            {
-              status: HttpStatus.CONFLICT,
-              meta: {
-                consecutiveTurnsWithoutProgress,
-                noProgressLimit: configuredNoProgressLimit,
-              },
-            },
-          );
-        }
-      }
+      // Why: R2 retired `NO_PROGRESS_LIMIT_EXCEEDED` as a blocking admission gate.
+      // How: Consecutive turns without progress remain diagnostic telemetry only and no longer
+      // throw `NO_PROGRESS_LIMIT_REACHED` during `claimRoot`.
+      // Invariants: Execution admission is governed by lifecycle, lease, and call/token ceilings.
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
       await this.capacity.bindInTx(
@@ -761,6 +723,7 @@ export class AssessmentRuntimeAuthority {
       leaseToken: string | undefined;
       correlationId: string;
       requireActive?: boolean;
+      allowExpiredLease?: boolean;
     },
   ): Promise<AuthorizedRootRun> {
     const row = await lockAssessmentAndRuntime(tx, input.assessmentId);
@@ -771,11 +734,11 @@ export class AssessmentRuntimeAuthority {
         { status: HttpStatus.NOT_FOUND },
       );
     }
+    const isExpired = !row.leaseExpiresAt || row.leaseExpiresAt <= new Date();
     if (
       !input.leaseToken ||
       row.leaseToken !== input.leaseToken ||
-      !row.leaseExpiresAt ||
-      row.leaseExpiresAt <= new Date() ||
+      (isExpired && !input.allowExpiredLease) ||
       row.executionState !== AGENT_EXECUTION_STATES.RUNNING ||
       !row.currentExecutionId
     ) {
@@ -904,9 +867,13 @@ export class AssessmentRuntimeAuthority {
     reason?: string;
   }): Promise<{ executionState: AgentExecutionState }> {
     return this.prisma.$transaction(async (tx) => {
+      // Explanatory comment:
+      // Allow terminal settlement on expired lease (preventing Zombie Run lockout).
+      // As long as leaseToken matches and executionState is RUNNING, the assigned worker can settle the run.
       const run = await this.authorizeInTx(tx, {
         ...input,
         requireActive: false,
+        allowExpiredLease: true,
       });
       if (
         ![
@@ -974,7 +941,10 @@ export class AssessmentRuntimeAuthority {
           input.reason === ASSESSMENT_BUDGET_REASONS.BUDGET_EXHAUSTED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.CALL_LIMIT_EXCEEDED ||
           input.reason === ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED ||
-          input.reason === ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED;
+          // Why: A rejected paid admission must retain the native checkpoint so the customer can continue after top-up.
+          // How: Treat only the explicit wallet denial as a valid pause reason; preserve the existing checkpoint and lease guards.
+          // Invariant: This does not grant a budget extension or charge the wallet.
+          input.reason === ASSESSMENT_BUDGET_REASONS.PAYMENT_REQUIRED;
 
         if (
           !input.checkpointId ||

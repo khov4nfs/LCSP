@@ -9,6 +9,7 @@ import math
 import os
 import re
 import signal
+import uuid
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from contextvars import copy_context
 from dataclasses import dataclass, field
@@ -201,9 +202,10 @@ def run_consumer() -> None:
     Execution flow:
     1. Resolve capacity and dependencies, connect and consume, then reconnect or close on shutdown.
     Failure cases:
-    - Invalid capacity fails before consumption; connection loss or shutdown requeues unsettled deliveries.
+    - Startup capability recovery failure, missing worker client, or invalid capacity aborts process before broker connection.
+    - Connection loss or shutdown requeues unsettled deliveries.
     Side effects:
-    - Starts workers and broker consumers; only connection-thread callbacks settle their own deliveries.
+    - Starts background workers and broker consumers; recovers leaked in-flight capability envelopes on startup.
     """
     load_runtime_env()
     logging.basicConfig(
@@ -215,8 +217,15 @@ def run_consumer() -> None:
 
     # Undelivered usage telemetry is retried independently of model traffic.
     usage_client = _worker_client_or_none()
-    if usage_client is not None:
-        start_background_worker(resolve_usage_recovery_store_path(), usage_client)
+    if usage_client is None:
+        raise RuntimeError("Worker API client unavailable: cannot run startup capability recovery")
+
+    start_background_worker(resolve_usage_recovery_store_path(), usage_client)
+    # Why (ADR-028 & G-06/G-07): Recover in-flight capability envelopes leaked from crashes before consuming new jobs.
+    # How: Sweeps local recovery store and settles with authoritative /internal/billing/usage/settle.
+    # Invariants: If recovery fails, worker fails closed immediately; 0 tasks consumed until recovery succeeds.
+    from middleware.capability_recovery import sweep_and_recover_capabilities_on_startup
+    sweep_and_recover_capabilities_on_startup(usage_client)
 
     rabbitmq_url = os.getenv("RABBITMQ_URL")
     if not rabbitmq_url:
@@ -644,14 +653,40 @@ def _dispatch_delivery(
     Side effects:
     - May dispatch one native request; broker ACK/NACK stays with the original connection-thread settlement.
     """
-    if settlement_state is not None and _delivery_already_settled(settlement_state):
-        raise BoundaryExecutionTimeout(timeout_seconds or 0.0)
     message = _decode_message(body)
     correlation_id = _correlation_id(
         message,
         getattr(properties, "headers", None),
         boundary_name,
     )
+    payload_has_correlation = any(
+        isinstance(message.get(key), str)
+        and bool(message.get(key))
+        and message.get(key) == message.get(key).strip()
+        and len(message.get(key)) <= 256
+        and all(0x21 <= ord(character) <= 0x7E for character in message.get(key))
+        for key in ("correlationId", "correlation_id")
+    )
+    headers = getattr(properties, "headers", None)
+    header_value = (headers or {}).get("x-correlation-id")
+    header_has_correlation = (
+        isinstance(header_value, str)
+        and bool(header_value)
+        and header_value == header_value.strip()
+        and len(header_value) <= 256
+        and all(0x21 <= ord(character) <= 0x7E for character in header_value)
+    )
+    if not payload_has_correlation and not header_has_correlation:
+        # Persist the minted fallback on the delivery itself. Retry republishing and timeout
+        # reporting reuse these properties, so one command cannot fracture into new traces.
+        if properties is not None:
+            persisted_headers = dict(headers or {})
+            persisted_headers["x-correlation-id"] = correlation_id
+            properties.headers = persisted_headers
+    if settlement_state is not None and _delivery_already_settled(settlement_state):
+        # Resolve and persist trace identity before aborting queued work so timeout
+        # telemetry cannot mint a second fallback for the same delivery.
+        raise BoundaryExecutionTimeout(timeout_seconds or 0.0)
     if settlement_state is not None and settlement_state.deadline is not None:
         timeout_seconds = settlement_state.deadline - monotonic()
         if timeout_seconds <= 0 or _delivery_already_settled(settlement_state):
@@ -989,13 +1024,45 @@ def _correlation_id(
     headers: dict[str, Any] | None,
     boundary_name: str,
 ) -> str:
-    payload_value = message.get("correlationId") or message.get("correlation_id")
-    if isinstance(payload_value, str) and payload_value:
-        return payload_value
+    """Business purpose: Resolve one trace identity for an incoming agent-runtime delivery.
+
+    Business rules:
+    - Prefer the producer-owned payload identity, then the broker header identity.
+    - A delivery without either identity receives a unique local fallback and never shares a boundary-wide trace.
+
+    Execution flow:
+    1. Read a non-empty payload correlation field.
+    2. Otherwise read a non-empty `x-correlation-id` header.
+    3. Otherwise mint one fallback identity for this delivery.
+
+    Failure cases:
+    - Missing or non-string correlation values are treated as absent instead of propagated.
+
+    Side effects:
+    - The fallback path generates a UUID; it does not mutate the message or broker headers.
+    """
+    for payload_key in ("correlationId", "correlation_id"):
+        payload_value = message.get(payload_key)
+        if (
+            isinstance(payload_value, str)
+            and payload_value
+            and payload_value == payload_value.strip()
+            and len(payload_value) <= 256
+            and all(0x21 <= ord(character) <= 0x7E for character in payload_value)
+        ):
+            return payload_value
     header_value = (headers or {}).get("x-correlation-id")
-    if isinstance(header_value, str) and header_value:
+    if (
+        isinstance(header_value, str)
+        and header_value
+        and header_value == header_value.strip()
+        and len(header_value) <= 256
+        and all(0x21 <= ord(character) <= 0x7E for character in header_value)
+    ):
         return header_value
-    return f"agent-runtime:{boundary_name}"
+    # A constant fallback merges unrelated commands into one trace. Keep the boundary
+    # label for diagnostics while giving each otherwise-unidentified delivery isolation.
+    return f"agent-runtime:{boundary_name}:{uuid.uuid4()}"
 
 
 

@@ -24,6 +24,14 @@ export class RabbitMqClient implements OnModuleDestroy {
   private connection: amqp.ChannelModel | null = null;
   private channel: amqp.ConfirmChannel | null = null;
   private connecting: Promise<amqp.ConfirmChannel> | null = null;
+  private connectionGeneration = 0;
+  private readonly pendingResources = new Map<
+    number,
+    {
+      connection?: amqp.ChannelModel;
+      channel?: amqp.ConfirmChannel;
+    }
+  >();
   private readonly returnedMessageIds = new Set<string>();
   private readonly exchangeType = "topic";
 
@@ -41,6 +49,8 @@ export class RabbitMqClient implements OnModuleDestroy {
   constructor(
     private readonly url: string,
     private readonly exchangeName?: string,
+    private readonly connectTimeoutMs: number = 5_000,
+    private readonly publishTimeoutMs: number = 5_000,
   ) {}
 
   /**
@@ -133,7 +143,14 @@ export class RabbitMqClient implements OnModuleDestroy {
         `RabbitMQ channel backpressure: publish buffer full for exchange="${exchange}"`,
       );
     }
-    await confirmed;
+    try {
+      await withRabbitDeadline(confirmed, this.publishTimeoutMs);
+    } catch (error) {
+      // A lost confirm makes channel state ambiguous. Invalidate it so a later
+      // delivery cannot reuse a poisoned channel or wait forever.
+      this.invalidateConnectionAttempt();
+      throw error;
+    }
     if (mandatory && this.returnedMessageIds.delete(messageId)) {
       throw new Error(
         `RabbitMQ unroutable publication for exchange="${exchange}" routingKey="${routingKey}"`,
@@ -224,6 +241,10 @@ export class RabbitMqClient implements OnModuleDestroy {
     this.channel = null;
     this.connection = null;
     this.connecting = null;
+    this.connectionGeneration += 1;
+    for (const generation of this.pendingResources.keys()) {
+      this.closePendingResources(generation);
+    }
 
     try {
       await channel?.close();
@@ -249,7 +270,19 @@ export class RabbitMqClient implements OnModuleDestroy {
     }
 
     if (!this.connecting) {
-      this.connecting = this.connect();
+      const generation = ++this.connectionGeneration;
+      const attempt = withRabbitDeadline(
+        this.connect(generation),
+        this.connectTimeoutMs,
+      ).catch((error: unknown) => {
+        this.resetConnectionState(generation);
+        throw error;
+      });
+      this.connecting = attempt.finally(() => {
+        if (this.connectionGeneration === generation) {
+          this.connecting = null;
+        }
+      });
     }
 
     return this.connecting;
@@ -260,7 +293,7 @@ export class RabbitMqClient implements OnModuleDestroy {
    *
    * @returns Newly created RabbitMQ channel.
    */
-  private async connect(): Promise<amqp.ConfirmChannel> {
+  private async connect(generation: number): Promise<amqp.ConfirmChannel> {
     try {
       emitDevUnsafeTrace("DEV_API_AMQP_CONNECT_RAW", {
         brokerUrl: this.url,
@@ -268,6 +301,11 @@ export class RabbitMqClient implements OnModuleDestroy {
         exchangeType: this.exchangeType,
       });
       const connection = await amqp.connect(this.url);
+      this.pendingResources.set(generation, { connection });
+      if (this.connectionGeneration !== generation) {
+        this.closePendingResources(generation);
+        throw new Error("RabbitMQ connection attempt became stale");
+      }
 
       connection.on("error", (error: Error) => {
         emitDevUnsafeTrace("DEV_API_AMQP_CONNECTION_ERROR_RAW", {
@@ -275,16 +313,21 @@ export class RabbitMqClient implements OnModuleDestroy {
           error,
         });
         this.logger.error(`RabbitMQ connection error: ${error.message}`);
-        this.resetConnectionState();
+        this.resetConnectionState(generation);
       });
       connection.on("close", () => {
         emitDevUnsafeTrace("DEV_API_AMQP_CONNECTION_CLOSED_RAW", {
           brokerUrl: this.url,
         });
-        this.resetConnectionState();
+        this.resetConnectionState(generation);
       });
 
       const channel = await connection.createConfirmChannel();
+      this.pendingResources.set(generation, { connection, channel });
+      if (this.connectionGeneration !== generation) {
+        this.closePendingResources(generation);
+        throw new Error("RabbitMQ connection attempt became stale");
+      }
       channel.on("return", (message: amqp.Message) => {
         const returnedMessageId: unknown = message.properties.messageId;
         if (typeof returnedMessageId === "string" && returnedMessageId) {
@@ -298,8 +341,15 @@ export class RabbitMqClient implements OnModuleDestroy {
           durable: true,
         },
       );
+      if (this.connectionGeneration !== generation) {
+        // A timed-out attempt may finish late. It must never overwrite the
+        // newer generation selected by a subsequent operation.
+        this.closePendingResources(generation);
+        throw new Error("RabbitMQ connection attempt became stale");
+      }
       this.connection = connection;
       this.channel = channel;
+      this.pendingResources.delete(generation);
 
       emitDevUnsafeTrace("DEV_API_AMQP_CONNECTED_RAW", {
         brokerUrl: this.url,
@@ -312,18 +362,73 @@ export class RabbitMqClient implements OnModuleDestroy {
         brokerUrl: this.url,
         error,
       });
-      this.resetConnectionState();
+      this.resetConnectionState(generation);
       throw error;
     }
   }
 
   /**
-   * Clears all cached connection state so a future operation can reconnect cleanly.
+   * Business purpose: Invalidate an ambiguous broker attempt so later delivery can reconnect safely.
+   * Business rules:
+   * - A stale asynchronous attempt may not publish into or overwrite the next connection generation.
+   * Execution flow:
+   * 1. Advance the generation and detach cached channel, connection and in-flight promise.
+   * 2. Close any currently materialized resources on a best-effort basis.
+   * Failure cases:
+   * - Close errors are ignored because the detached generation is already unusable.
+   * Side effects:
+   * - Invalidates broker state and asynchronously closes cached AMQP resources.
    */
-  private resetConnectionState(): void {
+  invalidateConnectionAttempt(): void {
+    const channel = this.channel;
+    const connection = this.connection;
+    this.connectionGeneration += 1;
     this.channel = null;
     this.connection = null;
     this.connecting = null;
+    for (const generation of this.pendingResources.keys()) {
+      this.closePendingResources(generation);
+    }
+    void channel?.close().catch(() => undefined);
+    void connection?.close().catch(() => undefined);
+  }
+
+  /**
+   * Clears all cached connection state so a future operation can reconnect cleanly.
+   */
+  private resetConnectionState(expectedGeneration?: number): void {
+    if (expectedGeneration !== undefined) {
+      this.closePendingResources(expectedGeneration);
+    }
+    if (
+      expectedGeneration !== undefined &&
+      expectedGeneration !== this.connectionGeneration
+    ) {
+      return;
+    }
+    this.connectionGeneration += 1;
+    this.channel = null;
+    this.connection = null;
+    this.connecting = null;
+  }
+
+  /**
+   * Business purpose: Dispose partially constructed AMQP resources abandoned by a timed-out generation.
+   * Business rules:
+   * - Only resources registered to the specified generation are detached and each close is best-effort.
+   * Execution flow:
+   * 1. Remove the generation from the pending registry.
+   * 2. Asynchronously close its channel and connection when they exist.
+   * Failure cases:
+   * - Close errors are swallowed because detached resources must not block reconnection or shutdown.
+   * Side effects:
+   * - Removes one pending registry entry and initiates AMQP resource closure.
+   */
+  private closePendingResources(generation: number): void {
+    const pending = this.pendingResources.get(generation);
+    this.pendingResources.delete(generation);
+    void pending?.channel?.close().catch(() => undefined);
+    void pending?.connection?.close().catch(() => undefined);
   }
 
   /**
@@ -337,5 +442,27 @@ export class RabbitMqClient implements OnModuleDestroy {
    */
   private resolveExchangeName(): string {
     return this.exchangeName || process.env.RABBITMQ_EXCHANGE || "lcsp.events";
+  }
+}
+
+async function withRabbitDeadline<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const boundedTimeout =
+    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 5_000;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("RabbitMQ operation deadline exceeded")),
+          boundedTimeout,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }

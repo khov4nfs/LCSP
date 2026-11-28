@@ -199,6 +199,7 @@ describe("LCSP-364 Operator DLQ Atomic Replay & Recovery Invariants (Real Postgr
             checkpointId,
             executionState:
               overrides.executionState ?? AgentExecutionState.FAILED,
+            // A lease belongs to a concrete execution; keep this fixture valid under the DB CHECK.
             leaseToken,
             currentExecutionId: leaseToken ? randomUUID() : null,
             leaseExpiresAt: leaseToken ? new Date(Date.now() + 60_000) : null,

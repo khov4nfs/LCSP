@@ -188,8 +188,11 @@ export const ASSESSMENT_DOMAIN_ERROR_CODES = {
   FINAL_REPORT_ALREADY_CREATED: "ASSESSMENT_FINAL_REPORT_ALREADY_CREATED",
   PROVENANCE_INTEGRITY_MISMATCH: "ASSESSMENT_PROVENANCE_INTEGRITY_MISMATCH",
   PROVENANCE_NOT_FOUND: "ASSESSMENT_PROVENANCE_NOT_FOUND",
+  // Why: R2 removes `NO_PROGRESS_LIMIT_EXCEEDED` as an assessment blocker and Admin unlock,
+  // so `ASSESSMENT_NO_PROGRESS_LIMIT_REACHED` is no longer a domain error code.
+  // How: Removed `NO_PROGRESS_LIMIT_REACHED` from this canonical error-code map.
+  // Invariants: Hard budget exhaustion continues to use `BUDGET_EXHAUSTED`.
   BUDGET_EXHAUSTED: "ASSESSMENT_BUDGET_EXHAUSTED",
-  NO_PROGRESS_LIMIT_REACHED: "ASSESSMENT_NO_PROGRESS_LIMIT_REACHED",
 } as const;
 export type AssessmentDomainErrorCode =
   (typeof ASSESSMENT_DOMAIN_ERROR_CODES)[keyof typeof ASSESSMENT_DOMAIN_ERROR_CODES];
@@ -238,6 +241,11 @@ export const ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES = {
   HUMAN_ANSWER_RECORDED: "ASSESSMENT_HUMAN_ANSWER_RECORDED",
   HUMAN_FACT_UNRESOLVABLE_REPORTED:
     "ASSESSMENT_HUMAN_FACT_UNRESOLVABLE_REPORTED",
+  // Sensitive export bytes are released only after this canonical business
+  // audit event persists with the owner, artifact and correlation boundary.
+  RULE_AUDIT_EXPORT_DOWNLOADED: "ASSESSMENT_RULE_AUDIT_EXPORT_DOWNLOADED",
+  // Admin runtime budget override is committed atomically with this canonical audit event.
+  BUDGET_OVERRIDE_AUTHORIZED: "ASSESSMENT_BUDGET_OVERRIDE_AUTHORIZED",
 } as const;
 export type AssessmentDomainAuditEventType =
   (typeof ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES)[keyof typeof ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES];

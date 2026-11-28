@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from "node:crypto";
+
 import { Injectable, Logger } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import {
@@ -132,30 +134,39 @@ export class AuditWriterService {
     }
 
     try {
-      const id = crypto.randomUUID();
-      await client.auditEvent.create({
-        data: {
-          id,
-          eventType: event.eventType,
-          actorId: event.actorId,
-          resourceType: event.resourceType
-            ? toPrismaAuditResourceType(event.resourceType)
-            : null,
-          resourceId: event.resourceId ?? null,
-          reasonCode: event.reasonCode ?? null,
-          correlationId: event.correlationId,
-          sessionId: event.sessionId ?? null,
-          decision: event.decision
-            ? toPrismaAuthDecision(event.decision)
-            : null,
-          payload: payloadWithEnvelope as unknown as Prisma.InputJsonValue,
-          createdAt: new Date(),
-        },
-      });
+      // A stable opaque ID makes a retry safe after a database commit whose
+      // acknowledgement was lost. Ordinary one-shot audits retain random IDs.
+      const id = event.idempotencyKey
+        ? `audit:${createHash("sha256").update(event.idempotencyKey).digest("hex")}`
+        : randomUUID();
+      const data = {
+        id,
+        eventType: event.eventType,
+        actorId: event.actorId,
+        resourceType: event.resourceType
+          ? toPrismaAuditResourceType(event.resourceType)
+          : null,
+        resourceId: event.resourceId ?? null,
+        reasonCode: event.reasonCode ?? null,
+        correlationId: event.correlationId,
+        sessionId: event.sessionId ?? null,
+        decision: event.decision ? toPrismaAuthDecision(event.decision) : null,
+        payload: payloadWithEnvelope as unknown as Prisma.InputJsonValue,
+        createdAt: new Date(),
+      };
+      if (event.idempotencyKey) {
+        await client.auditEvent.upsert({
+          where: { id },
+          update: {},
+          create: data,
+        });
+      } else {
+        await client.auditEvent.create({ data });
+      }
       return id;
     } catch (error) {
       this.logger.error(
-        `Failed to write audit event (eventType=${event.eventType}): ${(error as Error).message}`,
+        `Failed to write audit event eventType=${event.eventType} correlationId=${event.correlationId} failure=${error instanceof Error ? error.name : typeof error}`,
       );
       throw error;
     }

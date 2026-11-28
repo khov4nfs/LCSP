@@ -3,6 +3,8 @@ import { ConfigModule } from "@nestjs/config";
 
 import { PrismaModule } from "../../infrastructure/prisma/prisma.module.js";
 import { AuthModule } from "../../modules/auth/auth.module.js";
+import { AuditModule } from "../audit/audit.module.js";
+import { OutboxModule } from "../outbox/outbox.module.js";
 import { AUTHORIZATION_DECISION_REPOSITORY } from "./authorization-decision.repository.js";
 import { WorkerApiKeyGuard } from "./guards/worker-api-key.guard.js";
 import { PrismaAuthorizationDecisionRepository } from "./prisma-authorization-decision.repository.js";
@@ -16,7 +18,7 @@ import { RbacGuard } from "./rbac.guard.js";
  */
 @Global()
 @Module({
-  imports: [PrismaModule, AuthModule, ConfigModule],
+  imports: [PrismaModule, AuthModule, ConfigModule, AuditModule, OutboxModule],
   controllers: [RbacPreflightController],
   providers: [
     PrismaAuthorizationDecisionRepository,

@@ -408,6 +408,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The billing admission E2E launches the Python worker from this exact venv path.
+      # Install it before Jest so cross-runtime tests exercise the real worker entry point.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python worker for API E2E
+        run: |
+          python -m venv deepagents/.venv
+          deepagents/.venv/bin/python -m pip install -e "./deepagents[dev]"
+
       - name: Test API e2e
         run: pnpm --filter @lcsp/api test:e2e
 

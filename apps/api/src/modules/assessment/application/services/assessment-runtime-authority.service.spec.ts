@@ -120,3 +120,73 @@ describe("AssessmentRuntimeAuthority selected rule membership", () => {
     expect(findUnique).not.toHaveBeenCalled();
   });
 });
+
+describe("AssessmentRuntimeAuthority authorizeInTx lease validation", () => {
+  const authority = new AssessmentRuntimeAuthority(
+    {} as never,
+    {} as never,
+    {} as never,
+    {} as never,
+  );
+  const assessmentId = randomUUID();
+  const leaseToken = "lease-token-123";
+  const correlationId = randomUUID();
+
+  function mockTx(overrides: Record<string, unknown> = {}) {
+    const defaultAssessment = [
+      {
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+        blockerReason: null,
+        blockerReference: null,
+      },
+    ];
+    const defaultRuntime = [
+      {
+        threadId: randomUUID(),
+        checkpointNamespace: null,
+        checkpointId: null,
+        currentExecutionId: randomUUID(),
+        currentAuditRequestId: null,
+        executionState: "RUNNING",
+        leaseToken,
+        leaseExpiresAt: new Date(Date.now() - 5000), // Expired 5 seconds ago
+        ...overrides,
+      },
+    ];
+    return {
+      $queryRaw: jest.fn<(...args: unknown[]) => Promise<unknown>>(
+        (query: unknown) => {
+          const text = JSON.stringify(query);
+          if (text.includes("AssessmentRuntime")) {
+            return Promise.resolve(defaultRuntime);
+          }
+          return Promise.resolve(defaultAssessment);
+        },
+      ),
+    };
+  }
+
+  it("rejects an expired lease by default with HTTP 403", async () => {
+    const tx = mockTx();
+    await expect(
+      authority.authorizeInTx(tx as never, {
+        assessmentId,
+        leaseToken,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("permits terminal settlement on expired lease when allowExpiredLease is true (Zombie Run prevention)", async () => {
+    const tx = mockTx();
+    const result = await authority.authorizeInTx(tx as never, {
+      assessmentId,
+      leaseToken,
+      correlationId,
+      allowExpiredLease: true,
+    });
+    expect(result.assessmentId).toBe(assessmentId);
+    expect(result.lifecycleState).toBe("ACTIVE");
+  });
+});

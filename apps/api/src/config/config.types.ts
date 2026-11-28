@@ -1,3 +1,5 @@
+import type { ModelUsageDebitMode } from "@lcsp/contracts/billing";
+
 export interface DatabaseConfig {
   url: string;
 }
@@ -47,6 +49,8 @@ export interface OutboxConfig {
   pollIntervalMs: number;
   batchSize: number;
   maxAttempts: number;
+  brokerConnectTimeoutMs: number;
+  brokerPublishTimeoutMs: number;
 }
 
 export interface SePayConfig {
@@ -71,11 +75,27 @@ export interface OrchestrationConfig {
   debug: boolean;
 }
 
+export interface BillingReconciliationSweeperConfig {
+  enabled: boolean;
+  intervalMs: number;
+}
+
 export interface BillingConfig {
   sePayBankName: string;
   sePayBankAccountNumber: string;
   sePayAccountHolder: string;
   sePayQrUrlTemplate: string;
+  admissionMasterKey: string;
+  reconciliationSweeper: BillingReconciliationSweeperConfig;
+}
+
+/**
+ * WP8 model-usage microcredit debit rollout gate configuration.
+ * Rationale: Isolated from customer-payment BillingConfig so SePay config invariants stay intact
+ * while keeping MODEL_USAGE_DEBIT=OFF enforced until Phase B+ gates are closed.
+ */
+export interface ModelUsageDebitConfig {
+  mode: ModelUsageDebitMode;
 }
 
 /**
@@ -130,6 +150,7 @@ export interface AppConfig {
   email: EmailConfig;
   orchestration: OrchestrationConfig;
   billing: BillingConfig;
+  modelUsageDebit: ModelUsageDebitConfig;
   mfa: MfaConfig;
   storage: StorageConfig;
 }
