@@ -166,6 +166,7 @@ export class ComplianceRuleSetActivation {
    * - A matching activation record is replayed; the same idempotency key with different run/request digest conflicts.
    * - A clean packet must still match the frozen inventory, persisted direct draft, and SUBMISSION_READY phase after locking.
    * - New passing publications must bind the product-approved official original corpus.
+   * - New passing publications require the canonical Development scope and its approved projection.
    * - A failed packet is recorded as INVALID and cannot supersede the current ACTIVE version; a passing packet becomes ACTIVE and supersedes the prior version.
    *
    * Execution flow:
@@ -253,6 +254,17 @@ export class ComplianceRuleSetActivation {
 
     // Recompute human-reviewed projection after the run lock: a stale
     // approval can NEVER publish an incomplete Development catalog.
+    if (
+      ctx.failures.length === 0 &&
+      preparation.targetActivityScope !==
+        PreparationTargetActivityScope.DEVELOPMENT_ONLY
+    ) {
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        ctx.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
     await requireApprovedDevelopmentScope(
       tx,
       ctx.runId,

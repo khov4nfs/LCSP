@@ -53,11 +53,6 @@ function build() {
   };
   const prisma = {
     $transaction: (work: (client: typeof tx) => Promise<unknown>) => work(tx),
-    ruleSetPreparationRun: {
-      findUnique: jest
-        .fn()
-        .mockResolvedValue({ scopeReviewRequested: false } as never),
-    },
   };
   const execute = jest.fn<CommandBus["execute"]>().mockResolvedValue({
     preparationRunId: RUN,
@@ -105,6 +100,7 @@ describe("Admin current-source preparation", () => {
     expect(dispatched.request).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE),
+      targetActivityScope: "DEVELOPMENT_ONLY",
     });
     expect(dispatched.requestedBy).toBe("owner-admin");
     expect(execute).toHaveBeenCalledTimes(1);
@@ -162,6 +158,7 @@ describe("Admin current-source preparation", () => {
     expect(dispatched.request).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 20),
+      targetActivityScope: "DEVELOPMENT_ONLY",
     });
   });
 
@@ -225,6 +222,7 @@ describe("Admin current-source preparation", () => {
     ).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 2),
+      targetActivityScope: "DEVELOPMENT_ONLY",
     });
     expect(execute).toHaveBeenCalledTimes(1);
   });
@@ -247,6 +245,7 @@ describe("Admin current-source preparation", () => {
     ).toEqual({
       legalSourceVersionId: SOURCE,
       idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 2),
+      targetActivityScope: "DEVELOPMENT_ONLY",
     });
   });
 
@@ -269,6 +268,7 @@ describe("Admin current-source preparation", () => {
       ).toEqual({
         legalSourceVersionId: SOURCE,
         idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, attempts + 1),
+        targetActivityScope: "DEVELOPMENT_ONLY",
       });
       expect(execute).toHaveBeenCalledTimes(1);
     },

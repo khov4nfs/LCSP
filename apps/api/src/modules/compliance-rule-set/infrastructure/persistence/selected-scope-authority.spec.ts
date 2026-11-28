@@ -1,4 +1,10 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
+import {
+  LegalEffectStatus,
+  LegalSourceDocumentCorpusRole,
+  PreparationScopeReviewState,
+  type Prisma,
+} from "@prisma/client";
 import {
   preparationRuleOutputSchema,
   type PreparationRuleInput,
@@ -9,7 +15,9 @@ import {
   LEGAL_OPERATIVE_MODALITIES as modality,
 } from "@lcsp/contracts/compliance-rule-set";
 import { sha256Hex } from "../../../assessment/domain/domain-ids.js";
+import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
 import {
+  requireSelectedScopeAuthorization,
   selectedScopeKey,
   validateSelectedScopeDecisions,
 } from "./selected-scope-authority.js";
@@ -114,6 +122,80 @@ function fixture() {
   return { output, decisions };
 }
 describe("Reusable selected semantic scope evidence", () => {
+  it.each([1, 2] as const)(
+    "checks criteria before reusing format %s approval",
+    async (format) => {
+      const { output, decisions } = fixture();
+      const key = selectedScopeKey(input, output, format);
+      const row = {
+        scopeKey: key,
+        state: PreparationScopeReviewState.APPROVED,
+        legalSourceVersionId: input.legalSourceVersionId,
+        catalogId: input.catalogVersionId,
+        ruleId: input.ruleId,
+        approvedBy: "reviewer",
+        submittedBy: "author",
+        approvedAt: new Date(),
+        output,
+        decisions,
+        decisionDigest: validateSelectedScopeDecisions(
+          input,
+          output,
+          decisions,
+          "cid",
+        ),
+      };
+      const tx = {
+        selectedRuleScopeAuthorization: {
+          findUnique: jest.fn(
+            async ({ where }: { where: { scopeKey: string } }) =>
+              where.scopeKey === key ? row : null,
+          ),
+        },
+        legalDocumentChunk: {
+          findMany: jest.fn(async () => [
+            {
+              ...input.citations[0],
+              id: "chunk-1",
+              legalEffectStatus: LegalEffectStatus.EFFECTIVE,
+              sourceDocument: {
+                corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+              },
+            },
+          ]),
+        },
+      } as unknown as Prisma.TransactionClient;
+      const authority = fixtureSourceAuthority;
+      const changed = structuredClone(output);
+      changed.assessmentRules[0].keywords.push("synthetic-hint");
+      await expect(
+        requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+      ).resolves.toBe(key);
+
+      changed.assessmentRules[0].criteria[0].statement =
+        "Deploy an unrelated control at every site";
+      await expect(
+        requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+      ).rejects.toMatchObject({
+        response: { problem: { meta: { path: "output.scopeAuthorization" } } },
+      });
+    },
+  );
+
+  it("rejects empty output because it accounts for none of the cited obligations", async () => {
+    const { output } = fixture();
+    await expect(
+      requireSelectedScopeAuthorization(
+        {} as Prisma.TransactionClient,
+        input,
+        { ...output, legalRequirements: [], assessmentRules: [] },
+        "cid",
+      ),
+    ).rejects.toMatchObject({
+      response: { problem: { meta: { path: "output.legalRequirements" } } },
+    });
+  });
+
   it("authorizes an exact reviewed development requirement while accounting the external obligation", () => {
     const { output, decisions } = fixture();
     expect(

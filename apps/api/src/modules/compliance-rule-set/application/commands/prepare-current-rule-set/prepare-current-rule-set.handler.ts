@@ -1,5 +1,6 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  PREPARATION_ACTIVITY_SCOPES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -26,6 +27,7 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
    * Business rules:
    * - An optional expected source ID prevents a stale caller from authoring against a newly active source.
    * - An existing queued or running preparation is returned idempotently.
+   * - New work always requests Development scope, including callers using the legacy request field.
    * - Replacing an active Rule Set requires explicit replace intent and current availability permission.
    * - Attempt idempotency keys are derived from the active source and observed attempt count.
    *
@@ -77,24 +79,7 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
         RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS &&
       availability.currentRun
     ) {
-      {
-        const active = await this.prisma.ruleSetPreparationRun.findUnique({
-          where: { id: availability.currentRun.preparationRunId },
-          select: { scopeReviewRequested: true },
-        });
-        if (
-          Boolean(active?.scopeReviewRequested) !==
-          (input.targetActivityScope === "DEVELOPMENT_ONLY")
-        )
-          throw problemException(
-            COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
-            input.correlationId,
-            {
-              status: HttpStatus.CONFLICT,
-              meta: { reason: "SCOPE_REVIEW_NOT_REQUESTED_AT_START" },
-            },
-          );
-      }
+      // Return the original run identity for concurrent callers, including historical runs.
       return availability.currentRun;
     }
     // An ACTIVE rule set is production history that may need a better successor, so it never
@@ -121,9 +106,7 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
             availability.legalSourceVersionId,
             attempts + 1,
           ),
-          ...(input.targetActivityScope === "DEVELOPMENT_ONLY"
-            ? { targetActivityScope: "DEVELOPMENT_ONLY" as const }
-            : {}),
+          targetActivityScope: PREPARATION_ACTIVITY_SCOPES[1],
         },
         input.requestedBy,
         input.correlationId,

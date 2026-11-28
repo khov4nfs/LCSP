@@ -110,6 +110,7 @@ describeDatabase(
     const runtimePreparation = new AssessmentRuntimePreparation(
       {} as never,
       outbox,
+      fixtureSourceAuthority,
     );
     const assessmentSupport = new AssessmentCaseSupport();
     const runTag = `r2-${randomUUID()}`;

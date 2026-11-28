@@ -616,22 +616,23 @@ describeDatabase(
       const preparation = new AssessmentRuntimePreparation(
         null as never,
         null as never,
+        fixtureSourceAuthority,
       );
-      let ownerCreated = false;
+
+      // Each test can run independently, including the case without an active catalog.
+      beforeAll(async () => {
+        await prisma.user.create({
+          data: {
+            id: owner,
+            email: `${owner}@example.invalid`,
+            passwordHash: "x",
+            emailVerified: true,
+            failedLoginCount: 0,
+          },
+        });
+      });
 
       async function createAssessment() {
-        if (!ownerCreated) {
-          await prisma.user.create({
-            data: {
-              id: owner,
-              email: `${owner}@example.invalid`,
-              passwordHash: "x",
-              emailVerified: true,
-              failedLoginCount: 0,
-            },
-          });
-          ownerCreated = true;
-        }
         const id = randomUUID();
         await prisma.$transaction(async (tx) => {
           await tx.assessment.create({

@@ -115,6 +115,20 @@ function createHarness(
 }
 
 describe("StartRuleSetPreparationHandler serialization retry", () => {
+  it("starts canonical scope review when the request omits an activity scope", async () => {
+    const harness = createHarness(() => ({
+      id: "run",
+      legalSourceVersionId: LEGAL_SOURCE_VERSION_ID,
+      executionState: AgentExecutionState.QUEUED,
+    }));
+    await harness.handler.execute(harness.command);
+    expect(
+      harness.transactions[0].ruleSetPreparationRun.create,
+    ).toHaveBeenCalledWith({
+      data: expect.objectContaining({ scopeReviewRequested: true }),
+    });
+  });
+
   it("rejects a historical active source without official originals before creating a run or outbox", async () => {
     const harness = createHarness(
       () => ({

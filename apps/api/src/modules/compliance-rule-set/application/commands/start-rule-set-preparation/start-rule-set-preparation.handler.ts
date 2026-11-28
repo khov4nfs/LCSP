@@ -57,6 +57,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
    * Business rules:
    * - A start key can create only one run and may be replayed only for the same source version.
    * - Only an ACTIVE Legal Source Version with admitted official originals may produce a new shared Rule Set.
+   * - Every new run requests Development scope review regardless of the legacy request field.
    * - Run creation and its outbox request are one transaction, preventing an unqueued or duplicate preparation.
    *
    * Execution flow:
@@ -76,9 +77,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     input: StartRuleSetPreparationCommand,
   ): Promise<RuleSetPreparationRun> {
     const { legalSourceVersionId, idempotencyKey } = input.request;
-    const reviewRequested =
-      input.request.targetActivityScope === "DEVELOPMENT_ONLY";
-
     for (let attempt = 1; ; attempt += 1) {
       try {
         return await this.prisma.$transaction(
@@ -93,7 +91,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 existing,
                 legalSourceVersionId,
                 input.correlationId,
-                reviewRequested,
               );
             }
 
@@ -138,7 +135,8 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
                 idempotencyKey,
                 executionContract: PreparationExecutionContract.DIRECT_DRAFT_V1,
                 targetDate: new Date(),
-                scopeReviewRequested: reviewRequested,
+                // Freeze the whole inventory for coverage review before projecting Development claims.
+                scopeReviewRequested: true,
                 legalSourceVersionId: source.id,
                 requestedBy: input.requestedBy,
                 correlationId: input.correlationId,
@@ -184,7 +182,6 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
               raced,
               legalSourceVersionId,
               input.correlationId,
-              reviewRequested,
             );
           }
         }
@@ -207,13 +204,13 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
 
   /**
    * Business purpose:
-   * Recover only an idempotent Preparation request for the same pinned source and scope intent.
+   * Recover only an idempotent Preparation request for the same pinned source.
    * Business rules:
-   * - A repeated key must not silently change the user-selected target scope.
+   * - A repeated key preserves the existing run, including historical scope intent.
    * Execution flow:
-   * 1. Compare existing run source and requested scope before returning it.
+   * 1. Compare the existing and requested sources before returning the archived run.
    * Failure cases:
-   * - Source/scope conflicts become canonical idempotency failures.
+   * - A different source becomes a canonical idempotency failure.
    * Side effects:
    * - Returns the existing run without creating a second one.
    */
@@ -223,16 +220,11 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
       legalSourceVersionId: string;
       executionState: PrismaAgentExecutionState;
       ruleSet: { id: string } | null;
-      scopeReviewRequested: boolean;
     },
     legalSourceVersionId: string,
     correlationId: string,
-    reviewRequested: boolean,
   ): RuleSetPreparationRun {
-    if (
-      existing.legalSourceVersionId !== legalSourceVersionId ||
-      existing.scopeReviewRequested !== reviewRequested
-    ) {
+    if (existing.legalSourceVersionId !== legalSourceVersionId) {
       throw problemException(
         COMPLIANCE_RULE_SET_ERROR_CODES.idempotencyConflict,
         correlationId,

@@ -44,21 +44,23 @@ function reject(cid: string, path: string): never {
 }
 
 /**
- * Business purpose: Pin legal meaning, context and exact source identity for reusable selected-rule authority.
+ * Business purpose: Pin legal meaning, exact source identity and compliance criteria for reusable selected-rule authority.
  * Business rules:
- * - Non-normative analysis and investigation hints do not change legal authority.
- * - Catalog selection revisions are independently checked by the caller; a changed source, obligation, condition, exception, coverage or relation invalidates the authorization.
- * Execution flow: 1. Serialize source and normalized requirements/context in deterministic order. 2. Hash the serialization.
+ * - Non-normative analysis and repository search hints do not change legal authority.
+ * - A changed source, legal obligation, material context or compliance criterion changes the key.
+ * - The legacy format identifies historical rows only; reuse still checks their exact reviewed criteria.
+ * Execution flow: 1. Serialize legal scope and, for new approvals, material rule content in deterministic order. 2. Hash the serialization.
  * Failure cases: Serialization errors fail closed; no fallback identity is issued.
  * Side effects: Pure computation.
  */
 export function selectedScopeKey(
   input: PreparationRuleInput,
   output: PreparationRuleOutput,
+  format: 1 | 2 = 2,
 ): string {
   return sha256Hex(
     canonicalJson({
-      contract: "SELECTED_SCOPE_V1",
+      contract: `SELECTED_SCOPE_V${format}`,
       legalSourceVersionId: input.legalSourceVersionId,
       catalogId: input.catalogVersionId,
       ruleId: input.ruleId,
@@ -78,6 +80,34 @@ export function selectedScopeKey(
       contextRelations: [...output.contextRelations].sort((a, b) =>
         a.relationId.localeCompare(b.relationId),
       ),
+      ...(format === 2 && {
+        // Keep criteria and verdict-relevant evidence; search tactics may change without changing the obligation.
+        assessmentRules: output.assessmentRules
+          .map((rule) => ({
+            assessmentRuleId: rule.assessmentRuleId,
+            legalRequirementIds: rule.legalRequirementIds,
+            semanticAuthority: rule.semanticAuthority,
+            evidenceBindings: rule.evidenceBindings,
+            concept: rule.concept,
+            legalIntent: rule.legalIntent,
+            contextRelationIds: rule.contextRelationIds,
+            unresolvedConditionBindings: rule.unresolvedConditionBindings,
+            applicabilityGuidance: rule.applicabilityGuidance,
+            criteria: rule.criteria.map(
+              ({ criterionId, legalRequirementIds, statement }) => ({
+                criterionId,
+                legalRequirementIds,
+                statement,
+              }),
+            ),
+            requiredEvidence: rule.requiredEvidence,
+            supportingEvidence: rule.supportingEvidence,
+            negativeEvidence: rule.negativeEvidence,
+            unresolvedConditions: rule.unresolvedConditions,
+            sourceRefs: rule.sourceRefs,
+          }))
+          .sort((a, b) => a.assessmentRuleId.localeCompare(b.assessmentRuleId)),
+      }),
     }),
   );
 }
@@ -272,7 +302,7 @@ export async function requireSelectedScopeSource(
  * Business purpose: Authorize a positive selected result through an independent reusable semantic review.
  * Business rules:
  * - No new assessment rule may rely on client self-attestation or absence of a review-required marker.
- * - Only exact approved content and independent reviewer identity are accepted. Zero-rule drafts are not publication authority.
+ * - Only exact approved content and independent reviewer identity are accepted. An empty extraction cannot prove coverage.
  * Execution flow: 1. Resolve the exact source-bound key and approved record. 2. Revalidate persisted decision digest, payload and source. 3. Return the authority key.
  * Failure cases: Unreviewed, stale, tampered, or unresolved records produce the non-repairable scope-review error.
  * Side effects: Read-only; never dispatches Preparation or a model.
@@ -283,13 +313,19 @@ export async function requireSelectedScopeAuthorization(
   output: PreparationRuleOutput,
   cid: string,
   authority = new LegalSourceAuthorityService(),
-): Promise<string | null> {
-  if (!output.legalRequirements.length && !output.assessmentRules.length)
-    return null;
+): Promise<string> {
+  // Every successful selected result must account for the obligations its source supports.
+  if (!output.legalRequirements.length) reject(cid, "output.legalRequirements");
   const key = selectedScopeKey(input, output);
-  const row = await tx.selectedRuleScopeAuthorization.findUnique({
+  const current = await tx.selectedRuleScopeAuthorization.findUnique({
     where: { scopeKey: key },
   });
+  // V1 rows can authorize only the exact reviewed material rule projection.
+  const row =
+    current ??
+    (await tx.selectedRuleScopeAuthorization.findUnique({
+      where: { scopeKey: selectedScopeKey(input, output, 1) },
+    }));
   if (
     !row ||
     row.state !== PreparationScopeReviewState.APPROVED ||
@@ -314,5 +350,5 @@ export async function requireSelectedScopeAuthorization(
   )
     reject(cid, "output.scopeAuthorization");
   await requireSelectedScopeSource(tx, input, output, cid, authority);
-  return key;
+  return row.scopeKey;
 }

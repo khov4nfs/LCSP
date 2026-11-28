@@ -26,6 +26,18 @@ import { fixtureLegalSource } from "./compliance-rule-set-fixtures.js";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import type { PrismaClient } from "@prisma/client";
 import { LegalDocumentGraphService } from "../../src/modules/legal-source/application/services/legal-document-graph.service.js";
+import { PreparationScopeReviewService } from "../../src/modules/compliance-rule-set/infrastructure/persistence/preparation-scope-review.service.js";
+import { ResumeRuleSetPreparationHandler } from "../../src/modules/compliance-rule-set/application/commands/resume-rule-set-preparation/resume-rule-set-preparation.handler.js";
+import { ResumeRuleSetPreparationCommand } from "../../src/modules/compliance-rule-set/application/commands/resume-rule-set-preparation/resume-rule-set-preparation.command.js";
+import { ClaimRuleSetPreparationHandler } from "../../src/modules/compliance-rule-set/application/commands/claim-rule-set-preparation/claim-rule-set-preparation.handler.js";
+import { ClaimRuleSetPreparationCommand } from "../../src/modules/compliance-rule-set/application/commands/claim-rule-set-preparation/claim-rule-set-preparation.command.js";
+import { OutboxRepository } from "../../src/platform/outbox/outbox.repository.js";
+import { fixtureSourceAuthority } from "./fixture-source-authority.js";
+import {
+  LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_EXECUTION_CONTRACTS,
+  PREPARATION_SCOPE_STAGES,
+} from "@lcsp/contracts/compliance-rule-set";
 
 /** Only translates the reusable synthetic fixture's node identities into its real DB source pin. */
 export async function pinFixtureRequest<T>(
@@ -58,6 +70,19 @@ export async function pinFixtureRequest<T>(
   const targets = new Map(graph.nodes.map((n) => [n.structuralPath, n.nodeId]));
   const id = (nodeId: string) => targets.get(paths.get(nodeId) ?? "") ?? nodeId;
   const packet = structuredClone(request.packet);
+  if (run.scopeReviewRequested) {
+    // The fixture labels its external-only duty explicitly before freezing the canonical packet.
+    const externalDuty = packet.legalRequirements.find(
+      (requirement) =>
+        requirement.legalRequirementId === "LR-PERSON" &&
+        requirement.coverage.state ===
+          LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
+    );
+    if (externalDuty) {
+      externalDuty.coverage.nonAssessableReason =
+        "OUT_OF_SCOPE_TARGET: Synthetic duty is fulfilled outside development.";
+    }
+  }
   const semantic = packet.semanticGraph!;
   semantic.legalSourceVersionId = graph.legalSourceVersionId;
   semantic.materializationId = graph.materializationId;
@@ -109,7 +134,7 @@ export async function pinFixtureRequest<T>(
     };
   }
   if (run.executionState === AgentExecutionState.RUNNING) {
-    // Historical submit fixtures now traverse the same discovery/freeze/readiness lifecycle as the worker.
+    // Submit fixtures traverse the real freeze, scope review, and readiness boundaries.
     const service = prisma as PrismaService;
     const loader = new LegalSourceSnapshotLoader(
       service,
@@ -167,7 +192,115 @@ export async function pinFixtureRequest<T>(
               ),
             )
           : reviewed;
-      if (result.outcome === O.PASSED)
+      if (result.outcome === O.PASSED) {
+        if (result.scopeReviewHold) {
+          const [development, nonDevelopment] = PREPARATION_SCOPE_STAGES;
+          const scope = new PreparationScopeReviewService(service);
+          const paths = new Map(
+            graph.nodes.map((node) => [node.nodeId, node.structuralPath]),
+          );
+          const decisions = inventory.claims
+            .filter(
+              (claim) =>
+                claim.state === "RELEVANT" &&
+                claim.semanticAuthority === "LEGAL_NORMATIVE" &&
+                claim.operative,
+            )
+            .map((claim) => {
+              // Only synthetic fixture packets supply this preclassified coverage ledger.
+              const requirement = packet.legalRequirements.find((requirement) =>
+                requirement.claimBindings?.some(
+                  (binding) =>
+                    binding.claimId === claim.claimId &&
+                    binding.role === "OPERATIVE_PROPOSITION",
+                ),
+              );
+              const outOfScope =
+                requirement?.coverage.state ===
+                  LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE &&
+                requirement.coverage.nonAssessableReason?.startsWith(
+                  "OUT_OF_SCOPE_TARGET:",
+                );
+              const { actor, action, modality } = claim.operative!;
+              return {
+                claimId: claim.claimId,
+                legalSourceVersionId: run.legalSourceVersionId,
+                sourceNodeIds: claim.sourceNodeIds,
+                actor,
+                action,
+                modality,
+                stage: outOfScope ? nonDevelopment : development,
+                reason: "Synthetic scope fixture",
+                grouping: null,
+                evidence: {
+                  targetObject: action,
+                  triggerAndTiming: "Synthetic scope fixture",
+                  technicalDeliverable: outOfScope ? null : action,
+                  repositoryVerifiability: "Synthetic scope fixture",
+                  externalFulfillment: null,
+                  conditions: [],
+                  exceptions: [],
+                  materialContextClaimIds: [],
+                  sourceSupport: claim.sourceNodeIds.map((sourceNodeId) => ({
+                    sourceNodeId,
+                    locator: paths.get(sourceNodeId)!,
+                    rationale: "Synthetic scope fixture",
+                  })),
+                },
+              };
+            });
+          const cid = "fixture-development-scope";
+          const revision = run.claimInventoryRevision;
+          const draft = await scope.submit(
+            run.id,
+            {
+              inventoryRevision: revision,
+              inventoryFingerprint: packet.claimInventory.fingerprint,
+              expectedReviewRevision: 0,
+              decisions,
+            },
+            "fixture-scope-author",
+            cid,
+          );
+          await scope.approve(
+            run.id,
+            {
+              inventoryRevision: revision,
+              expectedReviewRevision: draft.revision,
+              decisionDigest: draft.decisionDigest,
+              confirmsLegalReview: true,
+            },
+            "fixture-scope-reviewer",
+            cid,
+          );
+          await scope.activate(run.id, revision, "fixture-scope-reviewer", cid);
+          await new ResumeRuleSetPreparationHandler(
+            service,
+            new OutboxRepository(service),
+            fixtureSourceAuthority,
+          ).execute(
+            new ResumeRuleSetPreparationCommand(
+              run.id,
+              "fixture-scope-reviewer",
+              cid,
+            ),
+          );
+          await new ClaimRuleSetPreparationHandler(
+            service,
+            new LegalDocumentGraphService(service),
+            fixtureSourceAuthority,
+          ).execute(
+            new ClaimRuleSetPreparationCommand(
+              {
+                preparationRunId: run.id,
+                supportedExecutionContracts: [
+                  PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1,
+                ],
+              },
+              cid,
+            ),
+          );
+        }
         await handler.execute(
           new ClaimInventoryCommand(
             {
@@ -178,6 +311,7 @@ export async function pinFixtureRequest<T>(
             "fixture-author",
           ),
         );
+      }
     } else if (run.claimPhase === ClaimPreparationPhase.CLAIM_INVENTORY_READY) {
       await handler.execute(
         new ClaimInventoryCommand(

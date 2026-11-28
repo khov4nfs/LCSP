@@ -679,7 +679,7 @@ export class PreparationRuleService {
   /**
    * Business purpose: Present a persisted semantic candidate and the exact source to an independent reviewer.
    * Business rules:
-   * - Only the owning catalog, current eligible rule and matching pinned evidence are accessible; no caller-supplied source text is trusted.
+   * - Only the owning catalog, current eligible rule and matching pinned evidence are accessible, including historical keys.
    * Execution flow: 1. Read the candidate. 2. Resolve the catalog entry and hydrate its pinned source. 3. Recheck the semantic key and return the reviewed payload.
    * Failure cases:
    * - Missing, mismatched or stale evidence returns a typed conflict.
@@ -705,7 +705,9 @@ export class PreparationRuleService {
         .array(selectedScopeDecisionSchema)
         .parse(row.decisions);
       if (
-        selectedScopeKey(input, output) !== scopeKey ||
+        // Historical rows remain auditable under their original key.
+        (selectedScopeKey(input, output) !== scopeKey &&
+          selectedScopeKey(input, output, 1) !== scopeKey) ||
         validateSelectedScopeDecisions(input, output, decisions, cid, false) !==
           row.decisionDigest
       )

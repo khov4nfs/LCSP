@@ -22,6 +22,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
   AssessmentAuditMode,
+  PreparationTargetActivityScope,
   Prisma,
   RepositoryScanJobStatus,
   RepositoryScanTriggerSource,
@@ -32,6 +33,7 @@ import { problemException } from "../../../../platform/http/filters/error.factor
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
 import { acquireLegalSourceLifecycleLock } from "../../../legal-source/application/services/legal-source.service.js";
+import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 
 export const PREPARATION_RESULTS = {
   ACTIVATED: "ACTIVATED",
@@ -65,14 +67,43 @@ export class AssessmentRuntimePreparation {
   constructor(
     private readonly coordinator: AssessmentLifecycleCoordinator,
     private readonly outbox: OutboxRepository,
+    private readonly legalSourceAuthority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
   ) {}
+
+  /**
+   * Business purpose: Resolve the only Rule Set eligible for a new assessment pin.
+   * Business rules:
+   * - The ACTIVE artifact must cover Development and use the approved Vietnamese corpus.
+   * Execution flow:
+   * 1. Read the active Development version under the caller's lifecycle lock and verify its managed originals.
+   * Failure cases:
+   * - An absent or ineligible version leaves the case waiting; persistence errors propagate.
+   * Side effects:
+   * - Reads the candidate's authority. Callers with immutable pins skip this gate.
+   */
+  private async findAdmittedRuleSetInTx(tx: Prisma.TransactionClient) {
+    const candidate = await tx.complianceRuleSetVersion.findFirst({
+      where: {
+        lifecycleState: ArtifactLifecycleState.ACTIVE,
+        targetActivityScope: PreparationTargetActivityScope.DEVELOPMENT_ONLY,
+      },
+      select: { id: true, legalSourceVersionId: true },
+    });
+    return candidate &&
+      (await this.legalSourceAuthority.isVersionAdmitted(
+        tx,
+        candidate.legalSourceVersionId,
+      ))
+      ? candidate
+      : null;
+  }
 
   /**
    * Business purpose: Create a case pinned to the current legal catalog without starting an audit.
    * Business rules:
    * - New customers must explicitly choose their execution scope; old rows retain LEGACY_FULL.
    * Execution flow:
-   * 1. Read the active Rule Set and create the case with CUSTOMER_SELECTED mode.
+   * 1. Resolve the admitted active Rule Set and create the case with CUSTOMER_SELECTED mode.
    * Failure cases:
    * - An unavailable Rule Set leaves the pin empty until setup can resolve it.
    * Side effects:
@@ -83,12 +114,7 @@ export class AssessmentRuntimePreparation {
     assessmentId: string,
   ): Promise<{ ruleSetVersionId: string | null }> {
     await acquireLegalSourceLifecycleLock(tx);
-    const ruleSet = await tx.complianceRuleSetVersion.findFirst({
-      where: {
-        lifecycleState: ArtifactLifecycleState.ACTIVE,
-      },
-      select: { id: true },
-    });
+    const ruleSet = await this.findAdmittedRuleSetInTx(tx);
     await tx.assessmentCase.create({
       data: {
         assessmentId,
@@ -104,6 +130,7 @@ export class AssessmentRuntimePreparation {
    * Business rules:
    * - Customer-selected cases gain no decision coverage before an explicit request;
    * legacy full-scope cases retain their existing whole-catalog coverage.
+   * - Existing legal pins stay immutable; admission applies to first-time and late pins.
    * Execution flow:
    * 1. Resolve immutable legal and repository pins and the hydration ticket.
    * 2. Confirm a nonempty catalog and create legacy coverage when applicable.
@@ -134,12 +161,7 @@ export class AssessmentRuntimePreparation {
     if (!ruleSetId) {
       // The assessment has not started reasoning, so a late pin of the then-ACTIVE
       // rule set is the same decision creation would have made.
-      const active = await tx.complianceRuleSetVersion.findFirst({
-        where: {
-          lifecycleState: ArtifactLifecycleState.ACTIVE,
-        },
-        select: { id: true },
-      });
+      const active = await this.findAdmittedRuleSetInTx(tx);
       if (!active)
         return { result: PIN_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
       ruleSetId = active.id;

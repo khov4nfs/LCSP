@@ -4,4 +4,5 @@ import type { LegalSourceAuthorityService } from "../../src/modules/legal-source
 // The production provider is independently tested against the real pinned corpus and is never replaced outside tests.
 export const fixtureSourceAuthority: LegalSourceAuthorityService = {
   requireVersion: async () => {},
+  isVersionAdmitted: async () => true,
 };

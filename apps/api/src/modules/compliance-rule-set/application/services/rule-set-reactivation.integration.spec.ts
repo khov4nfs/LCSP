@@ -23,6 +23,7 @@ import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
+  PREPARATION_EXECUTION_CONTRACTS,
   RULE_SET_REACTIVATION_ERROR_CODES as Errors,
   RULE_SET_REACTIVATION_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -130,7 +131,12 @@ describeDatabase(
       );
       await claim.execute(
         new ClaimRuleSetPreparationCommand(
-          { preparationRunId: r.preparationRunId },
+          {
+            preparationRunId: r.preparationRunId,
+            supportedExecutionContracts: [
+              PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1,
+            ],
+          },
           randomUUID(),
         ),
       );

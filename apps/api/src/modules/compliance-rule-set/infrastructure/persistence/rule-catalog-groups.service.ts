@@ -58,6 +58,7 @@ const digestRows = (rows: unknown[]) =>
  * Business purpose: Persist a deterministic review proposal after successful Development-only activation.
  * Business rules:
  * - Canonical rules and source evidence determine identity; absent reviewed taxonomy evidence stays unassigned, never guessed from titles.
+ * - Whole-source rules with no chunk citation retain source references from the operative claims bound to the published requirement.
  * Execution flow:
  * 1. Read ordered canonical rule support, construct review-required entries and idempotently persist the pinned proposal.
  * Failure cases:
@@ -211,7 +212,25 @@ export async function materializeGroupingProposal(
       legalRequirementLinks: {
         include: {
           legalRequirement: {
-            include: { provenance: true, claimBindings: true },
+            include: {
+              provenance: true,
+              claimBindings: {
+                where: { role: LegalClaimAccountingRole.OPERATIVE_PROPOSITION },
+                include: {
+                  claim: {
+                    select: {
+                      sources: {
+                        select: {
+                          sourceNode: {
+                            select: { documentId: true, structuralPath: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -249,12 +268,7 @@ export async function materializeGroupingProposal(
     const operativeClaims = [
       ...new Set(
         requirements.flatMap((requirement) =>
-          requirement.claimBindings
-            .filter(
-              (binding) =>
-                binding.role === LegalClaimAccountingRole.OPERATIVE_PROPOSITION,
-            )
-            .map((binding) => binding.claimId),
+          requirement.claimBindings.map((binding) => binding.claimId),
         ),
       ),
     ];
@@ -278,10 +292,18 @@ export async function materializeGroupingProposal(
       operativePropositions: propositions,
       sourceReferences: requirements
         .flatMap((requirement) =>
-          requirement.provenance.map((source) => ({
-            documentId: source.documentId,
-            locator: source.locator,
-          })),
+          // Use source nodes bound to this published graph when the requirement has no chunk provenance.
+          requirement.provenance.length
+            ? requirement.provenance.map(({ documentId, locator }) => ({
+                documentId,
+                locator,
+              }))
+            : requirement.claimBindings.flatMap(({ claim }) =>
+                claim.sources.map(({ sourceNode }) => ({
+                  documentId: sourceNode.documentId,
+                  locator: sourceNode.structuralPath,
+                })),
+              ),
         )
         .sort(
           (a, b) =>

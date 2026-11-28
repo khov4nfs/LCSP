@@ -25,22 +25,39 @@ export class LegalSourceAuthorityService {
     legalSourceVersionId: string,
     correlationId: string,
   ): Promise<void> {
-    const documents = await tx.legalSourceDocument.findMany({
-      where: { legalSourceVersionId },
-      select: {
-        documentId: true,
-        sourceUrl: true,
-        sourceSha256: true,
-        blobSha256: true,
-      },
-    });
-    // The blob FK is server-owned and immutable. Never admit a source on its asserted URL alone.
-    if (!isOfficialCorpusAdmitted(documents)) {
+    if (!(await this.isVersionAdmitted(tx, legalSourceVersionId))) {
       throw problemException(
         LEGAL_SOURCE_ERROR_CODES.legalSourceIngestInvalid,
         correlationId,
         { status: HttpStatus.UNPROCESSABLE_ENTITY },
       );
     }
+  }
+
+  /**
+   * Business purpose: Let callers defer new work when the pinned corpus is ineligible.
+   * Business rules:
+   * - Every document must match an approved managed original.
+   * Execution flow:
+   * 1. Read the exact version's document identities and match the complete corpus to official pins.
+   * Failure cases:
+   * - Missing or inconsistent originals return false; persistence failures propagate.
+   * Side effects:
+   * - Reads the legal source in the caller's transaction.
+   */
+  async isVersionAdmitted(
+    tx: Prisma.TransactionClient,
+    legalSourceVersionId: string,
+  ): Promise<boolean> {
+    const documents = await tx.legalSourceDocument.findMany({
+      where: { legalSourceVersionId },
+      select: {
+        sourceUrl: true,
+        sourceSha256: true,
+        blobSha256: true,
+      },
+    });
+    // The blob FK is server-owned and immutable. Never admit a source on its asserted URL alone.
+    return isOfficialCorpusAdmitted(documents);
   }
 }
