@@ -10,6 +10,7 @@ import pytest
 
 from evals.benchmark_runner import load_benchmark_cases, load_manual_reviews
 from evals.benchmark_schema import TrialOutcome
+from evals.cli import main as p14_cli_main
 from evals.scorer import validate_run_artifacts_for_scoring
 from evals.legal_reasoning.p14_adapter import (
     _load_dimension_reviews,
@@ -23,14 +24,40 @@ from evals.legal_reasoning.validation import PACKAGE_ROOT, load_dataset
 
 DEEPAGENTS = Path(__file__).resolve().parents[1]
 P14_CASES = DEEPAGENTS / "evals" / "fixtures" / "benchmark" / "cases.json"
-P14_RUN = DEEPAGENTS / "evals" / "reports" / "pilot-v1"
 P14_REVIEWS = DEEPAGENTS / "evals" / "fixtures" / "benchmark" / "manual_reviews_p15.json"
 CASE_MAP = PACKAGE_ROOT / "p14-case-map.v1.json"
 
 
-def _inputs():
+@pytest.fixture
+def saved_p14_run(tmp_path):
+    """Generate a fresh saved P14 artifact set through its offline CLI."""
+    run_id = "lcsp400-p14-offline-test"
+    output_dir = tmp_path / "p14-runs"
+    assert p14_cli_main(
+        [
+            "run",
+            "--cases",
+            str(P14_CASES),
+            "--mode",
+            "OFFLINE_FIXTURE",
+            "--split",
+            "ALL",
+            "--trials",
+            "1",
+            "--k",
+            "1",
+            "--run-id",
+            run_id,
+            "--output-dir",
+            str(output_dir),
+        ]
+    ) == 0
+    return output_dir / run_id
+
+
+def _inputs(saved_p14_run):
     return (
-        json.loads((P14_RUN / "manifest.json").read_text(encoding="utf-8")),
+        json.loads((saved_p14_run / "manifest.json").read_text(encoding="utf-8")),
         load_dataset(PACKAGE_ROOT / "candidate-cases.v1.jsonl"),
         load_benchmark_cases(P14_CASES),
         json.loads(CASE_MAP.read_text(encoding="utf-8")),
@@ -38,14 +65,13 @@ def _inputs():
     )
 
 
-def test_saved_p14_offline_run_validates_and_remains_not_scored():
+def test_saved_p14_offline_run_validates_and_remains_not_scored(saved_p14_run):
     args = {
-        "manifest_path": P14_RUN / "manifest.json",
-        "trials_path": P14_RUN / "trials.jsonl",
+        "manifest_path": saved_p14_run / "manifest.json",
+        "trials_path": saved_p14_run / "trials.jsonl",
         "p14_cases_path": P14_CASES,
         "candidate_cases_path": PACKAGE_ROOT / "candidate-cases.v1.jsonl",
         "case_mapping_path": CASE_MAP,
-        "reviews_path": P14_REVIEWS,
     }
     first = integrate_p14_artifacts(**args)
     second = integrate_p14_artifacts(**args)
@@ -61,7 +87,7 @@ def test_saved_p14_offline_run_validates_and_remains_not_scored():
     assert first["caseMapping"]["unsupportedCaseCount"] == 25
     assert first["mappedTrialBindings"] == []
     assert first["pinnedInputs"]["caseMappingSha256"]
-    assert first["p14ReviewDiagnostics"]["seededUnverifiedCount"] == 15
+    assert first["p14ReviewDiagnostics"]["seededUnverifiedCount"] == 0
     assert first["p14ReviewDiagnostics"]["p14ExpertVerifiedFlagCount"] == 0
     assert first["p14ReviewDiagnostics"]["usedAsLcsp400Gold"] is False
     assert first["scoringStatus"] == "NOT_SCORED"
@@ -69,9 +95,13 @@ def test_saved_p14_offline_run_validates_and_remains_not_scored():
     assert first["actualExecutionBaseline"] == "NOT_RUN"
     assert all(row["scoringStatus"] == "NOT_SCORED" for row in first["rubricReportsByTargetAndTrial"])
 
+    stale_review_args = {**args, "reviews_path": P14_REVIEWS}
+    with pytest.raises(ValueError, match="MANUAL_REVIEW_RUN_MISMATCH"):
+        integrate_p14_artifacts(**stale_review_args)
 
-def test_empty_exact_mapping_is_valid_and_stale_snapshots_fail_closed():
-    manifest, candidate_cases, p14_cases, mapping, pins = _inputs()
+
+def test_empty_exact_mapping_is_valid_and_stale_snapshots_fail_closed(saved_p14_run):
+    manifest, candidate_cases, p14_cases, mapping, pins = _inputs(saved_p14_run)
 
     inventory = validate_case_mapping(
         mapping,
@@ -121,8 +151,8 @@ def test_empty_exact_mapping_is_valid_and_stale_snapshots_fail_closed():
         )
 
 
-def test_mapping_rejects_unknown_case_wrong_target_and_wrong_lifecycle_stage():
-    manifest, candidate_cases, p14_cases, mapping, pins = _inputs()
+def test_mapping_rejects_unknown_case_wrong_target_and_wrong_lifecycle_stage(saved_p14_run):
+    manifest, candidate_cases, p14_cases, mapping, pins = _inputs(saved_p14_run)
     candidate = next(row for row in candidate_cases if row["evaluationTarget"] == "ACTUAL_ASSESSMENT_OUTPUT")
     p14_case = p14_cases[0]
     source = candidate["legalSource"]
@@ -204,20 +234,20 @@ def test_seeded_or_synthetic_dimension_review_sets_never_enter_actual_review_pat
         _load_dimension_reviews(seeded)
 
 
-def test_p14_artifact_and_review_trial_identity_integrity():
-    manifest = json.loads((P14_RUN / "manifest.json").read_text(encoding="utf-8"))
+def test_p14_artifact_and_review_trial_identity_integrity(saved_p14_run):
+    manifest = json.loads((saved_p14_run / "manifest.json").read_text(encoding="utf-8"))
     outcomes = [
         TrialOutcome.model_validate_json(line)
-        for line in (P14_RUN / "trials.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (saved_p14_run / "trials.jsonl").read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
     with pytest.raises(ValueError, match="SCORING_DUPLICATE_TRIAL_REJECTED"):
         validate_run_artifacts_for_scoring(
-            manifest, [outcomes[0], *outcomes], base_dir=P14_RUN
+            manifest, [outcomes[0], *outcomes], base_dir=saved_p14_run
         )
     with pytest.raises(ValueError, match="SCORING_INCOMPLETE_TRIAL_INVENTORY"):
         validate_run_artifacts_for_scoring(
-            manifest, outcomes[:-1], base_dir=P14_RUN
+            manifest, outcomes[:-1], base_dir=saved_p14_run
         )
 
     reviews = load_manual_reviews(P14_REVIEWS)
@@ -264,7 +294,9 @@ def test_output_review_cannot_be_reused_for_another_trial_or_digest():
             _validate_dimension_review(row, binding, {})
 
 
-def test_p14_workflow_uses_review_overlay_without_mutating_candidate_snapshot(tmp_path):
+def test_p14_workflow_uses_review_overlay_without_mutating_candidate_snapshot(
+    tmp_path, saved_p14_run
+):
     candidate_path = PACKAGE_ROOT / "candidate-cases.v1.jsonl"
     candidate_cases = load_dataset(candidate_path)
     case = candidate_cases[0]
@@ -319,12 +351,11 @@ def test_p14_workflow_uses_review_overlay_without_mutating_candidate_snapshot(tm
     overlay_path.write_text(json.dumps(overlay), encoding="utf-8")
 
     report = integrate_p14_artifacts(
-        manifest_path=P14_RUN / "manifest.json",
-        trials_path=P14_RUN / "trials.jsonl",
+        manifest_path=saved_p14_run / "manifest.json",
+        trials_path=saved_p14_run / "trials.jsonl",
         p14_cases_path=P14_CASES,
         candidate_cases_path=candidate_path,
         case_mapping_path=CASE_MAP,
-        reviews_path=P14_REVIEWS,
         review_overlay_path=overlay_path,
     )
 

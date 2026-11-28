@@ -130,19 +130,23 @@ The thin adapter is [`p14_adapter.py`](../../deepagents/evals/legal_reasoning/p1
 
 The explicit case map is [`p14-case-map.v1.json`](../../deepagents/evals/legal_reasoning/p14-case-map.v1.json). Its pins cover the immutable candidate snapshot, legal source pins, and exact P14 corpus snapshot. It currently maps zero of the 30 candidates: 21 Assessment Root cases have no exact source/rule/repository crosswalk, 4 Rule Set Preparation cases cannot execute in this Assessment Root harness, and 5 fixed-claim diagnostics are not generated-output cases. These are unsupported/excluded from current end-to-end execution metrics, not merely unmapped by case ID. Current P14 stages (`INITIAL`, `WAITING_FOR_HUMAN`, `RESUME_FINAL`, `FAULT_RECOVERY`) remain lifecycle stages and are never treated as LCSP evaluation stages.
 
-Run the saved offline P14 integration verification from `deepagents/` without model calls:
+Reproduce the saved offline P14 integration verification from `deepagents/` without model calls. Generate the run using the current P14 case snapshot, then score those saved artifacts:
 
 ```powershell
+uv run python -m evals.cli run `
+  --cases evals/fixtures/benchmark/cases.json `
+  --mode OFFLINE_FIXTURE --split ALL --trials 1 --k 1 `
+  --run-id lcsp400-p14-offline-v1 `
+  --output-dir evals/reports
 uv run python -m evals.cli legal-score `
-  --manifest evals/reports/pilot-v1/manifest.json `
-  --trials evals/reports/pilot-v1/trials.jsonl `
+  --manifest evals/reports/lcsp400-p14-offline-v1/manifest.json `
+  --trials evals/reports/lcsp400-p14-offline-v1/trials.jsonl `
   --p14-cases evals/fixtures/benchmark/cases.json `
-  --reviews evals/fixtures/benchmark/manual_reviews_p15.json `
   --review-overlay evals/legal_reasoning/review-overlay.v1.json `
   --output evals/legal_reasoning/reports/p14-integration-verification.v1.json
 ```
 
-The current run validates P14's artifact inventory and trace hashes, reports 15 seeded-unverified P14 reviews, zero exact mappings, zero LCSP-400 output judgments, `NOT_SCORED`, and `actualExecutionBaseline: NOT_RUN`. Seeded P14 binary verdict/evidence/authority reviews are diagnostic only. The adapter may map explicit categorical Assessment Root verdicts only after a future case mapping is exact; P14 `UNRESOLVED` stays distinct from missing and invalid values in `evaluationLabelPredictions`, while production fields remain as recorded. Actor, conditions, exceptions, and evidence quality always need separately recorded judgments bound to the observed output. Each dimension judgment's `targetBinding` must exactly equal the review row's `p14Binding`.
+The current command validates P14's artifact inventory and trace hashes, reports zero exact mappings, zero LCSP-400 output judgments, `NOT_SCORED`, and `actualExecutionBaseline: NOT_RUN`. The checked-in P14 binary review fixture is bound to the archived `pilot-v1` run; it is not passed to a different run, and its seeded-unverified records never become LCSP-400 gold. The adapter may map explicit categorical Assessment Root verdicts only after a future case mapping is exact; P14 `UNRESOLVED` stays distinct from missing and invalid values in `evaluationLabelPredictions`, while production fields remain as recorded. Actor, conditions, exceptions, and evidence quality always need separately recorded judgments bound to the observed output. Each dimension judgment's `targetBinding` must exactly equal the review row's `p14Binding`.
 
 Before an authorized future baseline, add and review compatible P14 cases and exact mappings, verify legal-gold annotations in the overlay, and obtain approval for live execution. From `deepagents/`, the P14 run command is:
 
