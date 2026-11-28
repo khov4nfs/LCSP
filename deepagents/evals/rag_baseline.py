@@ -193,7 +193,7 @@ def _verify_item_before_prompt(case: BenchmarkCase, item: RetrievedEvidenceItem)
         return "OUT_OF_SCOPE"
     if item.version_pin != case.repo_pin.commit_sha:
         return "STALE"
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     candidate_path = repo_root / item.path
     if candidate_path.is_symlink() or not candidate_path.resolve().is_relative_to(repo_root):
         return "OUT_OF_SCOPE"
@@ -374,7 +374,7 @@ def retrieve_b1_evidence(
             )
         )
 
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     repo_items: list[RetrievedEvidenceItem] = []
     out_of_scope_count = 0
     if repo_root.is_dir():
@@ -552,7 +552,7 @@ def build_b1_manifest(
         c.repo_pin.repo_id: {
             "snapshotKind": c.repo_pin.snapshot_kind,
             "commitSha": c.repo_pin.commit_sha,
-            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.fixture_dir).resolve()),
+            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.portable_fixture_dir).resolve()),
         }
         for c in cases
     }
@@ -831,7 +831,7 @@ def run_b1_baseline(
                     decision_referenced_ids=cited_ids,
                     expected_repo_id=case.repo_pin.repo_id,
                     expected_commit_sha=case.repo_pin.commit_sha,
-                    repo_fixture_root=(DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve(),
+                    repo_fixture_root=(DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve(),
                     graph_executed=err_code is None,
                     error_code=err_code,
                     error_message=err_msg,

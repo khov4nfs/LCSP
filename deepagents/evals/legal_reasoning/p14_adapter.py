@@ -901,7 +901,7 @@ def validate_case_mapping(
             "snapshotKind": repo.snapshot_kind,
             "commitSha": repo.commit_sha,
             "treeSha256": _hash_repo_fixture_tree(
-                (DEEPAGENTS_ROOT / repo.fixture_dir).resolve()
+                (DEEPAGENTS_ROOT / repo.portable_fixture_dir).resolve()
             ),
         }
         if cohort_row.get("split") != p14_case.split or cohort_row.get("split") not in {
@@ -916,7 +916,7 @@ def validate_case_mapping(
             "snapshotKind": repo.snapshot_kind,
             "commitSha": repo.commit_sha,
             "treeSha256": _hash_repo_fixture_tree(
-                (DEEPAGENTS_ROOT / repo.fixture_dir).resolve()
+                (DEEPAGENTS_ROOT / repo.portable_fixture_dir).resolve()
             ),
         }
     if stable_hash(repo_tree_pins) != manifest.get("sourcePins", {}).get(
@@ -1216,7 +1216,7 @@ def _validate_official_vn_mapping(
         if binding.get("releaseEvidenceSha256") != _sha256_file_for_repo(case):
             raise ValueError(f"P14_VN_SCENARIO_EVIDENCE_MISMATCH:{candidate_id}")
         evidence_path = (
-            DEEPAGENTS_ROOT / case.repo_pin.fixture_dir
+            DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir
         ).resolve() / "release-evidence.json"
         facts = json.loads(evidence_path.read_text(encoding="utf-8"))
         expected_facts = [
@@ -1296,7 +1296,7 @@ def _sha256_file_for_repo(case: BenchmarkCase) -> str:
     Side effects:
     - Reads one local fixture file only."""
     path = (
-        DEEPAGENTS_ROOT / case.repo_pin.fixture_dir
+        DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir
     ).resolve() / "release-evidence.json"
     from hashlib import sha256
 
@@ -1961,7 +1961,7 @@ def _execution_subset(
                 "snapshotKind": c.repo_pin.snapshot_kind,
                 "commitSha": c.repo_pin.commit_sha,
                 "treeSha256": _hash_repo_fixture_tree(
-                    (DEEPAGENTS_ROOT / c.repo_pin.fixture_dir).resolve()
+                    (DEEPAGENTS_ROOT / c.repo_pin.portable_fixture_dir).resolve()
                 ),
             }
             for c in selected

@@ -66,6 +66,8 @@ DEV/HOLDOUT metrics are separate per target/lifecycle/trial in `rubricReportsByS
 
 Standalone `score_dataset()` remains diagnostic/unverified. Adapter artifact validation and SCRIPTED/LIVE mode cannot set `verifiedSemanticMetrics` or nested `verifiedExecutionMetrics` true. Label arithmetic, artifact integrity and reviewer authenticity remain distinct; no legal-quality or generalization claim is supported by the current small, unreviewed cohort.
 
+Repository fixture lookup normalizes Windows separators for POSIX runners while preserving the exact serialized repository pin and its digest. This also permits retained Windows-generated artifacts to be validated on Linux. A POSIX-path regression confirms that lookup normalization does not rewrite artifact identity.
+
 ```powershell
 $base = "evals/legal_reasoning/proposals.v2"
 $work = Join-Path $env:TEMP "lcsp400-current-splits"
@@ -86,6 +88,8 @@ R6 retains [full artifact bytes](../../deepagents/evals/legal_reasoning/reports/
 Raw SCRIPTED fixture verdict mismatches are retained: ALL 24/30, DEV 18/22, HOLDOUT 6/8; no execution errors. The official HITL fixture passed both lifecycle expectations. These are scripted behavior diagnostics against provisional expectations, not measured Deep Agent legal accuracy; the broader proposal labels and outputs still require independent review. No labels or production behavior were changed to improve these counts.
 
 Final PM regression: 13 passed. Relevant earlier combined evaluation regression: 74 passed; rubric/hardening/manifest regression: 41 passed. Additional RSP/Discovery/Root completion checks: 11 passed, one pre-existing `scannerSignature mismatch`. That same Discovery failure was reproduced from develop `fa90c435`; canonical develop RSP fixtures passed all four tests. The historical 1,205 versus 1,185 source-length failure was reproduced as Windows archive CRLF conversion: the original Git blob and branch file are both 1,185 LF bytes with the pinned SHA-256. Restoring exact Git blob bytes in the temporary develop test export made all RSP tests pass. No fixture hash, expected length or production scanner was changed. CI for the final pushed head must be checked separately.
+
+Fixture-path compatibility regression: one additional POSIX-path test passed. RAG/retrieval compatibility suites had 11 passed and four failed on both branch and develop export (repository/tree pin mismatches and B1 evidence-span matching). These failures are recorded in the receipt, not concealed as passing checks; no unrelated production or pinned-fixture change was made.
 
 ```powershell
 uv run pytest tests/test_legal_reasoning_pm_followup.py tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_vietnam_p14_integration.py tests/test_reviewed_eval_gate.py tests/test_preparation_semantic_eval_oracle.py tests/test_evals_benchmark.py -q

@@ -67,6 +67,29 @@
       "pinnedBytes": 1185,
       "pinnedSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
       "result": "4 RSP tests pass on branch and canonical develop source bytes. No pin/hash/length changed."
+    },
+    "fixturePathPortability": {
+      "passed": 1,
+      "failed": 0,
+      "command": "uv run pytest tests/test_legal_reasoning_pm_followup.py -k windows_fixture -q --tb=short",
+      "result": "POSIX lookup resolves Windows separators; serialized pin and identity unchanged."
+    },
+    "ragRetrievalCompatibility": {
+      "branch": {
+        "passed": 11,
+        "failed": 4
+      },
+      "developFa90": {
+        "passed": 11,
+        "failed": 4
+      },
+      "failures": [
+        "P14 repository pin map mismatch",
+        "Fixture tree pin mismatch (engine-exit)",
+        "Fixture tree pin mismatch (timeout)",
+        "B1 valid trace evidence_match false"
+      ],
+      "classification": "Same four failures reproduced on develop export; no production fix or fixture pin changes."
     }
   },
   "runs": [

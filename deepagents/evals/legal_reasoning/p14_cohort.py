@@ -100,7 +100,7 @@ def fixture_fingerprints(
                 "provisions": [item.model_dump() for item in provisions],
             }
         )
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     tree_digest = _hash_repo_fixture_tree(repo_root)
     return {
         "legalSourceSha256": legal_source_digest,

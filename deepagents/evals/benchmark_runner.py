@@ -185,7 +185,7 @@ def build_benchmark_manifest(
         c.repo_pin.repo_id: {
             "snapshotKind": c.repo_pin.snapshot_kind,
             "commitSha": c.repo_pin.commit_sha,
-            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.fixture_dir).resolve()),
+            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.portable_fixture_dir).resolve()),
         }
         for c in cases
     }
@@ -325,7 +325,7 @@ class _BenchmarkRuntimeClient:
         self.thread_id = thread_id
         self.assessment_id = assessment_id
         self.locale = locale
-        self.repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+        self.repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
         self.execution_counter = 0
         self.execution_id = str(uuid.uuid4())
         self.lease_token = f"lease-{self.execution_id[:8]}"
@@ -1030,7 +1030,7 @@ def _build_scripted_model_for_case(
 
     rule_id = case.rule_set_pin.rule_ids[0]
     prov = case.legal_provisions[0]
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     total_lines = len((repo_root / first_file).read_text(encoding="utf-8").splitlines()) if (repo_root / first_file).is_file() else 1
     cite_start, cite_end = 1, max(1, total_lines)
 
@@ -1371,7 +1371,7 @@ def _run_offline_fixture_stage(
     latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
 
     trace_path = trace_dir / f"{case.case_id}_t{trial_index}_{expectation.stage}.json"
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     if not isinstance(stage_out, dict):
         outcome = grade_trial(
             run_id=run_id,
@@ -1553,7 +1553,7 @@ def _run_real_root_trial(
     thread_id = str(uuid.uuid4())
     assessment_id = str(uuid.uuid4())
     client = _BenchmarkRuntimeClient(case, thread_id, assessment_id, locale=config.locale)
-    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
     saver = InMemorySaver()
     outcomes: list[TrialOutcome] = []
 

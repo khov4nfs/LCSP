@@ -388,7 +388,7 @@ def build_vn_ai_assets(source_cases_path: Path, output_dir: Path) -> dict[str, A
     mapping_rows = []
     for case_id, case in models.items():
         rule = case.rule_definitions[0]
-        repo = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+        repo = (DEEPAGENTS_ROOT / case.repo_pin.portable_fixture_dir).resolve()
         evidence_file = repo / "release-evidence.json"
         evidence_bytes = evidence_file.read_bytes()
         facts = json.loads(evidence_bytes.decode("utf-8"))

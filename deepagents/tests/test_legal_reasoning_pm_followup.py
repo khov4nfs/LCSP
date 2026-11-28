@@ -409,3 +409,19 @@ def test_preparation_structural_fixture_reaches_shared_scorer_without_authentica
         ValueError, match="PREPARATION_P15_OUTPUT_CLAIM_BINDING_MISMATCH"
     ):
         integrate_preparation_artifacts(**args)
+
+
+def test_windows_fixture_pin_is_portable_without_changing_serialized_identity():
+    from pathlib import PurePosixPath
+
+    from evals.benchmark_schema import RepoSnapshotPin
+
+    pin = RepoSnapshotPin(
+        repo_id="sample", commit_sha="a" * 40, fixture_dir=r"evals\fixtures\sample"
+    )
+    original = pin.model_dump()
+    assert PurePosixPath("/root") / pin.portable_fixture_dir == PurePosixPath(
+        "/root/evals/fixtures/sample"
+    )
+    assert pin.model_dump() == original
+    assert pin.model_dump()["fixture_dir"] == r"evals\fixtures\sample"

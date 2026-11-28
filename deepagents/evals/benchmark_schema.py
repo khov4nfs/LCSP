@@ -37,6 +37,24 @@ class RepoSnapshotPin(BaseModel):
     # Safety invariant: benchmark runner never executes untrusted repository code.
     untrusted_code_execution_allowed: Literal[False] = False
 
+    @property
+    def portable_fixture_dir(self) -> str:
+        """Business purpose: Resolve pinned fixture paths across evaluation hosts.
+
+        Business rules:
+        - Preserve the exact serialized pin and its digest; only filesystem lookup uses portable separators.
+
+        Execution flow:
+        1. Translate Windows separators into forward slashes understood by both hosts.
+
+        Failure cases:
+        - Missing fixtures still fail at the existing reader boundary.
+
+        Side effects:
+        - None: returns a lookup string without mutating the frozen pin.
+        """
+        return self.fixture_dir.replace("\\", "/")
+
 
 class CorpusPin(BaseModel):
     """Pinned legal corpus snapshot and content digest."""
