@@ -234,8 +234,10 @@ function setup(
     selectedRuleScopeAuthorization: {
       findUnique: jest
         .fn<(args: { where: { scopeKey: string } }) => Promise<unknown>>()
-        .mockImplementation(async (args) =>
-          args.where.scopeKey === grant.scopeKey ? grant : null,
+        .mockImplementation((args) =>
+          Promise.resolve(
+            args.where.scopeKey === grant.scopeKey ? grant : null,
+          ),
         ),
       findMany: resolves([exclusionGrant]),
       create: resolves(grant),
@@ -324,14 +326,20 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     const grant = approvedScope();
     let currentState: PreparationScopeReviewState = grant.state;
     tx.selectedRuleScopeAuthorization.findUnique.mockImplementation(
-      async (args: { where: { scopeKey: string } }) =>
-        args.where.scopeKey === grant.scopeKey
-          ? { ...grant, state: currentState }
-          : null,
+      (args: { where: { scopeKey: string } }) =>
+        Promise.resolve(
+          args.where.scopeKey === grant.scopeKey
+            ? { ...grant, state: currentState }
+            : null,
+        ),
     );
-    tx.selectedRuleScopeAuthorization.update.mockImplementation(async () => {
+    tx.selectedRuleScopeAuthorization.update.mockImplementation(() => {
       currentState = PreparationScopeReviewState.REJECTED;
-      return { ...grant, state: currentState, revision: grant.revision + 1 };
+      return Promise.resolve({
+        ...grant,
+        state: currentState,
+        revision: grant.revision + 1,
+      });
     });
 
     await expect(
@@ -468,6 +476,25 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     uncertain.items[0].assessmentRules = [];
     await expect(
       subject.importAssessmentRules(catalogId, uncertain, "admin-1", "cid"),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },
+      },
+    });
+    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a brand-new unreviewed import whose Assessment Rule criteria are unrelated to the legal requirement", async () => {
+    const { subject, tx } = setup();
+    tx.selectedRuleScopeAuthorization.findUnique.mockResolvedValue(null);
+    const unrelated = request();
+    unrelated.items[0].assessmentRules[0].concept =
+      "Hệ thống phải sử dụng Kubernetes";
+    unrelated.items[0].assessmentRules[0].requiredEvidence = [
+      "Kubernetes cluster manifest",
+    ];
+    await expect(
+      subject.importAssessmentRules(catalogId, unrelated, "admin-1", "cid"),
     ).rejects.toMatchObject({
       response: {
         problem: { code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED },

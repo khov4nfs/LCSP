@@ -87,6 +87,9 @@ export class AssessmentRuntimePreparation {
       where: {
         lifecycleState: ArtifactLifecycleState.ACTIVE,
         validationOutcome: ComplianceRuleSetValidationOutcome.PASSED,
+        activation: {
+          is: { validationOutcome: ComplianceRuleSetValidationOutcome.PASSED },
+        },
         rules: { some: {} },
         assessmentRules: { some: {} },
       },
@@ -121,7 +124,15 @@ export class AssessmentRuntimePreparation {
           typeof entry.ruleId !== "string" ||
           !("scopeAuthorizationKey" in entry) ||
           typeof entry.scopeAuthorizationKey !== "string" ||
-          !/^[a-f0-9]{64}$/.test(entry.scopeAuthorizationKey)
+          !/^[a-f0-9]{64}$/.test(entry.scopeAuthorizationKey) ||
+          ("resultId" in entry &&
+            entry.resultId !== undefined &&
+            typeof entry.resultId !== "string") ||
+          ("revision" in entry &&
+            entry.revision !== undefined &&
+            (typeof entry.revision !== "number" ||
+              !Number.isInteger(entry.revision) ||
+              entry.revision <= 0))
         ) {
           return null;
         }

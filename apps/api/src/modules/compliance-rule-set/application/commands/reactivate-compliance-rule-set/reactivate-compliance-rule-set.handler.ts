@@ -1,5 +1,24 @@
-import { randomUUID } from "node:crypto";
-import { ConflictException, HttpStatus } from "@nestjs/common";
+import {
+  AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+} from "@lcsp/contracts/audit";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  COMPLIANCE_RULE_SET_EVENT_TYPES,
+  complianceRuleSetReactivationResultSchema,
+  RULE_SET_REACTIVATION_ERROR_CODES as Errors,
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
+  RULE_SET_REACTIVATION_REASONS,
+} from "@lcsp/contracts/compliance-rule-set";
+import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
+import {
+  buildOutboxMessageInput,
+  OUTBOX_AGGREGATE_TYPES,
+} from "@lcsp/contracts/outbox";
+import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AgentExecutionState,
@@ -11,30 +30,12 @@ import {
   Prisma,
   UserAccessStatus,
 } from "@prisma/client";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import {
-  AUDIT_ACTOR_TYPES,
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  AUDIT_RESOURCE_TYPES,
-} from "@lcsp/contracts/audit";
-import {
-  COMPLIANCE_RULE_SET_ERROR_CODES,
-  COMPLIANCE_RULE_SET_EVENT_TYPES,
-  RULE_SET_PREPARATION_UNRESOLVED_STATES,
-  RULE_SET_REACTIVATION_ERROR_CODES as Errors,
-  RULE_SET_REACTIVATION_REASONS,
-  complianceRuleSetReactivationResultSchema,
-} from "@lcsp/contracts/compliance-rule-set";
-import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
-import {
-  buildOutboxMessageInput,
-  OUTBOX_AGGREGATE_TYPES,
-} from "@lcsp/contracts/outbox";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import {
   canonicalJson,
   sha256Hex,
@@ -44,7 +45,6 @@ import {
   reactivationTargetInclude,
   storedRuleSetIntegrityValid,
 } from "../../../infrastructure/persistence/stored-rule-set-integrity.js";
-import { LegalSourceAuthorityService } from "../../../../legal-source/application/services/legal-source-authority.service.js";
 import { ReactivateComplianceRuleSetCommand } from "./reactivate-compliance-rule-set.command.js";
 
 @CommandHandler(ReactivateComplianceRuleSetCommand)
@@ -235,10 +235,15 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
               contentSha256: true,
             },
           });
+          const isSelected = target.selectedPreparationResults !== null;
+          const validDigests = isSelected
+            ? /^[a-f0-9]{64}$/.test(target.activation.requestDigest) &&
+              /^[a-f0-9]{64}$/.test(target.ruleSetDigest) &&
+              target.activation.preparationRunId === null
+            : target.activation.requestDigest === target.ruleSetDigest &&
+              target.activation.preparationRunId === target.preparationRunId;
           if (
-            target.activation.requestDigest !== target.ruleSetDigest ||
-            (target.preparationRunId &&
-              target.activation.preparationRunId !== target.preparationRunId) ||
+            !validDigests ||
             (target.preparationRun &&
               target.preparationRun.legalSourceVersionId !==
                 target.legalSourceVersionId) ||
@@ -259,16 +264,15 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             if (!Array.isArray(selectedResults) || !selectedResults.length) {
               throw conflict(Errors.TARGET_NOT_ELIGIBLE);
             }
-            const selectedKeys = selectedResults
-              .map((entry) =>
-                entry &&
-                typeof entry === "object" &&
-                "scopeAuthorizationKey" in entry &&
-                typeof entry.scopeAuthorizationKey === "string" &&
-                /^[a-f0-9]{64}$/.test(entry.scopeAuthorizationKey)
-                  ? entry.scopeAuthorizationKey
-                  : null,
-              )
+            const selectedKeys = (selectedResults as unknown[])
+              .map((entry: unknown) => {
+                if (!entry || typeof entry !== "object") return null;
+                const key = (entry as { scopeAuthorizationKey?: unknown })
+                  .scopeAuthorizationKey;
+                return typeof key === "string" && /^[a-f0-9]{64}$/.test(key)
+                  ? key
+                  : null;
+              })
               .filter((key): key is string => Boolean(key));
             if (
               selectedKeys.length !== selectedResults.length ||

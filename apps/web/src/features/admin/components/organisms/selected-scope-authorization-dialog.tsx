@@ -1,8 +1,4 @@
 "use client";
-import { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { SELECTED_SCOPE_AUTHORIZATION_STATES } from "@lcsp/contracts/legal-rule-catalog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,6 +16,10 @@ import {
   useRevokeScopeAuthorization,
   useScopeAuthorization,
 } from "@/lib/api/legal-rule-catalog-queries";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { SELECTED_SCOPE_AUTHORIZATION_STATES } from "@lcsp/contracts/legal-rule-catalog";
+import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import {
   scopeAuthorizationFormSchema,
   type ScopeAuthorizationFormValues,
@@ -45,19 +45,23 @@ export function SelectedScopeAuthorizationDialog({
   catalogId,
   catalogRevision,
   ruleId,
+  initialScopeKey = "",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   catalogId: string;
   catalogRevision: number;
   ruleId: string;
+  initialScopeKey?: string;
 }) {
-  const [activeKey, setActiveKey] = useState("");
+  const [activeKey, setActiveKey] = useState(
+    /^[a-f0-9]{64}$/.test(initialScopeKey) ? initialScopeKey : "",
+  );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const form = useForm<ScopeAuthorizationFormValues>({
     resolver: zodResolver(scopeAuthorizationFormSchema),
     defaultValues: {
-      scopeKey: "",
+      scopeKey: initialScopeKey,
       confirmsLegalReview: false,
       revokeReason: "",
       confirmsRevocation: false,
@@ -161,7 +165,9 @@ export function SelectedScopeAuthorizationDialog({
             <Button
               type="button"
               variant="outline"
-              disabled={busy || !/^[a-f0-9]{64}$/.test((scopeKeyInput ?? "").trim())}
+              disabled={
+                busy || !/^[a-f0-9]{64}$/.test((scopeKeyInput ?? "").trim())
+              }
               onClick={handleLoadCandidate}
             >
               {t("scopeAuthLoad")}
@@ -172,15 +178,21 @@ export function SelectedScopeAuthorizationDialog({
             <div className="space-y-3 rounded-md border p-3 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="font-medium">{t("scopeAuthStateLabel")}:</span>{" "}
+                  <span className="font-medium">
+                    {t("scopeAuthStateLabel")}:
+                  </span>{" "}
                   {detail.data.state}
                 </div>
                 <div>
-                  <span className="font-medium">{t("scopeAuthRevisionLabel")}:</span>{" "}
+                  <span className="font-medium">
+                    {t("scopeAuthRevisionLabel")}:
+                  </span>{" "}
                   {detail.data.revision}
                 </div>
                 <div>
-                  <span className="font-medium">{t("scopeAuthAuthorLabel")}:</span>{" "}
+                  <span className="font-medium">
+                    {t("scopeAuthAuthorLabel")}:
+                  </span>{" "}
                   {detail.data.submittedBy}
                 </div>
                 {detail.data.approvedBy ? (
@@ -192,7 +204,9 @@ export function SelectedScopeAuthorizationDialog({
                   </div>
                 ) : null}
                 <div className="col-span-2">
-                  <span className="font-medium">{t("scopeAuthDigestLabel")}:</span>{" "}
+                  <span className="font-medium">
+                    {t("scopeAuthDigestLabel")}:
+                  </span>{" "}
                   <code className="break-all text-xs">
                     {detail.data.decisionDigest}
                   </code>
@@ -201,7 +215,9 @@ export function SelectedScopeAuthorizationDialog({
 
               {/* Source-linked citations: show verbatim legal text and locator before approval. */}
               <div className="space-y-2 border-t pt-3">
-                <h4 className="font-semibold">{t("scopeAuthCitationsTitle")}</h4>
+                <h4 className="font-semibold">
+                  {t("scopeAuthCitationsTitle")}
+                </h4>
                 {detail.data.citations.map((citation) => (
                   <div
                     key={citation.chunkId}
@@ -252,7 +268,9 @@ export function SelectedScopeAuthorizationDialog({
 
               {/* Development Scope classification decisions and rationale. */}
               <div className="space-y-2 border-t pt-3">
-                <h4 className="font-semibold">{t("scopeAuthDecisionsTitle")}</h4>
+                <h4 className="font-semibold">
+                  {t("scopeAuthDecisionsTitle")}
+                </h4>
                 {detail.data.decisions.map((decision) => (
                   <div
                     key={decision.legalRequirementId}
@@ -311,7 +329,8 @@ export function SelectedScopeAuthorizationDialog({
                 </div>
               ) : null}
 
-              {detail.data.state === SELECTED_SCOPE_AUTHORIZATION_STATES.DRAFT ? (
+              {detail.data.state ===
+              SELECTED_SCOPE_AUTHORIZATION_STATES.DRAFT ? (
                 <div className="space-y-3 border-t pt-3">
                   <div className="flex items-center gap-2">
                     <Checkbox

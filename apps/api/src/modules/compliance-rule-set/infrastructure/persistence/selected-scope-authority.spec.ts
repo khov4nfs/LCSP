@@ -1,21 +1,21 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
-  LegalEffectStatus,
-  LegalSourceDocumentCorpusRole,
-  PreparationScopeReviewState,
-  type Prisma,
-} from "@prisma/client";
+  LEGAL_REQUIREMENT_COVERAGE_STATES as coverage,
+  LEGAL_OPERATIVE_MODALITIES as modality,
+} from "@lcsp/contracts/compliance-rule-set";
 import {
   preparationRuleOutputSchema,
   type PreparationRuleInput,
   type SelectedScopeDecision,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
-  LEGAL_REQUIREMENT_COVERAGE_STATES as coverage,
-  LEGAL_OPERATIVE_MODALITIES as modality,
-} from "@lcsp/contracts/compliance-rule-set";
-import { sha256Hex } from "../../../assessment/domain/domain-ids.js";
+  LegalEffectStatus,
+  LegalSourceDocumentCorpusRole,
+  PreparationScopeReviewState,
+  type Prisma,
+} from "@prisma/client";
 import { fixtureSourceAuthority } from "../../../../../test/support/fixture-source-authority.js";
+import { sha256Hex } from "../../../assessment/domain/domain-ids.js";
 import {
   requireSelectedScopeAuthorization,
   selectedScopeKey,
@@ -147,23 +147,24 @@ describe("Reusable selected semantic scope evidence", () => {
       };
       const tx = {
         selectedRuleScopeAuthorization: {
-          findUnique: jest.fn(
-            async ({ where }: { where: { scopeKey: string } }) =>
-              where.scopeKey === key ? row : null,
+          findUnique: jest.fn(({ where }: { where: { scopeKey: string } }) =>
+            Promise.resolve(where.scopeKey === key ? row : null),
           ),
-          findFirst: jest.fn(async () => ({ scopeKey: key })),
+          findFirst: jest.fn(() => Promise.resolve({ scopeKey: key })),
         },
         legalDocumentChunk: {
-          findMany: jest.fn(async () => [
-            {
-              ...input.citations[0],
-              id: "chunk-1",
-              legalEffectStatus: LegalEffectStatus.EFFECTIVE,
-              sourceDocument: {
-                corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+          findMany: jest.fn(() =>
+            Promise.resolve([
+              {
+                ...input.citations[0],
+                id: "chunk-1",
+                legalEffectStatus: LegalEffectStatus.EFFECTIVE,
+                sourceDocument: {
+                  corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+                },
               },
-            },
-          ]),
+            ]),
+          ),
         },
       } as unknown as Prisma.TransactionClient;
       const authority = fixtureSourceAuthority;
@@ -208,6 +209,47 @@ describe("Reusable selected semantic scope evidence", () => {
       ),
     ).rejects.toMatchObject({
       response: { problem: { meta: { path: "output.legalRequirements" } } },
+    });
+  });
+
+  it("rejects a brand-new unreviewed rule whose criteria are not semantically grounded in the legal requirement", async () => {
+    const { output } = fixture();
+    const ungrounded = structuredClone(output);
+    ungrounded.assessmentRules[0].concept = "Kubernetes deployment mandate";
+    ungrounded.assessmentRules[0].criteria[0].statement =
+      "Hệ thống phải sử dụng Kubernetes.";
+    const tx = {
+      selectedRuleScopeAuthorization: {
+        findUnique: jest.fn(() => Promise.resolve(null)),
+        findFirst: jest.fn(() => Promise.resolve(null)),
+      },
+      legalDocumentChunk: {
+        findMany: jest.fn(() =>
+          Promise.resolve([
+            {
+              ...input.citations[0],
+              id: "chunk-1",
+              legalEffectStatus: LegalEffectStatus.EFFECTIVE,
+              sourceDocument: {
+                corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE,
+              },
+            },
+          ]),
+        ),
+      },
+    } as unknown as Prisma.TransactionClient;
+    await expect(
+      requireSelectedScopeAuthorization(
+        tx,
+        input,
+        ungrounded,
+        "cid",
+        fixtureSourceAuthority,
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: { meta: { path: "output.assessmentRules.semanticGrounding" } },
+      },
     });
   });
 

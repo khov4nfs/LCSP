@@ -108,6 +108,22 @@ describe("New assessment legal admission", () => {
     );
   });
 
+  it("rejects an active rule set with malformed selectedPreparationResults", async () => {
+    const { service, tx, client } = harness();
+    const { downloadUrl, sha256 } = OFFICIAL_LEGAL_CORPUS[0];
+    client.legalSourceDocument.findMany.mockResolvedValue([
+      { sourceUrl: downloadUrl, sourceSha256: sha256, blobSha256: sha256 },
+    ]);
+    client.complianceRuleSetVersion.findFirst.mockResolvedValue({
+      id: "malformed-selected",
+      legalSourceVersionId: "legacy-source",
+      selectedPreparationResults: [{ ruleId: "r1", scopeAuthorizationKey: "bad" }],
+    });
+    await expect(service.createCaseInTx(tx, "assessment")).resolves.toEqual({
+      ruleSetVersionId: null,
+    });
+  });
+
   it("continues an existing historical pin without re-admitting the corpus", async () => {
     const { service, tx, client } = harness("historic-pin");
     await expect(

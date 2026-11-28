@@ -28,8 +28,68 @@ import {
 } from "../../../assessment/domain/domain-ids.js";
 import { LegalSourceAuthorityService } from "../../../legal-source/application/services/legal-source-authority.service.js";
 
-const [development, nonDevelopment, unresolved] = PREPARATION_SCOPE_STAGES;
+const unresolved = PREPARATION_SCOPE_STAGES[2];
 const covered = LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES;
+
+const GROUNDING_STOP_WORDS = new Set([
+  "hệ",
+  "thống",
+  "phải",
+  "của",
+  "và",
+  "các",
+  "cho",
+  "với",
+  "theo",
+  "tại",
+  "trong",
+  "được",
+  "không",
+  "khi",
+  "này",
+  "hoặc",
+  "đối",
+  "về",
+  "trước",
+  "sau",
+  "the",
+  "and",
+  "for",
+  "with",
+  "must",
+  "shall",
+  "should",
+  "system",
+  "from",
+  "that",
+  "this",
+  "are",
+  "not",
+  "into",
+  "every",
+  "all",
+]);
+
+function semanticGroundTokens(text: string): Set<string> {
+  const matches =
+    text
+      .normalize("NFC")
+      .toLowerCase()
+      .match(/\p{L}[\p{L}\p{N}_-]{1,}/gu) ?? [];
+  return new Set(matches.filter((token) => !GROUNDING_STOP_WORDS.has(token)));
+}
+
+function sharesSemanticGrounding(
+  candidateText: string,
+  groundingTokens: Set<string>,
+): boolean {
+  const tokens = semanticGroundTokens(candidateText);
+  if (!tokens.size) return false;
+  for (const token of tokens) {
+    if (groundingTokens.has(token)) return true;
+  }
+  return false;
+}
 
 /**
  * Business purpose: Return a safe, non-repairable legal-scope denial.
@@ -396,7 +456,8 @@ export async function requireSelectedScopeAuthorization(
         !req.sourceRefs.length ||
         !req.operativePropositions?.length ||
         req.operativePropositions.some(
-          (op) => !op.actor.trim() || !op.action.trim() || !op.sourceRefs.length,
+          (op) =>
+            !op.actor.trim() || !op.action.trim() || !op.sourceRefs.length,
         ),
     )
   ) {
@@ -432,6 +493,51 @@ export async function requireSelectedScopeAuthorization(
       )
     ) {
       reject(cid, "output.assessmentRules.sourceRefs");
+    }
+    // Deterministic semantic grounding check for unreviewed rules:
+    // Every AssessmentRule concept and criterion statement must share domain terminology
+    // with its linked LegalRequirement(s) or cited legal source chunks; ungrounded rules
+    // are routed to human Legal Review rather than auto-published.
+    const citationByKey = new Map(
+      input.citations.map((c) => [
+        canonicalJson([c.documentId, c.locator, c.contentSha256]),
+        c.content,
+      ]),
+    );
+    const parentGroundingText = rule.legalRequirementIds
+      .flatMap((id) => {
+        const req = requirementById.get(id);
+        if (!req) return [];
+        return [
+          req.title,
+          req.proposition,
+          ...(req.operativePropositions ?? []).flatMap((op) => [
+            op.actor,
+            op.action,
+          ]),
+          ...req.applicabilityConditions,
+          ...req.exceptions,
+          ...req.sourceRefs.map(
+            (r) =>
+              citationByKey.get(
+                canonicalJson([r.documentId, r.locator, r.contentSha256]),
+              ) ?? "",
+          ),
+        ];
+      })
+      .join(" ");
+    const groundingTokens = semanticGroundTokens(parentGroundingText);
+    const ruleSummary = [rule.concept, ...rule.requiredEvidence].join(" ");
+    if (!sharesSemanticGrounding(ruleSummary, groundingTokens)) {
+      reject(cid, "output.assessmentRules.semanticGrounding");
+    }
+    for (const criterion of rule.criteria) {
+      if (
+        criterion.statement?.trim() &&
+        !sharesSemanticGrounding(criterion.statement, groundingTokens)
+      ) {
+        reject(cid, "output.assessmentRules.semanticGrounding");
+      }
     }
   }
   await requireSelectedScopeSource(tx, input, output, cid, authority);

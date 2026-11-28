@@ -222,7 +222,9 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       },
     });
     const retrievalIndexRes = await httpRequest(app)
-      .post(`/internal/legal-sources/${draftSource.id}/retrieval-indexes/validated`)
+      .post(
+        `/internal/legal-sources/${draftSource.id}/retrieval-indexes/validated`,
+      )
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         version: `vn-05-2026-idx-${randomUUID().slice(0, 8)}`,
@@ -265,7 +267,8 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       .send({
         legalRuleId: "VN-TT05-ART3-1B-QUALITY-TEST",
         expectedRevision: catalog.revision,
-        title: "Kiểm thử, xác nhận và kiểm định nội bộ chất lượng dữ liệu, mô hình",
+        title:
+          "Kiểm thử, xác nhận và kiểm định nội bộ chất lượng dữ liệu, mô hình",
         description: inScopeChunkText,
         citationLocatorRefs: [
           {
@@ -328,7 +331,8 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       legalRequirements: [
         {
           legalRequirementId: `${inScopeRuleId}:req-1`,
-          title: "Thiết lập tiêu chí chất lượng và kiểm định nội bộ trước khi triển khai",
+          title:
+            "Thiết lập tiêu chí chất lượng và kiểm định nội bộ trước khi triển khai",
           proposition: inScopeChunkText,
           operativePropositions: [
             {
@@ -357,7 +361,8 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       assessmentRules: [
         {
           assessmentRuleId: `${inScopeRuleId}:ar-1`,
-          concept: "Kiểm tra tiêu chí chất lượng và cơ chế kiểm thử, kiểm định nội bộ",
+          concept:
+            "Kiểm tra tiêu chí chất lượng và cơ chế kiểm thử, kiểm định nội bộ",
           legalRequirementIds: [`${inScopeRuleId}:req-1`],
           criteria: [
             {
@@ -405,7 +410,8 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
             {
               actor: "Bộ Khoa học và Công nghệ",
               modality: LEGAL_OPERATIVE_MODALITIES.DUTY,
-              action: "Chủ trì tổ chức triển khai, thực hiện Thông tư và ban hành hướng dẫn",
+              action:
+                "Chủ trì tổ chức triển khai, thực hiện Thông tư và ban hành hướng dẫn",
               sourceRefs: [outOfScopeRef],
             },
           ],
@@ -648,7 +654,9 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
 
     // 6. Negative regression: valid official PDF SHA-256, but tampered chunk content / wrong locator / non-effective status must be rejected.
     const tamperedContentShaRes = await httpRequest(app)
-      .post(`/admin/legal-rule-catalog/${catalog.id}/scope-authorizations/submit`)
+      .post(
+        `/admin/legal-rule-catalog/${catalog.id}/scope-authorizations/submit`,
+      )
       .set("Authorization", `Bearer ${authorToken}`)
       .send({
         ruleId: inScopeRuleId,
@@ -673,21 +681,30 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
             legalRequirementId: `${inScopeRuleId}:req-1`,
             stage: "DEVELOPMENT",
             technicalDeliverable: "Tampered test",
-            rationale: "Should fail because contentSha256 does not match extracted PDF chunk",
+            rationale:
+              "Should fail because contentSha256 does not match extracted PDF chunk",
             sourceSupport: [
               {
                 chunkId: inScopeChunkId,
                 startOffset: 0,
                 endOffset: inScopeChunkText.length,
-                contentSha256: sha256("Nội dung bị thay đổi không thuộc PDF gốc"),
+                contentSha256: sha256(
+                  "Nội dung bị thay đổi không thuộc PDF gốc",
+                ),
               },
             ],
           },
         ],
       });
-    assert.ok(
-      tamperedContentShaRes.status >= 400 && tamperedContentShaRes.status < 500,
-      `Tampered chunk hash must be rejected, got ${tamperedContentShaRes.status}`,
+    assert.equal(
+      tamperedContentShaRes.status,
+      422,
+      `Tampered chunk hash must be rejected with 422, got ${tamperedContentShaRes.status}`,
+    );
+    assert.equal(
+      (tamperedContentShaRes.body as { problem?: { code?: string } }).problem
+        ?.code,
+      C.LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
     );
 
     const wrongLocatorRes = await httpRequest(app)
@@ -727,10 +744,15 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
         items: [inScopeImportItem],
         excludedItems: [],
       });
-    assert.ok(
-      repealedChunkImportRes.status >= 400 &&
-        repealedChunkImportRes.status < 500,
-      `REPEALED chunk must be rejected, got ${repealedChunkImportRes.status}`,
+    assert.equal(
+      repealedChunkImportRes.status,
+      422,
+      `REPEALED chunk must be rejected with 422, got ${repealedChunkImportRes.status}`,
+    );
+    assert.equal(
+      (repealedChunkImportRes.body as { problem?: { code?: string } }).problem
+        ?.code,
+      C.LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
     );
 
     // Restore EFFECTIVE status so the REFERENCE_ONLY test is isolated from REPEALED.
@@ -755,14 +777,66 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
         items: [inScopeImportItem],
         excludedItems: [],
       });
-    assert.ok(
-      referenceOnlyRes.status >= 400 && referenceOnlyRes.status < 500,
-      `REFERENCE_ONLY corpus role must be rejected, got ${referenceOnlyRes.status}`,
+    assert.equal(
+      referenceOnlyRes.status,
+      422,
+      `REFERENCE_ONLY corpus role must be rejected with 422, got ${referenceOnlyRes.status}`,
+    );
+    assert.equal(
+      (referenceOnlyRes.body as { problem?: { code?: string } }).problem?.code,
+      C.LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
+    );
+
+    // Restore OPERATIVE corpusRole so the positive source remains clean, then verify
+    // ungrounded Assessment Rule criteria (e.g. Kubernetes on a data-quality law) are rejected.
+    await prisma.legalSourceDocument.updateMany({
+      where: { legalSourceVersionId: draftSource.id },
+      data: { corpusRole: LegalSourceDocumentCorpusRole.OPERATIVE },
+    });
+    const ungroundedImportRes = await httpRequest(app)
+      .post(`/admin/legal-rule-catalog/${catalog.id}/assessment-rules/import`)
+      .set("Authorization", `Bearer ${authorToken}`)
+      .send({
+        schemaVersion: C.ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
+        catalogVersionId: catalog.id,
+        expectedCatalogRevision: outOfScopeSaved.catalogRevision,
+        legalSourceVersionId: draftSource.id,
+        dryRun: true,
+        items: [
+          {
+            ...inScopeImportItem,
+            assessmentRules: [
+              {
+                ...inScopeImportItem.assessmentRules[0],
+                concept: "Hệ thống phải sử dụng Kubernetes",
+                criteria: [
+                  {
+                    criterionId: "crit-ungrounded",
+                    legalRequirementIds: [`${inScopeRuleId}:req-1`],
+                    statement: "Hệ thống phải sử dụng Kubernetes.",
+                  },
+                ],
+                requiredEvidence: ["Kubernetes cluster manifest"],
+              },
+            ],
+          },
+        ],
+        excludedItems: [],
+      });
+    assert.equal(
+      ungroundedImportRes.status,
+      422,
+      `Ungrounded Assessment Rule criteria must be rejected with 422, got ${ungroundedImportRes.status}`,
+    );
+    assert.equal(
+      (ungroundedImportRes.body as { problem?: { code?: string } }).problem
+        ?.code,
+      C.LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
     );
 
     // Real PDF SHA-256 paired with fabricated chunk text having a self-consistent SHA-256:
-    // ingest draft, assert fabricated text is absent from extracted PDF text, and verify
-    // activation/import without official source extraction/admission fails closed.
+    // verify fabricatedText is absent from extracted PDF text, and activating without
+    // official extraction / retrieval validation fails closed.
     const fabricatedText =
       "Điều 88. Nội dung giả mạo không tồn tại trong Thông tư 05/2026/TT-BKHCN nhưng có hash tự nhất quán.";
     assert.equal(
@@ -813,8 +887,7 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
         scopeDescription: "Fabricated chunk negative regression",
       });
     assert.ok(
-      activateFabricatedRes.status >= 400 &&
-        activateFabricatedRes.status < 500,
+      activateFabricatedRes.status >= 400 && activateFabricatedRes.status < 500,
       `Draft without retrieval validation / official extraction must be rejected, got ${activateFabricatedRes.status}`,
     );
   });
