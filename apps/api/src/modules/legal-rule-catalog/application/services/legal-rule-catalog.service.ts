@@ -1477,15 +1477,25 @@ export class LegalRuleCatalogService {
         ...input,
         citations: input.citations.map((ref) => {
           const chunk = byId.get(ref.chunkId);
+          // Why: Windows CRLF and Unix LF newlines must produce identical hash verification to avoid false rejections.
+          // How: Normalize carriage returns (\r\n to \n) before computing sha256Hex for chunk verification.
+          // Invariant: Pinned canonical source hashes remain compatible across OS environments.
+          const normalizedContent = chunk ? chunk.content.replace(/\r\n/gu, "\n") : "";
+          const expectedHash = ref.contentSha256.replace(/^sha256:/u, "");
+          const matchesHash =
+            chunk &&
+            (chunk.contentSha256 === ref.contentSha256 ||
+              chunk.contentSha256.replace(/^sha256:/u, "") === expectedHash) &&
+            (sha256Hex(chunk.content) === expectedHash ||
+              sha256Hex(normalizedContent) === expectedHash);
+
           if (
             !chunk ||
             !chunk.content.trim() ||
             chunk.legalSourceVersionId !== input.legalSourceVersionId ||
             chunk.documentId !== ref.documentId ||
             chunk.locator !== ref.locator ||
-            chunk.contentSha256 !== ref.contentSha256 ||
-            sha256Hex(chunk.content) !==
-              ref.contentSha256.replace(/^sha256:/u, "") ||
+            !matchesHash ||
             !isEligibleLegalChunkStatus(chunk.legalEffectStatus)
           )
             catalogFailure(E.INELIGIBLE, cid);
