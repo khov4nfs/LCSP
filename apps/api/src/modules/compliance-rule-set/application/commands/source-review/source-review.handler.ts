@@ -17,7 +17,6 @@ import {
   type LegalDocumentGraph,
 } from "@lcsp/contracts/legal-source";
 import {
-  sourceReviewPayloadSchema,
   ruleSetPreparationAuthoringDraftSchema,
   CLAIM_INVENTORY_GAPS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
@@ -47,6 +46,7 @@ import {
   reviewCompletionFingerprint,
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
+import { reviewPayload } from "../../../domain/source-review-payload.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { sourceSupportFailures } from "../../../domain/source-completeness.js";
 import {
@@ -59,26 +59,6 @@ import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,
 } from "./source-review.command.js";
-
-/**
- * Business purpose: Read one persisted source-review payload through the shared contract before using its claims and relationships.
- *
- * Business rules:
- * - Persisted review content must satisfy the public source-review payload schema; malformed stored data is not silently repaired.
- *
- * Execution flow:
- * 1. Parse the row's stored payload against the source-review contract.
- * 2. Return the typed claims, identities, relations, and accounting projection.
- *
- * Failure cases:
- * - Schema-invalid persisted payloads throw validation errors to the consuming review gate.
- *
- * Side effects:
- * - None; parses data in memory.
- */
-export function reviewPayload(item: RuleSetPreparationSourceReview) {
-  return sourceReviewPayloadSchema.parse(item.payload);
-}
 
 @CommandHandler(StartClaimDiscoveryDiagnosticCommand)
 export class StartClaimDiscoveryDiagnosticHandler implements ICommandHandler<StartClaimDiscoveryDiagnosticCommand> {

@@ -33,7 +33,7 @@ import {
   reviewedFrontierFingerprint,
   completedReviewStates,
 } from "../../../domain/source-review-frontier.js";
-import { reviewPayload } from "../source-review/source-review.handler.js";
+import { reviewPayload } from "../../../domain/source-review-payload.js";
 import { requireApprovedDevelopmentScope } from "../../../infrastructure/persistence/approved-development-scope.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
 import { validateComplianceRuleSetPacket } from "../../../domain/compliance-rule-set-integrity.validator.js";

@@ -9,12 +9,18 @@ import {
   it,
 } from "@jest/globals";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { LegalSourceLifecycleStatus, PrismaClient } from "@prisma/client";
+import {
+  AgentExecutionState,
+  LegalSourceLifecycleStatus,
+  PrismaClient,
+} from "@prisma/client";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
+  PREPARATION_EXECUTION_CONTRACTS,
   RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
+  type RuleSetPreparationClaimRequest,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
@@ -44,6 +50,8 @@ import { RetryRuleSetPreparationCommand } from "../commands/retry-rule-set-prepa
 import { RetryRuleSetPreparationHandler } from "../commands/retry-rule-set-preparation/retry-rule-set-preparation.handler.js";
 import { CancelRuleSetPreparationCommand } from "../commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import { CancelRuleSetPreparationHandler } from "../commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.js";
+import type { PreparationCancellationService } from "../../infrastructure/runtime/preparation-cancellation.service.js";
+import { PreparationCancellationService as CancellationPoller } from "../../infrastructure/runtime/preparation-cancellation.service.js";
 import { SubmitComplianceRuleSetCommand } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";
 import { SubmitComplianceRuleSetHandler } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
 import { AssessmentRuntimePreparation } from "../../../assessment/application/services/assessment-runtime-preparation.service.js";
@@ -55,7 +63,8 @@ import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/co
 const url = new URL(process.env.DATABASE_URL ?? "postgresql://unused/unused");
 const isolated =
   url.hostname === "127.0.0.1" &&
-  url.port === "55495" &&
+  // A second dedicated local port permits the same named disposable DB when 55495 is held by an IDE tunnel.
+  (url.port === "55495" || url.port === "55496") &&
   url.pathname === "/lcsp_admin_prepare_test";
 const database = isolated ? describe : describe.skip;
 const tag = `admin-trigger-${randomUUID().slice(0, 8)}`;
@@ -98,17 +107,12 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     cancel = new CancelRuleSetPreparationHandler(
       service,
       {
-        cancel: (correlationId: string) => {
-          nativeCancelIds.push(correlationId);
-          return Promise.resolve();
-        },
-      },
-      {
-        execute: (command: unknown) => {
-          cancellationEvents.push(command);
+        publishCancellationActivity: (runId: string, correlationId: string) => {
+          cancellationEvents.push({ runId, correlationId });
           return Promise.resolve({ recorded: true });
         },
-      } as unknown as CommandBus,
+      } as unknown as PreparationCancellationService,
+      new AuditWriterService(service),
     );
     claim = new ClaimRuleSetPreparationHandler(
       service,
@@ -169,8 +173,21 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     );
   const cancelRun = (preparationRunId: string) =>
     cancel.execute(
-      new CancelRuleSetPreparationCommand(preparationRunId, randomUUID()),
+      new CancelRuleSetPreparationCommand(
+        preparationRunId,
+        randomUUID(),
+        "test-admin",
+      ),
     );
+  // Legacy fixtures predate DIRECT_DRAFT_V1; advertise the actual contract produced by Prepare.
+  const claimRequest = (
+    preparationRunId: string,
+  ): RuleSetPreparationClaimRequest => ({
+    preparationRunId,
+    supportedExecutionContracts: [
+      PREPARATION_EXECUTION_CONTRACTS.DIRECT_DRAFT_V1,
+    ],
+  });
 
   it("refuses a request that names a Legal Source Version which is not the active one, and starts nothing", async () => {
     const source = await eligibleSource();
@@ -255,7 +272,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const first = await prepare();
     await claim.execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: first.preparationRunId },
+        claimRequest(first.preparationRunId),
         randomUUID(),
       ),
     );
@@ -291,7 +308,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     await expect(
       claim.execute(
         new ClaimRuleSetPreparationCommand(
-          { preparationRunId: queued.preparationRunId },
+          claimRequest(queued.preparationRunId),
           randomUUID(),
         ),
       ),
@@ -342,18 +359,21 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("cancels RUNNING through native control and serializes against publication", async () => {
     const source = await eligibleSource();
     const running = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        { preparationRunId: running.preparationRunId },
-        randomUUID(),
-      ),
-    );
+    // This integration checks the cancellation fence; the current legacy claim fixture
+    // advertises CLAIM_INVENTORY_V1 while prepare now creates DIRECT_DRAFT_V1.
+    await prisma.ruleSetPreparationRun.update({
+      where: { id: running.preparationRunId },
+      data: { executionState: AgentExecutionState.RUNNING },
+    });
     const before = await prisma.ruleSetPreparationRun.findUniqueOrThrow({
       where: { id: running.preparationRunId },
     });
 
-    await cancelRun(running.preparationRunId);
-    expect(nativeCancelIds).toEqual([before.correlationId]);
+    await expect(cancelRun(running.preparationRunId)).resolves.toMatchObject({
+      executionState: AGENT_EXECUTION_STATES.CANCEL_REQUESTED,
+    });
+    // The native stop happens after the DB request commits, outside its row lock.
+    expect(nativeCancelIds).toEqual([]);
     await expect(
       submit.execute(
         new SubmitComplianceRuleSetCommand(
@@ -372,7 +392,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         where: { id: running.preparationRunId },
       }),
     ).toMatchObject({
-      executionState: AGENT_EXECUTION_STATES.CANCELLED,
+      executionState: AGENT_EXECUTION_STATES.CANCEL_REQUESTED,
       failureReason: null,
     });
     expect(
@@ -390,17 +410,40 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         where: { ruleSet: { legalSourceVersionId: source.id } },
       }),
     ).toBe(0);
+    const poller = new CancellationPoller(
+      prisma as unknown as PrismaService,
+      {
+        cancel: (id: string) => {
+          nativeCancelIds.push(id);
+          return Promise.resolve();
+        },
+      },
+      {
+        execute: () => Promise.resolve({ recorded: true }),
+      } as unknown as CommandBus,
+    );
+    await poller.poll();
+    // Earlier test runs can leave unrelated durable requests in this reusable test DB.
+    expect(
+      nativeCancelIds.filter((id) => id === before.correlationId),
+    ).toHaveLength(1);
+    expect(
+      await prisma.ruleSetPreparationRun.findUniqueOrThrow({
+        where: { id: running.preparationRunId },
+      }),
+    ).toMatchObject({
+      executionState: AGENT_EXECUTION_STATES.CANCELLED,
+    });
   });
 
-  it("serializes a concurrent submit behind native cancellation without partial rows", async () => {
+  it("rejects submission while native cancellation is delayed without partial rows", async () => {
     const source = await eligibleSource();
     const running = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        { preparationRunId: running.preparationRunId },
-        randomUUID(),
-      ),
-    );
+    // Persist the precondition directly so this race test does not depend on a stale claim contract.
+    await prisma.ruleSetPreparationRun.update({
+      where: { id: running.preparationRunId },
+      data: { executionState: AgentExecutionState.RUNNING },
+    });
 
     const submissionRequest = await pinFixtureRequest(prisma, {
       preparationRunId: running.preparationRunId,
@@ -419,6 +462,24 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const racingCancel = new CancelRuleSetPreparationHandler(
       prisma as unknown as PrismaService,
       {
+        publishCancellationActivity: () => Promise.resolve(),
+      } as unknown as PreparationCancellationService,
+      new AuditWriterService(prisma as unknown as PrismaService),
+    );
+    await expect(
+      racingCancel.execute(
+        new CancelRuleSetPreparationCommand(
+          running.preparationRunId,
+          randomUUID(),
+          "test-admin",
+        ),
+      ),
+    ).resolves.toMatchObject({
+      executionState: AGENT_EXECUTION_STATES.CANCEL_REQUESTED,
+    });
+    const poller = new CancellationPoller(
+      prisma as unknown as PrismaService,
+      {
         cancel: async () => {
           nativeCancelStarted();
           await cancellationGate;
@@ -428,12 +489,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         execute: () => Promise.resolve({ recorded: true }),
       } as unknown as CommandBus,
     );
-    const cancellation = racingCancel.execute(
-      new CancelRuleSetPreparationCommand(
-        running.preparationRunId,
-        randomUUID(),
-      ),
-    );
+    const cancellation = poller.poll();
     await nativeStarted;
 
     const submission = submit.execute(
@@ -450,12 +506,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
       ),
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 25)),
     ]);
-    allowCancellationToSettle();
-    await expect(cancellation).resolves.toMatchObject({
-      executionState: AGENT_EXECUTION_STATES.CANCELLED,
-    });
-    expect(submittedWhileCancellationHeld).toBe(false);
+    // Network waiting must not hold the run row lock; submission sees the durable fence.
+    expect(submittedWhileCancellationHeld).toBe(true);
     await expect(submission).rejects.toMatchObject({ status: 409 });
+    allowCancellationToSettle();
+    await cancellation;
     expect(
       await prisma.ruleSetPreparationRun.findUniqueOrThrow({
         where: { id: running.preparationRunId },
@@ -484,7 +539,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const running = await prepare();
     await claim.execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: running.preparationRunId },
+        claimRequest(running.preparationRunId),
         randomUUID(),
       ),
     );
@@ -537,7 +592,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const first = await prepare();
     await claim.execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: first.preparationRunId },
+        claimRequest(first.preparationRunId),
         randomUUID(),
       ),
     );
@@ -564,7 +619,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     });
     await claim.execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: second.preparationRunId },
+        claimRequest(second.preparationRunId),
         randomUUID(),
       ),
     );
@@ -602,7 +657,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       await claim.execute(
         new ClaimRuleSetPreparationCommand(
-          { preparationRunId: latest.preparationRunId },
+          claimRequest(latest.preparationRunId),
           randomUUID(),
         ),
       );
@@ -644,7 +699,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     for (let attempt = 1; attempt <= 10; attempt += 1) {
       await claim.execute(
         new ClaimRuleSetPreparationCommand(
-          { preparationRunId: latest.preparationRunId },
+          claimRequest(latest.preparationRunId),
           randomUUID(),
         ),
       );
@@ -684,7 +739,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const run = await prepare();
     await claim.execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: run.preparationRunId },
+        claimRequest(run.preparationRunId),
         randomUUID(),
       ),
     );
@@ -726,7 +781,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const run = await prepare();
     await claim.execute(
       new ClaimRuleSetPreparationCommand(
-        { preparationRunId: run.preparationRunId },
+        claimRequest(run.preparationRunId),
         randomUUID(),
       ),
     );
@@ -758,7 +813,10 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     ).lifecycleState;
   const claimRun = (preparationRunId: string) =>
     claim.execute(
-      new ClaimRuleSetPreparationCommand({ preparationRunId }, randomUUID()),
+      new ClaimRuleSetPreparationCommand(
+        claimRequest(preparationRunId),
+        randomUUID(),
+      ),
     );
   const submitFor = async (preparationRunId: string) =>
     submit.execute(
@@ -876,6 +934,17 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
       await claimRun(replacement.preparationRunId);
 
       await cancelRun(replacement.preparationRunId);
+
+      // A running replacement remains blocking until native cancellation is acknowledged.
+      expect(await availability()).toMatchObject({ canReplace: false });
+      const poller = new CancellationPoller(
+        prisma as unknown as PrismaService,
+        { cancel: () => Promise.resolve() },
+        {
+          execute: () => Promise.resolve({ recorded: true }),
+        } as unknown as CommandBus,
+      );
+      await poller.poll();
 
       expect(await stateOf(published.ruleSetVersionId)).toBe(
         ARTIFACT_LIFECYCLE_STATES.ACTIVE,

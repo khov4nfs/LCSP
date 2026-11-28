@@ -491,6 +491,7 @@ export class ComplianceRuleSetAdminController {
         new CancelRuleSetPreparationCommand(
           preparationRunId,
           req.correlationId || randomUUID(),
+          req.rbacContext.userId,
         ),
       )
       .then(resultEnvelope);

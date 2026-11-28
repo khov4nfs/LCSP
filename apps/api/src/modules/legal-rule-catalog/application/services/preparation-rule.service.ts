@@ -35,6 +35,7 @@ import {
 import {
   complianceRuleSetPacketSchema,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
+  RULE_SET_PREPARATION_SYSTEM_ACTOR,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   declaresApplicabilityScope,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -1318,7 +1319,12 @@ export class PreparationRuleService {
     });
     if (!result) catalogFailure(E.NOT_FOUND, cid, 404);
     await this.commands.execute(
-      new CancelRuleSetPreparationCommand(runId, cid),
+      // Selected-rule cancellation runs under the service actor, not an arbitrary worker identity.
+      new CancelRuleSetPreparationCommand(
+        runId,
+        cid,
+        RULE_SET_PREPARATION_SYSTEM_ACTOR,
+      ),
     );
     return { preparationRunId: runId };
   }

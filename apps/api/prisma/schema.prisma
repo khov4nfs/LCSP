@@ -535,6 +535,8 @@ enum ComplianceRuleSetValidationOutcome {
 enum AgentExecutionState {
   QUEUED
   RUNNING
+  // A durable stop intent fences publication while cancellation is retried outside the DB transaction.
+  CANCEL_REQUESTED
   INTERRUPTED
   PAUSED
   SUCCEEDED

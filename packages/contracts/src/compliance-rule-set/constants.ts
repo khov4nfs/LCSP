@@ -11,6 +11,21 @@
  * contract. No approval, signoff or draft values exist here.
  */
 
+import { AGENT_EXECUTION_STATES } from "../assessment/agentic-runtime.js";
+
+/**
+ * Why: Restoring an older shared Rule Set must not race a resumable or cancelling Preparation.
+ * How: Availability and reactivation share one authoritative nonterminal state set.
+ * Invariant: CANCEL_REQUESTED remains blocking until native cancellation is confirmed.
+ */
+export const RULE_SET_PREPARATION_UNRESOLVED_STATES = [
+  AGENT_EXECUTION_STATES.QUEUED,
+  AGENT_EXECUTION_STATES.RUNNING,
+  AGENT_EXECUTION_STATES.INTERRUPTED,
+  AGENT_EXECUTION_STATES.PAUSED,
+  AGENT_EXECUTION_STATES.CANCEL_REQUESTED,
+] as const;
+
 export const LEGAL_REQUIREMENT_COVERAGE_STATES = {
   COVERED_BY_ASSESSMENT_RULES: "COVERED_BY_ASSESSMENT_RULES",
   NON_ASSESSABLE: "NON_ASSESSABLE",
@@ -183,6 +198,9 @@ export function ruleSetPreparationIdempotencyKey(
 
 export const COMPLIANCE_RULE_SET_EVENT_TYPES = {
   preparationRequested: "command.compliance-rule-set.preparation.requested.v1",
+  // A cancellation request is audited at the same commit that fences worker publication.
+  preparationCancellationRequested:
+    "event.compliance-rule-set.preparation-cancellation-requested.v1",
   ruleSetActivated: "event.compliance-rule-set.activated.v1",
   ruleSetReactivated: "event.compliance-rule-set.reactivated.v1",
   ruleSetValidationFailed: "event.compliance-rule-set.validation-failed.v1",
