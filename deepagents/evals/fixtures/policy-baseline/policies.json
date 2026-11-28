@@ -1,0 +1,44 @@
+{
+  "source": "https://eur-lex.europa.eu/eli/reg/2024/2847/oj",
+  "version": "OJ L 2024/2847, 20 November 2024",
+  "applicability": "The snapshot stipulates either an in-scope manufacturer supplying an in-scope digital product on the EU market after the general CRA application date, or FOSS supplied outside commercial activity under Article 2(3). Neither status is inferred from repo metadata.",
+  "policies": [
+    {
+      "id": "CRA-MANUFACTURER-NAME",
+      "type": "USER_INFORMATION",
+      "locator": "Annex II(1)",
+      "excerpt": "the name, registered trade name or registered trademark of the manufacturer",
+      "field": "manufacturerName",
+      "criterion": "The accompanying information identifies the manufacturer by name, registered trade name or registered trademark.",
+      "pass_pattern": "[A-Za-z][A-Za-z0-9 .&'-]*",
+      "fail_pattern": "NOT_PROVIDED",
+      "limit": "Only the identifier in the accompanying information. The snapshot format uses plain ASCII names. Other representations are unknown. Address, identity verification and the rest of Annex II(1) are outside this check."
+    },
+    {
+      "id": "CRA-REPORTING-CONTACT",
+      "type": "VULNERABILITY_REPORTING",
+      "locator": "Annex II(2)",
+      "excerpt": "the single point of contact",
+      "field": "vulnerabilityReportingContact",
+      "criterion": "The accompanying information identifies a point of contact for reporting product vulnerabilities.",
+      "pass_pattern": "mailto:[^\\s@]+@[^\\s@]+\\.[^\\s@]+",
+      "fail_pattern": "NOT_PROVIDED",
+      "limit": "Only whether the accompanying information lists a reporting point. The supported positive form is mailto. Other channels are unknown. Channel operation, communications choice and access to the disclosure policy are outside this check."
+    },
+    {
+      "id": "CRA-SUPPORT-END",
+      "type": "SUPPORT_INFORMATION",
+      "locator": "Article 13(19)",
+      "excerpt": "including at least the month and the year",
+      "field": "supportEndAtPurchase",
+      "criterion": "The end of the support period is stated to at least month and year at purchase.",
+      "pass_pattern": "[1-9][0-9]{3}-(0[1-9]|1[0-2])",
+      "fail_pattern": "NOT_PROVIDED|[1-9][0-9]{3}",
+      "limit": "Only whether the stipulated point-of-purchase information states both month and year. The fixture format uses YYYY-MM. An explicitly year-only value contradicts the criterion. Accessibility and the length or operation of support are outside this check."
+    }
+  ],
+  "excluded": [
+    {"type": "VULNERABILITY_HANDLING", "locator": "Annex I Part II(5)", "reason": "A file cannot demonstrate enforcement of coordinated disclosure."},
+    {"type": "SECURE_BY_DEFAULT", "locator": "Annex I Part I(2)(b)", "reason": "The supplied documentation snapshot establishes neither effective defaults nor the terms of any tailor-made agreement."}
+  ]
+}
