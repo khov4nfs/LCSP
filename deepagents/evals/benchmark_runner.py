@@ -1171,7 +1171,7 @@ def _build_scripted_model_for_case(
         steps.append(lambda _m: _call("open_human_request", {
             "assessment_rule_id": rule_id,
             "criterion_ids": ["C-1"],
-            "question": f"Who owns the {case.hitl_answers[0].request_key} duty for {case.task_category}?",
+            "question": f"Provide the missing {case.hitl_answers[0].request_key} fact for {case.task_category}.",
             "unresolved_fact": case.hitl_answers[0].request_key,
             "decision_impact": ["Determines operational duty."],
             "resolution_attempts": ["Checked pinned repository source."],

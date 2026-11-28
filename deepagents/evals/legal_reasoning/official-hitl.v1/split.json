@@ -1,0 +1,30 @@
+{
+  "splitVersion": "LCSP-400-DEV-HOLDOUT-SPLIT-V2",
+  "splitId": "lcsp400-legal-reasoning-v2-frozen",
+  "assignmentRule": "SHA256(groupId)[0:8] mod 5 == 0 => HOLDOUT; otherwise DEV; mapped P14 execution cases inherit their candidate group",
+  "candidateDatasetSha256": "87fa7fd940d864f12d51e3996dff27577bda612ffe2eb887b98b750913d40ec2",
+  "sharedCohortSha256": "a061b43299755bd7f8c1d8e182c99afbf93740c4a4a0df1714ea67448e01fd63",
+  "candidateCaseCount": 2,
+  "sharedCohortCaseCount": 2,
+  "groups": [
+    {
+      "groupId": "EXPLICIT_SEMANTIC_GROUP:VN_AI_TECHNICAL_MARKING",
+      "split": "DEV",
+      "caseIds": [
+        "p14-vn-official-mark-resume-final",
+        "p14-vn-official-mark-waiting-for-human",
+        "vn-official-mark-resume-final",
+        "vn-official-mark-waiting-for-human"
+      ]
+    }
+  ],
+  "splitCaseCounts": {
+    "DEV": 4,
+    "HOLDOUT": 0
+  },
+  "splitGroupCounts": {
+    "DEV": 1,
+    "HOLDOUT": 0
+  },
+  "splitDigest": "596df521e35a1564c9528eb3020eb368f9b4e5e8e82dc19e504cc733056df82c"
+}

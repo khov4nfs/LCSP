@@ -321,6 +321,10 @@ def build_vn_ai_assets(source_cases_path: Path, output_dir: Path) -> dict[str, A
             else "DEV"
         )
         raw["split"] = split
+        raw["rule_definitions"][0]["applicability_conditions"] = [
+            "Analyze the complete admitted Vietnamese legal source; retain relevant development, deployment, production and operational evidence. Apply each obligation actor, trigger, exception and temporal conditions without a separate business mode."
+        ]
+        raw["rule_set_pin"]["digest_sha256"] = stable_hash(raw["rule_definitions"])
         case = BenchmarkCase.model_validate(raw)
         models[case.case_id] = case
         model_data[case.case_id] = raw
@@ -432,32 +436,15 @@ def build_vn_ai_assets(source_cases_path: Path, output_dir: Path) -> dict[str, A
             "Candidate label from the separately authored LCSP-402 static fixture reference and exact release-evidence facts, checked against pinned official Vietnamese provisions. "
             "It is provisional, not human-reviewed legal gold; no SCRIPTED or generated LCSP output was used as expected label."
         )
-        applicable, uncertain = app == "APPLICABLE", app == "UNRESOLVED"
-        exceptions = list(rule.exceptions)
+        # Fixture verdicts propose outcomes only. They cannot supply quality judgments.
         expected = {
             "applicability": _expect(app, rationale),
             "compliance": _expect(compliance, rationale),
-            "actor": _expect("CORRECT", rationale) if applicable else None,
-            "conditions": _expect(
-                "PARTIAL"
-                if uncertain
-                else "COMPLETE"
-                if applicable
-                else "NOT_APPLICABLE",
-                rationale,
-            ),
-            "exceptions": _expect(
-                "NOT_APPLICABLE"
-                if not applicable or not exceptions
-                else "PARTIAL"
-                if uncertain
-                else "COMPLETE",
-                rationale,
-            ),
-            "evidenceSufficiency": _expect(
-                "MISSING" if uncertain else "SUFFICIENT", rationale
-            ),
-            "unsupportedConclusion": _expect("NONE", rationale),
+            "actor": None,
+            "conditions": None,
+            "exceptions": None,
+            "evidenceSufficiency": None,
+            "unsupportedConclusion": None,
         }
         stage = case.gold_rubric.stages[0].stage
         row = {
@@ -466,16 +453,7 @@ def build_vn_ai_assets(source_cases_path: Path, output_dir: Path) -> dict[str, A
             "rubricVersion": RUBRIC_VERSION,
             "stage": "ASSESSMENT_ROOT",
             "evaluationTarget": "ACTUAL_ASSESSMENT_OUTPUT",
-            "primaryDimension": (
-                "APPLICABILITY"
-                if app != "APPLICABLE"
-                else {
-                    "VN-AI-RISK-VERSION": "APPLICABILITY",
-                    "VN-AI-INTERACTION-DISCLOSURE": "ACTOR",
-                    "VN-AI-MEDIA-MARK": "CONDITIONS",
-                    "VN-AI-OPEN-MARK-ENABLEMENT": "EXCEPTIONS",
-                }[rule.rule_id]
-            ),
+            "primaryDimension": "COMPLIANCE",
             "caseDescription": f"Vietnamese AI-law Assessment Root scenario {case_id}; exact P14 case, target rule and repository snapshot are bound below.",
             "legalSource": legal_refs[0],
             "relatedLegalSources": legal_refs[1:],
@@ -702,7 +680,7 @@ def main() -> int:
     - Writes evaluation artifacts only to the selected output directory."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-cases", required=True, type=Path)
-    parser.add_argument("--output-dir", type=Path, default=PACKAGE)
+    parser.add_argument("--output-dir", type=Path, default=PACKAGE / "proposals.v2")
     args = parser.parse_args()
     print(
         json.dumps(

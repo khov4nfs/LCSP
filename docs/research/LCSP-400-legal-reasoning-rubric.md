@@ -1,146 +1,101 @@
 # LCSP-400 legal reasoning evaluation
 
-**Round:** `LCSP_400_PM_REVIEW_RESOLUTION_AND_FINAL_DELIVERY_R3`
-**Active dataset:** `LCSP-400-VIETNAM-AI-CANDIDATES-V1`
-**Rubric:** `LCSP-400-LEGAL-REASONING-RUBRIC-V1`
-**Status:** implementation and SCRIPTED artifact verification only; no human-reviewed gold and no live baseline.
+Status: technical evaluation infrastructure with provisional annotations. Reviewed gold: **0**. Actual Preparation output imported: **0**. LIVE baseline: **NOT_RUN**. Legal metrics: **NOT_SCORED**. AC1-AC3 remain partial; LCSP-400 stays In Progress.
 
-## Scope and evaluation targets
+## Scope and current packages
 
-This evaluation layer keeps legal reasoning quality separate from evidence quality. It does not change Rule Set Preparation, Assessment Root, Researcher, production verdicts, or production statuses. Deterministic checks validate identity, provenance, and contract shape; they do not interpret the law. LegalBench is methodological inspiration only; no LegalBench data or labels are used.
+Analyze the complete admitted Vietnamese source and retain relevant development, deployment, production and operational evidence. There are no alternative FULL_SOURCE/DEVELOPMENT_ONLY business modes. DEV/HOLDOUT are dataset splits; SCRIPTED/LIVE/OFFLINE_FIXTURE are execution modes. Evaluation checks identity, source bytes and recorded labels, not legal meaning. Root retains semantic authority; no production prompt, agent, domain enum or verdict writer changes are introduced.
 
-The active default P14 scoring package is the 30-case Vietnamese AI law cohort:
+The current `legal-score` defaults point to [`proposals.v2/`](../../deepagents/evals/legal_reasoning/proposals.v2/). It retains the 30 Assessment Root executable scenarios and 11 official provision references, but removes default actor/condition/exception/evidence/unsupported quality labels derived from fixture verdicts. Those dimensions are **unset until separately annotated**, rather than invented as CORRECT/COMPLETE/SUFFICIENT/NONE. Primary dimension is COMPLIANCE. Applicability/compliance fixture labels remain provisional proposals, never reviewed gold. The V1 annotation contract remains compatible; `proposals.v2` is a new immutable content revision, with its own candidate/cohort/map/split hashes and empty review overlay.
 
-- [`candidate-cases.vn-ai.v1.jsonl`](../../deepagents/evals/legal_reasoning/candidate-cases.vn-ai.v1.jsonl): provisional legal facts and expected outcomes, bound to source provisions, scenario facts, P14 case, target rule, repository evidence snapshot, stage, lifecycle, and split.
-- [`source-pins.vn-ai.v1.json`](../../deepagents/evals/legal_reasoning/source-pins.vn-ai.v1.json): 11 exact provision references in two official Cong Bao sources: [Law 134/2025/QH15](https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694/61695.htm) and [Decree 142/2026/ND-CP](https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-142-2026-nd-cp-469480.htm). Their PDF SHA-256 pins are `181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b` and `b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18`, respectively. Provision text and PDF hashes are revalidated against the LCSP-402 corpus and ingestion receipt.
-- [`p14-case-map.vn-ai.v3.json`](../../deepagents/evals/legal_reasoning/p14-case-map.vn-ai.v3.json) and [`p14-shared-cohort.vn-ai.v2.json`](../../deepagents/evals/legal_reasoning/p14-shared-cohort.vn-ai.v2.json): explicit exact mappings. Independent valid pins do not prove correspondence. The adapter checks jurisdiction, source identity/version and bytes, provisions, target proposition/rule, material scenario facts, repository snapshot, stage/lifecycle, and split. It rejects mismatches; it does not infer legal equivalence.
-- [`evaluation-splits.vn-ai.v2.json`](../../deepagents/evals/legal_reasoning/evaluation-splits.vn-ai.v2.json): 60 entries grouped by semantic group before split assignment (44 DEV, 16 HOLDOUT; 2 DEV and 1 HOLDOUT groups). Digest: `b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851`. The cohort is too small and synthetic to support generalization claims.
-- [`review-overlay.vn-ai.v1.json`](../../deepagents/evals/legal_reasoning/review-overlay.vn-ai.v1.json): canonical review lifecycle overlay; currently empty.
+The two official sources are Law 134/2025/QH15 (PDF SHA-256 `181b8687613093eaf42d09af506999a22c7b13453ede8ef574ac48de2e1fdd1b`) and Decree 142/2026/ND-CP (`b2f71e9b86a878e4e91e0f59478b893f98a7db853112de66f3a7c58cbf392e18`). Source/version, exact locators, original provision bytes, receipt and corpus digests are validated against the checked-in LCSP-402 Cong Bao corpus. No foreign-law crosswalk is used.
 
-The active candidate and P14 mapping artifacts can be regenerated without model calls from the pinned LCSP-402 fixtures. P14's policy-baseline command writes the source case snapshot to a temporary directory; the cohort builder then emits the versioned LCSP-400 artifacts:
+Earlier root-level VN V1, GDPR and R1-R5 report artifacts remain historical snapshots, outside current defaults. New defaults must not be used to score an old manifest silently: pass every original package path explicitly when reproducing its report. The old generator behavior is preserved in Git at commit `73437c2c`, not used for new proposal quality labels.
+
+## Source-grounded annotation review
+
+Open [`source-review-frames.v1.json`](../../deepagents/evals/legal_reasoning/source-review-frames.v1.json). It is reproducibly generated from 15 **authored** clause frames and the verified original provisions, covering classification, dossiers, provider/deployer roles, changed-risk reclassification, notification, direct interaction, public authenticity disclosure, impersonation labeling, ongoing transparency, third-party lawful access, source-code exclusion, equivalent documents, retention, controlled export marking and open-system deployer marking. Each has two stated counterfactual fact scenarios (30 total), an exact source/actor anchor, action, material limit, original Vietnamese text and rationale. It never derives labels from LCSP output or documentary fixture verdicts.
+
+These 30 review scenarios are **not 30 additional mapped/scored benchmark cases**. The executable proposal cohort still has four target rules and three semantic groups; the review frames increase annotation diversity, not measured executable coverage or generalization evidence. Quality labels still require independent annotation. No human reviewer identity or approval is generated.
+
+The temporal frame fixes as-of `2027-10-01`, Law effectivity `2026-03-01` and Decree effectivity `2026-05-01`, linked to original Law Articles 34-35 and Decree Article 45. A reviewer must confirm first-operation date, sector, transition and any suspension facts. Structural validation rejects altered actor/action/condition declarations, source bytes, as-of/effective dates or counterfactual facts even after recomputing the package hash. **This does not independently confirm legal interpretation**; actor and temporal proposals remain candidates pending legal review.
+
+From `deepagents/`:
 
 ```powershell
-$work = Join-Path $env:TEMP "lcsp400-vn-candidate-generation"
-uv run python -m evals.cli policy-baseline --output-dir "$work/policy"
-uv run python -m evals.legal_reasoning.vn_ai_dataset `
-  --source-cases "$work/policy/cases.json" `
-  --output-dir evals/legal_reasoning
+uv run python -m evals.legal_reasoning.provision_frames --output evals/legal_reasoning/source-review-frames.v1.json
+uv run python -m evals.legal_reasoning.vn_ai_dataset --source-cases evals/legal_reasoning/p14-cases.vn-ai.v1.json --output-dir evals/legal_reasoning/proposals.v2
 ```
 
-The earlier 30-case GDPR dataset remains available as an immutable historical candidate package (`candidate-cases.v1.jsonl`, `rubric.v1.json`, `source-pins.v1.json`) and fixed-claim diagnostics. It is not the default scoring dataset. GDPR and Vietnamese law are never cross-mapped. Fixed negative-control labels describe supplied claims only and cannot penalize an LCSP output that correctly avoids those claims.
+Reviewers inspect source clauses, the actual role, conditions, exclusions and known facts; confirm or revise expected outcomes and fill only dimensions they have independently assessed. Record legal-gold review in the single proposal `review-overlay.vn-ai.v1.json`, pinned to the candidate dataset and case hashes. A second reviewer records an independent decision when feasible. Disagreements remain provisional until an independent adjudicator resolves each affected dimension. Reviews of actual generated output are separate, bound to exact run/case/stage/trial/rule/trace/output identities. A fixed bad claim's label never becomes an expected error in an actual agent output.
 
-The VN cohort's expected labels are candidates based on the separately authored LCSP-402 fixture reference, pinned official provisions, and exact scenario evidence. They remain provisional. SCRIPTED outputs were not used to create expected labels. No qualified reviewer has confirmed the legal labels. LCSP-402 Preparation output is not included: no genuine frozen Preparation output artifact was available; P14 executions exercise Assessment Root only.
+## Official Vietnamese HITL vertical slice
 
-## Review and metric integrity
+[`official-hitl.v1/`](../../deepagents/evals/legal_reasoning/official-hitl.v1/) reuses exact official marking provisions and the frozen `UNVERIFIED` audiovisual-mark evidence in the workbench repository. It has one P14 case and two candidate observation IDs: WAITING_FOR_HUMAN (known applicable obligation, insufficient evidence) and RESUME_FINAL (explicit simulated verification answer). It uses the existing P14 runner, genuine runtime request creation and confirmed-fact resolution. The simulated answer is an engineering fixture, not an actual human review.
 
-The schema and full label definitions/examples are in [`rubric.vn-ai.v1.json`](../../deepagents/evals/legal_reasoning/rubric.vn-ai.v1.json) and [`annotation.schema.vn-ai.v1.json`](../../deepagents/evals/legal_reasoning/annotation.schema.vn-ai.v1.json). The scorer does not interpret legal prose or call an LLM. Explicit Assessment Root categorical verdicts are normalized only through documented contract mappings. Actor, conditions, exceptions, evidence quality, and other semantic distinctions not expressed by production fields require a separate judgment bound to the exact output.
-
-Legal-gold review and observed-output review are distinct. To review legal gold, inspect candidate facts, expected labels, source citations, and provisions, then record reviewers and any adjudication in the single overlay. To review an output, bind each judgment to the exact P14 manifest, run, case, trial, stage/lifecycle, target rule, trace bytes, and observed-output digest. Review trials separately. A second reviewer records an independent decision when feasible; an independent adjudicator resolves disputed dimensions. Unresolved or unconfirmed dimensions remain provisional. Reviewer IDs and references are structurally checked but do not authenticate people. Seeded P14 reviews and synthetic test reviews never qualify as actual human review.
-
-Main metrics use only eligible reviewed gold and required output-bound human judgments. Missing/unknown predictions remain errors, not dropped rows. The primary macro-F1 averages legitimate rubric classes; missing and unknown remain visible in the matrix, coverage, and false-negative accounting. Zero reviewed denominator or zero executed eligible cohort yields `NOT_SCORED`, not a fabricated score. Semantic and evidence metrics remain separate. Repeated trials are reported separately; there is no implicit aggregation.
-
-## P14 execution and artifact workflow
-
-The integration uses P14's real runner and existing `legal-score` command. P14 `SCRIPTED`, `LIVE`, and `OFFLINE_FIXTURE` remain distinct. SCRIPTED mode executes the real evaluation runner without a model call and verifies the nonempty cross-bound cohort; its output is an engineering diagnostic, not Deep Agent accuracy. The adapter validates the saved manifest, `trials.jsonl`, trace bytes, observed-output digest, outcome binding, case/source/rule/repository pins, HITL requests/resolution, and lifecycle history before normalizing output. A changed trace/output digest or mismatched outcome is rejected. Missing output from an executed trial is counted as an error; targets never executed remain `NOT_EXECUTED`.
-
-Run from `deepagents/` to reproduce the nonempty offline SCRIPTED path. The run ID should be unique for a new run:
+The adapter admits a genuine open request without a final decision as reviewer-usable UNRESOLVED output. It preserves raw verdicts and requires output-bound human judgment for the semantic INSUFFICIENT_EVIDENCE distinction. Resumed output must preserve request/rule/answer/fact and prior-trace linkage. A changed answer, wrong rule or unrelated fact is rejected even with a recomputed output digest. Separate candidate IDs permit two lifecycle observations for one P14 case without duplicate case/stage mappings.
 
 ```powershell
+uv run python -m evals.legal_reasoning.official_hitl --output-dir evals/legal_reasoning/official-hitl.v1
 $base = "evals/legal_reasoning"
-$runId = "lcsp400-r4-vn-ai-scripted-final"
-$runRoot = "$base/reports/r4/vn-ai-scripted-final"
+$work = Join-Path $env:TEMP "lcsp400-official-hitl-verification"
 $commit = git rev-parse HEAD
-uv run python -m evals.cli run `
-  --cases "$base/p14-cases.vn-ai.v1.json" --mode SCRIPTED --split ALL --trials 1 --k 1 `
-  --run-id $runId --git-commit-sha $commit --output-dir $runRoot `
-  --evaluation-split-manifest "$base/evaluation-splits.vn-ai.v2.json"
-uv run python -m evals.cli legal-score `
-  --manifest "$runRoot/$runId/manifest.json" `
-  --trials "$runRoot/$runId/trials.jsonl" `
-  --output "$runRoot/legal-reasoning.json"
+uv run python -m evals.cli run --cases "$base/official-hitl.v1/cases.json" --mode SCRIPTED --split ALL --trials 1 --k 1 --run-id lcsp400-official-hitl --git-commit-sha $commit --output-dir $work --evaluation-split-manifest "$base/official-hitl.v1/split.json"
+uv run python -m evals.cli legal-score --manifest "$work/lcsp400-official-hitl/manifest.json" --trials "$work/lcsp400-official-hitl/trials.jsonl" --p14-cases "$base/official-hitl.v1/cases.json" --candidate-cases "$base/official-hitl.v1/candidates.jsonl" --case-map "$base/official-hitl.v1/map.json" --shared-cohort "$base/official-hitl.v1/cohort.json" --evaluation-split-manifest "$base/official-hitl.v1/split.json" --review-overlay "$base/official-hitl.v1/overlay.json" --output "$work/legal-reasoning.json"
 ```
 
-The current checked-in run is [`reports/r4/vn-ai-scripted-final/`](../../deepagents/evals/legal_reasoning/reports/r4/vn-ai-scripted-final/). It used run ID `lcsp400-r4-vn-ai-scripted-final`, source code commit `be290851ee8b20d2cabe1d0690688e54188ca0c0`, and P14 manifest SHA-256 `55ebae6585dd0d290b27bfdf60972b6f96a6f0d33128bd9cf368d77b59db91d1`. The legal report SHA-256 is `2c8c8c3adccc5cab06817ad669cec42bc7282db33d1ed0920c566ae80673b85e`; it pins candidate dataset `aa35124bb96c169ce237d9194c6a9f9bc8e22e86f9b3e303e214841ed2074a5d`, map `2f5af404d790d1ffc3709912595e4f10a533618166d3d18f36f0b1178ed09129`, source pins `ce0cd1380e5e4becf9e1e56919a2e7c9bf5abd486f39809a1b0bbbdfa8ff24e5`, cohort `8b8e1c53428ec282b8bb2275b4b22c86da9a8a65536662ce20ac6240aa5675a5`, and split `b00e10fda753bd92b563625b05552af13ea18eb779939107b48d8755f15eb851`. The real P14 runner produced 30 mapped cases, 30 executed trials, and 30 digest-validated observed outputs; lifecycle labels were `INITIAL` (29) and `WAITING_FOR_HUMAN` (1), with no missing outputs. All observed HITL states in this cohort were `NONE`; the WAITING_FOR_HUMAN lifecycle label did not contain an open or resolved human request. The report has zero reviewed gold and `scoringStatus: NOT_SCORED`. P14's generic SCRIPTED task score is not a legal quality metric. `actualExecutionStatus` describes SCRIPTED artifact execution; `actualExecutionBaseline` remains `NOT_RUN` because no authorized LIVE model execution is available.
+## Preparation import and external artifact dependency
 
-The zero-mapping and partial-mapping negative controls remain in `tests/test_legal_reasoning_vietnam_p14_integration.py`. Run both with the nonempty SCRIPTED runner fixture:
+`evals.legal_reasoning.preparation_adapter` accepts a frozen LCSP-402 output and manifest, an externally pinned output digest, independently approved LCSP-402 gold and its external digest, P15 Preparation annotations/rubric and exact output-bound human judgments. It reuses LCSP-402 `reviewed_eval_preflight` for existing artifact provenance and P15 `score_dataset()` for stage-specific metrics. It does **not** invoke the legacy development-scope classifier or use generated output as gold. Legacy manifest/gold metadata is a compatibility contract, not a selectable business mode.
+
+Exact manifest/output/claim/source/provision/instruction/skill bindings are required. The manifest must bind the official corpus and document PDF hash. Source-version correspondence must be explicit; an internal version ID cannot silently stand for a different official source pin. An unavailable mapping needs separately reviewed correspondence. Structural provenance never authenticates reviewers or proves actual model execution.
+
+No frozen actual source-backed Preparation output was supplied or found in checked-in evaluation assets. Therefore **actual Preparation integration remains open**. The importer returns explicit NOT_SCORED blockers, without fabricating a baseline:
 
 ```powershell
-uv run pytest tests/test_legal_reasoning_vietnam_p14_integration.py::test_nonempty_scripted_artifacts_integrate_and_empty_or_partial_mapping_stays_unscored -q
+uv run python -m evals.legal_reasoning.preparation_adapter
+# After genuine frozen files and independent review are available:
+uv run python -m evals.legal_reasoning.preparation_adapter --output-artifact <frozen-output.json> --manifest <run-manifest.json> --gold <independent-lcsp402-gold.json> --approved-gold-sha256 <external-approved-digest> --expected-output-sha256 <external-frozen-output-digest> --annotations <p15-reviewed-preparation.jsonl> --judgments <output-bound-judgments.json> --rubric <preparation-rubric.json>
 ```
 
-Run the standalone fabricated-provenance diagnostic and the full LCSP-400 focused regression with:
+## Split-aware scoring and metric integrity
+
+The full canonical dataset/map digest is distinct from the execution subset digest. New manifests retain signed runConfig bytes. The adapter checks config, frozen split, exact case/stage/trial inventory, repository tree, legal/rule/HITL/gold digests and observed trace/output bytes. Historical config-less manifests are permitted only as full canonical ALL executions. Out-of-split cases are not counted as missing. Missing outputs within executed targets remain errors; unexecuted intended targets remain visible.
+
+DEV/HOLDOUT metrics are separate per target/lifecycle/trial in `rubricReportsBySplitTargetAndTrial`. Primary macro-F1 uses legitimate rubric classes with gold or prediction support, excluding missing/unknown sentinels as classes while keeping them as errors/FNs and matrix columns. Zero denominators yield NOT_SCORED and null quality metrics. Semantic and evidence dimensions remain separate. Repeated trials are not implicitly aggregated. Only structurally eligible reviewed/adjudicated gold and required output judgments enter scoring. Structural identity references do not authenticate reviewers; seeded and synthetic reviews cannot enter actual review paths.
+
+Standalone `score_dataset()` remains diagnostic/unverified. Adapter artifact validation and SCRIPTED/LIVE mode cannot set `verifiedSemanticMetrics` or nested `verifiedExecutionMetrics` true. Label arithmetic, artifact integrity and reviewer authenticity remain distinct; no legal-quality or generalization claim is supported by the current small, unreviewed cohort.
 
 ```powershell
-uv run pytest tests/test_legal_reasoning_r2_hardening.py::test_standalone_scoring_cannot_promote_fabricated_p14_provenance_to_verified -q
-uv run pytest tests/test_legal_reasoning_rubric.py tests/test_legal_reasoning_r2_hardening.py tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_vietnam_p14_integration.py -q
-```
-
-That integration suite also exercises the positive `score_dataset()` route using temporary, simulated review metadata bound to a saved SCRIPTED output. The test asserts `P14_VERIFIED_SCRIPTED_DIAGNOSTIC` and `NOT_AUTHENTICATED_BY_TOOL`; its temporary records are not committed, are not genuine review, and do not affect the canonical candidate or review-overlay datasets.
-
-For a future authorized live baseline, first obtain genuine legal-gold review, output review, and explicit approval for a model route. From `deepagents/`, execute a unique run ID and score its exact saved artifacts:
-
-```powershell
-$base = "evals/legal_reasoning"
-$runId = "lcsp400-authorized-live-<unique-id>"
-$runRoot = "$base/reports/authorized-live"
-$approvedModelRoute = "<approved-route>"
-$commit = git rev-parse HEAD
-uv run python -m evals.cli run `
-  --cases "$base/p14-cases.vn-ai.v1.json" --mode LIVE --split ALL --trials 1 --k 1 `
-  --model-route $approvedModelRoute --allow-live --run-id $runId `
-  --git-commit-sha $commit --output-dir $runRoot `
-  --evaluation-split-manifest "$base/evaluation-splits.vn-ai.v2.json"
-uv run python -m evals.cli legal-score `
-  --manifest "$runRoot/$runId/manifest.json" `
-  --trials "$runRoot/$runId/trials.jsonl" `
-  --output "$runRoot/$runId/legal-reasoning.json"
-```
-
-No authorization for LIVE was given in this round.
-
-## PM review resolution record
-
-- **PM01:** P14 SCRIPTED/LIVE trace and output contract is validated against actual saved artifact bytes and outcome bindings; no alias of `runResult` to output.
-- **PM02:** official-source mappings require exact immutable source/provision, claim/rule, scenario, repository, lifecycle, and split correspondence. No GDPR/Vietnam crosswalk is used.
-- **PM03:** raw categorical verdict, normalized prediction, bound human judgment, and gold outcome remain separate; human review cannot overwrite a contradictory categorical verdict.
-- **PM04:** P14 output, Rule Set Preparation output, and fixed-claim diagnostic judgments use distinct target bindings. No frozen LCSP-402 Preparation output was available for import.
-- **PM05:** mapping, execution, missing-output, reviewed-gold, prediction, and scoring coverage are reported separately. Zero mapping and unexecuted cases cannot become scored.
-- **PM06:** DEV/HOLDOUT membership is pinned by group and manifest digest; counterfactual and materially related cases remain grouped. Do not tune on HOLDOUT.
-- **PM07:** standalone `score_dataset()` is diagnostic/unverified. Verified execution reporting requires the P14 adapter to validate actual manifest, trace, output, and outcome bytes. Artifact integrity does not authenticate reviewer identity or establish live quality.
-
-The earlier GDPR and three-case synthetic engineering reports remain historical. Do not combine them with the official VN cohort into one score. No reviewed accuracy, semantic improvement, or actual live baseline is claimed in this round.
-
-## Split-aware scoring and remaining PM findings
-
-PM re-review `6099431318` reviewed head `e25c53af`. The runner filters before manifest construction. The canonical mapping still pins all 30 cases; the execution digest now validates the exact frozen subset (ALL 30, DEV 22, HOLDOUT 8) in canonical order. New manifests retain `runConfig` bytes with their digest. The adapter verifies config, split, subset dataset/legal/rule/repository/HITL/gold pins and exact case/stage/trial inventory. Wrong membership or changed content fails closed. Historical manifests lacking config are allowed only for a full canonical ALL execution; partial legacy runs must be rerun.
-
-Mappings outside the requested subset are excluded from execution coverage, rather than counted as missing. `rubricReportsBySplitTargetAndTrial` reports separate DEV/HOLDOUT denominators and metrics per trial. Zero reviewed denominator remains NOT_SCORED; combined ALL diagnostics are not independent holdout results.
-
-Run from `deepagents/` with a fresh output directory:
-
-```powershell
-$base = "evals/legal_reasoning"
-$work = Join-Path $env:TEMP "lcsp400-split-verification"
+$base = "evals/legal_reasoning/proposals.v2"
+$work = Join-Path $env:TEMP "lcsp400-current-splits"
 $commit = git rev-parse HEAD
 foreach ($split in @("ALL", "DEV", "HOLDOUT")) {
-  $runId = "lcsp400-split-$split"
+  $runId = "lcsp400-current-$split"
   uv run python -m evals.cli run --cases "$base/p14-cases.vn-ai.v1.json" --mode SCRIPTED --split $split --trials 1 --k 1 --run-id $runId --git-commit-sha $commit --output-dir $work --evaluation-split-manifest "$base/evaluation-splits.vn-ai.v2.json"
   uv run python -m evals.cli legal-score --manifest "$work/$runId/manifest.json" --trials "$work/$runId/trials.jsonl" --output "$work/$runId/legal-reasoning.json"
 }
 ```
 
-Artifact validation, execution mode, structurally eligible labels, reviewer authenticity and metric arithmetic are distinct. `verifiedSemanticMetrics` and nested `verifiedExecutionMetrics` remain false because the tool does not authenticate reviewers. `labelComparisonScored` and `metricReviewStatus` identify arithmetic using structurally eligible labels. LIVE alone does not establish human review. Current gold denominator remains zero.
+## Retained evidence and checks
 
-| Remaining PM finding | Status and required evidence |
+R5 full run bytes are now committed in [`reports/r5/full-artifacts.zip`](../../deepagents/evals/legal_reasoning/reports/r5/full-artifacts.zip), with archive and per-file hashes in `full-artifacts.index.json`: 75 JSON/JSONL/CSV files covering ALL 30 / DEV 22 / HOLDOUT 8. Extract to a fresh directory, verify file hashes, then pass each manifest/trials and the historical root-level V1 package paths to the adapter. The compact receipt alone is not artifact validation.
+
+R6 retains full artifacts and the final commit identity for the new official HITL and revised proposal validation. The actual run inventories and report/trace hashes are in its verification receipt. No SCRIPTED task pass score is reported as Deep Agent legal accuracy.
+
+```powershell
+uv run pytest tests/test_legal_reasoning_pm_followup.py tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_vietnam_p14_integration.py tests/test_reviewed_eval_gate.py tests/test_preparation_semantic_eval_oracle.py tests/test_evals_benchmark.py -q
+uv run pytest tests/test_legal_reasoning_rubric.py tests/test_legal_reasoning_r2_hardening.py tests/test_run_manifest.py -q
+```
+
+## PM findings and honest remaining gates
+
+| Finding | Technical work and remaining evidence |
 |---|---|
-| Frozen Preparation output | OPEN: no frozen actual LCSP-402 Preparation output/manifest was found in checked-in evaluation assets. Target binding exists; actual artifact import with separate target gold and metrics remains required. No fixture is presented as an actual Preparation output. |
-| Candidate quality | OPEN: documentary fixture defaults remain provisional suggestions. Provision-grounded annotation revisions and greater semantic/counterfactual diversity remain implementation work; three groups, including one holdout group, cannot support generalization claims. |
-| Actor and temporal provenance | PARTIAL: source bytes and scenario identity are verified; independent actor correspondence and legal effectivity/as-of interpretation are not confirmed. Hash equality does not prove them. Source-grounded annotations and human review remain required. |
-| HITL | PARTIAL: existing P14 SCRIPTED engineering tests exercise request/resume mechanics under synthetic law. The official VN cohort has no actual request/resolution transition; a source-bound clarification/resume case with evidence gaps remains necessary. A WAITING_FOR_HUMAN label alone does not satisfy it. |
-| Metric provenance | Corrected as above; authentic human review and an authorized actual baseline remain external dependencies. |
+| Split-aware scoring / metric provenance | Previously accepted at static review; retained with negative/positive regressions and no review-authenticity inference. |
+| Actual Preparation integration | Frozen-artifact importer and failure gates are implemented. No actual output/manifest or independent gold exists in the available assets; actual stage coverage remains open. |
+| Candidate quality/diversity | Default heuristic quality labels removed; 15 original-clause review frames and 30 material counterfactual scenarios supplied. These are not executed benchmark cases or confirmed gold; independent dimension annotations and wider executable coverage remain open. |
+| Actor/effectivity | Source/actor/action/date declarations and negative mismatch controls implemented. As-of/transition interpretation still requires independent legal review and cannot be confirmed by hashes. |
+| Official VN HITL | Source-pinned real SCRIPTED request/resume with missing evidence, explicit simulated answer and output/fact bindings implemented. No actual human decision or LIVE reliability claim. |
 
-AC1–AC3 remain partial. Keep LCSP-400 In Progress and request no blanket closure of these findings. The split fix does not complete the remaining implementation or research requirements. No live or paid model call or genuine human review was performed.
-
-Verification at implementation commit `22c26edfbbd63cdbe18ae21f692bc8962ea29f2a`: the real SCRIPTED runner and adapter validated ALL 30, DEV 22 and HOLDOUT 8 cases, with zero missing outputs or unexecuted targets in each intended cohort. The compact receipt is [`reports/r5/split-verification.v1.json`](../../deepagents/evals/legal_reasoning/reports/r5/split-verification.v1.json). It records manifest/trial-file/trace/output digests and per-split zero-reviewed-denominator results. Full run artifacts were retained in the local temporary verification directory; reproduce them with the commands above before artifact validation elsewhere. The receipt alone does not prove execution provenance.
-
-Regression: LCSP-400 focused tests 56 passed; P14 benchmark/manifest tests 16 passed; positive structurally reviewed SCRIPTED scoring test 1 passed (simulated reviews only). Scoped Ruff/format, Python compilation, documentation checker and its 5 tests, and `git diff --check` passed. No legal performance metric is reported.
+No new paid/LIVE execution was authorized. Future LIVE execution requires an approved route/budget, fixed admitted source/repository/manifest/rubric/split, genuine reviewed legal annotations, output reviews, errors/usage/cost receipts and production prompt/skill fingerprints. Do not mark original Jira acceptance criteria complete or request blanket merge approval while the above implementation/research evidence is missing.

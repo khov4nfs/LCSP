@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "candidateCaseId": "vn-official-mark-waiting-for-human",
+      "cohortCaseId": "p14-vn-official-mark-waiting-for-human",
+      "corpusDigestSha256": "cec5d841167332a08ab6a656d0e90f44f866e39cacb65ae1189df4bd66dfae4f",
+      "corpusId": "lcsp-402-vn-cong-bao-v1",
+      "corpusVersion": "LCSP-402 Công báo Việt Nam v1",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "fixtureFingerprints": {
+        "legalSourceSha256": "5e654e4c4333fac9c598247877a7cddf1e7fe2c74c3d0c1b5d7ca04c8d7ef687",
+        "provisionContentSha256": "7b2770bf3cf58bc5b243f6fc496805caeb187f6ca0565ab97567039008695888",
+        "targetPropositionSha256": "131f4e8acdba934bb86262e845898ec5d3f69355d2ef1d55ccdb2bc58458f49c",
+        "targetRuleSha256": "35f956037398c05be544fa34bc05875e41217e19db5e3b6d7fc6f9335cdf4237",
+        "scenarioSha256": "f5ad75a834703a4522754f478837587dc70f7b3b64ecb8bce956d8b31c856629",
+        "repositorySnapshotSha256": "94f7c64803c47cee727170f4ce5f691a97aa19f391fc5362fa1db8ee8700b3c5",
+        "p14CaseSha256": "0a277afcb3facdefb9f8e92662e294c571aa7b98c5eb9d406ada4d12eee9a7fc"
+      },
+      "jurisdiction": "VIETNAM",
+      "lifecycleStage": "WAITING_FOR_HUMAN",
+      "p14CaseId": "vn-official-mark-verification-hitl",
+      "sourceKind": "OFFICIAL_PINNED_LAW",
+      "split": "DEV",
+      "splitGroupId": "EXPLICIT_SEMANTIC_GROUP:VN_AI_TECHNICAL_MARKING",
+      "targetRuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "candidateCaseId": "vn-official-mark-resume-final",
+      "cohortCaseId": "p14-vn-official-mark-resume-final",
+      "corpusDigestSha256": "cec5d841167332a08ab6a656d0e90f44f866e39cacb65ae1189df4bd66dfae4f",
+      "corpusId": "lcsp-402-vn-cong-bao-v1",
+      "corpusVersion": "LCSP-402 Công báo Việt Nam v1",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "fixtureFingerprints": {
+        "legalSourceSha256": "5e654e4c4333fac9c598247877a7cddf1e7fe2c74c3d0c1b5d7ca04c8d7ef687",
+        "provisionContentSha256": "7b2770bf3cf58bc5b243f6fc496805caeb187f6ca0565ab97567039008695888",
+        "targetPropositionSha256": "131f4e8acdba934bb86262e845898ec5d3f69355d2ef1d55ccdb2bc58458f49c",
+        "targetRuleSha256": "35f956037398c05be544fa34bc05875e41217e19db5e3b6d7fc6f9335cdf4237",
+        "scenarioSha256": "500f8d0aaedf0d7faa7a054421f380242eb798b04b2bea3e0479e9d085b90368",
+        "repositorySnapshotSha256": "94f7c64803c47cee727170f4ce5f691a97aa19f391fc5362fa1db8ee8700b3c5",
+        "p14CaseSha256": "0a277afcb3facdefb9f8e92662e294c571aa7b98c5eb9d406ada4d12eee9a7fc"
+      },
+      "jurisdiction": "VIETNAM",
+      "lifecycleStage": "RESUME_FINAL",
+      "p14CaseId": "vn-official-mark-verification-hitl",
+      "sourceKind": "OFFICIAL_PINNED_LAW",
+      "split": "DEV",
+      "splitGroupId": "EXPLICIT_SEMANTIC_GROUP:VN_AI_TECHNICAL_MARKING",
+      "targetRuleId": "VN-AI-MEDIA-MARK"
+    }
+  ],
+  "cohortKind": "OFFICIAL_VN_SOURCE_PINNED_P14_CASES",
+  "cohortPurpose": "ASSESSMENT_ROOT_EXECUTABLE_CANDIDATES_NOT_REVIEWED_GOLD",
+  "cohortSha256": "a061b43299755bd7f8c1d8e182c99afbf93740c4a4a0df1714ea67448e01fd63",
+  "cohortVersion": "LCSP-400-P14-SHARED-COHORT-V2",
+  "corpusDigestSha256": "cec5d841167332a08ab6a656d0e90f44f866e39cacb65ae1189df4bd66dfae4f",
+  "corpusId": "lcsp-402-vn-cong-bao-v1",
+  "corpusVersion": "LCSP-402 Công báo Việt Nam v1"
+}

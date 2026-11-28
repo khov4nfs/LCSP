@@ -1,0 +1,28 @@
+{
+  "mappingVersion": "LCSP-400-P14-CASE-MAP-V3",
+  "pinnedInputs": {
+    "candidateDatasetSha256": "87fa7fd940d864f12d51e3996dff27577bda612ffe2eb887b98b750913d40ec2",
+    "p14CasesDatasetSha256": "1671cb73389a3bfdcc135bdee78dc972483ce51c9b5275db9a461a6ee0e52a37",
+    "sourcePinsSha256": "ce0cd1380e5e4becf9e1e56919a2e7c9bf5abd486f39809a1b0bbbdfa8ff24e5",
+    "sharedCohortSha256": "a061b43299755bd7f8c1d8e182c99afbf93740c4a4a0df1714ea67448e01fd63",
+    "splitManifestSha256": "596df521e35a1564c9528eb3020eb368f9b4e5e8e82dc19e504cc733056df82c"
+  },
+  "caseMappings": [
+    {
+      "cohortCaseId": "p14-vn-official-mark-waiting-for-human",
+      "candidateCaseId": "vn-official-mark-waiting-for-human",
+      "p14CaseId": "vn-official-mark-verification-hitl",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "WAITING_FOR_HUMAN",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    },
+    {
+      "cohortCaseId": "p14-vn-official-mark-resume-final",
+      "candidateCaseId": "vn-official-mark-resume-final",
+      "p14CaseId": "vn-official-mark-verification-hitl",
+      "evaluationStage": "ASSESSMENT_ROOT",
+      "lifecycleStage": "RESUME_FINAL",
+      "p14RuleId": "VN-AI-MEDIA-MARK"
+    }
+  ]
+}

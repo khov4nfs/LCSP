@@ -322,7 +322,9 @@ def integrate_p14_artifacts(
             normalized_applicability, normalized_compliance = _assessment_domain_labels(
                 raw_dimensions
             )
-            if outcome.actual_verdict == "UNRESOLVED":
+            if outcome.actual_verdict == "UNRESOLVED" or (
+                output.get("hitl", {}).get("state") == "OPEN" and not decision_body
+            ):
                 if normalized_applicability is None:
                     normalized_applicability = "UNRESOLVED"
                 if normalized_compliance is None:
@@ -1082,7 +1084,7 @@ def _validate_official_vn_mapping(
     }
     seen_cohort: set[str] = set()
     seen_candidate: set[str] = set()
-    seen_p14: set[str] = set()
+    seen_p14: set[tuple[str, str]] = set()
     for entry in mapping.get("caseMappings", []):
         if not isinstance(entry, dict) or set(entry) != {
             "cohortCaseId",
@@ -1101,12 +1103,12 @@ def _validate_official_vn_mapping(
         if (
             cohort_id in seen_cohort
             or candidate_id in seen_candidate
-            or p14_id in seen_p14
+            or (p14_id, entry["lifecycleStage"]) in seen_p14
         ):
             raise ValueError("P14_VN_MAP_DUPLICATE_ID")
         seen_cohort.add(cohort_id)
         seen_candidate.add(candidate_id)
-        seen_p14.add(p14_id)
+        seen_p14.add((p14_id, entry["lifecycleStage"]))
         cohort_row, candidate, case = (
             cohort_by_id.get(cohort_id),
             candidates.get(candidate_id),
@@ -1734,6 +1736,41 @@ def _observed_output_from_trace(
         raise ValueError(
             f"P14_OBSERVED_OUTPUT_HITL_RESOLUTION_MISSING:{outcome.case_id}"
         )
+    request_rows = hitl.get("requests", [])
+    request_by_id = {
+        row.get("requestId"): row for row in request_rows if isinstance(row, dict)
+    }
+    if len(request_by_id) != len(request_rows) or any(
+        not key or row.get("assessmentRuleId") not in output["targetRuleIds"]
+        for key, row in request_by_id.items()
+    ):
+        raise ValueError("P14_HITL_REQUEST_RULE_BINDING_INVALID")
+    if any(
+        key not in request_by_id or request_by_id[key].get("status") != "OPEN"
+        for key in hitl.get("openRequestIds", [])
+    ):
+        raise ValueError("P14_HITL_OPEN_REQUEST_BINDING_INVALID")
+    from evals.benchmark_runner import _match_hitl_answer
+
+    for resolution in hitl.get("resolvedRequests", []):
+        request = request_by_id.get(resolution.get("requestId"))
+        answer = _match_hitl_answer(p14_case, request) if request else None
+        fact_ids = {fact.get("factId") for fact in facts if isinstance(fact, dict)}
+        if (
+            request is None
+            or request.get("status") != "RESOLVED"
+            or answer is None
+            or resolution.get("answer") != answer.answer
+            or resolution.get("resolvesFact") != answer.resolves_fact
+            or (
+                answer.resolves_fact
+                and (
+                    resolution.get("factId") not in fact_ids
+                    or request.get("resolvedFactId") != resolution.get("factId")
+                )
+            )
+        ):
+            raise ValueError("P14_HITL_ANSWER_FACT_BINDING_INVALID")
     for decision in decisions:
         body = decision.get("decision", decision) if isinstance(decision, dict) else {}
         if body.get("assessmentRuleId") not in output["targetRuleIds"]:
@@ -1761,6 +1798,16 @@ def _observed_output_from_trace(
             raise ValueError(
                 f"P14_OBSERVED_OUTPUT_LIFECYCLE_HISTORY_MISMATCH:{outcome.case_id}"
             )
+    if hitl["state"] == "OPEN" and not decisions:
+        if (
+            output.get("actualAssessmentDecision") is not None
+            or not hitl.get("requests")
+            or output.get("lifecycleState") != "WAITING_FOR_HUMAN"
+            or output.get("runResult", {}).get("state") != "INTERRUPTED"
+        ):
+            raise ValueError("P14_OPEN_HITL_REVIEW_CONTENT_INVALID")
+        # A genuine unresolved request is reviewer-usable output, without a legal verdict.
+        return output
     if output.get("runResult", {}).get("state") != "SUCCEEDED" or not decisions:
         return None
     selected = output.get("actualAssessmentDecision")

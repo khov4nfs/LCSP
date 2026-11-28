@@ -135,27 +135,42 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_legal_score.add_argument(
         "--p14-cases",
         type=Path,
-        default=eval_root / "legal_reasoning" / "p14-cases.vn-ai.v1.json",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "p14-cases.vn-ai.v1.json",
     )
     p_legal_score.add_argument(
         "--candidate-cases",
         type=Path,
-        default=eval_root / "legal_reasoning" / "candidate-cases.vn-ai.v1.jsonl",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "candidate-cases.vn-ai.v1.jsonl",
     )
     p_legal_score.add_argument(
         "--case-map",
         type=Path,
-        default=eval_root / "legal_reasoning" / "p14-case-map.vn-ai.v3.json",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "p14-case-map.vn-ai.v3.json",
     )
     p_legal_score.add_argument(
         "--shared-cohort",
         type=Path,
-        default=eval_root / "legal_reasoning" / "p14-shared-cohort.vn-ai.v2.json",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "p14-shared-cohort.vn-ai.v2.json",
     )
     p_legal_score.add_argument(
         "--evaluation-split-manifest",
         type=Path,
-        default=eval_root / "legal_reasoning" / "evaluation-splits.vn-ai.v2.json",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "evaluation-splits.vn-ai.v2.json",
     )
     p_legal_score.add_argument(
         "--reviews",
@@ -172,18 +187,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_legal_score.add_argument(
         "--review-overlay",
         type=Path,
-        default=eval_root / "legal_reasoning" / "review-overlay.vn-ai.v1.json",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "review-overlay.vn-ai.v1.json",
         help="Versioned human review state and legal-gold overrides pinned to candidate snapshot",
     )
     p_legal_score.add_argument(
         "--rubric",
         type=Path,
-        default=eval_root / "legal_reasoning" / "rubric.vn-ai.v1.json",
+        default=eval_root / "legal_reasoning" / "proposals.v2" / "rubric.vn-ai.v1.json",
     )
     p_legal_score.add_argument(
         "--source-pins",
         type=Path,
-        default=eval_root / "legal_reasoning" / "source-pins.vn-ai.v1.json",
+        default=eval_root
+        / "legal_reasoning"
+        / "proposals.v2"
+        / "source-pins.vn-ai.v1.json",
     )
     p_legal_score.add_argument("--output", type=Path, required=True)
 
