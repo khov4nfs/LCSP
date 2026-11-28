@@ -69,6 +69,75 @@ def test_download_archive_uses_worker_api_key_header():
     response.raise_for_status.assert_called_once()
 
 
+def test_hydration_archive_acknowledges_durable_completion_before_returning_bytes():
+    # Why: A successful worker download must repair a transient server-side
+    # finalization failure before hydration can treat the archive as delivered.
+    response = MagicMock()
+    response.status_code = 200
+    response.content = b"\x1f\x8barchive"
+    response.headers = {
+        "content-type": "application/gzip",
+        "x-repository-archive-root-status": "VERIFIED_ROOTLESS",
+        "x-hydration-ticket-id": "scan-job-1",
+    }
+    ack = MagicMock()
+    ack.status_code = 200
+    request = RepositoryArchiveRequest("snapshot-1", "scan-job-1", "corr-1")
+    with (
+        patch("tools.common.capabilities.platform.repository_snapshot_client.httpx.get", return_value=response),
+        patch("tools.common.capabilities.platform.repository_snapshot_client.httpx.post", return_value=ack) as http_post,
+    ):
+        content = RepositorySnapshotClient("http://api", "worker-key").download_archive(request)
+    assert content == response.content
+    http_post.assert_called_once_with(
+        "http://api/internal/repository-snapshots/snapshot-1/archive/ack/scan-job-1",
+        headers={"X-Worker-Api-Key": "worker-key", "X-Correlation-Id": "corr-1"},
+        timeout=30.0,
+    )
+    ack.raise_for_status.assert_called_once()
+
+
+def test_hydration_archive_does_not_return_bytes_if_ack_fails():
+    response = MagicMock()
+    response.status_code = 200
+    response.content = b"\x1f\x8barchive"
+    response.headers = {
+        "content-type": "application/gzip",
+        "x-repository-archive-root-status": "VERIFIED_ROOTLESS",
+        "x-hydration-ticket-id": "scan-job-1",
+    }
+    ack = MagicMock()
+    ack.raise_for_status.side_effect = RuntimeError("ack failed")
+    with (
+        patch("tools.common.capabilities.platform.repository_snapshot_client.httpx.get", return_value=response),
+        patch("tools.common.capabilities.platform.repository_snapshot_client.httpx.post", return_value=ack),
+    ):
+        with pytest.raises(RuntimeError, match="ack failed"):
+            RepositorySnapshotClient("http://api", "worker-key").download_archive(
+                RepositoryArchiveRequest("snapshot-1", "scan-job-1", "corr-1")
+            )
+
+
+def test_hydration_archive_rejects_ticket_header_for_another_scan_job():
+    response = MagicMock()
+    response.status_code = 200
+    response.content = b"\x1f\x8barchive"
+    response.headers = {
+        "content-type": "application/gzip",
+        "x-repository-archive-root-status": "VERIFIED_ROOTLESS",
+        "x-hydration-ticket-id": "other-job",
+    }
+    with (
+        patch("tools.common.capabilities.platform.repository_snapshot_client.httpx.get", return_value=response),
+        patch("tools.common.capabilities.platform.repository_snapshot_client.httpx.post") as http_post,
+    ):
+        with pytest.raises(RuntimeError, match="does not match"):
+            RepositorySnapshotClient("http://api", "worker-key").download_archive(
+                RepositoryArchiveRequest("snapshot-1", "scan-job-1", "corr-1")
+            )
+    http_post.assert_not_called()
+
+
 def test_download_archive_retries_429_with_bounded_backoff():
     rate_limited = MagicMock()
     rate_limited.status_code = 429

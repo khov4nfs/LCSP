@@ -238,6 +238,14 @@ describe("StreamSnapshotArchiveHandler", () => {
       finalizeDelivery: jest
         .fn<(...args: unknown[]) => Promise<void>>()
         .mockResolvedValue(undefined),
+      reconcileTerminalRuntime: jest
+        .fn<
+          (...args: unknown[]) => Promise<{ status: string; changed: boolean }>
+        >()
+        .mockResolvedValue({
+          status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+          changed: true,
+        }),
     };
 
     return {
@@ -703,6 +711,65 @@ describe("StreamSnapshotArchiveHandler", () => {
       REPOSITORY_SCAN_JOB_STATUSES.failed,
     );
     expect(result.hydrationDeliveryTicketId).toBe(hydrationTicket.id);
+  });
+
+  it("recovers a stranded RUNNING hydration ticket after its Root became terminal", async () => {
+    const hydrationTicket = {
+      ...scanJob,
+      status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      idempotencyKey: "runtime-hydration:assessment-1:snapshot-1",
+    };
+    const { handler, hydrationLifecycle } = buildHandler({
+      scanJob: hydrationTicket,
+    });
+    // Why: After a process crash before worker ACK, the durable RUNNING ticket
+    // must become retryable once independent Root-terminal evidence is present.
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery(
+        "snapshot-1",
+        hydrationTicket.id,
+        "corr-recover",
+      ),
+    );
+    expect(hydrationLifecycle.reconcileTerminalRuntime).toHaveBeenCalledWith({
+      ticketId: hydrationTicket.id,
+      snapshotId: "snapshot-1",
+    });
+    expect(hydrationLifecycle.claim).toHaveBeenCalledWith(
+      hydrationTicket.id,
+      hydrationTicket.assessmentId,
+      "snapshot-1",
+      REPOSITORY_SCAN_JOB_STATUSES.failed,
+    );
+    expect(result.hydrationDeliveryTicketId).toBe(hydrationTicket.id);
+  });
+
+  it("keeps a RUNNING hydration ticket blocked while Root authority is not terminal", async () => {
+    const hydrationTicket = {
+      ...scanJob,
+      status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      idempotencyKey: "runtime-hydration:assessment-1:snapshot-1",
+    };
+    const { handler, hydrationLifecycle } = buildHandler({
+      scanJob: hydrationTicket,
+    });
+    hydrationLifecycle.reconcileTerminalRuntime.mockRejectedValueOnce(
+      new ConflictException("Assessment Root execution is not terminal"),
+    );
+    // Why: A concurrent live delivery must not be converted into retryable
+    // work just because a second worker asks for the same immutable archive.
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery(
+          "snapshot-1",
+          hydrationTicket.id,
+          "corr-active-root",
+        ),
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(hydrationLifecycle.claim).not.toHaveBeenCalled();
   });
 
   it("terminalizes a claimed hydration attempt when archive acquisition fails", async () => {

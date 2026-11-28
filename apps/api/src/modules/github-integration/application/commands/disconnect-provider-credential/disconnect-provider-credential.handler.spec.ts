@@ -20,38 +20,44 @@ const fn = <T>(impl: (...args: unknown[]) => Promise<T>) =>
 
 function build(current: { id: string } | null, revoked = true) {
   const calls: string[] = [];
+  const staged: string[] = [];
   const transaction = {
     providerCredentials: {
       findActiveByOwnerProvider: fn(async () => current),
       updateLifecycle: fn(async () => {
-        calls.push("revoking");
+        staged.push("revoking");
         return true;
       }),
       markRevoked: fn(async () => {
-        calls.push("revoked");
+        staged.push("revoked");
         return revoked;
       }),
     },
     credentialStore: {
       destroy: fn(async () => {
-        calls.push("destroy");
+        staged.push("destroy");
       }),
     },
     database: {
       repositoryConnection: {
         updateMany: fn(async () => {
-          calls.push("connections");
+          staged.push("connections");
           return { count: 2 };
         }),
       },
     },
   };
   const unitOfWork = {
-    execute: fn(async (work) =>
-      (work as (tx: typeof transaction) => unknown)(transaction),
-    ),
+    execute: fn(async (work) => {
+      const result = await (
+        work as (tx: typeof transaction) => Promise<unknown>
+      )(transaction);
+      // The fake publishes staged writes only after all transaction steps pass.
+      calls.push(...staged);
+      return result;
+    }),
   };
-  const auditWriter = { write: fn(async () => undefined) };
+  const auditWriter = { writeInTx: fn(async () => undefined) };
   const handler = new DisconnectProviderCredentialHandler(
     unitOfWork as never,
     auditWriter as never,
@@ -73,6 +79,20 @@ function command(
 }
 
 describe("DisconnectProviderCredentialHandler", () => {
+  it("does not commit revocation when its audit cannot be persisted", async () => {
+    const { handler, auditWriter, calls } = build({ id: CREDENTIAL_ID });
+    // Why: A failed audit must leave the credential usable for a safe retry;
+    // otherwise retry sees no active credential and permanently loses the event.
+    auditWriter.writeInTx.mockRejectedValueOnce(
+      new Error("audit store unavailable"),
+    );
+
+    await expect(handler.execute(command())).rejects.toThrow(
+      "audit store unavailable",
+    );
+    expect(calls).toEqual([]);
+  });
+
   it("destroys the secret, revokes bound connections and audits without credential data", async () => {
     const { handler, transaction, auditWriter, calls } = build({
       id: CREDENTIAL_ID,
@@ -98,8 +118,8 @@ describe("DisconnectProviderCredentialHandler", () => {
         credentialRevokedAt: expect.any(Date),
       },
     });
-    expect(auditWriter.write).toHaveBeenCalledTimes(1);
-    const event = auditWriter.write.mock.calls[0][0] as {
+    expect(auditWriter.writeInTx).toHaveBeenCalledTimes(1);
+    const event = auditWriter.writeInTx.mock.calls[0][0] as {
       eventType: string;
       payload: Record<string, unknown>;
     };
@@ -130,7 +150,7 @@ describe("DisconnectProviderCredentialHandler", () => {
       status: null,
     });
     expect(transaction.credentialStore.destroy).not.toHaveBeenCalled();
-    expect(auditWriter.write).not.toHaveBeenCalled();
+    expect(auditWriter.writeInTx).not.toHaveBeenCalled();
   });
 
   it("rejects unknown providers and non-customer roles before touching storage", async () => {
@@ -156,6 +176,6 @@ describe("DisconnectProviderCredentialHandler", () => {
     await expect(handler.execute(command())).rejects.toThrow(
       "provider_credential_revoke_conflict",
     );
-    expect(auditWriter.write).not.toHaveBeenCalled();
+    expect(auditWriter.writeInTx).not.toHaveBeenCalled();
   });
 });

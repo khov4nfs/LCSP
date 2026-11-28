@@ -4,6 +4,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
+import type { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { RepositorySnapshot } from "../../domain/entities/repository-snapshot.entity.js";
 import { PrismaRepositorySnapshotRepository } from "./prisma-repository-snapshot.repository.js";
 
@@ -12,7 +13,21 @@ describe("PrismaRepositorySnapshotRepository", () => {
     const create = jest
       .fn<(args: { data: Record<string, unknown> }) => Promise<unknown>>()
       .mockResolvedValue({});
-    const tx = { repositorySnapshot: { create } };
+    const tx = {
+      repositorySnapshot: { create },
+      $queryRaw: jest
+        .fn<() => Promise<unknown>>()
+        .mockResolvedValueOnce([{ id: "assessment-1", ownerId: "manager-1" }])
+        .mockResolvedValueOnce([
+          {
+            id: "connection-1",
+            userId: "manager-1",
+            assessmentId: "assessment-1",
+            status: "ACTIVE",
+            credentialAuthorizationStatus: "ACTIVE",
+          },
+        ]),
+    };
     const transaction = jest
       .fn<(callback: (client: typeof tx) => Promise<void>) => Promise<void>>()
       .mockImplementation((callback) => callback(tx));
@@ -20,9 +35,18 @@ describe("PrismaRepositorySnapshotRepository", () => {
     const enqueue = jest
       .fn<OutboxRepository["enqueue"]>()
       .mockResolvedValue("outbox-message-1");
-    const repository = new PrismaRepositorySnapshotRepository(prisma, {
-      enqueue,
-    } as unknown as OutboxRepository);
+    const writeInTx = jest
+      .fn<AuditWriterService["writeInTx"]>()
+      .mockResolvedValue();
+    const repository = new PrismaRepositorySnapshotRepository(
+      prisma,
+      {
+        enqueue,
+      } as unknown as OutboxRepository,
+      {
+        writeInTx,
+      } as unknown as AuditWriterService,
+    );
     const snapshot = RepositorySnapshot.create({
       assessmentId: "assessment-1",
       connectionId: "connection-1",
@@ -47,7 +71,9 @@ describe("PrismaRepositorySnapshotRepository", () => {
       payload: { snapshotId: snapshot.id },
     };
 
-    await repository.saveWithCreatedEvent(snapshot, event);
+    await repository.saveWithCreatedEvent(snapshot, event, {
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,
+    } as never);
 
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledWith({
@@ -63,5 +89,7 @@ describe("PrismaRepositorySnapshotRepository", () => {
     });
     expect(enqueue.mock.calls[0]?.[0]).toEqual(event);
     expect(enqueue.mock.calls[0]?.[1]).toBe(tx);
+    // Why: Audit must use the exact client that inserted the snapshot/outbox.
+    expect(writeInTx.mock.calls[0]?.[1]).toBe(tx);
   });
 });

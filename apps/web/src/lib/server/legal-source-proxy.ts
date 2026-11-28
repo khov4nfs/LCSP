@@ -290,6 +290,7 @@ export async function proxyLegalSourceUpload(
   for (const key of [
     "title",
     "structureProfile",
+    "corpusRole",
     "sourceEffectStatus",
     "effectiveDate",
     "provisionStatuses",

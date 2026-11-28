@@ -1,6 +1,8 @@
 import type { PagesMessages } from "../../types.ts";
 import { viLegalRuleCatalog } from "./legal-rule-catalog.ts";
+import { viLegalLifecycle } from "./legal-lifecycle.ts";
 export const viPages = {
+  legalLifecycle: viLegalLifecycle,
   legalRuleCatalog: viLegalRuleCatalog,
   preparationOps: {
     persistedCoverage: "Tiến độ coverage đã lưu",

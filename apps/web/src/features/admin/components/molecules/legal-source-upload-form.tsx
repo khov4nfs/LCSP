@@ -1,5 +1,7 @@
 "use client";
 
+import type { LegalSourceDocumentFormProps } from "../../types/legal-source-lifecycle.types";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   LEGAL_SOURCE_LIMITS,
@@ -17,7 +19,10 @@ import type {
   UploadLegalSourceDocumentFormValues,
   UploadLegalSourceDocumentSubmission,
 } from "../../types/legal-source-form-values";
-import { LEGAL_SOURCE_STRUCTURE_PROFILE_OPTIONS } from "../../config/legal-source-display.config";
+import {
+  LEGAL_SOURCE_STRUCTURE_PROFILE_OPTIONS,
+  LEGAL_SOURCE_PURPOSE_OPTIONS,
+} from "../../config/legal-source-display.config";
 import {
   LegalSourceFileField,
   LegalSourceSelectField,
@@ -26,7 +31,10 @@ import {
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
-export function LegalSourceUploadForm({ versionId }: { versionId: string }) {
+export function LegalSourceUploadForm({
+  versionId,
+  onSuccess,
+}: LegalSourceDocumentFormProps) {
   const upload = useUploadLegalSourceDocumentMutation(versionId);
   const form = useForm<
     UploadLegalSourceDocumentFormValues,
@@ -37,6 +45,7 @@ export function LegalSourceUploadForm({ versionId }: { versionId: string }) {
     defaultValues: {
       file: undefined,
       title: "",
+      corpusRole: LEGAL_SOURCE_PURPOSE_OPTIONS[0].value,
       structureProfile: LEGAL_SOURCE_STRUCTURE_PROFILE_OPTIONS[0].value,
       sourceEffectStatus: "",
       effectiveDate: "",
@@ -44,9 +53,19 @@ export function LegalSourceUploadForm({ versionId }: { versionId: string }) {
     },
   });
 
+  /**
+   * Business purpose: Submit a draft document with its persisted corpus purpose and supplied effect metadata.
+   * Business rules: Purpose uses the shared corpus-role contract and never establishes official legal admission; authorization and draft eligibility remain server-owned.
+   * Execution flow:
+   * 1. Validate the form and submit its document and metadata through the domain mutation.
+   * 2. Reset input and notify the container only after a validated server success.
+   * Failure cases: Validation or upstream failures retain input and show the localized error so the administrator can retry.
+   * Side effects: Calls document ingestion, which persists bytes/metadata and queues processing and audit; updates form and dialog state.
+   */
   async function submit(values: UploadLegalSourceDocumentSubmission) {
     const body = new FormData();
     body.set("file", values.file);
+    body.set("corpusRole", values.corpusRole);
     body.set("structureProfile", values.structureProfile);
     if (values.title) body.set("title", values.title);
     if (values.sourceEffectStatus)
@@ -58,6 +77,7 @@ export function LegalSourceUploadForm({ versionId }: { versionId: string }) {
     try {
       await upload.mutateAsync(body);
       form.reset();
+      onSuccess?.();
     } catch (error) {
       const messageKey = legalSourceErrorMessageKey(error);
       form.setError("root.server", { message: messageKey });
@@ -70,67 +90,79 @@ export function LegalSourceUploadForm({ versionId }: { versionId: string }) {
         onSubmit={form.handleSubmit(submit)}
         className="flex flex-col gap-4"
       >
-        <LegalSourceFileField<UploadLegalSourceDocumentFormValues>
-          name="file"
-          id="legal-source-file"
-          labelKey="pages.legalSources.fileLabel"
-          helperKey="pages.legalSources.fileHelper"
-          helperValues={{
-            maxSize: Math.floor(
-              LEGAL_SOURCE_LIMITS.maxDocumentBytes / (1024 * 1024),
-            ),
-          }}
-          accept={LEGAL_SOURCE_SUPPORTED_MEDIA_TYPES.join(",")}
-        />
-        <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
-          name="title"
-          id="legal-source-document-title"
-          labelKey="pages.legalSources.titleLabel"
-        />
-        <LegalSourceSelectField<UploadLegalSourceDocumentFormValues>
-          name="structureProfile"
-          id="legal-source-structure-profile"
-          labelKey="pages.legalSources.structureProfileLabel"
-          helperKey="pages.legalSources.structureProfileHelper"
-          options={LEGAL_SOURCE_STRUCTURE_PROFILE_OPTIONS.map((option) => ({
-            ...option,
-          }))}
-        />
-        <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
-          name="sourceEffectStatus"
-          id="legal-source-effect-status"
-          labelKey="pages.legalSources.sourceEffectStatusLabel"
-        />
-        <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
-          name="effectiveDate"
-          id="legal-source-effective-date"
-          labelKey="pages.legalSources.effectiveDateLabel"
-          type="date"
-        />
-        <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
-          name="provisionStatusesJson"
-          id="legal-source-provision-statuses"
-          labelKey="pages.legalSources.provisionStatusesLabel"
-          helperKey="pages.legalSources.provisionStatusesHelper"
-          multiline
-        />
-        {form.formState.errors.root?.server?.message ? (
-          <p className="text-sm text-destructive" role="alert">
-            {t(form.formState.errors.root.server.message)}
-          </p>
-        ) : null}
-        <div>
-          <Button
-            type="submit"
-            disabled={upload.isPending || form.formState.isSubmitting}
-          >
-            {t(
-              upload.isPending
-                ? "pages.legalSources.submittingDocument"
-                : "pages.legalSources.upload",
-            )}
-          </Button>
-        </div>
+        <fieldset
+          disabled={form.formState.isSubmitting}
+          className="flex min-w-0 flex-col gap-4"
+        >
+          <LegalSourceFileField<UploadLegalSourceDocumentFormValues>
+            name="file"
+            id="legal-source-file"
+            labelKey="pages.legalSources.fileLabel"
+            helperKey="pages.legalSources.fileHelper"
+            helperValues={{
+              maxSize: Math.floor(
+                LEGAL_SOURCE_LIMITS.maxDocumentBytes / (1024 * 1024),
+              ),
+            }}
+            accept={LEGAL_SOURCE_SUPPORTED_MEDIA_TYPES.join(",")}
+          />
+          <LegalSourceSelectField<UploadLegalSourceDocumentFormValues>
+            name="corpusRole"
+            id="legal-source-upload-purpose"
+            labelKey="pages.legalLifecycle.purpose"
+            helperKey="pages.legalLifecycle.purposeHelp"
+            options={[...LEGAL_SOURCE_PURPOSE_OPTIONS]}
+          />
+          <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
+            name="title"
+            id="legal-source-document-title"
+            labelKey="pages.legalSources.titleLabel"
+          />
+          <LegalSourceSelectField<UploadLegalSourceDocumentFormValues>
+            name="structureProfile"
+            id="legal-source-structure-profile"
+            labelKey="pages.legalSources.structureProfileLabel"
+            helperKey="pages.legalSources.structureProfileHelper"
+            options={LEGAL_SOURCE_STRUCTURE_PROFILE_OPTIONS.map((option) => ({
+              ...option,
+            }))}
+          />
+          <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
+            name="sourceEffectStatus"
+            id="legal-source-effect-status"
+            labelKey="pages.legalSources.sourceEffectStatusLabel"
+          />
+          <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
+            name="effectiveDate"
+            id="legal-source-effective-date"
+            labelKey="pages.legalSources.effectiveDateLabel"
+            type="date"
+          />
+          <LegalSourceTextField<UploadLegalSourceDocumentFormValues>
+            name="provisionStatusesJson"
+            id="legal-source-provision-statuses"
+            labelKey="pages.legalSources.provisionStatusesLabel"
+            helperKey="pages.legalSources.provisionStatusesHelper"
+            multiline
+          />
+          {form.formState.errors.root?.server?.message ? (
+            <p className="text-sm text-destructive" role="alert">
+              {t(form.formState.errors.root.server.message)}
+            </p>
+          ) : null}
+          <div>
+            <Button
+              type="submit"
+              disabled={upload.isPending || form.formState.isSubmitting}
+            >
+              {t(
+                upload.isPending
+                  ? "pages.legalSources.submittingDocument"
+                  : "pages.legalSources.upload",
+              )}
+            </Button>
+          </div>
+        </fieldset>
       </form>
     </FormProvider>
   );

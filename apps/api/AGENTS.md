@@ -114,6 +114,7 @@ const doc = await prisma.document.findFirst({
 
 ## 4. Verification Checklist (Before declaring complete)
 
+- [ ] For GitHub Integration writes after provider I/O, lock and revalidate assessment, credential, and connection authority in the write transaction; commit snapshot/revocation audit with the mutation and verify PostgreSQL rollback/race behavior, not only mocked call order.
 - [ ] Run fast scoped test for changed file: `pnpm --filter @lcsp/api exec jest --config ./jest.config.ts <path-to-spec>` (~2s)
 - [ ] Run architecture boundary check: `pnpm run check:architecture`
 - [ ] Run business logic documentation audit: `pnpm run check:business-logic-docs`
@@ -151,3 +152,4 @@ const doc = await prisma.document.findFirst({
 - [ ] For every Admin reconciliation mutation route, verify an explicit `BILLING_ACTIONS.reconciliationDecision` guard in addition to the Admin role; case read failures must preserve the request correlation ID and case identifiers must pass transport validation.
 - [ ] For bounded keyword search, canonicalize once with the required Unicode form and locale-independent casing before filtering, stable deduplication and limit application; verify duplicates cannot consume query-predicate slots or weaken pinned-resource scope.
 - [ ] For Admin overview, aggregate bounded buckets from Assessment creation and durable COMPLETE lifecycle events in PostgreSQL; never infer completion from `Assessment.updatedAt` or hydrate the full system-wide period in Node.js.
+- [ ] For Audit exports, require a configured signing secret at startup; count and measure payload bytes in PostgreSQL before fetching JSON, read bounded keyset pages, serialize version allocation, commit export plus audit atomically, verify the artifact digest after JSONB storage, and persist download audit before returning bytes.

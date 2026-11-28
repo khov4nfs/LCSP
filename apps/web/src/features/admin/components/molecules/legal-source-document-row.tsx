@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  DownloadIcon,
-  EyeIcon,
-  RotateCwIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { DownloadIcon, EyeIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
 import {
   LEGAL_SOURCE_DOCUMENT_ORIGINS,
   LEGAL_SOURCE_DOCUMENT_FAILURE_CODES,
@@ -34,7 +29,8 @@ import {
 import { legalSourceErrorMessageKey } from "../../lib/legal-source-errors";
 import { LegalSourceConfirmDialog } from "./legal-source-confirm-dialog";
 import { LegalSourceEffectMetadataDialog } from "./legal-source-effect-metadata-dialog";
-import { LegalSourceIngestionBadge } from "../atoms/legal-source-ingestion-badge";
+import { LegalSourceDocumentProvenance } from "./legal-source-document-provenance";
+import { LegalSourceDocumentProcessingStatus } from "./legal-source-document-processing-status";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -91,19 +87,22 @@ export function LegalSourceDocumentRow({
       <td className="min-w-56 px-4 py-4 align-top">
         <div className="flex flex-col gap-2">
           <span className="font-medium">{document.title}</span>
-          <LegalSourceIngestionBadge state={document.ingestionState} />
+          <LegalSourceDocumentProcessingStatus document={document} />
           {failureKey ? (
             <span className="text-sm text-destructive">{t(failureKey)}</span>
           ) : null}
           <span className="text-xs text-muted-foreground">
             {t("pages.legalSources.sourceEffectStatusLabel")}:{" "}
-            <span className="font-medium text-foreground">{effectStatusLabel}</span>
+            <span className="font-medium text-foreground">
+              {effectStatusLabel}
+            </span>
             {formattedEffectiveDate ? ` · ${formattedEffectiveDate}` : ""}
           </span>
         </div>
       </td>
       <td className="px-4 py-4 align-top">
         {t(LEGAL_SOURCE_ORIGIN_MESSAGE_KEYS[document.origin] as MessageKey)}
+        <LegalSourceDocumentProvenance document={document} />
         {document.origin === LEGAL_SOURCE_DOCUMENT_ORIGINS.URL_IMPORT ? (
           <LegalSourceProvenance document={document} />
         ) : null}

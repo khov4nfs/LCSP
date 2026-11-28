@@ -83,10 +83,13 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
     const configuredDir = this.configService?.get("storage", {
       infer: true,
     })?.snapshotArchiveCacheDir;
-    this.rootDirectory =
+    const configuredRoot =
       configuredDir ||
       process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR?.trim() ||
       join(tmpdir(), CACHE_DIRECTORY_NAME);
+    // Why: Two API instances may share the configured parent directory; one
+    // instance must never remove another instance's in-flight or cached source.
+    this.rootDirectory = join(configuredRoot, randomUUID());
   }
 
   /** Initializes the private temporary directory and restores expiry cleanup for surviving entries. */
@@ -209,8 +212,9 @@ export class SnapshotArchiveCache implements OnModuleInit, OnModuleDestroy {
       })
       .catch(async (error: unknown) => {
         source.off("error", sourceErrorHandler);
+        // Why: This capture owns only its unique temporary file. A prior or
+        // concurrent successful capture may already own the canonical key.
         await rm(temporaryArchive, { force: true }).catch(() => undefined);
-        await this.removeEntry(key);
         throw error;
       });
 

@@ -96,9 +96,11 @@ class RepositorySnapshotClient:
         1. Request the pinned snapshot archive with the worker key and correlation identifier.
         2. Retry only HTTP 429 responses within the configured retry budget.
         3. Validate archive signature, explicit root status, and any pinned-tree manifest.
+        4. Acknowledge a trusted hydration ticket before exposing validated bytes to the caller.
 
         Failure cases:
         - HTTP failures, exhausted rate limits, unsupported media types, contradictory signatures, or malformed wrapper metadata abort hydration.
+        - A failed hydration acknowledgement aborts the download so the worker cannot treat an uncommitted delivery as successful.
 
         Side effects:
         - Performs read-only API requests and invokes the configured retry sleeper when rate limited.
@@ -137,6 +139,21 @@ class RepositorySnapshotClient:
                     else:
                         raise RuntimeError("snapshot archive root status is missing")
                 _validate_root_status(root_status, archive_root, tree_manifest)
+                hydration_ticket_id = response.headers.get("x-hydration-ticket-id")
+                if hydration_ticket_id is not None:
+                    # Why: The server can fail to finalize after bytes leave its
+                    # socket. The worker repairs that state before using them.
+                    if hydration_ticket_id != request.scan_job_id:
+                        raise RuntimeError("hydration ticket header does not match requested scan job")
+                    acknowledgement = httpx.post(
+                        f"{self._base_url}/internal/repository-snapshots/{request.snapshot_id}/archive/ack/{hydration_ticket_id}",
+                        headers={
+                            "X-Worker-Api-Key": self._worker_api_key,
+                            "X-Correlation-Id": request.correlation_id,
+                        },
+                        timeout=30.0,
+                    )
+                    acknowledgement.raise_for_status()
                 return RepositoryArchiveDownload(
                     content=response.content,
                     content_type=_normalized_archive_content_type(content_type),

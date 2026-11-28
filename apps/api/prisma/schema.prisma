@@ -377,6 +377,8 @@ model AuditEvent {
   @@index([correlationId])
   @@index([actorId, createdAt])
   @@index([eventType, createdAt])
+  // Export preflight and keyset pages scan a bounded date range in stable ID order.
+  @@index([createdAt, id])
   @@index([resourceId, eventType, createdAt])
 }
 

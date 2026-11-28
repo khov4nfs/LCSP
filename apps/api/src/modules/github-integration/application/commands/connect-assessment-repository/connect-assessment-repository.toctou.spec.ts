@@ -1,9 +1,5 @@
 import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { describe, expect, it, jest } from "@jest/globals";
-import {
-  RepositoryAuthenticationMode,
-  RepositoryConnectionStatus,
-} from "@prisma/client";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   CREDENTIAL_PROVIDERS,
@@ -17,7 +13,178 @@ import { RepositoryProviderUnavailableError } from "../../../infrastructure/repo
 import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
 
 describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
-  it("persists the same credential version used by provider validation after rotation", async () => {
+  it("rejects a new connection if the validated credential was revoked before commit", async () => {
+    const lease = new CredentialLease("synthetic-secret", {
+      internalCredentialId: "credential-1",
+      credentialVersion: 1,
+      repositoryFullName: "acme/example-repo",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    let credentialActive = true;
+    const created: unknown[] = [];
+    const currentCredential = jest.fn(() =>
+      credentialActive
+        ? {
+            id: "credential-1",
+            currentVersion: 1,
+            status: "ACTIVE",
+            declaredExpiresAt: null,
+          }
+        : null,
+    );
+    const handler = new ConnectAssessmentRepositoryHandler(
+      {
+        assessment: {
+          findFirst: jest.fn(() => ({
+            id: "assessment-1",
+            lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+          })),
+        },
+        repositoryConnection: { findFirst: jest.fn(() => null) },
+      } as never,
+      { get: () => ({}) } as never,
+      {
+        execute: async (work: (tx: unknown) => Promise<unknown>) =>
+          work({
+            providerCredentials: {
+              findActiveByOwnerProvider: currentCredential,
+            },
+            database: {
+              $queryRaw: jest.fn(() => Promise.resolve([])),
+              assessment: {
+                findFirst: jest.fn(() => ({
+                  id: "assessment-1",
+                  lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+                })),
+              },
+              repositoryConnection: {
+                create: jest.fn(({ data }: { data: unknown }) => {
+                  created.push(data);
+                  return data;
+                }),
+              },
+            },
+          }),
+      } as never,
+      {
+        resolveActiveCredential: jest.fn(() => ({
+          metadata: { id: "credential-1", currentVersion: 1 },
+          lease,
+        })),
+      } as never,
+      {
+        get: () => ({
+          validateRepositoryAccess: jest.fn(() => {
+            // Why: Revocation wins while provider I/O is in flight. The write
+            // transaction must reject the stale authority before insert.
+            credentialActive = false;
+            return {
+              id: "repo-1",
+              name: "example-repo",
+              fullName: "acme/example-repo",
+              defaultBranch: "main",
+              private: true,
+            };
+          }),
+        }),
+      } as never,
+    );
+
+    await expect(
+      handler.execute(
+        new ConnectAssessmentRepositoryCommand(
+          "assessment-1",
+          "user-1",
+          AUTH_USER_ROLES.customer,
+          "https://github.com/acme/example-repo",
+          "correlation-1",
+        ),
+      ),
+    ).rejects.toBeDefined();
+    expect(created).toEqual([]);
+  });
+
+  it("rejects connection creation if the assessment becomes non-editable during provider I/O", async () => {
+    const lease = new CredentialLease("synthetic-secret", {
+      internalCredentialId: "credential-1",
+      credentialVersion: 1,
+      repositoryFullName: "acme/example-repo",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    let lifecycleState: string = ASSESSMENT_LIFECYCLE_STATES.PREPARING;
+    const created: unknown[] = [];
+    const findAssessment = jest.fn(() => ({
+      id: "assessment-1",
+      lifecycleState,
+    }));
+    const handler = new ConnectAssessmentRepositoryHandler(
+      {
+        assessment: { findFirst: findAssessment },
+        repositoryConnection: { findFirst: jest.fn(() => null) },
+      } as never,
+      { get: () => ({}) } as never,
+      {
+        execute: async (work: (tx: unknown) => Promise<unknown>) =>
+          work({
+            providerCredentials: {
+              findActiveByOwnerProvider: jest.fn(() => ({
+                id: "credential-1",
+                currentVersion: 1,
+                status: "ACTIVE",
+                declaredExpiresAt: null,
+              })),
+            },
+            database: {
+              $queryRaw: jest.fn(() => Promise.resolve([])),
+              assessment: { findFirst: findAssessment },
+              repositoryConnection: {
+                create: jest.fn(({ data }: { data: unknown }) => {
+                  created.push(data);
+                  return data;
+                }),
+              },
+            },
+          }),
+      } as never,
+      {
+        resolveActiveCredential: jest.fn(() => ({
+          metadata: { id: "credential-1", currentVersion: 1 },
+          lease,
+        })),
+      } as never,
+      {
+        get: () => ({
+          validateRepositoryAccess: jest.fn(() => {
+            // Why: A lifecycle transition during a slow provider call must
+            // invalidate the earlier editable-assessment read.
+            lifecycleState = ASSESSMENT_LIFECYCLE_STATES.COMPLETE;
+            return {
+              id: "repo-1",
+              name: "example-repo",
+              fullName: "acme/example-repo",
+              defaultBranch: "main",
+              private: true,
+            };
+          }),
+        }),
+      } as never,
+    );
+
+    await expect(
+      handler.execute(
+        new ConnectAssessmentRepositoryCommand(
+          "assessment-1",
+          "user-1",
+          AUTH_USER_ROLES.customer,
+          "https://github.com/acme/example-repo",
+          "correlation-1",
+        ),
+      ),
+    ).rejects.toBeDefined();
+    expect(created).toEqual([]);
+  });
+
+  it("rejects a credential rotated after provider validation", async () => {
     const lease = new CredentialLease("synthetic-secret", {
       internalCredentialId: "credential-1",
       credentialVersion: 1,
@@ -55,7 +222,22 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
     const unitOfWork = {
       execute: async (work: (tx: unknown) => Promise<unknown>) =>
         work({
+          providerCredentials: {
+            findActiveByOwnerProvider: jest.fn(() => ({
+              id: "credential-1",
+              currentVersion,
+              status: "ACTIVE",
+              declaredExpiresAt: null,
+            })),
+          },
           database: {
+            $queryRaw: jest.fn(() => Promise.resolve([])),
+            assessment: {
+              findFirst: jest.fn(() => ({
+                id: "assessment-1",
+                lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+              })),
+            },
             repositoryConnection: {
               create: jest.fn(({ data }: { data: Record<string, unknown> }) => {
                 persisted.push(data);
@@ -105,30 +287,22 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
       return snapshot;
     });
 
-    await handler.execute(
-      new ConnectAssessmentRepositoryCommand(
-        "assessment-1",
-        "user-1",
-        AUTH_USER_ROLES.customer,
-        "https://github.com/acme/example-repo",
-        "correlation-1",
+    await expect(
+      handler.execute(
+        new ConnectAssessmentRepositoryCommand(
+          "assessment-1",
+          "user-1",
+          AUTH_USER_ROLES.customer,
+          "https://github.com/acme/example-repo",
+          "correlation-1",
+        ),
       ),
-    );
+    ).rejects.toBeDefined();
 
     expect(resolveActiveCredential).toHaveBeenCalledTimes(1);
     expect(findMetadata).not.toHaveBeenCalled();
     expect(validationVersions).toEqual([1]);
-    expect(persisted).toHaveLength(1);
-    expect(persisted[0]).toEqual(
-      expect.objectContaining({
-        providerCredentialId: "credential-1",
-        credentialVersion: 1,
-        credentialAuthorizationStatus: CREDENTIAL_AUTHORIZATION_STATUSES.active,
-        authenticationMode: RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
-        status: RepositoryConnectionStatus.ACTIVE,
-      }),
-    );
-    expect(persisted[0]?.credentialVersion).toBe(validationVersions[0]);
+    expect(persisted).toHaveLength(0);
     lease.dispose();
   });
 
@@ -162,7 +336,16 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
     const unitOfWork = {
       execute: async (work: (tx: unknown) => Promise<unknown>) =>
         work({
-          database: { repositoryConnection: { updateMany: connectionUpdate } },
+          database: {
+            $queryRaw: jest.fn(() => Promise.resolve([])),
+            assessment: {
+              findFirst: jest.fn(() => ({
+                id: "assessment-1",
+                lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+              })),
+            },
+            repositoryConnection: { updateMany: connectionUpdate },
+          },
           providerCredentials: {
             findActiveByOwnerProvider: jest.fn(() =>
               Promise.resolve(currentCredential),

@@ -138,18 +138,21 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
             // Expiry belongs to the secret. Compare only an owned credential with a known
             // expiry, then require the original version when committing the replacement.
             let declaredExpiresAt = existing.declaredExpiresAt;
+            let sameCredential = false;
             if (declaredExpiresAt !== null) {
               const previousCredential = await transaction.credentialStore.read(
                 existing.id as CredentialLocator,
               );
-              const sameCredential = timingSafeEqual(
+              sameCredential = timingSafeEqual(
                 credentialExpiryDigest(context.provider, previousCredential),
                 credentialExpiryDigest(context.provider, command.credential),
               );
               if (!sameCredential) declaredExpiresAt = null;
               else if (declaredExpiresAt <= validatedAt) return true;
             }
-            if (submittedExpiry !== undefined) {
+            // Why: A client-supplied later date is not proof that the same PAT
+            // gained a longer lifetime; only a replacement secret may set it.
+            if (submittedExpiry !== undefined && !sameCredential) {
               declaredExpiresAt = submittedExpiry;
             }
             const updated =

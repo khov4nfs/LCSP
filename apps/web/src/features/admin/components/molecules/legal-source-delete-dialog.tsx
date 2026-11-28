@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LEGAL_SOURCE_DELETION_REASON_CODES } from "@lcsp/contracts/legal-source";
-import type { LegalSourceDetail } from "@lcsp/contracts/legal-source";
+import type { LegalSourceDeleteDialogProps } from "../../types/legal-source-lifecycle.types";
 import type { MessageKey } from "@lcsp/i18n";
-import { useRouter } from "next/navigation";
+import { LegalSourceDeletionResult } from "./legal-source-deletion-result";
+import { LegalSourceDeletionImpactPanel } from "./legal-source-deletion-impact-panel";
 import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -37,11 +38,10 @@ const t = (key: string) => resolveAppMessage(key as MessageKey);
 
 export function LegalSourceDeleteDialog({
   source,
-}: {
-  source: LegalSourceDetail;
-}) {
+  onDeleted,
+}: LegalSourceDeleteDialogProps) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
+  const requestIdentity = useRef({ payload: "", key: "" });
   const impact = useLegalSourceDeletionImpactQuery(source.id, open);
   const deletion = useDeleteLegalSourceMutation(source.id);
   const form = useForm<LegalSourceDeletionFormValues>({
@@ -67,7 +67,18 @@ export function LegalSourceDeleteDialog({
       });
   }, [open, reset]);
 
+  /**
+   * Business purpose: Permanently delete a source only after a current impact preview, reason and exact identity confirmation.
+   * Business rules: Fail closed on failed/loading impact or server blockers. Reuse the same idempotency key for the same request after an uncertain response; final authorization and retention checks stay transactional on the server.
+   * Execution flow:
+   * 1. Validate eligibility and the typed source slug against the current snapshot.
+   * 2. Submit its etag, reason and stable idempotency key.
+   * 3. Show the validated deletion receipt or refresh rejected impact and require confirmation again.
+   * Failure cases: A server rejection leaves the dialog open; stale or blocked previews cannot authorize another delete.
+   * Side effects: Calls the audited deletion endpoint, reconciles source caches and displays the durable receipt.
+   */
   async function submit(values: LegalSourceDeletionFormValues) {
+    if (!isReady || deletion.isPending) return;
     if (!impact.data || values.confirmationSlug !== impact.data.source.slug) {
       form.setError("confirmationSlug", {
         message: "pages.legalSources.deleteSlugMismatch",
@@ -75,32 +86,56 @@ export function LegalSourceDeleteDialog({
       return;
     }
     try {
-      await deletion.mutateAsync({
+      const payload = JSON.stringify([
+        impact.data.snapshot.etag,
+        values.confirmationSlug,
+        values.reasonCode,
+        values.reasonText,
+      ]);
+      if (requestIdentity.current.payload !== payload)
+        requestIdentity.current = { payload, key: crypto.randomUUID() };
+      const receipt = await deletion.mutateAsync({
         expectedImpactEtag: impact.data.snapshot.etag,
         confirmationSlug: values.confirmationSlug,
         reason: { code: values.reasonCode, text: values.reasonText },
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: requestIdentity.current.key,
       });
-      setOpen(false);
-      router.push("/admin/legal-sources");
+      onDeleted?.(receipt);
     } catch (error) {
+      form.setValue("confirmationSlug", "");
+      void impact.refetch();
       form.setError("root.server", {
         message: legalSourceErrorMessageKey(error),
       });
     }
   }
 
-  const blockers = impact.data?.eligibility.blockers ?? [];
-  const isReady = Boolean(impact.data?.eligibility.eligibleAtSnapshot);
+  const isReady =
+    Boolean(impact.data?.eligibility.eligibleAtSnapshot) &&
+    !impact.isError &&
+    !impact.isFetching;
   const typedSlugMatches = impact.data?.source.slug === confirmationSlug.trim();
+  const expectedSlug = impact.data?.source.slug ?? source.slug;
+
+  if (deletion.data)
+    return <LegalSourceDeletionResult receipt={deletion.data} />;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!deletion.isPending) setOpen(next);
+      }}
+    >
       <Button type="button" variant="destructive" onClick={() => setOpen(true)}>
         {t("pages.legalSources.permanentDelete")}
       </Button>
-      <DialogContent closeLabel={t("pages.legalSources.cancel")}>
-        <DialogHeader>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        showCloseButton={!deletion.isPending}
+        closeLabel={t("pages.legalSources.cancel")}
+      >
+        <DialogHeader className="flex-col">
           <DialogTitle>
             {t("pages.legalSources.permanentDeleteTitle")}
           </DialogTitle>
@@ -111,7 +146,7 @@ export function LegalSourceDeleteDialog({
             )}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(submit)}>
+        <form onSubmit={(event) => void form.handleSubmit(submit)(event)}>
           <DialogBody className="flex flex-col gap-4">
             {impact.isPending ? (
               <p role="status">
@@ -131,36 +166,24 @@ export function LegalSourceDeleteDialog({
               </div>
             ) : null}
             {impact.data ? (
-              <div className="rounded-md border p-3 text-sm">
-                <p>
-                  {formatAppMessage(
-                    "pages.legalSources.deletionCascadeSummary" as MessageKey,
-                    {
-                      versions: impact.data.versionCounts.total,
-                      preparations: impact.data.cascade.preparationRuns,
-                      ruleSets: impact.data.cascade.ruleSetVersions,
-                    },
-                  )}
-                </p>
-                {blockers.length ? (
-                  <ul
-                    className="mt-2 list-disc pl-5"
-                    aria-label={t("pages.legalSources.deletionBlockers")}
-                  >
-                    {blockers.map((blocker) => (
-                      <li key={blocker}>
-                        {t(
-                          `pages.legalSources.deletionBlockerLabels.${blocker}`,
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+              <LegalSourceDeletionImpactPanel impact={impact.data} />
             ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={impact.isFetching || deletion.isPending}
+              onClick={() => {
+                form.setValue("confirmationSlug", "");
+                void impact.refetch();
+              }}
+            >
+              {t("pages.legalLifecycle.refresh")}
+            </Button>
             <div className="flex flex-col gap-2">
               <Label htmlFor="legal-source-delete-confirm">
-                {t("pages.legalSources.confirmSourceSlug")}
+                {formatAppMessage("pages.legalLifecycle.confirmQuotedSlug", {
+                  slug: expectedSlug,
+                })}
               </Label>
               <Input
                 id="legal-source-delete-confirm"

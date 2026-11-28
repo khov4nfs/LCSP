@@ -18,6 +18,8 @@ export const AUDIT_ERROR_CODES = {
 
 export const AUDIT_EVENT_TYPES = {
   exportGenerated: "AUDIT_EXPORT_GENERATED",
+  // Signed downloads are recorded before bytes leave the API, without storing bearer tokens.
+  exportDownloaded: "AUDIT_EXPORT_DOWNLOADED",
   sessionExported: "ASSESSMENT_SESSION_EXPORTED",
   // Why: Catalog mutations need one canonical audit identity across API writers and audit readers.
   // How: Preserve the existing creation value and add an update value for transactional metadata changes.

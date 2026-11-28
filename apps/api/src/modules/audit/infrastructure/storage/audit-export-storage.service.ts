@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { Injectable } from "@nestjs/common";
+import { Injectable, type OnModuleInit } from "@nestjs/common";
 
 interface SignedDownloadInput {
   exportRequestId: string;
@@ -15,7 +15,21 @@ interface SignedDownloadTokenPayload {
  * Creates and verifies HMAC-signed, time-limited download tokens for audit export artifacts.
  */
 @Injectable()
-export class AuditExportStorageService {
+export class AuditExportStorageService implements OnModuleInit {
+  /**
+   * Business purpose: Reject an Audit module deployment unable to protect export links.
+   * Business rules:
+   * - The signing key must be configured with at least 32 bytes before routes serve traffic.
+   * Execution flow:
+   * 1. Resolve and validate the configured signing key during Nest initialization.
+   * Failure cases:
+   * - Missing or weak key aborts module startup.
+   * Side effects:
+   * - Reads configuration; does not persist data.
+   */
+  onModuleInit(): void {
+    this.secret();
+  }
   /**
    * Creates a signed relative download URL bound to one export request and expiration time.
    *
@@ -95,16 +109,28 @@ export class AuditExportStorageService {
   }
 
   /**
-   * Resolves the download-signing secret from environment configuration with a local-development fallback.
-   *
-   * @returns Secret used to sign and verify audit download tokens.
+   * Business purpose: Resolve the confidential key that protects bearer download links.
+   * Business rules:
+   * - A configured key must contain at least 32 UTF-8 bytes; no public fallback is permitted.
+   * Execution flow:
+   * 1. Read the dedicated key or configured app key.
+   * 2. Check its byte length and return it to the HMAC operation.
+   * Failure cases:
+   * - Missing or short configuration throws before any URL can be signed or trusted.
+   * Side effects:
+   * - Reads process environment; does not persist data.
    */
   private secret(): string {
-    return (
+    const secret =
       process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET ??
-      process.env.APP_SECRET ??
-      "lcsp-local-audit-export-download-secret"
-    );
+      process.env.APP_SECRET;
+    // A public fallback would let anyone forge a bearer URL for any export ID.
+    if (!secret || Buffer.byteLength(secret, "utf8") < 32) {
+      throw new Error(
+        "Audit export signing secret must contain at least 32 bytes",
+      );
+    }
+    return secret;
   }
 }
 
