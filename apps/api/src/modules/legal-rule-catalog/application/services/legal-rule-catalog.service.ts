@@ -14,7 +14,6 @@ import {
   LEGAL_RULE_INELIGIBILITY_REASONS as R,
   LEGAL_RULE_SELECTION_MODES as MODES,
   LEGAL_RULE_LIMITS,
-  LEGAL_RULE_SOURCE_PROVISION_LEVELS,
   LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS,
   legalRuleCitationSchema,
   legalRuleListItemSchema,
@@ -24,16 +23,13 @@ import {
   type LegalRuleList,
   type LegalRuleSelection,
   type PreparationRuleInput,
-  type LegalRuleSourceProvision,
   type LegalRuleSourceProvisionImport,
-  type LegalRuleSourceProvisionLimitation,
   type LegalRuleSourceProvisionQuery,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { AUDIT_RESOURCE_TYPES, AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 import { attachLegalRuleReferenceContext } from "./legal-rule-reference-context.js";
 import {
@@ -41,570 +37,31 @@ import {
   sha256Hex,
 } from "../../../assessment/domain/domain-ids.js";
 
-export type CatalogClient = Prisma.TransactionClient;
+import {
+  composeLegalSourceProvisions,
+  type SourceProvisionChunk,
+} from "../../domain/legal-source-provision-composer.js";
+import {
+  catalogFailure,
+  isEligibleLegalChunkStatus,
+  preparationInputFingerprint,
+  type CatalogClient,
+} from "./legal-rule-catalog-shared.js";
+import type { LegalRuleProjectionWindow } from "../types/legal-rule-projection-window.js";
 
-type SourceProvisionChunk = {
-  id: string;
-  documentId: string;
-  locator: string;
-  content: string;
-  contentSha256: string;
-  hierarchy: Prisma.JsonValue;
-  legalEffectStatus: LegalEffectStatus;
+// Why: Each list projection must cap retained rule and citation state while preserving exact totals.
+// How: Process at most 2,000 ordered rules per database read inside one snapshot.
+// Invariant: The shared 10,000-rule catalog cap is still checked across all batches.
+const LIST_PROJECTION_BATCH_SIZE = 2000;
+
+export {
+  composeLegalSourceProvisions,
+  catalogFailure,
+  isEligibleLegalChunkStatus,
+  preparationInputFingerprint,
+  type SourceProvisionChunk,
+  type CatalogClient,
 };
-
-/**
- * Business purpose: Project eligible Article–Clause–Point leaf provisions with their exact applicable parent context for source import.
- *
- * Business rules:
- * - Only EFFECTIVE Article, Clause or Point chunks with a classified hierarchy can become source rules.
- * - A parent with descendants is selectable only when its own chunk contains provision text beyond its structural heading and setup lead-in.
- * - Parent headings and lead-ins come from metadata; independently substantive parent chunks remain distinct selectable rules.
- * - Exact EFFECTIVE ancestor chunks are included as context for the selected provision. Siblings, unrelated provisions and non-effective ancestor groups are excluded.
- * - Split chunks collapse to one logical provision while each persisted part remains an exact citation reference.
- *
- * Execution flow:
- * 1. Group eligible persisted chunk parts by their locator without the transport-only part suffix.
- * 2. Determine descendants and retain only legal leaves or explicitly substantive parent provisions.
- * 3. Compose recorded Article heading/lead-in, Clause heading/lead-in and the selected leaf in reading order with exact line de-duplication.
- * 4. Cite the selected provision and its effective ancestors within the existing bound; return the stable identity and context limitations.
- *
- * Failure cases:
- * - Unclassified and malformed-locator chunks are omitted; non-effective and context-incomplete provisions are returned as typed limitations, never treated as eligible or silently presented as absent.
- *
- * Side effects:
- * - None: this deterministic projection reads immutable source rows and creates no LegalRule or source mutation.
- */
-export function composeLegalSourceProvisions(input: {
-  sourceVersionId: string;
-  documentId: string;
-  documentTitle: string;
-  chunks: SourceProvisionChunk[];
-}): {
-  items: LegalRuleSourceProvision[];
-  limitations: LegalRuleSourceProvisionLimitation[];
-} {
-  /**
-   * Business purpose: Normalize transport part suffixes to the logical provision identity.
-   * Business rules:
-   * - Ignore only the trailing persisted part marker; preserve every legal hierarchy segment.
-   *
-   * Execution flow:
-   * 1. Remove one recognized part suffix and return the logical locator.
-   *
-   * Failure cases:
-   * - Unrecognized suffixes remain part of the locator for the provision parser to reject.
-   *
-   * Side effects:
-   * - Pure string normalization; source rows are unchanged.
-   */
-  const baseLocator = (locator: string) => locator.replace(/::part-\d+$/u, "");
-  /**
-   * Business purpose: Read source hierarchy metadata without trusting malformed JSON shapes.
-   * Business rules:
-   * - Only a non-array JSON object may supply Article, Clause, or Point metadata.
-   *
-   * Execution flow:
-   * 1. Validate the stored value's object shape and return its fields when valid.
-   *
-   * Failure cases:
-   * - Non-object metadata produces an empty hierarchy and is handled as unresolved downstream.
-   *
-   * Side effects:
-   * - Pure in-memory projection; no persisted hierarchy is changed.
-   */
-  const readHierarchy = (chunk: SourceProvisionChunk) =>
-    chunk.hierarchy &&
-    typeof chunk.hierarchy === "object" &&
-    !Array.isArray(chunk.hierarchy)
-      ? (chunk.hierarchy as Record<string, unknown>)
-      : {};
-  /**
-   * Business purpose: Accept only Article–Clause–Point locator paths for provision composition.
-   * Business rules:
-   * - Structural-only and unstructured locator families are never accepted as legal leaves.
-   *
-   * Execution flow:
-   * 1. Remove transport suffixes and parse supported Article-Clause-Point segments.
-   *
-   * Failure cases:
-   * - Invalid order, unsupported depth, and malformed segments return null for unresolved review.
-   *
-   * Side effects:
-   * - Pure locator parsing; no source identity is rewritten.
-   */
-  const parseProvisionLocator = (locator: string) => {
-    const identityLocator = baseLocator(locator);
-    const structuralLocator = identityLocator.replace(/::dup-\d+$/u, "");
-    const segments = structuralLocator.split("::");
-    if (
-      segments.length < 1 ||
-      segments.length > 3 ||
-      !/^art-[\p{L}\d._-]+$/u.test(segments[0]) ||
-      (segments.length >= 2 && !/^cl-[\p{L}\d._-]+$/u.test(segments[1])) ||
-      (segments.length === 3 && !/^pt-[\p{L}\d._-]+$/u.test(segments[2]))
-    )
-      return null;
-    return { identityLocator, segments };
-  };
-  /**
-   * Business purpose: Compare source lines for exact duplicate suppression.
-   * Business rules:
-   * - Comparison normalization must never alter wording emitted in a LegalRule description.
-   *
-   * Execution flow:
-   * 1. Build a comparison key from Unicode-normalized, whitespace-collapsed source text.
-   *
-   * Failure cases:
-   * - Empty text produces an empty comparison key.
-   *
-   * Side effects:
-   * - Pure string normalization; source wording is unchanged.
-   */
-  const normalized = (value: string) =>
-    value
-      .normalize("NFC")
-      .replace(/\s+/gu, " ")
-      .trim()
-      .toLocaleLowerCase("vi-VN");
-  const limitations: LegalRuleSourceProvisionLimitation[] = [];
-  /**
-   * Business purpose: Keep each unresolved source locator visible once in the projection response.
-   * Business rules:
-   * - A limitation is unique by source locator and typed reason so unresolved coverage stays concise.
-   *
-   * Execution flow:
-   * 1. Check whether the locator/reason pair already exists.
-   * 2. Append the pair only when it is new.
-   *
-   * Failure cases:
-   * - Duplicate pairs are ignored; invalid typed reasons are rejected by the contract boundary.
-   *
-   * Side effects:
-   * - Mutates only this projection's in-memory limitation list.
-   */
-  const addLimitation = (
-    locator: string,
-    reason: LegalRuleSourceProvisionLimitation["reason"],
-  ) => {
-    if (
-      !limitations.some(
-        (item) => item.locator === locator && item.reason === reason,
-      )
-    )
-      limitations.push({ locator, reason });
-  };
-  /**
-   * Business purpose: Convert validated hierarchy primitives to display text without coercing malformed JSON into legal prose.
-   *
-   * Business rules:
-   * - Narrative hierarchy fields accept strings only; Article and Clause numbers may also be finite numbers.
-   * - Objects, arrays, booleans, and non-finite numbers are invalid context and must remain unresolved.
-   *
-   * Execution flow:
-   * 1. Trim string values and return them unchanged otherwise.
-   * 2. Convert finite numeric identifiers only when the field permits numeric values.
-   * 3. Return null for malformed values so the caller can surface a typed limitation.
-   *
-   * Failure cases:
-   * - Unsupported JSON values return null and are not stringified into a LegalRule description.
-   *
-   * Side effects:
-   * - Pure validation and formatting of an in-memory hierarchy value.
-   */
-  const hierarchyText = (
-    value: unknown,
-    allowNumber: boolean,
-  ): string | null => {
-    if (value === undefined || value === null) return "";
-    if (typeof value === "string") return value.trim();
-    if (allowNumber && typeof value === "number" && Number.isFinite(value)) {
-      return value.toString();
-    }
-    return null;
-  };
-  const groups = new Map<
-    string,
-    {
-      identityLocator: string;
-      segments: string[];
-      chunks: SourceProvisionChunk[];
-      hierarchy: Record<string, unknown>;
-    }
-  >();
-  for (const chunk of input.chunks) {
-    const parsed = parseProvisionLocator(chunk.locator);
-    const hierarchy = readHierarchy(chunk);
-    if (!parsed || hierarchy.structureClassification === "UNCLASSIFIED") {
-      addLimitation(
-        chunk.locator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.UNCLASSIFIED,
-      );
-      continue;
-    }
-    const group = groups.get(parsed.identityLocator) ?? {
-      ...parsed,
-      chunks: [],
-      hierarchy,
-    };
-    group.chunks.push(chunk);
-    groups.set(parsed.identityLocator, group);
-  }
-
-  const sourceGroups = [...groups.values()].sort((left, right) =>
-    left.identityLocator.localeCompare(right.identityLocator, "en", {
-      numeric: true,
-    }),
-  );
-  const items: LegalRuleSourceProvision[] = [];
-  /**
-   * Business purpose: Reassemble exact persisted text parts for one logical provision.
-   * Business rules:
-   * - Part order follows persisted locator order and original non-empty source wording is retained.
-   *
-   * Execution flow:
-   * 1. Sort the stored parts, trim only their outer whitespace, and join them with line breaks.
-   *
-   * Failure cases:
-   * - Missing groups produce empty text; source content is never reconstructed.
-   *
-   * Side effects:
-   * - Pure in-memory projection of persisted content.
-   */
-  const contentOf = (group: (typeof sourceGroups)[number] | undefined) =>
-    group?.chunks
-      .slice()
-      .sort((left, right) =>
-        left.locator.localeCompare(right.locator, "en", { numeric: true }),
-      )
-      .map((chunk) => chunk.content.trim())
-      .filter(Boolean)
-      .join("\n") ?? "";
-  /**
-   * Business purpose: Distinguish a parent's own enforceable text from a heading or child setup lead-in.
-   * Business rules:
-   * - Explicit chunker metadata is authoritative; otherwise the parent needs residual body text beyond its heading and setup lead-in.
-   * - A trailing setup colon alone is not treated as an independent obligation.
-   *
-   * Execution flow:
-   * 1. Require an existing, EFFECTIVE parent chunk.
-   * 2. Check the independent-substance marker, then compare body lines with hierarchy heading and lead-in metadata.
-   *
-   * Failure cases:
-   * - Missing or non-effective parent chunks cannot establish independent legal content.
-   *
-   * Side effects:
-   * - Pure classification of persisted source text; no parent content is copied or changed.
-   */
-  const hasIndependentParentContent = (
-    group: (typeof sourceGroups)[number] | undefined,
-    heading: string,
-    leadIn: string,
-  ) => {
-    if (
-      !group ||
-      !group.chunks.length ||
-      group.chunks.some(
-        (chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE,
-      )
-    )
-      return false;
-    if (group.hierarchy.independentlySubstantive === true) return true;
-    const metadataLines = new Set(
-      [heading, ...leadIn.split(/\r?\n/u)].map(normalized).filter(Boolean),
-    );
-    const residual = group.chunks
-      .flatMap((chunk) => chunk.content.split(/\r?\n/u))
-      .map((line) => line.trim())
-      .filter((line) => {
-        if (!line) return false;
-        const key = normalized(line);
-        if (metadataLines.has(key)) return false;
-        if (leadIn && key.endsWith(normalized(leadIn))) return false;
-        return true;
-      });
-    const leadInLines = leadIn.split(/\r?\n/u).map((line) => line.trim());
-    const hasPriorSentence =
-      leadInLines.slice(0, -1).some((line) => /[.;?!]$/u.test(line)) ||
-      /[.;?!]\s+\S/u.test(leadIn);
-    if (leadIn.trim().endsWith(":") && hasPriorSentence) return true;
-    return residual.length > 0 && !leadIn.trim().endsWith(":");
-  };
-
-  for (const group of sourceGroups) {
-    if (
-      group.chunks.some(
-        (chunk) => chunk.legalEffectStatus !== LegalEffectStatus.EFFECTIVE,
-      )
-    ) {
-      addLimitation(
-        group.identityLocator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.EFFECT_NOT_EFFECTIVE,
-      );
-      continue;
-    }
-    const hasDescendant = sourceGroups.some(
-      (candidate) =>
-        candidate.segments.length > group.segments.length &&
-        group.segments.every(
-          (segment, index) => candidate.segments[index] === segment,
-        ),
-    );
-    const articleNumberValue = hierarchyText(
-      group.hierarchy.articleNumber,
-      true,
-    );
-    const articleTitle = hierarchyText(group.hierarchy.articleTitle, false);
-    const articleHeadingValue = hierarchyText(
-      group.hierarchy.articleHeading,
-      false,
-    );
-    const articleLeadIn = hierarchyText(group.hierarchy.articleLeadIn, false);
-    const clauseNumberValue = hierarchyText(group.hierarchy.clauseNumber, true);
-    const clauseNumberingValue = hierarchyText(
-      group.hierarchy.clauseNumbering,
-      false,
-    );
-    const clauseHeadingValue = hierarchyText(
-      group.hierarchy.clauseHeading,
-      false,
-    );
-    const clauseLeadIn = hierarchyText(group.hierarchy.clauseLeadIn, false);
-    if (
-      articleNumberValue === null ||
-      articleTitle === null ||
-      articleHeadingValue === null ||
-      articleLeadIn === null ||
-      clauseNumberValue === null ||
-      clauseNumberingValue === null ||
-      clauseHeadingValue === null ||
-      clauseLeadIn === null
-    ) {
-      addLimitation(
-        group.identityLocator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_UNRESOLVED,
-      );
-      continue;
-    }
-    const articleNumber =
-      articleNumberValue || group.segments[0]?.slice("art-".length) || "";
-    const clauseNumber =
-      clauseNumberValue || group.segments[1]?.slice("cl-".length) || "";
-    const articleHeading =
-      articleHeadingValue ||
-      (articleNumber
-        ? `Điều ${articleNumber}.${articleTitle ? ` ${articleTitle}` : ""}`
-        : "");
-    const clauseNumbering =
-      clauseNumberingValue || (clauseNumber ? `${clauseNumber}.` : "");
-    const clauseHeading = clauseHeadingValue || clauseNumbering;
-    const articleParent = sourceGroups.find(
-      (candidate) =>
-        candidate.segments.length === 1 &&
-        candidate.identityLocator === group.segments[0],
-    );
-    const clauseLocator =
-      group.segments.length >= 2 ? group.segments.slice(0, 2).join("::") : "";
-    const clauseParent = clauseLocator
-      ? sourceGroups.find(
-          (candidate) =>
-            candidate.segments.length === 2 &&
-            candidate.identityLocator === clauseLocator,
-        )
-      : undefined;
-    const independentArticle = hasIndependentParentContent(
-      articleParent,
-      articleHeading,
-      articleLeadIn,
-    );
-    const independentClause = hasIndependentParentContent(
-      clauseParent,
-      clauseHeading,
-      clauseLeadIn,
-    );
-    if (
-      hasDescendant &&
-      !(group.segments.length === 1 ? independentArticle : independentClause)
-    )
-      continue;
-
-    const sourceContent = contentOf(group);
-    const ownHeading =
-      group.segments.length === 1 ? articleHeading : clauseNumbering;
-    if (
-      !hasDescendant &&
-      group.segments.length < 3 &&
-      ownHeading &&
-      sourceContent
-        .split(/\r?\n/u)
-        .map(normalized)
-        .filter(Boolean)
-        .every((line) => line === normalized(ownHeading))
-    ) {
-      addLimitation(
-        group.identityLocator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.STRUCTURAL_ONLY,
-      );
-      continue;
-    }
-
-    const clauseLeadInLines = clauseLeadIn.split(/\r?\n/u);
-    const clauseHeadingBody = clauseHeading.replace(/^\s*\d+[.)]\s*/u, "");
-    const remainingClauseLeadIn =
-      clauseLeadInLines.length > 0 &&
-      normalized(clauseLeadInLines[0]) === normalized(clauseHeadingBody)
-        ? clauseLeadInLines.slice(1).join("\n")
-        : clauseLeadIn;
-    const clauseContext = [clauseHeading, remainingClauseLeadIn];
-    const sourceLineKeys = new Set(
-      sourceContent.split(/\r?\n/u).map(normalized).filter(Boolean),
-    );
-    const contextLines: string[] = [];
-    const contextKeys = new Set<string>();
-    for (const value of [
-      articleHeading,
-      group.segments.length >= 2 && independentArticle ? "" : articleLeadIn,
-      ...(group.segments.length >= 2
-        ? group.segments.length === 3
-          ? independentClause
-            ? [clauseNumbering]
-            : [clauseHeading, remainingClauseLeadIn]
-          : clauseContext
-        : []),
-      sourceContent,
-    ]) {
-      for (const line of value.split(/\r?\n/u)) {
-        const trimmed = line.trim();
-        const key = normalized(trimmed);
-        if (trimmed && !sourceLineKeys.has(key) && !contextKeys.has(key)) {
-          contextLines.push(trimmed);
-          contextKeys.add(key);
-        }
-      }
-    }
-    const description = [contextLines.join("\n"), sourceContent.trim()]
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-    const contextResolved =
-      (group.segments.length === 1 || Boolean(articleHeading)) &&
-      (group.segments.length < 3 || Boolean(clauseHeading));
-    if (!contextResolved) {
-      addLimitation(
-        group.identityLocator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_UNRESOLVED,
-      );
-      continue;
-    }
-    const citationChunks = [...group.chunks];
-    for (const parent of [clauseParent, articleParent]) {
-      if (
-        parent &&
-        parent !== group &&
-        parent.chunks.every(
-          (chunk) => chunk.legalEffectStatus === LegalEffectStatus.EFFECTIVE,
-        )
-      )
-        citationChunks.push(...parent.chunks);
-    }
-    if (description.length > 12000 || citationChunks.length > 64) {
-      addLimitation(
-        group.identityLocator,
-        LEGAL_RULE_SOURCE_PROVISION_LIMITATIONS.CONTEXT_TOO_LARGE,
-      );
-      continue;
-    }
-    const citationLocatorRefs = citationChunks.map((chunk) => ({
-      documentId: chunk.documentId,
-      locator: chunk.locator,
-    }));
-    const level =
-      group.segments.length === 1
-        ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.ARTICLE
-        : group.segments.length === 2
-          ? LEGAL_RULE_SOURCE_PROVISION_LEVELS.CLAUSE
-          : LEGAL_RULE_SOURCE_PROVISION_LEVELS.POINT;
-    const legalRuleId = `src-${sha256Hex(`${input.sourceVersionId}::${input.documentId}::${group.identityLocator}`)}`;
-    items.push({
-      sourceVersionId: input.sourceVersionId,
-      documentId: input.documentId,
-      documentTitle: input.documentTitle,
-      locator: group.identityLocator,
-      legalRuleId,
-      title: `${input.documentTitle} - ${group.identityLocator}`.slice(0, 512),
-      description,
-      citationLocatorRefs,
-      level,
-    });
-  }
-  return { items, limitations };
-}
-
-/**
- * Business purpose: Fingerprint pinned rule inputs independently of their display order.
- * Business rules:
- * - Source hashes bind content; the snapshot retains the exact content separately.
- * Execution flow:
- * 1. Canonicalize identity, revisions and citations
- * 2. Hash the serialization.
- * Failure cases:
- * - Invalid inputs must be rejected by their boundary schema first.
- * Side effects:
- * - Pure hashing, with no model or persistence access.
- */
-export function preparationInputFingerprint(
-  input: PreparationRuleInput,
-): string {
-  return sha256Hex(
-    canonicalJson({
-      ...input,
-      citations: input.citations.map((ref) => ({
-        chunkId: ref.chunkId,
-        documentId: ref.documentId,
-        locator: ref.locator,
-        contentSha256: ref.contentSha256,
-      })),
-    }),
-  );
-}
-
-/**
- * Business purpose: Determine whether a document chunk has an eligible legal effect status for catalog rules.
- * Business rules:
- * - Active law chunks (EFFECTIVE) and unreviewed newly ingested chunks (UNKNOWN) are eligible for citation.
- * - Explicitly repealed (REPEALED) and future/un-enacted (FUTURE) chunks are strictly ineligible.
- * Execution flow:
- * 1. Evaluate chunk legalEffectStatus against allowed active and unreviewed statuses.
- * Failure cases:
- * - None; pure predicate function.
- * Side effects:
- * - Pure predicate evaluation without persistence or I/O side effects.
- */
-export function isEligibleLegalChunkStatus(status: LegalEffectStatus): boolean {
-  return (
-    status === LegalEffectStatus.EFFECTIVE ||
-    status === LegalEffectStatus.UNKNOWN
-  );
-}
-
-/**
- * Business purpose: Report a typed catalog rejection through the shared API envelope.
- * Business rules:
- * - Rejections never create catalog or model work.
- * Execution flow:
- * 1. Construct the requested problem and throw it.
- * Failure cases:
- * - Always rejects with the supplied HTTP status and canonical code.
- * Side effects:
- * - Throws a typed problem without accessing persistence or model providers.
- */
-export function catalogFailure(
-  code: (typeof E)[keyof typeof E],
-  correlationId: string,
-  status = 409,
-): never {
-  throw problemException(code, correlationId, { status });
-}
 
 @Injectable()
 export class LegalRuleCatalogService {
@@ -1105,7 +562,12 @@ export class LegalRuleCatalogService {
    * Side effects:
    * - Read-only transaction queries.
    */
-  async entries(tx: CatalogClient, catalogId: string, cid: string) {
+  async entries(
+    tx: CatalogClient,
+    catalogId: string,
+    cid: string,
+    window?: LegalRuleProjectionWindow,
+  ) {
     const catalog = await tx.legalRuleCatalogVersion.findUnique({
       where: { id: catalogId },
       include: {
@@ -1124,7 +586,8 @@ export class LegalRuleCatalogService {
         },
         rules: {
           orderBy: { legalRuleId: "asc" },
-          take: LEGAL_RULE_LIMITS.catalogRules + 1,
+          skip: window?.skip,
+          take: window?.take ?? LEGAL_RULE_LIMITS.catalogRules + 1,
           include: {
             preparation: {
               include: {
@@ -1140,7 +603,7 @@ export class LegalRuleCatalogService {
       },
     });
     if (!catalog) catalogFailure(E.NOT_FOUND, cid, 404);
-    if (catalog.rules.length > LEGAL_RULE_LIMITS.catalogRules)
+    if (!window && catalog.rules.length > LEGAL_RULE_LIMITS.catalogRules)
       catalogFailure(E.TOO_LARGE, cid);
     const source = catalog.legalSourceVersion;
     const index = source.retrievalIndexes[0];
@@ -1272,35 +735,121 @@ export class LegalRuleCatalogService {
   /**
    * Business purpose: Page searchable rule eligibility on the server, independently of browser selection.
    * Business rules:
-   * - Filtering never changes a previously persisted selection. Derived state requires the complete bounded catalog projection.
+   * - Filtering never changes a previously persisted selection. Unfiltered totals use database counts; derived state and filtered totals are accumulated across bounded windows in one snapshot.
    * Execution flow:
-   * 1. Read consistent entries
-   * 2. Apply search/state filters
-   * 3. Return one bounded page and exact totals.
+   * 1. For ordinary browsing, count catalog and eligible rules in PostgreSQL and project the requested page.
+   * 2. For derived filters, read ordered catalog rules in bounded windows under RepeatableRead and count matching rows.
+   * 3. Retain only the requested page and return exact totals.
    * Failure cases:
    * - Missing/oversized catalogs reject without an invented empty result.
    * Side effects:
    * - Read-only repeatable-read transaction.
    */
   async list(catalogId: string, query: LegalRuleList, cid: string) {
-    // shortcut: derived-state filtering scans a catalog capped at 10,000 rules; move it into a read projection before raising that cap.
+    // Why: State and eligibility depend on source pins and output fingerprints that cannot safely be counted by a plain SQL predicate.
+    // How: Fold fixed-size ordered projections into totals and retain only the requested page.
+    // Invariant: RepeatableRead prevents catalog changes from shifting offset windows during one response.
     return this.prisma.$transaction(
       async (tx) => {
-        const { catalog, items } = await this.entries(tx, catalogId, cid);
-        const matching = this.filter(items, query);
+        if (!query.search && !query.state && !query.withAssessmentRules) {
+          // Why: Browsing without a derived-state filter does not need to hydrate every rule to count them.
+          // How: Count catalog membership and source/citation eligibility in PostgreSQL, then project only the requested page.
+          // Invariant: The same pinned source, VALID index and EFFECTIVE/UNKNOWN chunk rules decide eligibility as entries().
+          const total = await tx.legalRule.count({
+            where: { catalogVersionId: catalogId },
+          });
+          if (total > LEGAL_RULE_LIMITS.catalogRules)
+            catalogFailure(E.TOO_LARGE, cid);
+          const page = await this.entries(tx, catalogId, cid, {
+            skip: (query.page - 1) * query.limit,
+            take: query.limit,
+          });
+          const eligibleRows = await tx.$queryRaw<Array<{ eligible: bigint }>>(
+            Prisma.sql`
+              SELECT COUNT(*)::bigint AS eligible
+              FROM "LegalRule" AS rule
+              JOIN "LegalRuleCatalogVersion" AS catalog ON catalog."id" = rule."catalogVersionId"
+              JOIN "LegalSourceVersion" AS source ON source."id" = catalog."legalSourceVersionId"
+              WHERE catalog."id" = ${catalogId}
+                AND source."status"::text IN (${LegalSourceLifecycleStatus.ACTIVE}, ${LegalSourceLifecycleStatus.SUPERSEDED})
+                AND EXISTS (
+                  SELECT 1 FROM "LegalRetrievalIndex" AS index_row
+                  WHERE index_row."legalSourceVersionId" = source."id"
+                    AND index_row."status"::text = ${LegalRetrievalIndexStatus.VALID}
+                    AND index_row."validatedAt" IS NOT NULL
+                    AND index_row."validationManifestRef" IS NOT NULL
+                )
+                AND jsonb_typeof(rule."citationLocatorRefs") = 'array'
+                AND jsonb_array_length(
+                  CASE WHEN jsonb_typeof(rule."citationLocatorRefs") = 'array'
+                    THEN rule."citationLocatorRefs" ELSE '[]'::jsonb END
+                ) > 0
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(rule."citationLocatorRefs") = 'array'
+                      THEN rule."citationLocatorRefs" ELSE '[]'::jsonb END
+                  ) AS citation(ref)
+                  WHERE NOT EXISTS (
+                    SELECT 1 FROM "LegalDocumentChunk" AS chunk
+                    WHERE chunk."legalSourceVersionId" = source."id"
+                      AND chunk."documentId" = citation.ref->>'documentId'
+                      AND chunk."locator" = citation.ref->>'locator'
+                      AND chunk."legalEffectStatus"::text IN (${LegalEffectStatus.EFFECTIVE}, ${LegalEffectStatus.UNKNOWN})
+                  )
+                )
+            `,
+          );
+          return {
+            catalogVersionId: page.catalog.id,
+            catalogVersion: page.catalog.version,
+            catalogRevision: page.catalog.revision,
+            legalSourceVersionId: page.catalog.legalSourceVersionId,
+            total,
+            eligibleTotal: Number(eligibleRows[0]?.eligible ?? 0),
+            page: query.page,
+            limit: query.limit,
+            items: page.items.map((item) =>
+              legalRuleListItemSchema.parse(item),
+            ),
+          };
+        }
+        let catalog: Awaited<
+          ReturnType<LegalRuleCatalogService["entries"]>
+        >["catalog"];
+        let scanned = 0;
+        let total = 0;
+        let eligibleTotal = 0;
+        const pageItems: ReturnType<LegalRuleCatalogService["filter"]> = [];
+        const pageStart = (query.page - 1) * query.limit;
+        while (true) {
+          const batch = await this.entries(tx, catalogId, cid, {
+            skip: scanned,
+            take: LIST_PROJECTION_BATCH_SIZE,
+          });
+          catalog = batch.catalog;
+          scanned += batch.items.length;
+          if (scanned > LEGAL_RULE_LIMITS.catalogRules)
+            catalogFailure(E.TOO_LARGE, cid);
+          const matching = this.filter(batch.items, query);
+          for (const item of matching) {
+            if (!item.ineligibleReason) eligibleTotal += 1;
+            if (total >= pageStart && pageItems.length < query.limit)
+              pageItems.push(item);
+            total += 1;
+          }
+          if (batch.items.length < LIST_PROJECTION_BATCH_SIZE) break;
+        }
         return {
           catalogVersionId: catalog.id,
           catalogVersion: catalog.version,
           catalogRevision: catalog.revision,
           legalSourceVersionId: catalog.legalSourceVersionId,
-          total: matching.length,
-          eligibleTotal: matching.filter((item) => !item.ineligibleReason)
-            .length,
+          total,
+          eligibleTotal,
           page: query.page,
           limit: query.limit,
-          items: matching
-            .slice((query.page - 1) * query.limit, query.page * query.limit)
-            .map((item) => legalRuleListItemSchema.parse(item)),
+          items: pageItems.map((item) => legalRuleListItemSchema.parse(item)),
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
@@ -1477,15 +1026,27 @@ export class LegalRuleCatalogService {
         ...input,
         citations: input.citations.map((ref) => {
           const chunk = byId.get(ref.chunkId);
+          // Why: Windows CRLF and Unix LF newlines must produce identical hash verification to avoid false rejections.
+          // How: Normalize carriage returns (\r\n to \n) before computing sha256Hex for chunk verification.
+          // Invariant: Pinned canonical source hashes remain compatible across OS environments.
+          const normalizedContent = chunk
+            ? chunk.content.replace(/\r\n/gu, "\n")
+            : "";
+          const expectedHash = ref.contentSha256.replace(/^sha256:/u, "");
+          const matchesHash =
+            chunk &&
+            (chunk.contentSha256 === ref.contentSha256 ||
+              chunk.contentSha256.replace(/^sha256:/u, "") === expectedHash) &&
+            (sha256Hex(chunk.content) === expectedHash ||
+              sha256Hex(normalizedContent) === expectedHash);
+
           if (
             !chunk ||
             !chunk.content.trim() ||
             chunk.legalSourceVersionId !== input.legalSourceVersionId ||
             chunk.documentId !== ref.documentId ||
             chunk.locator !== ref.locator ||
-            chunk.contentSha256 !== ref.contentSha256 ||
-            sha256Hex(chunk.content) !==
-              ref.contentSha256.replace(/^sha256:/u, "") ||
+            !matchesHash ||
             !isEligibleLegalChunkStatus(chunk.legalEffectStatus)
           )
             catalogFailure(E.INELIGIBLE, cid);

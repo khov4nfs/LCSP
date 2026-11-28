@@ -6,6 +6,7 @@ import { ComplianceRuleSetModule } from "../compliance-rule-set/compliance-rule-
 import { LegalSourceModule } from "../legal-source/legal-source.module.js";
 import { LegalRuleCatalogService } from "./application/services/legal-rule-catalog.service.js";
 import { PreparationRuleService } from "./application/services/preparation-rule.service.js";
+import { LEGAL_RULE_CATALOG_COMMAND_HANDLERS } from "./application/commands/index.js";
 import {
   LegalRuleCatalogController,
   PreparationRuleWorkerController,
@@ -21,6 +22,13 @@ import {
     LegalSourceModule,
   ],
   controllers: [LegalRuleCatalogController, PreparationRuleWorkerController],
-  providers: [LegalRuleCatalogService, PreparationRuleService],
+  // Why: Nest owns the two use cases and reuses their catalog/database dependencies across requests.
+  // How: Register handlers before the compatibility facade, which delegates to injected instances.
+  // Invariant: Controllers keep the same public service contract while handlers own transactions.
+  providers: [
+    LegalRuleCatalogService,
+    ...LEGAL_RULE_CATALOG_COMMAND_HANDLERS,
+    PreparationRuleService,
+  ],
 })
 export class LegalRuleCatalogModule {}
