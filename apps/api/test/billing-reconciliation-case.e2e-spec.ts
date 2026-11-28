@@ -44,13 +44,20 @@ import {
   computeWorkerPreSocketRejectionHmac,
   type BillingReconciliationCaseDetailResponse,
   type BillingReconciliationCaseItem,
+  type BillableInvocationSettlementResponse,
   type ReconciliationCaseDecisionRequest,
   type ReconciliationCaseDecisionResponse,
 } from "@lcsp/contracts/billing";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import {
+  PrismaClient,
+  type BillableInvocationAdmission,
+  type BillingReconciliationCase,
+  type BillingReconciliationState,
+  type ProviderLogArtifact,
+} from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
@@ -193,8 +200,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     provider?: string;
     platformSponsored?: boolean;
   }): Promise<{
-    admission: any;
-    reconCase: any;
+    admission: BillableInvocationAdmission;
+    reconCase: BillingReconciliationCase;
     correlationId: string;
     admittedAt: Date;
     consumedAt: Date | null;
@@ -261,7 +268,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
         caseId,
         invocationId,
         admissionId,
-        state: caseState as any,
+        // The contract state crosses into Prisma's closed persistence enum here.
+        state: caseState as BillingReconciliationState,
         provider,
         providerCorrelationId: correlationId,
         version: 1,
@@ -285,10 +293,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     artifactId: string;
     coverageStart: Date;
     coverageEnd: Date;
-    entries?: any[];
+    entries?: unknown[];
     finalizedWatermark?: Date;
     provider?: string;
-  }): Promise<any> {
+  }): Promise<ProviderLogArtifact> {
     const provider = params.provider ?? "anthropic";
     const entries = params.entries ?? [];
     const rawContent = JSON.stringify(entries);
@@ -529,7 +537,8 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
       settleAttempt.status === 200 || settleAttempt.status === 202,
       `Expected 200/202, got ${settleAttempt.status}`,
     );
-    const body = successBody<any>(settleAttempt);
+    const body =
+      successBody<BillableInvocationSettlementResponse>(settleAttempt);
     assert.notEqual(
       body.state,
       ADMISSION_STATES.CONFIRMED_NO_USAGE,
@@ -688,11 +697,10 @@ describe("WP8 BillingReconciliationCase Administration & Audited Resolution (Pos
     // Assert invariant: automated release gate is OFF
     assert.equal(process.env.PROVIDER_RECONCILIATION_AUTOMATED_RELEASE, "OFF");
 
-    const { reconCase, admission, correlationId, admittedAt } =
-      await seedReconciliationCase({
-        exposureMicrocredits: 3_000_000n,
-        state: RECONCILIATION_CASE_STATES.OPEN,
-      });
+    const { reconCase, admission, admittedAt } = await seedReconciliationCase({
+      exposureMicrocredits: 3_000_000n,
+      state: RECONCILIATION_CASE_STATES.OPEN,
+    });
 
     // Ingest verified provider log artifact covering the potential dispatch window with ZERO matching requests
     const now = Date.now();

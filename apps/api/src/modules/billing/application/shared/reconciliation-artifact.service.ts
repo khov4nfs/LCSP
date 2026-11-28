@@ -488,9 +488,26 @@ export class ReconciliationArtifactService {
     }
 
     // Parse entries from rawContent
-    let entries: TrustedProviderLogEntry[] = [];
+    let entries: TrustedProviderLogEntry[];
     try {
-      entries = JSON.parse(artifact.rawContent);
+      // Why: A signed artifact still needs a valid log shape before it can prove absence of usage.
+      const parsedEntries: unknown = JSON.parse(artifact.rawContent);
+      if (
+        !Array.isArray(parsedEntries) ||
+        !parsedEntries.every(
+          (entry: unknown) =>
+            typeof entry === "object" &&
+            entry !== null &&
+            "requestId" in entry &&
+            typeof entry.requestId === "string" &&
+            "timestamp" in entry &&
+            typeof entry.timestamp === "string" &&
+            (!("correlationId" in entry) ||
+              typeof entry.correlationId === "string"),
+        )
+      )
+        throw new Error("Invalid provider log entries");
+      entries = parsedEntries as TrustedProviderLogEntry[];
     } catch {
       return { verified: false, error: "unverified_artifact_source" };
     }

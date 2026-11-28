@@ -33,20 +33,22 @@ import { fileURLToPath } from "node:url";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  PrismaClient,
+  CreditLedgerSource,
+  OutboxAggregateType,
+} from "@prisma/client";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   ADMISSION_STATES,
   BILLING_ACTIONS,
   BILLING_AUDIT_EVENT_TYPES,
   BILLING_ERROR_CODES,
   CREDIT_LEDGER_SOURCES,
-  PROVIDER_COMPLETION_STATES,
   compensateBillingDebitResponseSchema,
   type CompensateBillingDebitRequest,
   type CompensateBillingDebitResponse,
 } from "@lcsp/contracts/billing";
-import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 
 import { AppModule } from "../src/app.module.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
@@ -257,7 +259,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         admissionId: admission.id,
         idempotencyKey: `debit-${admission.id}`,
         source: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
-        ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+        ledgerSource: CreditLedgerSource.MODEL_USAGE_DEBIT,
         deltaCredits: -(amountMicrocredits / 1_000_000n),
         deltaMicrocredits: -amountMicrocredits,
         accountingUnitVersion: 2,
@@ -474,7 +476,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         walletId: customerWalletId,
         idempotencyKey: "topup-entry-01",
         source: CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,
-        ledgerSource: CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT as any,
+        ledgerSource: CreditLedgerSource.BILLING_ORDER_CREDIT,
         deltaCredits: 50n,
         deltaMicrocredits: 50_000_000n,
         accountingUnitVersion: 2,
@@ -506,7 +508,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         walletId: customerWalletId,
         idempotencyKey: "debit-orphaned-01",
         source: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
-        ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+        ledgerSource: CreditLedgerSource.MODEL_USAGE_DEBIT,
         deltaCredits: -5n,
         deltaMicrocredits: -5_000_000n,
         admissionId: null, // missing admission linkage
@@ -572,7 +574,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         admissionId: unreceiptedAdmission.id,
         idempotencyKey: "debit-unreceipted-01",
         source: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
-        ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+        ledgerSource: CreditLedgerSource.MODEL_USAGE_DEBIT,
         deltaCredits: -5n,
         deltaMicrocredits: -5_000_000n,
         accountingUnitVersion: 2,
@@ -655,7 +657,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         admissionId: offAdmission.id,
         idempotencyKey: "debit-off-01",
         source: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
-        ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+        ledgerSource: CreditLedgerSource.MODEL_USAGE_DEBIT,
         deltaCredits: -5n,
         deltaMicrocredits: -5_000_000n,
         accountingUnitVersion: 2,
@@ -737,7 +739,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         admissionId: mismatchAdmission.id,
         idempotencyKey: "debit-mismatch-01",
         source: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT,
-        ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+        ledgerSource: CreditLedgerSource.MODEL_USAGE_DEBIT,
         deltaCredits: -10n,
         deltaMicrocredits: -10_000_000n,
         accountingUnitVersion: 2,
@@ -821,10 +823,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
     });
     assert.ok(persistedEntry, "Compensation ledger entry must exist in DB");
     assert.equal(persistedEntry.source, CREDIT_LEDGER_SOURCES.COMPENSATION);
-    assert.equal(
-      persistedEntry.ledgerSource,
-      CREDIT_LEDGER_SOURCES.COMPENSATION as any,
-    );
+    assert.equal(persistedEntry.ledgerSource, CreditLedgerSource.COMPENSATION);
     assert.equal(persistedEntry.originalLedgerEntryId, debitEntry.id);
     assert.equal(persistedEntry.deltaMicrocredits, 4_000_000n);
     assert.equal(persistedEntry.deltaCredits, 4n);
@@ -1145,7 +1144,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         idempotencyKey: payloadMissing.idempotencyKey,
         requestFingerprint: fingerprintMissing,
         source: CREDIT_LEDGER_SOURCES.COMPENSATION,
-        ledgerSource: CREDIT_LEDGER_SOURCES.COMPENSATION as any,
+        ledgerSource: CreditLedgerSource.COMPENSATION,
         deltaCredits: BigInt(payloadMissing.amountMicrocredits) / 1_000_000n,
         deltaMicrocredits: BigInt(payloadMissing.amountMicrocredits),
         accountingUnitVersion: 2,
@@ -1194,7 +1193,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         idempotencyKey: payloadCorrupt.idempotencyKey,
         requestFingerprint: fingerprintCorrupt,
         source: CREDIT_LEDGER_SOURCES.COMPENSATION,
-        ledgerSource: CREDIT_LEDGER_SOURCES.COMPENSATION as any,
+        ledgerSource: CreditLedgerSource.COMPENSATION,
         deltaCredits: BigInt(payloadCorrupt.amountMicrocredits) / 1_000_000n,
         deltaMicrocredits: BigInt(payloadCorrupt.amountMicrocredits),
         accountingUnitVersion: 2,
@@ -1268,7 +1267,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         idempotencyKey: payloadBadDate.idempotencyKey,
         requestFingerprint: fingerprintBadDate,
         source: CREDIT_LEDGER_SOURCES.COMPENSATION,
-        ledgerSource: CREDIT_LEDGER_SOURCES.COMPENSATION as any,
+        ledgerSource: CreditLedgerSource.COMPENSATION,
         deltaCredits: BigInt(payloadBadDate.amountMicrocredits) / 1_000_000n,
         deltaMicrocredits: BigInt(payloadBadDate.amountMicrocredits),
         accountingUnitVersion: 2,
@@ -1491,7 +1490,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
         walletId: customerWalletId,
         idempotencyKey: "comp-prior-seed",
         source: CREDIT_LEDGER_SOURCES.COMPENSATION,
-        ledgerSource: CREDIT_LEDGER_SOURCES.COMPENSATION as any,
+        ledgerSource: CreditLedgerSource.COMPENSATION,
         deltaCredits: 5n,
         deltaMicrocredits: 5_000_000n,
         originalLedgerEntryId: debitEntry.id,
@@ -1584,7 +1583,7 @@ describe("WP8 G-07 Transaction Compensation & Debit Linking (Postgres E2E)", () 
     const outboxMessage = await prisma.outboxMessage.findFirst({
       where: {
         aggregateId: customerWalletId,
-        aggregateType: OUTBOX_AGGREGATE_TYPES.billingWallet as any,
+        aggregateType: OutboxAggregateType.BILLING_WALLET,
         eventType: BILLING_AUDIT_EVENT_TYPES.compensationIssued,
       },
     });

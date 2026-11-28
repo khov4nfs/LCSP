@@ -21,6 +21,7 @@ import {
   BILLING_ERROR_CODES,
   sweepExpiredLeasesRequestSchema,
   type SweepExpiredLeasesRequest,
+  type SweepExpiredLeasesResponse,
 } from "@lcsp/contracts/billing";
 import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-key.guard.js";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
@@ -72,9 +73,11 @@ export class BillingInternalReconciliationController {
     body: SweepExpiredLeasesRequest,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const result = await this.commandBus.execute(
-      new SweepExpiredInvocationLeasesCommand(body, correlationId),
-    );
+    // Why: CQRS otherwise exposes an unsafe `any` result to the response envelope.
+    const result = await this.commandBus.execute<
+      SweepExpiredInvocationLeasesCommand,
+      SweepExpiredLeasesResponse
+    >(new SweepExpiredInvocationLeasesCommand(body, correlationId));
 
     return resultEnvelope(result);
   }

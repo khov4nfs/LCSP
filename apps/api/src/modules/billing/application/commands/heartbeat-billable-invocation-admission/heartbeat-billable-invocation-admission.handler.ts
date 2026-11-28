@@ -143,7 +143,7 @@ export class HeartbeatBillableInvocationAdmissionHandler implements ICommandHand
       // How: Lock AssessmentRuntime FOR SHARE inside transaction, and verify runId, executionLeaseToken, and leaseExpiresAt.
       // Invariants: In-flight invocation lease can never outlive the server-approved runtime execution window of its pinned run.
       let runtimeCeiling: Date | null = null;
-      let dbUtcNow = new Date();
+      let dbUtcNow: Date;
 
       if (admission.assessmentId) {
         const [runtime] = await tx.$queryRaw<

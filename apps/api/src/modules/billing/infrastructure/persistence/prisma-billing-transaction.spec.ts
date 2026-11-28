@@ -150,12 +150,13 @@ describe("PrismaBillingTransaction runtime policy repository", () => {
         }),
       );
 
-      expect(tx.creditLedgerEntry.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          deltaMicrocredits: 5_000_000n,
-          accountingUnitVersion: 1,
-          ledgerSource: PrismaCreditLedgerSource.BILLING_ORDER_CREDIT,
-        }),
+      // Why: Inspect the typed mock's persisted row so a loose Jest matcher cannot
+      // hide a wrong ledger unit or source at the Prisma boundary.
+      expect(tx.creditLedgerEntry.create).toHaveBeenCalledTimes(1);
+      expect(createdEntries[0]).toMatchObject({
+        deltaMicrocredits: 5_000_000n,
+        accountingUnitVersion: 1,
+        ledgerSource: PrismaCreditLedgerSource.BILLING_ORDER_CREDIT,
       });
       expect(appended.ledgerSource).toBe(
         CREDIT_LEDGER_SOURCES.BILLING_ORDER_CREDIT,

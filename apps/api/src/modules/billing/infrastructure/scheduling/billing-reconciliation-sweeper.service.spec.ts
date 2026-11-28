@@ -35,11 +35,14 @@ describe("BillingReconciliationSweeperService", () => {
   });
 
   it("dispatches SweepExpiredInvocationLeasesCommand when sweep is invoked", async () => {
+    // Why: Assert against the standalone spy so the test cannot accidentally
+    // detach a CommandBus method from its receiver during verification.
+    const executeMock = jest.fn<CommandBus["execute"]>().mockResolvedValue({
+      sweptCount: 2,
+      reconciliationCasesOpened: 2,
+    });
     const mockCommandBus = {
-      execute: jest.fn<CommandBus["execute"]>().mockResolvedValue({
-        sweptCount: 2,
-        reconciliationCasesOpened: 2,
-      }),
+      execute: executeMock,
     } as unknown as CommandBus;
 
     const mockConfigService = {
@@ -56,7 +59,7 @@ describe("BillingReconciliationSweeperService", () => {
     const result = await service.sweep();
 
     expect(result).toEqual({ sweptCount: 2, reconciliationCasesOpened: 2 });
-    expect(mockCommandBus.execute).toHaveBeenCalledWith(
+    expect(executeMock).toHaveBeenCalledWith(
       expect.any(SweepExpiredInvocationLeasesCommand),
     );
   });

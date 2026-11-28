@@ -20,6 +20,7 @@ import {
   type BillingAdminDashboardQuery,
   type BillingAdminExportQuery,
   type CompensateBillingDebitRequest,
+  type CompensateBillingDebitResponse,
 } from "@lcsp/contracts/billing";
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.ts";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
@@ -104,7 +105,11 @@ export class BillingAdminController {
     body: CompensateBillingDebitRequest,
     @Req() request: AuthenticatedRequest,
   ) {
-    const result = await this.commandBus.execute(
+    // Why: Keep the compensation response typed across the CQRS-to-HTTP boundary.
+    const result = await this.commandBus.execute<
+      CompensateBillingDebitCommand,
+      CompensateBillingDebitResponse
+    >(
       new CompensateBillingDebitCommand(
         body,
         request.rbacContext,

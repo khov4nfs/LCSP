@@ -24,13 +24,10 @@ import {
   ASSESSMENT_ROOT_COMMAND_TYPES,
   ROOT_CAPACITY_REASONS,
   type AssessmentRootClaim,
-  WORKLOAD_SCOPES,
-  resolveConfiguredBudgetLimits,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { Prisma, OutboxStatus } from "@prisma/client";
-import { calculateConsecutiveTurnsWithoutProgress } from "./assessment-progress-tracker.js";
 
 function extractSavedLocale(data: unknown): string | undefined {
   if (typeof data === "string") {

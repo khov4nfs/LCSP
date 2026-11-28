@@ -8,6 +8,7 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
+import { CreditLedgerSource, OutboxAggregateType } from "@prisma/client";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { z } from "zod";
@@ -22,10 +23,7 @@ import {
   compensateBillingDebitResponseSchema,
   type CompensateBillingDebitResponse,
 } from "@lcsp/contracts/billing";
-import {
-  OUTBOX_AGGREGATE_TYPES,
-  OUTBOX_STATUSES,
-} from "@lcsp/contracts/outbox";
+import { OUTBOX_STATUSES } from "@lcsp/contracts/outbox";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { CompensateBillingDebitCommand } from "./compensate-billing-debit.command.js";
@@ -298,7 +296,7 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
             idempotencyKey: payload.idempotencyKey,
             requestFingerprint,
             source: CREDIT_LEDGER_SOURCES.COMPENSATION,
-            ledgerSource: CREDIT_LEDGER_SOURCES.COMPENSATION as any,
+            ledgerSource: CreditLedgerSource.COMPENSATION,
             deltaCredits: requestedAmountMicrocredits / 1_000_000n,
             deltaMicrocredits: requestedAmountMicrocredits,
             accountingUnitVersion: lockedWallet.accountingUnitVersion ?? 2,
@@ -349,7 +347,7 @@ export class CompensateBillingDebitHandler implements ICommandHandler<
         await tx.outboxMessage.create({
           data: {
             id: randomUUID(),
-            aggregateType: OUTBOX_AGGREGATE_TYPES.billingWallet as any,
+            aggregateType: OutboxAggregateType.BILLING_WALLET,
             aggregateId: lockedWallet.id,
             eventType: BILLING_AUDIT_EVENT_TYPES.compensationIssued,
             payload: {

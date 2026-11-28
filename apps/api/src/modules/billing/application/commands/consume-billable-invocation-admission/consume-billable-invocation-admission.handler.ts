@@ -206,7 +206,7 @@ export class ConsumeBillableInvocationAdmissionHandler implements ICommandHandle
       // How: Lock AssessmentRuntime FOR SHARE within the same transaction to prevent race with concurrent lease updates.
       // Invariants: Pinned runId and executionLeaseToken must match active lease, and leaseExpiresAt must be strictly in the future.
       let approvedDeadline: Date | null = null;
-      let finalUtcNow = dbUtcNow;
+      let finalUtcNow: Date;
 
       if (admission.assessmentId) {
         const [runtime] = await tx.$queryRaw<

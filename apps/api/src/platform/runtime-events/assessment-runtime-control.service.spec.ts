@@ -148,7 +148,7 @@ describe("runtime control registration", () => {
       };
       const controls = new AssessmentRuntimeControlService(
         {
-          $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+          $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
             work(tx),
         } as unknown as PrismaService,
         { enqueue } as unknown as OutboxRepository,
@@ -198,7 +198,7 @@ describe("runtime control registration", () => {
         },
       };
       const prisma = {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       };
       const outbox = { enqueue: jest.fn() };
@@ -314,7 +314,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       {} as OutboxRepository,
@@ -371,7 +371,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
@@ -453,7 +453,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
@@ -549,7 +549,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
@@ -658,7 +658,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue: jest.fn() } as unknown as OutboxRepository,
@@ -793,7 +793,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue: jest.fn() } as unknown as OutboxRepository,
@@ -896,7 +896,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue: jest.fn() } as unknown as OutboxRepository,
@@ -1024,7 +1024,7 @@ describe("runtime control registration", () => {
     };
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue: jest.fn() } as unknown as OutboxRepository,
@@ -1084,20 +1084,23 @@ describe("runtime control registration", () => {
     let currentTurnRequestId: string | null = "stop-request";
 
     const updateAssessment = jest.fn(
-      async (args: { data: { blockerReference: Record<string, unknown> } }) => {
+      (args: { data: { blockerReference: Record<string, unknown> } }) => {
         storedBlockerReference = args.data.blockerReference;
         return {};
       },
     );
     const updateManyTurns = jest.fn(
-      async (args: { data: { state: string; requestId: string } }) => {
+      (args: { data: { state: string; requestId: string } }) => {
         currentTurnState = args.data.state;
         currentTurnRequestId = args.data.requestId;
         return { count: 1 };
       },
     );
-    const enqueue = jest.fn(async () => ({ id: "outbox-1" }));
-    const writeInTx = jest.fn(async (_payload?: any, _tx?: any) => undefined);
+    const enqueue = jest.fn(() => ({ id: "outbox-1" }));
+    const writeInTx = jest.fn((...args: unknown[]) => {
+      void args;
+      return undefined;
+    });
     const auditWriterMock = { writeInTx } as unknown as AuditWriterService;
 
     const tx = {
@@ -1116,7 +1119,7 @@ describe("runtime control registration", () => {
         }),
       },
       assessmentRuntimeTurn: {
-        findUnique: jest.fn(async () => ({
+        findUnique: jest.fn(() => ({
           id: "stopped-run",
           assessmentId: "assessment",
           threadId: "root-thread",
@@ -1129,7 +1132,7 @@ describe("runtime control registration", () => {
         updateMany: updateManyTurns,
       },
       assessment: {
-        findUniqueOrThrow: jest.fn(async () => ({
+        findUniqueOrThrow: jest.fn(() => ({
           id: "assessment",
           lifecycleState: "PAUSED",
           runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
@@ -1158,7 +1161,7 @@ describe("runtime control registration", () => {
 
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
@@ -1238,8 +1241,8 @@ describe("runtime control registration", () => {
       reason: "AGENT_BUDGET_REACHED",
     };
     let currentTurnState: string = States.stopped;
-    const writeInTx = jest.fn(async () => undefined);
-    const enqueue = jest.fn(async () => ({ id: "outbox-1" }));
+    const writeInTx = jest.fn(() => undefined);
+    const enqueue = jest.fn(() => ({ id: "outbox-1" }));
 
     const tx = {
       $queryRaw: jest
@@ -1257,7 +1260,7 @@ describe("runtime control registration", () => {
         }),
       },
       assessmentRuntimeTurn: {
-        findUnique: jest.fn(async () => ({
+        findUnique: jest.fn(() => ({
           id: "stopped-run",
           assessmentId: "assessment",
           threadId: "root-thread",
@@ -1267,13 +1270,13 @@ describe("runtime control registration", () => {
           requestId: "stop-request",
           checkpointJson: { checkpointId: "cp-1" },
         })),
-        updateMany: jest.fn(async (args: { data: { state: string } }) => {
+        updateMany: jest.fn((args: { data: { state: string } }) => {
           currentTurnState = args.data.state;
           return { count: 1 };
         }),
       },
       assessment: {
-        findUniqueOrThrow: jest.fn(async () => ({
+        findUniqueOrThrow: jest.fn(() => ({
           id: "assessment",
           lifecycleState: "PAUSED",
           runtime: { executionState: "PAUSED", checkpointId: "cp-1" },
@@ -1287,9 +1290,7 @@ describe("runtime control registration", () => {
           },
         })),
         update: jest.fn(
-          async (args: {
-            data: { blockerReference: Record<string, unknown> };
-          }) => {
+          (args: { data: { blockerReference: Record<string, unknown> } }) => {
             storedBlockerReference = args.data.blockerReference;
             return {};
           },
@@ -1309,7 +1310,7 @@ describe("runtime control registration", () => {
 
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
@@ -1365,7 +1366,7 @@ describe("runtime control registration", () => {
       role: AUTH_USER_ROLES.admin,
       scope: null,
     };
-    const writeInTx = jest.fn(async () => undefined);
+    const writeInTx = jest.fn(() => undefined);
     const updateAssessment = jest.fn();
     const enqueue = jest.fn();
 
@@ -1435,7 +1436,7 @@ describe("runtime control registration", () => {
 
     const controls = new AssessmentRuntimeControlService(
       {
-        $transaction: async (work: (value: typeof tx) => Promise<unknown>) =>
+        $transaction: (work: (value: typeof tx) => Promise<unknown>) =>
           work(tx),
       } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,

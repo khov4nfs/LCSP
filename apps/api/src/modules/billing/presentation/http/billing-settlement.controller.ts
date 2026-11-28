@@ -17,6 +17,7 @@ import { WorkerApiKeyGuard } from "../../../../platform/rbac/guards/worker-api-k
 import { ZodValidationPipe } from "../../../../platform/http/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { SettleBillableInvocationUsageCommand } from "../../application/commands/settle-billable-invocation-usage/settle-billable-invocation-usage.command.js";
+import type { SettleUsageExecutionResult } from "../../application/commands/settle-billable-invocation-usage/settle-billable-invocation-usage.handler.js";
 
 /**
  * Controller handling worker usage settlement and outcome reporting.
@@ -44,9 +45,11 @@ export class BillingSettlementController {
     body: BillableInvocationSettlementRequest,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const result = await this.commandBus.execute(
-      new SettleBillableInvocationUsageCommand(body, correlationId),
-    );
+    // Why: Keep the settlement result typed when crossing the CQRS HTTP boundary.
+    const result = await this.commandBus.execute<
+      SettleBillableInvocationUsageCommand,
+      SettleUsageExecutionResult
+    >(new SettleBillableInvocationUsageCommand(body, correlationId));
 
     return resultEnvelope(result);
   }

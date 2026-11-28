@@ -15,7 +15,6 @@ import {
   claimAssessmentRootExecutionRequestSchema,
   assessmentRootClaimSchema,
   ASSESSMENT_BUDGET_REASONS,
-  ASSESSMENT_DOMAIN_ERROR_CODES,
 } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import {

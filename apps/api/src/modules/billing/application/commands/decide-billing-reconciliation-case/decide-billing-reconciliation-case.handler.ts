@@ -14,11 +14,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { HttpStatus, Injectable } from "@nestjs/common";
-import {
-  AUTH_ERROR_CODES,
-  AUTH_USER_ROLES,
-  type AuthUserRole,
-} from "@lcsp/contracts/auth";
+import { BillingReconciliationState } from "@prisma/client";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ADMISSION_FUNDING_PRINCIPALS,
   ADMISSION_STATES,
@@ -454,10 +451,26 @@ export class DecideBillingReconciliationCaseHandler implements ICommandHandler<
           }
 
           // Also scan log entries for invocationId match to prevent edge-case dispatch
-          let entries: Array<{ correlationId?: string; requestId?: string }> =
-            [];
+          let entries: Array<{ correlationId?: string; requestId?: string }>;
           try {
-            entries = JSON.parse(artifact.rawContent);
+            // Why: Provider log JSON is untrusted; validate its shape before deciding no usage.
+            const parsedEntries: unknown = JSON.parse(artifact.rawContent);
+            if (
+              !Array.isArray(parsedEntries) ||
+              !parsedEntries.every(
+                (entry: unknown) =>
+                  typeof entry === "object" &&
+                  entry !== null &&
+                  ("correlationId" in entry
+                    ? typeof entry.correlationId === "string"
+                    : true),
+              )
+            )
+              throw new Error("Invalid provider log entries");
+            entries = parsedEntries as Array<{
+              correlationId?: string;
+              requestId?: string;
+            }>;
           } catch {
             throw problemException(
               BILLING_ERROR_CODES.invalidReconciliationEvidence,
@@ -480,7 +493,7 @@ export class DecideBillingReconciliationCaseHandler implements ICommandHandler<
 
         // Step 7g: State Transitions & Slot Release
         let newState: string;
-        let slotReleased = false;
+        let slotReleased: boolean;
 
         switch (payload.decision) {
           case RECONCILIATION_DECISION_ACTIONS.confirmNoUsage:
@@ -526,7 +539,7 @@ export class DecideBillingReconciliationCaseHandler implements ICommandHandler<
         await tx.billingReconciliationCase.update({
           where: { caseId },
           data: {
-            state: newState as any,
+            state: newState as BillingReconciliationState,
             resolvedBy: rbacContext.userId,
             resolvedAt: new Date(decidedAt),
             auditRationale: payload.auditRationale,
@@ -571,7 +584,7 @@ export class DecideBillingReconciliationCaseHandler implements ICommandHandler<
             auditRationale: payload.auditRationale,
             providerLogArtifactId: payload.providerLogArtifactId ?? null,
             decidedBy: rbacContext.userId,
-            responseSnapshot: parsed.data as any,
+            responseSnapshot: parsed.data,
           },
         });
 

@@ -28,6 +28,10 @@ import { RequestBillableInvocationAdmissionCommand } from "../../application/com
 import { ConsumeBillableInvocationAdmissionCommand } from "../../application/commands/consume-billable-invocation-admission/consume-billable-invocation-admission.command.js";
 import { HeartbeatBillableInvocationAdmissionCommand } from "../../application/commands/heartbeat-billable-invocation-admission/heartbeat-billable-invocation-admission.command.js";
 import { CancelBillableInvocationAdmissionCommand } from "../../application/commands/cancel-billable-invocation-admission/cancel-billable-invocation-admission.command.js";
+import type { RequestAdmissionExecutionResult } from "../../application/commands/request-billable-invocation-admission/request-billable-invocation-admission.handler.js";
+import type { ConsumeAdmissionExecutionResult } from "../../application/commands/consume-billable-invocation-admission/consume-billable-invocation-admission.handler.js";
+import type { CancelAdmissionExecutionResult } from "../../application/commands/cancel-billable-invocation-admission/cancel-billable-invocation-admission.handler.js";
+import type { HeartbeatBillableInvocationAdmissionHandler } from "../../application/commands/heartbeat-billable-invocation-admission/heartbeat-billable-invocation-admission.handler.js";
 
 /**
  * Controller handling worker-issued admission requests and atomic CAS consumption.
@@ -56,9 +60,11 @@ export class BillingAdmissionController {
     @Res({ passthrough: true }) response: Response,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const result = await this.commandBus.execute(
-      new RequestBillableInvocationAdmissionCommand(body, correlationId),
-    );
+    // Why: CQRS defaults to `any`; retain the handler result contract at the HTTP boundary.
+    const result = await this.commandBus.execute<
+      RequestBillableInvocationAdmissionCommand,
+      RequestAdmissionExecutionResult
+    >(new RequestBillableInvocationAdmissionCommand(body, correlationId));
 
     if (result.isReplay) {
       response.status(HttpStatus.OK);
@@ -87,9 +93,11 @@ export class BillingAdmissionController {
     body: BillableInvocationAdmissionConsume,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const result = await this.commandBus.execute(
-      new ConsumeBillableInvocationAdmissionCommand(body, correlationId),
-    );
+    // Why: Preserve the typed consume result through the shared response envelope.
+    const result = await this.commandBus.execute<
+      ConsumeBillableInvocationAdmissionCommand,
+      ConsumeAdmissionExecutionResult
+    >(new ConsumeBillableInvocationAdmissionCommand(body, correlationId));
 
     return resultEnvelope(result);
   }
@@ -112,9 +120,11 @@ export class BillingAdmissionController {
     body: BillableInvocationCancelRequest,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const result = await this.commandBus.execute(
-      new CancelBillableInvocationAdmissionCommand(body, correlationId),
-    );
+    // Why: Preserve the typed cancellation result through the shared response envelope.
+    const result = await this.commandBus.execute<
+      CancelBillableInvocationAdmissionCommand,
+      CancelAdmissionExecutionResult
+    >(new CancelBillableInvocationAdmissionCommand(body, correlationId));
 
     return resultEnvelope(result);
   }
@@ -137,9 +147,13 @@ export class BillingAdmissionController {
     body: BillableInvocationHeartbeatRequest,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const result = await this.commandBus.execute(
-      new HeartbeatBillableInvocationAdmissionCommand(body, correlationId),
-    );
+    // Why: CQRS requires an explicit response type to avoid an unsafe HTTP payload.
+    const result = await this.commandBus.execute<
+      HeartbeatBillableInvocationAdmissionCommand,
+      Awaited<
+        ReturnType<HeartbeatBillableInvocationAdmissionHandler["execute"]>
+      >
+    >(new HeartbeatBillableInvocationAdmissionCommand(body, correlationId));
 
     return resultEnvelope(result);
   }

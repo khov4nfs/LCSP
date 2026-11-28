@@ -61,9 +61,9 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
     const targetRunId = randomUUID();
     const adminUserId = randomUUID();
 
-    const auditEventCreate = jest.fn(async () => ({ id: randomUUID() }));
-    const outboxCreate = jest.fn(async () => ({ id: randomUUID() }));
-    const turnUpdate = jest.fn(async () => ({
+    const auditEventCreate = jest.fn(() => ({ id: randomUUID() }));
+    const outboxCreate = jest.fn(() => ({ id: randomUUID() }));
+    const turnUpdate = jest.fn(() => ({
       id: targetRunId,
       assessmentId,
       threadId: "thread-1",
@@ -72,13 +72,13 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
       boundary: "ASSESSMENT_ROOT",
       checkpointJson: { ok: true },
     }));
-    const assessmentUpdate = jest.fn(async () => ({ id: assessmentId }));
+    const assessmentUpdate = jest.fn(() => ({ id: assessmentId }));
 
     const ownerId = randomUUID();
     const txMock = {
-      $queryRaw: jest.fn(async () => [{ id: assessmentId, ownerId }]),
+      $queryRaw: jest.fn(() => [{ id: assessmentId, ownerId }]),
       assessmentRuntime: {
-        findUnique: jest.fn(async () => ({
+        findUnique: jest.fn(() => ({
           assessmentId,
           currentExecutionId: targetRunId,
           checkpointNamespace: assessmentId,
@@ -88,7 +88,7 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
         })),
       },
       assessmentRuntimeTurn: {
-        findUnique: jest.fn(async () => ({
+        findUnique: jest.fn(() => ({
           id: targetRunId,
           assessmentId,
           threadId: "thread-1",
@@ -98,10 +98,10 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
           checkpointJson: { ok: true },
         })),
         update: turnUpdate,
-        updateMany: jest.fn(async () => ({ count: 1 })),
+        updateMany: jest.fn(() => ({ count: 1 })),
       },
       assessment: {
-        findUniqueOrThrow: jest.fn(async () => ({
+        findUniqueOrThrow: jest.fn(() => ({
           id: assessmentId,
           ownerId: randomUUID(),
           lifecycleState: "PAUSED",
@@ -121,14 +121,14 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
         update: assessmentUpdate,
       },
       repositorySnapshot: {
-        findUnique: jest.fn(async () => ({
+        findUnique: jest.fn(() => ({
           id: "snap-1",
           assessmentId,
           commitSha: "sha-123",
         })),
       },
       assessmentHumanRequest: {
-        count: jest.fn(async () => 0),
+        count: jest.fn(() => 0),
       },
       outboxMessage: {
         create: outboxCreate,
@@ -139,21 +139,21 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
     };
 
     const prismaMock = {
-      $transaction: jest.fn(
-        async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock),
+      $transaction: jest.fn((cb: (tx: typeof txMock) => Promise<unknown>) =>
+        cb(txMock),
       ),
     };
 
     const service = new AssessmentRuntimeControlService(
       prismaMock as never,
-      { enqueue: jest.fn(async () => ({ id: randomUUID() })) } as never,
-      { resumeFromPause: jest.fn(async () => undefined) } as never,
+      { enqueue: jest.fn(() => ({ id: randomUUID() })) } as never,
+      { resumeFromPause: jest.fn(() => undefined) } as never,
     );
 
     // Override repositorySnapshot.findUnique to match domainCase snapshot id dynamically
-    txMock.assessment.findUniqueOrThrow.mockImplementation(async () => {
+    txMock.assessment.findUniqueOrThrow.mockImplementation(() => {
       const snapId = randomUUID();
-      txMock.repositorySnapshot.findUnique.mockResolvedValueOnce({
+      txMock.repositorySnapshot.findUnique.mockReturnValueOnce({
         id: snapId,
         assessmentId,
         commitSha: "sha-123",
@@ -212,7 +212,7 @@ describe("ASM-BUDGET-01 & ASM-BUDGET-05: Admin Runtime Budget Override RED Contr
     // Legacy endpoint must advertise Deprecation header metadata via NestJS @Header decorator
     const headersMeta = Reflect.getMetadata(
       "__headers__",
-      AssessmentRuntimeControlController.prototype.extendBudget,
+      legacyDescriptor?.value as object,
     ) as Array<{ name: string; value: string }> | undefined;
     expect(headersMeta).toBeDefined();
     expect(

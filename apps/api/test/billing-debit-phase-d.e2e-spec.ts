@@ -40,14 +40,13 @@ import { fileURLToPath } from "node:url";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, CreditLedgerSource } from "@prisma/client";
 import {
   ADMISSION_STATES,
   BILLING_AUDIT_EVENT_TYPES,
   BILLING_ERROR_CODES,
   BILLING_INTEGRITY_REASONS,
   BILLING_ROLLOUT_MODES,
-  CREDIT_LEDGER_SOURCES,
   MODEL_PRICING_SCOPES,
   MODEL_USAGE_DEBIT_MODES,
   PROVIDER_COMPLETION_STATES,
@@ -523,14 +522,14 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       where: { invocationId: admission.invocationId },
     });
     assert.ok(receipt, "ModelUsageReceipt must exist");
-    assert.equal((receipt as any).debitedMicrocredits, 45_000n);
-    assert.equal((receipt as any).calculatedMicrocredits, 45_000n);
+    assert.equal(receipt.debitedMicrocredits, 45_000n);
+    assert.equal(receipt.calculatedMicrocredits, 45_000n);
 
     // 2. Verify CreditLedgerEntry
     const ledgerEntry = await prisma.creditLedgerEntry.findFirst({
       where: {
         admissionId: admission.admissionId,
-        ledgerSource: CREDIT_LEDGER_SOURCES.MODEL_USAGE_DEBIT as any,
+        ledgerSource: CreditLedgerSource.MODEL_USAGE_DEBIT,
       },
     });
     assert.ok(
@@ -554,7 +553,10 @@ describe("WP8 Phase D: Production Debit, Atomic Commit, Recovery & Rollout Autho
       },
     });
     assert.ok(audit, "AuditEvent for live debit must exist");
-    assert.equal((audit.payload as any).debitedMicrocredits, "45000");
+    assert.equal(
+      (audit.payload as Record<string, unknown>).debitedMicrocredits,
+      "45000",
+    );
 
     // 5. Verify OutboxMessage
     const outbox = await prisma.outboxMessage.findFirst({
