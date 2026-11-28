@@ -45,6 +45,8 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 
 ## Other focused lessons
 
+- Audit export bearer links require a configured high-entropy signing key at startup; count and measure payload bytes in PostgreSQL before transferring JSON, then read bounded keyset pages. Allocate versions under a database lock, commit export plus audit together, and verify canonical JSON digests before bytes. Signed downloads must durably audit before release. [AUDIT/EXPORT-INTEGRITY]
+
 - Parse untrusted DOCX XML with `defusedxml` and test entity rejection. [SECURITY/PYTHON]
 - Rootless archive fixtures use repository-relative paths; strip only a verified wrapper. [PYTHON/ARCHIVES]
 - Discovery questions describe intended AI use; reuse accepted answers and pinned code after rule selection. [STACK: deepagents]
@@ -74,6 +76,11 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 - **Context / Symptom**: A reused activation or index key accepted changed evidence; official-source worker payloads accepted malformed URLs or missing boolean identity; malformed URL escapes emitted raw URIError.
 - **Root Cause**: Replay compared only a subset of immutable fields, worker request TypeScript types vanished at runtime, and filename decoding lacked a typed rejection path.
 - **Resolution & Invariant**: Compare every persisted business-authority field on replay; validate required provenance URL and boolean at the service boundary before persistence; translate malformed URL decoding into the established import rejection. Preserve exact replay success plus mismatched replay and malformed input regression tests.
+
+### [2026-11-28] [AUDIT/EXPORT-INTEGRITY] Export Proof Must Be Bounded And Atomic
+- **Context / Symptom**: A valid Admin export could read an unbounded year of events, commit READY before its audit event, and issue signed download links with a public fallback key; the download path did not check the persisted digest or record its own audit.
+- **Root Cause**: Export construction, version allocation, audit persistence, and signed download were implemented as separate happy-path operations without a shared durability or integrity boundary.
+- **Resolution & Invariant**: Reject missing signing keys at startup; count and measure bytes in PostgreSQL before fetching JSON, read keyset pages under a frozen time boundary, and cap output bytes; allocate version under a PostgreSQL advisory lock and commit export plus audit together; verify a canonical digest and record download audit before bytes. Preserve RED/GREEN tests and run the gated PostgreSQL race/rollback test in CI.
 
 ### [2026-11-28] [ADMIN/OVERVIEW-ACTIVITY-AUTHORITY] Dashboard Metrics Need Bounded Durable Facts
 - **Context / Symptom**: Admin overview loaded every Assessment in a 90-day period, counted a later `updatedAt` as a new completion, and the web chart replaced real zero counts with fixture numbers.

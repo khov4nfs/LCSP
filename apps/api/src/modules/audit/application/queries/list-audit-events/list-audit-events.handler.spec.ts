@@ -98,7 +98,7 @@ describe("ListAuditEventsHandler", () => {
     });
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: 0,
         take: 20,
       }),
@@ -141,6 +141,14 @@ describe("ListAuditEventsHandler", () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ take: 100 }),
     );
+  });
+
+  it("rejects a page whose database offset exceeds supported bounds", async () => {
+    const { handler, findMany } = buildHandler();
+    await expect(
+      handler.execute(query({ page: Number.MAX_SAFE_INTEGER })),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(findMany).not.toHaveBeenCalled();
   });
 
   it("rejects date ranges longer than 90 days", async () => {

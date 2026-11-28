@@ -2,6 +2,21 @@ import { describe, expect, it } from "@jest/globals";
 import { AuditExportStorageService } from "./audit-export-storage.service.js";
 
 describe("AuditExportStorageService", () => {
+  it("rejects an omitted signing secret rather than using a public fallback", () => {
+    const previous = process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET;
+    const appPrevious = process.env.APP_SECRET;
+    delete process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET;
+    delete process.env.APP_SECRET;
+    try {
+      expect(() => new AuditExportStorageService().onModuleInit()).toThrow();
+    } finally {
+      if (previous === undefined)
+        delete process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET;
+      else process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET = previous;
+      if (appPrevious === undefined) delete process.env.APP_SECRET;
+      else process.env.APP_SECRET = appPrevious;
+    }
+  });
   it("creates a signed download URL containing exportRequestId and encoded token", () => {
     const service = new AuditExportStorageService();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);

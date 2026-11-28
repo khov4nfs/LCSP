@@ -14,6 +14,12 @@ LCSP production trên VPS, nên chạy từ `develop` sẽ cập nhật producti
 
 ## Cấu hình GitHub và VPS
 
+Trước khi triển khai API, đặt `AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET` trong
+`.env.pm2` bằng giá trị ngẫu nhiên tối thiểu 32 byte (ví dụ tạo bằng
+`openssl rand -hex 32`). API kiểm tra khóa này khi khởi động để bảo vệ URL
+tải audit export; giữ nguyên khóa qua các lần deploy để URL đang còn hạn
+không bị vô hiệu hóa ngoài ý muốn.
+
 Workflow dùng lại GitHub secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` và
 `VPS_KNOWN_HOSTS` ở cấp repository hoặc Environment `production`. User SSH cần
 là tài khoản đang vận hành PM2 và checkout `/srv/apps/LCSP`. Dùng khóa SSH

@@ -180,6 +180,8 @@ def environment(run_id: str, image_ids: dict, provider: dict) -> dict[str, dict[
             "LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR": "/app/.snapshot-cache",
             "GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION": "release-disposable",
             "GITHUB_CLI_CREDENTIAL_KEK_KEYRING": json.dumps({"release-disposable": base64.b64encode(secrets.token_bytes(32)).decode()}),
+            # Audit bearer links require a dedicated, unpredictable key in production staging.
+            "AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET": secrets.token_hex(32),
             "MFA_SECRET_ENCRYPTION_KEY": secrets.token_hex(32), "SEPAY_WEBHOOK_SECRET": secrets.token_hex(32),
             "BILLING_SEPAY_BANK_NAME": "RELEASE-DISPOSABLE", "BILLING_SEPAY_BANK_ACCOUNT_NUMBER": "RELEASE-0000",
             "BILLING_SEPAY_ACCOUNT_HOLDER": "RELEASE DISPOSABLE FIXTURE",
