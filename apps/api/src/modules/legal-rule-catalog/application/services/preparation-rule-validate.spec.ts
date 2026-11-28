@@ -212,7 +212,7 @@ it("accepts a repository rule for a prohibition with pinned marking scope", () =
     expect.objectContaining({
       response: expect.objectContaining({
         problem: expect.objectContaining({
-          code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+          code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
           meta: expect.objectContaining({
             issues: "output.legalRequirements.1.coverage.nonAssessableReason",
           }),

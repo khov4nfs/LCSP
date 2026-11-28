@@ -1229,9 +1229,10 @@ export class LegalRuleCatalogService {
       const parsedOutput = last?.output
         ? preparationRuleOutputSchema.safeParse(last.output)
         : null;
-      const assessmentRuleCount = parsedOutput?.success
-        ? parsedOutput.data.assessmentRules.length
-        : 0;
+      const assessmentRuleCount =
+        state === S.PREPARED && parsedOutput?.success
+          ? parsedOutput.data.assessmentRules.length
+          : 0;
       return {
         id: rule.id,
         legalRuleId: rule.legalRuleId,

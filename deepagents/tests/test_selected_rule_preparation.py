@@ -15,6 +15,7 @@ from rule_set_preparation import selected_rule
 from tools.common.capabilities.platform.api_client import (
     SELECTED_RULE_INVALID_CALLBACK,
     SELECTED_RULE_INVALID_RESULT,
+    SELECTED_RULE_SCOPE_REVIEW_REQUIRED,
     WorkerCallbackError,
 )
 from tools.common.capabilities.platform.correlation import get_correlationId
@@ -315,3 +316,37 @@ def test_no_repair_when_too_little_deadline_remains(runtime_assets, monkeypatch)
     api.draft_rejections = [_rejection()]
     selected_rule.run_selected_rule_preparation(api, "short-deadline", model=model)
     assert len(model.calls) == 1
+
+
+@pytest.mark.parametrize("phase", ["draft", "completion", "marker"])
+def test_unresolved_scope_never_repairs_and_retains_failed_draft(runtime_assets, monkeypatch, phase):
+    api, model = SelectedFixtureApi(), RepairingFixtureModel()
+    error = WorkerCallbackError(
+        "review required", status_code=422, error_code=SELECTED_RULE_SCOPE_REVIEW_REQUIRED,
+    )
+    if phase == "draft":
+        api.draft_rejections = [error]
+    elif phase == "completion":
+        api.reject_output = error
+    else:
+        original = selected_rule._structured_output
+
+        def with_marker(response):
+            output = original(response)
+            output["legalRequirements"] = [{
+                "coverage": {"nonAssessableReason": "LEGAL_REVIEW_REQUIRED: actor unresolved"},
+            }]
+            return output
+
+        monkeypatch.setattr(selected_rule, "_structured_output", with_marker)
+    result = selected_rule.run_selected_rule_preparation(api, "review-required", model=model)
+    assert result["state"] == "FAILED"
+    assert len(model.calls) == 1
+    assert api.completions[-1][1] == "FAILED"
+    assert api.completions[-1][2] is not None
+    assert api.completions[-1][3] == SELECTED_RULE_SCOPE_REVIEW_REQUIRED
+    if phase == "marker":
+        assert not api.validations
+        assert api.completions[-1][2]["legalRequirements"][0]["coverage"]["nonAssessableReason"] == "LEGAL_REVIEW_REQUIRED: actor unresolved"
+    elif phase == "draft":
+        assert len(api.completions) == 1

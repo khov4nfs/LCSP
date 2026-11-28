@@ -352,7 +352,7 @@ describe("PreparationRuleService.importAssessmentRules", () => {
       ).rejects.toMatchObject({
         response: {
           problem: {
-            code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+            code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
             meta: { issues: "excludedItems.0.reasonCode" },
           },
         },
@@ -386,7 +386,7 @@ describe("PreparationRuleService.importAssessmentRules", () => {
       ).rejects.toMatchObject({
         response: {
           problem: {
-            code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
+            code: LEGAL_RULE_CATALOG_ERRORS.SCOPE_REVIEW_REQUIRED,
             meta: {
               issues: "output.legalRequirements.1.coverage.nonAssessableReason",
             },

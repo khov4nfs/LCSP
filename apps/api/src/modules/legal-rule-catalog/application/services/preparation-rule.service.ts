@@ -374,13 +374,22 @@ export class PreparationRuleService {
       items,
       ruleSet: {
         legalRequirements: items.flatMap(
-          (item) => item.output?.legalRequirements ?? [],
+          (item) =>
+            item.executionState === A.SUCCEEDED
+              ? (item.output?.legalRequirements ?? [])
+              : [],
         ),
         assessmentRules: items.flatMap(
-          (item) => item.output?.assessmentRules ?? [],
+          (item) =>
+            item.executionState === A.SUCCEEDED
+              ? (item.output?.assessmentRules ?? [])
+              : [],
         ),
         contextRelations: items.flatMap(
-          (item) => item.output?.contextRelations ?? [],
+          (item) =>
+            item.executionState === A.SUCCEEDED
+              ? (item.output?.contextRelations ?? [])
+              : [],
         ),
       },
     };
@@ -620,6 +629,7 @@ export class PreparationRuleService {
           rejectSelectedOutput(
             cid,
             `excludedItems.${reviewRequiredIndex}.reasonCode`,
+            E.SCOPE_REVIEW_REQUIRED,
           );
         const selected = request.items.map((item) => {
           const entry = entries.get(item.ruleId);
@@ -1236,6 +1246,7 @@ export class PreparationRuleService {
    * Business purpose: Finish one selected rule without rolling back or activating unrelated results.
    * Business rules:
    * - Successful output requires a recorded instruction receipt and exact source allowlist; terminal callback replays must be identical.
+   * - A failed legal-review result may retain its validated draft for history only; it is never a prepared rule set.
    * Execution flow:
    * 1. Lock run
    * 2. Verify output identity/references
@@ -1277,6 +1288,19 @@ export class PreparationRuleService {
           preparationRuleInputSchema.parse(result.inputSnapshot),
           request.output,
           cid,
+        );
+      } else if (
+        request.executionState === A.FAILED &&
+        request.failureCode === E.SCOPE_REVIEW_REQUIRED &&
+        request.output &&
+        result.instructionReceipt
+      ) {
+        // Retain a provenance-validated unresolved draft for history, never publication.
+        validateSelectedOutput(
+          preparationRuleInputSchema.parse(result.inputSnapshot),
+          request.output,
+          cid,
+          true,
         );
       } else if (request.output) catalogFailure(E.RESULT_INVALID, cid, 422);
       await tx.preparationRuleResult.update({
@@ -1350,8 +1374,12 @@ export class PreparationRuleService {
  * Side effects:
  * - Throws a typed problem without changing run state.
  */
-function rejectSelectedOutput(cid: string, issues: string): never {
-  throw problemException(E.RESULT_INVALID, cid, {
+function rejectSelectedOutput(
+  cid: string,
+  issues: string,
+  code: typeof E.RESULT_INVALID | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
+): never {
+  throw problemException(code, cid, {
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     meta: { issues },
   });
@@ -1436,6 +1464,7 @@ function isIdenticalCurrentResult(
  * Business rules:
  * - References stay within pinned chunks; AssessmentRule parents must be present, assessable and uniquely identified.
  * - Explicit unresolved legal scope blocks validation, import and selected activation; absence of the signal is not semantic approval.
+ * - Only failure settlement may retain an unresolved draft, after validating its complete structure and provenance.
  * Execution flow:
  * 1. Parse canonical downstream contracts
  * 2. Verify unique identities, source allowlist and parent links.
@@ -1448,9 +1477,24 @@ export function validateSelectedOutput(
   input: PreparationRuleInput,
   output: z.infer<typeof preparationRuleOutputSchema>,
   cid: string,
+  retainUnresolvedDraft = false,
 ): void {
   const parsed = preparationRuleOutputSchema.safeParse(output);
   if (!parsed.success) rejectSelectedOutput(cid, "output");
+  // Check ambiguity before other structural defects can route the draft into repair.
+  const unresolvedIndex = output.legalRequirements.findIndex((rule) =>
+    rule.coverage.nonAssessableReason?.startsWith(
+      PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+    ),
+  );
+  if (unresolvedIndex !== -1 && !retainUnresolvedDraft)
+    rejectSelectedOutput(
+      cid,
+      `output.legalRequirements.${unresolvedIndex}.coverage.nonAssessableReason`,
+      E.SCOPE_REVIEW_REQUIRED,
+    );
+  if (retainUnresolvedDraft && unresolvedIndex === -1)
+    rejectSelectedOutput(cid, "output.legalRequirements");
   const requirements = new Map(
     output.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
   );
@@ -1478,14 +1522,6 @@ export function validateSelectedOutput(
       rejectSelectedOutput(cid, `${path}.legalRequirementId`);
     if (!rule.operativePropositions?.length)
       rejectSelectedOutput(cid, `${path}.operativePropositions`);
-    // Do not accept a known unresolved legal scope as a successfully prepared result.
-    // This is a negative protocol signal, not a lexical classifier of legal source text.
-    if (
-      rule.coverage.nonAssessableReason?.startsWith(
-        PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
-      )
-    )
-      rejectSelectedOutput(cid, `${path}.coverage.nonAssessableReason`);
     if (
       !declaresApplicabilityScope(
         rule.coverage.state,
