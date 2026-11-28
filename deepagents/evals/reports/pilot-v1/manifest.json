@@ -1282,7 +1282,7 @@
       "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
     }
   },
-  "manifestSha256": "ed6266f0ea764844faccb53f0e85bb1a744869eb12ffd8ca10de9cd19092f66c",
+  "manifestSha256": "f1e7c0de5fa4316431c28ee6e2754a747c9ab6b6e65fbba6f2e9f521c093e305",
   "model": {
     "adapterClass": "SimpleNamespace",
     "configuredModelId": "offline-scripted"
@@ -1296,10 +1296,11 @@
   "selectedSkillsSha256": {},
   "semanticAcceptance": "NOT_ESTABLISHED_BY_FINGERPRINT",
   "sourcePins": {
-    "casesDatasetSha256": "e5b6b7493ed892647dc5f3c03439984eb7f20bb3c1357b9edebfa1b7e76d909c",
+    "casesDatasetSha256": "f2b4d4fc9069cca0774fbfa1afc920065086e504c1671fb8601480734c99b9fa",
     "corpusPinsSha256": "de2d47c00bb213036bbc14fe31b803de2cebdcac06309bcab6088bbd374b99a4",
     "expectedInventorySha256": "579f54e621eea00477a1384226b142720f7debbd559b092391751c43ab7b4536",
-    "goldRubricSha256": "66245d0f50c06ead8801ab48290146b8d9d65b844673837459a2c0d16c97e66e",
+    "goldRubricSha256": "58b6d7b633adbed8002b61ade2c9cdee96e2e24cec7cfe0b178554fc1d4226d4",
+    "governanceMode": "OFFLINE_TEST_BYPASS",
     "hitlFixtureSha256": "80be0fbafbb044787f64c6b04f70542dca8a7b968f9cb28f3fd00795a56ccc61",
     "manualReviewsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "repoPinsSha256": "7017943c1a64d9d67bce882a19d51215993b4aa570196b2444312908149a6504",

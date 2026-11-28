@@ -32,6 +32,7 @@ from evals.run_manifest import (
 )
 from evals.scorer import (
     build_benchmark_report,
+    build_trial_metadata_map,
     export_report_csv,
     export_report_json,
     grade_trial,
@@ -223,6 +224,7 @@ def build_benchmark_manifest(
         "manualReviewsSha256": reviews_sha,
         "runConfigSha256": config_sha,
         "expectedInventorySha256": stable_hash(expected_inventory),
+        "governanceMode": "PRODUCTION_DEFAULT" if config.mode == "LIVE" else "OFFLINE_TEST_BYPASS",
     }
     gold_revisions = sorted({c.gold_rubric.gold_revision for c in cases})
     base_manifest = build_runtime_manifest(
@@ -294,11 +296,12 @@ def _match_hitl_answer(case: BenchmarkCase, request_row: dict[str, Any]) -> Hitl
     Side effects:
     - Pure matching; no state mutation.
     """
-    unresolved = str(request_row.get("unresolvedFact") or "").lower()
+    unresolved = str(request_row.get("unresolvedFact") or "").strip().lower()
     question = str(request_row.get("question") or "")
     for candidate in case.hitl_answers:
-        if candidate.request_key.lower() in unresolved:
+        if unresolved and candidate.request_key.lower() == unresolved:
             return candidate
+    for candidate in case.hitl_answers:
         try:
             if re.search(candidate.question_pattern, question, re.IGNORECASE):
                 return candidate
@@ -311,10 +314,11 @@ def _match_hitl_answer(case: BenchmarkCase, request_row: dict[str, Any]) -> Hitl
 class _BenchmarkRuntimeClient:
     """Stateful per-trial AssessmentRuntimeClient with real legal data and authority/completion gates."""
 
-    def __init__(self, case: BenchmarkCase, thread_id: str, assessment_id: str) -> None:
+    def __init__(self, case: BenchmarkCase, thread_id: str, assessment_id: str, *, locale: str = "en") -> None:
         self.case = case
         self.thread_id = thread_id
         self.assessment_id = assessment_id
+        self.locale = locale
         self.repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
         self.execution_counter = 0
         self.execution_id = str(uuid.uuid4())
@@ -336,6 +340,7 @@ class _BenchmarkRuntimeClient:
         self.authority_violations: list[str] = []
         self.authority_gate_tested = False
         self.completion_gate_tested = False
+        self.tested_invariants: set[str] = set()
 
     def inject_fault_once(self, error: Exception) -> None:
         """Business purpose: Arm a one-shot fault to be raised on the next domain mutation.
@@ -358,41 +363,50 @@ class _BenchmarkRuntimeClient:
         """Business purpose: Apply a matched HITL fixture answer before resuming checkpoint.
 
         Business rules:
-        - Moves request_id from open_requests to resolved_requests, records confirmed
-          fact as HUMAN_CONFIRMED_FACT, and transitions lifecycle back to ACTIVE.
+        - Fails closed if request_id is not currently in self.open_requests.
+        - Only creates a HUMAN_CONFIRMED_FACT when answer_obj.resolves_fact is True;
+          if resolves_fact is False, records RESOLVED_NO_FACT without promoting to a confirmed fact.
 
         Execution flow:
-        1. Remove request_id from open_requests and record answer as confirmed fact.
-        2. Increment case_revision and set lifecycle_state = ACTIVE.
+        1. Verify request_id is in open_requests, remove it, and increment case_revision.
+        2. Record HUMAN_CONFIRMED_FACT only if resolves_fact is True; set lifecycle ACTIVE.
 
         Failure cases:
-        - Missing request_id in open_requests still appends resolution record.
+        - Raises ValueError if request_id is missing or already closed in open_requests.
 
         Side effects:
-        - Updates in-memory HITL, facts, and lifecycle state.
+        - Updates in-memory HITL, facts (when resolved), and lifecycle state.
         """
-        if request_id in self.open_requests:
-            self.open_requests.remove(request_id)
-        fact_id = f"fact-{self.case.case_id.lower()}-{len(self.facts) + 1}"
+        if request_id not in self.open_requests:
+            raise ValueError(f"UNKNOWN_OPEN_HUMAN_REQUEST:{request_id}")
+        self.open_requests.remove(request_id)
         self.case_revision += 1
+        fact_id: str | None = None
+        if answer_obj.resolves_fact:
+            fact_id = f"fact-{self.case.case_id.lower()}-{len(self.facts) + 1}"
+            self.facts.append({
+                "factId": fact_id,
+                "evidenceType": "HUMAN_CONFIRMED_FACT",
+                "requestId": request_id,
+                "answer": answer_obj.answer,
+                "caseRevision": self.case_revision,
+                "kind": "HUMAN_ANSWER",
+                "state": "ACCEPTED",
+                "status": "RESOLVED",
+                "authority": "HUMAN_CONFIRMED",
+                "statement": answer_obj.answer,
+                "evidenceIds": [],
+            })
         for row in self.human_requests:
             if row["requestId"] == request_id:
-                row["status"] = "RESOLVED"
+                row["status"] = "RESOLVED" if answer_obj.resolves_fact else "RESOLVED_NO_FACT"
                 row["requestRevision"] = row.get("requestRevision", 0) + 1
                 row["resolvedFactId"] = fact_id
-        self.resolved_requests.append({"requestId": request_id, "answer": answer_obj.answer, "factId": fact_id})
-        self.facts.append({
-            "factId": fact_id,
-            "evidenceType": "HUMAN_CONFIRMED_FACT",
+        self.resolved_requests.append({
             "requestId": request_id,
             "answer": answer_obj.answer,
-            "caseRevision": self.case_revision,
-            "kind": "HUMAN_ANSWER",
-            "state": "ACCEPTED",
-            "status": "RESOLVED",
-            "authority": "HUMAN_CONFIRMED",
-            "statement": answer_obj.answer,
-            "evidenceIds": [],
+            "factId": fact_id,
+            "resolvesFact": answer_obj.resolves_fact,
         })
         self.lifecycle_state = "ACTIVE"
 
@@ -415,6 +429,7 @@ class _BenchmarkRuntimeClient:
         """
         if assessment_id != self.assessment_id:
             self.authority_violations.append("CROSS_ASSESSMENT_CLAIM_REJECTED")
+            self.tested_invariants.add("crossAssessmentIsolation")
             from assessment_root.client import AssessmentApiError
             raise AssessmentApiError(403, "ASSESSMENT_SCOPE_MISMATCH", {"assessmentId": assessment_id})
         self.execution_counter += 1
@@ -429,6 +444,8 @@ class _BenchmarkRuntimeClient:
             "leaseExpiresAt": "2030-01-01T00:00:00.000Z",
             "checkpointNamespace": self.assessment_id,
             "executionState": "RUNNING",
+            "locale": self.locale,
+            "responseLanguage": self.locale,
         }
         if self.resume_checkpoint_id is not None:
             payload["resumeCheckpointId"] = self.resume_checkpoint_id
@@ -471,6 +488,8 @@ class _BenchmarkRuntimeClient:
             "assessmentId": self.assessment_id,
             "threadId": self.thread_id,
             "lifecycleState": self.lifecycle_state,
+            "locale": self.locale,
+            "responseLanguage": self.locale,
             "lifecycleRevision": 2,
             "caseRevision": self.case_revision,
             "decisionScopeId": "ASSESSMENT",
@@ -752,6 +771,7 @@ class _BenchmarkRuntimeClient:
         rule_id = dec.get("assessmentRuleId")
         if rule_id not in self.case.rule_set_pin.rule_ids:
             self.authority_violations.append(f"OUT_OF_SCOPE_RULE:{rule_id}")
+            self.tested_invariants.add("outOfScopeRuleRejection")
             raise AssessmentApiError(403, "ASSESSMENT_RULE_OUT_OF_SCOPE", {"assessmentRuleId": rule_id})
 
         known_ids = set(self.evidence_records.keys()) | {f["factId"] for f in self.facts if "factId" in f}
@@ -762,6 +782,7 @@ class _BenchmarkRuntimeClient:
             ref_id = (ref.get("evidenceId") or ref.get("factId") or ref.get("id")) if isinstance(ref, dict) else None
             if not ref_id or ref_id not in known_ids:
                 self.authority_violations.append(f"UNVERIFIED_REFERENCE:{ref_id}")
+                self.tested_invariants.add("unverifiedReferenceRejection")
                 raise AssessmentApiError(400, "ASSESSMENT_EVIDENCE_REFERENCE_INVALID", {"referenceId": ref_id})
 
         self.decisions.append(body)
@@ -790,8 +811,10 @@ class _BenchmarkRuntimeClient:
         for rule_id in self.case.rule_set_pin.rule_ids:
             if rule_id not in decided_rules:
                 blockers.append(f"UNDECIDED_RULE:{rule_id}")
+                self.tested_invariants.add("completionGateUndecidedRule")
         if self.open_requests:
             blockers.append(f"OPEN_HUMAN_REQUESTS:{len(self.open_requests)}")
+            self.tested_invariants.add("completionGateOpenHitl")
         if blockers:
             return {"lifecycleState": self.lifecycle_state, "blockers": blockers}
         self.lifecycle_state = "FINALIZING"
@@ -995,6 +1018,9 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
 
     rule_id = case.rule_set_pin.rule_ids[0]
     prov = case.legal_provisions[0]
+    repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
+    total_lines = len((repo_root / first_file).read_text(encoding="utf-8").splitlines()) if (repo_root / first_file).is_file() else 1
+    cite_start, cite_end = 1, max(1, total_lines)
 
     def _call(name: str, args: dict[str, Any], call_id: str) -> AIMessage:
         """Business purpose: Build an AIMessage tool call for scripted execution.
@@ -1112,7 +1138,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
 
         steps = [
             lambda _m: _call("get_assessment_context", {}, "ctx-resume"),
-            lambda _m: _call("cite_repository_source", {"path": first_file, "start_line": 1, "end_line": 1}, "cite-resume"),
+            lambda _m: _call("cite_repository_source", {"path": first_file, "start_line": cite_start, "end_line": cite_end}, "cite-resume"),
             _decide_after_resume,
             lambda _m: _call("request_finalization", {}, "fin-resume"),
             lambda _m: _call("submit_final_report", {"summary": "Resumed report.", "findings": [{"assessment_rule_id": rule_id, "summary": "Compliant after HITL."}]}, "rep-resume"),
@@ -1124,7 +1150,7 @@ def _build_scripted_model_for_case(case: BenchmarkCase, first_file: str, *, is_r
         lambda _m: _call("get_assessment_context", {}, "ctx-1"),
         lambda _m: _call("get_pinned_rule_set", {}, "rules-1"),
         lambda _m: _call("read_legal_source", {"document_id": prov.document_id, "locator": prov.locator}, "law-1"),
-        lambda _m: _call("cite_repository_source", {"path": first_file, "start_line": 1, "end_line": 1}, "cite-1"),
+        lambda _m: _call("cite_repository_source", {"path": first_file, "start_line": cite_start, "end_line": cite_end}, "cite-1"),
     ]
 
     if case.hitl_answers:
@@ -1349,8 +1375,9 @@ def _run_offline_fixture_stage(
             error_code="MISSING_OFFLINE_FIXTURE_STAGE",
             error_message=f"No offline fixture output for stage {expectation.stage}",
             latency_ms=latency_ms,
+            rule_set_version_id=case.rule_set_pin.rule_set_version_id,
             usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
-            trace_path=str(trace_path),
+            trace_path=f"traces/{trace_path.name}",
             trace_sha256=trace_sha,
         )
 
@@ -1373,6 +1400,7 @@ def _run_offline_fixture_stage(
         authority_violation=bool(stage_out.get("authorityViolation", False)),
         authority_gate_tested=False,
         completion_gate_tested=False,
+        rule_set_version_id=case.rule_set_pin.rule_set_version_id,
         observed_evidence_records=stage_out.get("evidenceRecords"),
         expected_repo_id=case.repo_pin.repo_id,
         expected_commit_sha=case.repo_pin.commit_sha,
@@ -1381,7 +1409,7 @@ def _run_offline_fixture_stage(
         error_message=stage_out.get("errorMessage"),
         latency_ms=latency_ms,
         usage=TrialUsage(physical_attempts=0, simulated_provider_calls=0, scripted_invocations=0),
-        trace_path=str(trace_path),
+        trace_path=f"traces/{trace_path.name}",
         trace_sha256=trace_sha,
     )
 
@@ -1491,10 +1519,8 @@ def _run_real_root_trial(
 
     thread_id = str(uuid.uuid4())
     assessment_id = str(uuid.uuid4())
-    client = _BenchmarkRuntimeClient(case, thread_id, assessment_id)
+    client = _BenchmarkRuntimeClient(case, thread_id, assessment_id, locale=config.locale)
     repo_root = (DEEPAGENTS_ROOT / case.repo_pin.fixture_dir).resolve()
-    first_file = str(sorted(p.relative_to(repo_root) for p in repo_root.rglob("*") if p.is_file())[0])
-    backend = FilesystemBackend(root_dir=repo_root, virtual_mode=True)
     saver = InMemorySaver()
     outcomes: list[TrialOutcome] = []
 
@@ -1505,12 +1531,12 @@ def _run_real_root_trial(
         hitl_mismatch_err: str | None = None
 
         if is_resume and client.open_requests:
-            open_id = client.open_requests[0]
-            open_row = next((r for r in client.human_requests if r["requestId"] == open_id), {})
-            matched = _match_hitl_answer(case, open_row)
-            if matched is None:
-                hitl_mismatch_err = "HITL_FIXTURE_ANSWER_MISMATCH"
-            else:
+            for open_id in list(client.open_requests):
+                open_row = next((r for r in client.human_requests if r["requestId"] == open_id), {})
+                matched = _match_hitl_answer(case, open_row)
+                if matched is None:
+                    hitl_mismatch_err = "HITL_FIXTURE_ANSWER_MISMATCH"
+                    break
                 client.resolve_human_request(open_id, matched)
 
         if case.is_fault_injection:
@@ -1523,25 +1549,31 @@ def _run_real_root_trial(
         is_simulated = False
 
         if err_code is None:
-            model, is_simulated = _resolve_model_for_trial(
-                case=case,
-                config=config,
-                first_file=first_file,
-                is_resume=is_resume,
-                live_model_factory=live_model_factory,
-            )
             try:
+                files = sorted(p.relative_to(repo_root) for p in repo_root.rglob("*") if p.is_file())
+                if not files:
+                    raise FileNotFoundError(f"REPO_FIXTURE_EMPTY:{repo_root}")
+                first_file = str(files[0])
+                backend = FilesystemBackend(root_dir=repo_root, virtual_mode=True)
+                model, is_simulated = _resolve_model_for_trial(
+                    case=case,
+                    config=config,
+                    first_file=first_file,
+                    is_resume=is_resume,
+                    live_model_factory=live_model_factory,
+                )
+                # Real LIVE uses production governance (None -> default); SCRIPTED/simulated uses ()
+                governance = None if (config.mode == "LIVE" and not is_simulated) else ()
                 run_result = run_assessment_root(
                     client,  # type: ignore[arg-type]
                     assessment_id,
                     backend_factory=lambda _c, _ctx: (backend, None),
                     model=model,
                     checkpointer=saver,
-                    governance=(),
+                    governance=governance,
                     extra_callbacks=[review_trace],
                 )
                 if case.is_fault_injection and client.injected_fault_observed and run_result.get("state") == "FAILED":
-                    # Uniform model resolution on retry (never downgrading LIVE to SCRIPTED)
                     retry_model, is_simulated_retry = _resolve_model_for_trial(
                         case=case,
                         config=config,
@@ -1550,13 +1582,14 @@ def _run_real_root_trial(
                         live_model_factory=live_model_factory,
                     )
                     is_simulated = is_simulated or is_simulated_retry
+                    retry_gov = None if (config.mode == "LIVE" and not is_simulated) else ()
                     run_result = run_assessment_root(
                         client,  # type: ignore[arg-type]
                         assessment_id,
                         backend_factory=lambda _c, _ctx: (backend, None),
                         model=retry_model,
                         checkpointer=saver,
-                        governance=(),
+                        governance=retry_gov,
                         extra_callbacks=[review_trace],
                     )
                     recovery_observed = run_result.get("state") == "SUCCEEDED"
@@ -1623,6 +1656,8 @@ def _run_real_root_trial(
             authority_violation=bool(client.authority_violations),
             authority_gate_tested=client.authority_gate_tested,
             completion_gate_tested=client.completion_gate_tested,
+            tested_invariants=client.tested_invariants,
+            rule_set_version_id=case.rule_set_pin.rule_set_version_id,
             observed_evidence_records=observed_evidence_records,
             decision_referenced_ids=decision_ref_ids,
             expected_repo_id=case.repo_pin.repo_id,
@@ -1644,7 +1679,7 @@ def _run_real_root_trial(
                 cached_input_tokens=review_trace.cached_input_tokens if (config.mode == "LIVE" and not is_simulated) else None,
                 output_tokens=review_trace.output_tokens if (config.mode == "LIVE" and not is_simulated) else None,
             ),
-            trace_path=str(trace_path),
+            trace_path=f"traces/{trace_path.name}",
             trace_sha256=trace_sha,
         )
         outcomes.append(outcome)
@@ -1734,17 +1769,7 @@ def run_benchmark(
                     outcomes.append(outcome)
                     handle.write(outcome.model_dump_json() + "\n")
 
-    bundle_digest = manifest["instructionBundle"]["enRuntimeBundleDigest"] or manifest["instructionBundle"]["viSourceInventoryDigest"] or manifest["instructionBundle"]["id"]
-    trial_metadata_by_key = {
-        (o.case_id, o.stage, o.trial_index): {
-            "threadId": o.thread_id,
-            "traceSha256": o.trace_sha256,
-            "modelRoute": config.model_route,
-            "instructionBundleDigest": bundle_digest,
-            "ruleSetVersionId": case_by_id[o.case_id].rule_set_pin.rule_set_version_id,
-        }
-        for o in outcomes
-    }
+    trial_metadata_by_key = build_trial_metadata_map(manifest, outcomes)
 
     report = build_benchmark_report(
         run_id=resolved_run_id,

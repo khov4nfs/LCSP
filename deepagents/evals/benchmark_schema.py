@@ -98,6 +98,18 @@ class HitlFixtureAnswer(BaseModel):
     resolves_fact: bool = True
 
 
+class GoldEvidenceCriterion(BaseModel):
+    """Semantic gold evidence criterion pinned to source path, span, and content."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    evidence_type: Literal["REPOSITORY_SOURCE", "LEGAL_PROVISION", "HUMAN_CONFIRMED_FACT"] = "REPOSITORY_SOURCE"
+    path: str | None = None
+    required_span: tuple[int, int] | None = None
+    required_text_substrings: tuple[str, ...] = ()
+    fact_to_prove: str = Field(min_length=1)
+
+
 class StageExpectation(BaseModel):
     """Expected outcome and persisted backend state for one evaluation stage (AC2)."""
 
@@ -107,6 +119,7 @@ class StageExpectation(BaseModel):
     expected_lifecycle_state: str = Field(min_length=1)
     expected_verdict: CaseVerdict
     required_evidence_refs: tuple[str, ...] = ()
+    required_evidence_criteria: tuple[GoldEvidenceCriterion, ...] = ()
     expected_hitl_state: str = Field(min_length=1)
     expected_persisted_state: dict[str, Any] = Field(default_factory=dict)
     allow_authority_violation: Literal[False] = False
@@ -186,6 +199,8 @@ class TrialOutcome(BaseModel):
     authority_violation: bool = False
     authority_gate_tested: bool = False
     completion_gate_tested: bool = False
+    tested_invariants: tuple[str, ...] = ()
+    rule_set_version_id: str | None = None
     graph_executed: bool = False
     checkpoint_id: str | None = None
     injected_fault_observed: bool = False

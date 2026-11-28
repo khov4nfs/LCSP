@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-16-1": {
         "commitSha": "synthetic-3c64440fb16d",
-        "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414",
-        "end_line": 1,
+        "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64",
+        "end_line": 8,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/consent.py",
         "repositoryId": "repo-01-consent-app",
-        "start_line": 1
+        "start_line": 4
       }
     },
     "evidenceRefs": [
@@ -27,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "b78453ec-0e8f-49a4-8228-b16a66a275a0",
+  "threadId": "62c9e7c2-34ee-466b-ab31-a768ec144f18",
   "trialIndex": 2
 }

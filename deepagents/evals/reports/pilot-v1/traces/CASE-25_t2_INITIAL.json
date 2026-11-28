@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-25-1": {
         "commitSha": "synthetic-e10f3784e411",
-        "contentSha256": "7bfc524f7f2e3bad370460b31119c010b3261b348ff83362330e4787d0790938",
-        "end_line": 1,
+        "contentSha256": "3e44152e24304bb85294f94f2b65761ea57ef5311afa23b8a694bb2b00436dd0",
+        "end_line": 6,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/cli.py",
         "repositoryId": "repo-03-internal-cli",
-        "start_line": 1
+        "start_line": 4
       }
     },
     "evidenceRefs": [
@@ -27,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "90d6d441-0f01-4b39-84a0-5f34db7fa5b1",
+  "threadId": "3e54b40f-c58f-4dda-9278-0ac9fe72335a",
   "trialIndex": 2
 }

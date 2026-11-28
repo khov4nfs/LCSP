@@ -22,6 +22,7 @@ from evals.benchmark_schema import RunConfig, TrialOutcome
 from evals.run_manifest import save_runtime_manifest
 from evals.scorer import (
     build_benchmark_report,
+    build_trial_metadata_map,
     export_report_csv,
     export_report_json,
     validate_run_artifacts_for_scoring,
@@ -131,15 +132,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             for line in args.trials.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
-        validate_run_artifacts_for_scoring(manifest, outcomes)
+        validate_run_artifacts_for_scoring(manifest, outcomes, base_dir=args.trials.parent)
         reviews = load_manual_reviews(args.reviews)
-        trial_metadata_by_key = {
-            (o.case_id, o.stage, o.trial_index): {
-                "threadId": o.thread_id,
-                "traceSha256": o.trace_sha256,
-            }
-            for o in outcomes
-        }
+        trial_metadata_by_key = build_trial_metadata_map(manifest, outcomes)
         report = build_benchmark_report(
             run_id=manifest["runId"],
             manifest_sha256=manifest["manifestSha256"],

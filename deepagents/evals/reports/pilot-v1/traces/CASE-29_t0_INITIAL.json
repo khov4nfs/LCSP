@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-29-1": {
         "commitSha": "synthetic-de4b5964d365",
-        "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58",
-        "end_line": 1,
+        "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc",
+        "end_line": 3,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/retention.py",
         "repositoryId": "repo-04-hitl-retention",
-        "start_line": 1
+        "start_line": 2
       }
     },
     "evidenceRefs": [
@@ -27,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "87f0aa98-20c9-43cd-ab56-13d540fd2ce7",
+  "threadId": "584480d0-8669-4470-8fdb-055075353efb",
   "trialIndex": 0
 }

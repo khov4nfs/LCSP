@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-26-1": {
         "commitSha": "synthetic-2a9be529e4d9",
-        "contentSha256": "ca6d2e0fc53b9c69078ec5403bc3aa40e8a14d990b0dbf9e0498e1f92604fe50",
-        "end_line": 1,
+        "contentSha256": "cd3f2164a560b03c7c22ccf9faa04c30e0a4a5e44e705cc52c38588e8c6f8fce",
+        "end_line": 6,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "tests/test_crypto.py",
         "repositoryId": "repo-05-test-only-evidence",
-        "start_line": 1
+        "start_line": 4
       }
     },
     "evidenceRefs": [
@@ -27,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "900e20cf-3937-4f0b-a288-829c4f920110",
+  "threadId": "78474de9-3d97-478a-9841-4e509b2b2f6c",
   "trialIndex": 0
 }

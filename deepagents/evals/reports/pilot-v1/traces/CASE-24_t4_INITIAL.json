@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-24-1": {
         "commitSha": "synthetic-e697ed5e29c9",
-        "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff",
-        "end_line": 1,
+        "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20",
+        "end_line": 6,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/audit_log.py",
         "repositoryId": "repo-02-audit-gap",
-        "start_line": 1
+        "start_line": 4
       }
     },
     "evidenceRefs": [
@@ -27,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "84e08d4e-2a4d-4791-b597-d50502ef34f7",
+  "threadId": "cfdd248c-576a-419e-bc28-e9922f04d530",
   "trialIndex": 4
 }

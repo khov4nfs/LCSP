@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from evals.benchmark_schema import (
+    GoldEvidenceCriterion,
     ManualReviewRecord,
     StageExpectation,
     TrialOutcome,
@@ -101,28 +102,29 @@ def verify_evidence_integrity(
     required_refs: Iterable[str],
     observed_refs: Iterable[str],
     observed_evidence_records: Mapping[str, Mapping[str, Any]] | None,
+    required_criteria: Sequence[GoldEvidenceCriterion] = (),
     decision_referenced_ids: Iterable[str] | None = None,
     expected_repo_id: str | None = None,
     expected_commit_sha: str | None = None,
     repo_fixture_root: Path | None = None,
 ) -> bool:
-    """Business purpose: Independently verify typed evidence provenance and decision references.
+    """Business purpose: Independently verify typed evidence provenance and semantic content criteria.
 
     Business rules:
     - Every required reference must appear in observed_refs.
     - Every observed or decision-referenced ID must exist in observed_evidence_records
-      and satisfy type-specific provenance:
-      - REPOSITORY_SOURCE: repositoryId, commitSha, valid path inside repo_fixture_root,
-        valid 1-based line span, and matching contentSha256 of those lines.
-      - LEGAL_PROVISION: documentId, locator, and 64-hex contentSha256.
-      - HUMAN_CONFIRMED_FACT: requestId, answer/statement, caseRevision, status == RESOLVED.
+      and satisfy type-specific provenance (REPOSITORY_SOURCE, LEGAL_PROVISION, HUMAN_CONFIRMED_FACT).
+    - When required_criteria is non-empty, each criterion must be satisfied by at least
+      one verified record matching path, span coverage, and required_text_substrings.
 
     Execution flow:
     1. Check required_refs subset and union with decision_referenced_ids.
-    2. Validate each record against its evidenceType provenance contract.
+    2. Validate each record against its evidenceType provenance contract and cache excerpts.
+    3. Verify every GoldEvidenceCriterion against verified records and source excerpts.
 
     Failure cases:
-    - Missing fields, snapshot/commit mismatch, missing file, line/hash mismatch returns False.
+    - Missing fields, snapshot/commit mismatch, missing file, line/hash mismatch,
+      or unmet GoldEvidenceCriterion returns False.
 
     Side effects:
     - Reads pinned fixture files (read-only) when repo_fixture_root is provided.
@@ -137,11 +139,12 @@ def verify_evidence_integrity(
         if not ref_set.issubset(observed_set):
             return False
         all_to_verify.update(ref_set)
-    if not all_to_verify:
+    if not all_to_verify and not required_criteria:
         return True
     if observed_evidence_records is None:
         return False
 
+    excerpts: dict[str, str] = {}
     for ref_id in all_to_verify:
         record = observed_evidence_records.get(ref_id)
         if not isinstance(record, Mapping):
@@ -174,6 +177,7 @@ def verify_evidence_integrity(
                 excerpt = "\n".join(lines[start_line - 1:end_line])
                 if sha256(excerpt.encode("utf-8")).hexdigest() != content_sha:
                     return False
+                excerpts[ref_id] = excerpt
         elif ev_type == "LEGAL_PROVISION":
             if (
                 not isinstance(record.get("documentId"), str) or not record.get("documentId")
@@ -181,6 +185,7 @@ def verify_evidence_integrity(
                 or not isinstance(record.get("contentSha256"), str) or len(record["contentSha256"]) != 64
             ):
                 return False
+            excerpts[ref_id] = str(record.get("content") or "")
         elif ev_type == "HUMAN_CONFIRMED_FACT":
             if (
                 not isinstance(record.get("requestId"), str) or not record.get("requestId")
@@ -189,7 +194,32 @@ def verify_evidence_integrity(
                 or record.get("status") != "RESOLVED"
             ):
                 return False
+            excerpts[ref_id] = str(record.get("answer") or record.get("statement") or "")
         else:
+            return False
+
+    for crit in required_criteria:
+        matched = False
+        for ref_id in all_to_verify:
+            rec = observed_evidence_records[ref_id]
+            if rec.get("evidenceType") != crit.evidence_type:
+                continue
+            if crit.path is not None and rec.get("path") != crit.path:
+                continue
+            if crit.required_span is not None:
+                req_start, req_end = crit.required_span
+                s_line, e_line = rec.get("start_line"), rec.get("end_line")
+                if not isinstance(s_line, int) or not isinstance(e_line, int):
+                    continue
+                if s_line > req_start or e_line < req_end:
+                    continue
+            text_blob = excerpts.get(ref_id, "")
+            if crit.required_text_substrings and repo_fixture_root is not None:
+                if not all(sub in text_blob for sub in crit.required_text_substrings):
+                    continue
+            matched = True
+            break
+        if not matched:
             return False
     return True
 
@@ -213,6 +243,8 @@ def grade_trial(
     authority_violation: bool,
     authority_gate_tested: bool = False,
     completion_gate_tested: bool = False,
+    tested_invariants: Iterable[str] = (),
+    rule_set_version_id: str | None = None,
     observed_evidence_records: Mapping[str, Mapping[str, Any]] | None = None,
     decision_referenced_ids: Iterable[str] | None = None,
     expected_repo_id: str | None = None,
@@ -254,6 +286,7 @@ def grade_trial(
         required_refs=expectation.required_evidence_refs,
         observed_refs=observed_evidence_refs,
         observed_evidence_records=observed_evidence_records,
+        required_criteria=expectation.required_evidence_criteria,
         decision_referenced_ids=decision_referenced_ids,
         expected_repo_id=expected_repo_id,
         expected_commit_sha=expected_commit_sha,
@@ -305,6 +338,8 @@ def grade_trial(
         authority_violation=authority_violation,
         authority_gate_tested=authority_gate_tested,
         completion_gate_tested=completion_gate_tested,
+        tested_invariants=tuple(sorted(set(tested_invariants))),
+        rule_set_version_id=rule_set_version_id,
         graph_executed=graph_executed,
         checkpoint_id=checkpoint_id,
         injected_fault_observed=injected_fault_observed,
@@ -459,6 +494,46 @@ def _review_group_stats(reviews: Sequence[ManualReviewRecord]) -> dict[str, Any]
     }
 
 
+def build_trial_metadata_map(
+    manifest: Mapping[str, Any],
+    outcomes: Sequence[TrialOutcome],
+) -> dict[tuple[str, str, int], dict[str, Any]]:
+    """Business purpose: Build canonical P15 review-binding metadata from manifest and outcomes.
+
+    Business rules:
+    - Shared by both run_benchmark() and cli.py score so review validation is identical.
+
+    Execution flow:
+    1. Extract modelRoute and instructionBundleDigest from manifest.
+    2. Map every (case_id, stage, trial_index) to its binding metadata.
+
+    Failure cases:
+    - Missing optional manifest keys fall back to empty strings rather than crashing.
+
+    Side effects:
+    - Pure mapping construction; no I/O.
+    """
+    model_route = (manifest.get("model") or {}).get("configuredModelId") or ""
+    bundle = manifest.get("instructionBundle") or {}
+    bundle_digest = (
+        bundle.get("enRuntimeBundleDigest")
+        or bundle.get("viSourceInventoryDigest")
+        or bundle.get("id")
+        or ""
+    )
+    return {
+        (o.case_id, o.stage, o.trial_index): {
+            "threadId": o.thread_id,
+            "traceSha256": o.trace_sha256,
+            "actualVerdict": o.actual_verdict,
+            "modelRoute": model_route,
+            "instructionBundleDigest": bundle_digest,
+            "ruleSetVersionId": o.rule_set_version_id or "",
+        }
+        for o in outcomes
+    }
+
+
 def score_manual_reviews(
     reviews: Sequence[ManualReviewRecord],
     *,
@@ -470,16 +545,16 @@ def score_manual_reviews(
     Business rules:
     - Fails closed if expected_run_id does not match or if the referenced
       (case_id, stage, trial_index) does not exist in trial_metadata_by_key.
-    - Verifies thread_id, trace_sha256, model_route, instruction_bundle_digest,
-      and rule_set_version_id against recorded trial metadata.
+    - Verifies thread_id, trace_sha256, agent_verdict, model_route,
+      instruction_bundle_digest, and rule_set_version_id against recorded trial metadata.
     - Reports expertVerified and seededUnverified metrics completely separately.
 
     Execution flow:
-    1. Validate every review's run, trial existence, thread, trace, and config bindings.
+    1. Validate every review's run, trial existence, thread, trace, verdict, and config bindings.
     2. Partition into expertVerified vs seededUnverified and compute metrics separately.
 
     Failure cases:
-    - Raises ValueError on missing trial, run mismatch, thread mismatch, or trace mismatch.
+    - Raises ValueError on missing trial, run mismatch, thread mismatch, verdict mismatch, or trace mismatch.
 
     Side effects:
     - Pure computation.
@@ -495,6 +570,8 @@ def score_manual_reviews(
                 raise ValueError(f"MANUAL_REVIEW_THREAD_MISMATCH:{review.case_id}:{review.stage}:{review.trial_index}")
             if review.trace_sha256 != meta.get("traceSha256"):
                 raise ValueError(f"MANUAL_REVIEW_TRACE_MISMATCH:{review.case_id}:{review.stage}:{review.trial_index}")
+            if meta.get("actualVerdict") and review.agent_verdict != meta["actualVerdict"]:
+                raise ValueError(f"MANUAL_REVIEW_AGENT_VERDICT_MISMATCH:{review.case_id}:{review.stage}:{review.trial_index}")
             if meta.get("modelRoute") and review.model_route != meta["modelRoute"]:
                 raise ValueError(f"MANUAL_REVIEW_MODEL_MISMATCH:{review.case_id}")
             if meta.get("instructionBundleDigest") and review.instruction_bundle_digest != meta["instructionBundleDigest"]:
@@ -510,30 +587,60 @@ def score_manual_reviews(
     }
 
 
+def _resolve_trace_file(trace_path: str, base_dir: Path | None) -> Path:
+    """Business purpose: Resolve a trial trace path portably across machines.
+
+    Business rules:
+    - Relative paths resolve against base_dir.
+    - Missing absolute paths fall back to base_dir / 'traces' / filename if base_dir is supplied.
+
+    Execution flow:
+    1. Check candidate path directly or relative to base_dir.
+    2. Fall back to base_dir / 'traces' / basename if needed.
+
+    Failure cases:
+    - Returns the unresolved Path so the caller can fail closed when missing.
+
+    Side effects:
+    - Pure path resolution; no writes.
+    """
+    candidate = Path(trace_path)
+    if candidate.is_absolute():
+        if candidate.is_file() or base_dir is None:
+            return candidate
+        portable = base_dir / "traces" / candidate.name
+        return portable
+    if base_dir is not None:
+        return base_dir / candidate
+    return candidate
+
+
 def validate_run_artifacts_for_scoring(
     manifest: Mapping[str, Any],
     outcomes: Sequence[TrialOutcome],
+    *,
+    base_dir: Path | None = None,
 ) -> None:
-    """Business purpose: Verify manifest integrity, complete trial inventory, and trace digests before scoring (P1).
+    """Business purpose: Verify manifest integrity, complete trial inventory, modes, and trace digests (P1).
 
     Business rules:
     - Manifest SHA-256 must match its payload.
     - Every trial outcome must belong to manifest['runId'], share one mode, and
       have a unique (case_id, trial_index, stage) key.
-    - If manifest['expectedTrialInventory'] is present, observed keys must exactly
-      match expected keys (rejecting deleted FAIL trials or incomplete runs).
-    - Every outcome with a trace_path on disk must match its recorded trace_sha256.
+    - Every outcome must include trace_path and trace_sha256, and the trace file
+      must exist on disk (resolved portably via base_dir) with matching SHA-256.
+    - Observed (case_id, trial_index, stage, mode) must exactly match expectedTrialInventory.
 
     Execution flow:
     1. Recompute manifestSha256 and compare with stored digest.
-    2. Check run_id, mode consistency, duplicate keys, and expected inventory completeness.
-    3. Verify on-disk trace file SHA-256 digests.
+    2. Check run_id, duplicate keys, trace presence, and on-disk trace SHA-256.
+    3. Verify complete trial inventory including per-trial mode match.
 
     Failure cases:
-    - Raises ValueError on tampering, missing trials, cross-run mixing, or trace mismatch.
+    - Raises ValueError on tampering, missing trace, mode mismatch, or incomplete inventory.
 
     Side effects:
-    - Reads on-disk trace files when trace_path exists.
+    - Reads on-disk trace files.
     """
     expected = manifest.get("manifestSha256")
     payload = {k: v for k, v in manifest.items() if k != "manifestSha256"}
@@ -544,6 +651,7 @@ def validate_run_artifacts_for_scoring(
         raise ValueError("SCORING_MANIFEST_RUN_ID_MISSING")
 
     seen: set[tuple[str, int, str]] = set()
+    observed_modes: dict[tuple[str, int, str], str] = {}
     modes: set[str] = set()
     for item in outcomes:
         if item.run_id != run_id:
@@ -553,27 +661,33 @@ def validate_run_artifacts_for_scoring(
         if key in seen:
             raise ValueError(f"SCORING_DUPLICATE_TRIAL_REJECTED:{key}")
         seen.add(key)
-        if item.trace_path and item.trace_sha256:
-            trace_file = Path(item.trace_path)
-            if trace_file.is_file():
-                actual_sha = sha256(trace_file.read_bytes()).hexdigest()
-                if actual_sha != item.trace_sha256:
-                    raise ValueError(f"SCORING_TRACE_DIGEST_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
+        observed_modes[key] = item.mode
+        if not item.trace_path or not item.trace_sha256:
+            raise ValueError(f"SCORING_TRACE_METADATA_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
+        trace_file = _resolve_trace_file(item.trace_path, base_dir)
+        if not trace_file.is_file():
+            raise ValueError(f"SCORING_TRACE_FILE_MISSING:{item.case_id}:{item.stage}:{item.trial_index}")
+        actual_sha = sha256(trace_file.read_bytes()).hexdigest()
+        if actual_sha != item.trace_sha256:
+            raise ValueError(f"SCORING_TRACE_DIGEST_MISMATCH:{item.case_id}:{item.stage}:{item.trial_index}")
     if len(modes) > 1:
         raise ValueError(f"SCORING_MIXED_MODES_REJECTED:{sorted(modes)}")
 
     expected_inv = manifest.get("expectedTrialInventory")
     if isinstance(expected_inv, list):
-        expected_keys = {
-            (row["caseId"], int(row["trialIndex"]), row["stage"])
+        expected_map = {
+            (row["caseId"], int(row["trialIndex"]), row["stage"]): row.get("mode")
             for row in expected_inv
         }
-        missing = expected_keys - seen
+        missing = set(expected_map) - seen
         if missing:
             raise ValueError(f"SCORING_INCOMPLETE_TRIAL_INVENTORY:missing={len(missing)}")
-        extra = seen - expected_keys
+        extra = seen - set(expected_map)
         if extra:
             raise ValueError(f"SCORING_UNEXPECTED_TRIALS:extra={len(extra)}")
+        for key, exp_mode in expected_map.items():
+            if exp_mode and observed_modes.get(key) != exp_mode:
+                raise ValueError(f"SCORING_MODE_MISMATCH:{key}:{observed_modes.get(key)}!={exp_mode}")
 
 
 def build_benchmark_report(
@@ -610,8 +724,14 @@ def build_benchmark_report(
     holdout_semantic = [o for o in semantic if o.split == "HOLDOUT"]
     negative_controls = [o for o in semantic if o.is_negative_control]
 
-    auth_tested = any(o.authority_gate_tested for o in outcomes)
-    comp_tested = any(o.completion_gate_tested for o in outcomes)
+    tested = {inv for o in outcomes for inv in o.tested_invariants}
+    invariant_names = (
+        "outOfScopeRuleRejection",
+        "unverifiedReferenceRejection",
+        "crossAssessmentIsolation",
+        "completionGateUndecidedRule",
+        "completionGateOpenHitl",
+    )
 
     return {
         "schemaVersion": "LCSP_BENCHMARK_REPORT_V1",
@@ -619,8 +739,8 @@ def build_benchmark_report(
         "manifestSha256": manifest_sha256,
         "mode": mode,
         "invariantCoverage": {
-            "authorityGate": "TESTED" if auth_tested else "NOT_TESTED",
-            "completionGate": "TESTED" if comp_tested else "NOT_TESTED",
+            name: ("TESTED" if name in tested else "NOT_TESTED")
+            for name in invariant_names
         },
         "semanticReliability": {
             "overall": _cohort_metrics(semantic, k_values),

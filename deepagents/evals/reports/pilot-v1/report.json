@@ -46,10 +46,13 @@
     }
   },
   "invariantCoverage": {
-    "authorityGate": "NOT_TESTED",
-    "completionGate": "NOT_TESTED"
+    "completionGateOpenHitl": "NOT_TESTED",
+    "completionGateUndecidedRule": "NOT_TESTED",
+    "crossAssessmentIsolation": "NOT_TESTED",
+    "outOfScopeRuleRejection": "NOT_TESTED",
+    "unverifiedReferenceRejection": "NOT_TESTED"
   },
-  "manifestSha256": "ed6266f0ea764844faccb53f0e85bb1a744869eb12ffd8ca10de9cd19092f66c",
+  "manifestSha256": "f1e7c0de5fa4316431c28ee6e2754a747c9ab6b6e65fbba6f2e9f521c093e305",
   "manualSemanticReviewP15": {
     "expertVerified": {
       "authorityRespectedRate": null,
@@ -75,7 +78,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.022,
+        "maxMs": 0.002,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -121,7 +124,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.003,
+        "maxMs": 0.001,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -167,7 +170,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.022,
+        "maxMs": 0.001,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,
@@ -213,7 +216,7 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 0.022,
+        "maxMs": 0.002,
         "meanMs": 0.0,
         "minMs": 0.0,
         "p50Ms": 0.0,

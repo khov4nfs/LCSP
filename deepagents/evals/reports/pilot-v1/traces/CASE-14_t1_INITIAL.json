@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-14-1": {
         "commitSha": "synthetic-514f09d5ab84",
-        "contentSha256": "c8a8eab2fea8057f8e52fd25cf8c54e4da1a2da44b7cdb7bf0e855612b126ace",
-        "end_line": 1,
+        "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557",
+        "end_line": 6,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/transfer.py",
         "repositoryId": "repo-07-cross-border",
-        "start_line": 1
+        "start_line": 4
       }
     },
     "evidenceRefs": [
@@ -27,6 +27,6 @@
   },
   "runId": "pilot-v1",
   "stage": "INITIAL",
-  "threadId": "f6264273-2a27-4cdd-bdf3-8c1b77932bec",
+  "threadId": "eee90472-9516-4a57-a330-fb575fac2d79",
   "trialIndex": 1
 }

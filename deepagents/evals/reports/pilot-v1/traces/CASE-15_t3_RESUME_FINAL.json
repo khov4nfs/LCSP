@@ -6,12 +6,12 @@
     "evidenceRecords": {
       "ev-case-15-1": {
         "commitSha": "synthetic-de4b5964d365",
-        "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58",
-        "end_line": 1,
+        "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc",
+        "end_line": 3,
         "evidenceType": "REPOSITORY_SOURCE",
         "path": "src/retention.py",
         "repositoryId": "repo-04-hitl-retention",
-        "start_line": 1
+        "start_line": 2
       },
       "fact-case-15-1": {
         "answer": "Data Protection Office owns retention and notification.",
@@ -35,6 +35,6 @@
   },
   "runId": "pilot-v1",
   "stage": "RESUME_FINAL",
-  "threadId": "87e6bc2a-df2e-48f6-b96d-9f97b731ca25",
+  "threadId": "3e2edfb3-2a55-4bf6-abbe-4210870e5544",
   "trialIndex": 3
 }

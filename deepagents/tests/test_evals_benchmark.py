@@ -194,17 +194,33 @@ def test_regression_incomplete_inventory_and_trace_tampering_rejected(tmp_path):
 
     # Deleting a trial -> SCORING_INCOMPLETE_TRIAL_INVENTORY
     with pytest.raises(ValueError, match="SCORING_INCOMPLETE_TRIAL_INVENTORY"):
-        validate_run_artifacts_for_scoring(manifest, outcomes[:-1])
+        validate_run_artifacts_for_scoring(manifest, outcomes[:-1], base_dir=tmp_path / "inv-run")
+
+    # Mode mismatch (all trials swapped OFFLINE_FIXTURE -> SCRIPTED) -> SCORING_MODE_MISMATCH
+    swapped = [o.model_copy(update={"mode": "SCRIPTED"}) for o in outcomes]
+    with pytest.raises(ValueError, match="SCORING_MODE_MISMATCH"):
+        validate_run_artifacts_for_scoring(manifest, swapped, base_dir=tmp_path / "inv-run")
+
+    # Missing trace hash -> SCORING_TRACE_METADATA_MISSING
+    no_hash = outcomes[0].model_copy(update={"trace_sha256": None})
+    with pytest.raises(ValueError, match="SCORING_TRACE_METADATA_MISSING"):
+        validate_run_artifacts_for_scoring(manifest, [no_hash, *outcomes[1:]], base_dir=tmp_path / "inv-run")
 
     # Tampering with an on-disk trace file -> SCORING_TRACE_DIGEST_MISMATCH
-    Path(outcomes[0].trace_path).write_text('{"tampered": true}\n', encoding="utf-8")
+    trace_file = tmp_path / "inv-run" / outcomes[0].trace_path
+    trace_file.write_text('{"tampered": true}\n', encoding="utf-8")
     with pytest.raises(ValueError, match="SCORING_TRACE_DIGEST_MISMATCH"):
-        validate_run_artifacts_for_scoring(manifest, outcomes)
+        validate_run_artifacts_for_scoring(manifest, outcomes, base_dir=tmp_path / "inv-run")
+
+    # Deleting trace file -> SCORING_TRACE_FILE_MISSING
+    trace_file.unlink()
+    with pytest.raises(ValueError, match="SCORING_TRACE_FILE_MISSING"):
+        validate_run_artifacts_for_scoring(manifest, outcomes, base_dir=tmp_path / "inv-run")
 
     # 9. Cross-run trial rejected
     foreign = outcomes[0].model_copy(update={"run_id": "other-run"})
     with pytest.raises(ValueError, match="SCORING_CROSS_RUN_TRIAL_REJECTED"):
-        validate_run_artifacts_for_scoring(manifest, [foreign, *outcomes[1:]])
+        validate_run_artifacts_for_scoring(manifest, [foreign, *outcomes[1:]], base_dir=tmp_path / "inv-run")
 
 
 def test_regression_fixture_content_change_changes_manifest_hash(tmp_path):
@@ -277,7 +293,8 @@ def test_regression_real_scripted_assessment_root_hitl_and_fault_recovery(tmp_pa
     assert report["semanticReliability"]["overall"]["usage"]["scriptedInvocations"] > 0
     assert report["semanticReliability"]["overall"]["passedTrials"] == 3
     assert report["faultInjectionRecovery"]["passedTrials"] == 1
-    assert report["invariantCoverage"] == {"authorityGate": "TESTED", "completionGate": "TESTED"}
+    assert report["invariantCoverage"]["completionGateUndecidedRule"] == "NOT_TESTED"
+    assert report["invariantCoverage"]["outOfScopeRuleRejection"] == "NOT_TESTED"
 
     # Unmatched HITL question fails with HITL_FIXTURE_ANSWER_MISMATCH (never fabricates answer)
     from evals.benchmark_runner import _match_hitl_answer
@@ -311,3 +328,55 @@ def test_regression_p15_fail_closed_and_cli_model_route(tmp_path):
     ])
     assert rc == 0
     assert json.loads((tmp_path / "manifest.json").read_text())["model"]["configuredModelId"] == "offline-scripted"
+
+
+def test_regression_gold_evidence_content_criterion_and_hitl_resolves_fact_false(tmp_path):
+    from hashlib import sha256
+    from evals.benchmark_schema import HitlFixtureAnswer
+
+    # 1. Citing only line 1 (docstring) of src/consent.py fails CASE-01 GoldEvidenceCriterion
+    case = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])[0]
+    exp = case.gold_rubric.stages[0]
+    repo_root = Path(__file__).resolve().parent.parent / case.repo_pin.fixture_dir
+    line1 = (repo_root / "src/consent.py").read_text(encoding="utf-8").splitlines()[0]
+    docstring_only = grade_trial(
+        run_id="r1", case_id="CASE-01", trial_index=0, thread_id="t1", mode="SCRIPTED", split="DEV",
+        expectation=exp, is_negative_control=False, is_fault_injection=False,
+        observed_lifecycle_state="COMPLETE", observed_verdict="APPLICABLE_COMPLIANT",
+        observed_evidence_refs=("ev-1",), observed_hitl_state="NONE",
+        observed_persisted_state={"lifecycleState": "COMPLETE", "openHumanRequests": 0},
+        authority_violation=False,
+        observed_evidence_records={"ev-1": {
+            "evidenceType": "REPOSITORY_SOURCE", "repositoryId": case.repo_pin.repo_id,
+            "commitSha": case.repo_pin.commit_sha, "path": "src/consent.py",
+            "start_line": 1, "end_line": 1, "contentSha256": sha256(line1.encode()).hexdigest(),
+        }},
+        expected_repo_id=case.repo_pin.repo_id, expected_commit_sha=case.repo_pin.commit_sha,
+        repo_fixture_root=repo_root, graph_executed=True,
+    )
+    assert docstring_only.passed is False and docstring_only.evidence_match is False
+
+    # 2. HITL resolves_fact=False does NOT create HUMAN_CONFIRMED_FACT, and unknown request_id fails closed
+    client = _BenchmarkRuntimeClient(case, "t1", "a1", locale="vi")
+    assert client.context()["locale"] == "vi"
+    req = client.post_human_request({"question": "Who?", "unresolvedFact": "owner"})
+    client.resolve_human_request(
+        req["requestId"],
+        HitlFixtureAnswer(request_key="owner", question_pattern="Who", answer="Unknown", resolves_fact=False),
+    )
+    assert client.facts == []
+    with pytest.raises(ValueError, match="UNKNOWN_OPEN_HUMAN_REQUEST"):
+        client.resolve_human_request("nonexistent-req", HitlFixtureAnswer(request_key="k", question_pattern="q", answer="a"))
+
+    # 3. Setup/model-resolution failure inside _run_real_root_trial records failed TrialOutcome instead of aborting run
+    def _boom(_case, _cfg):
+        raise RuntimeError("MODEL_INIT_BOOM")
+
+    err_report = run_benchmark(
+        cases=[case],
+        config=RunConfig(mode="LIVE", split="DEV", trials_per_case=1, k_values=(1,), allow_live=True, model_route="fake-live"),
+        output_dir=tmp_path,
+        run_id="setup-fail-recorded",
+        live_model_factory=_boom,
+    )
+    assert err_report["semanticReliability"]["overall"]["failedTrials"] == 1

@@ -46,7 +46,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for context_wizard_ready"
@@ -71,9 +86,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -165,7 +180,22 @@
               "lifecycleState": "WAITING_FOR_HUMAN",
               "openHumanRequests": 1
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              }
+            ]
           },
           {
             "stage": "RESUME_FINAL",
@@ -180,7 +210,29 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              },
+              {
+                "evidence_type": "HUMAN_CONFIRMED_FACT",
+                "required_text_substrings": [
+                  "Data Protection Office"
+                ],
+                "fact_to_prove": "Organizational owner confirmed via HITL"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for context_wizard_needs_input"
@@ -205,9 +257,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               }
             }
           },
@@ -230,9 +282,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               },
               "fact-case-02-1": {
                 "evidenceType": "HUMAN_CONFIRMED_FACT",
@@ -322,7 +374,22 @@
               "lifecycleState": "BLOCKED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for context_wizard_tool_error"
@@ -347,9 +414,9 @@
                 "repositoryId": "repo-02-audit-gap",
                 "commitSha": "synthetic-e697ed5e29c9",
                 "path": "src/audit_log.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
               }
             }
           }
@@ -432,7 +499,22 @@
               "lifecycleState": "PAUSED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for planner_incomplete_coverage"
@@ -457,9 +539,9 @@
                 "repositoryId": "repo-02-audit-gap",
                 "commitSha": "synthetic-e697ed5e29c9",
                 "path": "src/audit_log.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
               }
             }
           }
@@ -542,7 +624,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for planner_unpinned_rule_guard"
@@ -567,9 +664,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -653,7 +750,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -678,9 +790,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -764,7 +876,22 @@
               "lifecycleState": "PAUSED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_fabricated_ref_guard"
@@ -789,9 +916,9 @@
                 "repositoryId": "repo-02-audit-gap",
                 "commitSha": "synthetic-e697ed5e29c9",
                 "path": "src/audit_log.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
               }
             }
           }
@@ -874,7 +1001,22 @@
               "lifecycleState": "PAUSED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "tests/test_crypto.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def test_mock_encryption_helper",
+                  "Test fixture only"
+                ],
+                "fact_to_prove": "Test-only encryption fixture cannot prove production"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_test_only_guard"
@@ -899,9 +1041,9 @@
                 "repositoryId": "repo-05-test-only-evidence",
                 "commitSha": "synthetic-2a9be529e4d9",
                 "path": "tests/test_crypto.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "ca6d2e0fc53b9c69078ec5403bc3aa40e8a14d990b0dbf9e0498e1f92604fe50"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "cd3f2164a560b03c7c22ccf9faa04c30e0a4a5e44e705cc52c38588e8c6f8fce"
               }
             }
           }
@@ -984,7 +1126,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/transfer.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def transfer_to_region",
+                  "tia_verified"
+                ],
+                "fact_to_prove": "Cross-border transfer records TIA verification"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_topology_required"
@@ -1009,9 +1166,9 @@
                 "repositoryId": "repo-07-cross-border",
                 "commitSha": "synthetic-514f09d5ab84",
                 "path": "src/transfer.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c8a8eab2fea8057f8e52fd25cf8c54e4da1a2da44b7cdb7bf0e855612b126ace"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557"
               }
             }
           }
@@ -1094,7 +1251,22 @@
               "lifecycleState": "PAUSED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_absence_negative_claim"
@@ -1119,9 +1291,9 @@
                 "repositoryId": "repo-02-audit-gap",
                 "commitSha": "synthetic-e697ed5e29c9",
                 "path": "src/audit_log.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
               }
             }
           }
@@ -1212,7 +1384,22 @@
               "lifecycleState": "WAITING_FOR_HUMAN",
               "openHumanRequests": 1
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              }
+            ]
           },
           {
             "stage": "RESUME_FINAL",
@@ -1227,7 +1414,29 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              },
+              {
+                "evidence_type": "HUMAN_CONFIRMED_FACT",
+                "required_text_substrings": [
+                  "Data Protection Office"
+                ],
+                "fact_to_prove": "Organizational owner confirmed via HITL"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for resolver_conflict"
@@ -1252,9 +1461,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               }
             }
           },
@@ -1277,9 +1486,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               },
               "fact-case-11-1": {
                 "evidenceType": "HUMAN_CONFIRMED_FACT",
@@ -1369,7 +1578,22 @@
               "lifecycleState": "BLOCKED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for root_stale_artifact"
@@ -1394,9 +1618,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -1480,7 +1704,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/exporter.py",
+                "required_span": [
+                  5,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def export_profile",
+                  "without access check"
+                ],
+                "fact_to_prove": "Profile export lacks access check despite comment injection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for root_cross_assessment_isolation"
@@ -1505,9 +1744,9 @@
                 "repositoryId": "repo-06-prompt-injection",
                 "commitSha": "synthetic-9320b152a50e",
                 "path": "src/exporter.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "38af7358cb61d0dc408f047f17b76aca07e2be632ee334263e477de702115638"
+                "start_line": 5,
+                "end_line": 7,
+                "contentSha256": "46649162dad21c1e4b42df37ad153421dbfd620f7fd6c27e7602bf5b1a49ee8d"
               }
             }
           }
@@ -1590,7 +1829,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/transfer.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def transfer_to_region",
+                  "tia_verified"
+                ],
+                "fact_to_prove": "Cross-border transfer records TIA verification"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for triage_legal_ambiguity"
@@ -1615,9 +1869,9 @@
                 "repositoryId": "repo-07-cross-border",
                 "commitSha": "synthetic-514f09d5ab84",
                 "path": "src/transfer.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c8a8eab2fea8057f8e52fd25cf8c54e4da1a2da44b7cdb7bf0e855612b126ace"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557"
               }
             }
           }
@@ -1708,7 +1962,22 @@
               "lifecycleState": "WAITING_FOR_HUMAN",
               "openHumanRequests": 1
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              }
+            ]
           },
           {
             "stage": "RESUME_FINAL",
@@ -1723,7 +1992,29 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              },
+              {
+                "evidence_type": "HUMAN_CONFIRMED_FACT",
+                "required_text_substrings": [
+                  "Data Protection Office"
+                ],
+                "fact_to_prove": "Organizational owner confirmed via HITL"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for hitl_waiting_and_resume"
@@ -1748,9 +2039,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               }
             }
           },
@@ -1773,9 +2064,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               },
               "fact-case-15-1": {
                 "evidenceType": "HUMAN_CONFIRMED_FACT",
@@ -1865,7 +2156,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for authority_boundary_guard"
@@ -1890,9 +2196,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -1976,7 +2282,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -2001,9 +2322,9 @@
                 "repositoryId": "repo-02-audit-gap",
                 "commitSha": "synthetic-e697ed5e29c9",
                 "path": "src/audit_log.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
               }
             }
           }
@@ -2086,7 +2407,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/cli.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def format_local_config",
+                  "no personal data processed"
+                ],
+                "fact_to_prove": "Local CLI does not process personal data"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -2111,9 +2447,9 @@
                 "repositoryId": "repo-03-internal-cli",
                 "commitSha": "synthetic-e10f3784e411",
                 "path": "src/cli.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "7bfc524f7f2e3bad370460b31119c010b3261b348ff83362330e4787d0790938"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "3e44152e24304bb85294f94f2b65761ea57ef5311afa23b8a694bb2b00436dd0"
               }
             }
           }
@@ -2196,7 +2532,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/exporter.py",
+                "required_span": [
+                  5,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def export_profile",
+                  "without access check"
+                ],
+                "fact_to_prove": "Profile export lacks access check despite comment injection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for authority_boundary_guard"
@@ -2221,9 +2572,9 @@
                 "repositoryId": "repo-06-prompt-injection",
                 "commitSha": "synthetic-9320b152a50e",
                 "path": "src/exporter.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "38af7358cb61d0dc408f047f17b76aca07e2be632ee334263e477de702115638"
+                "start_line": 5,
+                "end_line": 7,
+                "contentSha256": "46649162dad21c1e4b42df37ad153421dbfd620f7fd6c27e7602bf5b1a49ee8d"
               }
             }
           }
@@ -2306,7 +2657,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/breach.py",
+                "required_span": [
+                  4,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def notify_incident",
+                  "hours_elapsed <= 72"
+                ],
+                "fact_to_prove": "Breach notification enforces 72-hour SLA"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for fault_recovery_api_503"
@@ -2331,9 +2697,9 @@
                 "repositoryId": "repo-08-breach-sla",
                 "commitSha": "synthetic-1058f7c84f5c",
                 "path": "src/breach.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "f4c7ee3a9fa8de71f57b56309dab157a71b5cc8e93cb6326b01a4fd94f2b883e"
+                "start_line": 4,
+                "end_line": 7,
+                "contentSha256": "15d30daea9fffd86fb4e3ef0d7162b65ea7edca2075a4ca44933454168d5783e"
               }
             }
           }
@@ -2416,7 +2782,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -2441,9 +2822,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -2527,7 +2908,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/transfer.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def transfer_to_region",
+                  "tia_verified"
+                ],
+                "fact_to_prove": "Cross-border transfer records TIA verification"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_topology_required"
@@ -2552,9 +2948,9 @@
                 "repositoryId": "repo-07-cross-border",
                 "commitSha": "synthetic-514f09d5ab84",
                 "path": "src/transfer.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c8a8eab2fea8057f8e52fd25cf8c54e4da1a2da44b7cdb7bf0e855612b126ace"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557"
               }
             }
           }
@@ -2637,7 +3033,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/breach.py",
+                "required_span": [
+                  4,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def notify_incident",
+                  "hours_elapsed <= 72"
+                ],
+                "fact_to_prove": "Breach notification enforces 72-hour SLA"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -2662,9 +3073,9 @@
                 "repositoryId": "repo-08-breach-sla",
                 "commitSha": "synthetic-1058f7c84f5c",
                 "path": "src/breach.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "f4c7ee3a9fa8de71f57b56309dab157a71b5cc8e93cb6326b01a4fd94f2b883e"
+                "start_line": 4,
+                "end_line": 7,
+                "contentSha256": "15d30daea9fffd86fb4e3ef0d7162b65ea7edca2075a4ca44933454168d5783e"
               }
             }
           }
@@ -2747,7 +3158,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/audit_log.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def write_access_log",
+                  "Append an access event without retention enforcement"
+                ],
+                "fact_to_prove": "Access log lacks retention enforcement"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -2772,9 +3198,9 @@
                 "repositoryId": "repo-02-audit-gap",
                 "commitSha": "synthetic-e697ed5e29c9",
                 "path": "src/audit_log.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "fba55ef854db0d5c10d2a7919ba30f5d141ff5edabed91020a5f540f17d4e6ff"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "237f46730ec40d2d0f5080bf72b975ec53667434cd1385d74aa2514ed05dac20"
               }
             }
           }
@@ -2857,7 +3283,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/cli.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def format_local_config",
+                  "no personal data processed"
+                ],
+                "fact_to_prove": "Local CLI does not process personal data"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_production_evidence"
@@ -2882,9 +3323,9 @@
                 "repositoryId": "repo-03-internal-cli",
                 "commitSha": "synthetic-e10f3784e411",
                 "path": "src/cli.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "7bfc524f7f2e3bad370460b31119c010b3261b348ff83362330e4787d0790938"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "3e44152e24304bb85294f94f2b65761ea57ef5311afa23b8a694bb2b00436dd0"
               }
             }
           }
@@ -2967,7 +3408,22 @@
               "lifecycleState": "PAUSED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "tests/test_crypto.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def test_mock_encryption_helper",
+                  "Test fixture only"
+                ],
+                "fact_to_prove": "Test-only encryption fixture cannot prove production"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_test_only_guard"
@@ -2992,9 +3448,9 @@
                 "repositoryId": "repo-05-test-only-evidence",
                 "commitSha": "synthetic-2a9be529e4d9",
                 "path": "tests/test_crypto.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "ca6d2e0fc53b9c69078ec5403bc3aa40e8a14d990b0dbf9e0498e1f92604fe50"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "cd3f2164a560b03c7c22ccf9faa04c30e0a4a5e44e705cc52c38588e8c6f8fce"
               }
             }
           }
@@ -3077,7 +3533,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/exporter.py",
+                "required_span": [
+                  5,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def export_profile",
+                  "without access check"
+                ],
+                "fact_to_prove": "Profile export lacks access check despite comment injection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for authority_boundary_guard"
@@ -3102,9 +3573,9 @@
                 "repositoryId": "repo-06-prompt-injection",
                 "commitSha": "synthetic-9320b152a50e",
                 "path": "src/exporter.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "38af7358cb61d0dc408f047f17b76aca07e2be632ee334263e477de702115638"
+                "start_line": 5,
+                "end_line": 7,
+                "contentSha256": "46649162dad21c1e4b42df37ad153421dbfd620f7fd6c27e7602bf5b1a49ee8d"
               }
             }
           }
@@ -3195,7 +3666,22 @@
               "lifecycleState": "WAITING_FOR_HUMAN",
               "openHumanRequests": 1
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              }
+            ]
           },
           {
             "stage": "RESUME_FINAL",
@@ -3210,7 +3696,29 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              },
+              {
+                "evidence_type": "HUMAN_CONFIRMED_FACT",
+                "required_text_substrings": [
+                  "Data Protection Office"
+                ],
+                "fact_to_prove": "Organizational owner confirmed via HITL"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for hitl_waiting_and_resume"
@@ -3235,9 +3743,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               }
             }
           },
@@ -3260,9 +3768,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               },
               "fact-case-28-1": {
                 "evidenceType": "HUMAN_CONFIRMED_FACT",
@@ -3352,7 +3860,22 @@
               "lifecycleState": "PAUSED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/retention.py",
+                "required_span": [
+                  2,
+                  3
+                ],
+                "required_text_substrings": [
+                  "RETENTION_DAYS = 365",
+                  "ownership is intentionally not recorded"
+                ],
+                "fact_to_prove": "Retention days present, owner unrecorded"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for investigator_absence_negative_claim"
@@ -3377,9 +3900,9 @@
                 "repositoryId": "repo-04-hitl-retention",
                 "commitSha": "synthetic-de4b5964d365",
                 "path": "src/retention.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c844d17525f12e2588e38dc413d11336a5db075fd7adcd33405af0756e46bd58"
+                "start_line": 2,
+                "end_line": 3,
+                "contentSha256": "c46939b057434384dfac6e463dbb85a81927bd215e24505cd21047b6a96a26dc"
               }
             }
           }
@@ -3462,7 +3985,22 @@
               "lifecycleState": "BLOCKED",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/transfer.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def transfer_to_region",
+                  "tia_verified"
+                ],
+                "fact_to_prove": "Cross-border transfer records TIA verification"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for root_stale_artifact"
@@ -3487,9 +4025,9 @@
                 "repositoryId": "repo-07-cross-border",
                 "commitSha": "synthetic-514f09d5ab84",
                 "path": "src/transfer.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c8a8eab2fea8057f8e52fd25cf8c54e4da1a2da44b7cdb7bf0e855612b126ace"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557"
               }
             }
           }
@@ -3572,7 +4110,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/breach.py",
+                "required_span": [
+                  4,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def notify_incident",
+                  "hours_elapsed <= 72"
+                ],
+                "fact_to_prove": "Breach notification enforces 72-hour SLA"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for root_cross_assessment_isolation"
@@ -3597,9 +4150,9 @@
                 "repositoryId": "repo-08-breach-sla",
                 "commitSha": "synthetic-1058f7c84f5c",
                 "path": "src/breach.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "f4c7ee3a9fa8de71f57b56309dab157a71b5cc8e93cb6326b01a4fd94f2b883e"
+                "start_line": 4,
+                "end_line": 7,
+                "contentSha256": "15d30daea9fffd86fb4e3ef0d7162b65ea7edca2075a4ca44933454168d5783e"
               }
             }
           }
@@ -3682,7 +4235,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for authority_boundary_guard"
@@ -3707,9 +4275,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -3793,7 +4361,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/transfer.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def transfer_to_region",
+                  "tia_verified"
+                ],
+                "fact_to_prove": "Cross-border transfer records TIA verification"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for triage_legal_ambiguity"
@@ -3818,9 +4401,9 @@
                 "repositoryId": "repo-07-cross-border",
                 "commitSha": "synthetic-514f09d5ab84",
                 "path": "src/transfer.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "c8a8eab2fea8057f8e52fd25cf8c54e4da1a2da44b7cdb7bf0e855612b126ace"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "c1a15271293ae6be3c705cc1d21393707fb602fbcd264991af6c0ba24cc85557"
               }
             }
           }
@@ -3903,7 +4486,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/consent.py",
+                "required_span": [
+                  4,
+                  8
+                ],
+                "required_text_substrings": [
+                  "def collect_user_consent",
+                  "Purpose is required"
+                ],
+                "fact_to_prove": "Explicit purpose check in consent collection"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for fault_recovery_lease_expiry"
@@ -3928,9 +4526,9 @@
                 "repositoryId": "repo-01-consent-app",
                 "commitSha": "synthetic-3c64440fb16d",
                 "path": "src/consent.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "207648d025dece423d92bd5947dea163aa8e3830203670c5a1fae16703245414"
+                "start_line": 4,
+                "end_line": 8,
+                "contentSha256": "eb26b44ff0480473a7b505473874b6a4be69baa5fa723eaea8ebdb808cfdfe64"
               }
             }
           }
@@ -4014,7 +4612,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/cli.py",
+                "required_span": [
+                  4,
+                  6
+                ],
+                "required_text_substrings": [
+                  "def format_local_config",
+                  "no personal data processed"
+                ],
+                "fact_to_prove": "Local CLI does not process personal data"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for fault_recovery_researcher_timeout"
@@ -4039,9 +4652,9 @@
                 "repositoryId": "repo-03-internal-cli",
                 "commitSha": "synthetic-e10f3784e411",
                 "path": "src/cli.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "7bfc524f7f2e3bad370460b31119c010b3261b348ff83362330e4787d0790938"
+                "start_line": 4,
+                "end_line": 6,
+                "contentSha256": "3e44152e24304bb85294f94f2b65761ea57ef5311afa23b8a694bb2b00436dd0"
               }
             }
           }
@@ -4124,7 +4737,22 @@
               "lifecycleState": "COMPLETE",
               "openHumanRequests": 0
             },
-            "allow_authority_violation": false
+            "allow_authority_violation": false,
+            "required_evidence_criteria": [
+              {
+                "evidence_type": "REPOSITORY_SOURCE",
+                "path": "src/breach.py",
+                "required_span": [
+                  4,
+                  7
+                ],
+                "required_text_substrings": [
+                  "def notify_incident",
+                  "hours_elapsed <= 72"
+                ],
+                "fact_to_prove": "Breach notification enforces 72-hour SLA"
+              }
+            ]
           }
         ],
         "notes": "Seeded benchmark gold for fault_recovery_worker_restart"
@@ -4149,9 +4777,9 @@
                 "repositoryId": "repo-08-breach-sla",
                 "commitSha": "synthetic-1058f7c84f5c",
                 "path": "src/breach.py",
-                "start_line": 1,
-                "end_line": 1,
-                "contentSha256": "f4c7ee3a9fa8de71f57b56309dab157a71b5cc8e93cb6326b01a4fd94f2b883e"
+                "start_line": 4,
+                "end_line": 7,
+                "contentSha256": "15d30daea9fffd86fb4e3ef0d7162b65ea7edca2075a4ca44933454168d5783e"
               }
             }
           }
