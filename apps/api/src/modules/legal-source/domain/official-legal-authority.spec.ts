@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import {
   identifyOfficialLegalDocument,
+  isOfficialCorpusAdmitted,
   OFFICIAL_LEGAL_CORPUS,
   resolveOfficialLegalDocument,
 } from "./official-legal-authority.js";
@@ -45,12 +46,27 @@ describe("official legal corpus admission identity", () => {
         sha256,
       })),
     ).toEqual(OFFICIAL_LEGAL_CORPUS);
-    for (const document of manifest.documents) {
+    const originals = manifest.documents.map((document) => {
       const actual = createHash("sha256")
         .update(readFileSync(new URL(document.file, corpus)))
         .digest("hex");
       expect(actual).toBe(document.sha256);
-    }
+      return {
+        sourceUrl: document.sourcePage,
+        sourceSha256: document.sha256,
+        blobSha256: actual,
+      };
+    });
+    expect(isOfficialCorpusAdmitted(originals)).toBe(true);
+    expect(
+      isOfficialCorpusAdmitted([
+        ...originals.slice(0, -1),
+        {
+          ...originals[8],
+          blobSha256: createHash("sha256").update("substitution").digest("hex"),
+        },
+      ]),
+    ).toBe(false);
   });
 
   it("does not trust foreign, lookalike, or unpinned source identities", () => {

@@ -1,4 +1,5 @@
 /** Adversarial controls for claim-scope projection. This suite does not approve legal meaning. */
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import type {
   LegalSemanticGraph,
@@ -6,6 +7,7 @@ import type {
   ComplianceRuleSetPacket,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
+  assertScopeDecisionSourceBindings,
   reviewDevelopmentClaims,
   validateDevelopmentPacket,
 } from "./development-scope-review.js";
@@ -127,6 +129,66 @@ describe("scope governance", () => {
     expect(result.materialContextClaimIds).toEqual(["condition"]);
     expect(result.materialContextClaimIds).not.toContain("unrelated");
     expect(result.releaseEligible).toBe(false);
+  });
+
+  it("binds scope decision evidence to the frozen materialization and exact source span", () => {
+    const { graph, decisions } = fixture();
+    const content =
+      "Synthetic developer design claim and operator filing claim.";
+    const nodes = [
+      {
+        nodeId: node,
+        legalSourceVersionId: source,
+        materializationId: graph.materializationId,
+        structuralPath: "article:1/clause:1",
+        content,
+      },
+    ];
+    for (const claim of graph.claims.slice(0, 2)) {
+      claim.sourceSupport = [
+        {
+          nodeId: node,
+          startOffset: 0,
+          endOffset: content.length,
+          contentSha256: createHash("sha256").update(content).digest("hex"),
+        },
+      ];
+      claim.semanticFrame = {
+        object: "Synthetic obligation",
+        beneficiary: null,
+        trigger: null,
+        scope: null,
+        qualifier: null,
+        exception: null,
+        temporalApplicability: null,
+        repositoryObservableAspect: "Synthetic fixture",
+        externalFulfillmentAspect: null,
+      };
+      claim.assessability = "REPOSITORY_VERIFIABLE";
+    }
+    for (const decision of decisions) {
+      decision.evidence.sourceSupport[0].locator = nodes[0].structuralPath;
+    }
+    expect(() =>
+      assertScopeDecisionSourceBindings(graph, decisions, nodes),
+    ).not.toThrow();
+    expect(() =>
+      assertScopeDecisionSourceBindings(graph, decisions, [
+        { ...nodes[0], content: "Substituted source" },
+      ]),
+    ).toThrow(/SOURCE_SUPPORT_INVALID/);
+    expect(() =>
+      assertScopeDecisionSourceBindings(graph, decisions, [
+        { ...nodes[0], materializationId: "f".repeat(64) },
+      ]),
+    ).toThrow(/SOURCE_MATERIALIZATION_MISMATCH/);
+    expect(() =>
+      assertScopeDecisionSourceBindings(graph, decisions, []),
+    ).toThrow(/SOURCE_SUPPORT_INVALID/);
+    decisions[0].evidence.sourceSupport[0].locator = "article:999";
+    expect(() =>
+      assertScopeDecisionSourceBindings(graph, decisions, nodes),
+    ).toThrow(/SOURCE_LOCATOR_MISMATCH/);
   });
 
   it("fails closed on missing, duplicate, and wrong-actor decisions", () => {

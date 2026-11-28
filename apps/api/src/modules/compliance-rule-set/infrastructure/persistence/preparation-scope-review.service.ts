@@ -19,6 +19,7 @@ import {
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import {
+  assertScopeDecisionSourceBindings,
   reviewDevelopmentClaims,
   scopeDigest,
 } from "../../domain/development-scope-review.js";
@@ -138,6 +139,39 @@ export class PreparationScopeReviewService {
         this.conflict(correlationId, "SCOPE_REVIEW_SOURCE_PIN_MISMATCH");
       const validated = preparationScopeReviewSubmitSchema.parse(request);
       const projection = reviewDevelopmentClaims(graph, validated.decisions);
+      const nodes = await tx.legalDocumentNode.findMany({
+        where: {
+          legalSourceVersionId: run.legalSourceVersionId,
+          materializationId: graph.materializationId,
+          nodeId: {
+            in: [
+              ...new Set([
+                ...validated.decisions.flatMap((row) => row.sourceNodeIds),
+                ...graph.claims.flatMap(
+                  (claim) =>
+                    claim.semanticFrame?.legalEffect?.targets.map(
+                      (target) => target.nodeId,
+                    ) ?? [],
+                ),
+              ]),
+            ],
+          },
+        },
+        select: {
+          nodeId: true,
+          legalSourceVersionId: true,
+          materializationId: true,
+          structuralPath: true,
+          content: true,
+        },
+      });
+      try {
+        assertScopeDecisionSourceBindings(graph, validated.decisions, nodes);
+      } catch (error) {
+        if ((error as Error).message.startsWith("PREPARATION_SCOPE_"))
+          this.conflict(correlationId, "SCOPE_REVIEW_SOURCE_BINDING_INVALID");
+        throw error;
+      }
       const existing = await tx.ruleSetPreparationScopeReview.findUnique({
         where: {
           preparationRunId_inventoryRevision: {
