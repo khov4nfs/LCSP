@@ -203,6 +203,7 @@ export const repositoryDiscoverySourceRangeBaseSchema = z
       .max(1000),
     evidenceStrength: z.enum(DISCOVERY_EVIDENCE_STRENGTHS),
     explanation: z.string().trim().min(1).max(2000),
+    snippet: z.string().max(4000).nullable().optional(),
     callers: z.array(z.string().trim().min(1).max(500)).max(100),
     callees: z.array(z.string().trim().min(1).max(500)).max(100),
     unresolvedEdges: z.array(z.string().trim().min(1).max(1000)).max(100),
@@ -440,6 +441,7 @@ const repositoryDiscoverySummaryDetailSchema = z.strictObject({
           observationStatus: z.enum(DISCOVERY_OBSERVATION_STATUSES),
           evidenceStrength: z.enum(DISCOVERY_EVIDENCE_STRENGTHS),
           explanation: z.string().trim().min(1).max(500),
+          snippet: z.string().max(4000).nullable().optional(),
           useCaseIds: z.array(sha256Schema).max(5),
         }),
       )

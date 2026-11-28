@@ -34,11 +34,15 @@ export function DiscoveryContextQuestionForm({
   entry,
   disabled,
   isPending,
+  submitLabelKey = "ruleAudit.discovery.submitAnswer",
+  placeholderKey = "ruleAudit.discovery.answerPlaceholder",
   onSubmitAnswer,
 }: {
   entry: DiscoveryContextQuestion;
   disabled: boolean;
   isPending: boolean;
+  submitLabelKey?: string;
+  placeholderKey?: string;
   onSubmitAnswer: (data: {
     idempotencyKey: string;
     useCaseId: string;
@@ -86,8 +90,8 @@ export function DiscoveryContextQuestionForm({
         className="space-y-2"
       >
         <Textarea
-          aria-label={copy("ruleAudit.discovery.answerPlaceholder")}
-          placeholder={copy("ruleAudit.discovery.answerPlaceholder")}
+          aria-label={copy(placeholderKey)}
+          placeholder={copy(placeholderKey)}
           rows={2}
           maxLength={2000}
           disabled={disabled || isPending}
@@ -104,7 +108,7 @@ export function DiscoveryContextQuestionForm({
           size="sm"
           disabled={disabled || isPending || !form.formState.isDirty}
         >
-          {copy("ruleAudit.discovery.submitAnswer")}
+          {copy(submitLabelKey)}
         </Button>
       </form>
     </FormProvider>

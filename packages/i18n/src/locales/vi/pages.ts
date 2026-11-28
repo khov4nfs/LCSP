@@ -816,6 +816,51 @@ export const viPages = {
         candidate: "Có thể liên quan, cần kiểm tra",
         noCandidates:
           "Chưa tìm thấy rule phù hợp. Điều này không chứng minh rằng không có quy tắc nào áp dụng.",
+        progressTitle: "Tiến độ khám phá",
+        progressChecks: "{confirmed} trên {total} mục kiểm tra ngữ cảnh",
+        progressPending: "{count} câu hỏi đang chờ xác nhận",
+        progressAllConfirmed: "Đã xác nhận toàn bộ ngữ cảnh",
+        progressRepoInspected: "Đã kiểm tra repository",
+        progressScopeSuggested: "Đã gợi ý phạm vi pháp lý ({count})",
+        progressNoAi: "Không phát hiện use case AI",
+        progressInterrupted: "Độ bao phủ khám phá chưa đầy đủ ({gaps} khoảng trống)",
+        continueToRuleSelection: "Tiếp tục chọn quy tắc",
+        reviewDiscovery: "Xem lại khám phá",
+        backToDiscovery: "Quay lại khám phá",
+        reviewAnswer: "Xem lại câu trả lời",
+        confirmCorrectedAnswer: "Xác nhận câu trả lời đã sửa",
+        contextQuestionTitle: "Câu hỏi ngữ cảnh",
+        contextConfirmedTitle: "Đã xác nhận ngữ cảnh",
+        contextConfirmedBody: "Câu trả lời gợi ý đã được xác nhận.",
+        contextConfirmedHint:
+          "Tiếp tục chọn quy tắc để xem các quy tắc được gợi ý.",
+        contextRejectedTitle: "Chỉnh sửa câu trả lời gợi ý",
+        contextRejectedBody:
+          "Gợi ý đã bị từ chối. Hãy nhập ngữ cảnh đúng trước khi tiếp tục.",
+        contextRejectedHint: "Nhập câu trả lời đã chỉnh sửa và xác nhận.",
+        correctedAnswerLabel: "Câu trả lời đã chỉnh sửa",
+        correctedAnswerPlaceholder: "Nhập ngữ cảnh đã chỉnh sửa",
+        suggestedAnswerLabel: "Câu trả lời gợi ý:",
+        decisionHint:
+          "Hành động phụ thuộc vào quyền hạn và trạng thái hệ thống đã xác nhận.",
+        continuationBlocked:
+          "Xác nhận hoặc xử lý các câu hỏi ngữ cảnh đang chờ trước khi tiếp tục chọn quy tắc.",
+        suggestedRulesTitle: "Quy tắc được gợi ý",
+        suggestedRulesBadgeSuggested: "Gợi ý",
+        suggestedRulesBadgeNeedsContext: "Cần ngữ cảnh",
+        suggestedRulesBadgeConfirmed: "Đã xác nhận",
+        suggestedRulesBadgeReview: "Xem xét",
+        evidenceProvenanceTitle: "Nguồn gốc bằng chứng",
+        evidenceMissing: "Chưa có đoạn mã nguồn trực tiếp gắn với mục này.",
+        noAiTitle: "Không tìm thấy use case AI trong snapshot repository này",
+        noAiBody:
+          "Quá trình khám phá chưa phát hiện việc sử dụng AI, điều này không chứng minh không áp dụng luật. Bạn vẫn có thể chọn quy tắc thủ công.",
+        interruptedWarning:
+          "Quá trình khám phá có {gaps} khoảng trống bao phủ hoặc kết quả bị cắt bớt. Các quy tắc chưa liệt kê vẫn có thể liên quan.",
+        staleRevision:
+          "Ngữ cảnh hồ sơ đã thay đổi. Hãy tải lại khám phá trước khi xác nhận.",
+        existingFindingsPreserved:
+          "Các kết quả hiện có được giữ nguyên cho đến khi có kết quả mới.",
       },
       search: "Tìm quy tắc đánh giá",
       selectedCount: "Đã chọn {selected}/{total}",
