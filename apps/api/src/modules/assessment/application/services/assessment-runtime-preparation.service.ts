@@ -87,6 +87,7 @@ export class AssessmentRuntimePreparation {
       where: {
         lifecycleState: ArtifactLifecycleState.ACTIVE,
         validationOutcome: ComplianceRuleSetValidationOutcome.PASSED,
+        rules: { some: {} },
         assessmentRules: { some: {} },
       },
       select: {
@@ -104,27 +105,46 @@ export class AssessmentRuntimePreparation {
     ) {
       return null;
     }
-    const selectedKeys = Array.isArray(candidate.selectedPreparationResults)
-      ? candidate.selectedPreparationResults
-          .map((entry) =>
-            entry &&
-            typeof entry === "object" &&
-            "scopeAuthorizationKey" in entry &&
-            typeof entry.scopeAuthorizationKey === "string"
-              ? entry.scopeAuthorizationKey
-              : null,
-          )
-          .filter((key): key is string => Boolean(key))
-      : [];
-    if (selectedKeys.length > 0 && tx.selectedRuleScopeAuthorization?.count) {
-      const revoked = await tx.selectedRuleScopeAuthorization.count({
-        where: {
-          scopeKey: { in: selectedKeys },
-          state: PreparationScopeReviewState.REJECTED,
-        },
-      });
-      if (revoked > 0) {
+    if (candidate.selectedPreparationResults !== null) {
+      if (
+        !Array.isArray(candidate.selectedPreparationResults) ||
+        candidate.selectedPreparationResults.length === 0
+      ) {
         return null;
+      }
+      const selectedKeys: string[] = [];
+      for (const entry of candidate.selectedPreparationResults) {
+        if (
+          !entry ||
+          typeof entry !== "object" ||
+          !("ruleId" in entry) ||
+          typeof entry.ruleId !== "string" ||
+          !("scopeAuthorizationKey" in entry) ||
+          typeof entry.scopeAuthorizationKey !== "string" ||
+          !/^[a-f0-9]{64}$/.test(entry.scopeAuthorizationKey)
+        ) {
+          return null;
+        }
+        selectedKeys.push(entry.scopeAuthorizationKey);
+      }
+      if (new Set(selectedKeys).size !== selectedKeys.length) {
+        return null;
+      }
+      if (tx.selectedRuleScopeAuthorization?.count) {
+        const blocked = await tx.selectedRuleScopeAuthorization.count({
+          where: {
+            scopeKey: { in: selectedKeys },
+            state: {
+              in: [
+                PreparationScopeReviewState.REJECTED,
+                PreparationScopeReviewState.DRAFT,
+              ],
+            },
+          },
+        });
+        if (blocked > 0) {
+          return null;
+        }
       }
     }
     return {

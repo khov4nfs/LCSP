@@ -18,7 +18,6 @@ import {
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
-  PREPARATION_SCOPE_STAGES,
   preparationScopeReviewSubmitSchema,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
@@ -202,7 +201,7 @@ export async function materializeGroupingProposal(
       concept: rule.concept,
       legalIntent: rule.legalIntent,
       actor: actors.join("; "),
-      lifecycleStage: PREPARATION_SCOPE_STAGES[0],
+      lifecycleStage: "SYSTEM_COMPLIANCE",
       operativePropositions: propositions,
       sourceReferences: requirements
         .flatMap((requirement) =>

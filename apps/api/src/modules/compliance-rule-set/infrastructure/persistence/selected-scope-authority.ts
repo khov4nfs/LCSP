@@ -355,9 +355,25 @@ export async function requireSelectedScopeAuthorization(
     return row.scopeKey;
   }
 
-  // 3. When no review record exists, allow publication without mandatory Scope Approval
-  // as long as there is no genuine legal uncertainty (LEGAL_REVIEW_REQUIRED:) and all
-  // source citations, legal requirements, and assessment rules are valid.
+  // 3. When no exact-key review record exists, ensure this rule has not already been
+  // reviewed or revoked under another material key (preventing hash-change bypass).
+  if (tx.selectedRuleScopeAuthorization?.findFirst) {
+    const priorForRule = await tx.selectedRuleScopeAuthorization.findFirst({
+      where: {
+        legalSourceVersionId: input.legalSourceVersionId,
+        catalogId: input.catalogVersionId,
+        ruleId: input.ruleId,
+      },
+      select: { scopeKey: true },
+    });
+    if (priorForRule) {
+      reject(cid, "output.scopeAuthorization");
+    }
+  }
+
+  // 4. For brand-new unreviewed rules, allow publication without mandatory Scope Approval
+  // only when there is no genuine legal uncertainty (LEGAL_REVIEW_REQUIRED:) and all
+  // source citations, legal requirements, and assessment-rule criteria are grounded.
   const hasLegalUncertainty = output.legalRequirements.some((req) =>
     (req.coverage.nonAssessableReason ?? "").startsWith(
       PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
@@ -366,19 +382,57 @@ export async function requireSelectedScopeAuthorization(
   if (hasLegalUncertainty) {
     reject(cid, "output.legalRequirements");
   }
+  const requirementById = new Map(
+    output.legalRequirements.map((req) => [req.legalRequirementId, req]),
+  );
   const coveredIds = new Set(
     output.legalRequirements
       .filter((req) => req.coverage.state === covered)
       .map((req) => req.legalRequirementId),
   );
   if (
-    output.assessmentRules.some(
-      (rule) =>
-        !rule.legalRequirementIds.length ||
-        rule.legalRequirementIds.some((id) => !coveredIds.has(id)),
+    output.legalRequirements.some(
+      (req) =>
+        !req.sourceRefs.length ||
+        !req.operativePropositions?.length ||
+        req.operativePropositions.some(
+          (op) => !op.actor.trim() || !op.action.trim() || !op.sourceRefs.length,
+        ),
     )
   ) {
-    reject(cid, "output.assessmentRules.legalRequirementIds");
+    reject(cid, "output.legalRequirements");
+  }
+  for (const rule of output.assessmentRules) {
+    if (
+      !rule.legalRequirementIds.length ||
+      rule.legalRequirementIds.some((id) => !coveredIds.has(id)) ||
+      !rule.criteria.length ||
+      rule.criteria.some(
+        (c) =>
+          !c.legalRequirementIds?.length ||
+          c.legalRequirementIds.some((id) => !coveredIds.has(id)),
+      ) ||
+      !rule.sourceRefs.length
+    ) {
+      reject(cid, "output.assessmentRules.legalRequirementIds");
+    }
+    const parentSourceKeys = new Set(
+      rule.legalRequirementIds.flatMap((id) =>
+        (requirementById.get(id)?.sourceRefs ?? []).map((r) =>
+          canonicalJson([r.documentId, r.locator, r.contentSha256]),
+        ),
+      ),
+    );
+    if (
+      rule.sourceRefs.some(
+        (r) =>
+          !parentSourceKeys.has(
+            canonicalJson([r.documentId, r.locator, r.contentSha256]),
+          ),
+      )
+    ) {
+      reject(cid, "output.assessmentRules.sourceRefs");
+    }
   }
   await requireSelectedScopeSource(tx, input, output, cid, authority);
   return key;
@@ -438,7 +492,7 @@ export async function requireSelectedExclusionAuthorization(
     ) {
       continue;
     }
-    if (decisions.data.some((decision) => decision.stage !== nonDevelopment)) {
+    if (decisions.data.some((decision) => decision.stage === unresolved)) {
       continue;
     }
     // Enforce semantic distinction between exclusion reason codes so a context-only

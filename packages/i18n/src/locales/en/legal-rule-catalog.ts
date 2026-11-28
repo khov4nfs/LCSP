@@ -297,7 +297,7 @@ export const enLegalRuleCatalog = {
   scopeAuthSuccess: "Scope authorization updated.",
   scopeAuthCitationsTitle: "Pinned Legal Source Citations",
   scopeAuthRequirementsTitle: "Legal Requirements & Operative Propositions",
-  scopeAuthDecisionsTitle: "Development Scope Classification",
+  scopeAuthDecisionsTitle: "Legal Classification",
   scopeAuthRulesTitle: "Assessment Rules & Criteria",
   scopeAuthDigestLabel: "Decision Digest",
   scopeAuthStageLabel: "Classification",

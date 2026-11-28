@@ -295,7 +295,7 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   scopeAuthSuccess: "Đã cập nhật trạng thái phê duyệt phạm vi.",
   scopeAuthCitationsTitle: "Trích dẫn nguồn pháp lý đã ghim",
   scopeAuthRequirementsTitle: "Yêu cầu pháp lý & Mệnh đề quy phạm",
-  scopeAuthDecisionsTitle: "Phân loại phạm vi phát triển",
+  scopeAuthDecisionsTitle: "Phân loại pháp lý",
   scopeAuthRulesTitle: "Assessment Rule & Tiêu chí đánh giá",
   scopeAuthDigestLabel: "Mã băm quyết định",
   scopeAuthStageLabel: "Phân loại",

@@ -16,6 +16,7 @@ function harness(pinnedId: string | null = null) {
   const version = {
     id: "legacy",
     legalSourceVersionId: "legacy-source",
+    selectedPreparationResults: null as unknown,
   };
   const client = {
     $queryRaw: jest.fn(async () => [{ acquired: true }]),

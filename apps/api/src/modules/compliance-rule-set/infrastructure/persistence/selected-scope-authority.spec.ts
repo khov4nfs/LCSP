@@ -151,6 +151,7 @@ describe("Reusable selected semantic scope evidence", () => {
             async ({ where }: { where: { scopeKey: string } }) =>
               where.scopeKey === key ? row : null,
           ),
+          findFirst: jest.fn(async () => ({ scopeKey: key })),
         },
         legalDocumentChunk: {
           findMany: jest.fn(async () => [
@@ -174,17 +175,11 @@ describe("Reusable selected semantic scope evidence", () => {
 
       changed.assessmentRules[0].criteria[0].statement =
         "Deploy an unrelated control at every site";
-      if (format === 1) {
-        await expect(
-          requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
-        ).rejects.toMatchObject({
-          response: { problem: { meta: { path: "output.scopeAuthorization" } } },
-        });
-      } else {
-        await expect(
-          requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
-        ).resolves.toBe(selectedScopeKey(input, changed));
-      }
+      await expect(
+        requireSelectedScopeAuthorization(tx, input, changed, "cid", authority),
+      ).rejects.toMatchObject({
+        response: { problem: { meta: { path: "output.scopeAuthorization" } } },
+      });
 
       const changedKey = selectedScopeKey(input, changed);
       (

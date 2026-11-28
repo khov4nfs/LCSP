@@ -733,15 +733,12 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
       `REPEALED chunk must be rejected, got ${repealedChunkImportRes.status}`,
     );
 
-    // Valid official PDF SHA-256 paired with fabricated chunk text having a self-consistent SHA-256
-    // must be rejected when verified against the extracted PDF text or non-operative corpus role.
-    const fabricatedText =
-      "Điều 88. Nội dung giả mạo không tồn tại trong Thông tư 05/2026/TT-BKHCN nhưng có hash tự nhất quán.";
-    assert.equal(
-      extractedPdfText.includes(fabricatedText),
-      false,
-      "Fabricated text must not exist in extracted PDF text",
-    );
+    // Restore EFFECTIVE status so the REFERENCE_ONLY test is isolated from REPEALED.
+    await prisma.legalDocumentChunk.update({
+      where: { id: inScopeChunkId },
+      data: { legalEffectStatus: LegalEffectStatus.EFFECTIVE },
+    });
+
     await prisma.legalSourceDocument.updateMany({
       where: { legalSourceVersionId: draftSource.id },
       data: { corpusRole: LegalSourceDocumentCorpusRole.REFERENCE_ONLY },
@@ -761,6 +758,64 @@ describe("Official Vietnamese Corpus End-to-End Lifecycle (e2e) [LCSP-424]", () 
     assert.ok(
       referenceOnlyRes.status >= 400 && referenceOnlyRes.status < 500,
       `REFERENCE_ONLY corpus role must be rejected, got ${referenceOnlyRes.status}`,
+    );
+
+    // Real PDF SHA-256 paired with fabricated chunk text having a self-consistent SHA-256:
+    // ingest draft, assert fabricated text is absent from extracted PDF text, and verify
+    // activation/import without official source extraction/admission fails closed.
+    const fabricatedText =
+      "Điều 88. Nội dung giả mạo không tồn tại trong Thông tư 05/2026/TT-BKHCN nhưng có hash tự nhất quán.";
+    assert.equal(
+      extractedPdfText.includes(fabricatedText),
+      false,
+      "Fabricated text must not exist in extracted PDF text",
+    );
+    const fabricatedDraftRes = await httpRequest(app)
+      .post("/internal/legal-sources/validated-draft")
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        version: `vn-tt-05-2026-fabricated-${randomUUID().slice(0, 8)}`,
+        sourceManifest: {
+          reviewRequired: false,
+          trustPolicy: LEGAL_SOURCE_TRUST_POLICIES.officialSourceAutoTrusted,
+          normalizationWarnings: [],
+          sourceArtifacts: [],
+        },
+        documents: [
+          {
+            documentId: "05-2026-TT-BKHCN",
+            title: "Thông tư 05/2026/TT-BKHCN",
+            sourceUrl: officialDoc.downloadUrl,
+            sourceSha256: `sha256:${pdfDigest}`,
+            sourceEffectStatus: "ACTIVE",
+            chunks: [
+              {
+                id: "vn-chunk-fabricated-88",
+                locator: "Điều 88",
+                content: fabricatedText,
+                contentSha256: `sha256:${sha256(fabricatedText)}`,
+                hierarchy: { article: "88" },
+                legalStatus: "ACTIVE",
+              },
+            ],
+          },
+        ],
+      });
+    assert.equal(fabricatedDraftRes.status, 201);
+    const fabricatedDraft = successBody<{ id: string }>(fabricatedDraftRes);
+    const activateFabricatedRes = await httpRequest(app)
+      .post(`/internal/legal-sources/${fabricatedDraft.id}/activate-validated`)
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        integrityManifestRef: "integrity-manifest:fabricated",
+        retrievalValidationRef: "retrieval-validation:fabricated",
+        idempotencyKey: randomUUID(),
+        scopeDescription: "Fabricated chunk negative regression",
+      });
+    assert.ok(
+      activateFabricatedRes.status >= 400 &&
+        activateFabricatedRes.status < 500,
+      `Draft without retrieval validation / official extraction must be rejected, got ${activateFabricatedRes.status}`,
     );
   });
 });

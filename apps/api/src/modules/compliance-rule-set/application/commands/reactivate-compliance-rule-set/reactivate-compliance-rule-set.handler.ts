@@ -194,12 +194,12 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             throw problemException(Errors.TARGET_NOT_FOUND, correlationId, {
               status: HttpStatus.NOT_FOUND,
             });
-          if (
-            !target.preparationRun ||
-            !target.preparationRunId ||
-            !target.activation ||
-            target.selectedPreparationResults !== null
-          )
+          const hasRun =
+            Boolean(target.preparationRun && target.preparationRunId) &&
+            target.preparationRun?.executionState ===
+              AgentExecutionState.SUCCEEDED;
+          const hasSelected = target.selectedPreparationResults !== null;
+          if (!target.activation || (!hasRun && !hasSelected))
             throw conflict(Errors.TARGET_NOT_ELIGIBLE);
           const rejectedBefore =
             await tx.complianceRuleSetReactivationRecord.count({
@@ -213,8 +213,6 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             target.lifecycleState !== ArtifactLifecycleState.SUPERSEDED ||
             target.validationOutcome !==
               ComplianceRuleSetValidationOutcome.PASSED ||
-            target.preparationRun.executionState !==
-              AgentExecutionState.SUCCEEDED ||
             target.activation.validationOutcome !==
               ComplianceRuleSetValidationOutcome.PASSED ||
             !target.activatedAt ||
@@ -239,9 +237,11 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
           });
           if (
             target.activation.requestDigest !== target.ruleSetDigest ||
-            target.activation.preparationRunId !== target.preparationRunId ||
-            target.preparationRun.legalSourceVersionId !==
-              target.legalSourceVersionId ||
+            (target.preparationRunId &&
+              target.activation.preparationRunId !== target.preparationRunId) ||
+            (target.preparationRun &&
+              target.preparationRun.legalSourceVersionId !==
+                target.legalSourceVersionId) ||
             !storedRuleSetIntegrityValid(target, chunks)
           )
             throw conflict(Errors.INTEGRITY_INVALID);
@@ -255,26 +255,39 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             throw conflict(Errors.TARGET_NOT_ELIGIBLE);
           }
           const selectedResults: unknown = target.selectedPreparationResults;
-          const selectedKeys = Array.isArray(selectedResults)
-            ? selectedResults
-                .map((entry) =>
-                  entry &&
-                  typeof entry === "object" &&
-                  "scopeAuthorizationKey" in entry &&
-                  typeof entry.scopeAuthorizationKey === "string"
-                    ? entry.scopeAuthorizationKey
-                    : null,
-                )
-                .filter((key): key is string => Boolean(key))
-            : [];
-          if (selectedKeys.length > 0) {
-            const revoked = await tx.selectedRuleScopeAuthorization.count({
+          if (selectedResults !== null) {
+            if (!Array.isArray(selectedResults) || !selectedResults.length) {
+              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
+            }
+            const selectedKeys = selectedResults
+              .map((entry) =>
+                entry &&
+                typeof entry === "object" &&
+                "scopeAuthorizationKey" in entry &&
+                typeof entry.scopeAuthorizationKey === "string" &&
+                /^[a-f0-9]{64}$/.test(entry.scopeAuthorizationKey)
+                  ? entry.scopeAuthorizationKey
+                  : null,
+              )
+              .filter((key): key is string => Boolean(key));
+            if (
+              selectedKeys.length !== selectedResults.length ||
+              new Set(selectedKeys).size !== selectedKeys.length
+            ) {
+              throw conflict(Errors.TARGET_NOT_ELIGIBLE);
+            }
+            const blocked = await tx.selectedRuleScopeAuthorization.count({
               where: {
                 scopeKey: { in: selectedKeys },
-                state: PreparationScopeReviewState.REJECTED,
+                state: {
+                  in: [
+                    PreparationScopeReviewState.REJECTED,
+                    PreparationScopeReviewState.DRAFT,
+                  ],
+                },
               },
             });
-            if (revoked > 0) {
+            if (blocked > 0) {
               throw conflict(Errors.TARGET_NOT_ELIGIBLE);
             }
           }
