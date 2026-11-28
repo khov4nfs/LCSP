@@ -118,6 +118,7 @@ const doc = await prisma.document.findFirst({
 - [ ] Run architecture boundary check: `pnpm run check:architecture`
 - [ ] Run business logic documentation audit: `pnpm run check:business-logic-docs`
 - [ ] Run import policy check: `pnpm run check:imports`
+- [ ] Before adding a command or query, inspect a comparable API module (such as `auth`) and match its use-case folder, typed request/command, handler registration index, and CQRS dispatch; keep shared validation outside service-to-handler callback wiring.
 - [ ] Verify explanatory comments are added on all changed code, especially core domain, RBAC, transactions, and security boundaries.
 - [ ] For changes to Assessment Root admission queries, run the full PostgreSQL capacity integration spec so the 10,001-command fairness case runs after the smaller fixtures.
 - [ ] For PAT rotation changes, run PostgreSQL regressions for expiry, rollback and concurrent disconnect so stale rotations cannot restore credentials.
@@ -128,6 +129,11 @@ const doc = await prisma.document.findFirst({
 - [ ] For Rule Set Preparation cancellation, commit and audit `CANCEL_REQUESTED` before contacting Agent Server; keep it unresolved until a recognized terminal native status is confirmed, and verify submission/reactivation cannot pass that fence.
 - [ ] For selected-rule preparation, pass the authenticated Admin actor into cancellation audit and apply the canonical unresolved-state set to submit/import/catalog paths; verify `CANCEL_REQUESTED` cannot create a new revision or permit catalog deletion.
 - [ ] For selected-rule catalog deletion, take the catalog row lock before checking unresolved results and removing descendants; verify a PostgreSQL race against a submitting writer rather than relying only on mocked query order.
+- [ ] For Legal Source deletion, use the canonical unresolved preparation states in both impact and transaction-time delete checks; `CANCEL_REQUESTED` must block until a confirmed terminal native outcome. Verify against the dedicated PostgreSQL deletion integration suite.
+- [ ] For Legal Source activation and ingestion, acquire the version lock before reloading corpus, retrieval index, and ingestion attempt; a pre-lock read is never mutation authority. A `Serializable` snapshot taken at the earlier advisory-lock query remains stale after waiting for the version lock, so verify the post-lock read on PostgreSQL with a competing document deletion and retain a normal activation success test.
+- [ ] For official Legal Source snapshot registration, commit snapshot and audit in one transaction; classify only the exact snapshot-reference P2002 index, including Prisma 7 adapter metadata, then compare the committed winner outside the failed transaction. Test audit rollback and a real concurrent insert.
+- [ ] For Legal Source catalog create/update, persist mutation and actor/correlation-attributed audit in one transaction; retry a generated slug only for the exact LegalSource slug unique index, never for an AuditEvent P2002. Verify rollback and slug suffix against PostgreSQL.
+- [ ] For Legal Source activation/index replay, compare all persisted authority fields before returning the original result; exact replay must remain read-only. Validate worker provenance URLs and booleans before snapshot persistence, and convert malformed URL escapes into typed import rejection.
 - [ ] For diagnostic database isolation, compare the allowlist against the effective Prisma adapter target, not a separately read environment URL, and avoid exposing datasource credentials.
 - [ ] For transaction-scoped aggregate saves, verify in-memory persistence state advances only after the outer transaction commits.
 - [ ] Keep customer assessment SSE and ADMIN operations telemetry on separate RBAC routes; ADMIN streams must bind one validated operational resource, re-check its event boundary after subscription, and emit only its allowlisted public projection.

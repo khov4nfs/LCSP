@@ -262,8 +262,16 @@ export const viLegalRuleCatalog: LegalRuleCatalogMessages = {
   importErrorConflict:
     "Một rule trong file đang được chuẩn bị. Hãy thử lại khi lượt chạy kết thúc.",
   importErrorInvalid: "Máy chủ từ chối nội dung file.",
+  importIssueOutputInvalid: "Hãy kiểm tra cấu trúc file rồi thử lại.",
+  importIssueSourceReferenceInvalid:
+    "Một trích dẫn không khớp phiên bản nguồn pháp lý đã chọn.",
+  importIssueRequirementLinkInvalid:
+    "Một assessment rule tham chiếu yêu cầu pháp lý không tồn tại hoặc không thể đánh giá.",
+  importIssueIdentityInvalid:
+    "Mã rule bị trùng hoặc không thuộc legal rule đã chọn.",
+  importIssueApplicabilityInvalid:
+    "Hãy kiểm tra điều kiện áp dụng của yêu cầu pháp lý.",
   importErrorIneligible: "Một rule trong file không đủ điều kiện chuẩn bị.",
   importErrorNotFound: "Một rule trong file không thuộc catalog này.",
   importErrorGeneric: "Yêu cầu import thất bại.",
-  importAtPath: "Lỗi tại",
 };

@@ -219,7 +219,7 @@ function mediaTypeOf(header: string | undefined): string | null {
  * 3. Return the cleaned filename or null when it is empty.
  *
  * Failure cases:
- * - An invalid percent escape in the fallback path may propagate `decodeURIComponent`'s URIError; no fabricated filename is substituted.
+ * - An invalid percent escape in the fallback path returns a typed INVALID_URL rejection instead of a raw URIError.
  *
  * Side effects:
  * - None: filename metadata is derived in memory and no local path is opened.
@@ -228,8 +228,17 @@ function fileNameOf(url: URL, disposition: string | undefined): string | null {
   const quoted = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/iu.exec(
     disposition ?? "",
   );
-  const candidate =
-    quoted?.[1] ?? decodeURIComponent(url.pathname.split("/").pop() ?? "");
+  let candidate = quoted?.[1];
+  if (candidate === undefined) {
+    try {
+      candidate = decodeURIComponent(url.pathname.split("/").pop() ?? "");
+    } catch {
+      // Why: A remote URL can carry malformed escapes even when the fetch itself succeeds.
+      // How: Convert decoding failure into the established import rejection contract.
+      // Invariant: Raw URIError cannot escape to the API as an unexpected 500.
+      return reject(Reasons.INVALID_URL);
+    }
+  }
   const cleaned = candidate
     .trim()
     // eslint-disable-next-line no-control-regex

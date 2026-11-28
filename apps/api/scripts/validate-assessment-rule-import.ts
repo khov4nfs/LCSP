@@ -7,7 +7,7 @@ import {
 import {
   normalizeImportItem,
   validateSelectedOutput,
-} from "../src/modules/legal-rule-catalog/application/services/preparation-rule.service.js";
+} from "../src/modules/legal-rule-catalog/application/services/selected-output-validation.js";
 
 // Offline check of an Assessment Rule Import v1 document against its exported input package.
 // Usage (from apps/api): tsx scripts/validate-assessment-rule-import.ts <input-package.json> <import-document.json>

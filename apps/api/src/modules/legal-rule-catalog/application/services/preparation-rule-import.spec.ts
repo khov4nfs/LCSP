@@ -8,6 +8,7 @@ import {
   ASSESSMENT_RULE_IMPORT_SCHEMA_VERSION,
   LEGAL_RULE_CATALOG_ERRORS,
   LEGAL_RULE_CATALOG_EVENTS,
+  LEGAL_RULE_VALIDATION_ISSUES,
   assessmentRuleImportRequestSchema,
   preparationRuleOutputSchema,
   type AssessmentRuleImportRequest,
@@ -138,12 +139,18 @@ function setup(
     record: resolves(undefined),
   };
   const enqueue = jest.fn<Call>();
-  const prisma = {
-    $transaction: (callback: (client: unknown) => unknown) =>
-      Promise.resolve(callback(tx)),
-  } as unknown as PrismaService;
+  const transaction = jest
+    .fn<
+      (
+        callback: (client: unknown) => Promise<unknown>,
+        options?: unknown,
+      ) => Promise<unknown>
+    >()
+    .mockImplementation((callback) => callback(tx));
+  const prisma = { $transaction: transaction } as unknown as PrismaService;
   return {
     tx,
+    transaction,
     catalogs,
     enqueue,
     subject: new PreparationRuleService(
@@ -158,8 +165,24 @@ function setup(
 }
 
 describe("PreparationRuleService.importAssessmentRules", () => {
+  it("rejects an import above the bounded batch limit before opening a transaction", () => {
+    const many = Array.from({ length: 101 }, (_, index) => ({
+      ...request().items[0],
+      ruleId: `${String(index + 1).padStart(8, "0")}-1111-4111-8111-111111111111`,
+    }));
+    // Why: A 101-item import can monopolize the interactive DB connection and row locks.
+    // How: The transport contract must reject it before command dispatch or transaction start.
+    // Invariant: The request maximum is shared by every caller, including dry runs.
+    expect(
+      assessmentRuleImportRequestSchema.safeParse({
+        ...request(),
+        items: many,
+      }).success,
+    ).toBe(false);
+  });
+
   it("records a SUCCEEDED prepared revision without dispatching any agent work", async () => {
-    const { subject, tx, catalogs, enqueue } = setup();
+    const { subject, tx, catalogs, enqueue, transaction } = setup();
     const result = await subject.importAssessmentRules(
       catalogId,
       request(),
@@ -196,6 +219,9 @@ describe("PreparationRuleService.importAssessmentRules", () => {
       expect.objectContaining({ revision: 1 }),
     );
     expect(enqueue).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), {
+      timeout: 20000,
+    });
   });
 
   it("acknowledges an identical current result as a replay without writing", async () => {
@@ -282,10 +308,16 @@ describe("PreparationRuleService.importAssessmentRules", () => {
         problem: {
           code: LEGAL_RULE_CATALOG_ERRORS.RESULT_INVALID,
           status: 422,
-          meta: { issues: "output.assessmentRules.0.sourceRefs" },
+          meta: {
+            issueCode: LEGAL_RULE_VALIDATION_ISSUES.SOURCE_REFERENCE_INVALID,
+          },
         },
       },
     });
+    expect(
+      (error as { response: { problem: { meta: object } } }).response.problem
+        .meta,
+    ).not.toHaveProperty("issues");
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
     expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
   });

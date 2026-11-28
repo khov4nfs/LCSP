@@ -263,11 +263,19 @@ export const enLegalRuleCatalog = {
   importErrorConflict:
     "A rule in this document is still being prepared. Try again when its run finishes.",
   importErrorInvalid: "The server rejected the document.",
+  importIssueOutputInvalid: "Check the document structure and try again.",
+  importIssueSourceReferenceInvalid:
+    "A cited source does not match the selected Legal Source version.",
+  importIssueRequirementLinkInvalid:
+    "An Assessment Rule refers to a missing or non-assessable legal requirement.",
+  importIssueIdentityInvalid:
+    "A rule identifier is duplicated or does not belong to the selected Legal Rule.",
+  importIssueApplicabilityInvalid:
+    "Review the legal requirement's applicability conditions.",
   importErrorIneligible:
     "A rule in this document is not eligible for preparation.",
   importErrorNotFound: "A rule in this document is not in this catalog.",
   importErrorGeneric: "The import request failed.",
-  importAtPath: "Problem at",
 } as const;
 export type LegalRuleCatalogMessages = {
   [K in keyof typeof enLegalRuleCatalog]: string;
