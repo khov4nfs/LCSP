@@ -664,6 +664,88 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     expect(catalogs.record).not.toHaveBeenCalled();
   });
 
+  it("records pinned exclusion evidence even without an imported result", async () => {
+    const { subject, tx, catalogs, enqueue } = setup();
+    const exclusion = {
+      ruleId: excludedRuleId,
+      reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE,
+      reason: "Operator-only activity",
+    };
+    const document = request({ items: [], excludedItems: [exclusion] });
+    await subject.importAssessmentRules(catalogId, document, "admin-1", "cid");
+    const args = catalogs.record.mock.calls[0];
+    expect(args).toEqual([
+      tx,
+      LEGAL_RULE_CATALOG_EVENTS.IMPORT_EXCLUSIONS_RECORDED,
+      catalogId,
+      "admin-1",
+      "cid",
+      expect.objectContaining({
+        catalogRevision: 3,
+        legalSourceVersionId: sourceId,
+        exclusions: [
+          expect.objectContaining({
+            ...exclusion,
+            citations: [{ ...ref, chunkId: "chunk-1" }],
+          }),
+        ],
+        imported: [],
+      }),
+      expect.any(String),
+    ]);
+    await subject.importAssessmentRules(catalogId, document, "admin-1", "retry");
+    expect(catalogs.record.mock.calls[1][6]).toBe(args[6]);
+    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+    expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("previews exclusions without recording audit evidence", async () => {
+    const { subject, catalogs, enqueue } = setup();
+    await subject.importAssessmentRules(
+      catalogId,
+      request({
+        dryRun: true,
+        items: [],
+        excludedItems: [
+          {
+            ruleId: excludedRuleId,
+            reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.CONTEXT_ONLY,
+            reason: "Context only",
+          },
+        ],
+      }),
+      "admin-1",
+      "cid",
+    );
+    expect(catalogs.record).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("rejects a rule that is both included and excluded", async () => {
+    const { subject, tx, catalogs } = setup();
+    await expect(
+      subject.importAssessmentRules(
+        catalogId,
+        request({
+          excludedItems: [
+            {
+              ruleId,
+              reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE,
+              reason: "Contradictory declaration",
+            },
+          ],
+        }),
+        "admin-1",
+        "cid",
+      ),
+    ).rejects.toMatchObject({
+      response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.INVALID } },
+    });
+    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+    expect(catalogs.record).not.toHaveBeenCalled();
+  });
+
   it("rejects an excluded item that is not in the catalog", async () => {
     await expect(
       setup().subject.importAssessmentRules(
