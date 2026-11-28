@@ -1,0 +1,1200 @@
+{
+  "reportVersion": "LCSP-400-PM-FOLLOWUP-VERIFICATION-V1",
+  "implementationCommit": "d1034be21c3eb7382ff43c78d7e243fed858fb89",
+  "baseCommit": "fa90c435e46d4080b4c875e8fe76f4a757dc98c6",
+  "classification": "SCRIPTED_ENGINEERING_VERIFICATION",
+  "artifactRetention": {
+    "archive": "full-artifacts.zip",
+    "index": "full-artifacts.index.json",
+    "archiveSha256": "2f709f2bb3b0e9f34008f4e2b420adce7f941547148217ca560d416dfa6f9196",
+    "fileCount": 82
+  },
+  "humanReviewedGold": 0,
+  "actualPreparationOutputs": 0,
+  "liveBaseline": "NOT_RUN",
+  "legalMetrics": "NOT_SCORED",
+  "reviewAuthenticity": "NOT_AUTHENTICATED_BY_TOOL",
+  "candidateInventory": {
+    "proposalScenarioCases": 30,
+    "proposalTargetRules": 4,
+    "proposalSemanticGroups": 3,
+    "officialHitlP14Cases": 1,
+    "officialHitlObservationCandidates": 2,
+    "sourceReviewFrames": 15,
+    "sourceReviewCounterfactualScenariosNotExecutableCases": 30,
+    "independentQualityLabels": "UNSET_PENDING_REVIEW"
+  },
+  "remainingFindings": {
+    "actualPreparationIntegration": "OPEN_NO_FROZEN_ACTUAL_ARTIFACT_OR_INDEPENDENT_GOLD",
+    "candidateQuality": "PARTIAL_DEFAULTS_REMOVED_SOURCE_FRAMES_AUTHORED_INDEPENDENT_LABELS_REQUIRED",
+    "actorTemporalInterpretation": "PARTIAL_STRUCTURAL_CHECKS_PASS_INDEPENDENT_LEGAL_REVIEW_REQUIRED",
+    "officialVietnamHitl": "SCRIPTED_REQUEST_AND_RESUME_VALIDATED"
+  },
+  "tests": {
+    "finalPmRegression": {
+      "command": "uv run pytest tests/test_legal_reasoning_pm_followup.py -q --tb=short",
+      "passed": 13,
+      "failed": 0
+    },
+    "priorBroadRegression": {
+      "passed": 74,
+      "failed": 0,
+      "note": "Before last two PM tests; both included in final 13/13 run."
+    },
+    "rubricHardeningManifestRegression": {
+      "passed": 41,
+      "failed": 0
+    },
+    "branchRspDiscoveryRootRegression": {
+      "passed": 11,
+      "failed": 1,
+      "failure": "Pre-existing scannerSignature mismatch"
+    },
+    "developFa90Regression": {
+      "passed": 4,
+      "failed": 1,
+      "failure": "scannerSignature mismatch",
+      "command": "python -m pytest tests/test_assessment_discovery_evaluation.py tests/test_rule_set_preparation_eval_fixtures.py -q --tb=short",
+      "source": "Temporary develop fa90c435 archive; source notice bytes restored from exact Git blobs after demonstrating archive CRLF conversion."
+    },
+    "rspByteLengthInvestigation": {
+      "classification": "ENVIRONMENT_LINE_ENDINGS",
+      "developGitBlobSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+      "developGitBlobBytes": 1185,
+      "branchBytes": 1185,
+      "archiveBytes": 1205,
+      "archiveCrlfCount": 20,
+      "pinnedBytes": 1185,
+      "pinnedSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+      "result": "4 RSP tests pass on branch and canonical develop source bytes. No pin/hash/length changed."
+    }
+  },
+  "runs": [
+    {
+      "runId": "lcsp400-r6-ALL",
+      "manifestSha256": "3e457356b6edcd561cbc5e9f6ea241b6a58f21bb81eb4056dbcbf27611ba800d",
+      "trialsSha256": "fb98740057254d01f092c8392eed433a4446b78d42e8a444a9e68fd923d67d8a",
+      "adapterReportSha256": "dfa84892c3da6cae6c7c1c19a4ff5b64858322deb76c5fc1335f8906839d19d4",
+      "artifactValidationStatus": "VALIDATED",
+      "scoringStatus": "NOT_SCORED",
+      "reviewedGoldDenominator": 0,
+      "distinctP14CaseCount": 30,
+      "lifecycleObservationCount": 30,
+      "executionCohort": {
+        "executedCaseCount": 30,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 30,
+        "expectedTrialCount": 30,
+        "mappedCaseCount": 30,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 30,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "rawRunnerDiagnostic": {
+        "passed": 6,
+        "failed": 24,
+        "executionErrors": 0,
+        "verdictMismatches": 24,
+        "interpretation": "SCRIPTED fixture behavior against provisional expected labels, not Deep Agent legal accuracy; verdict mismatches retained for independent review."
+      },
+      "outputs": [
+        {
+          "candidateId": "vn-ai-archive-vn-ai-interaction-disclosure",
+          "p14CaseId": "archive-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "117c1fd86f682d9040b0fab31f31e35de2061a85b66f37b6ce596f3546f3d628",
+          "observedOutputSha256": "43ff81457ba2cc76715f267b1f0c3591a57832883da023c3bca7008ceb72d970",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-archive-vn-ai-media-mark",
+          "p14CaseId": "archive-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "b8d8ca9de6aedab123fa63fca803d04013f0cfbc8de823c8cc3d7c171042168f",
+          "observedOutputSha256": "47849e187dcd46667d9e1561cb1ffe14f255c025d2b965d1bb55f03cde08b113",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-archive-vn-ai-risk-version",
+          "p14CaseId": "archive-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "17aa80812a696560b9cd8fc4ad50d68a80b8a1c446df547956590a9a852c5375",
+          "observedOutputSha256": "34677a74cdca583a990ab4503575848f3f1f1e96d4175e508b880a3eb8f50fc2",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-interaction-disclosure",
+          "p14CaseId": "assist-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "e0921513628155c0c90f46549805d4d0e441720caa1584423489074faf69a624",
+          "observedOutputSha256": "70fcbb46030a5ccf90b15d091971b24c36297a30ca106f8c2edee7b8d91d071e",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-media-mark",
+          "p14CaseId": "assist-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "7cca88464643055dbc60dbb8e8c5e93ad7eddfa281cc66811f25694507d85406",
+          "observedOutputSha256": "22a7dce0625c967db7f521d1590da0f132641d4ffcc44120ea6ea6f1216aeb3e",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-open-mark-enablement",
+          "p14CaseId": "assist-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "1ae4da9eeb8f0cf92acf29ea0f9863fed822ec1b762fd08cf66e3fdf6fb93c37",
+          "observedOutputSha256": "0e3917914e25785591d07db036071a215da2a46b1b5d53cb22253a4a215f1271",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-risk-version",
+          "p14CaseId": "assist-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "057500014245cc8a124b43af0a784f00a4fe87ce0a95838b342f5480b6027039",
+          "observedOutputSha256": "dcf836eda173ede4ff8111f3832f7f36dcac683e28c97c3cbc718f27adb14e81",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-interaction-disclosure",
+          "p14CaseId": "bulletin-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "0e82b479c17e72ecd4967130170c15efb931381f46912eafcb60ea52f516e2e2",
+          "observedOutputSha256": "53d428b53fe9b786edf3ba88e1dfc2c1897fee1121931c4455d591ef12922b9e",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-media-mark",
+          "p14CaseId": "bulletin-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "178a7be9b680a5e59af04b599c23362c1d1aab0a435f7049e47e070d7dfa5a03",
+          "observedOutputSha256": "79ad4868e15a799e627dadce4df285a69c3f5ba5f56f8705b81d79a86f86230a",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-open-mark-enablement",
+          "p14CaseId": "bulletin-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "fc63e6ede53906fe5b61fe23074c0958d6864c57e3918166c62a76de92f1559f",
+          "observedOutputSha256": "dd0be5cb446c2468148d7021c9b3e59192d36946ba9d73ed7f9c52f86fe50134",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-risk-version",
+          "p14CaseId": "bulletin-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "6cdc40c1486f8baf04c53bb3b2e917b7ec9f1f3bd96cd2efc121263a442a97ef",
+          "observedOutputSha256": "884e0fc92aed68080a6d41604f141f66001f763d8baafa36fd9e2cf09c03718d",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-interaction-disclosure",
+          "p14CaseId": "capture-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "bdcf547d58db9d28ebfa6004ab49aee66b6e91936aa356ed509eef6c01aef6bf",
+          "observedOutputSha256": "e954e0a3d6b6e1ca87877d674a2ecdd3f6cabe0fe23150741072903968076d1a",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-media-mark",
+          "p14CaseId": "capture-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "4dc20b522f10b1cdca5c731779ba7fc7940b9e33a1804c6a0d7b709bf0327959",
+          "observedOutputSha256": "516727f45c10b91d5994b1a4ab083f7885d9212b869de8ccc9d92a57478b2f16",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-open-mark-enablement",
+          "p14CaseId": "capture-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "eb9eca6fdbe1e6db158799d3757eef026fe8a5209eb1eedb9aa451be46cd1a0d",
+          "observedOutputSha256": "d8e2d45ba4b4ce4d8c2ff7a2e1a523dab9f82b4002763f3521a3705f3adbf20d",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-risk-version",
+          "p14CaseId": "capture-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "ac0dc5f7288921645b4c3c786998af4d1c4a75c9038166aeb9fdb36ebc936bba",
+          "observedOutputSha256": "bb6383246f56c731fb27b0a620c53896f73de39c3ecbd7b32a873c9b9145a1fc",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-interaction-disclosure",
+          "p14CaseId": "lattice-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "81972f856658318a884ca0bf2720d7fd1f2ba8aa30ab25a1bf99f9285b0c72c6",
+          "observedOutputSha256": "c3a565879b5a771301a6c8bb6dcb080be23d3a018a609e5e66c1d7edb834c7b4",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-media-mark",
+          "p14CaseId": "lattice-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "4e5ec50e9ed7f45c740142b3f5a0c5abaccf910634abec27cfa82a823d37288a",
+          "observedOutputSha256": "9bb80838d065dd3a2b19f6fb9a2906564f86ea24c1b60bcf8017b1e0f33ac214",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-open-mark-enablement",
+          "p14CaseId": "lattice-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "ba9b1569cc5c247e4862654583496e9a334ddfb010ba52d7435a06be4538f162",
+          "observedOutputSha256": "9dda7b1f24b3463b27a866776e96463931a534fa8025d717222a49fd1b6a4960",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-risk-version",
+          "p14CaseId": "lattice-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "c9147bc9d8ffccb3c94fb429c0c25477036c9ea65c2d0a6147b9e6b2b270cb85",
+          "observedOutputSha256": "273c818ce8442eb5e08db58875e772ffb8422691595d4038d9b9fb6183a8b468",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-prototype-vn-ai-interaction-disclosure",
+          "p14CaseId": "prototype-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "0f979059661aead7761ebae62c182a25abf465f16acc5751705889d9165e649f",
+          "observedOutputSha256": "3ff3d5672eccb5225087475092886c0a2270779c220d2d94c5a4d45923f42e71",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-prototype-vn-ai-media-mark",
+          "p14CaseId": "prototype-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "f34fa439c4be8554c6246d3c3ac6f25e08b717a3c687bff586844979ee0ae7cd",
+          "observedOutputSha256": "20deeb58c1b522445d10400529b151d9f53fd4fcdbe2eef71a3cb36e260e8287",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-prototype-vn-ai-risk-version",
+          "p14CaseId": "prototype-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "a90c16caed45d456b152e02c68f0249fd490f5a9f47a2e1223c0900b552035a5",
+          "observedOutputSha256": "5a3b59fa58202e1a4d0d5f6caf75fcdb3b556dffcc0085880430b432bffeacbb",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-interaction-disclosure",
+          "p14CaseId": "studio-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "ddcd19a405714dba5748fa43e2c0ffc67e4df75d8005c32e2df295d5cd426574",
+          "observedOutputSha256": "43b37766d85917b53abcb6dfb3fcc666fe0477bb90d94a734dacaeee071fd8c7",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-media-mark",
+          "p14CaseId": "studio-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "39a23e62e3a9bb918665565ff403941b182971cbf504e08f1984faf8c19099df",
+          "observedOutputSha256": "7eb8f257742197a3916bc6a4c407ad48a68c6c097693eaa5595e25976ac478e9",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-open-mark-enablement",
+          "p14CaseId": "studio-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "d3ec33d85eaa50b5ca2f08068ae1723f13a478bb8ff93c8d35694faa08a3d58d",
+          "observedOutputSha256": "9100f2a0d498cef26f06ad679c8a4e0384ba819320408ef72179e694c9039b41",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-risk-version",
+          "p14CaseId": "studio-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "dd6fedb0e7ed04373dedf105d153352250d90eda98bc351dee286e821b987950",
+          "observedOutputSha256": "a40567aad0e1e08574c42c47cecec38124e7e27487eda0e20bf51f9ff5ad3fc5",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-interaction-disclosure",
+          "p14CaseId": "workbench-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "239e8cc1207000f9d174a303a69938fa3ab9494fd4ae5b2a5732b67d5f889e26",
+          "observedOutputSha256": "81b1ed025915bbfe96aedc9f0753b2ae455f066f6c5bb578e4ebbf7999ad4342",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-open-mark-enablement",
+          "p14CaseId": "workbench-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "213c326aa593756f504c95c18bea86bd134b826f74c5edbc88b22942ad8b3b89",
+          "observedOutputSha256": "f3c9a8bdae5ca51379bd7f2d39be1bf80d6f6cdd37c19b3e0c1c6734140012c6",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-risk-version",
+          "p14CaseId": "workbench-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "cef82ba0e042e8dd6b763c6e02bc9f140a72922488f61cb83a784d7f5d821db8",
+          "observedOutputSha256": "0e819a69412b6c812b3badaac05024498852f7ad71508e728fcf634d90dcf970",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-media-mark",
+          "p14CaseId": "workbench-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "trialIndex": 0,
+          "traceSha256": "2fb48224558a8afd619aed44a01e05a50f4a4e96c29ab8f505315ee8395cddda",
+          "observedOutputSha256": "3c47e08392673a6b2b7cfc20843a30dbaab9087299612655e7528578f851f4e6",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        }
+      ]
+    },
+    {
+      "runId": "lcsp400-r6-DEV",
+      "manifestSha256": "9399296da1d35e67888fae2afc06dbe6e0a4fa22d03b4444897c9760679f882f",
+      "trialsSha256": "e4c7de66b4253ec3bee11dccb4c7d9fc9ec92cae9c872189803e604fc7c17438",
+      "adapterReportSha256": "392f7f637350b2306b3bd8253e6cfe0531f5a68189b5e1866ed094bb9d919ffd",
+      "artifactValidationStatus": "VALIDATED",
+      "scoringStatus": "NOT_SCORED",
+      "reviewedGoldDenominator": 0,
+      "distinctP14CaseCount": 22,
+      "lifecycleObservationCount": 22,
+      "executionCohort": {
+        "executedCaseCount": 22,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 22,
+        "expectedTrialCount": 22,
+        "mappedCaseCount": 22,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 22,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "rawRunnerDiagnostic": {
+        "passed": 4,
+        "failed": 18,
+        "executionErrors": 0,
+        "verdictMismatches": 18,
+        "interpretation": "SCRIPTED fixture behavior against provisional expected labels, not Deep Agent legal accuracy; verdict mismatches retained for independent review."
+      },
+      "outputs": [
+        {
+          "candidateId": "vn-ai-archive-vn-ai-media-mark",
+          "p14CaseId": "archive-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "6928a0f67a7d29837f367b531308f280133ecc13016223bca1ce8374ae2f34a5",
+          "observedOutputSha256": "5091ed578efb3df3d1d3550be76413c20dcbad20b6faadb04722b6464dd87b42",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-archive-vn-ai-risk-version",
+          "p14CaseId": "archive-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "8fc37536c2eebb14593e149fe937a5108a69257d8b1c7b193ba86f5f4cfe1c76",
+          "observedOutputSha256": "1f26257a5138f55f592a765defc12ad52ef75c16e235f803dee94f667567a2da",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-media-mark",
+          "p14CaseId": "assist-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "b81409bc8ee2d5c7870ab4d9b10d9e25986c12391a4ce048db9d356a3dca6203",
+          "observedOutputSha256": "5e21e46e9d62073f8ebb3bdb5f9dcff0e5700da05bbb059e595af9556c8c78b4",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-open-mark-enablement",
+          "p14CaseId": "assist-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "1c51e548e5024ea772dc82bf803feb86ed741b208fc3d89b06c36b5170d372fa",
+          "observedOutputSha256": "d7db3e34a30597fa2ed80cf39e312e6a39665045f804894d83f89f6c7516f5b9",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-risk-version",
+          "p14CaseId": "assist-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "6b719135d2cda78ac00152cc5460e4956ffa90bd2c1472a2a7979626c7375944",
+          "observedOutputSha256": "7704aec3058ea6df2c69b194dfb83f67e6702430b45f96785576d846b9d537e8",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-media-mark",
+          "p14CaseId": "bulletin-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "5b5d847fb570920269d3f14fbf1196a36693cd658a18058df7a869bfee072b5f",
+          "observedOutputSha256": "0f2a89300832c87f1a8952d0edcb6bdb0af209a25b6e22f738152ac4a30e099b",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-open-mark-enablement",
+          "p14CaseId": "bulletin-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "0b3e09667d0a4485286a4fa8a6c94f735affcee7a7904da69385cb203c365db6",
+          "observedOutputSha256": "1c854a1c1f0dd03977b83f33fcdd9ced36a18c725e24e1b67ea6ab76ccf09eb7",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-risk-version",
+          "p14CaseId": "bulletin-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "72c0c7ab90b17af7d950bf7b9510e23ce21b31c10d964da7b3295a64ba087b78",
+          "observedOutputSha256": "8496bec4db2ab3cfc8e5d9aec8cc2823e91b81f99f4163aa2226c386cec8dcab",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-media-mark",
+          "p14CaseId": "capture-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "c6de26f556909bc1181919e62bf02b550e65fa68b4289a6401c405b0c7c71bcb",
+          "observedOutputSha256": "962dc1cabfcbf92a43d2e03d336862bc266b2db6f11acf7da8dcb7e9b2dbbee0",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-open-mark-enablement",
+          "p14CaseId": "capture-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "de36d9b36c14e0099b844ec0166f94f24d653a6ec6cc5217216e45ea95cdb22d",
+          "observedOutputSha256": "065197100f88ed58387cb83520c309c60bae3c8ba2718877c097338455d51d58",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-risk-version",
+          "p14CaseId": "capture-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "cbbb1dee4f6f7102cf0c026ce8b817cab9bbe32a99314d06ed82a28841380e87",
+          "observedOutputSha256": "35e82d09ca6ead12096632defefec0b4e3aa7f1bd3abd0c4b4591ddbf71b0053",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-media-mark",
+          "p14CaseId": "lattice-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "51954d0b187ccf558606cbfb29d3202ea34215e5832ffe399698ee2255aa5b0b",
+          "observedOutputSha256": "480c6f55b47efa730e2ddc6059beb1140ed62b470377fe0928658dd5e5ce0652",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-open-mark-enablement",
+          "p14CaseId": "lattice-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "2ddf8c1775827744f4f2800cf335f0e2878b31973b9bf62386bfef49b6ed3eb8",
+          "observedOutputSha256": "1d71899ce3cd83adc59cbc4386a0fb3991b253a06c3e075f6c44a5591772f440",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-risk-version",
+          "p14CaseId": "lattice-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "90e7044d1194c5e42c5ae071634df8d264026076345ca5f6ef99a43e4a919f7d",
+          "observedOutputSha256": "a6184454a1748f1f1263af9431d5b3e60d6abb36355afdeec50dabb5b6817738",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-prototype-vn-ai-media-mark",
+          "p14CaseId": "prototype-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "17a5ed6b1ab623ce3b362babdfc30d2673161afe8895d83c6a2b76a29d16a8c7",
+          "observedOutputSha256": "7515ace18b861762da4a646409665a7034fb09470a5c14cadfcac678984de5a1",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-prototype-vn-ai-risk-version",
+          "p14CaseId": "prototype-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "be8e22d3f470bcf86edb69c27ae956e269b6263381441d3bc23bd72985320866",
+          "observedOutputSha256": "b7d038b7766b12d6b6bbadea253d5bf8636f73e983472315fe6433baecc25476",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-media-mark",
+          "p14CaseId": "studio-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "f11e763fbcc5398d09b5488e1d9a6e51c4d8faaa0137f56336bdb49e317a969a",
+          "observedOutputSha256": "ad7a5e1bcdc6151b419146ea2e79c0d2c7a085e0f4d9bcfff26eb4e4fa8b9ca6",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-open-mark-enablement",
+          "p14CaseId": "studio-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "42c185a65a45aedd454ed36bd466bfdca23462bf0dd69942892a6ea54e712ae5",
+          "observedOutputSha256": "fe308549d3e3e14f727d62d08e1aefe135f60608d0b57a5cdb40f17c24bb9031",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-risk-version",
+          "p14CaseId": "studio-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "e62642f53ab5b284f196dc342b33a50ee45e90426205341628f7916c7de92cd4",
+          "observedOutputSha256": "8e722367c549f6d3ae3faaa6b25f9600914d6ada57d8d8d1cde0fcdc04ebf867",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-open-mark-enablement",
+          "p14CaseId": "workbench-VN-AI-OPEN-MARK-ENABLEMENT",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "d1b0a046b79497fce4b8a4335817ee0e5a50604fe0d36a6b5a7984c22807e946",
+          "observedOutputSha256": "b1cc625f94b3409260ed1b94a9025541bd2358cd2ab9e8a0b0a48f1093bb0d41",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-risk-version",
+          "p14CaseId": "workbench-VN-AI-RISK-VERSION",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "215ad06f2cf56b3c54f24400f9384f7f99762858396778d26414aca31427403f",
+          "observedOutputSha256": "dd4babe6216c0c4a8dc79057ef05347f8652a10e508ba7937ae7b9ea77436b87",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-media-mark",
+          "p14CaseId": "workbench-VN-AI-MEDIA-MARK",
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "trialIndex": 0,
+          "traceSha256": "6c5cd594fd7aefe5c41a2fa82f4d4d1b8187b70d5115a8548488628e44e31b07",
+          "observedOutputSha256": "c6b5a4753f0e5b75ac7833c82a87ed3af158bdf5ea7ad78d4fe82b43b8a17b19",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        }
+      ]
+    },
+    {
+      "runId": "lcsp400-r6-HOLDOUT",
+      "manifestSha256": "f6a37c280f20ce1de46ff31f997528003705f3ff6ae09a7fcc064cc6b6811f0c",
+      "trialsSha256": "3a18e588a5b1e544914e72a4c84a4795b67ccaca93c390eeb8c09c920782cd4b",
+      "adapterReportSha256": "8f8169a3d158ac274791cc1f3ad7286ecfa4fac041d5a701f242bbf377850286",
+      "artifactValidationStatus": "VALIDATED",
+      "scoringStatus": "NOT_SCORED",
+      "reviewedGoldDenominator": 0,
+      "distinctP14CaseCount": 8,
+      "lifecycleObservationCount": 8,
+      "executionCohort": {
+        "executedCaseCount": 8,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 8,
+        "expectedTrialCount": 8,
+        "mappedCaseCount": 8,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 8,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "rawRunnerDiagnostic": {
+        "passed": 2,
+        "failed": 6,
+        "executionErrors": 0,
+        "verdictMismatches": 6,
+        "interpretation": "SCRIPTED fixture behavior against provisional expected labels, not Deep Agent legal accuracy; verdict mismatches retained for independent review."
+      },
+      "outputs": [
+        {
+          "candidateId": "vn-ai-archive-vn-ai-interaction-disclosure",
+          "p14CaseId": "archive-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "49cd77be033ea624714c469ec2e79943b2e7d0b3b9a058fd0f94747cb6f1330d",
+          "observedOutputSha256": "d5418b8b0c44c9ad3ece262fc48c46ccfe9e5b73fef15fd318198587721c42c8",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-assist-vn-ai-interaction-disclosure",
+          "p14CaseId": "assist-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "e0f1eb83590421a36a931805dab97333e91550369c5ffb669d4186a06e2df229",
+          "observedOutputSha256": "c55db7e7f4d8c6c3c3466b4238b888dbb213bd412d148db8c6dbc353aa6a2650",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-bulletin-vn-ai-interaction-disclosure",
+          "p14CaseId": "bulletin-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "d8647a5f7787197f7973c5ea9c0fb7075cfe4d7e79e691cdd99b520bfe7953bb",
+          "observedOutputSha256": "7398b0f55949c9905da9c2dc2d805a205a69bd8c3a37d0821c3cbccb41cc145b",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-capture-vn-ai-interaction-disclosure",
+          "p14CaseId": "capture-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "95580a1fc13eb88e7e4f3c999ed2ea7acd0473c251b0e185a983dcf1b9473e9f",
+          "observedOutputSha256": "0a52f234b0780c32830b92883a9a01735143e5c8573107a5317a4becb46962aa",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-lattice-vn-ai-interaction-disclosure",
+          "p14CaseId": "lattice-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "2a301d5c0cb0b6f8ee26819f0ad68e6ee0e1d4c3f4161b55c30040cf44892324",
+          "observedOutputSha256": "f81e5b594332d583653593ec08d610057f8308241eb8588b19bcff985b082e9b",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-prototype-vn-ai-interaction-disclosure",
+          "p14CaseId": "prototype-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "417a8bd38ae1d6d83e07fc627e1d3c7656ed723d12da85b5c3953ce10f98d7d3",
+          "observedOutputSha256": "5e32b5994d9cb24dfc0345925a3d98623df172da027b4dd9db424b498d40bc24",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-studio-vn-ai-interaction-disclosure",
+          "p14CaseId": "studio-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "fbd92847006cfe9ffdd3fd0d90e290171ad4601de5e557b5a8d986ace9cc8440",
+          "observedOutputSha256": "23fc4677c4a381d0ee75c26536b9d6389fe3c8fa6473119d22b11997f3fc091b",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        },
+        {
+          "candidateId": "vn-ai-workbench-vn-ai-interaction-disclosure",
+          "p14CaseId": "workbench-VN-AI-INTERACTION-DISCLOSURE",
+          "lifecycleStage": "INITIAL",
+          "trialIndex": 0,
+          "traceSha256": "df62bad453a796dd22da453557dd64769a384292801f778845cd4d310769a51d",
+          "observedOutputSha256": "102bb62c7ad510d43dadd8e772ba68e533be62281469b9952d5b0a6ca229be5d",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "NONE",
+          "openRequestIds": [],
+          "resolvedRequestCount": 0
+        }
+      ]
+    },
+    {
+      "runId": "lcsp400-r6-official-hitl",
+      "manifestSha256": "cfc72a5eac7426b5fd3f01d629980f3d8dab667661149f8f621e720c654a7b27",
+      "trialsSha256": "c5246945b6a585b2ce493681a25fadfff10731af85c2b5da6c4d75c0672092bd",
+      "adapterReportSha256": "452bb8d775f5340962c4151562036a0e60055a50c9cda19fac67a7e34b6d84a7",
+      "artifactValidationStatus": "VALIDATED",
+      "scoringStatus": "NOT_SCORED",
+      "reviewedGoldDenominator": 0,
+      "distinctP14CaseCount": 1,
+      "lifecycleObservationCount": 2,
+      "executionCohort": {
+        "executedCaseCount": 2,
+        "executedMissingOutputCount": 0,
+        "executedTrialCount": 2,
+        "expectedTrialCount": 2,
+        "mappedCaseCount": 2,
+        "mappingStatus": "MAPPED",
+        "notExecutedCaseCount": 0,
+        "notExecutedTrialCount": 0,
+        "outputAvailableCount": 2,
+        "scoringEligibleCaseCount": 0,
+        "trialAggregationPolicy": "REPORT_EACH_TRIAL_SEPARATELY_NO_AGGREGATION"
+      },
+      "rawRunnerDiagnostic": {
+        "passed": 2,
+        "failed": 0,
+        "executionErrors": 0,
+        "verdictMismatches": 0,
+        "interpretation": "SCRIPTED fixture behavior against provisional expected labels, not Deep Agent legal accuracy; verdict mismatches retained for independent review."
+      },
+      "outputs": [
+        {
+          "candidateId": "vn-official-mark-resume-final",
+          "p14CaseId": "vn-official-mark-verification-hitl",
+          "lifecycleStage": "RESUME_FINAL",
+          "trialIndex": 0,
+          "traceSha256": "6f9767040ac40611469075b623069a86cd80d1886c4d985e1f2aa4cbcf6fa2d5",
+          "observedOutputSha256": "6d1f8b6b94dd93d22f0f17238710f413289b5f50c4a270c2e6c98dc5fcb607ab",
+          "rawActualVerdict": "APPLICABLE_COMPLIANT",
+          "normalizedLabels": {
+            "applicability": "APPLICABLE",
+            "compliance": "SUPPORTED_COMPLIANCE"
+          },
+          "hitlState": "RESOLVED",
+          "openRequestIds": [],
+          "resolvedRequestCount": 1
+        },
+        {
+          "candidateId": "vn-official-mark-waiting-for-human",
+          "p14CaseId": "vn-official-mark-verification-hitl",
+          "lifecycleStage": "WAITING_FOR_HUMAN",
+          "trialIndex": 0,
+          "traceSha256": "a399b9ce006145c20f578fd22c2d6059ce29ec42970be549aa862576f41dbb2f",
+          "observedOutputSha256": "27dfabd80bcf11f62ce52f65e1fae54c988cc47920c6bb2521c89c8593084018",
+          "rawActualVerdict": "WAITING_FOR_HUMAN",
+          "normalizedLabels": {
+            "applicability": "UNRESOLVED",
+            "compliance": "UNRESOLVED"
+          },
+          "hitlState": "OPEN",
+          "openRequestIds": [
+            "hr-vn-official-mark-verification-hitl-1"
+          ],
+          "resolvedRequestCount": 0
+        }
+      ]
+    }
+  ]
+}
