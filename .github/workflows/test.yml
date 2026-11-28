@@ -75,15 +75,30 @@ jobs:
               - 'scripts/prepare-cli.mjs'
               - 'scripts/run*.mjs'
               - 'package.json'
-            # Bộ lọc riêng cho Docker: Chỉ chạy khi sửa đổi runtime dockerfile/release-images script
+            # Keep Docker E2E aligned with the release-image inventory and its direct runtime contracts.
+            # Exact suite and source paths schedule candidate builds; markdown and unrelated UI changes stay scoped.
             docker:
               - '.dockerignore'
               - 'Dockerfile*'
               - 'deepagents/Dockerfile*'
+              - 'deepagents-langgraph/Dockerfile*'
               - 'tests/release-images.py'
               # Run the Docker job when the context regression test itself changes.
               - 'tests/test_release_docker_context.py'
               - 'scripts/*docker*'
+              - 'deepagents/tests/integration/test_codebase_memory_runtime_e2e.py'
+              - 'deepagents/tests/integration/test_docker_sandbox_e2e.py'
+              - 'deepagents/tests/integration/test_local_agent_runtime_e2e.py'
+              - 'deepagents/tests/integration/test_production_agent_server_image_e2e.py'
+              - 'deepagents/tests/integration/test_repository_scanner_docker_e2e.py'
+              - 'deepagents/tests/test_repository_workspace_archives.py'
+              - 'deepagents/tests/test_snapshot_service_client.py'
+              - 'deepagents/tools/common/capabilities/platform/docker_sandbox.py'
+              - 'deepagents/tools/common/capabilities/platform/repository_sandbox.py'
+              - 'deepagents/tools/common/capabilities/platform/repository_workspace.py'
+              - 'deepagents/tools/common/capabilities/platform/repository_snapshot_client.py'
+              - 'deepagents/tools/common/capabilities/agent_runtime/agent_server_client.py'
+              - 'deepagents/tools/common/capabilities/agent_runtime/local_server.py'
             # Bộ lọc riêng cho Windows: Chỉ chạy khi sửa đổi launchers của Windows
             windows:
               - 'fogewise-dev-launchers/**'

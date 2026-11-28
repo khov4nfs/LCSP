@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-
 from tools.common.capabilities.platform import repository_sandbox
 from tools.common.capabilities.platform.docker_sandbox import (
     DockerSandboxBackend,
@@ -197,12 +196,14 @@ def _fixture_archive() -> bytes:
     output = io.BytesIO()
     with tarfile.open(fileobj=output, mode="w:gz") as archive:
         content = b"print('hydrated')\n"
-        info = tarfile.TarInfo("repo/src/app.py")
+        # Consumers declare VERIFIED_ROOTLESS, so member paths are already
+        # repository-relative and the runtime-owned .lcsp path stays protected.
+        info = tarfile.TarInfo("src/app.py")
         info.size = len(content)
         archive.addfile(info, io.BytesIO(content))
 
         reserved = b"must be stripped\n"
-        reserved_info = tarfile.TarInfo("repo/.lcsp/repository.json")
+        reserved_info = tarfile.TarInfo(".lcsp/repository.json")
         reserved_info.size = len(reserved)
         archive.addfile(reserved_info, io.BytesIO(reserved))
     return output.getvalue()
