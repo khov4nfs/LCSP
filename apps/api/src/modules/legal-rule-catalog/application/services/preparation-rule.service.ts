@@ -373,23 +373,20 @@ export class PreparationRuleService {
       complete: items.every((item) => terminalStates.has(item.executionState)),
       items,
       ruleSet: {
-        legalRequirements: items.flatMap(
-          (item) =>
-            item.executionState === A.SUCCEEDED
-              ? (item.output?.legalRequirements ?? [])
-              : [],
+        legalRequirements: items.flatMap((item) =>
+          item.executionState === A.SUCCEEDED
+            ? (item.output?.legalRequirements ?? [])
+            : [],
         ),
-        assessmentRules: items.flatMap(
-          (item) =>
-            item.executionState === A.SUCCEEDED
-              ? (item.output?.assessmentRules ?? [])
-              : [],
+        assessmentRules: items.flatMap((item) =>
+          item.executionState === A.SUCCEEDED
+            ? (item.output?.assessmentRules ?? [])
+            : [],
         ),
-        contextRelations: items.flatMap(
-          (item) =>
-            item.executionState === A.SUCCEEDED
-              ? (item.output?.contextRelations ?? [])
-              : [],
+        contextRelations: items.flatMap((item) =>
+          item.executionState === A.SUCCEEDED
+            ? (item.output?.contextRelations ?? [])
+            : [],
         ),
       },
     };
@@ -1377,7 +1374,8 @@ export class PreparationRuleService {
 function rejectSelectedOutput(
   cid: string,
   issues: string,
-  code: typeof E.RESULT_INVALID | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
+  code:
+    typeof E.RESULT_INVALID | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
 ): never {
   throw problemException(code, cid, {
     status: HttpStatus.UNPROCESSABLE_ENTITY,

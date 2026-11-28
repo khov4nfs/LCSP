@@ -8,6 +8,7 @@ import {
   rbacPreflightSchema,
   type RbacPreflightDto,
 } from "./rbac-preflight.dto.js";
+import { normalizeCorrelationId } from "./correlation-id.js";
 import { RbacPreflightService } from "./rbac-preflight.service.js";
 
 /**
@@ -55,7 +56,7 @@ export class RbacPreflightController {
     const userId = body.userId ?? body.user_id ?? "";
     const rawRoles = body.requiredRoles ?? body.required_roles;
     const requiredRoles = parseRequiredRoles(rawRoles);
-    const correlationId = body.correlationId ?? "";
+    const correlationId = normalizeCorrelationId(body.correlationId);
 
     const result = await this.preflightService.evaluate({
       userId,

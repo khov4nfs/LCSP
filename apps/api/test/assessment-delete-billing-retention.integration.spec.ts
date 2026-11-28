@@ -151,4 +151,46 @@ describe("assessment delete billing retention", () => {
       await prisma.assessment.findUnique({ where: { id: f.assessmentId } }),
     ).not.toBeNull();
   });
+
+  it("blocks owner transfer while a durable deletion fence exists", async () => {
+    const f = await fixture();
+    const replacementOwner = await prisma.user.create({
+      data: {
+        id: `retention-${id()}`,
+        email: `${id()}@retention.test`,
+        passwordHash: "test",
+        emailVerified: true,
+        failedLoginCount: 0,
+      },
+    });
+    await prisma.assessmentDeletionFence.create({
+      data: {
+        assessmentId: f.assessmentId,
+        ownerId: f.user.id,
+        token: id(),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    // The composite FK is the durable security boundary used while external
+    // cleanup runs without a long-lived database transaction.
+    await expect(
+      prisma.assessment.update({
+        where: { id: f.assessmentId },
+        data: { ownerId: replacementOwner.id },
+      }),
+    ).rejects.toMatchObject({ code: "P2003" });
+
+    // Once the cleanup claim is explicitly removed, ordinary ownership update
+    // semantics resume; the fence itself is what enforces immutability.
+    await prisma.assessmentDeletionFence.delete({
+      where: { assessmentId: f.assessmentId },
+    });
+    await expect(
+      prisma.assessment.update({
+        where: { id: f.assessmentId },
+        data: { ownerId: replacementOwner.id },
+      }),
+    ).resolves.toMatchObject({ ownerId: replacementOwner.id });
+  });
 });

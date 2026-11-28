@@ -1,6 +1,7 @@
 import {
   WORKLOAD_SCOPES,
   ASSESSMENT_BUDGET_REASONS,
+  ASSESSMENT_BUDGET_STATUSES,
   assessmentBudgetLimitsSchema,
   assessmentCumulativeUsageSchema,
   assessmentBudgetStateSchema,
@@ -14,6 +15,13 @@ import {
 } from "../src/assessment-domain/index.ts";
 
 describe("assessment budget kernel contracts", () => {
+  it("exposes a distinct wallet payment pause reason", () => {
+    // Customer top-up must not be confused with an admin runtime budget extension.
+    expect(ASSESSMENT_BUDGET_REASONS).toHaveProperty(
+      "PAYMENT_REQUIRED",
+      "PAYMENT_REQUIRED",
+    );
+  });
   it("validates workload scopes and budget reasons", () => {
     expect(WORKLOAD_SCOPES.ASSESSMENT_ROOT).toBe("ASSESSMENT_ROOT");
     expect(WORKLOAD_SCOPES.RULE_SET_PREPARATION).toBe("RULE_SET_PREPARATION");
@@ -23,8 +31,11 @@ describe("assessment budget kernel contracts", () => {
     expect(ASSESSMENT_BUDGET_REASONS.TOKEN_LIMIT_EXCEEDED).toBe(
       "TOKEN_LIMIT_EXCEEDED",
     );
-    expect(ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED).toBe(
+    expect(Object.values(ASSESSMENT_BUDGET_REASONS)).not.toContain(
       "NO_PROGRESS_LIMIT_EXCEEDED",
+    );
+    expect(Object.values(ASSESSMENT_BUDGET_STATUSES)).not.toContain(
+      "NO_PROGRESS",
     );
     expect(ASSESSMENT_BUDGET_REASONS.AGENT_BUDGET_REACHED).toBe(
       "AGENT_BUDGET_REACHED",
@@ -32,7 +43,7 @@ describe("assessment budget kernel contracts", () => {
     expect(ASSESSMENT_DOMAIN_ERROR_CODES.BUDGET_EXHAUSTED).toBe(
       "ASSESSMENT_BUDGET_EXHAUSTED",
     );
-    expect(ASSESSMENT_DOMAIN_ERROR_CODES.NO_PROGRESS_LIMIT_REACHED).toBe(
+    expect(Object.values(ASSESSMENT_DOMAIN_ERROR_CODES)).not.toContain(
       "ASSESSMENT_NO_PROGRESS_LIMIT_REACHED",
     );
   });
@@ -128,7 +139,7 @@ describe("assessment budget kernel contracts", () => {
     expect(result.status).toBe("EXHAUSTED");
   });
 
-  it("denies invocation when no-progress limit reached", () => {
+  it("admits invocation when consecutiveTurnsWithoutProgress reaches noProgressLimit (diagnostic telemetry only)", () => {
     const limits = {
       maxModelCalls: 50,
       maxInputTokens: 2_000_000,
@@ -144,11 +155,9 @@ describe("assessment budget kernel contracts", () => {
       consecutiveTurnsWithoutProgress: 5,
     };
     const result = evaluateBudgetAdmission(limits, usage);
-    expect(result.admitted).toBe(false);
-    expect(result.reason).toBe(
-      ASSESSMENT_BUDGET_REASONS.NO_PROGRESS_LIMIT_EXCEEDED,
-    );
-    expect(result.status).toBe("NO_PROGRESS");
+    expect(result.admitted).toBe(true);
+    expect(result.reason).toBeNull();
+    expect(result.status).toBe("ADMITTED");
   });
 
   it("admits invocations when limits are unconstrained (all null) even for large usage", () => {
@@ -261,13 +270,23 @@ describe("assessment budget kernel contracts", () => {
       expect(limits.noProgressLimit).toBe(10);
     });
 
-    it("applies overrideNoProgress option to clear noProgressLimit", () => {
+    it("parses LCSP_ASSESSMENT_NO_PROGRESS_LIMIT as diagnostic metadata while evaluateBudgetAdmission admits turns exceeding it", () => {
       const limits = resolveConfiguredBudgetLimits(
         { LCSP_ASSESSMENT_NO_PROGRESS_LIMIT: "15" },
         WORKLOAD_SCOPES.ASSESSMENT_ROOT,
-        { overrideNoProgress: true },
       );
-      expect(limits.noProgressLimit).toBeNull();
+      expect(limits.noProgressLimit).toBe(15);
+
+      const admission = evaluateBudgetAdmission(limits, {
+        modelCalls: 1,
+        inputTokens: 100,
+        outputTokens: 50,
+        totalTokens: 150,
+        consecutiveTurnsWithoutProgress: 25,
+      });
+      expect(admission.admitted).toBe(true);
+      expect(admission.reason).toBeNull();
+      expect(admission.status).toBe(ASSESSMENT_BUDGET_STATUSES.ADMITTED);
     });
 
     it("throws error when environment variable is malformed", () => {
@@ -385,6 +404,36 @@ describe("assessment budget kernel contracts", () => {
       };
       const extended = applyBudgetExtension(baseLimits);
       expect(extended).toEqual(baseLimits);
+    });
+
+    it("strips legacy overrideNoProgress from persisted blockerReference JSONB rows and preserves diagnostic noProgressLimit", () => {
+      const legacyPersistedExtension = {
+        version: 1,
+        authorizedBy: "admin-1",
+        authorizedAt: "2026-11-14T12:00:00.000Z",
+        auditReason: "Legacy row with overrideNoProgress",
+        additionalModelCalls: 50,
+        overrideNoProgress: true,
+      };
+      const parsed = assessmentBudgetExtensionSchema.safeParse(
+        legacyPersistedExtension,
+      );
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect("overrideNoProgress" in parsed.data).toBe(false);
+        const extended = applyBudgetExtension(
+          {
+            maxModelCalls: 100,
+            maxInputTokens: null,
+            maxOutputTokens: null,
+            maxTotalTokens: null,
+            noProgressLimit: 15,
+          },
+          parsed.data,
+        );
+        expect(extended.maxModelCalls).toBe(150);
+        expect(extended.noProgressLimit).toBe(15);
+      }
     });
   });
 });

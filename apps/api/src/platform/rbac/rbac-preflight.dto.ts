@@ -1,5 +1,6 @@
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { z } from "zod";
+import { SAFE_CORRELATION_ID_PATTERN } from "./correlation-id.js";
 
 /**
  * Rationale (Why):
@@ -15,7 +16,12 @@ export const rbacPreflightSchema = z.object({
   userId: z.string().optional(),
   required_roles: z.array(z.unknown()).optional(),
   requiredRoles: z.array(z.unknown()).optional(),
-  correlationId: z.string().optional(),
+  correlationId: z
+    .string()
+    .trim()
+    .regex(SAFE_CORRELATION_ID_PATTERN)
+    .max(128)
+    .optional(),
 });
 
 export type RbacPreflightDto = z.infer<typeof rbacPreflightSchema>;

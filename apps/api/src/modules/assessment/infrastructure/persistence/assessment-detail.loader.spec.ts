@@ -38,8 +38,17 @@ function fixture() {
       totalTokens: 201,
     },
   });
+  const findUnique = jest
+    .fn<(...args: unknown[]) => Promise<typeof row>>()
+    .mockResolvedValue(row);
+  const findMany = jest
+    .fn<(...args: unknown[]) => Promise<(typeof row)[]>>()
+    .mockResolvedValue([row]);
+  const count = jest
+    .fn<(...args: unknown[]) => Promise<number>>()
+    .mockResolvedValue(1);
   const tx = {
-    assessment: { findUnique: () => Promise.resolve(row) },
+    assessment: { findUnique, findMany, count },
     llmUsageEvent: { aggregate },
   };
   const localization = authoredLocalizationFixture();
@@ -50,7 +59,15 @@ function fixture() {
     } as unknown as PrismaService,
     localization.projection,
   );
-  return { loader, row, aggregate, localization };
+  return {
+    loader,
+    row,
+    aggregate,
+    localization,
+    findUnique,
+    findMany,
+    count,
+  };
 }
 it("returns all invocation totals without depending on bounded event history", async () => {
   const { loader, aggregate } = fixture();
@@ -84,6 +101,105 @@ it("does not read usage for a foreign assessment", async () => {
   row.ownerId = "foreign-owner";
   await expect(loader.load(input)).rejects.toThrow();
   expect(aggregate).not.toHaveBeenCalled();
+});
+
+it("[RED][ASM-OWNER-02] scopes the first detail query by assessment and owner", async () => {
+  const { loader, findUnique } = fixture();
+
+  await loader.load(input);
+
+  // BOLA prevention belongs in the database predicate itself; a later owner
+  // comparison cannot replace an owner-scoped initial read.
+  expect(findUnique).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id: assessmentId, ownerId: input.sessionUserId },
+    }),
+  );
+});
+
+it("[RED][ASM-ADMIN-01] lists metadata for ADMIN without owner impersonation", async () => {
+  const { loader, row, findMany } = fixture();
+
+  const result = await loader.list({
+    sessionUserId: "support-admin",
+    subjectRole: AUTH_USER_ROLES.admin,
+    page: 1,
+    pageSize: 20,
+    correlationId: "admin-metadata-list",
+  });
+
+  // ADMIN is metadata-only, but it must receive the administrative metadata
+  // projection rather than a fabricated empty customer-owned collection.
+  expect(result).toEqual({
+    assessments: [
+      {
+        assessment_id: assessmentId,
+        owner_id: input.sessionUserId,
+        name: "Synthetic assessment",
+        lifecycle_state: null,
+        execution_state: null,
+        created_at: row.createdAt.toISOString(),
+        updated_at: row.updatedAt.toISOString(),
+      },
+    ],
+    total: 1,
+    page: 1,
+    page_size: 20,
+    correlationId: "admin-metadata-list",
+  });
+  expect(findMany).toHaveBeenCalledWith({
+    where: {},
+    select: {
+      id: true,
+      ownerId: true,
+      name: true,
+      lifecycleState: true,
+      runtime: { select: { executionState: true } },
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    skip: 0,
+    take: 20,
+  });
+});
+
+it("[RED][ASM-ADMIN-02] returns only safe assessment metadata to ADMIN", async () => {
+  const { loader, row, findUnique, aggregate } = fixture();
+
+  const result = await loader.load({
+    assessmentId,
+    sessionUserId: "support-admin",
+    subjectRole: AUTH_USER_ROLES.admin,
+    correlationId: "admin-metadata-detail",
+  });
+
+  expect(result).toEqual({
+    assessment_id: assessmentId,
+    owner_id: input.sessionUserId,
+    name: "Synthetic assessment",
+    lifecycle_state: null,
+    execution_state: null,
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+    correlationId: "admin-metadata-detail",
+  });
+  expect(findUnique).toHaveBeenCalledWith({
+    where: { id: assessmentId },
+    select: {
+      id: true,
+      ownerId: true,
+      name: true,
+      lifecycleState: true,
+      runtime: { select: { executionState: true } },
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  expect(aggregate).not.toHaveBeenCalled();
+  expect(result).not.toHaveProperty("case");
+  expect(result).not.toHaveProperty("runtime");
+  expect(result).not.toHaveProperty("usage");
 });
 
 it("projects decision customer-visible rationales to VI while preserving technical invariants", async () => {

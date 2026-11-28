@@ -987,6 +987,44 @@ def test_boundary_is_registered_once_and_rejects_malformed_commands() -> None:
         boundary.handle({}, "corr")
 
 
+def test_boundary_propagates_command_correlation_to_runtime_client(monkeypatch) -> None:
+    """[RED][ASM-TRACE-01] The outbox trace must survive the Python execution boundary."""
+    import contextlib
+    from types import SimpleNamespace
+
+    from assessment_root.boundary import AssessmentRootBoundary
+
+    constructed = []
+
+    class CapturingRuntimeClient:
+        def __init__(self, base_url, worker_key, *, correlation_id=None):  # noqa: ANN001
+            constructed.append((base_url, worker_key, correlation_id))
+
+        def post_repository_discovery(self, body):  # noqa: ANN001
+            return body
+
+        def repository_discovery_summary(self):
+            return {}
+
+    monkeypatch.setattr("assessment_root.boundary.AssessmentRuntimeClient", CapturingRuntimeClient)
+    monkeypatch.setattr(
+        "assessment_root.boundary.postgres_checkpointer",
+        lambda: contextlib.nullcontext(InMemorySaver()),
+    )
+    monkeypatch.setattr("assessment_root.boundary.get_store", lambda: None)
+    monkeypatch.setattr("assessment_root.execution_policy.root_runner_options", lambda message, client: {})
+
+    boundary = AssessmentRootBoundary(
+        SimpleNamespace(nestjs_api_base_url="http://api", worker_api_key="worker-secret"),
+        runner=lambda client, assessment_id, **kwargs: {"state": "COMPLETED"},
+    )
+
+    boundary.handle({"assessmentId": ASSESSMENT}, "root-command-correlation")
+
+    # The boundary already owns the canonical ID; the client must not replace it.
+    assert constructed == [("http://api", "worker-secret", "root-command-correlation")]
+
+
 def test_boundary_skips_a_held_lease_and_a_stale_delivery_without_error(monkeypatch) -> None:
     from types import SimpleNamespace
 

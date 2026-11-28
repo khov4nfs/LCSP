@@ -333,6 +333,7 @@ async def test_typed_auth_opens_provider_circuit_and_later_calls_skip_that_provi
         def __init__(self, provider: str, model_name: str = "future-model-v99"):
             self.provider = provider
             self.model_name = model_name
+            self.profile = {"max_output_tokens": 65536}
 
     class _FakeRequest:
         def __init__(self, model):

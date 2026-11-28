@@ -24,7 +24,7 @@ import { AuditWriterService } from "../../../../../platform/audit/audit-writer.s
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
-import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
+import type { AssessmentDetail as CreateAssessmentDto } from "@lcsp/contracts/assessment-domain";
 import { AssessmentRuntimePreparation } from "../../services/assessment-runtime-preparation.service.js";
 import { AssessmentDetailLoader } from "../../../infrastructure/persistence/assessment-detail.loader.js";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
@@ -156,6 +156,10 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
       await this.auditWriter.writeInTx(auditEvent, tx);
       await this.outboxRepository.enqueue(outboxEvent, tx);
     });
+    // The repository deliberately leaves transaction-scoped aggregates
+    // uncommitted in memory; only this outer boundary knows the full creation,
+    // lifecycle, audit and outbox transaction has committed successfully.
+    assessment.markPersisted();
 
     return this.detail.load({
       assessmentId: assessment.id,

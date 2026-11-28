@@ -162,8 +162,12 @@ class AssessmentRootBoundary(AgentBoundaryBase):
 
     def __init__(self, config, rbac_client=None, client: Any | None = None, runner=None) -> None:
         super().__init__(config, rbac_client)
-        self._client_factory = lambda: client or AssessmentRuntimeClient(
-            config.nestjs_api_base_url, config.worker_api_key
+        # Production creates one client per boundary execution and binds the canonical
+        # outbox trace at construction, so every tool call and heartbeat keeps that identity.
+        self._client_factory = lambda correlation_id: client or AssessmentRuntimeClient(
+            config.nestjs_api_base_url,
+            config.worker_api_key,
+            correlation_id=correlation_id,
         )
         self._runner = runner or run_assessment_root
 
@@ -197,7 +201,9 @@ class AssessmentRootBoundary(AgentBoundaryBase):
                     store = None
                 from assessment_root.execution_policy import root_runner_options
 
-                client = self._client_factory()
+                # The broker/invocation layer already resolved the canonical command
+                # correlation ID; passing it through avoids starting a second Python trace.
+                client = self._client_factory(correlationId)
                 runner_options = {
                     "backend_factory": partial(
                         sandbox_backend_factory,

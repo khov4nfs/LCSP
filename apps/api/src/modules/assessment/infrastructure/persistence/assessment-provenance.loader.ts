@@ -32,21 +32,23 @@ export class AssessmentProvenanceLoader {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Business purpose: Export the complete, verifiable provenance of an Assessment for its authorized reader.
+   * Business purpose: Export the complete, verifiable provenance of an Assessment for its owning customer.
    *
    * Business rules:
-   * - Customers may read only their own Assessment; every record and reference must retain the same Assessment and immutable pins.
+   * - Only CUSTOMER may read provenance, and only for an Assessment owned by that customer; ADMIN remains metadata-only.
+   * - Every record and reference must retain the same Assessment and immutable pins.
    * - A confirmed-fact reference names the decision's case revision. Its fact may originate in an earlier revision, but never after that decision.
    * - Selected scope counts only requested coverage and accepted resolved decisions; unrequested rules receive no legal outcome.
    * - Preserve historical revisions and human answers while redacting sensitive runtime payloads.
    *
    * Execution flow:
-   * 1. Load the Assessment, pinned case and complete durable history, then enforce ownership.
-   * 2. Verify record identities, pins and cross-references against the decision snapshot that used them.
-   * 3. Project the history, redact sensitive payloads and return a schema-validated artifact with a deterministic checksum.
+   * 1. Reject non-CUSTOMER callers before any persistence read.
+   * 2. Load the owner-scoped Assessment, pinned case and complete durable history.
+   * 3. Verify record identities, pins and cross-references against the decision snapshot that used them.
+   * 4. Project the history, redact sensitive payloads and return a schema-validated artifact with a deterministic checksum.
    *
    * Failure cases:
-   * - Missing or foreign-owned Assessments return not found; broken references, future facts, mismatched pins or coverage exceeding the pinned catalog return a provenance integrity conflict.
+   * - Non-CUSTOMER, missing, or foreign-owned Assessments return masked not found; broken references, future facts, mismatched pins or coverage exceeding the pinned catalog return a provenance integrity conflict.
    * - Invalid persisted contract shapes fail validation rather than producing a misleading audit trail.
    *
    * Side effects: Read-only database access and pure artifact projection; no state, checkpoint, decision or answer is rewritten.
@@ -57,8 +59,21 @@ export class AssessmentProvenanceLoader {
     subjectRole: AuthUserRole;
     correlationId: string;
   }): Promise<AssessmentProvenanceArtifact> {
+    if (input.subjectRole !== AUTH_USER_ROLES.customer) {
+      // Why: HTTP guards are not the only possible caller of this loader. How: fail
+      // before Prisma so metadata-only ADMIN requests cannot hydrate provenance content.
+      // The same masked not-found response avoids revealing assessment existence.
+      throw problemException(
+        ASSESSMENT_ERROR_CODES.notFound,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+
     const assessment = await this.prisma.assessment.findUnique({
-      where: { id: input.assessmentId },
+      // Owner scoping at the persistence boundary prevents foreign provenance from
+      // entering memory even when an identifier is guessed or leaked.
+      where: { id: input.assessmentId, ownerId: input.sessionUserId },
       include: {
         runtime: true,
         domainCase: {
@@ -118,11 +133,8 @@ export class AssessmentProvenanceLoader {
       );
     }
 
-    // Tenant / Owner enforcement: Customer role can ONLY view their own assessment.
-    if (
-      input.subjectRole === AUTH_USER_ROLES.customer &&
-      assessment.ownerId !== input.sessionUserId
-    ) {
+    // The in-memory check defends against inconsistent mocks/adapters in addition to the database predicate.
+    if (assessment.ownerId !== input.sessionUserId) {
       throw problemException(
         ASSESSMENT_ERROR_CODES.notFound,
         input.correlationId,

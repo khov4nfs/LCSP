@@ -16,24 +16,30 @@ const { MAX_TERMS, MAX_RESULTS, SNIPPET_RADIUS } =
 /**
  * Business purpose: Normalize a Root legal-source search expression.
  * Business rules:
- * - Keep unique whitespace-separated terms at least two characters long, bounded by the
- *   configured maximum for safe corpus search.
+ * - Treat Unicode compatibility and case variants as one logical term while preserving
+ *   first-occurrence order; keep only canonical terms at least two characters long.
+ * - Apply the configured maximum after deduplication so variants never consume extra query slots.
  * Execution flow:
- * 1. Split, trim, filter, deduplicate and truncate the search terms.
+ * 1. Normalize the expression with NFKC, split whitespace and trim each term.
+ * 2. Apply locale-independent Unicode casing, filter unusable terms, deduplicate and truncate.
  * Failure cases:
  * - Empty or too-short input yields no query terms, never an unscoped search.
  * Side effects:
- * - None; input remains unchanged.
+ * - None; returns a new deterministic term list without mutating the input or pinned corpus.
  */
 export function searchTermsOf(text: string): string[] {
-  return [
-    ...new Set(
-      text
-        .split(/\s+/u)
-        .map((term) => term.trim())
-        .filter((term) => term.length >= 2),
-    ),
-  ].slice(0, MAX_TERMS);
+  // Canonicalize once at the application boundary. `toLowerCase()` follows the
+  // Unicode default algorithm and cannot vary with the host process locale;
+  // normalizing before filtering also preserves compatibility expansions such as ﬀ → ff.
+  const canonicalTerms = text
+    .normalize("NFKC")
+    .split(/\s+/u)
+    .map((term) => term.trim().toLowerCase())
+    .filter((term) => term.length >= 2);
+
+  // Set preserves first occurrence, and bounding only the unique list prevents
+  // equivalent spellings from consuming multiple SQL AND predicates.
+  return [...new Set(canonicalTerms)].slice(0, MAX_TERMS);
 }
 
 /**

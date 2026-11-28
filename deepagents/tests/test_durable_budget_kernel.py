@@ -8,7 +8,6 @@ from middleware.durable_budget_kernel import (
     RULE_SET_PREPARATION_SCOPE,
     CALL_LIMIT_EXCEEDED,
     TOKEN_LIMIT_EXCEEDED,
-    NO_PROGRESS_LIMIT_EXCEEDED,
     WorkloadBudgetLimits,
     WorkloadCumulativeUsage,
     resolve_workload_limits,
@@ -128,11 +127,11 @@ def test_evaluate_workload_admission():
     assert admitted is False
     assert reason == TOKEN_LIMIT_EXCEEDED
 
-    # No progress limit exceeded
+    # No progress limit is diagnostic-only and never blocks admission (R2)
     usage_progress = WorkloadCumulativeUsage(model_calls=5, input_tokens=500, output_tokens=200, total_tokens=700, consecutive_turns_without_progress=3)
     admitted, reason = evaluate_workload_admission(limits, usage_progress)
-    assert admitted is False
-    assert reason == NO_PROGRESS_LIMIT_EXCEEDED
+    assert admitted is True
+    assert reason is None
 
 
 def test_record_workload_progress():
@@ -238,9 +237,7 @@ def test_root_runtime_control_server_status_no_progress(monkeypatch):
 
     result = control.before_model({}, None)
     assert result is None
-    assert len(interrupted_payload) == 1
-    assert interrupted_payload[0]["reason"] == "NO_PROGRESS_LIMIT_EXCEEDED"
-    assert interrupted_payload[0]["budgetDenial"] is True
+    assert interrupted_payload == []
 
 
 def test_root_runtime_control_server_status_exhausted(monkeypatch):
@@ -337,7 +334,7 @@ def test_rule_set_preparation_pauses_on_call_limit_exhaustion(tmp_path, monkeypa
 
         def fail_rule_set_preparation(self, run_id: str, reason: str) -> dict:
             self.calls.append(("fail", (run_id, reason)))
-            is_budget = reason in {"AGENT_BUDGET_REACHED", "CALL_LIMIT_EXCEEDED", "TOKEN_LIMIT_EXCEEDED", "NO_PROGRESS_LIMIT_EXCEEDED", "BUDGET_EXHAUSTED"}
+            is_budget = reason in {"AGENT_BUDGET_REACHED", "CALL_LIMIT_EXCEEDED", "TOKEN_LIMIT_EXCEEDED", "BUDGET_EXHAUSTED"}
             return {"preparationRunId": run_id, "executionState": "PAUSED" if is_budget else "FAILED"}
 
     packet = _packet()
@@ -372,7 +369,7 @@ def test_rule_set_preparation_pauses_on_token_limit_exhaustion(tmp_path, monkeyp
 
         def fail_rule_set_preparation(self, run_id: str, reason: str) -> dict:
             self.calls.append(("fail", (run_id, reason)))
-            is_budget = reason in {"AGENT_BUDGET_REACHED", "CALL_LIMIT_EXCEEDED", "TOKEN_LIMIT_EXCEEDED", "NO_PROGRESS_LIMIT_EXCEEDED", "BUDGET_EXHAUSTED"}
+            is_budget = reason in {"AGENT_BUDGET_REACHED", "CALL_LIMIT_EXCEEDED", "TOKEN_LIMIT_EXCEEDED", "BUDGET_EXHAUSTED"}
             return {"preparationRunId": run_id, "executionState": "PAUSED" if is_budget else "FAILED"}
 
     packet = _packet()
@@ -424,7 +421,7 @@ def test_rule_set_preparation_quota_durability_and_defaults(monkeypatch):
     assert middleware.quota_input_tokens == 1000
 
     mock_request = MagicMock()
-    mock_request.model = None
+    mock_request.model = SimpleNamespace(profile={"max_output_tokens": 65536})
     mock_request.messages = []
     middleware._bounded_request(mock_request)
     assert durable_usage.model_calls == 6
@@ -463,6 +460,10 @@ def test_apply_budget_extension() -> None:
     assert result.max_total_tokens == 3_150_000
     assert result.no_progress_limit == 15
 
+    # Legacy overrideNoProgress flag cannot clear diagnostic no_progress_limit (R2)
+    result_with_legacy_override = apply_budget_extension(base, {**ext, "overrideNoProgress": True})
+    assert result_with_legacy_override.no_progress_limit == 15
+
     # None extension leaves base unchanged
     assert apply_budget_extension(base, None) == base
 
@@ -477,8 +478,19 @@ def test_apply_budget_extension() -> None:
     assert apply_budget_extension(unbounded, ext).max_model_calls is None
 
 
-def test_intra_execution_progress_tracking_resets_on_case_revision() -> None:
+def test_intra_execution_progress_tracking_resets_on_case_revision(monkeypatch) -> None:
     client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.return_value = {
+        "budgetState": {
+            "limits": {"maxModelCalls": 100, "noProgressLimit": 5},
+            "cumulativeUsage": {"modelCalls": 1, "consecutiveTurnsWithoutProgress": 0},
+            "status": "ADMITTED",
+        }
+    }
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
     control = RootRuntimeControl(
         client,
         "exec-1",
@@ -499,10 +511,14 @@ def test_intra_execution_progress_tracking_resets_on_case_revision() -> None:
         decision = control._evaluate_intra_execution_progress({"case_revision": 2})
         assert decision is None
 
-    # 5th ineffective turn triggers stall interruption
+    # 5th ineffective turn emits non-blocking diagnostic telemetry without interrupting
     stall_decision = control._evaluate_intra_execution_progress({"case_revision": 2})
     assert stall_decision is not None
-    assert stall_decision.get("reason") == NO_PROGRESS_LIMIT_EXCEEDED
+    assert stall_decision["detection"] == "ineffective_turns_limit"
+    assert stall_decision.get("blocking") is False
+    assert "reason" not in stall_decision
+    assert control.before_model({"case_revision": 2}, None) is None
+    assert interrupted_payload == []
 
     # 2. When case_revision advances, ineffective counter resets to 0
     progress_decision = control._evaluate_intra_execution_progress({"case_revision": 3})
@@ -511,8 +527,19 @@ def test_intra_execution_progress_tracking_resets_on_case_revision() -> None:
     assert control._last_case_revision == 3
 
 
-def test_intra_execution_detects_repeated_identical_tool_loop() -> None:
+def test_intra_execution_detects_repeated_identical_tool_loop(monkeypatch) -> None:
     client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.return_value = {
+        "budgetState": {
+            "limits": {"maxModelCalls": 100},
+            "cumulativeUsage": {"modelCalls": 1},
+            "status": "ADMITTED",
+        }
+    }
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
     control = RootRuntimeControl(
         client,
         "exec-loop-1",
@@ -541,15 +568,30 @@ def test_intra_execution_detects_repeated_identical_tool_loop() -> None:
         decision = control._evaluate_intra_execution_progress(identical_tool_state)
         assert decision is None
 
-    # 5th identical tool invocation triggers runaway loop detection
+    # 5th identical tool invocation emits non-blocking diagnostic telemetry (no interrupt)
     stall_decision = control._evaluate_intra_execution_progress(identical_tool_state)
     assert stall_decision is not None
-    assert stall_decision["reason"] == NO_PROGRESS_LIMIT_EXCEEDED
     assert stall_decision["detection"] == "identical_tool_loop"
+    assert stall_decision.get("blocking") is False
+    assert "reason" not in stall_decision
+    assert control.before_model(identical_tool_state, None) is None
+    assert control.after_model(identical_tool_state, None) is None
+    assert interrupted_payload == []
 
 
-def test_intra_execution_detects_cyclic_tool_loop() -> None:
+def test_intra_execution_detects_cyclic_tool_loop(monkeypatch) -> None:
     client = MagicMock()
+    client.heartbeat.return_value = {}
+    client.root_control.return_value = None
+    client.context.return_value = {
+        "budgetState": {
+            "limits": {"maxModelCalls": 100},
+            "cumulativeUsage": {"modelCalls": 1},
+            "status": "ADMITTED",
+        }
+    }
+    interrupted_payload = []
+    monkeypatch.setattr("assessment_root.runtime_control.interrupt", lambda payload: interrupted_payload.append(payload))
     control = RootRuntimeControl(
         client,
         "exec-cyclic-1",
@@ -578,11 +620,15 @@ def test_intra_execution_detects_cyclic_tool_loop() -> None:
         decision = control._evaluate_intra_execution_progress(s)
         assert decision is None
 
-    # 6th call completes 3 cycles of A-B -> cyclic runaway loop detected!
+    # 6th call completes 3 cycles of A-B -> non-blocking cyclic diagnostic telemetry (no interrupt)
     stall_decision = control._evaluate_intra_execution_progress(state_b)
     assert stall_decision is not None
-    assert stall_decision["reason"] == NO_PROGRESS_LIMIT_EXCEEDED
     assert stall_decision["detection"] == "cyclic_tool_loop_period_2"
+    assert stall_decision.get("blocking") is False
+    assert "reason" not in stall_decision
+    assert control.before_model(state_b, None) is None
+    assert control.after_model(state_b, None) is None
+    assert interrupted_payload == []
 
 
 def test_intra_execution_factual_progress_resets_loop_detector() -> None:
@@ -688,7 +734,7 @@ def test_rule_set_preparation_has_no_cumulative_output_quota_even_with_stale_env
         RULE_SET_PREPARATION_SCOPE,
         resolve_workload_limits,
     )
-    from middleware.usage_metering import DEFAULT_MAX_OUTPUT_TOKENS
+    from middleware import usage_metering
 
     # Even if stale LCSP_RSP_MAX_OUTPUT_TOKENS is configured in environment, it has no effect
     monkeypatch.setenv("LCSP_RSP_MAX_OUTPUT_TOKENS", "100")
@@ -705,7 +751,10 @@ def test_rule_set_preparation_has_no_cumulative_output_quota_even_with_stale_env
     }
     mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
 
-    req = SimpleNamespace(messages=[SimpleNamespace(content="Generate claims")], model="gpt-4")
+    req = SimpleNamespace(
+        messages=[SimpleNamespace(content="Generate claims")],
+        model=SimpleNamespace(profile={"max_output_tokens": 65536}),
+    )
     # First call produces 500 output tokens (exceeding historical 100 limit)
     mw.wrap_model_call(
         req,
@@ -725,8 +774,8 @@ def test_rule_set_preparation_has_no_cumulative_output_quota_even_with_stale_env
     assert durable.output_tokens == 1300
     assert durable.total_tokens == 2300
 
-    # Per-request model limit constant remains preserved at 4096
-    assert DEFAULT_MAX_OUTPUT_TOKENS == 4096
+    # Silent 4096 fallback constant has been retired (ASM-USAGE-01)
+    assert not hasattr(usage_metering, "DEFAULT_MAX_OUTPUT_TOKENS")
 
 
 def test_unknown_usage_larger_than_hard_ceiling_fails_closed(monkeypatch) -> None:
@@ -764,7 +813,7 @@ def test_restart_with_in_flight_usage_retains_conservative_reservation(tmp_path)
 
     req = SimpleNamespace(
         messages=[SimpleNamespace(content="Long prompt input to verify reservation " * 50)],
-        model="gpt-4",
+        model=SimpleNamespace(profile={"max_output_tokens": 8192}),
     )
     # Bounded request is evaluated before dispatch: reserves in-flight input and updates disk receipt
     bounded_req = mw1._bounded_request(req)
@@ -790,7 +839,10 @@ def test_settle_quota_estimates_conservative_output_when_metadata_missing() -> N
     quotas = {"model_calls": 10, "input_tokens": 100_000, "total_tokens": 150_000}
     mw = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable)
 
-    req = SimpleNamespace(messages=[SimpleNamespace(content="Analyze legal sources")], model="gpt-4")
+    req = SimpleNamespace(
+        messages=[SimpleNamespace(content="Analyze legal sources")],
+        model=SimpleNamespace(profile={"max_output_tokens": 8192}),
+    )
     # Response with NO usage_metadata
     resp_no_metadata = SimpleNamespace(
         result=[SimpleNamespace(content="Here is a detailed legal analysis with fifty characters!")],
@@ -828,7 +880,10 @@ def test_middleware_preserves_cumulative_counters_across_restarts() -> None:
     quotas = {"model_calls": 5, "total_tokens": 10_000}
     mw1 = AgentRunBudgetMiddleware(run_quotas=quotas, durable_usage=durable1)
 
-    req1 = SimpleNamespace(messages=[SimpleNamespace(content="Step 1")], model="gpt-4")
+    req1 = SimpleNamespace(
+        messages=[SimpleNamespace(content="Step 1")],
+        model=SimpleNamespace(profile={"max_output_tokens": 4096}),
+    )
     mw1.wrap_model_call(
         req1,
         lambda r: SimpleNamespace(
@@ -851,7 +906,10 @@ def test_middleware_preserves_cumulative_counters_across_restarts() -> None:
     assert mw2.quota_total_tokens == 2500
 
     # Execute step 2 on new instance
-    req2 = SimpleNamespace(messages=[SimpleNamespace(content="Step 2")], model="gpt-4")
+    req2 = SimpleNamespace(
+        messages=[SimpleNamespace(content="Step 2")],
+        model=SimpleNamespace(profile={"max_output_tokens": 4096}),
+    )
     mw2.wrap_model_call(
         req2,
         lambda r: SimpleNamespace(

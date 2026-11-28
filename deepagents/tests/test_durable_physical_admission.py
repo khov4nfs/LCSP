@@ -527,10 +527,16 @@ def test_12_rule_set_preparation_and_assessment_root_regressions(tmp_path: Path,
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(tmp_path / "recovery.sqlite3"))
     monkeypatch.setenv("LCSP_RSP_MAX_MODEL_CALLS", "1")
 
-    from test_rule_set_preparation_agent import FakeApi, _packet, _call, _model, INDEX_PATH
+    from test_rule_set_preparation_agent import _packet, _call, _model, INDEX_PATH
+    from test_rule_set_preparation_runner_admission import GovernedRunnerApi
     from langchain_core.messages import AIMessage
 
-    class RegressionApi(FakeApi):
+    # Why: The full-source runner now requires server-issued admission; FakeApi falls
+    # back to a live localhost callback and turns a budget test into a network test.
+    # How: Use the current governed API fixture so each scripted physical attempt
+    # receives a capability before the model is dispatched.
+    # Invariant: The local hard call ceiling still pauses the second attempt.
+    class RegressionApi(GovernedRunnerApi):
         def source_review_operation(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
             return {
                 "outcome": "PASSED",
@@ -559,6 +565,10 @@ def test_12_rule_set_preparation_and_assessment_root_regressions(tmp_path: Path,
         register_test_scripted_model(model, "primary", credential_salt="0" * 64)
         result = run_rule_set_preparation(api, run_id, model=model, work_dir=tmp_path)
     assert result["state"] == "PAUSED"
+    assert len(api.admissions) == 1
+    assert len(api.consumes) == 1
+    assert api.admissions[0]["preparationRunId"] == run_id
+    assert len(model.prompts) == 1, "The second model call must be blocked by the local hard ceiling"
     fail_calls = [c for c in api.calls if c[0] == "fail"]
     assert len(fail_calls) == 1
     assert fail_calls[0][1][1] == "CALL_LIMIT_EXCEEDED"

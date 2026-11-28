@@ -27,6 +27,127 @@ import { createAuthSessionRecord } from "./auth-record-test-helpers.js";
 const testSupportDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(testSupportDir, "../..");
 
+// Rationale ("Why"): Destructive test suites execute TRUNCATE, schema resets, and fixture purges.
+// Running these operations against a shared or production database would result in catastrophic data loss.
+// Mechanism ("How"): Parses the connection string, verifies that the target host is strictly a local loopback
+// (localhost, 127.0.0.1, ::1) and that the target database name carries a designated test suffix (_test, _e2e).
+// Invariants & Constraints: Fails closed unconditionally before any database client is initialized or query executed.
+
+/**
+ * Asserts that the provided database URL targets a dedicated disposable local test database.
+ *
+ * Business purpose: Protect non-test and production PostgreSQL instances (e.g. lcsp_local, prod) from destructive test operations (TRUNCATE, seed reset).
+ * Business rules:
+ * - Target host must strictly resolve to local loopback (localhost, 127.0.0.1, or ::1). Remote hosts are strictly forbidden.
+ * - Database name must carry a designated test identifier ending with _test or _e2e.
+ * - Local development or production databases (e.g. lcsp_local, lcsp_dev, lcsp_production, postgres) are strictly forbidden under all circumstances.
+ * - LCSP_TEST_POSTGRES_DB cannot be used to legitimize lcsp_local or any non-test database; it must also carry an approved test suffix.
+ * Execution flow:
+ * 1. Parse database connection string via standard URL parser.
+ * 2. Validate that hostname belongs to local loopback address set.
+ * 3. Verify that LCSP_TEST_POSTGRES_DB (if configured) does not point to forbidden or non-test database names.
+ * 4. Verify that target database name does not contain forbidden production/local/dev terms.
+ * 5. Extract path database name and verify compliance with test suffix naming conventions (_test, _e2e).
+ * 6. Return verified URL string on success.
+ * Failure cases:
+ * - Throws Error if URL is malformed or unparseable.
+ * - Throws Error if hostname is non-local or remote IP/domain.
+ * - Throws Error if database name targets local/dev/prod (such as lcsp_local).
+ * - Throws Error if LCSP_TEST_POSTGRES_DB is configured with an invalid or non-test database name.
+ * - Throws Error if database name lacks mandatory test suffix (_test, _e2e).
+ * Side effects: None (read-only validation).
+ */
+export function assertDedicatedTestDatabaseUrl(urlStr: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    // Rationale ("Why"): Never interpolate urlStr into the error message to avoid leaking database passwords or credentials to logs.
+    throw new Error(
+      "Invalid DATABASE_URL provided for test execution (URL parse error)",
+    );
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  const allowedHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+  if (!allowedHosts.has(hostname)) {
+    throw new Error(
+      `Safety guard: Test database host must be local loopback (localhost, 127.0.0.1, ::1), got "${hostname}"`,
+    );
+  }
+
+  const allowedDbSuffixes = ["_test", "_e2e"];
+  const forbiddenPatterns = [
+    "local",
+    "prod",
+    "production",
+    "dev",
+    "development",
+    "staging",
+    "stage",
+    "master",
+    "main",
+  ];
+
+  // 1. Guard against malicious or accidental misconfiguration of LCSP_TEST_POSTGRES_DB
+  if (process.env.LCSP_TEST_POSTGRES_DB) {
+    const configuredDb = process.env.LCSP_TEST_POSTGRES_DB.trim().toLowerCase();
+    const configuredHasValidSuffix = allowedDbSuffixes.some((suffix) =>
+      configuredDb.endsWith(suffix),
+    );
+    const configuredIsForbidden =
+      configuredDb === "postgres" ||
+      configuredDb === "lcsp_local" ||
+      forbiddenPatterns.some(
+        (pat) =>
+          configuredDb === pat ||
+          configuredDb === `lcsp_${pat}` ||
+          configuredDb.startsWith(`${pat}_`) ||
+          configuredDb.endsWith(`_${pat}`) ||
+          configuredDb.includes(`_${pat}_`),
+      );
+
+    if (!configuredHasValidSuffix || configuredIsForbidden) {
+      throw new Error(
+        `Safety guard: LCSP_TEST_POSTGRES_DB="${configuredDb}" is invalid; it must end with '_test' or '_e2e' and cannot target local/dev/prod databases`,
+      );
+    }
+  }
+
+  // 2. Guard target database name against forbidden production/development databases
+  const dbName = parsed.pathname.replace(/^\//, "").toLowerCase();
+  const isForbiddenName =
+    dbName === "postgres" ||
+    dbName === "lcsp_local" ||
+    forbiddenPatterns.some(
+      (pat) =>
+        dbName === pat ||
+        dbName === `lcsp_${pat}` ||
+        dbName.startsWith(`${pat}_`) ||
+        dbName.endsWith(`_${pat}`) ||
+        dbName.includes(`_${pat}_`),
+    );
+
+  if (isForbiddenName) {
+    throw new Error(
+      `Safety guard: Database name "${dbName}" targets a local/development/production database and cannot be used for destructive tests`,
+    );
+  }
+
+  // 3. Target database name must strictly end with _test or _e2e
+  const isDedicatedTestDb = allowedDbSuffixes.some((suffix) =>
+    dbName.endsWith(suffix),
+  );
+
+  if (!isDedicatedTestDb) {
+    throw new Error(
+      `Safety guard: Test database name must end with '_test' or '_e2e', got "${dbName}"`,
+    );
+  }
+
+  return urlStr;
+}
+
 const configuredTestDatabaseUrl =
   process.env.DATABASE_URL ?? process.env.PHASE25_DATABASE_URL;
 
@@ -35,6 +156,8 @@ if (!configuredTestDatabaseUrl) {
     "E2E/integration tests require an explicit disposable DATABASE_URL (or PHASE25_DATABASE_URL)",
   );
 }
+
+assertDedicatedTestDatabaseUrl(configuredTestDatabaseUrl);
 
 export const TEST_DATABASE_URL = configuredTestDatabaseUrl;
 
@@ -309,6 +432,10 @@ export async function resetAuthWorkspaceDatabase(
   await prisma.auditEvent.deleteMany();
   await prisma.auditExportRequest.deleteMany();
   await prisma.authRecord.deleteMany();
+  await prisma.billableInvocationAdmission.deleteMany();
+  await prisma.creditLedgerEntry.deleteMany();
+  await prisma.billingReservation.deleteMany();
+  await prisma.billingWallet.deleteMany();
   await prisma.user.deleteMany();
 }
 

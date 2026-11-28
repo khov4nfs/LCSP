@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useMarketingLocale } from "./marketing-locale";
 import { resolveMessage } from "@lcsp/i18n";
 import type { Locale } from "@lcsp/contracts/shared/locale";
-import { 
-  MessageCircleIcon, 
-  TargetIcon, 
-  ShieldAlertIcon, 
+import {
+  MessageCircleIcon,
+  TargetIcon,
+  ShieldAlertIcon,
   ShieldCheckIcon,
   SearchIcon,
   CheckCircle2Icon,
@@ -27,9 +27,9 @@ export function FigmaCapabilitiesSection() {
       className="relative w-full overflow-hidden bg-white py-20 text-[#101C29] border-b border-slate-200/60"
     >
       {/* Vercel subtle grid lines background */}
-      <div 
-        aria-hidden="true" 
-        className="pointer-events-none absolute inset-0 bg-grid-slate opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]" 
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-grid-slate opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_90%)]"
       />
 
       <div className="relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">
@@ -110,8 +110,8 @@ export function FigmaCapabilitiesSection() {
                   </div>
 
                   <div className={`mt-5 flex items-center gap-3 rounded-md border p-3 text-xs transition-all duration-300 ${
-                    isFixedDiff 
-                      ? "border-emerald-300/60 bg-emerald-50 text-emerald-900" 
+                    isFixedDiff
+                      ? "border-emerald-300/60 bg-emerald-50 text-emerald-900"
                       : "border-amber-300/60 bg-amber-50 text-amber-900"
                   }`}>
                     {isFixedDiff ? (
@@ -150,11 +150,11 @@ export function FigmaCapabilitiesSection() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm font-semibold text-[#101C29]">
-                    {locale === "vi" 
-                      ? "Dữ liệu nhật ký tài khoản này có được sao lưu sang vùng dữ liệu ngoài biên giới hay không?" 
+                    {locale === "vi"
+                      ? "Dữ liệu nhật ký tài khoản này có được sao lưu sang vùng dữ liệu ngoài biên giới hay không?"
                       : "Are these account audit logs replicated or transferred to foreign cloud regions?"}
                   </p>
-                  
+
                   <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700">
                     <div className="flex items-center gap-2 text-slate-500">
                       <span className="font-bold text-[#11545B]">dev@acme.corp:</span>
@@ -210,7 +210,7 @@ export function FigmaCapabilitiesSection() {
           {/* 3 Right Column Selectors */}
           <div className="flex flex-col justify-between gap-4">
             {/* Card 1: Investigation */}
-            <div 
+            <div
               onClick={() => setActiveTab("finding")}
               className={`cursor-pointer rounded-xl border p-6 transition-all duration-200 ${
                 activeTab === "finding"
@@ -237,7 +237,7 @@ export function FigmaCapabilitiesSection() {
             </div>
 
             {/* Card 2: Information request */}
-            <div 
+            <div
               onClick={() => setActiveTab("request")}
               className={`cursor-pointer rounded-xl border p-6 transition-all duration-200 ${
                 activeTab === "request"
@@ -262,7 +262,7 @@ export function FigmaCapabilitiesSection() {
             </div>
 
             {/* Card 3: Selective re-evaluation */}
-            <div 
+            <div
               onClick={() => setActiveTab("recheck")}
               className={`cursor-pointer rounded-xl border p-6 transition-all duration-200 ${
                 activeTab === "recheck"

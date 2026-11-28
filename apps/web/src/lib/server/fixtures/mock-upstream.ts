@@ -185,6 +185,171 @@ export async function getMockUpstreamResponse(
     return okResult(userDetail);
   }
 
+  // Why: The Admin case UI needs a deterministic local read-only fixture for browser inspection.
+  // How: Expose only an Admin mock actor's queue and exact case detail from one JSON asset.
+  // Invariant: Mock data is never a real provider receipt and never authorizes a decision or debit.
+  if (
+    pathname.startsWith("/admin/billing/reconciliation/cases") &&
+    init.bearerToken?.includes("admin")
+  ) {
+    const mock = await readMockJson<{
+      items: unknown[];
+      detail: { caseId: string } & Record<string, unknown>;
+    }>("admin-model-reconciliation.json");
+    const base = "/admin/billing/reconciliation/cases";
+    if (pathname === base) {
+      const params = new URLSearchParams(pathStr.split("?")[1] ?? "");
+      const page = Number(params.get("page") ?? "1");
+      const pageSize = Number(params.get("pageSize") ?? "20");
+      return okResult({
+        items: page === 1 ? mock.items.slice(0, pageSize) : [],
+        total: mock.items.length,
+        page,
+        pageSize,
+      });
+    }
+    if (pathname === `${base}/${mock.detail.caseId}`) {
+      return okResult(mock.detail);
+    }
+  }
+
+  // 4. Admin Model Pricing (Read-Only Overview)
+  // Why: Enables deterministic local mock-mode inspection of /admin/pricing without live backend settlement cutover.
+  // How: Reads the schema-validated fixture asset and applies optional query filters identically to the backend overview query.
+  // Invariants: Keeps debitMode=OFF and never exposes mutation handlers in mock mode.
+  if (pathname === "/admin/billing/model-pricing") {
+    const mockPricing = await readMockJson<{
+      debitMode: string;
+      dbUtcNow: string;
+      allowlistedModels: Array<{
+        role: string;
+        routeKey: string;
+        provider: string;
+        resolvedModel: string;
+      }>;
+      coverage: Array<{
+        provider: string;
+        resolvedModel: string;
+        normalizedScopeKey: string;
+        hasCoverage: boolean;
+        resolvedScope: string | null;
+        fallbackSource: string | null;
+        assignmentId: string | null;
+        snapshotId: string | null;
+        snapshotVersion: number | null;
+        effectiveFrom: string | null;
+        effectiveTo: string | null;
+        rates: unknown;
+      }>;
+      assignments: Array<{
+        id: string;
+        tariffSnapshotId: string;
+        scope: string;
+        normalizedScopeKey: string;
+        status: string;
+        version: number;
+        effectiveFrom: string;
+        effectiveTo: string | null;
+        supersededByAssignmentId: string | null;
+        supersededBy: string | null;
+        supersededAt: string | null;
+        cancelledAt: string | null;
+        auditReason: string | null;
+        createdBy: string;
+        createdAt: string;
+      }>;
+      drafts: Array<{
+        id: string;
+        scope: string;
+        provider: string | null;
+        resolvedModel: string | null;
+        normalizedScopeKey: string;
+        [key: string]: unknown;
+      }>;
+      snapshots: Array<{
+        id: string;
+        scope: string;
+        provider: string | null;
+        resolvedModel: string | null;
+        normalizedScopeKey: string;
+        [key: string]: unknown;
+      }>;
+    }>("admin-model-pricing.json");
+
+    const queryIndex = pathStr.indexOf("?");
+    const params =
+      queryIndex >= 0
+        ? new URLSearchParams(pathStr.slice(queryIndex + 1))
+        : new URLSearchParams();
+    const provider = params.get("provider")?.trim().toLowerCase() ?? "";
+    const resolvedModel =
+      params.get("resolvedModel")?.trim().toLowerCase() ?? "";
+    const scope = params.get("scope")?.trim() ?? "";
+    const status = params.get("status")?.trim() ?? "";
+
+    const matchesScopeKey = (
+      normalizedScopeKey: string,
+      rowProvider?: string | null,
+      rowModel?: string | null,
+    ) => {
+      const p = (rowProvider ?? "").toLowerCase();
+      const m = (rowModel ?? "").toLowerCase();
+      const key = normalizedScopeKey.toLowerCase();
+      const providerOk =
+        !provider || p.includes(provider) || key.includes(provider);
+      const modelOk =
+        !resolvedModel ||
+        m.includes(resolvedModel) ||
+        key.includes(resolvedModel);
+      return providerOk && modelOk;
+    };
+
+    const filteredCoverage = mockPricing.coverage.filter((row) => {
+      if (provider && !row.provider.toLowerCase().includes(provider))
+        return false;
+      if (
+        resolvedModel &&
+        !row.resolvedModel.toLowerCase().includes(resolvedModel)
+      )
+        return false;
+      if (scope && (row.fallbackSource ?? row.resolvedScope) !== scope)
+        return false;
+      return true;
+    });
+
+    const filteredAssignments = mockPricing.assignments.filter((item) => {
+      if (scope && item.scope !== scope) return false;
+      if (status && item.status !== status) return false;
+      return matchesScopeKey(item.normalizedScopeKey);
+    });
+
+    const filteredDrafts = mockPricing.drafts.filter((draft) => {
+      if (scope && draft.scope !== scope) return false;
+      return matchesScopeKey(
+        draft.normalizedScopeKey,
+        draft.provider,
+        draft.resolvedModel,
+      );
+    });
+
+    const filteredSnapshots = mockPricing.snapshots.filter((snapshot) => {
+      if (scope && snapshot.scope !== scope) return false;
+      return matchesScopeKey(
+        snapshot.normalizedScopeKey,
+        snapshot.provider,
+        snapshot.resolvedModel,
+      );
+    });
+
+    return okResult({
+      ...mockPricing,
+      coverage: filteredCoverage,
+      assignments: filteredAssignments,
+      drafts: filteredDrafts,
+      snapshots: filteredSnapshots,
+    });
+  }
+
   // 4. Admin Billing
   if (pathname === "/admin/billing") {
     const billingData = {

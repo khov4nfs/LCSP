@@ -520,6 +520,128 @@ class WorkerApiClient:
         )
         return CallbackResponse(**resp_data)
 
+    def request_invocation_admission(self, payload: dict) -> dict:
+        """Business purpose: Request server-issued admission for a billable invocation before provider dispatch.
+
+        Business rules:
+        - Payload contains logicalOperationId, runId, requestedProvider, requestedModel, etc.
+        - Fails closed with WorkerCallbackError on HTTP 402 PAYMENT_REQUIRED, 429/409 concurrency limit, or 403 context mismatch.
+        - Retries and lost responses may return an existing admission with capabilityToken.
+        Execution flow:
+        1. POST to /internal/billing/admission/request.
+        2. Unwrap and return admission response dictionary.
+        Failure cases:
+        - Network/server errors retry; client errors (402, 409, 429) raise WorkerCallbackError immediately.
+        Side effects:
+        - Reserves an admission slot on the server; zero provider calls made here.
+        """
+        # Why: Guarantees server admission authorization before sending tokens to external LLM provider.
+        # How: Sends request payload to internal admission endpoint with worker API key and correlation tracking.
+        # Invariants & Constraints: Client errors (402, 429, 409) fail closed without provider dispatch.
+        return self._post_with_retry(
+            "/internal/billing/admission/request",
+            payload,
+            redact=False,
+        )
+
+    def consume_invocation_admission(self, payload: dict) -> dict:
+        """Business purpose: Perform atomic CAS ADMITTED -> IN_FLIGHT transition committing capability token.
+
+        Business rules:
+        - Payload contains admissionId, invocationId, capabilityToken.
+        - Fails closed with WorkerCallbackError on 422 capability mismatch or expiration.
+        Execution flow:
+        1. POST to /internal/billing/admission/consume.
+        2. Unwrap and return consume response dictionary.
+        Failure cases:
+        - 422 capability mismatch or expired raises WorkerCallbackError; provider dispatch must be aborted.
+        Side effects:
+        - Moves admission state to IN_FLIGHT on the server.
+        """
+        # Why: Prevents unauthorized provider calls by committing the capability token via server CAS.
+        # How: Sends admissionId, invocationId, and capabilityToken to internal consume endpoint.
+        # Invariants & Constraints: 422 failure stops execution with zero provider bytes sent.
+        return self._post_with_retry(
+            "/internal/billing/admission/consume",
+            payload,
+            redact=False,
+        )
+
+    def cancel_invocation_admission(self, payload: dict) -> dict:
+        """Business purpose: Cancel an unconsumed admission before physical provider dispatch or during crash recovery.
+
+        Business rules:
+        - Payload contains admissionId, invocationId, capabilityToken, cancellationReason.
+        - Fails with 409 Conflict if admission has already transitioned to IN_FLIGHT.
+        - Fails with 422 if capabilityToken digest does not match or admission is in an invalid state.
+
+        Execution flow:
+        1. POST to /internal/billing/admission/cancel.
+        2. Unwrap and return cancel response dictionary.
+
+        Failure cases:
+        - 409 Conflict if already IN_FLIGHT.
+        - 422 Unprocessable if capability mismatch or invalid state.
+
+        Side effects:
+        - Transitions admission state to CONFIRMED_NO_USAGE and releases concurrency slot on server.
+        """
+        # Why: Allows crash recovery and orchestrators to release reserved slots without incurring usage charges.
+        # How: Sends admissionId, invocationId, capabilityToken, and reason to /internal/billing/admission/cancel.
+        # Invariants & Constraints: Atomic CAS ensures cancellation only succeeds if admission is currently ADMITTED.
+        return self._post_with_retry(
+            "/internal/billing/admission/cancel",
+            payload,
+            redact=False,
+        )
+
+    def heartbeat_invocation_admission(self, payload: dict) -> dict:
+        """Business purpose: Renew in-flight lease deadline on the server while model inference is actively running.
+
+        Business rules:
+        - Payload contains admissionId, invocationId, capabilityToken, optional extensionSeconds.
+        - Silently ignores non-fatal network or retryable errors so model inference is not aborted.
+        Execution flow:
+        1. POST to /internal/billing/admission/heartbeat.
+        2. Unwrap and return heartbeat response dictionary.
+        Failure cases:
+        - Network/server errors propagate or are handled gracefully by telemetry thread.
+        Side effects:
+        - Extends inFlightLeaseExpiresAt on the server.
+        """
+        # Why: Extends server in-flight lease to prevent premature sweeps during long-running inferences.
+        # How: Sends heartbeat payload with capability token to internal heartbeat endpoint.
+        # Invariants: Non-blocking background call; fails gracefully without aborting inference.
+        return self._post_with_retry(
+            "/internal/billing/admission/heartbeat",
+            payload,
+            redact=False,
+        )
+
+    def settle_invocation_usage(self, payload: dict) -> dict:
+        """Business purpose: Settle physical LLM invocation usage or report failure/timeout to authoritative billing endpoint.
+
+        Business rules:
+        - Must target /internal/billing/usage/settle, NOT legacy telemetry /internal/billing/usage.
+        - Payload contains admissionId, invocationId, capabilityToken, attemptOrdinal, providerCompletionState, and optional token buckets.
+        - Fails closed on HTTP 422 capability mismatch or invalid contract payload.
+        Execution flow:
+        1. POST to /internal/billing/usage/settle with Bearer authentication and correlation tracking.
+        2. Unwrap and return settlement response dictionary.
+        Failure cases:
+        - 404/422 errors propagate immediately as WorkerCallbackError.
+        Side effects:
+        - Commits final usage receipt, releases admission concurrency slot on server, and records financial debit or shadow pricing.
+        """
+        # Why: Authoritative settlement contract requires capability token to release slot and transition to SETTLED or OUTCOME_UNKNOWN.
+        # How: Sends billableInvocationSettlementRequest to /internal/billing/usage/settle and unwrap response envelope.
+        # Invariants & Constraints: Distinct from legacy post_settled_usage telemetry; requires valid capabilityToken.
+        return self._post_with_retry(
+            "/internal/billing/usage/settle",
+            payload,
+            redact=False,
+        )
+
 
 
     def ingest_validated_legal_source_draft(self, payload: dict) -> dict:

@@ -53,6 +53,10 @@ export const AUDIT_RESOURCE_TYPES = {
   githubAppInstallState: "GITHUB_APP_INSTALL_STATE",
   httpRoute: "HTTP_ROUTE",
   complianceRuleSetVersion: "COMPLIANCE_RULE_SET_VERSION",
+  // Why: WP8 Phase B2 records immutable audit trail entries for model tariff draft/publish/supersede actions.
+  // How: Canonical SCREAMING_SNAKE_CASE resource type matching Prisma AuditResourceType.CUSTOMER_MODEL_TARIFF.
+  // Invariants: Mapped exhaustively in apps/api prisma-enum-mappers.ts without raw string literals.
+  customerModelTariff: "CUSTOMER_MODEL_TARIFF",
   legalRequirement: "LEGAL_REQUIREMENT",
   legalSourceVersion: "LEGAL_SOURCE_VERSION",
   legalSource: "LEGAL_SOURCE",
@@ -73,6 +77,8 @@ export interface AuditActorRef {
 }
 
 export interface AuditEventInput {
+  /** Stable opaque key used when one logical audit may be retried after an ambiguous persistence response. */
+  idempotencyKey?: string;
   eventType: string;
   actorId: string | null;
   assessmentId?: string | null;

@@ -71,6 +71,16 @@ def approved_offline_instructions(request, monkeypatch, offline_instruction_snap
 
 
 @pytest.fixture(autouse=True)
+def _default_test_worker_envelope_encryption(monkeypatch, tmp_path_factory):
+    """Provide safe ephemeral worker encryption key and recovery store for tests unless explicitly removed."""
+    if "WORKER_ENVELOPE_ENCRYPTION_KEY" not in os.environ:
+        monkeypatch.setenv("WORKER_ENVELOPE_ENCRYPTION_KEY", "01" * 32)
+        tmp_db = tmp_path_factory.mktemp("worker_crypto") / "recovery.db"
+        monkeypatch.setenv("WORKER_RECOVERY_DB_PATH", str(tmp_db))
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _fresh_model_routes_cache() -> Generator[None, None, None]:
     def clear() -> None:
         module = sys.modules.get("model_policy")

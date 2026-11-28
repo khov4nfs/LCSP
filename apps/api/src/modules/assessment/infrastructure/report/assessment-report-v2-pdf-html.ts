@@ -18,6 +18,7 @@ import {
   localizedCompliance,
   localizedCriterionOutcome,
   localizedEvidenceType,
+  localizedFactAuthority,
   ruleTitleInVietnamese,
   type ReportTranslationCatalog,
 } from "./assessment-report-v2-pdf-presentation.js";
@@ -421,14 +422,6 @@ function ruleDetail(
       ? detailTable(rows)
       : `${detailTable(rows.slice(0, continuationIndex))}<div class="decision-continuation" style="break-inside:avoid;page-break-inside:avoid">${detailTable(rows.slice(continuationIndex))}</div>`;
   return `<article class="rule-card"><header class="rule-heading"><div><p class="eyebrow">Nghĩa vụ được đánh giá</p><h3>${inline(title)}</h3></div><div class="status-badges">${badge(applicabilityText, rule.applicability === RULE_DECISION_APPLICABILITIES.APPLICABLE ? "positive" : "neutral")}${badge(complianceText, rule.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT ? "positive" : rule.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT ? "negative" : "neutral")}</div></header><div class="rule-content">${detailContent}</div></article>`;
-}
-
-function localizedFactAuthority(authority: string): string {
-  if (authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED)
-    return "Do người dùng cung cấp";
-  if (authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED)
-    return "Liên kết với bằng chứng được trích dẫn";
-  return "Dữ kiện đã được ghi nhận";
 }
 
 /**

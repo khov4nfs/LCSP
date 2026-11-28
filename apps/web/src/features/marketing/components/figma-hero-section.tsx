@@ -152,19 +152,19 @@ export function FigmaHeroSection() {
       <div className="mo-cs__light" aria-hidden="true" />
 
       {/* Superdesign: Living Aurora Light Blades (Drifting & Breathing) */}
-      <div 
-        aria-hidden="true" 
-        className="aurora-blade-1 pointer-events-none absolute -top-10 -left-10 h-[380px] w-[500px] rounded-full bg-gradient-to-tr from-[#31BDA7]/20 via-[#14535B]/10 to-transparent blur-[80px]" 
+      <div
+        aria-hidden="true"
+        className="aurora-blade-1 pointer-events-none absolute -top-10 -left-10 h-[380px] w-[500px] rounded-full bg-gradient-to-tr from-[#31BDA7]/20 via-[#14535B]/10 to-transparent blur-[80px]"
       />
-      <div 
-        aria-hidden="true" 
-        className="aurora-blade-2 pointer-events-none absolute top-10 right-10 h-[360px] w-[460px] rounded-full bg-gradient-to-br from-[#0D9488]/15 via-[#1D6A75]/10 to-transparent blur-[80px]" 
+      <div
+        aria-hidden="true"
+        className="aurora-blade-2 pointer-events-none absolute top-10 right-10 h-[360px] w-[460px] rounded-full bg-gradient-to-br from-[#0D9488]/15 via-[#1D6A75]/10 to-transparent blur-[80px]"
       />
 
       {/* Linear Style: Technical Grid lines */}
-      <div 
-        aria-hidden="true" 
-        className="pointer-events-none absolute inset-0 bg-grid-white opacity-25 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" 
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-grid-white opacity-25 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]"
       />
 
       <div className="mo-cs__content relative z-10 mx-auto w-full max-w-[1440px] px-8 md:px-[96px]">
@@ -319,25 +319,25 @@ export function FigmaHeroSection() {
                 {/* Progress outcome segments matching Figma 1757:13011-13014 */}
                 <div className="space-y-1 pt-1">
                   <div className="flex h-[7px] w-full gap-1 overflow-hidden transition-all duration-500">
-                    <div 
-                      style={{ width: `${activeScenario.progress[0]}%` }} 
-                      className="h-full rounded-[3px] bg-[#0D9488] transition-all duration-500" 
-                      title="Compliant" 
+                    <div
+                      style={{ width: `${activeScenario.progress[0]}%` }}
+                      className="h-full rounded-[3px] bg-[#0D9488] transition-all duration-500"
+                      title="Compliant"
                     />
-                    <div 
-                      style={{ width: `${activeScenario.progress[1]}%` }} 
-                      className="h-full rounded-[3px] bg-[#DC2626] transition-all duration-500" 
-                      title="Non-compliant" 
+                    <div
+                      style={{ width: `${activeScenario.progress[1]}%` }}
+                      className="h-full rounded-[3px] bg-[#DC2626] transition-all duration-500"
+                      title="Non-compliant"
                     />
-                    <div 
-                      style={{ width: `${activeScenario.progress[2]}%` }} 
-                      className="h-full rounded-[3px] bg-[#D97706] transition-all duration-500" 
-                      title="In review" 
+                    <div
+                      style={{ width: `${activeScenario.progress[2]}%` }}
+                      className="h-full rounded-[3px] bg-[#D97706] transition-all duration-500"
+                      title="In review"
                     />
-                    <div 
-                      style={{ width: `${activeScenario.progress[3]}%` }} 
-                      className="h-full rounded-[3px] bg-[#94A3B8] transition-all duration-500" 
-                      title="Unresolved" 
+                    <div
+                      style={{ width: `${activeScenario.progress[3]}%` }}
+                      className="h-full rounded-[3px] bg-[#94A3B8] transition-all duration-500"
+                      title="Unresolved"
                     />
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export function FigmaHeroSection() {
                 <h3 className="text-xl font-semibold text-white">
                   {activeScenario.findingTitle}
                 </h3>
-                <span 
+                <span
                   style={{ backgroundColor: activeScenario.badgeBg, color: activeScenario.badgeColor }}
                   className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1 text-xs font-semibold"
                 >
@@ -380,11 +380,11 @@ export function FigmaHeroSection() {
                   </span>
                 </div>
                 <div className="mt-2.5 space-y-2 font-mono text-xs text-slate-100">
-                  <div 
+                  <div
                     onClick={() => setInspectEvidenceIndex(inspectEvidenceIndex === 0 ? null : 0)}
                     className={`cursor-pointer rounded-md px-3.5 py-2.5 border transition-all duration-200 ${
-                      inspectEvidenceIndex === 0 
-                        ? "bg-[#31BDA7]/20 border-[#31BDA7] text-[#86E8D4] shadow-xs" 
+                      inspectEvidenceIndex === 0
+                        ? "bg-[#31BDA7]/20 border-[#31BDA7] text-[#86E8D4] shadow-xs"
                         : "bg-black/25 border-white/10 hover:bg-black/40 hover:border-white/20"
                     }`}
                   >
@@ -393,11 +393,11 @@ export function FigmaHeroSection() {
                       <span className="text-[10px] opacity-75">{inspectEvidenceIndex === 0 ? "✓ PINNED" : "L34-42"}</span>
                     </div>
                   </div>
-                  <div 
+                  <div
                     onClick={() => setInspectEvidenceIndex(inspectEvidenceIndex === 1 ? null : 1)}
                     className={`cursor-pointer rounded-md px-3.5 py-2.5 border transition-all duration-200 ${
-                      inspectEvidenceIndex === 1 
-                        ? "bg-[#31BDA7]/20 border-[#31BDA7] text-[#86E8D4] shadow-xs" 
+                      inspectEvidenceIndex === 1
+                        ? "bg-[#31BDA7]/20 border-[#31BDA7] text-[#86E8D4] shadow-xs"
                         : "bg-black/25 border-white/10 hover:bg-black/40 hover:border-white/20"
                     }`}
                   >
@@ -409,7 +409,7 @@ export function FigmaHeroSection() {
                 </div>
               </div>
 
-              <div 
+              <div
                 style={{ color: activeScenario.conclusionColor }}
                 className="mt-5 text-sm font-medium"
               >
@@ -428,8 +428,8 @@ export function FigmaHeroSection() {
             {locale === "vi" ? "Kiểm toán hệ thống AST trực tiếp" : "Live AST Proof Engine"}
           </span>
         </div>
-        <a 
-          href="#why-lcsp" 
+        <a
+          href="#why-lcsp"
           className="group inline-flex items-center gap-1.5 rounded-[4px] border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] text-[#C6D9DE] hover:border-[#31BDA7]/50 hover:bg-white/10 hover:text-white transition-all duration-200"
         >
           <span>{locale === "vi" ? "Cuộn xuống để khám phá" : "Scroll to explore"}</span>

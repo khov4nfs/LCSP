@@ -27,7 +27,9 @@ function context(
     .fn<(...args: unknown[]) => Promise<unknown>>()
     .mockResolvedValue(snapshot);
   const tx = {
-    $queryRaw: () => Promise.resolve([]),
+    $queryRaw: jest
+      .fn<(...args: unknown[]) => Promise<unknown>>()
+      .mockResolvedValue([]),
     assessment: { findUnique: () => Promise.resolve(row) },
     repositoryConnection: {
       findFirst: () => Promise.resolve({ id: "connection" }),
@@ -98,5 +100,17 @@ describe("canonical repository setup", () => {
     await expect(
       context().handler.execute(command("another")),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("reproducer: scopes the exclusive row lock to ownerId to prevent cross-tenant DoS", async () => {
+    let capturedQueryText = "";
+    const ctx = context();
+    ctx.tx.$queryRaw.mockImplementation((query: unknown) => {
+      capturedQueryText = JSON.stringify(query);
+      return Promise.resolve([{ id }]);
+    });
+    await ctx.handler.execute(command());
+    // In compliant code, ownerId MUST be checked in the SQL query itself
+    expect(capturedQueryText).toContain("ownerId");
   });
 });

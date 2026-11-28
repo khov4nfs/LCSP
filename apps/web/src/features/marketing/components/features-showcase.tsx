@@ -60,7 +60,7 @@ export function TechnicalBlueprintBackground() {
             <rect x="80" y="160" width="80" height="160" fill="#F7F7F5" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
             {/* Panel 4: Bottom-Right Interlocking Block */}
             <rect x="160" y="160" width="160" height="160" fill="#F4F4F0" stroke="#3A3A38" strokeWidth="0.75" strokeOpacity="0.22" />
-            
+
             {/* Blueprint Grid Crosshairs at intersections */}
             <path d="M 155 0 L 165 0 M 160 -5 L 160 5" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
             <path d="M 155 160 L 165 160 M 160 155 L 160 165" stroke="#1A3C2B" strokeWidth="1" strokeOpacity="0.3" />
@@ -543,7 +543,7 @@ export function EnhancedRemediationPreview() {
           <span>✓ {locale === "vi" ? "Quy tắc: Giám sát con người đối với quyết định rủi ro cao" : "Rule: Human oversight for high-risk decisions"}</span>
         </div>
         <div className="mt-2 text-xs text-[#3A3A38]/80 font-sans">
-          {locale === "vi" 
+          {locale === "vi"
             ? "Mạch bằng chứng gốc được bảo lưu: Commit mới khắc phục vi phạm mà không làm mất lịch sử đánh giá ban đầu."
             : "Original audit trail preserved: New commit resolves finding while retaining full initial assessment lineage."}
         </div>

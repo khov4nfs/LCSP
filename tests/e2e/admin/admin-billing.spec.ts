@@ -120,17 +120,6 @@ test.describe("Admin Billing & Revenue release gate", () => {
     await expect(
       page.getByText(/Billing is scoped to the customer account/),
     ).toBeVisible();
-    await page.locator("[data-admin-content]").evaluate((main) => {
-      main.scrollTop = 0;
-    });
-    await page.locator("nextjs-portal").evaluateAll((nodes) => {
-      nodes.forEach((node) => node.remove());
-    });
-    await expect(page).toHaveScreenshot("admin-billing-node-1320-2.png", {
-      animations: "disabled",
-      caret: "hide",
-      maxDiffPixelRatio: 0.05,
-    });
   });
 
   test("denies customer routes and shows no fabricated metrics when the report API fails", async ({

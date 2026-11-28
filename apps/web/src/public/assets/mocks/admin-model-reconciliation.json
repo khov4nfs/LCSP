@@ -1,0 +1,72 @@
+{
+  "items": [
+    {
+      "caseId": "case-mock-1",
+      "invocationId": "inv-mock-1",
+      "admissionId": "adm-mock-1",
+      "state": "OPEN",
+      "provider": "anthropic",
+      "providerCorrelationId": "provider-corr-mock-1",
+      "providerLogArtifactId": null,
+      "coverageStart": null,
+      "coverageEnd": null,
+      "resolvedAt": null,
+      "resolvedBy": null,
+      "auditRationale": null,
+      "conflictDetectedAt": null,
+      "hasConflictingPayload": false,
+      "createdAt": "2026-11-28T00:00:00.000Z",
+      "updatedAt": "2026-11-28T00:00:00.000Z",
+      "admission": {
+        "walletId": "wallet-mock-1",
+        "userId": "user-mock-1",
+        "maximumExposureMicrocredits": "120000",
+        "state": "DISPATCH_UNKNOWN",
+        "admittedAt": "2026-11-27T23:58:00.000Z",
+        "consumedAt": "2026-11-27T23:59:00.000Z",
+        "expiresAt": "2026-11-28T00:03:00.000Z"
+      }
+    }
+  ],
+  "detail": {
+    "caseId": "case-mock-1",
+    "invocationId": "inv-mock-1",
+    "admissionId": "adm-mock-1",
+    "state": "OPEN",
+    "provider": "anthropic",
+    "providerCorrelationId": "provider-corr-mock-1",
+    "providerLogArtifactId": null,
+    "coverageStart": null,
+    "coverageEnd": null,
+    "resolvedAt": null,
+    "resolvedBy": null,
+    "auditRationale": null,
+    "conflictDetectedAt": null,
+    "conflictingPayload": null,
+    "createdAt": "2026-11-28T00:00:00.000Z",
+    "updatedAt": "2026-11-28T00:00:00.000Z",
+    "admission": {
+      "id": "adm-mock-1",
+      "invocationId": "inv-mock-1",
+      "walletId": "wallet-mock-1",
+      "userId": "user-mock-1",
+      "maximumExposureMicrocredits": "120000",
+      "state": "DISPATCH_UNKNOWN",
+      "rolloutMode": "ADMISSION_REQUIRED",
+      "debitMode": "ON",
+      "requestedModel": "claude-sonnet-4-6",
+      "resolvedProvider": "anthropic",
+      "resolvedModel": "claude-sonnet-4-6",
+      "admittedAt": "2026-11-27T23:58:00.000Z",
+      "consumedAt": "2026-11-27T23:59:00.000Z",
+      "expiresAt": "2026-11-28T00:03:00.000Z"
+    },
+    "evidenceArtifact": null,
+    "compensationPreview": {
+      "originalLedgerEntryId": "mock-original-debit-1",
+      "originalDebitMicrocredits": "1000",
+      "totalCompensatedMicrocredits": "300",
+      "remainingUncompensatedMicrocredits": "700"
+    }
+  }
+}
