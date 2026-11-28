@@ -15,17 +15,17 @@ import {
 import { SuggestedAnswerDecision } from "./suggested-answer-decision";
 
 /**
- * Business purpose: Present one Discovery context question, its evidence provenance, and explicit confirm/reject/correct controls.
+ * Business purpose: Present one Discovery context question, its evidence provenance with exact code snippets, and explicit confirm/reject/correct controls.
  * Business rules:
  * - A submitted or suggested answer stays `PENDING_REVIEW` until explicit owner confirmation.
  * - Rejected or ambiguous answers require a corrected answer before continuation is allowed.
- * - Source evidence provenance is shown from pinned discovery ranges; missing evidence is stated explicitly.
+ * - Source evidence provenance is shown from pinned discovery ranges including exact source code snippets when available.
  * Execution flow:
  * 1. Render card heading reflecting current proposal state (`Context question`, `Context confirmed`, or `Correct the suggested answer`).
- * 2. Show feature name, question prompt, current answer/status, and evidence provenance list.
+ * 2. Show feature name, question prompt, current answer/status, and evidence provenance list with code snippet previews.
  * 3. Render confirm/reject actions for pending proposals or the validated correction form for unanswered/rejected items.
  * Failure cases:
- * - Ambiguous answers (`guardFailure`) disable confirmation and prompt rejection/rewriting.
+ * - Ambiguous answers (`guardFailure`) disable confirmation and prompt rejection/rewriting; missing snippets fallback gracefully to path references.
  * Side effects:
  * - Forwards explicit submit/confirm/reject actions to parent handlers.
  */
@@ -161,11 +161,27 @@ export function ContextQuestionCard({
             {copy("ruleAudit.discovery.evidenceProvenanceTitle")}
           </p>
           {provenance.length > 0 ? (
-            <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+            <ul className="mt-2 space-y-2.5 text-xs text-muted-foreground">
               {provenance.map((item) => (
-                <li key={item.rangeId} className="font-mono">
-                  {item.path}:{item.startLine}-{item.endLine}
-                  {item.symbol ? ` (${item.symbol})` : ""}
+                <li key={item.rangeId} className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-mono text-xs font-medium text-foreground">
+                      {item.path}:{item.startLine}-{item.endLine}
+                    </span>
+                    {item.symbol ? (
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {item.symbol}
+                      </span>
+                    ) : null}
+                  </div>
+                  {item.explanation ? (
+                    <p className="text-xs text-muted-foreground">{item.explanation}</p>
+                  ) : null}
+                  {item.snippet ? (
+                    <div className="rounded-md border border-border/70 bg-muted/50 p-2.5 font-mono text-xs leading-relaxed overflow-x-auto text-foreground">
+                      <pre className="whitespace-pre">{item.snippet}</pre>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

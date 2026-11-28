@@ -36,6 +36,7 @@ export type DiscoveryProvenanceItem = {
   symbol: string | null;
   evidenceStrength: string;
   explanation: string;
+  snippet?: string | null;
 };
 
 export type DiscoveryProgressSummary = {
@@ -167,12 +168,13 @@ export function computeDiscoveryProgress({
 }
 
 /**
- * Business purpose: Resolve source-range evidence provenance for a Discovery question or candidate rule without fabricating missing paths.
+ * Business purpose: Resolve source-range evidence provenance with exact code snippets for a Discovery question or candidate rule without fabricating missing paths.
  * Business rules:
  * - Only ranges present in the pinned discovery preview are returned; missing range IDs are never guessed.
+ * - Extracts exact code snippets from matched source ranges when available.
  * Execution flow:
  * 1. Index preview ranges by `rangeId`.
- * 2. Map requested `rangeIds` to existing provenance items in order.
+ * 2. Map requested `rangeIds` to existing provenance items in order, including source snippet text.
  * Failure cases:
  * - Unmatched range IDs or absent discovery previews return an empty list without throwing so callers render a provenance-unavailable notice.
  * Side effects:
@@ -198,6 +200,7 @@ export function resolveEvidenceProvenance(
         symbol: match.symbol,
         evidenceStrength: match.evidenceStrength,
         explanation: match.explanation,
+        snippet: (match as { snippet?: string | null }).snippet ?? null,
       });
     }
   }

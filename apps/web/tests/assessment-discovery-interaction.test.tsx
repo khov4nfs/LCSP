@@ -129,6 +129,8 @@ function makeRunView(overrides?: {
                         evidenceStrength:
                           DISCOVERY_EVIDENCE_STRENGTHS.directSource,
                         explanation: "Writes user access logs to audit store.",
+                        snippet:
+                          "export async function writeAccessLog(event: AccessLogEvent): Promise<void> {\n  await auditStore.insert(\"access_logs\", event);\n}",
                         useCaseIds: [USE_CASE_ID],
                       },
                     ]
@@ -290,6 +292,9 @@ for (const locale of ["en", "vi"] as const) {
       await settle();
 
       assert.ok(view.textContent?.includes("src/auth/access-log.ts:12-28"));
+      assert.ok(
+        view.textContent?.includes("export async function writeAccessLog"),
+      );
       assert.match(view.textContent ?? "", /Selected 0\/20|Đã chọn 0\/20/);
 
       const continueButton = byText<HTMLButtonElement>(
