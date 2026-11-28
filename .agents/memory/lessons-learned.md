@@ -462,3 +462,8 @@
 - **Root Cause**: Submit held the catalog row lock while deletion only read the catalog and its children without taking the same lock.
 - **Resolution & Invariant**: Lock the catalog row with `FOR UPDATE` before checking unresolved results and deleting descendants in one transaction. PostgreSQL race coverage must hold the creator lock, confirm deletion waits, then commit a `CANCEL_REQUESTED` result and verify deletion rejects while both catalog and result survive.
 
+### [2026-11-28] [LEGAL-SOURCE/DELETION-CANCEL-PENDING] Native Cancellation Remains Unresolved
+- **Context / Symptom**: Legal Source deletion impact reported an eligible source while an owned Rule Set Preparation run had `CANCEL_REQUESTED`; deleting then could remove source data before native worker termination was confirmed.
+- **Root Cause**: The deletion service maintained its own four-state nonterminal list and omitted `CANCEL_REQUESTED`, while other preparation guards used the canonical unresolved-state contract.
+- **Resolution & Invariant**: Derive deletion impact and transaction-time delete blocking from `RULE_SET_PREPARATION_UNRESOLVED_STATES`. A cancellation request is not terminal; keep source-owned data until a confirmed terminal native outcome. Preserve a PostgreSQL integration reproducer for this state.
+
