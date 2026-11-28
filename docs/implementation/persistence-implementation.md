@@ -1,6 +1,6 @@
 # Persistence Implementation
 
-> **Active persistence overlay.** Historical organization/reservation-era fields may remain for compatibility only. Active ownership is owner/resource-scoped RBAC, and Prompt 8 financial persistence is governed by ADR-028 with production debit gated by `G-01..G-07`.
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
 
 ## Status
 
@@ -17,7 +17,6 @@ Define PostgreSQL/Prisma ownership, physical model requirements, ChromaDB legal 
 - `docs/specs/event-catalog.md`
 - `docs/implementation/queue-implementation.md`
 - `docs/architecture/repository-deep-agent-analysis.md`
-- `docs/architecture/adr/adr-028-shared-wallet-model-usage-settlement.md`
 - `docs/implementation/legal-corpus-ingestion-implementation.md`
 - `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`
 - `docs/implementation/llm-gateway-implementation.md`
@@ -30,7 +29,7 @@ Define PostgreSQL/Prisma ownership, physical model requirements, ChromaDB legal 
 - Raw repository source, full AST bodies, secrets, raw provider tokens, and full prompts are never persistent records.
 - Queue payloads and audit metadata are reference-only/redacted.
 - Approved LegalCorpusVersion and historical assessment artifacts are immutable.
-- Every assessment/wallet query enforces owner/resource scope and RBAC server-side; active MVP has no organization authorization boundary.
+- Every assessment-scoped query enforces tenant scope and RBAC server-side.
 
 ## Required PostgreSQL Extensions
 
@@ -44,19 +43,21 @@ No PostgreSQL pgvector extension is required for legal retrieval in Phase 5.2L. 
 - `OAuthIdentity`
 - `UserMfaMethod`
 - `Session`
+- `Organization`
+- `OrganizationMembership`
 - `Policy`
 - `PolicyVersion`
 - `AuthorizationDecision`
-- historical Organization/OrganizationMembership records only when required for immutable legacy interpretation
+- scoped Developer task/policy records
 
 Required constraints:
 
 - unique normalized user identity;
 - unique OAuth provider+subject;
 - no plaintext MFA secret or session token;
-- owner/resource selectors, subject labels, policy scope and policy version;
+- organization membership, subject labels, policy scope and policy version;
 - revocation and audit timestamps.
-- authorization decisions record actor/service identity, owner/resource scope, action, policy ID/version, decision, safe context refs and correlation ID.
+- authorization decisions record actor/service identity, organization, resource, action, policy ID/version, decision, safe context refs and correlation ID.
 
 ### Assessment and Repository
 
@@ -245,32 +246,6 @@ It never stores raw prompts, raw source, credentials, or provider tokens.
 
 `GeneratedDocument` stores metadata/hash/storageRef; binary artifact lives in S3-compatible storage. Readiness-only documents may omit classification/gap links but must be explicitly typed and contain no risk level.
 
-### Shared Wallet and Model-Usage Financial Authority
-
-New/expanded authoritative groups:
-
-- `BillingWallet` with signed `balanceMicrocredits`, accounting-unit version and optimistic version;
-- append-only `MicrocreditLedgerEntry` as accounting authority;
-- `CustomerModelTariffDraft`, immutable `CustomerModelTariffSnapshot`, and non-overlapping `CustomerModelTariffAssignment`;
-- `PlatformSponsorshipPolicySnapshot` for ownerless system work without customer debit;
-- `BillableInvocationAdmission` with funding principal, capability digest, database admission time, rollout/policy version and maximum exposure;
-- normalized `ProviderUsageReceipt` and separate `ModelOutputEvaluation`;
-- `BillingReconciliationCase`, append-only `BillingCompensation`, financial `AuditEvent` and `OutboxEvent`.
-
-The existing `ModelPricingSnapshot` remains legacy provider/reference-cost data and cannot satisfy customer tariff resolution. Existing `BillingReservation` rows are compatibility-drain records only; Prompt 8 creates no new credit reservation.
-
-Required database constraints:
-
-- one wallet per `userId` and no organization ownership column in new financial authority;
-- unique admission request identity/fingerprint and immutable invocation identity;
-- capability secret stored only as digest; raw/encrypted worker envelope never enters PostgreSQL telemetry/audit;
-- customer tariff scope normalized to canonical provider/resolved-model IDs with database-UTC half-open no-overlap constraint;
-- settlement fingerprint unique per admission/invocation and provider response identity uniqueness where provided;
-- cumulative compensation cannot exceed original debit under serialized aggregate version;
-- append-only ledger and immutable published tariff/receipt/decision records.
-
-The append-only microcredit ledger is authority; wallet balance/version is a transactionally maintained projection. Projection mismatch blocks new financial writes and creates integrity evidence.
-
 ### Messaging and Audit
 
 - `OutboxEvent`
@@ -292,40 +267,6 @@ validate DTO and actor
    write AuditEvent
    write OutboxEvent when async work follows
 -> commit
-```
-
-### Customer Tariff Publication
-
-```text
-validate explicit pricing-publish RBAC action and expected draft version
--> obtain database UTC and normalized scope key
--> transaction:
-   create immutable CustomerModelTariffSnapshot
-   create non-overlapping CustomerModelTariffAssignment
-   write AuditEvent and financial OutboxEvent
--> commit; only then tariff is resolvable
-```
-
-### Invocation Admission and Settlement
-
-```text
-admission transaction:
-  resolve funding principal + canonical model + rollout mode + tariff/sponsorship policy
-  compute bounded exposure
-  write admission + capability digest + audit
-
-consume transaction:
-  verify encrypted-envelope proof against digest and job/run/lease/invocation
-  CAS ADMITTED -> IN_FLIGHT before provider bytes
-
-customer settlement transaction lock order:
-  wallet -> admission -> original debit/reconciliation case -> projection/outbox
-  write normalized receipt + MODEL_USAGE_DEBIT + signed projection + terminal state + audit + outbox
-
-platform settlement transaction:
-  sponsorship aggregate -> admission -> reconciliation case -> outbox
-  write normalized receipt + sponsorship cost/exposure + terminal state + audit + operations outbox
-  never write customer ledger/projection/payment-required
 ```
 
 ### Python Scan Completion
@@ -363,8 +304,8 @@ Artifact upload and metadata registration must avoid orphaned states. Use staged
 
 ## Migration Order
 
-1. identity/session plus historical organization-record preservation without active authority;
-2. assessment/Wizard/owner-resource RBAC scope;
+1. identity/session/organization;
+2. assessment/Wizard/developer policy/RBAC scope;
 3. repository connection/snapshot/scan job;
 4. evidence refs/findings/report/graph;
 5. TechnicalProfile/AIUsageFlow/reconciliation/VerifiedProfile;
@@ -372,15 +313,11 @@ Artifact upload and metadata registration must avoid orphaned states. Use staged
 7. ChromaDB legal index references and retrieval audit metadata;
 8. retrieval audit/LegalRuleMatch;
 9. model metadata/classification/gap/document;
-10. shadow microcredit columns/accounting-unit version plus idempotent wallet reconciliation;
-11. customer tariff/sponsorship/admission/receipt/reconciliation/compensation authority;
-12. outbox/audit indexes and retention jobs.
-
-Compatibility writers derive legacy credits and microcredits from the same immutable payment/ledger input in one NestJS Billing transaction. Backfill is idempotent, old writers are fenced/drained before cutover, every wallet must reconcile exactly, and shadow columns never remain a competing authority after cutover.
+10. outbox/audit indexes and retention jobs.
 
 ## Core Indexes and Constraints
 
-- owner/assessment/wallet scope on active entities; historical organization indexes are migration-only;
+- organization/assessment scope on all tenant entities;
 - assessment state and owner;
 - repository ID + commit SHA;
 - scan idempotency key/status;
@@ -394,57 +331,47 @@ Compatibility writers derive legacy credits and microcredits from the same immut
 - audit correlation/time;
 - outbox status/nextAttemptAt/lock;
 - unique historical version constraints.
-- normalized customer-tariff scope plus effective interval exclusion/no-overlap;
-- admission request/fingerprint, invocation and settlement fingerprint uniqueness;
-- reconciliation/compensation expected version and original-debit relationship;
 
 ## Retention
 
-| Artifact                                        |                                                                                               MVP Retention | Rule                                                                          |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------: | ----------------------------------------------------------------------------- |
-| Repository sandbox                              | lifecycle managed by LCSP Agent Runtime Docker sandbox; customer source is not copied into LCSP persistence | no long-term raw source outside the sandbox                                   |
-| Source/evidence/graph/report metadata           |                                                                                                   12 months | metadata/hash/ref only                                                        |
-| Profiles/conflicts/classification/gap           |                                                                                           12 months minimum | immutable/versioned                                                           |
-| Legal source snapshots/corpus versions          |                                                                        retained per legal corpus governance | approved history immutable                                                    |
-| RetrievalAuditLog                               |                                                                                                   12 months | sanitized facets/hash/results only                                            |
-| ModelRunMetadata                                |                                                                                                   12 months | no raw input/secret                                                           |
-| AuditEvent                                      |                                                                                           12 months minimum | append-oriented/redacted                                                      |
-| GeneratedDocument metadata/artifact             |                                                                     12 months or controlled deletion policy | hash/storage ref/versioned                                                    |
-| OutboxEvent                                     |                                                               30 days after PUBLISHED; 90 days after FAILED | reference-only payload                                                        |
-| ProviderUsageReceipt/admission/financial ledger |                                         finance-approved retention; never shorter than audit/dispute window | immutable identity, normalized usage and safe refs only                       |
-| Worker encrypted capability envelope            |                                                       until terminal acknowledgement or recovery escalation | encrypted at rest, restrictive permissions, never copied into telemetry/audit |
+| Artifact | MVP Retention | Rule |
+|---|---:|---|
+| Repository sandbox | lifecycle managed by LCSP Agent Runtime Docker sandbox; customer source is not copied into LCSP persistence | no long-term raw source outside the sandbox |
+| Source/evidence/graph/report metadata | 12 months | metadata/hash/ref only |
+| Profiles/conflicts/classification/gap | 12 months minimum | immutable/versioned |
+| Legal source snapshots/corpus versions | retained per legal corpus governance | approved history immutable |
+| RetrievalAuditLog | 12 months | sanitized facets/hash/results only |
+| ModelRunMetadata | 12 months | no raw input/secret |
+| AuditEvent | 12 months minimum | append-oriented/redacted |
+| GeneratedDocument metadata/artifact | 12 months or controlled deletion policy | hash/storage ref/versioned |
+| OutboxEvent | 30 days after PUBLISHED; 90 days after FAILED | reference-only payload |
 
 ## Environment and Secrets
 
-| Group                       | Required Controls                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Database/RabbitMQ/S3        | secret references, startup validation, redacted logs                                                               |
-| OAuth/OIDC/MFA/GitHub App   | callback/scope validation, no plaintext secret/token                                                               |
-| Scanner                     | workspace root, file/size/time bounds, ruleset version, fixed analyzer executable                                  |
-| LLM                         | provider/model, credential ref, timeout/token/monthly budget                                                       |
-| Legal corpus                | source validation list, active approved corpus version, ChromaDB collection/index version                          |
-| Observability               | correlation IDs and redacted failure codes                                                                         |
-| Billing capability recovery | worker-local encryption-key reference, startup validation, rotation/recovery runbook, no plaintext capability logs |
+| Group | Required Controls |
+|---|---|
+| Database/RabbitMQ/S3 | secret references, startup validation, redacted logs |
+| OAuth/OIDC/MFA/GitHub App | callback/scope validation, no plaintext secret/token |
+| Scanner | workspace root, file/size/time bounds, ruleset version, fixed analyzer executable |
+| LLM | provider/model, credential ref, timeout/token/monthly budget |
+| Legal corpus | source validation list, active approved corpus version, ChromaDB collection/index version |
+| Observability | correlation IDs and redacted failure codes |
 
 A-to-Z acceptance requires real PostgreSQL, RabbitMQ, S3-compatible storage, ChromaDB legal index, and real LLM provider. Dense embedding provider/model is not required for legal retrieval MVP. Mock adapters are component-test/offline-only.
 
 ## Recovery Rules
 
-| Failure                         | Recovery                                                                                                   |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| stuck OutboxEvent               | lock timeout, retry/backoff, operator replay after cause correction                                        |
-| duplicate command               | idempotent no-op or resume from persisted safe state                                                       |
-| failed scan                     | new ScanJob; preserve failed history                                                                       |
-| cleanup failure                 | security remediation then new ScanJob; never promote staged report                                         |
-| corpus ingestion failure        | correct source/normalization and create new staging attempt                                                |
-| corpus approval rejection       | remain DRAFT/rejected; correct and resubmit; no retrieval                                                  |
-| legal index failure             | rebuild same approved immutable content with recorded new index attempt/version                            |
-| classification/document failure | retry only transient errors; domain guard failures remain blocked until upstream changes                   |
-| artifact upload orphan          | audited cleanup/reconciliation job                                                                         |
-| admission service unavailable   | fail closed for new provider dispatch; never issue local/offline financial authority                       |
-| worker crash after IN_FLIGHT    | recover encrypted admission capability, deliver evidence for same invocation, never replay provider call   |
-| wallet projection mismatch      | block financial writes, alert, reconcile projection from append-only microcredit ledger                    |
-| emergency debit rollback        | revoke unconsumed customer admissions; settle or quarantine IN_FLIGHT according to audited rollback policy |
+| Failure | Recovery |
+|---|---|
+| stuck OutboxEvent | lock timeout, retry/backoff, operator replay after cause correction |
+| duplicate command | idempotent no-op or resume from persisted safe state |
+| failed scan | new ScanJob; preserve failed history |
+| cleanup failure | security remediation then new ScanJob; never promote staged report |
+| corpus ingestion failure | correct source/normalization and create new staging attempt |
+| corpus approval rejection | remain DRAFT/rejected; correct and resubmit; no retrieval |
+| legal index failure | rebuild same approved immutable content with recorded new index attempt/version |
+| classification/document failure | retry only transient errors; domain guard failures remain blocked until upstream changes |
+| artifact upload orphan | audited cleanup/reconciliation job |
 
 ## Non-Claims
 

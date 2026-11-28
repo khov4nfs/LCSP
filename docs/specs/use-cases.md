@@ -8,9 +8,9 @@ Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user int
 
 ## Governance
 
-- Canonical active IDs are `UC-001..UC-017` and `UC-019..UC-024`; legacy `UC-018` structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
+- Canonical active IDs are `UC-001..UC-017`; legacy `UC-018` structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Legacy `UC-MXX-XX` values may remain only in `requirements-baseline.md` and the explicitly labeled source-alias columns of `business-rules.md`; they are not active traceability IDs.
-- Canonical FRs are `FR-001..FR-056` and `FR-083..FR-094`; `FR-050` is `AUTOMATIC_TRUSTED_SCAN_INITIATION`, `FR-051` is `REMOVED_FROM_PRODUCT`, and `FR-052` is `DEFERRED_POST_MVP`.
+- Canonical FRs are `FR-001..FR-056`; `FR-050` is `AUTOMATIC_TRUSTED_SCAN_INITIATION`, `FR-051` is `REMOVED_FROM_PRODUCT`, and `FR-052` is `DEFERRED_POST_MVP`.
 - Manager completes the golden path without external collaborator participation.
 - Structured attestation under historical `FR-045/FR-046` is removed from active MVP.
 - Delegated free-form clarification under `FR-052` is Deferred.
@@ -22,7 +22,7 @@ Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user int
 | UC     | Name                                                  | Primary Actor                    | FRs                                    | ACs                                              |
 | ------ | ----------------------------------------------------- | -------------------------------- | -------------------------------------- | ------------------------------------------------ |
 | UC-001 | Authenticate and Manage Account                       | Manager                          | FR-001..FR-006                         | AC-021, AC-023                                   |
-| UC-002 | Manage Owner-Scoped RBAC Policy                       | Manager / System                 | FR-009, FR-012                         | AC-024..AC-026                                   |
+| UC-002 | Manage Organization and RBAC Policy Scope             | Manager                          | FR-007..FR-012                         | AC-024..AC-026                                   |
 | UC-003 | Create Assessment                                     | Manager                          | FR-013                                 | AC-001                                           |
 | UC-004 | Complete WizardProfile and Readiness                  | Manager                          | FR-014, FR-015, FR-040                 | AC-002, AC-003                                   |
 | UC-005 | Connect Repository                                    | Manager                          | FR-006, FR-016                         | AC-004, AC-023                                   |
@@ -38,24 +38,18 @@ Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user int
 | UC-015 | Review and Export Audit Trail                         | Manager / System                 | FR-042..FR-045                         | AC-020, AC-039, AC-040                           |
 | UC-016 | Automatic Trusted Scan Initiation and Re-run Evidence | Manager / System                 | FR-049, FR-050                         | AC-004, AC-020, AC-028, AC-039, AC-050A..AC-050F |
 | UC-017 | Enforce Security and Privacy Controls                 | System                           | FR-019, FR-042, FR-048                 | AC-022, AC-023, AC-030, AC-041                   |
-| UC-019 | Fund and View Shared Wallet                           | Customer / System                | FR-083, FR-084                         | AC-051, AC-052                                   |
-| UC-020 | Manage and Publish Model Pricing                      | Admin / System                   | FR-085..FR-087                         | AC-053..AC-055                                   |
-| UC-021 | Admit and Settle Model Invocation                     | System / Worker                  | FR-088, FR-089                         | AC-056, AC-057                                   |
-| UC-022 | Recover From Payment Required                         | Customer / System                | FR-090, FR-091                         | AC-058, AC-059                                   |
-| UC-023 | Reconcile and Compensate Usage                        | Admin / System                   | FR-092, FR-093                         | AC-060, AC-061                                   |
-| UC-024 | Enforce Billing and Runtime Separation                | System / Admin                   | FR-094                                 | AC-062, AC-063                                   |
 
 ## UC-001 Authenticate and Manage Account
 
-Goal: establish a safe authenticated session through approved password/MFA or OAuth/OIDC paths. Invalid identity, callback, MFA, session, or rate-limit state is denied safely and audited. OAuth identity does not grant repository access.
+Goal: establish a safe organization-scoped session through approved password/MFA or OAuth/OIDC paths. Invalid identity, callback, MFA, session, or rate-limit state is denied safely and audited. OAuth identity does not grant repository access.
 
-## UC-002 Manage Owner-Scoped RBAC Policy
+## UC-002 Manage Organization and Roles
 
-Goal: maintain owner/resource-scoped RBAC policy and Manager accountability without an organization boundary. Ownership mismatch and unauthorized attempts at Manager/Admin-only actions are denied server-side and audited.
+Goal: maintain tenant membership, RBAC policy scope, and Manager accountability. Cross-tenant actions and non-Manager attempts at Manager-only actions are denied by server-side RBAC.
 
 ## UC-003 Create Assessment
 
-Goal: create a Manager-owned Assessment, bind `ownerId`, and record the action. Missing authenticated owner or RBAC authority blocks creation.
+Goal: create a Manager-owned Assessment in the organization and record the action. Missing organization or Manager authority blocks creation.
 
 ## UC-004 Complete WizardProfile and Readiness
 
@@ -113,33 +107,9 @@ Goal: create or resume a scan/evidence chain from trusted integration context wi
 
 Goal: enforce source non-execution, restricted workspace, cleanup, redaction, no raw source to LLM, metadata-only persistence, and auditable fail-closed behavior.
 
-## UC-019 Fund and View Shared Wallet
-
-Goal: let a customer fund one shared prepaid wallet through idempotently confirmed payment, distinguish service value from transaction tax, and view exact spendable/outstanding projections without receiving runtime allowance.
-
-## UC-020 Manage and Publish Model Pricing
-
-Goal: let an authorized Admin build explainable pricing drafts from versioned provider cost assumptions, preview deterministic tariffs, and publish immutable non-overlapping pricing assignments. Initial draft defaults are FX `26,500 VND/USD`, infrastructure overhead `10%`, and markup `1.8`; they remain editable and are not runtime constants.
-
-## UC-021 Admit and Settle Model Invocation
-
-Goal: admit each paid physical provider invocation against immutable owner/wallet/run/model/pricing/exposure authority and settle confirmed usage exactly once through an atomic financial transaction.
-
-## UC-022 Recover From Payment Required
-
-Goal: explain a payment-required pause, credit top-up service value against outstanding usage first, expose safe charge history, and require explicit customer Continue with fresh runtime safety checks.
-
-## UC-023 Reconcile and Compensate Usage
-
-Goal: let authorized operations resolve unknown/late usage and create bounded immutable compensation against an original debit while preserving full financial history.
-
-## UC-024 Enforce Billing and Runtime Separation
-
-Goal: keep payment/wallet authority, applicable runtime safety controls and Admin operational override independent; no-progress is diagnostic telemetry rather than an assessment blocker. Production debit remains disabled until gates `G-01..G-07` satisfy their exit conditions, evidence and named approvals.
-
 ## UX Boundary
 
-`bmad-ux` designs customer/Manager experiences for UC-001..UC-017, UC-019 and UC-022; Admin pricing/reconciliation experiences for UC-020 and UC-023; and the payment/runtime-separation experience for UC-024. Internal legal operations in UC-012 remain excluded. UX must cover loading, empty, insufficient, permission-denied, payment-required, outstanding, outcome-unknown, blocked, failed, retry/rerun, degraded, stale-version, overlap and audit-reference states. It must not create active screens for organization management, Developer invitations/tasks, manual scanner report upload, `FR-051`, `FR-052`, structured attestation or customer-facing corpus administration.
+`bmad-ux` designs Manager experiences for UC-001..UC-017, excluding the internal operations portion of UC-012. It must cover loading, empty, insufficient, permission-denied, blocked, failed, retry/rerun, degraded, automatic trigger mapping states, and audit-reference states. It must not create active screens for Developer invitations/tasks, manual scanner report upload, `FR-051`, `FR-052`, structured attestation, or customer-facing corpus administration.
 
 ```text
 CANONICAL_USE_CASES_NORMALIZED
@@ -147,6 +117,4 @@ CANONICAL_UC_IDS_ONLY_IN_ACTIVE_TRACEABILITY
 LEGACY_UC_ALIASES_CLASSIFIED
 UC_018_STRUCTURED_ATTESTATION_SUPERSEDED_FOR_ACTIVE_MVP
 FR_050_AUTOMATIC_TRUSTED_SCAN_INITIATION
-ORGANIZATION_SCOPE_RETIRED_FROM_ACTIVE_MVP
-PROMPT_8_USE_CASES_ACTIVE
 ```

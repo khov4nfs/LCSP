@@ -1,14 +1,8 @@
 ---
-title: "LCSP - Product Requirements Document"
-status: "final"
-readiness: "conditional_for_production_model_usage_debit"
-conditional_capabilities:
-  - wizard_critical_unknown_behavior
-  - legal_corpus_acceptance
-  - source_retention_and_evidence_quality_policy
-  - production_model_usage_debit
+title: "LCSP - Conditional Product Requirements Document"
+status: "conditional"
 created: "2026-06-16"
-updated: "2026-11-24"
+updated: "2026-06-16"
 sources:
   - docs/product/product-brief.md
   - docs/brainstorming/brainstorming-summary.md
@@ -16,18 +10,17 @@ sources:
   - docs/brainstorming/decision-candidates.md
   - docs/brainstorming/next-step-recommendation.md
   - LCSP_Technical_Specification.html
-  - docs/planning-artifacts/sprint-change-proposal-2026-11-24.md
 ---
 
-> **Conditional product authority.** Historical implementation descriptions remain subordinate to the canonical FR/NFR catalogs and active ADRs. The approved 2026-11-24 course correction adds Prompt 8 shared-wallet product authority while production debit remains separately gated.
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
 
 # PRD: LCSP - Legal Compliance Support Platform
 
 ## 1. Overview
 
-LCSP là nền tảng hỗ trợ tuân thủ pháp lý cho doanh nghiệp sử dụng AI tại Việt Nam. PRD này là product-direction authority đã được chốt cho phạm vi MVP và course correction ngày 2026-11-24. Trạng thái `final` xác nhận requirement spine đủ ổn định để kiến trúc, UX, epic/story decomposition và RED tests tiếp tục; nó không cấp implementation acceptance cho các capability được liệt kê trong `conditional_capabilities`. Wizard critical-unknown behavior, legal-corpus acceptance, source-retention/evidence-quality policy và production model-usage debit không được đưa story sang accepted/done cho đến khi validation gate tương ứng đóng bằng evidence. Các assumption A1-A4 và bảy financial enablement gates vẫn phải được đóng downstream.
+LCSP là nền tảng hỗ trợ tuân thủ pháp lý cho doanh nghiệp sử dụng AI tại Việt Nam. PRD này mô tả bản **conditional PRD** cho MVP: đủ rõ để tiếp tục discovery, UX, architecture ở mức định hướng, nhưng chưa phải final PRD tuyệt đối vì vẫn còn ba assumption rủi ro cao cần validate.
 
-Định vị bắt buộc: LCSP là **evidence-based compliance platform**, không phải chatbot pháp lý, không phải checklist tự khai đơn giản. Risk classification thật sự chỉ được chạy sau technical evidence, evidence gates, reconciliation/technical-only eligibility, VerifiedProfile và legal/citation gates. WizardProfile bổ sung business context nhưng không phải điều kiện bắt buộc cho technical-only investigation.
+Định vị bắt buộc: LCSP là **evidence-based compliance platform**, không phải chatbot pháp lý, không phải checklist tự khai đơn giản. Risk classification thật sự chỉ được chạy sau khi có WizardProfile, technical evidence, evidence gates, reconciliation và VerifiedProfile.
 
 PRD này không tạo architecture document, backlog, implementation plan hoặc code. Các quyết định kỹ thuật sâu hơn phải được xử lý ở artifact downstream sau khi PRD được review.
 
@@ -35,14 +28,12 @@ PRD này không tạo architecture document, backlog, implementation plan hoặc
 
 Phase 5.2L là authority hiện hành cho các điểm sau:
 
-- RBAC là nguồn quyết định authorization duy nhất. Role chỉ còn là subject attribute, grouping label hoặc policy template.
+- RBAC thay RBAC làm nguồn quyết định authorization. Role chỉ còn là subject attribute, grouping label hoặc policy template.
 - Structured attestation bị loại khỏi active MVP: `FR-045`, `FR-046`, `UC-018`, `AC-013` và các route/entity/event/audit/report dependency tương ứng là `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Compliance certification, formal legal opinion, direct regulator submission và manual technical evidence JSON upload (`FR-051`) là `REMOVED_FROM_PRODUCT`.
 - `FR-050` không còn là Local/CI scanner report upload. `FR-050` là `AUTOMATIC_TRUSTED_SCAN_INITIATION`.
 - Asynchronous domain workloads thuộc Python Worker Platform. Node.js chỉ còn hợp lệ cho NestJS API và web/tooling; repository analysis không còn phụ thuộc analyzer CLI riêng theo ngôn ngữ.
 - Repository analysis dùng full Deep Agents harness trên commit-pinned repository; Codebase Memory MCP là structural memory tùy chọn và source trực tiếp là evidence authority.
-- Active MVP authorization is owner/resource-scoped and has no organization boundary. Organization creation/membership and Developer invitation/task collaboration are retired.
-- Prompt 8 adds one shared prepaid wallet per customer, immutable direct-credit model pricing, per-physical-invocation admission and settlement, customer payment-required/Continue behavior, and governed reconciliation/compensation. Paid-tool billing remains deferred.
 
 Mọi đoạn PRD cũ bên dưới nhắc attestation, Local/CI upload, manual JSON upload, RBAC, Node.js downstream worker hoặc removed product concepts phải được đọc theo marker Phase 5.2L ở trên.
 
@@ -50,25 +41,10 @@ Mọi đoạn PRD cũ bên dưới nhắc attestation, Local/CI upload, manual J
 
 Canonical implementation requirement identifiers live in `docs/specs/functional-requirements.md`.
 
-- `FR-001..FR-056` and `FR-083..FR-094` are the canonical functional requirement identifiers for implementation, acceptance, traceability and future story work.
-- `FR-057..FR-082` remain historical aliases and must not be reused.
+- `FR-001..FR-056` are the canonical functional requirement identifiers for implementation, acceptance, traceability and future story work.
 - PRD `FR-E*` headings below are product narrative/source aliases only.
 - PRD `FR-E*` aliases must not be used as canonical story, implementation, acceptance or traceability identifiers.
 - When this PRD and a canonical requirements catalog disagree on identifier status, the canonical catalog wins for implementation planning.
-
-For source extraction, use this adjacent mapping; the detailed one-to-many registry remains in `docs/specs/requirements-baseline.md`:
-
-| Narrative group | Canonical implementation IDs       | Status                                                                                                                   |
-| --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `FR-E1-*`       | `FR-012`, `FR-013`                 | Active owner/assessment requirements; Developer aliases map to retired `FR-010`, `FR-011`, `FR-047`.                     |
-| `FR-E2-*`       | `FR-014`, `FR-015`                 | Active Wizard/readiness requirements.                                                                                    |
-| `FR-E3-*`       | `FR-016..FR-020`, `FR-048..FR-050` | Active repository evidence requirements; manual upload/attestation aliases map to removed/superseded `FR-051`, `FR-046`. |
-| `FR-E4-*`       | `FR-020..FR-025`                   | Active evidence-quality and technical-profile requirements.                                                              |
-| `FR-E5-*`       | `FR-026..FR-029`                   | Active reconciliation requirements; delegated clarification `FR-052` is deferred.                                        |
-| `FR-E6-*`       | `FR-030..FR-037`, `FR-053..FR-056` | Active verification, legal retrieval and classification requirements.                                                    |
-| `FR-E7-*`       | `FR-038..FR-041`                   | Active gap/report/readiness requirements; attestation disclosure is superseded.                                          |
-| `FR-E8-*`       | `FR-042..FR-044`                   | Active audit/version requirements; attestation audit is superseded.                                                      |
-| Prompt 8        | `FR-083..FR-094`                   | Active shared-wallet and governed model-usage requirements.                                                              |
 
 ## 2. Goals & Success Metrics
 
@@ -77,30 +53,23 @@ For source extraction, use this adjacent mapping; the detailed one-to-many regis
 - Giúp Manager hoàn tất assessment bằng ngôn ngữ nghiệp vụ/pháp lý, không cần hiểu scanner, GitHub Actions hoặc source code.
 - Thu thập technical evidence qua GitHub App read-only Repository Scan trong workflow do Manager dẫn dắt.
 - Ngăn hệ thống tạo risk level khi chỉ có self-report từ Wizard.
-- Tạo VerifiedProfile qua một trong hai verification path hợp lệ trước classification: reconciled path khi có WizardProfile hoặc `TECHNICAL_ONLY` path khi WizardProfile vắng mặt.
+- Đối chiếu WizardProfile và TechnicalProfile để tạo VerifiedProfile trước classification.
 - Đảm bảo final report có audit trail: wizard answers, evidence metadata, conflict resolution, classification output, legal citation, RBAC decision trace và document version.
 - Giữ ranh giới rõ: LCSP hỗ trợ tuân thủ, không phải compliance certification, formal legal opinion hoặc direct regulator submission product.
-- Cho phép customer sử dụng một shared prepaid wallet và xem được charge provenance theo từng physical model invocation mà không trộn billing với runtime safety controls.
 
 ### Success Metrics
 
 - **SM-1: Manager completion quality.** Manager có thể hoàn tất Wizard mà không cần trả lời câu hỏi kỹ thuật trực tiếp. Validates FR-E2-1, FR-E2-2.
-- **SM-2: Evidence-gated classification.** 100% risk classification chỉ chạy khi technical evidence pass schema/quality/legal gates, một verification path hợp lệ đã tạo VerifiedProfile, và không còn material/critical conflict unresolved. Reconciled path so sánh WizardProfile với technical evidence; `TECHNICAL_ONLY` path tạo VerifiedProfile từ TechnicalProfile/AIUsageFlow khi WizardProfile vắng mặt. Validates FR-020..FR-035.
+- **SM-2: Evidence-gated classification.** 100% risk classification chỉ chạy khi technical evidence pass schema gate, quality gate, reconciliation tạo VerifiedProfile và không còn material/critical conflict unresolved. Validates FR-E4-1 đến FR-E6-4.
 - **SM-3: No Wizard-only risk level.** 0 màn hình hoặc report hiển thị HIGH/MEDIUM/LOW khi assessment chỉ ở `SELF_DECLARED_READINESS` hoặc `EVIDENCE_PENDING`. Validates FR-E2-3, FR-E2-4.
 - **SM-4: Conflict accountability.** 100% material conflicts có đúng role confirmation và audit trail. Validates FR-E5-3 đến FR-E5-6.
 - **SM-5: Report traceability.** Final report trace được risk result về evidence, rule/citation, conflict resolution, RBAC decision trace và document version. Validates FR-E6-5, FR-E7-2, FR-E8-5.
-- **SM-6: Financial idempotency.** 100% confirmed payment retries and invocation-settlement replays produce at most one authoritative credit/debit for the same financial identity. Validates FR-084, FR-089.
-- **SM-7: Governed provider-call coverage.** 100% enabled paid provider-call paths obtain immutable server admission before dispatch. Validates FR-088, NFR-040.
-- **SM-8: Payment recovery usability.** Provisional discovery target: ít nhất 80% người tham gia trong tối thiểu 5 moderated Customer sessions hoàn tất `PAYMENT_REQUIRED` → checkout → manual Continue mà không nghĩ hệ thống tự resume; Product Owner phải phê duyệt baseline/production target trước UX story acceptance. Validates FR-090, AC-058.
-- **SM-9: Charge comprehension.** Provisional discovery target: ít nhất 80% người tham gia trong tối thiểu 5 moderated Customer sessions phân biệt đúng logical operation với physical retry/fallback charge và tìm được pricing/outcome reference; Product Owner phải phê duyệt production target trước UX story acceptance. Validates FR-091, AC-059.
 
 ### Counter-Metrics
 
 - **SM-C1: Avoid shallow completion.** Không tối ưu completion rate bằng cách bỏ critical Wizard fields.
 - **SM-C2: Avoid scanner bypass.** Không tối ưu unlock classification bằng human assertion, role label hoặc untrusted upload thay thế metadata khách quan.
 - **SM-C3: Avoid false certainty.** Không dùng ngôn ngữ khiến readiness/preliminary indicators bị hiểu là risk classification.
-- **SM-C4: Avoid revenue by hidden charging.** Không tối ưu revenue bằng cách charge unknown usage, hide retry/fallback invocations, or let callbacks choose financial authority.
-- **SM-C5: Avoid paper margin.** Không coi suggested tariff là lợi nhuận thực tế; Pricing Operations phải so sánh approved tariff revenue với realized provider, settlement-fee và infrastructure cost trước khi kết luận margin.
 
 ## 3. Target Users
 
@@ -117,14 +86,6 @@ Manager owns business/legal truth:
 - ý nghĩa pháp lý/nghiệp vụ của technical evidence;
 - final assessment confirmation.
 
-### Customer
-
-Customer là chủ tài khoản thanh toán và shared wallet; trong MVP Customer thường là cùng authenticated subject với Manager nhưng hai khái niệm không đồng nghĩa. Customer nạp credit, xem spendable/outstanding balance, kiểm tra charge history, xử lý `PAYMENT_REQUIRED` và chủ động Continue. Customer không được thấy internal margin assumptions hoặc dùng payment để vượt runtime safety blocker.
-
-### Billing and Pricing Admin
-
-Billing and Pricing Admin là subject có RBAC permission rõ ràng cho pricing publication, reconciliation, billing-integrity review và bounded compensation. ADMIN label một mình không cấp quyền. Admin không được đọc raw prompt/output, tự sửa ledger history hoặc dùng runtime override để tạo credit.
-
 ### Cộng tác viên kỹ thuật
 
 Developer invitation/task workspace đã retired khỏi active MVP. Không còn active screen, BFF/API handler, Prisma entity/table, RBAC action, mock fixture hoặc delivery task cho invitation acceptance, scoped task workspace hay membership revocation.
@@ -135,26 +96,11 @@ Developer invitation/task workspace đã retired khỏi active MVP. Không còn 
 - Organization Admin/IAM administrator như một role riêng.
 - Multi-country compliance operator.
 
-### Canonical Glossary
-
-| Term                      | Canonical meaning                                                                                                           |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Manager                   | Assessment owner chịu trách nhiệm business/legal truth và quyết định assessment.                                            |
-| Customer                  | Chủ shared wallet và payment relationship; có thể cùng user với Manager nhưng authority được đánh giá theo resource/action. |
-| Billing and Pricing Admin | Subject có explicit RBAC permission cho pricing/billing operations; role label không tự tạo authority.                      |
-| Owner scope               | Quan hệ hiện hành qua `assessment.ownerId` hoặc `wallet.userId`; không phải organization membership.                        |
-| Logical operation         | Một ý định nghiệp vụ như classify/generate report, có thể tạo nhiều physical invocations do retry/fallback.                 |
-| Physical invocation       | Một lần dispatch thực tế tới provider, có `invocationId`, admission, usage outcome và charge identity riêng.                |
-| Admission                 | Server-issued authority cho phép một physical invocation được dispatch trong pricing/exposure/run constraints đã pin.       |
-| Pricing snapshot          | Bộ tariff microcredit-per-token bất biến đã publish.                                                                        |
-| Pricing assignment        | Khoảng hiệu lực gắn pricing snapshot vào exact model, provider default hoặc approved global default.                        |
-| Outstanding usage         | Phần confirmed charge làm signed wallet balance âm; hiển thị riêng và được top-up thanh toán trước spendable credit.        |
-
 ## 4. RBAC Policy Model
 
-Trong assessment decision flow, `Manager` là customer-facing assessment role duy nhất. Prompt 8 bổ sung Customer wallet/payment actions và permissioned Billing and Pricing Admin operations; các actor này không tạo organization boundary hoặc Developer collaboration. RBAC là authorization source of truth. Role labels chỉ là subject attributes, grouping labels hoặc policy templates; chúng không phải final authorization authority khi đứng một mình.
+MVP chỉ expose user-facing label `Manager`. RBAC là authorization source of truth. Role labels chỉ là subject attributes, grouping labels hoặc policy templates; chúng không phải final authorization authority.
 
-Authorization evaluation must include authenticated subject, customer-account/owner scope, resource, action, request/runtime context, policy and policy version. Enforcement is deny-by-default, owner/resource-scoped, server-side, versioned and auditable. Customer assessment and wallet access is bound to `assessment.ownerId` and `wallet.userId`; ADMIN actions require explicit RBAC authority for the requested resource/action.
+Authorization evaluation must include subject, organization, resource, action, request/runtime context, policy and policy version. Enforcement is deny-by-default, tenant-scoped, server-side, versioned and auditable.
 
 ### Manager Policy Template
 
@@ -170,14 +116,12 @@ Manager policy template grants the assessment owner actions needed to complete a
 - `RESOLVE_BUSINESS_CONFLICTS`
 - `RESOLVE_TECHNICAL_CONFLICTS`
 - `FINALIZE_CONFLICT_RESOLUTION`
-- `REVIEW_VERIFIED_PROFILE`
+- `APPROVE_VERIFIED_PROFILE`
 - `UNLOCK_CLASSIFICATION_AFTER_GATES`
 - `GENERATE_REPORT`
 - `EXPORT_AUDIT_TRAIL`
 
 Manager is the required and sufficient subject profile for completing an MVP assessment, subject to RBAC evaluation and state gates.
-
-The active MVP has no organization creation, membership or organization-scoped authorization flow. Historical organization identifiers may remain only where required to interpret immutable legacy records and cannot grant current access.
 
 ### Retired Developer Policy Scope
 
@@ -210,9 +154,9 @@ Enterprise SSO/SAML/directory federation remains Deferred/Future unless explicit
 
 Manager tạo assessment mới, đăng nhập bằng password/email hoặc OAuth/OIDC, điền Wizard bằng ngôn ngữ nghiệp vụ, xem readiness/preliminary indicators, kết nối GitHub repository và chạy Repository Scan. Giá trị đạt được khi Manager có thể hoàn tất MVP flow mà không cần external collaborator assignment.
 
-### UJ-2: Customer recovers from payment required
+### UJ-2: Retired Developer assigned task
 
-Khi shared wallet không còn positive spendable balance, LCSP dừng tạo paid invocation mới và hiển thị `PAYMENT_REQUIRED` cùng spendable, outstanding và next action. Customer mở checkout có service value, tax, total và credited amount, hoàn tất top-up, rồi chủ động chọn Continue. LCSP kiểm tra lại wallet, pricing, run/lease và runtime blockers; payment không tự resume assessment.
+Developer invitation/task workspace is retired from active MVP. Technical evidence comes from Manager-authorized GitHub repository scan and system-generated evidence.
 
 ### UJ-3: Manager resolves a conflict
 
@@ -220,19 +164,11 @@ LCSP phát hiện conflict có thể ảnh hưởng risk level. Orchestrator pau
 
 ### UJ-4: Manager generates final compliance report after classification is unlocked
 
-Sau khi evidence pass gates, reconciled hoặc `TECHNICAL_ONLY` verification path tạo VerifiedProfile và không còn material/critical conflict unresolved, LCSP chạy Risk Classification Agent, tạo gap analysis và cho Manager generate final report. Giá trị đạt được khi report có risk result, legal citation/rule trace và audit trail.
+Sau khi evidence pass gates, reconciliation tạo VerifiedProfile và không còn material/critical conflict unresolved, LCSP chạy Risk Classification Agent, tạo gap analysis và cho Manager generate final report. Giá trị đạt được khi report có risk result, legal citation/rule trace và audit trail.
 
 ### UJ-5: Manager exports readiness-only output when evidence is unavailable
 
 Nếu chưa thể cung cấp technical evidence, Manager có thể xuất readiness-only output không có risk level để biết thông tin còn thiếu. Giá trị đạt được là preparation guidance, không phải compliance conclusion.
-
-### UJ-6: Admin publishes governed model pricing
-
-Billing and Pricing Admin mở Pricing Draft, chọn cost-source evidence và editable assumptions, xem suggested tariff/projected margin, rồi publish immutable snapshot/assignment. Hệ thống từ chối stale version, overlapping effective interval hoặc model ngoài allowlist. Publish history cho biết ai duyệt, evidence nào được dùng và tariff nào đang hiệu lực mà không phơi internal margin cho Customer.
-
-### UJ-7: Admin reconciles unknown usage and compensates safely
-
-Admin mở reconciliation queue cho `OUTCOME_UNKNOWN`, xem redacted invocation/pricing/provider evidence, rồi đóng case bằng late receipt, non-billable resolution hoặc escalation theo authority. Khi charge hợp lệ cần sửa, Admin tạo bounded compensation tham chiếu debit gốc; lịch sử không bị chỉnh sửa hoặc xóa.
 
 ## 6. MVP Scope
 
@@ -243,29 +179,24 @@ Admin mở reconciliation queue cho `OUTCOME_UNKNOWN`, xem redacted invocation/p
 - Authentication, blocked-state, and safe failure responses for Web/API using stable shared error-contract keys so Web can render approved user-facing copy without relying on backend hardcoded prose.
 - Shared customer-facing auth/workspace contracts implemented through TypeScript shared packages, provided public export boundaries are preserved.
 - Web Wizard cho Manager.
-- Inherited approved architecture constraint: Python Worker Platform cho tất cả asynchronous domain workloads.
+- Python Worker Platform cho tất cả asynchronous domain workloads.
 - Repository Deep Agent thực thi Repository Scan trên durable LCSP Docker repository workspace.
 - Repository analysis dùng native filesystem/search/shell/subagent tools và có thể dùng Codebase Memory MCP; không còn language-specific static-scanner toolchain.
 - Kết nối GitHub repository (read-only) và Automatic Trusted Scan Initiation.
 - Tích hợp nhà cung cấp LLM thật (Gemini, Claude, hoặc GPT) cho happy-path risk classification và document generation.
 - Legal corpus bảo toàn provenance từ nguồn chính phủ chính thức, tổ chức thành các phiên bản `LegalCorpusVersion` bất biến.
-- Inherited approved architecture constraint: ChromaDB structure-first vectorless legal retriever dùng stable legal hierarchy IDs, metadata/full-text lookup, direct ID lookup, one-hop xref expansion, parent-context assembly và citation allowlist validation để truy xuất cơ sở pháp lý.
-- Inherited approved architecture constraint: lưu trữ tài liệu kết quả bằng real S3-compatible object storage.
+- ChromaDB structure-first vectorless legal retriever dùng stable legal hierarchy IDs, metadata/full-text lookup, direct ID lookup, one-hop xref expansion, parent-context assembly và citation allowlist validation để truy xuất cơ sở pháp lý.
+- Lưu trữ tài liệu kết quả bằng real S3-compatible object storage.
 - Self-signup and Manager-owned workspace entry.
 - Evidence schema completeness gate.
 - Context-aware quality threshold gate ở mức MVP.
-- Verification gồm reconciled path giữa WizardProfile, TechnicalProfile và AIUsageFlow, hoặc `TECHNICAL_ONLY` path khi WizardProfile vắng mặt.
+- Reconciliation giữa WizardProfile, TechnicalProfile và AIUsageFlow.
 - Conflict Score, Evidence Confidence Score và AI Intervention Score.
-- VerifiedProfile creation sau một verification path hợp lệ.
+- VerifiedProfile creation sau reconciliation.
 - Risk classification chỉ sau VerifiedProfile.
 - Gap analysis dựa trên risk result.
 - Guarded report/document generation với gating.
 - Audit trail cho toàn bộ decision path (bao gồm retrieval audit và model run audit).
-- Một shared prepaid wallet cho mỗi customer; confirmed payment credit pre-tax service value idempotently.
-- Direct-credit model pricing bằng immutable microcredit-per-token snapshots và versioned effective assignments.
-- Server-issued admission và actual-usage settlement theo từng physical provider invocation.
-- Customer wallet balance, outstanding usage, charge history, `PAYMENT_REQUIRED`, top-up và manual Continue.
-- Admin Model Pricing, unknown-usage reconciliation, billing-integrity review và immutable compensation.
 
 ### Out of Scope for MVP
 
@@ -281,12 +212,6 @@ Admin mở reconciliation queue cho `OUTCOME_UNKNOWN`, xem redacted invocation/p
 - Deterministic mock LLM gateway làm mặc định cho happy-path classification (chỉ dùng cho tests, offline CI, dev không cấu hình key).
 - Local JSONL legal corpus seed làm nguồn dữ liệu chính thức (chỉ dùng làm test fixture).
 - Local filesystem artifact storage làm kho lưu trữ chính thức (chỉ dùng cho local development).
-- Credit allocation hoặc reservation riêng cho từng assessment.
-- Runtime FX/markup/tax calculation cho từng model invocation.
-- Interest hoặc penalty trên outstanding usage.
-- Automatic assessment resume sau top-up.
-- Paid-tool billing; Prompt 8 chỉ bao phủ model-usage debit.
-- Arbitrary lower business token/output caps trước khi có telemetry policy được phê duyệt.
 
 ## 7. Functional Requirements
 
@@ -669,120 +594,6 @@ System records classification output, rule/citation trace, gap analysis output, 
 
 - Final report can trace back to evidence, rules and decisions.
 
-### Product Capability 9 - Shared Wallet and Governed Model Usage
-
-**Description:** Customer model usage is funded from one shared prepaid wallet and charged per physical provider invocation through immutable pricing, server-issued admission, actual-usage settlement and auditable recovery. Billing does not grant or override runtime safety allowances.
-
-#### FR-083: Shared prepaid wallet
-
-Each customer has one shared prepaid wallet across assessments. Customer reads expose `spendableCredits` and `outstandingCredits` rather than an ambiguous signed balance.
-
-**Consequences:**
-
-- Assessments do not receive separate credit allocations or reservations.
-- Wallet reads and mutations are scoped to the authenticated owner; ADMIN access requires explicit RBAC authority.
-
-#### FR-084: Idempotent confirmed-payment credit
-
-Confirmed payment credits pre-tax service value exactly once. Checkout and payment records separate service value, customer transaction tax, payment total and credited microcredits.
-
-**Consequences:**
-
-- Tax never becomes spendable credit.
-- Payment retry does not double-credit and does not create runtime token/call allowance.
-
-#### FR-085: Governed model-pricing publication
-
-Admin can edit pricing drafts and publish immutable pricing snapshots plus non-overlapping effective assignments with audit provenance.
-
-**Consequences:**
-
-- Initial draft assumptions are `26,500 VND/USD`, infrastructure overhead `10%` of converted provider cost and markup multiplier `1.8` on estimated loaded cost.
-- These values are editable, versioned planning inputs, not runtime constants or universal approved tariffs.
-- Provider cost source, billing currency, realized settlement source and customer transaction tax remain distinct.
-
-#### FR-086: Deterministic pricing resolution
-
-Pricing resolves in order: exact resolved model, provider default, then optional global default. Fallback pricing applies only to a resolved model already allowed by runtime policy.
-
-**Consequences:**
-
-- Wildcards or defaults cannot legitimize an unknown model or spelling error.
-- Each physical invocation pins requested model, resolved model, pricing snapshot and pricing-resolution reason.
-
-#### FR-087: Canonical microcredit calculator
-
-Pricing preview and settlement use one deterministic integer-microcredit calculator for input, cached input, cache write, visible output and reasoning buckets supported by the provider receipt.
-
-**Consequences:**
-
-- Missing required bucket rates fail closed instead of becoming zero.
-- Runtime settlement never fetches FX, reapplies markup or recalculates customer transaction tax.
-
-#### FR-088: Server-issued invocation admission
-
-Every paid physical provider invocation requires immutable server admission that validates wallet spendability, assessment/run/lease state, runtime allowlist, pricing resolution, maximum exposure and wallet in-flight policy before dispatch.
-
-**Consequences:**
-
-- Admission derives owner, wallet, assessment, run, lease, resolved model, pricing and policy authority server-side.
-- Callback or worker payloads cannot override financial identity or charge authority.
-
-#### FR-089: Atomic actual-usage settlement
-
-Provider-confirmed usage settles per physical `invocationId` as one indivisible authoritative financial effect: either the durable debit, wallet projection, usage outcome and audit obligations all become visible consistently, or none becomes authoritative.
-
-**Consequences:**
-
-- Same-identity replay cannot double-debit; conflicting replay fails closed.
-- An admitted in-flight invocation may settle into an outstanding balance within its admitted maximum exposure.
-- Confirmed usage remains billable when output is truncated, schema-invalid or rejected by downstream domain validation.
-
-#### FR-090: Payment-required and manual Continue
-
-When spendable balance is not positive, LCSP blocks new paid invocations and exposes `PAYMENT_REQUIRED`. Top-up clears outstanding usage before creating spendable balance and never resumes an assessment automatically.
-
-**Consequences:**
-
-- Customer explicitly selects Continue after top-up.
-- Continue re-evaluates wallet, run/lease, pricing and applicable runtime safety gates. No-progress is not an assessment blocker.
-
-#### FR-091: Customer charge history
-
-Customer can inspect charges grouped by logical operation and expanded into separately billable physical retry/fallback invocations.
-
-**Consequences:**
-
-- Safe details include provider/model, token buckets, pricing version/resolution, credits, outcome and correlation reference.
-- Raw prompt/output, secrets and internal margin assumptions are excluded.
-
-#### FR-092: Unknown-usage reconciliation
-
-Timeout or incomplete usage metadata becomes `OUTCOME_UNKNOWN`; it is not silently treated as zero usage or a successful settlement.
-
-**Consequences:**
-
-- Late receipt processing follows explicit terminal precedence.
-- Unbound callbacks may be quarantined as non-billable telemetry but cannot create financial state.
-
-#### FR-093: Immutable compensation
-
-An eligible waiver/refund creates a bounded immutable compensation entry linked to the original debit.
-
-**Consequences:**
-
-- Compensation cannot exceed the uncompensated amount and never edits/deletes the original debit.
-- Goodwill credit is a distinct action and cannot masquerade as compensation.
-
-#### FR-094: Billing/runtime separation
-
-Wallet/payment authority answers whether customer funds may start paid work; runtime safety answers whether work may continue safely. Admin runtime override cannot add wallet credits, and payment cannot grant model-call/token allowance. No-progress does not require an Admin unlock.
-
-**Consequences:**
-
-- Paid-tool billing remains deferred outside Prompt 8.
-- Production model-usage debit remains disabled until all seven approved enablement gates have GREEN, rollback and operational evidence.
-
 ## 8. Non-Functional Requirements
 
 ### Product-Level Security and Privacy
@@ -800,16 +611,6 @@ Wallet/payment authority answers whether customer funds may start paid work; run
 - NFR-8: Legal corpus/rule version used for classification must be recorded.
 - NFR-9: System must fail closed for missing critical evidence, missing legal trace or unresolved material conflict.
 
-### Financial Integrity and Billing Safety
-
-- NFR-036: Authoritative credit/tariff arithmetic uses integer microcredits and canonical decimal-string wire formats; floating point, exponent notation and implicit rounding are forbidden.
-- NFR-037: Payment credit, admission, settlement, reconciliation and compensation are idempotent; each authoritative financial effect is atomic, externally consistent and cannot expose partial credit/debit state.
-- NFR-038: Financial identity and amount authority is derived from immutable server records; missing, foreign, expired or mismatched admission fails closed without financial writes.
-- NFR-039: Legacy-credit migration must preserve exact value, prevent mixed-unit corruption, reconcile every wallet before authority cutover, support rollback and avoid reinterpreting an existing stored unit in place. Migration mechanics belong to ADR-028.
-- NFR-040: Every enabled synchronous, asynchronous, retry, fallback and preparation provider-call path obtains valid wallet admission before dispatch.
-- NFR-041: Billing telemetry preserves pricing provenance, invocation/outcome and correlation metadata without raw prompts, outputs, secrets or provider credentials.
-- NFR-042: Production debit enablement requires approved tariffs plus GREEN, rollback and operational evidence for all seven enablement gates.
-
 ### Usability
 
 - NFR-10: Manager-facing language must avoid technical implementation terms unless accompanied by plain-language explanation.
@@ -819,7 +620,7 @@ Wallet/payment authority answers whether customer funds may start paid work; run
 ### Accessibility and Localization
 
 - NFR-13: MVP UI copy and documents should support Vietnamese as primary language.
-- NFR-14: Web UI must target WCAG 2.2 AA for forms, status messages, payment-required recovery, pricing operations and document review, including keyboard operation and programmatic status announcements.
+- NFR-14: Web UI should target common accessibility expectations for forms, status messages and document review.
 
 ## 9. Status / State Model
 
@@ -844,10 +645,6 @@ PRD-level state model:
 - `GAP_ANALYZED`: Gap analysis hoàn tất.
 - `REPORT_READY`: Có thể generate final report.
 - `BLOCKED_BY_CONFLICT`: Có material/critical conflict chưa resolve.
-- `PAYMENT_REQUIRED`: Wallet cannot fund a new paid invocation; completed artifacts remain preserved.
-- `WAITING_FOR_CUSTOMER_CONTINUE`: Top-up has restored spendable credits but the customer has not explicitly resumed the assessment.
-- `OUTCOME_UNKNOWN`: A dispatched invocation lacks durable terminal usage evidence and awaits bounded reconciliation.
-- `BILLING_INTEGRITY_REVIEW`: Usage, exposure, pricing or projection evidence is contradictory and financial automation has failed closed for operator review.
 
 ## 10. Scoring Model
 
@@ -1041,7 +838,7 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - Prototype Wizard question set for at least public chatbot, credit scoring and internal HR screening.
 - Test with non-technical Manager-like users.
 - Measure completion, confusion points and fields requiring out-of-band technical help.
-- Revise Wizard before implementation acceptance if users cannot answer critical fields.
+- Revise Wizard before final PRD acceptance if users cannot answer critical fields.
 
 ### A2. Legal corpus/rule reliability
 
@@ -1063,17 +860,17 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - Define MVP legal corpus inventory.
 - Draft sample compliance rules for representative scenarios.
 - Create scenario/evaluation fixtures with expected risk, rules and citations.
-- Validate citation accuracy before implementation acceptance for classification scope.
+- Validate citation accuracy before final PRD signoff for classification scope.
 
 ### A3. RBAC and trusted-trigger abuse risk
 
-**Risk:** A subject, service identity, role label, or integration trigger could be misused to bypass RBAC or start a scan for the wrong owner, repository, wallet, or assessment.
+**Risk:** A subject, service identity, role label, or integration trigger could be misused to bypass RBAC or start a scan for the wrong tenant, repository, or assessment.
 
 **PRD Requirements:**
 
-- RBAC must evaluate subject, owner/resource scope, action, request/runtime context, policy and policy version.
-- Authorization must be deny-by-default, owner/resource-scoped, server-side enforced, versioned and auditable.
-- Trusted scan triggers must validate source identity, assessment owner, repository connection, assessment mapping, configured branch and commit SHA.
+- RBAC must evaluate subject, organization, resource, action, request/runtime context, policy and policy version.
+- Authorization must be deny-by-default, tenant-scoped, server-side enforced, versioned and auditable.
+- Trusted scan triggers must validate source identity, organization, repository connection, assessment mapping, configured branch and commit SHA.
 - Missing or ambiguous mapping must produce `PENDING_MAPPING`, `BLOCKED_MAPPING` or `WAITING_FOR_CONTEXT` instead of scanning.
 - Every authorization and trigger decision must include safe context refs and correlation ID.
 - Structured attestation remains removed from active MVP and cannot be used to legitimize weak evidence.
@@ -1081,26 +878,9 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 **Validation Plan:**
 
 - Define RBAC policy model and engine decision before implementation.
-- Test abuse cases: wrong owner/wallet, ambiguous assessment mapping, revoked repository connection, duplicate trigger, out-of-order trigger, policy unavailable, callback mass assignment and service identity overreach.
+- Test abuse cases: wrong tenant, ambiguous assessment mapping, revoked repository connection, duplicate trigger, out-of-order trigger, policy unavailable, service identity overreach.
 - Verify no role label alone grants final authority.
 - Verify no trigger can scan the wrong repository or assessment.
-
-### A4. Prompt 8 financial enablement
-
-**Risk:** Editable Pricing Draft assumptions, incomplete provider-call coverage, mixed accounting units or unresolved usage could create incorrect customer charges even when individual APIs appear functional.
-
-**PRD Requirements:**
-
-- Suggested tariffs must disclose their approved cost-source, fee, infrastructure and risk-buffer inputs.
-- Production debit remains disabled through contract RED, shadow accounting/pricing, mandatory admission-with-debit-off and shadow settlement phases.
-- Gates `G-01..G-07` in `docs/product/addendum.md` define accountable owners, measurable exit conditions and minimum evidence.
-- Payment and pricing authority must remain independent from applicable runtime safety controls.
-
-**Validation Plan:**
-
-- Complete the approved delivery sequence in the PRD Addendum without skipping a shadow phase.
-- Run contract, concurrency, BOLA/mass-assignment, migration/rollback, provider-path inventory and reconciliation tests required by `G-01..G-07`.
-- Obtain joint Product Owner, Finance Owner and Release Authority go/no-go approval; any missing or RED evidence keeps debit disabled.
 
 ## 16. Open Questions
 
@@ -1109,7 +889,6 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - Minimum business/legal truth required for MVP classification is not fully validated.
 - Exact Wizard field list and wording still need user testing.
 - Behavior for Manager "I don't know" on critical fields needs final product decision.
-- Wizard stories that depend on critical-unknown routing cannot reach implementation acceptance until Product Owner approves the state/next-action rule from A1 validation.
 
 ### Legal Corpus and Rules
 
@@ -1117,7 +896,6 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - Minimum compliance rule schema needs confirmation.
 - Rule review/approval owner is not yet defined.
 - Behavior for incomplete legal corpus in a scenario needs final decision.
-- Legal classification stories cannot reach implementation acceptance until Legal/Product owners approve corpus inventory, rule schema, review authority and incomplete-corpus fail behavior from A2 validation.
 
 ### Evidence and Repository Analysis
 
@@ -1127,7 +905,6 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - `FR-050` Automatic Trusted Scan Initiation technical behavior is `TECHNICAL_DECISION_REQUIRED` for final idempotency, retry/DLQ and replay details.
 - Manual evidence JSON (`FR-051`) is `REMOVED_FROM_PRODUCT`.
 - Delegated technical clarification (`FR-052`) and API probe evidence are inactive unless reopened by change control.
-- Source-retention/evidence-quality stories may be decomposed and tested, but cannot reach implementation acceptance until Product, Security and Data owners approve a numeric retention/deletion bound, deletion evidence, versioned scenario thresholds and fail behavior. No implementation may invent these values locally.
 
 ### Attestation
 
@@ -1139,13 +916,6 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 
 - Exact contents of readiness-only export need definition.
 - Manager-visible wording for automatic trigger mapping states needs UX design after documentation remediation.
-
-### Shared Wallet and Pricing Operations
-
-- Initial customer tariffs remain blocked until provider cost sources and token-bucket rates are verified and approved; `26,500`, `10%` and `1.8` are Pricing Draft assumptions only.
-- Exact customer/provider tax treatment requires approved finance/accounting policy; tax is structurally separated from spendable credits now and no tax rate is hardcoded.
-- The 500,000 VND monthly infrastructure baseline must be compared with realized infrastructure cost to validate or revise the 10% overhead assumption.
-- No business output/token cap is approved until usage telemetry supports a separate policy decision.
 
 ## 17. Acceptance Criteria
 
@@ -1163,30 +933,17 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - AC-10: Final report includes legal citation/rule trace or is not final.
 - AC-11: Final report has no attestation dependency and discloses evidence, legal basis, RBAC/trigger trace and limitations.
 - AC-12: Audit trail records wizard, evidence, conflict, RBAC/trigger decisions, classification and document generation events.
-- AC-051: Customer wallet reads expose exact spendable and outstanding credit projections scoped to the authenticated owner.
-- AC-052: Confirmed payment retry credits pre-tax service value at most once and never creates runtime allowance.
-- AC-053: Admin publishes immutable pricing snapshots/assignments atomically with audit; stale version and overlapping effective intervals are rejected.
-- AC-054: Pricing resolution follows exact model, provider default, then optional global default and rejects a model outside the runtime allowlist.
-- AC-055: Preview and settlement produce identical integer-microcredit results for the same snapshot/usage; missing required buckets fail closed.
-- AC-056: No enabled paid provider invocation dispatches without immutable server admission bound to owner, wallet, assessment/run/lease, resolved model, pricing and maximum exposure.
-- AC-057: Settlement replay cannot double-debit; a settlement exposes one complete, auditable financial effect or no authoritative debit, with no externally visible partial wallet state.
-- AC-058: Wallet without positive spendable balance blocks new paid work; top-up clears outstanding first and never resumes an assessment without customer Continue.
-- AC-059: Customer charge history distinguishes logical operation from each physical retry/fallback invocation without exposing raw content or internal margin.
-- AC-060: Missing or late usage remains outcome-unknown until durable evidence closes or escalates the case; it is not silently zeroed.
-- AC-061: Compensation is append-only, references an original debit, and cannot exceed its uncompensated amount.
-- AC-062: Production model-usage debit cannot be enabled until gates `G-01..G-07` in the PRD Addendum each satisfy their measurable exit condition, named owner approval and required evidence package.
-- AC-063: Payment/top-up cannot grant or extend runtime safety allowance, runtime override cannot create wallet credit, and Continue re-evaluates both authorities independently before dispatch.
 
 ### PRD Acceptance Criteria
 
 - AC-13: PRD preserves all mandatory product decisions from Product Brief.
 - AC-14: PRD contains section for high-risk assumptions and validation requirements.
-- AC-15: PRD does not introduce new implementation design, backlog or code; inherited approved architecture constraints are labeled explicitly and remain governed by active architecture records.
+- AC-15: PRD does not define architecture, backlog or code.
 - AC-16: PRD is clear enough for Architect Agent to identify product constraints and unresolved assumptions.
 
 ## 18. PRD Readiness for Architecture
 
-**Current status:** Final product authority is ready for Prompt 8 architecture and UX correction plus contract RED-test design. Production readiness remains conditional: this PRD does not authorize production model-usage debit or approve customer tariff values.
+**Current status:** Conditional PRD is ready for architecture exploration only with explicit caveats. It is not a final PRD that should be treated as fully validated.
 
 Architecture may proceed to explore system boundaries and feasibility only if it preserves these non-negotiable product constraints:
 
@@ -1195,23 +952,16 @@ Architecture may proceed to explore system boundaries and feasibility only if it
 - no human assertion, role label or untrusted upload bypass for machine-generated metadata;
 - any unresolved conflict blocks classification/report until Manager resolution is complete;
 - Wizard-only remains readiness/preliminary indicators only.
-- shared-wallet billing remains separate from runtime safety authority;
-- customer transaction tax never becomes spendable credit;
-- immutable per-invocation admission and pricing authority precede any financial settlement;
-- paid-tool billing remains deferred;
-- production debit remains disabled until all seven enablement gates have approved evidence.
 
 Before final architecture signoff, product must validate or carry forward these blockers:
 
 1. Wizard question model can collect enough business/legal truth without technical wording.
 2. Legal corpus/rule reliability can support cited, traceable classification.
 3. RBAC and trusted-trigger guardrails prevent authorization and scan-initiation bypass.
-4. Provider cost sources, tax treatment and initial immutable customer tariffs receive owner/finance approval.
-5. Mixed-unit migration, provider-call admission coverage, reconciliation and rollback are proven before debit enablement.
 
 Recommended next step:
 
 ```text
-Proceed with ADR-028, Prompt 8 UX, epic correction and contract RED tests using this PRD plus the canonical FR/NFR catalogs.
-Do not enable production debit or publish initial ACTIVE tariffs until the financial open items and seven enablement gates have approved evidence.
+Proceed to architecture discovery only as conditional, with A1-A3 tracked as validation requirements.
+Do not create implementation backlog until A1-A3 have owner, validation method and acceptance threshold.
 ```

@@ -39,29 +39,27 @@ The system uses deterministic orchestration, state machines, evidence gates, and
 4. ADR-025 overrides local JSONL corpus seed as the legal source architecture.
 5. ADR-026 overrides pgvector, embedding-index, hybrid-vector and unspecified legal retrieval wording for MVP.
 6. Product scope and canonical requirements remain governed by PRD, FR/NFR catalogs, and Project Owner decisions propagated into active docs.
-7. Phase 5.2L supersedes older wording: RBAC is owner/resource-scoped and is the authorization source of truth; organization/PBAC authority is retired, structured attestation is removed from active MVP, `FR-050` is Automatic Trusted Scan Initiation, `FR-051` is removed from product scope, and Node.js downstream workers are superseded.
-8. ADR-028 governs shared-wallet microcredit pricing, provider-call admission, actual-usage settlement, reconciliation and compensation. Production debit remains separately gated by `G-01..G-07`.
+7. Phase 5.2L supersedes older wording: RBAC replaces RBAC, structured attestation is removed from active MVP, `FR-050` is Automatic Trusted Scan Initiation, `FR-051` is removed from product scope, and Node.js downstream workers are superseded.
 
 ## Active Decision Summary
 
-| ADR              | Active Decision                                                                                                            | Status                                                                                                                                             |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ADR-001          | Modular monolith-first API boundary with extractable modules                                                               | Accepted                                                                                                                                           |
+| ADR              | Active Decision                                                                                                            | Status                                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| ADR-001          | Modular monolith-first API boundary with extractable modules                                                               | Accepted                                                                                                |
 | ADR-002          | Async worker workloads remain outside synchronous API lifecycle                                                            | Partially Superseded: repository-analysis ownership moved to the native Deep Agents / LangGraph architecture; downstream async separation retained |
-| ADR-003          | Manager-led workflow; Developer invitation/task retired from active MVP                                                    | Accepted                                                                                                                                           |
-| ADR-004          | Evidence-first classification gate                                                                                         | Accepted                                                                                                                                           |
-| ADR-005          | GitHub App Repository Scan is the only active MVP evidence path; Local/CI/manual uploads deferred                          | Superseded by Phase 5.2L for `FR-050`/`FR-051` semantics                                                                                           |
-| ADR-006          | No raw source to LLM and no long-term raw source persistence                                                               | Accepted                                                                                                                                           |
-| ADR-007          | Binary unresolved-conflict routing; scores are explanatory only                                                            | Accepted                                                                                                                                           |
-| ADR-008          | Structured technical attestation is supplemental only and cannot unlock classification                                     | `SUPERSEDED_FOR_ACTIVE_MVP`                                                                                                                        |
-| ADR-009          | Deterministic orchestration and state-machine-controlled worker chaining                                                   | Accepted                                                                                                                                           |
-| ADR-010          | GitHub App read-only repository evidence path                                                                              | Accepted                                                                                                                                           |
-| ADR-011..ADR-021 | Existing active technical/security/queue/evidence decisions                                                                | Retained unless explicitly superseded below                                                                                                        |
-| ADR-024          | Real configured LLM provider mandatory for A-to-Z acceptance; mock test/offline only                                       | Accepted — Superseding                                                                                                                             |
-| ADR-025          | Provenance-preserving official-source legal corpus with internal approval and immutable versioning                         | Accepted — Superseding                                                                                                                             |
-| ADR-026          | ChromaDB structure-first vectorless legal retrieval with legal hierarchy, xref expansion and citation allowlist validation | Accepted — Superseding                                                                                                                             |
-| ADR-027          | GitHub App repository onboarding — minimum permissions, token lifecycle, migration from credentials (LCSP-476)             | Proposed — Awaiting Owner Approval                                                                                                                 |
-| ADR-028          | Shared wallet and governed per-physical-invocation model-usage settlement                                                  | Accepted for contract design and phased implementation; production debit gated                                                                     |
+| ADR-003          | Manager-led workflow; Developer invitation/task retired from active MVP                                                    | Accepted                                                                                                |
+| ADR-004          | Evidence-first classification gate                                                                                         | Accepted                                                                                                |
+| ADR-005          | GitHub App Repository Scan is the only active MVP evidence path; Local/CI/manual uploads deferred                          | Superseded by Phase 5.2L for `FR-050`/`FR-051` semantics                                                |
+| ADR-006          | No raw source to LLM and no long-term raw source persistence                                                               | Accepted                                                                                                |
+| ADR-007          | Binary unresolved-conflict routing; scores are explanatory only                                                            | Accepted                                                                                                |
+| ADR-008          | Structured technical attestation is supplemental only and cannot unlock classification                                     | `SUPERSEDED_FOR_ACTIVE_MVP`                                                                             |
+| ADR-009          | Deterministic orchestration and state-machine-controlled worker chaining                                                   | Accepted                                                                                                |
+| ADR-010          | GitHub App read-only repository evidence path                                                                              | Accepted                                                                                                |
+| ADR-011..ADR-021 | Existing active technical/security/queue/evidence decisions                                                                | Retained unless explicitly superseded below                                                             |
+| ADR-024          | Real configured LLM provider mandatory for A-to-Z acceptance; mock test/offline only                                       | Accepted — Superseding                                                                                  |
+| ADR-025          | Provenance-preserving official-source legal corpus with internal approval and immutable versioning                         | Accepted — Superseding                                                                                  |
+| ADR-026          | ChromaDB structure-first vectorless legal retrieval with legal hierarchy, xref expansion and citation allowlist validation | Accepted — Superseding                                                                                  |
+| ADR-027          | GitHub App repository onboarding — minimum permissions, token lifecycle, migration from credentials (LCSP-476)             | Proposed — Awaiting Owner Approval                                                                      |
 
 ## Clarified ADR-002 Runtime Boundary
 
@@ -96,13 +94,14 @@ The active repository-analysis profile is defined by
 docs/architecture/repository-deep-agent-analysis.md. Older scanner-runtime ADr details are
 available through Git history only and are not active implementation authority.
 
+
 ### Authorization
 
 ```text
 RBAC source of truth
 roles as subject attributes/templates only
 deny-by-default
-owner/resource-scoped; no active organization boundary
+tenant-scoped
 server-side enforced
 versioned/auditable decisions
 engine/storage/cache/invalidation/topology/failure behavior: resolved by docs/implementation/decisions/rbac-runtime-decision.md

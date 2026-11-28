@@ -1,6 +1,6 @@
 # LCSP Event Catalog
 
-> **Active event overlay.** Historical events remain interpretable but organization/PBAC authority is retired. Prompt 8 financial events follow ADR-028 and never carry raw capability secrets, prompts, outputs or caller-selected monetary authority.
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
 
 ## Purpose
 
@@ -13,7 +13,7 @@ Canonical command and event names for the A-to-Z runnable MVP.
 - Payloads contain IDs, versions, statuses, hashes, and metadata references only.
 - Every message includes message ID, schema version, correlation ID, causation ID, aggregate reference, timestamp, and idempotency key.
 - Exhausted messages route to the matching DLQ.
-- RBAC decisions are audited with actor/service identity, owner/resource scope, action, policy ID/version, decision, safe context refs and correlation ID. Historical organization refs cannot grant current access.
+- RBAC decisions are audited with actor/service identity, organization, resource, action, policy ID/version, decision, safe context refs and correlation ID.
 - Structured attestation events are `SUPERSEDED_FOR_ACTIVE_MVP` and must not appear in active command/event choreography.
 
 ## Commands and Queues
@@ -21,7 +21,7 @@ Canonical command and event names for the A-to-Z runnable MVP.
 | Command                                                     | Queue                                          | Producer                                                  | Consumer                                   |
 | ----------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------- | ------------------------------------------ |
 | `command.scan-trigger.resolve-context.v1`                   | `lcsp.scan-trigger-worker.v1`                  | Backend API / webhook handler / scheduler outbox          | Python Scan Trigger Worker                 |
-| command.scan.requested.v1                                   | lcsp.scan-worker.v1                            | Backend API outbox                                        | Managed Repository Analysis Agent          |
+| command.scan.requested.v1                                 | lcsp.scan-worker.v1                          | Backend API outbox                                        | Managed Repository Analysis Agent           |
 | `command.technical-profile.requested.v1`                    | `lcsp.technical-profile-worker.v1`             | scan projection                                           | Python Technical Profile Worker            |
 | `command.ai-usage-flow.requested.v1`                        | `lcsp.ai-usage-flow-worker.v1`                 | profile projection                                        | Python AI Usage Flow Worker                |
 | `command.legal-source.ingest.requested.v1`                  | `lcsp.legal-source-ingest.v1`                  | Internal Legal Operations API                             | Python Legal Ingestion Worker              |
@@ -30,42 +30,32 @@ Canonical command and event names for the A-to-Z runnable MVP.
 | `event.technical-evidence.accepted.v1`                      | managed Deep Agents invocation                 | accepted technical evidence projection                    | Python EngineeringRule Assessment Boundary |
 | `command.gap-analysis.requested.v1`                         | `lcsp.gap-analysis-worker.v1`                  | classification projection                                 | Python Gap Analysis Worker                 |
 | `command.document.requested.v1`                             | `lcsp.document-worker.v1`                      | gap/document request projection                           | Python Document Worker                     |
-| `command.billing.payment-required.checkpoint.v1`            | `lcsp.billing-runtime.v1`                      | Billing transactional outbox                              | Assessment Runtime Consumer                |
-| `command.billing.reconciliation.review.v1`                  | `lcsp.billing-operations.v1`                   | Billing operations outbox                                 | Billing Operations Consumer                |
 
 ## Completion and Failure Events
 
-| Domain            | Success/Fact Event                                                                 | Failure/Blocked Event                                                                                                                                                               |
-| ----------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scan Trigger      | `event.scan-trigger.ready.v1`                                                      | `event.scan-trigger.pending-mapping.v1`, `event.scan-trigger.blocked-mapping.v1`, `event.scan-trigger.waiting-for-context.v1`, `event.scan-trigger.rejected.v1`                     |
-| Scan              | `event.scan.completed.v1`                                                          | `event.scan.failed.v1`                                                                                                                                                              |
-| Technical Profile | `event.technical-profile.completed.v1`                                             | `event.technical-profile.failed.v1`                                                                                                                                                 |
-| AI Usage Flow     | `event.ai-usage-flow.completed.v1`                                                 | `event.ai-usage-flow.failed.v1`                                                                                                                                                     |
-| Legal Source      | `event.legal-source.ingest.completed.v1`                                           | `event.legal-source.ingest.failed.v1`                                                                                                                                               |
-| Legal Index       | `event.legal-index-build.completed.v1`                                             | `event.legal-index-build.failed.v1`                                                                                                                                                 |
-| Classification    | `event.classification.completed.v1`                                                | `event.classification.blocked.v1`                                                                                                                                                   |
-| Gap Analysis      | `event.gap-analysis.completed.v1`                                                  | `event.gap-analysis.blocked.v1`, `event.gap-analysis.failed.v1`                                                                                                                     |
-| Document          | `event.document.generated.v1`                                                      | `event.document.blocked.v1`                                                                                                                                                         |
-| Customer Tariff   | `event.billing.customer-tariff.published.v1`                                       | `event.billing.customer-tariff.publication-rejected.v1`                                                                                                                             |
-| Admission         | `event.billing.invocation.admitted.v1`, `event.billing.invocation.settled.v1`      | `event.billing.invocation.rejected.v1`, `event.billing.invocation.dispatch-unknown.v1`, `event.billing.invocation.outcome-unknown.v1`, `event.billing.integrity-review.required.v1` |
-| Wallet            | `event.billing.wallet.credited.v1`, `event.billing.wallet.debited.v1`              | `event.billing.payment-required.v1`, `event.billing.projection-mismatch.v1`                                                                                                         |
-| Reconciliation    | `event.billing.reconciliation.closed.v1`, `event.billing.compensation.recorded.v1` | `event.billing.reconciliation.escalated.v1`                                                                                                                                         |
+| Domain            | Success/Fact Event                       | Failure/Blocked Event                                                                                                                                           |
+| ----------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scan Trigger      | `event.scan-trigger.ready.v1`            | `event.scan-trigger.pending-mapping.v1`, `event.scan-trigger.blocked-mapping.v1`, `event.scan-trigger.waiting-for-context.v1`, `event.scan-trigger.rejected.v1` |
+| Scan              | `event.scan.completed.v1`                | `event.scan.failed.v1`                                                                                                                                          |
+| Technical Profile | `event.technical-profile.completed.v1`   | `event.technical-profile.failed.v1`                                                                                                                             |
+| AI Usage Flow     | `event.ai-usage-flow.completed.v1`       | `event.ai-usage-flow.failed.v1`                                                                                                                                 |
+| Legal Source      | `event.legal-source.ingest.completed.v1` | `event.legal-source.ingest.failed.v1`                                                                                                                           |
+| Legal Index       | `event.legal-index-build.completed.v1`   | `event.legal-index-build.failed.v1`                                                                                                                             |
+| Classification    | `event.classification.completed.v1`      | `event.classification.blocked.v1`                                                                                                                               |
+| Gap Analysis      | `event.gap-analysis.completed.v1`        | `event.gap-analysis.blocked.v1`, `event.gap-analysis.failed.v1`                                                                                                 |
+| Document          | `event.document.generated.v1`            | `event.document.blocked.v1`                                                                                                                                     |
 
 ## Event Guards
 
-| Event                                        | Required Guard                                                                                                                           |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `event.scan.completed.v1`                    | quality-valid report persisted, ScanJob completed, workspace cleanup verified                                                            |
-| `event.scan-trigger.ready.v1`                | trusted source verified, RBAC allowed, unique owner/repository/assessment/branch/commit mapping exists                                   |
-| `event.legal-source.ingest.completed.v1`     | source validated, snapshot/hash persisted, document staged in DRAFT corpus                                                               |
-| `event.legal-index-build.completed.v1`       | corpus approved, ChromaDB records written, legal hierarchy/xref metadata verified and citation allowlist-ready                           |
-| `event.classification.completed.v1`          | direct EngineeringRule assessment result persisted with legal rule provenance and evidence refs                                          |
-| `event.gap-analysis.completed.v1`            | valid classification and legal basis exist                                                                                               |
-| `event.document.generated.v1`                | gap/classification/citation/output guards pass and artifact metadata exists                                                              |
-| `event.billing.customer-tariff.published.v1` | immutable tariff snapshot, non-overlapping effective assignment, audit and outbox committed atomically                                   |
-| `event.billing.invocation.admitted.v1`       | funding principal, capability digest, run/lease/invocation, canonical model, tariff/sponsorship policy, exposure and rollout mode pinned |
-| `event.billing.invocation.settled.v1`        | normalized non-overlapping usage, canonical fingerprint and complete atomic customer/platform branch committed                           |
-| `event.billing.payment-required.v1`          | customer-funded spendable balance non-positive; event targets only the affected assessment/run/lease                                     |
+| Event                                    | Required Guard                                                                                                 |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `event.scan.completed.v1`                | quality-valid report persisted, ScanJob completed, workspace cleanup verified                                  |
+| `event.scan-trigger.ready.v1`            | trusted source verified, RBAC allowed, unique tenant/repository/assessment/branch/commit mapping exists        |
+| `event.legal-source.ingest.completed.v1` | source validated, snapshot/hash persisted, document staged in DRAFT corpus                                     |
+| `event.legal-index-build.completed.v1`   | corpus approved, ChromaDB records written, legal hierarchy/xref metadata verified and citation allowlist-ready |
+| `event.classification.completed.v1`      | direct EngineeringRule assessment result persisted with legal rule provenance and evidence refs                |
+| `event.gap-analysis.completed.v1`        | valid classification and legal basis exist                                                                     |
+| `event.document.generated.v1`            | gap/classification/citation/output guards pass and artifact metadata exists                                    |
 
 ## Domain Events
 
@@ -103,19 +93,6 @@ Canonical command and event names for the A-to-Z runnable MVP.
 - `DOCUMENT_GENERATED`
 - `DOCUMENT_BLOCKED`
 - `AUDIT_EXPORT_GENERATED`
-- `CUSTOMER_MODEL_TARIFF_PUBLISHED`
-- `BILLABLE_INVOCATION_ADMITTED`
-- `BILLABLE_INVOCATION_REJECTED`
-- `BILLABLE_INVOCATION_DISPATCH_UNKNOWN`
-- `MODEL_USAGE_SETTLED`
-- `MODEL_USAGE_OUTCOME_UNKNOWN`
-- `PLATFORM_SPONSORED_USAGE_RECORDED`
-- `WALLET_CREDITED`
-- `WALLET_DEBITED`
-- `PAYMENT_REQUIRED`
-- `BILLING_INTEGRITY_REVIEW_REQUIRED`
-- `BILLING_RECONCILIATION_CLOSED`
-- `BILLING_COMPENSATION_RECORDED`
 - `SECURITY_EVENT`
 
 Internal Legal Operator produces source-validation and corpus approval/rejection/supersession events through internal API/CLI. These are not Manager customer tasks.
@@ -141,7 +118,6 @@ event.scan.completed.v1
 -> command.ai-usage-flow.requested.v1
 -> event.ai-usage-flow.completed.v1
 -> event.technical-evidence.accepted.v1
--> reconciled or TECHNICAL_ONLY VerifiedProfile created
 -> managed boundary engineering_assessment_requested
 -> event.classification.completed.v1
 -> command.gap-analysis.requested.v1
@@ -160,21 +136,6 @@ command.legal-source.ingest.requested.v1
 -> command.legal-index-build.requested.v1
 -> event.legal-index-build.completed.v1
 ```
-
-Prompt 8 financial choreography:
-
-```text
-admission request with stable request identity
--> event.billing.invocation.admitted.v1 or event.billing.invocation.rejected.v1
--> worker requests server CAS to IN_FLIGHT before provider bytes
--> normalized provider evidence
--> shadow result or event.billing.invocation.settled.v1
--> event.billing.wallet.debited.v1 for CUSTOMER_WALLET
-   or event.billing.platform-sponsored-usage.recorded.v1 for PLATFORM_SPONSORED
--> event.billing.payment-required.v1 only when the affected customer wallet is non-positive
-```
-
-Every financial outbox event carries immutable event ID, aggregate ID/version, event type/version, assessment/run/lease, invocation and correlation identity. Consumers are at-least-once idempotent by event ID/version, re-check current run boundaries and never mass-checkpoint unrelated assessments sharing a wallet.
 
 ## Idempotency and Failure
 

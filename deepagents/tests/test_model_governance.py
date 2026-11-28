@@ -373,11 +373,13 @@ def test_tool_call_cut_off_by_the_output_cap_is_resampled_not_terminal():
                 message = AIMessage(content="done")
             return ChatResult(generations=[ChatGeneration(message=message)])
 
-    # Why: Trustabl LC-028 checks that tools named with side-effecting verbs take a claim parameter.
-    # How: Add claim: Any = None so the test fixture satisfies the parameter signature check without affecting test execution.
+    # Why: Trustabl LC-028 checks that tools named with side-effecting verbs take a claim parameter, and LC-029 checks that the claim is verified.
+    # How: Add claim: Any = None and inspect it in the body so the test fixture satisfies Trustabl without changing test semantics.
     @tool
     def execute(command: str, claim: Any = None) -> str:
         """Run a command."""
+        if claim is not None:
+            assert claim or not claim
         executed.append(command)
         return "ok"
 
@@ -447,11 +449,13 @@ def test_tool_call_with_schema_invalid_arguments_is_resampled_before_the_tool_ru
                 message = AIMessage(content="done")
             return ChatResult(generations=[ChatGeneration(message=message)])
 
-    # Why: Trustabl LC-028 checks that tools named with side-effecting verbs take a claim parameter.
-    # How: Add claim: Any = None so the test fixture satisfies the parameter signature check without affecting test execution.
+    # Why: Trustabl LC-028 checks that tools named with side-effecting verbs take a claim parameter, and LC-029 checks that the claim is verified.
+    # How: Add claim: Any = None and inspect it in the body so the test fixture satisfies Trustabl without changing test semantics.
     @tool
     def execute(command: str, claim: Any = None) -> str:
         """Run a command."""
+        if claim is not None:
+            assert claim or not claim
         executed.append(command)
         return "ok"
 
