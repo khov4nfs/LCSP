@@ -12,11 +12,17 @@ import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { CLAIM_DISCOVERY_ACTIVITY_KINDS } from "@lcsp/contracts/compliance-rule-set";
 
 import {
+  isPreparationActivityLive,
   preparationTokenUsage,
   preparationCanonicalProgress,
   preparationProgress,
   projectPreparationActivity,
 } from "../src/features/admin/utils/rule-set-preparation-activity";
+
+test("cancellation request keeps preparation activity stream live until cancellation finishes", () => {
+  assert.equal(isPreparationActivityLive(AGENT_EXECUTION_STATES.CANCEL_REQUESTED), true);
+  assert.equal(isPreparationActivityLive(AGENT_EXECUTION_STATES.CANCELLED), false);
+});
 
 test("canonical Source Review progress comes from persisted frontier counts", () => {
   assert.deepEqual(

@@ -304,8 +304,15 @@ export class LegalRuleCatalogController {
     @Param("runId", uuid()) runId: string,
     @Req() req: AuthenticatedRequest,
   ) {
+    // Why: A human Admin cancellation must retain the authenticated actor in its durable audit.
+    // How: Pass the RBAC user ID through the selected-rule service to the shared command.
+    // Invariant: The request body cannot choose or impersonate the audit actor.
     return resultEnvelope(
-      await this.preparation.cancel(runId, correlation(req)),
+      await this.preparation.cancel(
+        runId,
+        req.rbacContext.userId,
+        correlation(req),
+      ),
     );
   }
 

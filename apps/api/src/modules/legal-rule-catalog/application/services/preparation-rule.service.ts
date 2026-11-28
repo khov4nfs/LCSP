@@ -37,6 +37,7 @@ import {
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   declaresApplicabilityScope,
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
 } from "@lcsp/contracts/compliance-rule-set";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
@@ -85,6 +86,12 @@ const retryStates = new Set<A>([
   A.CANCELLED,
   A.PAUSED,
 ]);
+// Why: A selected-rule run can still execute while its native cancellation is pending.
+// How: Reuse the canonical unresolved states shared with Rule Set reactivation.
+// Invariant: No new selected-rule revision is created until a prior run reaches a terminal state.
+const unresolvedPreparationStates = new Set<string>(
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
+);
 
 @Injectable()
 export class PreparationRuleService {
@@ -190,14 +197,14 @@ export class PreparationRuleService {
           if (
             last &&
             !same &&
-            (last.preparationRun.executionState === A.QUEUED ||
-              last.preparationRun.executionState === A.RUNNING)
+            unresolvedPreparationStates.has(last.preparationRun.executionState)
           )
             catalogFailure(E.CONFLICT, cid);
           const skipped =
             !!last &&
-            (last.preparationRun.executionState === A.QUEUED ||
-              last.preparationRun.executionState === A.RUNNING ||
+            (unresolvedPreparationStates.has(
+              last.preparationRun.executionState,
+            ) ||
               (same && last.preparationRun.executionState === A.SUCCEEDED));
           const result = skipped
             ? last
@@ -641,8 +648,10 @@ export class PreparationRuleService {
                 })
               : null;
             if (
-              last?.preparationRun.executionState === A.QUEUED ||
-              last?.preparationRun.executionState === A.RUNNING
+              last &&
+              unresolvedPreparationStates.has(
+                last.preparationRun.executionState,
+              )
             )
               catalogFailure(E.CONFLICT, cid);
             const replayed =
@@ -687,8 +696,8 @@ export class PreparationRuleService {
           });
           const fingerprint = preparationInputFingerprint(input);
           if (
-            last?.preparationRun.executionState === A.QUEUED ||
-            last?.preparationRun.executionState === A.RUNNING
+            last &&
+            unresolvedPreparationStates.has(last.preparationRun.executionState)
           )
             catalogFailure(E.CONFLICT, cid);
           if (last && isIdenticalCurrentResult(last, fingerprint, output)) {
@@ -1303,22 +1312,26 @@ export class PreparationRuleService {
   /**
    * Business purpose: Cancel one selected run through existing native runtime cancellation.
    * Business rules:
-   * - Successful revisions remain immutable; cancellation fences publication before signaling the runtime.
+   * - The authenticated Admin is the cancellation audit actor; successful revisions remain immutable.
+   * - Cancellation fences publication before signaling the runtime.
    * Execution flow:
    * 1. Verify this run belongs to a selected rule result.
-   * 2. Delegate cancellation and write fencing to the existing command handler.
+   * 2. Delegate cancellation and write fencing with the authenticated actor to the existing command handler.
    * Failure cases:
    * - Missing runs reject; transport cancellation errors remain visible while the publication fence stays closed.
    * Side effects:
    * - Updates cancellation state and signals the existing runtime; no other selected items change.
    */
-  async cancel(runId: string, cid: string) {
+  async cancel(runId: string, actorId: string, cid: string) {
     const result = await this.prisma.preparationRuleResult.findUnique({
       where: { preparationRunId: runId },
     });
     if (!result) catalogFailure(E.NOT_FOUND, cid, 404);
+    // Why: The shared cancellation handler writes the supplied actor into the audit event.
+    // How: Forward only the authenticated controller actor, not a fixed system identity.
+    // Invariant: The selected-rule route and direct Admin route attribute the same human action consistently.
     await this.commands.execute(
-      new CancelRuleSetPreparationCommand(runId, cid),
+      new CancelRuleSetPreparationCommand(runId, cid, actorId),
     );
     return { preparationRunId: runId };
   }

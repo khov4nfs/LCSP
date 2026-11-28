@@ -17,12 +17,10 @@ import {
   type LegalDocumentGraph,
 } from "@lcsp/contracts/legal-source";
 import {
-  sourceReviewPayloadSchema,
   ruleSetPreparationAuthoringDraftSchema,
   CLAIM_INVENTORY_GAPS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
   CLAIM_PREPARATION_PHASES as P,
-  CLAIM_DISCOVERY_MODES,
   LEGAL_SEMANTIC_CLAIM_TYPES as C,
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
   type UnitReviewCompletion,
@@ -36,18 +34,23 @@ import {
 import {
   sourceReviewUnits,
   referenceOnlyNodeIds,
-  reviewReferenceOwners,
   frontierDefinitionFingerprint,
   reviewedFrontierFingerprint,
   completedReviewStates,
   reviewItemStateFingerprint,
   xorReviewHash,
-  zeroReviewAccumulator,
   normalizeReviewPayload,
   reviewCompletionFingerprint,
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
+import { reviewPayload } from "../../../domain/source-review-payload.js";
+import {
+  initialReviewFrontierProjection,
+  referenceIdsByReviewOwner,
+} from "../../../domain/source-review-frontier-projection.js";
 import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
+import { withLockedPreparationRun } from "../../../infrastructure/persistence/locked-preparation-run.js";
+import { persistSourceReviewFrontierChange } from "../../../infrastructure/persistence/source-review-frontier.persistence.js";
 import { sourceSupportFailures } from "../../../domain/source-completeness.js";
 import {
   claimEndpointFingerprint,
@@ -55,135 +58,7 @@ import {
   referenceDependencyWake,
   invalidateDependentPayload,
 } from "../../../domain/reference-dependencies.js";
-import {
-  SourceReviewCommand,
-  StartClaimDiscoveryDiagnosticCommand,
-} from "./source-review.command.js";
-
-/**
- * Business purpose: Read one persisted source-review payload through the shared contract before using its claims and relationships.
- *
- * Business rules:
- * - Persisted review content must satisfy the public source-review payload schema; malformed stored data is not silently repaired.
- *
- * Execution flow:
- * 1. Parse the row's stored payload against the source-review contract.
- * 2. Return the typed claims, identities, relations, and accounting projection.
- *
- * Failure cases:
- * - Schema-invalid persisted payloads throw validation errors to the consuming review gate.
- *
- * Side effects:
- * - None; parses data in memory.
- */
-export function reviewPayload(item: RuleSetPreparationSourceReview) {
-  return sourceReviewPayloadSchema.parse(item.payload);
-}
-
-@CommandHandler(StartClaimDiscoveryDiagnosticCommand)
-export class StartClaimDiscoveryDiagnosticHandler implements ICommandHandler<StartClaimDiscoveryDiagnosticCommand> {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly graph: LegalDocumentGraphService,
-  ) {}
-  /**
-   * Business purpose: Start or reuse a source-only claim-discovery session for an explicitly isolated diagnostic environment.
-   *
-   * Business rules:
-   * - Diagnostics require the feature flag and one of the explicitly allowed isolated staging or local review databases.
-   * - The immutable Legal Source graph must already be materialized; the idempotency key cannot be reused for another source or a non-diagnostic run.
-   * - This diagnostic run cannot author Rules or conclude a customer Preparation.
-   *
-   * Execution flow:
-   * 1. Verify the diagnostic flag and database identity allowlist.
-   * 2. Export the existing source graph and fail if it is unavailable.
-   * 3. Create a RUNNING discovery-only diagnostic or reuse the same-key diagnostic without resetting its state, then verify its source/session identity.
-   * 4. Load the source chunks and return the graph, run ID, and discovery-only mode.
-   *
-   * Failure cases:
-   * - Disallowed environment, missing graph, or key collision returns a typed failed diagnostic outcome without starting a customer Preparation.
-   * - Persistence, graph export, and chunk-read errors propagate.
-   *
-   * Side effects:
-   * - May create the isolated discovery-only run and reads the existing graph/chunks; it does not enqueue paid Preparation work.
-   */
-  async execute(input: StartClaimDiscoveryDiagnosticCommand) {
-    const url = new URL(
-      process.env.DATABASE_URL ?? "postgresql://disabled/disabled",
-    );
-    const isolated =
-      /^lcsp-release-staging-[a-f0-9]{16}-postgres$/u.test(url.hostname) &&
-      url.pathname === "/lcsp_staging";
-    const localTest =
-      ["127.0.0.1", "localhost"].includes(url.hostname) &&
-      url.pathname === "/lcsp_review_frontier_test";
-    if (
-      process.env.LEGAL_CLAIM_DISCOVERY_DIAGNOSTICS_ENABLED !== "true" ||
-      !(isolated || localTest)
-    )
-      return {
-        outcome: O.FAILED,
-        failures: [
-          {
-            code: G.BINDING,
-            ref: "diagnostic",
-            detail:
-              "Discovery-only sessions require an explicitly enabled isolated diagnostic database",
-          },
-        ],
-      };
-    const graph = await this.graph.export(input.legalSourceVersionId);
-    if (!graph)
-      return {
-        outcome: O.FAILED,
-        failures: [
-          {
-            code: G.BINDING,
-            ref: "source",
-            detail:
-              "Materialize the immutable source graph before starting discovery",
-          },
-        ],
-      };
-    const run = await this.prisma.ruleSetPreparationRun.upsert({
-      where: { idempotencyKey: input.idempotencyKey },
-      update: {},
-      create: {
-        idempotencyKey: input.idempotencyKey,
-        legalSourceVersionId: input.legalSourceVersionId,
-        requestedBy: "claim-discovery-diagnostic",
-        correlationId: input.idempotencyKey,
-        claimDiscoveryOnly: true,
-        executionState: AgentExecutionState.RUNNING,
-        startedAt: new Date(),
-      },
-    });
-    if (
-      !run.claimDiscoveryOnly ||
-      run.legalSourceVersionId !== input.legalSourceVersionId
-    )
-      return {
-        outcome: O.FAILED,
-        failures: [
-          {
-            code: G.BINDING,
-            ref: "diagnostic",
-            detail: "Diagnostic idempotency key targets another source/session",
-          },
-        ],
-      };
-    const chunks = await this.prisma.legalDocumentChunk.findMany({
-      where: { legalSourceVersionId: run.legalSourceVersionId },
-    });
-    return {
-      outcome: O.PASSED,
-      preparationRunId: run.id,
-      mode: CLAIM_DISCOVERY_MODES.CLAIM_DISCOVERY_ONLY,
-      documentGraph: graph,
-      chunks,
-    };
-  }
-}
+import { SourceReviewCommand } from "./source-review.command.js";
 
 @CommandHandler(SourceReviewCommand)
 export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand> {
@@ -220,15 +95,11 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
   }: SourceReviewCommand): Promise<Record<string, unknown>> {
     if (input.payload)
       input = { ...input, payload: normalizeReviewPayload(input.payload) };
-    // One row lock serializes scheduling, unit completion, freeze and explicit reopening.
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$queryRaw(
-          Prisma.sql`SELECT id FROM "RuleSetPreparationRun" WHERE id=${input.preparationRunId} FOR UPDATE`,
-        );
-        const run = await tx.ruleSetPreparationRun.findUnique({
-          where: { id: input.preparationRunId },
-        });
+    // One adapter owns the row-lock boundary for review and inventory; business validation stays here.
+    return withLockedPreparationRun(
+      this.prisma,
+      input.preparationRunId,
+      async (tx, run) => {
         /**
          * Business purpose: Return one source-review action failure with its required next operation.
          *
@@ -298,73 +169,25 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               "The pinned document graph is unavailable",
               "report_rule_set_source_blocked",
             );
-          let units = sourceReviewUnits(graph);
-          if (input.scopeNodeIds) {
-            if (
-              !run.claimDiscoveryOnly ||
-              input.scopeNodeIds.some(
-                (id) => !units.some((n) => n.nodeId === id),
-              )
-            )
-              return failed(
-                G.BINDING,
-                "scopeNodeIds",
-                "Explicit diagnostic scope must select existing review units",
-              );
-            const selected = new Set(input.scopeNodeIds);
-            units = units.filter((n) => selected.has(n.nodeId));
-          }
-          const referenceOwners = reviewReferenceOwners(graph);
-          const referencesByOwner = new Map<string, string[]>();
-          for (const ref of graph.references) {
-            const owner = referenceOwners.get(ref.referenceId);
-            if (owner) {
-              const ids = referencesByOwner.get(owner) ?? [];
-              ids.push(ref.referenceId);
-              referencesByOwner.set(owner, ids);
-            }
-          }
-          const fingerprint = frontierDefinitionFingerprint(
-            graph.materializationId,
-            1,
-            units.map((n) => n.nodeId),
+          const projection = initialReviewFrontierProjection(
+            graph,
+            input.scopeNodeIds,
+            run.claimDiscoveryOnly,
           );
-          const stateAccumulator = units.reduce(
-            (hash, n) =>
-              xorReviewHash(
-                hash,
-                reviewItemStateFingerprint({
-                  sourceNodeId: n.nodeId,
-                  state: S.PENDING,
-                }),
-              ),
-            zeroReviewAccumulator,
-          );
+          if (!projection)
+            return failed(
+              G.BINDING,
+              "scopeNodeIds",
+              "Explicit diagnostic scope must select existing review units",
+            );
+          // Why: Persist exactly the frontier derived from the pinned graph and authorized scope.
+          // How: The pure projection carries row identities, counters and fingerprints together.
+          // Invariant: A rejected scope writes no review units.
           frontier = await tx.ruleSetPreparationReviewFrontier.create({
             data: {
               ...key,
               legalSourceVersionId: run.legalSourceVersionId,
-              materializationId: graph.materializationId,
-              fingerprint,
-              stateAccumulator,
-              stateFingerprint: inventoryHash({
-                fingerprint,
-                accumulator: stateAccumulator,
-              }),
-              unitCount: units.length,
-              pendingCount: units.length,
-              items: {
-                create: units.map((n, ordinal) => ({
-                  sourceNodeId: n.nodeId,
-                  structuralPath: n.structuralPath,
-                  ordinal,
-                  stateFingerprint: reviewItemStateFingerprint({
-                    sourceNodeId: n.nodeId,
-                    state: S.PENDING,
-                  }),
-                  referenceIds: referencesByOwner.get(n.nodeId) ?? [],
-                })),
-              },
+              ...projection,
             },
           });
         }
@@ -427,14 +250,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               frontier!.blockedCount ===
               0,
         });
-        const bucket: Record<string, string> = {
-          [S.PENDING]: "pendingCount",
-          [S.REOPENED]: "pendingCount",
-          [S.IN_REVIEW]: "inReviewCount",
-          [S.REVIEWED_WITH_CLAIMS]: "reviewedWithClaimsCount",
-          [S.REVIEWED_NO_CLAIMS]: "reviewedNoClaimsCount",
-          [S.BLOCKED_REFERENCE]: "blockedCount",
-        };
         /**
          * Business purpose: Reconcile frontier counters and fingerprints after a review row changes.
          *
@@ -457,49 +272,15 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           _change: unknown,
           previous?: RuleSetPreparationSourceReview,
         ) => {
-          const counters: Record<string, { increment: number }> = {};
-          let accumulator = frontier!.stateAccumulator;
-          if (previous) {
-            const current =
-              await tx.ruleSetPreparationSourceReview.findUniqueOrThrow({
-                where: {
-                  preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-                    previous.sourceNodeId,
-                  ),
-                },
-              });
-            const fingerprint = reviewItemStateFingerprint(current);
-            accumulator = xorReviewHash(
-              xorReviewHash(accumulator, previous.stateFingerprint),
-              fingerprint,
-            );
-            if (bucket[previous.state] !== bucket[current.state]) {
-              counters[bucket[previous.state]] = { increment: -1 };
-              counters[bucket[current.state]] = { increment: 1 };
-            }
-            counters.persistedClaimCount = {
-              increment: current.ownedClaimCount - previous.ownedClaimCount,
-            };
-            await tx.ruleSetPreparationSourceReview.update({
-              where: {
-                preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-                  previous.sourceNodeId,
-                ),
-              },
-              data: { stateFingerprint: fingerprint },
-            });
-          }
-          frontier = await tx.ruleSetPreparationReviewFrontier.update({
-            where: { preparationRunId_inventoryRevision: key },
-            data: {
-              ...counters,
-              stateAccumulator: accumulator,
-              stateFingerprint: inventoryHash({
-                fingerprint: frontier!.fingerprint,
-                accumulator,
-              }),
-            },
-          });
+          // Why: The command owns decisions while persistence keeps row/frontier writes atomic.
+          // How: Pass the existing transaction and current frontier to the adapter.
+          // Invariant: No second transaction or weaker lock is introduced.
+          frontier = await persistSourceReviewFrontierChange(
+            tx,
+            key,
+            frontier!,
+            previous,
+          );
         };
         let completionRows: RuleSetPreparationSourceReview[] | undefined;
         let dependencySnapshot:
@@ -1647,16 +1428,8 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             );
           const selected = new Set<string>();
           const allUnits = sourceReviewUnits(graph);
-          const referenceOwners = reviewReferenceOwners(graph);
-          const referencesByOwner = new Map<string, string[]>();
-          for (const ref of graph.references) {
-            const owner = referenceOwners.get(ref.referenceId);
-            if (owner) {
-              const ids = referencesByOwner.get(owner) ?? [];
-              ids.push(ref.referenceId);
-              referencesByOwner.set(owner, ids);
-            }
-          }
+          // Expansion and initialization must assign the same references to each source owner.
+          const referencesByOwner = referenceIdsByReviewOwner(graph);
           for (const id of input.referenceIds) {
             const ref = graph.references.find(
               (r) => r.referenceId === id && existing.referenceIds.includes(id),
@@ -1748,7 +1521,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           "Unsupported source review action",
         );
       },
-      { timeout: 30000 },
     );
   }
 }

@@ -89,6 +89,29 @@ export type PreparationTokenUsage = {
 type ActivityDraft = PreparationActivity;
 
 /**
+ * Business purpose: Keep the Admin preparation activity stream open while cancellation is still pending.
+ * Business rules:
+ * - QUEUED, RUNNING and CANCEL_REQUESTED remain live; completed or paused outcomes end the stream.
+ * Execution flow:
+ * 1. Compare the authoritative execution state with the three live states.
+ * 2. Return the live decision.
+ * Failure cases:
+ * - A completed, failed, cancelled or paused run returns false, preventing a stale SSE subscription.
+ * Side effects:
+ * - Pure state classification; no network or persistence changes.
+ */
+export function isPreparationActivityLive(state: AgentExecutionState): boolean {
+  // Why: A stop request may take time to finish. Keeping SSE open captures the eventual terminal event.
+  // How: Both Admin preparation surfaces share this exact state predicate.
+  // Invariant: CANCEL_REQUESTED must not close the stream before CANCELLED arrives.
+  return (
+    state === AGENT_EXECUTION_STATES.QUEUED ||
+    state === AGENT_EXECUTION_STATES.RUNNING ||
+    state === AGENT_EXECUTION_STATES.CANCEL_REQUESTED
+  );
+}
+
+/**
  * Business purpose: Project ordered Preparation telemetry into stable, localized Admin
  *   activity rows.
  *
