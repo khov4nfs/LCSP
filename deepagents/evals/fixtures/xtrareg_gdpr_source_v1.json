@@ -1,7 +1,8 @@
 {
   "schemaVersion": "XTRAREG_PINNED_LEGAL_SOURCE_V1",
   "legalSourceVersionId": "gdpr-pinned-v1.0.0",
-  "title": "EU Data Protection Regulation — Pinned Evaluation Corpus (XTRAREG Study)",
+  "corpusKind": "SYNTHETIC_GDPR_MODELED_CORPUS",
+  "title": "GDPR-Modeled Evaluation Corpus (XTRAREG Study — Synthetic Pinned Fixture)",
   "jurisdiction": "EU",
   "pinnedAt": "2026-11-28T00:00:00Z",
   "nodes": [
@@ -15,7 +16,7 @@
       "nodeId": "gdpr::art-5-1-b",
       "article": "art-5",
       "locator": "art-5::cl-1::pt-b",
-      "text": "Controllers must collect personal data only for specified, explicit, and legitimate purposes and must not further process it in an incompatible manner, except for archiving in the public interest, scientific, historical, or statistical purposes."
+      "text": "Controllers must collect personal data only for specified, explicit, and legitimate purposes and must not further process it in an incompatible manner, except for archiving in the public interest, scientific, historical, or statistical purposes subject to appropriate safeguards under Article 89(1)."
     },
     {
       "nodeId": "gdpr::art-5-1-c",
@@ -123,7 +124,7 @@
       "nodeId": "gdpr::art-30-1",
       "article": "art-30",
       "locator": "art-30::cl-1",
-      "text": "Controllers must maintain a record of processing activities under their responsibility, unless the organization has fewer than 250 employees and the processing is occasional, non-high-risk, and excludes special-category data."
+      "text": "Controllers must maintain a record of processing activities under their responsibility, unless the organization employs fewer than 250 persons and the processing is occasional, unlikely to result in a risk to rights and freedoms, and excludes special-category or criminal-conviction data."
     },
     {
       "nodeId": "gdpr::art-32-1",
@@ -141,7 +142,13 @@
       "nodeId": "gdpr::art-34-1",
       "article": "art-34",
       "locator": "art-34::cl-1",
-      "text": "When a personal data breach is likely to result in a high risk to individuals, the controller must communicate the breach to affected data subjects without undue delay, unless encryption or subsequent mitigation removes the high risk."
+      "text": "When a personal data breach is likely to result in a high risk to individuals, the controller must communicate the breach to affected data subjects without undue delay."
+    },
+    {
+      "nodeId": "gdpr::art-34-3",
+      "article": "art-34",
+      "locator": "art-34::cl-3",
+      "text": "Communication to data subjects under Article 34(1) is not required if appropriate technical protection such as encryption was applied, subsequent measures eliminate the high risk, or individual notice would involve disproportionate effort requiring public communication instead."
     },
     {
       "nodeId": "gdpr::art-35-1",

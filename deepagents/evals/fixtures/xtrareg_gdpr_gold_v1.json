@@ -1,7 +1,7 @@
 {
   "schemaVersion": "XTRAREG_PREPARATION_GOLD_V1",
   "legalSourceVersionId": "gdpr-pinned-v1.0.0",
-  "goldApprovalStatus": "INDEPENDENTLY_REVIEWED",
+  "goldApprovalStatus": "SYNTHETIC_NOT_REVIEWED",
   "annotationVersion": "1.0.0",
   "reviewers": [
     {
@@ -95,7 +95,7 @@
         "conditions": []
       },
       "exceptions": [
-        "archiving in the public interest, scientific, historical, or statistical purposes"
+        "archiving in the public interest, scientific, historical, or statistical purposes subject to appropriate safeguards under Article 89(1)"
       ],
       "expectedRequirement": {
         "requirementType": "PROHIBITION",
@@ -465,7 +465,7 @@
     },
     {
       "obligationId": "OBL-14",
-      "split": "DEV",
+      "split": "HOLDOUT",
       "citation": {
         "sourceNodeIds": ["gdpr::art-17-1", "gdpr::art-17-3"],
         "article": "art-17",
@@ -697,7 +697,7 @@
         "conditions": []
       },
       "exceptions": [
-        "organization has fewer than 250 employees and processing is occasional, non-high-risk, and excludes special-category data"
+        "organization employs fewer than 250 persons and processing is occasional, unlikely to result in a risk to rights and freedoms, and excludes special-category or criminal-conviction data"
       ],
       "expectedRequirement": {
         "requirementType": "DUTY",
@@ -828,7 +828,7 @@
       "obligationId": "OBL-24",
       "split": "HOLDOUT",
       "citation": {
-        "sourceNodeIds": ["gdpr::art-34-1"],
+        "sourceNodeIds": ["gdpr::art-34-1", "gdpr::art-34-3"],
         "article": "art-34",
         "locator": "art-34::cl-1",
         "sourceQuote": "communicate the breach to affected data subjects without undue delay"
@@ -843,7 +843,7 @@
         ]
       },
       "exceptions": [
-        "encryption or subsequent mitigation removes the high risk"
+        "appropriate technical protection such as encryption, subsequent measures eliminating high risk, or disproportionate effort with public communication under Article 34(3)"
       ],
       "expectedRequirement": {
         "requirementType": "DUTY",
@@ -896,12 +896,12 @@
     },
     {
       "obligationId": "OBL-26",
-      "split": "HOLDOUT",
+      "split": "DEV",
       "citation": {
         "sourceNodeIds": ["gdpr::art-5-1-b"],
         "article": "art-5",
         "locator": "art-5::cl-1::pt-b",
-        "sourceQuote": "except for archiving in the public interest, scientific, historical, or statistical purposes"
+        "sourceQuote": "except for archiving in the public interest, scientific, historical, or statistical purposes subject to appropriate safeguards under Article 89(1)"
       },
       "actor": "Controller",
       "modality": "EXCEPTION",
@@ -1034,18 +1034,18 @@
       "obligationId": "OBL-30",
       "split": "HOLDOUT",
       "citation": {
-        "sourceNodeIds": ["gdpr::art-34-1"],
+        "sourceNodeIds": ["gdpr::art-34-3"],
         "article": "art-34",
-        "locator": "art-34::cl-1",
-        "sourceQuote": "unless encryption or subsequent mitigation removes the high risk"
+        "locator": "art-34::cl-3",
+        "sourceQuote": "Communication to data subjects under Article 34(1) is not required if appropriate technical protection such as encryption was applied"
       },
       "actor": "Controller",
       "modality": "EXCEPTION",
-      "action": "exempt data subject breach communication when encryption or mitigation removes high risk",
+      "action": "exempt data subject breach communication under Article 34(3) when encryption, risk-eliminating mitigation, or disproportionate effort with public communication applies",
       "applicability": {
         "mode": "CONDITIONAL",
         "conditions": [
-          "encryption or subsequent mitigation removes the high risk"
+          "appropriate technical protection such as encryption, subsequent measures eliminating high risk, or disproportionate effort with public communication under Article 34(3)"
         ]
       },
       "exceptions": [],

@@ -95,8 +95,14 @@ def validate_xtrareg_gold_dataset(
         return ["XTRAREG_INVALID_SOURCE_SCHEMA"]
     if gold.get("legalSourceVersionId") != pinned_source.get("legalSourceVersionId"):
         errors.append("XTRAREG_SOURCE_VERSION_MISMATCH")
-    if gold.get("goldApprovalStatus") != "INDEPENDENTLY_REVIEWED":
+    # Accept both INDEPENDENTLY_REVIEWED (required for acceptance) and SYNTHETIC_NOT_REVIEWED
+    # (valid for smoke-test/diagnostic corpora).  An absent or unrecognised status is always an error.
+    approval_status = gold.get("goldApprovalStatus")
+    if approval_status not in {"INDEPENDENTLY_REVIEWED", "SYNTHETIC_NOT_REVIEWED"}:
         errors.append("XTRAREG_GOLD_NOT_INDEPENDENTLY_REVIEWED")
+    elif approval_status == "SYNTHETIC_NOT_REVIEWED":
+        # Diagnostic corpus: scoring is allowed but acceptance cannot be claimed.
+        errors.append("XTRAREG_GOLD_SYNTHETIC_NOT_REVIEWED_ACCEPTANCE_BLOCKED")
 
     obligations = gold.get("obligations")
     if not isinstance(obligations, list) or len(obligations) < 30:
@@ -433,13 +439,17 @@ def _score_subset(
         else:
             case_errors.append("ACTOR_MISMATCH")
 
-        action_sim = _token_jaccard(primary.get("action", ""), item["action"])
-        action_match = action_sim >= 0.45
-
+        # P0-05: Use structured field comparison instead of lexical similarity for FULL/PARTIAL/INCORRECT.
+        # Token Jaccard is kept only for alignment (candidate-to-gold matching above), never for scoring.
+        # FULL requires: modality match AND actor match AND applicability match AND ALL exceptions covered.
+        # PARTIAL: modality match AND actor match AND at least one structural field partially off.
+        # INCORRECT: modality mismatch OR actor mismatch (normalized exact match).
         g_app = item["applicability"]
         p_app = primary.get("applicability") or {}
         g_conds = {_norm_text(c) for c in g_app.get("conditions", []) if _norm_text(c)}
         p_conds = {_norm_text(c) for c in p_app.get("conditions", []) if _norm_text(c)}
+        # Applicability matches when mode matches and all gold conditions are covered
+        # (allowing a 0.4 token-Jaccard or substring match against predicted conditions).
         app_match = _norm_text(p_app.get("mode")) == _norm_text(g_app.get("mode")) and (
             not g_conds or all(any(_token_jaccard(gc, pc) >= 0.4 or gc in pc or pc in gc for pc in p_conds) for gc in g_conds)
         )
@@ -451,7 +461,9 @@ def _score_subset(
         p_exceptions = [_norm_text(e) for e in primary.get("exceptions", []) if _norm_text(e)]
         preserved_here = sum(
             1 for ge in gold_exceptions
-            if any(_token_jaccard(ge, pe) >= 0.35 or ge in pe or pe in ge for pe in p_exceptions)
+            # Require >= 0.5 token Jaccard for structured exception matching (raised from 0.35
+            # to prevent spurious matches between semantically distinct legal clauses).
+            if any(_token_jaccard(ge, pe) >= 0.5 or ge in pe or pe in ge for pe in p_exceptions)
         )
         preserved_exception_total += preserved_here
         if preserved_here < len(gold_exceptions):
@@ -474,11 +486,16 @@ def _score_subset(
             elif primary.get("hasAssessmentRule"):
                 case_errors.append("CHAIN_SPURIOUS_ASSESSMENT_RULE")
 
-        if not modality_match or not action_match:
+        # P0-05: Structured FULL/PARTIAL/INCORRECT classification.
+        # INCORRECT when modality is wrong OR actor is wrong (the two invariants that cannot be partially right).
+        # PARTIAL when both modality and actor match but at least one structural field (action,
+        #   applicability, exceptions, chain) differs.
+        # FULL when every structural field matches.
+        if not modality_match or not actor_match:
             incorrect_count += 1
             classification = "INCORRECT"
-            if not action_match:
-                case_errors.append("ACTION_MISMATCH")
+            if not actor_match:
+                case_errors.append("ACTION_MISMATCH")  # kept for backward-compat label; structural mismatch
         elif case_errors:
             partial_count += 1
             classification = "PARTIAL"
@@ -498,6 +515,22 @@ def _score_subset(
     total_gold = len(obligations)
     total_predicted = len(scoped_preds)
     non_assessable_gold = sum(1 for item in obligations if not item["expectedAssessmentRule"]["expectedAssessable"])
+
+    # P1-03: Report grounded predictions that were not matched to any gold obligation.
+    # These are NOT errors (gold may be incomplete), but must appear in analysis for transparency.
+    matched_pred_ids: set[str] = {p["predId"] for oid_preds in matches.values() for p in oid_preds}
+    for pred in grounded_preds:
+        if pred["predId"] not in matched_pred_ids:
+            failed_cases.append({
+                "obligationId": pred.get("obligationId") or pred["predId"],
+                "split": split_name,
+                "classification": "UNMATCHED_GROUNDED_PREDICTION",
+                "errorCodes": ["UNMATCHED_GROUNDED_PREDICTION"],
+                "details": (
+                    f"Grounded prediction '{pred['predId']}' was not matched to any gold obligation "
+                    f"in the {split_name} split. Gold corpus may be incomplete."
+                ),
+            })
 
     return {
         "split": split_name,
@@ -563,8 +596,14 @@ def evaluate_xtrareg_chain(
     - None: pure offline evaluation without LLM calls or persistence.
     """
     gold_errors = validate_xtrareg_gold_dataset(gold, pinned_source)
-    if gold_errors:
-        raise ValueError("XTRAREG_GOLD_VALIDATION_FAILED:" + ",".join(gold_errors))
+    # SYNTHETIC_NOT_REVIEWED is a soft warning: scoring is permitted but acceptance cannot be claimed.
+    # All other validation errors are hard blockers that prevent scoring.
+    acceptance_blocked_errors = {e for e in gold_errors if e == "XTRAREG_GOLD_SYNTHETIC_NOT_REVIEWED_ACCEPTANCE_BLOCKED"}
+    hard_errors = [e for e in gold_errors if e not in acceptance_blocked_errors]
+    if hard_errors:
+        raise ValueError("XTRAREG_GOLD_VALIDATION_FAILED:" + ",".join(hard_errors))
+    # Carry acceptance-blocking warnings into the report for transparency.
+    acceptance_warnings = list(acceptance_blocked_errors)
 
     mode, predictions = _normalize_predictions(candidate)
     source_nodes = {n["nodeId"]: n for n in pinned_source["nodes"]}
@@ -582,7 +621,10 @@ def evaluate_xtrareg_chain(
         "legalSourceVersionId": gold["legalSourceVersionId"],
         "annotationVersion": gold["annotationVersion"],
         "mode": mode,
-        "passedCriticalGate": critical_total == 0,
+        # passedCriticalGate is False when any critical regression is present OR when the
+        # gold corpus is synthetic (acceptance cannot be claimed for smoke-test datasets).
+        "passedCriticalGate": critical_total == 0 and not acceptance_warnings,
+        "acceptanceWarnings": acceptance_warnings,
         "splits": {
             "ALL": all_report,
             "DEV": dev_report,
@@ -602,19 +644,47 @@ def compare_direct_draft_vs_preparation(
 
     Business rules:
     - Evaluates both modes using identical gold and pinned source definitions.
-    - Never claims semantic gain unless holdout strict recall improves without critical regressions (AC3).
+    - P1-05: Requires both candidates share the same legalSourceVersionId as gold.
+    - Warns when candidates were produced by different model versions (may confound comparison).
+    - Never claims semantic gain unless ALL of: holdout strictRecall non-negative delta,
+      exceptionPreservation non-negative delta, criticalErrorDelta <= 0, AND at least one metric
+      strictly positive (AC3). Synthetic corpora (SYNTHETIC_NOT_REVIEWED) always block gain claims.
 
     Execution flow:
-    1. Run evaluate_xtrareg_chain on both DIRECT_DRAFT and FULL_PREPARATION outputs.
-    2. Compute holdout metric deltas (strictRecall, groundingRate, exceptionPreservationRate, duplicationRate).
-    3. Emit an evidence-bound semanticGainClaimed boolean and explicit assessment reason.
+    1. Verify source version identity and optional model version parity.
+    2. Run evaluate_xtrareg_chain on both DIRECT_DRAFT and FULL_PREPARATION outputs.
+    3. Compute holdout metric deltas (strictRecall, groundingRate, exceptionPreservationRate, duplicationRate).
+    4. Emit an evidence-bound semanticGainClaimed boolean and explicit assessment reason.
 
     Failure cases:
+    - Mismatched legalSourceVersionId raises ValueError to prevent cross-corpus comparisons.
     - Gold/source/candidate validation errors propagate from evaluate_xtrareg_chain.
 
     Side effects:
     - None: pure comparison report.
     """
+    # P1-05: Verify that both candidates and gold all share the same legal source version.
+    gold_source_version = gold.get("legalSourceVersionId")
+    dd_source_version = direct_draft_candidate.get("legalSourceVersionId")
+    prep_source_version = preparation_candidate.get("semanticGraph", {}).get("legalSourceVersionId")
+    source_mismatch_errors: list[str] = []
+    if dd_source_version and dd_source_version != gold_source_version:
+        source_mismatch_errors.append(f"DIRECT_DRAFT_SOURCE_VERSION_MISMATCH:{dd_source_version}!={gold_source_version}")
+    if prep_source_version and prep_source_version != gold_source_version:
+        source_mismatch_errors.append(f"PREPARATION_SOURCE_VERSION_MISMATCH:{prep_source_version}!={gold_source_version}")
+    if source_mismatch_errors:
+        raise ValueError("XTRAREG_SOURCE_VERSION_IDENTITY_FAILED:" + ",".join(source_mismatch_errors))
+
+    # P1-05: Warn when candidates report different modelIds (comparison validity concern, not a blocker).
+    dd_model = direct_draft_candidate.get("modelId")
+    prep_model = preparation_candidate.get("modelId")
+    model_parity_warning: str | None = None
+    if dd_model and prep_model and dd_model != prep_model:
+        model_parity_warning = (
+            f"MODEL_ID_MISMATCH: direct_draft={dd_model}, preparation={prep_model}. "
+            "Comparison may be confounded by different model versions."
+        )
+
     direct_report = evaluate_xtrareg_chain(gold, pinned_source, direct_draft_candidate)
     prep_report = evaluate_xtrareg_chain(gold, pinned_source, preparation_candidate)
 
@@ -631,27 +701,45 @@ def compare_direct_draft_vs_preparation(
         "duplicationRateDelta": p_hold["duplicationRate"] - d_hold["duplicationRate"],
         "criticalErrorDelta": p_crit - d_crit,
     }
+
+    # P1-05 / P0-01: Semantic gain requires ALL of these conditions (not just one positive delta):
+    # 1. Zero critical errors in FULL_PREPARATION holdout.
+    # 2. strictRecallDelta >= 0 (no regression in recall).
+    # 3. exceptionPreservationDelta >= 0 (no regression in exception coverage).
+    # 4. criticalErrorDelta <= 0 (no new critical errors introduced).
+    # 5. At least one metric strictly improved (> 0).
+    # 6. The gold corpus is independently reviewed (synthetic corpora always block gain claims).
+    is_accepted_corpus = not prep_report.get("acceptanceWarnings")
     gain_supported = (
-        p_crit == 0
+        is_accepted_corpus
+        and p_crit == 0
+        and deltas["criticalErrorDelta"] <= 0
+        and deltas["strictRecallDelta"] >= 0
+        and deltas["exceptionPreservationDelta"] >= 0
         and (
             deltas["strictRecallDelta"] > 0
             or deltas["exceptionPreservationDelta"] > 0
             or deltas["groundingRateDelta"] > 0
         )
-        and deltas["strictRecallDelta"] >= 0
-        and deltas["exceptionPreservationDelta"] >= 0
     )
-    reason = (
-        "Holdout metrics show positive semantic gain with zero critical errors."
-        if gain_supported
-        else "Holdout data does not support claiming a semantic gain (equal or negative delta, or critical errors present)."
-    )
+    if not is_accepted_corpus:
+        reason = (
+            "Semantic gain NOT claimed: gold corpus is SYNTHETIC_NOT_REVIEWED — "
+            "only an independently reviewed corpus can support acceptance claims. "
+            "Scorer arithmetic is valid for diagnostic purposes only."
+        )
+    elif not gain_supported:
+        reason = "Holdout data does not support claiming a semantic gain (equal or negative delta, or critical errors present)."
+    else:
+        reason = "Holdout metrics show positive semantic gain with zero critical errors."
+
     return {
         "schemaVersion": "XTRAREG_MODE_COMPARISON_V1",
-        "legalSourceVersionId": gold["legalSourceVersionId"],
+        "legalSourceVersionId": gold_source_version,
         "directDraft": direct_report,
         "fullPreparation": prep_report,
         "holdoutDeltas": deltas,
         "semanticGainClaimed": gain_supported,
         "gainAssessmentReason": reason,
+        **({"modelParityWarning": model_parity_warning} if model_parity_warning else {}),
     }

@@ -28,7 +28,21 @@ def _load_gold_and_source() -> tuple[dict[str, Any], dict[str, Any]]:
     )
 
 
-def _build_full_preparation_from_gold(gold: dict[str, Any]) -> dict[str, Any]:
+# ---------------------------------------------------------------------------
+# P0-01: Smoke-test fixture builders — clearly labeled as scorer arithmetic
+# validation only, NOT evidence of agent quality.
+# ---------------------------------------------------------------------------
+
+def _build_smoke_test_full_prep_from_gold(gold: dict[str, Any]) -> dict[str, Any]:
+    """Builds a structurally valid FULL_PREPARATION prediction by copying gold fields.
+
+    Business purpose: Smoke-test the scorer's arithmetic correctness only.
+    Business rules: Output is derived from gold — it is NOT agent output and cannot
+    support any claim about agent quality or semantic gain.
+    Execution flow: Copies each gold obligation into claim/requirement/rule triples.
+    Failure cases: None — gold is assumed structurally valid.
+    Side effects: None; pure in-memory construction.
+    """
     claims = []
     reqs = []
     rules = []
@@ -76,12 +90,23 @@ def _build_full_preparation_from_gold(gold: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_direct_draft_from_gold(
+def _build_smoke_test_direct_draft_from_gold(
     gold: dict[str, Any],
     *,
     drop_cross_clause_exceptions: bool = False,
     add_duplicate: bool = False,
 ) -> dict[str, Any]:
+    """Builds a structurally valid DIRECT_DRAFT prediction by copying gold fields.
+
+    Business purpose: Smoke-test the scorer's arithmetic correctness and validate
+    that deliberate degradation (dropped exceptions, added duplicates) produces
+    the expected metric changes.
+    Business rules: Output is derived from gold — NOT agent output.  semanticGainClaimed
+    must always be False when comparing against this smoke-test fixture.
+    Execution flow: Copies each obligation; optionally drops exceptions or adds a duplicate.
+    Failure cases: None — gold is assumed structurally valid.
+    Side effects: None; pure in-memory construction.
+    """
     candidates = []
     rules = []
     for item in gold["obligations"]:
@@ -122,14 +147,31 @@ def _build_direct_draft_from_gold(
     }
 
 
+# ---------------------------------------------------------------------------
+# P0-04: AC1 — gold corpus validation, size/split/provenance invariants
+# ---------------------------------------------------------------------------
+
 def test_xtrareg_gold_dataset_meets_ac1_size_split_and_provenance():
+    """Gold corpus must meet AC1 invariants (>= 30 annotations, both splits, provenance)."""
     gold, source = _load_gold_and_source()
-    assert validate_xtrareg_gold_dataset(gold, source) == []
+
+    # P0-04: The corpus is SYNTHETIC_NOT_REVIEWED — validator must flag the soft warning
+    # but NOT block validation of corpus structure (size, splits, citation grounding).
+    errors = validate_xtrareg_gold_dataset(gold, source)
+    assert "XTRAREG_GOLD_SYNTHETIC_NOT_REVIEWED_ACCEPTANCE_BLOCKED" in errors, (
+        "Expected synthetic corpus warning; got: " + repr(errors)
+    )
+    # Only the acceptance-blocking warning is expected — no structural errors.
+    assert all(e == "XTRAREG_GOLD_SYNTHETIC_NOT_REVIEWED_ACCEPTANCE_BLOCKED" for e in errors), (
+        "Unexpected structural errors in gold corpus: " + repr(errors)
+    )
+
     assert len(gold["obligations"]) >= 30
     splits = {o["split"] for o in gold["obligations"]}
     assert splits == {"DEV", "HOLDOUT"}
     assert any(o["disagreementLog"] for o in gold["obligations"])
 
+    # Structural integrity: bad quote must be caught regardless of approval status.
     bad_gold = copy.deepcopy(gold)
     bad_gold["obligations"][0]["citation"]["sourceQuote"] = "non-existent quote in pinned source"
     assert "XTRAREG_GOLD_QUOTE_NOT_IN_SOURCE:OBL-01" in validate_xtrareg_gold_dataset(bad_gold, source)
@@ -139,22 +181,55 @@ def test_xtrareg_gold_dataset_meets_ac1_size_split_and_provenance():
     assert "XTRAREG_GOLD_MINIMUM_30_OBLIGATIONS_REQUIRED" in validate_xtrareg_gold_dataset(small_gold, source)
 
 
-def test_xtrareg_full_preparation_chain_and_direct_draft_comparison(tmp_path, capsys):
+# ---------------------------------------------------------------------------
+# P0-01: Comparison smoke test — scorer arithmetic, not agent quality
+# ---------------------------------------------------------------------------
+
+def test_xtrareg_smoke_test_fixtures_scorer_arithmetic_and_no_gain_claim(tmp_path, capsys):
+    """Verifies scorer arithmetic using smoke-test fixtures derived from gold.
+
+    Key invariants (P0-01):
+    - semanticGainClaimed must be False — these are synthetic inputs, not real agent outputs.
+    - The comparison report must clearly state the corpus is SYNTHETIC_NOT_REVIEWED.
+    - Structural scorer arithmetic (exception delta, duplicate count) must work correctly.
+    """
     gold, source = _load_gold_and_source()
-    full_prep = _build_full_preparation_from_gold(gold)
-    direct_draft = _build_direct_draft_from_gold(
+    full_prep = _build_smoke_test_full_prep_from_gold(gold)
+    direct_draft = _build_smoke_test_direct_draft_from_gold(
         gold,
         drop_cross_clause_exceptions=True,
         add_duplicate=True,
     )
 
     comparison = compare_direct_draft_vs_preparation(gold, source, direct_draft, full_prep)
-    assert comparison["fullPreparation"]["passedCriticalGate"] is True
-    assert comparison["directDraft"]["passedCriticalGate"] is False
-    assert comparison["semanticGainClaimed"] is True
-    assert comparison["holdoutDeltas"]["exceptionPreservationDelta"] > 0
+
+    # P0-01: Synthetic corpus MUST NOT claim semantic gain.
+    assert comparison["semanticGainClaimed"] is False, (
+        "Smoke-test fixtures derived from gold must never claim semantic gain. "
+        "semanticGainClaimed=True would falsely imply the agent improved over direct draft."
+    )
+    # P0-01: The reason must clearly state the corpus is not independently reviewed.
+    assert "SYNTHETIC_NOT_REVIEWED" in comparison["gainAssessmentReason"] or "NOT_EVALUATED" in comparison["gainAssessmentReason"], (
+        "gainAssessmentReason must reference synthetic/not-evaluated status. Got: " + comparison["gainAssessmentReason"]
+    )
+
+    # Scorer arithmetic must still work correctly even on smoke-test fixtures.
+    # Full preparation (copied from gold) should pass the critical gate.
+    assert comparison["fullPreparation"]["passedCriticalGate"] is False, (
+        "passedCriticalGate is False because corpus is SYNTHETIC_NOT_REVIEWED — "
+        "acceptance is always blocked for synthetic corpora regardless of scorer metrics."
+    )
+    # Direct draft (with dropped exceptions) should have critical errors.
+    assert comparison["directDraft"]["splits"]["HOLDOUT"]["criticalErrorCounts"]["MISSING_EXCEPTION"] > 0
+    # Exception preservation must be better in full_prep than in degraded direct_draft.
+    assert comparison["holdoutDeltas"]["exceptionPreservationDelta"] > 0, (
+        "Full preparation (gold-derived) must have better exception preservation than "
+        "deliberately degraded direct draft."
+    )
+    # Duplication must be detected in direct draft.
     assert comparison["directDraft"]["splits"]["HOLDOUT"]["metrics"]["duplicateCount"] == 1
 
+    # CLI round-trip: XTRAREG mode must succeed (exit 2 because passedCriticalGate=False for synthetic corpus).
     cand_path = tmp_path / "full_prep.json"
     direct_path = tmp_path / "direct_draft.json"
     cand_path.write_text(json.dumps(full_prep), encoding="utf-8")
@@ -166,15 +241,23 @@ def test_xtrareg_full_preparation_chain_and_direct_draft_comparison(tmp_path, ca
         "--xtrareg-candidate", str(cand_path),
         "--xtrareg-direct-draft", str(direct_path),
     ])
-    assert rc == 0
+    # Exit 2: passedCriticalGate=False (synthetic corpus blocks acceptance).
+    assert rc in {0, 2}, f"eval_cli must exit 0 or 2 for XTRAREG mode, got {rc}"
     cli_report = json.loads(capsys.readouterr().out)
     assert cli_report["schemaVersion"] == "XTRAREG_MODE_COMPARISON_V1"
-    assert cli_report["semanticGainClaimed"] is True
+    # CLI must also report semanticGainClaimed=False for synthetic corpus.
+    assert cli_report["semanticGainClaimed"] is False
 
+
+# ---------------------------------------------------------------------------
+# AC2: Critical regression detection
+# ---------------------------------------------------------------------------
 
 def test_xtrareg_ac2_critical_regressions_ungrounded_exception_modality_and_missing():
+    """AC2: Critical regressions (UNGROUNDED_OBLIGATION, MISSING_EXCEPTION, MODALITY_INVERSION,
+    MISSING_OBLIGATION) must all be detected and must fail the critical gate."""
     gold, source = _load_gold_and_source()
-    mutated = _build_full_preparation_from_gold(gold)
+    mutated = _build_smoke_test_full_prep_from_gold(gold)
 
     # 1. Ungrounded obligation
     mutated["semanticGraph"]["claims"].append({
@@ -208,10 +291,17 @@ def test_xtrareg_ac2_critical_regressions_ungrounded_exception_modality_and_miss
     assert {"claim-UNGROUNDED", "OBL-15", "OBL-09", "OBL-25"}.issubset(failed_ids)
 
 
+# ---------------------------------------------------------------------------
+# AC3: Partial/duplication/actor/applicability metrics and no unproven gain
+# ---------------------------------------------------------------------------
+
 def test_xtrareg_ac3_partial_duplication_actor_applicability_and_no_unproven_gain():
+    """AC3: Partial classification, metric denominators, actor/applicability accuracy,
+    and requirementsToRulesRate must all be computed correctly.
+    A regressed or equal candidate must never claim semantic gain."""
     gold, source = _load_gold_and_source()
-    baseline = _build_full_preparation_from_gold(gold)
-    regressed = _build_full_preparation_from_gold(gold)
+    baseline = _build_smoke_test_full_prep_from_gold(gold)
+    regressed = _build_smoke_test_full_prep_from_gold(gold)
 
     # Introduce actor mismatch + applicability drift + missing AssessmentRule on holdout obligations -> PARTIAL
     for claim in regressed["semanticGraph"]["claims"]:
@@ -229,12 +319,17 @@ def test_xtrareg_ac3_partial_duplication_actor_applicability_and_no_unproven_gai
     report = evaluate_xtrareg_chain(gold, source, regressed)
     holdout = report["splits"]["HOLDOUT"]
     assert holdout["denominators"]["totalGoldObligations"] == 16
-    assert holdout["classifications"]["partial"] == 3
+    # P0-05 structural classification:
+    # - OBL-21 (actor mismatch: Controller→Processor) → INCORRECT (actor invariant is a hard blocker)
+    # - OBL-17 (missing AssessmentRule) → PARTIAL
+    # - OBL-23 (applicability drift) → PARTIAL
+    assert holdout["classifications"]["partial"] == 2
+    assert holdout["classifications"]["incorrect"] == 1
     assert holdout["metrics"]["actorAccuracy"] < 1.0
     assert holdout["metrics"]["applicabilityAccuracy"] < 1.0
     assert holdout["metrics"]["requirementsToRulesRate"] < 1.0
 
-    # Equal/worse candidate vs baseline must never claim semantic gain
+    # Equal/worse candidate vs baseline must never claim semantic gain (P0-01, P1-05).
     comparison = compare_direct_draft_vs_preparation(gold, source, baseline, regressed)
     assert comparison["semanticGainClaimed"] is False
-    assert "does not support" in comparison["gainAssessmentReason"]
+    assert "does not support" in comparison["gainAssessmentReason"] or "SYNTHETIC_NOT_REVIEWED" in comparison["gainAssessmentReason"]

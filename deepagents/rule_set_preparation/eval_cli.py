@@ -67,6 +67,50 @@ def main(argv: list[str] | None = None) -> int:
         else:
             x_report = evaluate_xtrareg_chain(x_gold, x_source, x_candidate)
             passed = x_report["passedCriticalGate"]
+
+        # P0-02: If the caller supplies reviewed-gate arguments alongside XTRAREG args,
+        # run the reviewed_eval_preflight gate before reporting acceptance.
+        # semanticGainClaimed is forced to False when the gate is requested but not passed.
+        xtrareg_gate_errors: list[str] = []
+        if args.approved_gold_sha256 or args.run_manifest:
+            if args.gold is None or args.candidate is None:
+                xtrareg_gate_errors.append("XTRAREG_REVIEWED_GATE_REQUIRES_GOLD_AND_CANDIDATE")
+            else:
+                gate_gold_bytes = args.gold.read_bytes()
+                gate_candidate_bytes = args.candidate.read_bytes()
+                gate_gold = json.loads(gate_gold_bytes)
+                gate_candidate = json.loads(gate_candidate_bytes)
+                gate_manifest = json.loads(args.run_manifest.read_bytes()) if args.run_manifest else None
+                xtrareg_gate_errors = reviewed_eval_preflight(
+                    gate_gold, gate_gold_bytes, gate_candidate, gate_manifest,
+                    args.approved_gold_sha256 or "",
+                )
+        if xtrareg_gate_errors:
+            # Gate was requested but failed — block any gain claim and annotate report.
+            if "semanticGainClaimed" in x_report:
+                x_report = {
+                    **x_report,
+                    "semanticGainClaimed": False,
+                    "gainAssessmentReason": (
+                        "REVIEWED_GATE_NOT_PASSED: semantic gain cannot be claimed without a passing "
+                        "reviewed_eval_gate. Blocking reasons: " + "; ".join(xtrareg_gate_errors)
+                    ),
+                }
+            x_report["reviewedEvidenceGate"] = {
+                "status": "BLOCKED",
+                "blockingReasons": xtrareg_gate_errors,
+                "legalMeaningVerified": False,
+                "liveModelReliabilityProven": False,
+            }
+            passed = False
+        elif args.approved_gold_sha256 or args.run_manifest:
+            x_report["reviewedEvidenceGate"] = {
+                "status": "INPUT_CONTRACT_PASSED_NOT_LEGAL_APPROVAL",
+                "blockingReasons": [],
+                "legalMeaningVerified": False,
+                "liveModelReliabilityProven": False,
+            }
+
         print(json.dumps(x_report, indent=2, ensure_ascii=False))
         return 0 if passed else 2
     review_package = None
