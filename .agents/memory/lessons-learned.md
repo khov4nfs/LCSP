@@ -467,3 +467,8 @@
 - **Root Cause**: The deletion service maintained its own four-state nonterminal list and omitted `CANCEL_REQUESTED`, while other preparation guards used the canonical unresolved-state contract.
 - **Resolution & Invariant**: Derive deletion impact and transaction-time delete blocking from `RULE_SET_PREPARATION_UNRESOLVED_STATES`. A cancellation request is not terminal; keep source-owned data until a confirmed terminal native outcome. Preserve a PostgreSQL integration reproducer for this state.
 
+### [2026-11-28] [LEGAL-SOURCE/ACTIVATION-INGEST-STALE-READ] Version Locks Require a Post-Lock Authority Read
+- **Context / Symptom**: A Legal Source draft could activate after its validated document disappeared, and an ingestion worker could claim an older attempt after a retry incremented the persisted attempt while it waited for a lock.
+- **Root Cause**: Both decisions used document/index rows loaded before acquiring the version lock. The lifecycle CAS checked only the version status, not the current corpus or attempt.
+- **Resolution & Invariant**: Reload corpus, retrieval index, and ingestion attempt after the version lock and before mutation. An activation transaction at `Serializable` can still read a stale snapshot because its advisory-lock query comes before the row lock; use `ReadCommitted` under the existing lifecycle advisory lock plus version row lock so the post-lock query sees a newly committed document change. Preserve the initial invalid-input API response separately from a stale locked-state conflict. PostgreSQL interleaving tests must assert both the 409 race path and normal activation success.
+
