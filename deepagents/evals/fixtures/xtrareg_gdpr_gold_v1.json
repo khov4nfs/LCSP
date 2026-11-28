@@ -1,0 +1,1068 @@
+{
+  "schemaVersion": "XTRAREG_PREPARATION_GOLD_V1",
+  "legalSourceVersionId": "gdpr-pinned-v1.0.0",
+  "goldApprovalStatus": "SYNTHETIC_NOT_REVIEWED",
+  "annotationVersion": "1.0.0",
+  "reviewers": [
+    {
+      "reviewerId": "rev-legal-01",
+      "role": "PRIMARY_LEGAL_ANNOTATOR"
+    },
+    {
+      "reviewerId": "rev-legal-02",
+      "role": "ADJUDICATION_COUNSEL"
+    }
+  ],
+  "obligations": [
+    {
+      "obligationId": "OBL-01",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-a"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-a",
+        "sourceQuote": "process personal data lawfully, fairly, and transparently"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "process personal data lawfully, fairly, and transparently",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-02",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-b"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-b",
+        "sourceQuote": "collect personal data only for specified, explicit, and legitimate purposes"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "collect personal data only for specified, explicit, and legitimate purposes",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-03",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-b"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-b",
+        "sourceQuote": "must not further process it in an incompatible manner, except for archiving"
+      },
+      "actor": "Controller",
+      "modality": "PROHIBITION",
+      "action": "further process personal data in a manner incompatible with original purposes",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [
+        "archiving in the public interest, scientific, historical, or statistical purposes subject to appropriate safeguards under Article 89(1)"
+      ],
+      "expectedRequirement": {
+        "requirementType": "PROHIBITION",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Whether Art. 5(1)(b) contains one merged duty or two distinct propositions (collection duty + incompatible further-processing prohibition).",
+          "resolution": "Split into OBL-02 (DUTY) and OBL-03 (PROHIBITION with exception) to preserve exception grounding."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-04",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-c"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-c",
+        "sourceQuote": "adequate, relevant, and limited to what is necessary"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "minimize personal data to what is adequate, relevant, and necessary",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-05",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-e"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-e",
+        "sourceQuote": "must not retain personal data in identifiable form longer than necessary"
+      },
+      "actor": "Controller",
+      "modality": "PROHIBITION",
+      "action": "retain personal data in identifiable form longer than necessary",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [
+        "public-interest archiving, scientific, historical, or statistical purposes subject to safeguards"
+      ],
+      "expectedRequirement": {
+        "requirementType": "PROHIBITION",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-06",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-f"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-f",
+        "sourceQuote": "technical or organizational measures ensuring security, integrity, and confidentiality"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "implement technical or organizational measures ensuring security, integrity, and confidentiality",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-07",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-6-1"],
+        "article": "art-6",
+        "locator": "art-6::cl-1",
+        "sourceQuote": "must not process personal data unless at least one lawful basis applies"
+      },
+      "actor": "Controller",
+      "modality": "PROHIBITION",
+      "action": "process personal data without an applicable lawful basis",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [
+        "at least one lawful basis applies (consent, contract, legal obligation, vital interests, public task, or legitimate interests)"
+      ],
+      "expectedRequirement": {
+        "requirementType": "PROHIBITION",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Whether lawful-basis list is an applicability condition or an exception to a general prohibition.",
+          "resolution": "Modeled as PROHIBITION with explicit exception of valid lawful bases."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-08",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-7-1"],
+        "article": "art-7",
+        "locator": "art-7::cl-1",
+        "sourceQuote": "demonstrate that the data subject consented to the processing"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "demonstrate that the data subject consented to processing",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "processing relies on consent"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-09",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-7-3"],
+        "article": "art-7",
+        "locator": "art-7::cl-3",
+        "sourceQuote": "Data subjects may withdraw consent at any time"
+      },
+      "actor": "Data Subject",
+      "modality": "PERMISSION",
+      "action": "withdraw consent at any time",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "processing is based on consent"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "PERMISSION",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "OUT_OF_SCOPE_TARGET:Data subject right rather than controller implementation rule"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Ensure Data Subject permission is not conflated with Controller duty in OBL-10.",
+          "resolution": "Retained as PERMISSION for Data Subject; paired with OBL-10 DUTY for Controller."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-10",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-7-3"],
+        "article": "art-7",
+        "locator": "art-7::cl-3",
+        "sourceQuote": "make withdrawing consent as easy as giving it"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "make withdrawing consent as easy as giving consent",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "processing is based on consent"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-11",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-12-1"],
+        "article": "art-12",
+        "locator": "art-12::cl-1",
+        "sourceQuote": "provide required privacy notices and communications in concise, transparent, intelligible"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "provide privacy notices in concise, transparent, intelligible, easily accessible plain language",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-12",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-13-1"],
+        "article": "art-13",
+        "locator": "art-13::cl-1",
+        "sourceQuote": "provide controller identity, contact details, processing purposes, and legal basis at collection time"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "provide identity, contact details, purposes, and legal basis at collection time",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "collecting personal data directly from a data subject"
+        ]
+      },
+      "exceptions": [
+        "data subject already has the information"
+      ],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-13",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-15-1"],
+        "article": "art-15",
+        "locator": "art-15::cl-1",
+        "sourceQuote": "confirm whether personal data is processed and grant the data subject access"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "confirm processing and grant data subject access to data and metadata",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "upon data subject access request"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-14",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-17-1", "gdpr::art-17-3"],
+        "article": "art-17",
+        "locator": "art-17::cl-1",
+        "sourceQuote": "erase personal data without undue delay when the data is no longer necessary"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "erase personal data without undue delay",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "upon request when data is unnecessary, consent withdrawn without other basis, or processing is unlawful"
+        ]
+      },
+      "exceptions": [
+        "necessary for freedom of expression, legal obligation, public health, archiving, or legal claims"
+      ],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Art. 17(3) exceptions live in a separate clause from Art. 17(1) duty.",
+          "resolution": "Cross-clause exception bound to OBL-14 via both sourceNodeIds."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-15",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-22-1", "gdpr::art-22-2"],
+        "article": "art-22",
+        "locator": "art-22::cl-1",
+        "sourceQuote": "must not subject data subjects to decisions based solely on automated processing"
+      },
+      "actor": "Controller",
+      "modality": "PROHIBITION",
+      "action": "subject data subjects to solely automated decisions with legal or significant effects",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "decision is based solely on automated processing and produces legal or similarly significant effects"
+        ]
+      },
+      "exceptions": [
+        "necessary for contract, authorized by law with safeguards, or explicit consent"
+      ],
+      "expectedRequirement": {
+        "requirementType": "PROHIBITION",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Art. 22(2) exceptions sit in a separate clause.",
+          "resolution": "Attached Art. 22(2) exceptions directly to Art. 22(1) prohibition."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-16",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-24-1"],
+        "article": "art-24",
+        "locator": "art-24::cl-1",
+        "sourceQuote": "implement appropriate technical and organizational measures and demonstrate compliance"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "implement risk-appropriate technical and organizational measures and demonstrate compliance",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Whether Art. 24(1) is purely organizational or MIXED assessable.",
+          "resolution": "Classified as MIXED/ASSESSABLE because technical measures are repository-verifiable."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-17",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-25-1"],
+        "article": "art-25",
+        "locator": "art-25::cl-1",
+        "sourceQuote": "implement data protection by design and by default at design and processing time"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "implement data protection by design and by default including pseudonymization and minimization",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-18",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-28-3"],
+        "article": "art-28",
+        "locator": "art-28::cl-3",
+        "sourceQuote": "process personal data only on documented instructions from the controller"
+      },
+      "actor": "Processor",
+      "modality": "DUTY",
+      "action": "process personal data only on documented instructions from the controller",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [
+        "required to do so by Union or Member State law"
+      ],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "EXTERNAL_FULFILLMENT:Requires contractual/documented instruction verification outside repository"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-19",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-28-3-b"],
+        "article": "art-28",
+        "locator": "art-28::cl-3::pt-b",
+        "sourceQuote": "ensure that persons authorized to process personal data have committed themselves to confidentiality"
+      },
+      "actor": "Processor",
+      "modality": "DUTY",
+      "action": "ensure authorized personnel commit to confidentiality or statutory confidentiality obligation",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "EXTERNAL_FULFILLMENT:HR confidentiality agreements are external to source code"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-20",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-30-1"],
+        "article": "art-30",
+        "locator": "art-30::cl-1",
+        "sourceQuote": "maintain a record of processing activities under their responsibility"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "maintain a record of processing activities",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [
+        "organization employs fewer than 250 persons and processing is occasional, unlikely to result in a risk to rights and freedoms, and excludes special-category or criminal-conviction data"
+      ],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-21",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-32-1"],
+        "article": "art-32",
+        "locator": "art-32::cl-1",
+        "sourceQuote": "implement appropriate technical and organizational security measures such as encryption, pseudonymization"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "implement appropriate security measures including encryption, pseudonymization, resilience, and testing",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Art. 32(1) addresses both Controllers and Processors.",
+          "resolution": "Split into OBL-21 (Controller) and OBL-22 (Processor) per actor-splitting rule."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-22",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-32-1"],
+        "article": "art-32",
+        "locator": "art-32::cl-1",
+        "sourceQuote": "Controllers and processors must implement appropriate technical and organizational security measures"
+      },
+      "actor": "Processor",
+      "modality": "DUTY",
+      "action": "implement appropriate security measures including encryption, pseudonymization, resilience, and testing",
+      "applicability": {
+        "mode": "UNCONDITIONAL",
+        "conditions": []
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "UNCONDITIONAL",
+        "coverageState": "ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": true,
+        "nonAssessableReason": null
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "ADJUDICATED",
+      "disagreementLog": [
+        {
+          "issue": "Art. 32(1) addresses both Controllers and Processors.",
+          "resolution": "Split into OBL-21 (Controller) and OBL-22 (Processor) per actor-splitting rule."
+        }
+      ]
+    },
+    {
+      "obligationId": "OBL-23",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-33-1"],
+        "article": "art-33",
+        "locator": "art-33::cl-1",
+        "sourceQuote": "notify the competent supervisory authority without undue delay and within 72 hours"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "notify supervisory authority of personal data breach within 72 hours",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "in the case of a personal data breach"
+        ]
+      },
+      "exceptions": [
+        "breach is unlikely to result in a risk to individuals"
+      ],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "EXTERNAL_FULFILLMENT:Regulatory breach notification is external to repository"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-24",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-34-1", "gdpr::art-34-3"],
+        "article": "art-34",
+        "locator": "art-34::cl-1",
+        "sourceQuote": "communicate the breach to affected data subjects without undue delay"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "communicate high-risk personal data breach to affected data subjects without undue delay",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "personal data breach is likely to result in a high risk to individuals"
+        ]
+      },
+      "exceptions": [
+        "appropriate technical protection such as encryption, subsequent measures eliminating high risk, or disproportionate effort with public communication under Article 34(3)"
+      ],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "EXTERNAL_FULFILLMENT:Communication to data subjects is an external operational act"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-25",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-35-1"],
+        "article": "art-35",
+        "locator": "art-35::cl-1",
+        "sourceQuote": "carry out a data protection impact assessment prior to processing"
+      },
+      "actor": "Controller",
+      "modality": "DUTY",
+      "action": "carry out a data protection impact assessment prior to processing",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "processing using new technologies is likely to result in a high risk to individuals"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "DUTY",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "EXTERNAL_FULFILLMENT:DPIA governance assessment is performed outside repository"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-26",
+      "split": "DEV",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-5-1-b"],
+        "article": "art-5",
+        "locator": "art-5::cl-1::pt-b",
+        "sourceQuote": "except for archiving in the public interest, scientific, historical, or statistical purposes subject to appropriate safeguards under Article 89(1)"
+      },
+      "actor": "Controller",
+      "modality": "EXCEPTION",
+      "action": "exempt compatible archiving, scientific, historical, or statistical further processing",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "further processing for public-interest archiving, scientific, historical, or statistical purposes"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "EXCEPTION_MODIFIER",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "MODIFIER_CLAIM:Bound as exception to OBL-03"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-27",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-17-3"],
+        "article": "art-17",
+        "locator": "art-17::cl-3",
+        "sourceQuote": "Erasure duties under Article 17(1) do not apply where processing is necessary for freedom of expression"
+      },
+      "actor": "Controller",
+      "modality": "EXCEPTION",
+      "action": "exempt erasure when necessary for freedom of expression, legal obligation, public health, archiving, or legal claims",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "processing is necessary for freedom of expression, legal obligation, public health, archiving, or legal claims"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "EXCEPTION_MODIFIER",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "MODIFIER_CLAIM:Bound as exception to OBL-14"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-28",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-22-2"],
+        "article": "art-22",
+        "locator": "art-22::cl-2",
+        "sourceQuote": "automated-decision prohibition does not apply if the decision is necessary for a contract"
+      },
+      "actor": "Controller",
+      "modality": "EXCEPTION",
+      "action": "exempt solely automated decision when necessary for contract, authorized by law, or explicit consent",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "decision is necessary for contract, authorized by law with safeguards, or based on explicit consent"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "EXCEPTION_MODIFIER",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "MODIFIER_CLAIM:Bound as exception to OBL-15"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-29",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-33-1"],
+        "article": "art-33",
+        "locator": "art-33::cl-1",
+        "sourceQuote": "unless the breach is unlikely to result in a risk to individuals"
+      },
+      "actor": "Controller",
+      "modality": "EXCEPTION",
+      "action": "exempt breach notification when breach is unlikely to result in risk to individuals",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "breach is unlikely to result in a risk to individuals"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "EXCEPTION_MODIFIER",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "MODIFIER_CLAIM:Bound as exception to OBL-23"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    },
+    {
+      "obligationId": "OBL-30",
+      "split": "HOLDOUT",
+      "citation": {
+        "sourceNodeIds": ["gdpr::art-34-3"],
+        "article": "art-34",
+        "locator": "art-34::cl-3",
+        "sourceQuote": "Communication to data subjects under Article 34(1) is not required if appropriate technical protection such as encryption was applied"
+      },
+      "actor": "Controller",
+      "modality": "EXCEPTION",
+      "action": "exempt data subject breach communication under Article 34(3) when encryption, risk-eliminating mitigation, or disproportionate effort with public communication applies",
+      "applicability": {
+        "mode": "CONDITIONAL",
+        "conditions": [
+          "appropriate technical protection such as encryption, subsequent measures eliminating high risk, or disproportionate effort with public communication under Article 34(3)"
+        ]
+      },
+      "exceptions": [],
+      "expectedRequirement": {
+        "requirementType": "EXCEPTION_MODIFIER",
+        "applicabilityMode": "CONDITIONAL",
+        "coverageState": "NON_ASSESSABLE"
+      },
+      "expectedAssessmentRule": {
+        "expectedAssessable": false,
+        "nonAssessableReason": "MODIFIER_CLAIM:Bound as exception to OBL-24"
+      },
+      "reviewerId": "rev-legal-01",
+      "secondReviewerId": "rev-legal-02",
+      "annotationVersion": "1.0.0",
+      "adjudicationStatus": "AGREED",
+      "disagreementLog": []
+    }
+  ]
+}
