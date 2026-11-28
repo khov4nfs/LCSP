@@ -277,12 +277,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("a RUNNING run is returned on repeat without another paid command", async () => {
     const source = await eligibleSource();
     const first = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        claimRequest(first.preparationRunId),
-        randomUUID(),
-      ),
-    );
+    await claimRun(first.preparationRunId);
     expect(await prepare()).toMatchObject({
       preparationRunId: first.preparationRunId,
       executionState: AGENT_EXECUTION_STATES.RUNNING,
@@ -312,14 +307,9 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     });
     expect(persisted.completedAt).toBeInstanceOf(Date);
 
-    await expect(
-      claim.execute(
-        new ClaimRuleSetPreparationCommand(
-          claimRequest(queued.preparationRunId),
-          randomUUID(),
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 409 });
+    await expect(claimRun(queued.preparationRunId)).rejects.toMatchObject({
+      status: 409,
+    });
     await expect(
       fail.execute(
         new FailRuleSetPreparationCommand(
@@ -366,12 +356,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("cancels RUNNING through native control and serializes against publication", async () => {
     const source = await eligibleSource();
     const running = await prepare();
-    // This integration checks the cancellation fence; the current legacy claim fixture
-    // advertises CLAIM_INVENTORY_V1 while prepare now creates DIRECT_DRAFT_V1.
-    await prisma.ruleSetPreparationRun.update({
-      where: { id: running.preparationRunId },
-      data: { executionState: AgentExecutionState.RUNNING },
-    });
+    await claimRun(running.preparationRunId);
     const before = await prisma.ruleSetPreparationRun.findUniqueOrThrow({
       where: { id: running.preparationRunId },
     });
@@ -459,11 +444,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("rejects submission while native cancellation is delayed without partial rows", async () => {
     const source = await eligibleSource();
     const running = await prepare();
-    // Persist the precondition directly so this race test does not depend on a stale claim contract.
-    await prisma.ruleSetPreparationRun.update({
-      where: { id: running.preparationRunId },
-      data: { executionState: AgentExecutionState.RUNNING },
-    });
+    await claimRun(running.preparationRunId);
 
     const submissionRequest = await pinFixtureRequest(prisma, {
       preparationRunId: running.preparationRunId,
@@ -557,12 +538,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("cannot cancel after publication commits", async () => {
     const source = await eligibleSource();
     const running = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        claimRequest(running.preparationRunId),
-        randomUUID(),
-      ),
-    );
+    await claimRun(running.preparationRunId);
     const result = await submit.execute(
       new SubmitComplianceRuleSetCommand(
         await pinFixtureRequest(prisma, {
@@ -610,12 +586,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("Admin can Prepare after terminal failure and Retry uses the same next-attempt engine", async () => {
     const source = await eligibleSource();
     const first = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        claimRequest(first.preparationRunId),
-        randomUUID(),
-      ),
-    );
+    await claimRun(first.preparationRunId);
     await fail.execute(
       new FailRuleSetPreparationCommand(
         {
@@ -637,12 +608,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     ).resolves.toMatchObject({
       idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 2),
     });
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        claimRequest(second.preparationRunId),
-        randomUUID(),
-      ),
-    );
+    await claimRun(second.preparationRunId);
     await fail.execute(
       new FailRuleSetPreparationCommand(
         {
@@ -675,12 +641,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const source = await eligibleSource();
     let latest = await prepare();
     for (let attempt = 1; attempt <= 3; attempt += 1) {
-      await claim.execute(
-        new ClaimRuleSetPreparationCommand(
-          claimRequest(latest.preparationRunId),
-          randomUUID(),
-        ),
-      );
+      await claimRun(latest.preparationRunId);
       await fail.execute(
         new FailRuleSetPreparationCommand(
           {
@@ -717,12 +678,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     const source = await eligibleSource();
     let latest = await prepare();
     for (let attempt = 1; attempt <= 10; attempt += 1) {
-      await claim.execute(
-        new ClaimRuleSetPreparationCommand(
-          claimRequest(latest.preparationRunId),
-          randomUUID(),
-        ),
-      );
+      await claimRun(latest.preparationRunId);
       await fail.execute(
         new FailRuleSetPreparationCommand(
           {
@@ -757,12 +713,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   it("replayed source activation does not auto-retry a FAILED run", async () => {
     const source = await eligibleSource();
     const run = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        claimRequest(run.preparationRunId),
-        randomUUID(),
-      ),
-    );
+    await claimRun(run.preparationRunId);
     await fail.execute(
       new FailRuleSetPreparationCommand(
         {
@@ -799,12 +750,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
   async function publishActiveRuleSet() {
     const source = await eligibleSource();
     const run = await prepare();
-    await claim.execute(
-      new ClaimRuleSetPreparationCommand(
-        claimRequest(run.preparationRunId),
-        randomUUID(),
-      ),
-    );
+    await claimRun(run.preparationRunId);
     const published = await submit.execute(
       new SubmitComplianceRuleSetCommand(
         await pinFixtureRequest(prisma, {
