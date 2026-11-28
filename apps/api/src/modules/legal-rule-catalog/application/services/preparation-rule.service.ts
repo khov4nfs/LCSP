@@ -570,7 +570,7 @@ export class PreparationRuleService {
    * Business rules:
    * - Only Admin callers reach this path; the document must name this catalog, its current revision and its pinned Legal Source Version.
    * - Every item must target an eligible catalog Legal Rule and pass the same selected-output validation as agent output: identities carry the rule prefix, and every citation exactly matches the pinned source (document, locator, content hash).
-   * - An imported result is only a prepared revision; it becomes ACTIVE solely through the explicit activation step, and excluded items are validated against the catalog but never stored.
+   * - An imported result is only a prepared revision; it becomes ACTIVE solely through explicit activation. Exclusions retain a source-pinned audit receipt without creating prepared revisions.
    * - An exclusion explicitly requiring legal review blocks the atomic import until resolved; a caller exclusion is never proof of legal scope eligibility.
    * - A rule with a queued or running Preparation run cannot be replaced; an identical prepared result is acknowledged as a replay without a new revision.
    *
@@ -580,7 +580,7 @@ export class PreparationRuleService {
    * 3. Normalize every item into the selected-output contract and validate all of them before writing anything.
    * 4. In a dry run, report per rule the revision an import would record (or a replay) from reads alone and stop.
    * 5. Otherwise, for each item, lock its PreparationRule, skip an identical current result, otherwise record the next revision under one import selection and batch with a SUCCEEDED run.
-   * 6. Audit each recorded revision and return per-rule acknowledgements with the validated exclusions.
+   * 6. Audit each revision and persist an idempotent exclusion receipt before returning acknowledgements.
    *
    * Failure cases:
    * - Mismatched catalog or source returns request-invalid or stale; unknown or ineligible rules are rejected; invalid output returns RESULT_INVALID with a safe field path; active runs return CONFLICT.

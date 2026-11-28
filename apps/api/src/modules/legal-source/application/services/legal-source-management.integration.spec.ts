@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { LegalDocumentGraphService } from "./legal-document-graph.service.js";
 import {
   afterAll,
@@ -31,6 +32,7 @@ import { LegalSourceDocumentService } from "./legal-source-document.service.js";
 import { LegalSourceManagementService } from "./legal-source-management.service.js";
 import { sha256Ref } from "./legal-source-structure.js";
 import { LegalSourceService } from "./legal-source.service.js";
+import { OFFICIAL_LEGAL_CORPUS } from "../../domain/official-legal-authority.js";
 import {
   ImportRejectedError,
   type FetchedDocument,
@@ -403,6 +405,90 @@ database("Legal Source management on PostgreSQL", () => {
         correlationId: correlation(),
       });
       expect(fetcher.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("imports the owner-approved official page as its pinned original PDF", async () => {
+      const source = await newSource();
+      const draft = await newDraft(source.id);
+      const official = OFFICIAL_LEGAL_CORPUS[0];
+      const original = readFileSync(
+        new URL(
+          "../../../../../../../deepagents/evals/corpora/lcsp-402-vn-cong-bao-v1/01-134-2025-QH15.pdf",
+          import.meta.url,
+        ),
+      );
+      fetcher.fetch.mockResolvedValue({
+        bytes: original,
+        contentType: "application/pdf",
+        requestedUrl: official.downloadUrl,
+        finalUrl: official.downloadUrl,
+        status: 200,
+        redirects: 0,
+        etag: null,
+        lastModified: null,
+        fileName: "original.pdf",
+        retrievedAt: new Date("2026-11-28T08:30:59Z"),
+      });
+
+      const document = await documents.importFromUrl({
+        versionId: draft.id,
+        actorId: ADMIN,
+        correlationId: correlation(),
+        request: {
+          url: official.sourcePage,
+          structureProfile: Profiles.AUTO,
+        },
+      });
+
+      expect(fetcher.fetch).toHaveBeenCalledWith(official.downloadUrl);
+      expect(document.sourceUrl).toBe(official.sourcePage);
+      expect(document.mediaType).toBe("application/pdf");
+      expect(document.provenance).toMatchObject({
+        requestedUrl: official.sourcePage,
+        finalUrl: official.downloadUrl,
+        officialPublication: official.sourcePage,
+        originalDownload: official.downloadUrl,
+        documentNumber: official.number,
+      });
+      const stored = await prisma.legalSourceDocument.findUniqueOrThrow({
+        where: { id: document.id },
+      });
+      expect(stored.blobSha256).toBe(official.sha256);
+    });
+
+    it("rejects substituted bytes for a known official page before persistence", async () => {
+      const source = await newSource();
+      const draft = await newDraft(source.id);
+      const official = OFFICIAL_LEGAL_CORPUS[0];
+      fetcher.fetch.mockResolvedValue({
+        bytes: text("Unrelated bytes; not a legal source"),
+        contentType: "text/plain",
+        requestedUrl: official.downloadUrl,
+        finalUrl: official.downloadUrl,
+        status: 200,
+        redirects: 0,
+        etag: null,
+        lastModified: null,
+        fileName: "substitute.txt",
+        retrievedAt: new Date("2026-11-28T08:30:59Z"),
+      });
+
+      await expect(
+        documents.importFromUrl({
+          versionId: draft.id,
+          actorId: ADMIN,
+          correlationId: correlation(),
+          request: {
+            url: official.sourcePage,
+            structureProfile: Profiles.AUTO,
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: { problem: { code: Errors.importUrlRejected } },
+      });
+      expect(
+        (await management.getVersion(draft.id, correlation())).documents,
+      ).toEqual([]);
     });
 
     it("turns a rejected import into a problem and keeps nothing", async () => {

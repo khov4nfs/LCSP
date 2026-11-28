@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "@jest/globals";
 import {
   identifyOfficialLegalDocument,
@@ -14,6 +16,38 @@ describe("official legal corpus admission identity", () => {
       expect(resolveOfficialLegalDocument(row.downloadUrl)).toBe(row);
       expect(identifyOfficialLegalDocument(row.sha256)).toBe(row);
       expect(identifyOfficialLegalDocument(`sha256:${row.sha256}`)).toBe(row);
+    }
+  });
+
+  it("matches the existing corpus manifest and checked-in original bytes", () => {
+    const corpus = new URL(
+      "../../../../../../deepagents/evals/corpora/lcsp-402-vn-cong-bao-v1/",
+      import.meta.url,
+    );
+    const manifest = JSON.parse(
+      readFileSync(new URL("manifest.json", corpus), "utf8"),
+    ) as {
+      documents: Array<{
+        number: string;
+        sourcePage: string;
+        downloadUrl: string;
+        sha256: string;
+        file: string;
+      }>;
+    };
+    expect(
+      manifest.documents.map(({ number, sourcePage, downloadUrl, sha256 }) => ({
+        number,
+        sourcePage,
+        downloadUrl,
+        sha256,
+      })),
+    ).toEqual(OFFICIAL_LEGAL_CORPUS);
+    for (const document of manifest.documents) {
+      const actual = createHash("sha256")
+        .update(readFileSync(new URL(document.file, corpus)))
+        .digest("hex");
+      expect(actual).toBe(document.sha256);
     }
   });
 
