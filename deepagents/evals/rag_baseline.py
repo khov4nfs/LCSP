@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from evals.benchmark_runner import (
     DEEPAGENTS_ROOT,
+    _hash_repo_fixture_tree,
     _write_trace,
     preflight_live_config,
 )
@@ -101,12 +102,15 @@ class RagRetrievalBundle(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     case_id: str = Field(min_length=1)
+    trial_index: int | None = None
+    thread_id: str | None = None
     query: str = Field(min_length=1)
     legal_items: tuple[RetrievedEvidenceItem, ...] = ()
     repo_items: tuple[RetrievedEvidenceItem, ...] = ()
     retrieval_status: RetrievalStatus
     rejected_out_of_scope_count: int = Field(ge=0, default=0)
     rejected_stale_count: int = Field(ge=0, default=0)
+    rejected_budget_count: int = Field(ge=0, default=0)
 
 
 def _to_scorer_record(item: RetrievedEvidenceItem) -> dict[str, Any]:
@@ -207,44 +211,73 @@ def _verify_item_before_prompt(case: BenchmarkCase, item: RetrievedEvidenceItem)
     return "VALID" if ok else "STALE"
 
 
-def _validate_bundle_before_prompt(case: BenchmarkCase, bundle: RagRetrievalBundle) -> RagRetrievalBundle:
-    """Business purpose: Re-verify any bundle (including override_bundles) before prompt construction.
+def _validate_bundle_before_prompt(
+    case: BenchmarkCase,
+    bundle: RagRetrievalBundle,
+    *,
+    retrieval_config: B1RetrievalConfig | None = None,
+) -> RagRetrievalBundle:
+    """Business purpose: Re-verify provenance, uniqueness, top_k, and char budget before prompt construction.
 
     Business rules:
-    - Ensures override_bundles cannot bypass provenance or content-hash checks.
+    - Applies identically to both normal retrieval and override_bundles.
+    - Rejects duplicate evidence_id, out-of-scope, stale, and over-budget items.
 
     Execution flow:
     1. Verify every legal and repo item with _verify_item_before_prompt().
-    2. Recompute retrieval_status and rejection counts.
+    2. Enforce unique evidence_id, top_k per source type, and cumulative max_context_chars.
+    3. Recompute retrieval_status and rejection counts.
 
     Failure cases:
-    - Invalid items are stripped and counted in rejected_*_count.
+    - Invalid or over-budget items are stripped and counted in rejected_*_count.
 
     Side effects:
     - Read-only fixture verification.
     """
+    cfg = retrieval_config or B1RetrievalConfig()
     legal_valid: list[RetrievedEvidenceItem] = []
     repo_valid: list[RetrievedEvidenceItem] = []
+    seen_ids: set[str] = set()
+    remaining_chars = cfg.max_context_chars
     out_of_scope = bundle.rejected_out_of_scope_count
     stale = bundle.rejected_stale_count
+    over_budget = bundle.rejected_budget_count
 
     for item in bundle.legal_items:
-        verdict = _verify_item_before_prompt(case, item)
-        if verdict == "VALID":
-            legal_valid.append(item)
-        elif verdict == "OUT_OF_SCOPE":
+        if item.evidence_id in seen_ids:
             out_of_scope += 1
-        else:
+            continue
+        verdict = _verify_item_before_prompt(case, item)
+        if verdict == "OUT_OF_SCOPE":
+            out_of_scope += 1
+            continue
+        if verdict == "STALE":
             stale += 1
+            continue
+        if len(legal_valid) >= cfg.top_k or len(item.text) > remaining_chars:
+            over_budget += 1
+            continue
+        seen_ids.add(item.evidence_id)
+        remaining_chars -= len(item.text)
+        legal_valid.append(item)
 
     for item in bundle.repo_items:
-        verdict = _verify_item_before_prompt(case, item)
-        if verdict == "VALID":
-            repo_valid.append(item)
-        elif verdict == "OUT_OF_SCOPE":
+        if item.evidence_id in seen_ids:
             out_of_scope += 1
-        else:
+            continue
+        verdict = _verify_item_before_prompt(case, item)
+        if verdict == "OUT_OF_SCOPE":
+            out_of_scope += 1
+            continue
+        if verdict == "STALE":
             stale += 1
+            continue
+        if len(repo_valid) >= cfg.top_k or len(item.text) > remaining_chars:
+            over_budget += 1
+            continue
+        seen_ids.add(item.evidence_id)
+        remaining_chars -= len(item.text)
+        repo_valid.append(item)
 
     if not repo_valid and stale > 0:
         status: RetrievalStatus = "STALE_SOURCE"
@@ -257,12 +290,15 @@ def _validate_bundle_before_prompt(case: BenchmarkCase, bundle: RagRetrievalBund
 
     return RagRetrievalBundle(
         case_id=bundle.case_id,
+        trial_index=bundle.trial_index,
+        thread_id=bundle.thread_id,
         query=bundle.query,
         legal_items=tuple(legal_valid),
         repo_items=tuple(repo_valid),
         retrieval_status=status,
         rejected_out_of_scope_count=out_of_scope,
         rejected_stale_count=stale,
+        rejected_budget_count=over_budget,
     )
 
 
@@ -512,7 +548,16 @@ def build_b1_manifest(
         for c in cases
         for t_idx in range(config.trials_per_case)
     ]
+    repo_tree_pins = {
+        c.repo_pin.repo_id: {
+            "snapshotKind": c.repo_pin.snapshot_kind,
+            "commitSha": c.repo_pin.commit_sha,
+            "treeSha256": _hash_repo_fixture_tree((DEEPAGENTS_ROOT / c.repo_pin.fixture_dir).resolve()),
+        }
+        for c in cases
+    }
     pins = {
+        "repoPinsSha256": stable_hash(repo_tree_pins),
         "b1RetrievalConfigSha256": stable_hash(retrieval_config.model_dump()),
         "casesDatasetSha256": stable_hash([c.model_dump() for c in cases]),
         "corpusPinsSha256": stable_hash({c.case_id: [p.model_dump() for p in c.legal_provisions] for c in cases}),
@@ -636,8 +681,11 @@ def run_b1_baseline(
     Side effects:
     - Writes manifest.json, retrieved_evidence.jsonl, trials.jsonl, traces/*, report.json, report.csv.
     """
-    if config.mode == "LIVE" and model_factory is None:
-        preflight_live_config(config)
+    if config.mode == "LIVE":
+        if not config.allow_live:
+            raise PermissionError("LIVE_MODE_REQUIRES_EXPLICIT_ALLOW_LIVE")
+        if model_factory is None:
+            preflight_live_config(config)
 
     r_cfg = retrieval_config or B1RetrievalConfig()
     resolved_run_id = run_id or f"b1-{uuid.uuid4().hex[:12]}"
@@ -667,7 +715,11 @@ def run_b1_baseline(
                     if override_bundles and case.case_id in override_bundles
                     else retrieve_b1_evidence(case, retrieval_config=r_cfg)
                 )
-                bundle = _validate_bundle_before_prompt(case, raw_bundle)
+                bundle = _validate_bundle_before_prompt(
+                    case,
+                    raw_bundle.model_copy(update={"trial_index": trial_index, "thread_id": thread_id}),
+                    retrieval_config=r_cfg,
+                )
                 prompt = build_b1_prompt(case, bundle)
                 ev_out.write(bundle.model_dump_json() + "\n")
 
@@ -681,6 +733,9 @@ def run_b1_baseline(
                 verdict = "UNRESOLVED"
                 lifecycle = "PAUSED"
                 cited_ids: list[str] = []
+                raw_model_verdict: str | None = None
+                raw_model_rationale: str | None = None
+                raw_cited_ids: list[str] = []
                 scripted_calls = 0
                 simulated_calls = 0
                 unverified_live_calls = 0
@@ -723,11 +778,27 @@ def run_b1_baseline(
                         if not isinstance(raw_content, str):
                             raw_content = json.dumps(raw_content)
                         parsed = B1ModelResponse.model_validate_json(raw_content.strip())
-                        # Reject fabricated citations not in verified retrieved_map
+                        raw_model_verdict = parsed.verdict
+                        raw_model_rationale = parsed.rationale[:1000]
+                        raw_cited_ids = list(parsed.cited_evidence_ids)
+
                         fabricated = [cid for cid in parsed.cited_evidence_ids if cid not in retrieved_map]
                         if fabricated:
                             err_code = "B1_FABRICATED_CITATION_REJECTED"
                             err_msg = f"Cited IDs not in retrieved bundle: {fabricated}"
+                        elif parsed.verdict in {"APPLICABLE_COMPLIANT", "APPLICABLE_NON_COMPLIANT", "NOT_APPLICABLE"} and (
+                            bundle.retrieval_status != "RETRIEVED" or not parsed.cited_evidence_ids
+                        ):
+                            # Fail closed: check retrieval status before empty citations so non-RETRIEVED bundles
+                            # surface their retrieval root cause even when citations are also empty.
+                            err_code = (
+                                f"B1_UNSUPPORTED_VERDICT_WITHOUT_EVIDENCE:{bundle.retrieval_status}"
+                                if bundle.retrieval_status != "RETRIEVED"
+                                else "B1_UNSUPPORTED_VERDICT_EMPTY_CITATIONS"
+                            )
+                            err_msg = "Conclusive verdict requires RETRIEVED status and non-empty verified citations."
+                            verdict = "UNRESOLVED"
+                            lifecycle = "PAUSED"
                         else:
                             verdict = parsed.verdict
                             cited_ids = list(parsed.cited_evidence_ids)
@@ -785,7 +856,19 @@ def run_b1_baseline(
                     "mode": config.mode,
                     "stage": expectation.stage,
                     "retrievalStatus": bundle.retrieval_status,
+                    "retrievalArtifact": {
+                        "path": "retrieved_evidence.jsonl",
+                        "caseId": case.case_id,
+                        "trialIndex": trial_index,
+                        "threadId": thread_id,
+                    },
                     "retrievedEvidenceIds": list(retrieved_map.keys()),
+                    "modelResponse": {
+                        "rawVerdict": raw_model_verdict,
+                        "rationale": raw_model_rationale,
+                        "citedEvidenceIds": raw_cited_ids,
+                        "validationResult": "VALID" if err_code is None else err_code,
+                    },
                     "promptSha256": sha256(prompt.encode("utf-8")).hexdigest(),
                     "outcomeBinding": {
                         "passed": outcome.passed,

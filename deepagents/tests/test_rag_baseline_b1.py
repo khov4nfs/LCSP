@@ -16,6 +16,7 @@ from evals.cli import main as cli_main
 from evals.rag_baseline import (
     B1ModelResponse,
     B1RetrievalConfig,
+    RagRetrievalBundle,
     RetrievedEvidenceItem,
     build_b1_manifest,
     build_b1_prompt,
@@ -176,3 +177,100 @@ def test_b1_manifest_fingerprint_changes_and_cli_score_replays(tmp_path, monkeyp
         "--output-dir", str(run_dir),
     ])
     assert rc_score == 0
+
+
+def test_b1_re_review_regression_unsupported_verdicts_live_auth_repo_hash_budget_and_trace(tmp_path):
+    case = load_benchmark_cases(CASES_PATH, case_ids=["CASE-01"])[0]
+    cfg = RunConfig(mode="SCRIPTED", split="DEV", trials_per_case=1, k_values=(1,), model_route="offline-scripted")
+
+    # 1. Model returns COMPLIANT with empty citations -> rejected
+    run_b1_baseline(
+        cases=[case], config=cfg, output_dir=tmp_path, run_id="b1-empty-cite",
+        model_factory=lambda _c, _p, _b: _fake_model_returning(
+            B1ModelResponse(verdict="APPLICABLE_COMPLIANT", cited_evidence_ids=(), rationale="No cite.").model_dump_json()
+        ),
+    )
+    t_empty = TrialOutcome.model_validate_json((tmp_path / "b1-empty-cite" / "trials.jsonl").read_text().splitlines()[0])
+    assert t_empty.passed is False and t_empty.error_code == "B1_UNSUPPORTED_VERDICT_EMPTY_CITATIONS"
+
+    # 2. Model returns COMPLIANT on NO_EVIDENCE -> rejected
+    no_ev = RagRetrievalBundle(case_id="CASE-01", query="q", retrieval_status="NO_EVIDENCE")
+    run_b1_baseline(
+        cases=[case], config=cfg, output_dir=tmp_path, run_id="b1-no-ev",
+        override_bundles={"CASE-01": no_ev},
+        model_factory=lambda _c, _p, _b: _fake_model_returning(
+            B1ModelResponse(verdict="APPLICABLE_COMPLIANT", cited_evidence_ids=(), rationale="Parametric.").model_dump_json()
+        ),
+    )
+    t_no_ev = TrialOutcome.model_validate_json((tmp_path / "b1-no-ev" / "trials.jsonl").read_text().splitlines()[0])
+    assert t_no_ev.passed is False and t_no_ev.error_code == "B1_UNSUPPORTED_VERDICT_WITHOUT_EVIDENCE:NO_EVIDENCE"
+
+    # 3. Model returns conclusive verdict when only stale evidence exists -> rejected
+    stale_bundle = RagRetrievalBundle(
+        case_id="CASE-01", query="q", retrieval_status="NO_EVIDENCE",
+        repo_items=(RetrievedEvidenceItem(
+            evidence_id="stale-1", source_type="REPOSITORY_SOURCE",
+            source_id=case.repo_pin.repo_id, version_pin="synthetic-000000000000",
+            path="src/consent.py", start_line=1, end_line=1, text="x",
+            content_sha256="a" * 64, query_provenance="q", scope_valid=True, stale=False,
+        ),),
+    )
+    run_b1_baseline(
+        cases=[case], config=cfg, output_dir=tmp_path, run_id="b1-stale-verdict",
+        override_bundles={"CASE-01": stale_bundle},
+        model_factory=lambda _c, _p, _b: _fake_model_returning(
+            B1ModelResponse(verdict="APPLICABLE_COMPLIANT", cited_evidence_ids=("stale-1",), rationale="Stale.").model_dump_json()
+        ),
+    )
+    t_stale = TrialOutcome.model_validate_json((tmp_path / "b1-stale-verdict" / "trials.jsonl").read_text().splitlines()[0])
+    assert t_stale.passed is False and (t_stale.error_code or "").startswith("B1_FABRICATED_CITATION_REJECTED")
+
+    # 4. LIVE + model_factory + allow_live=False -> rejected
+    with pytest.raises(PermissionError, match="LIVE_MODE_REQUIRES_EXPLICIT_ALLOW_LIVE"):
+        run_b1_baseline(
+            cases=[case],
+            config=RunConfig(mode="LIVE", split="DEV", trials_per_case=1, k_values=(1,), allow_live=False),
+            output_dir=tmp_path,
+            model_factory=lambda _c, _p, _b: _fake_model_returning("{}"),
+        )
+
+    # 5. Source file content change changes B1 manifestSha256
+    repo_copy = tmp_path / "repo-copy"
+    repo_copy.mkdir()
+    orig_src = Path(__file__).resolve().parent.parent / case.repo_pin.fixture_dir / "src/consent.py"
+    (repo_copy / "consent.py").write_text(orig_src.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+    mutated = case.model_copy(update={"repo_pin": case.repo_pin.model_copy(update={"fixture_dir": str(repo_copy)})})
+    m_orig = build_b1_manifest(run_id="r1", cases=[case], config=cfg, retrieval_config=B1RetrievalConfig())
+    m_mut = build_b1_manifest(run_id="r1", cases=[mutated], config=cfg, retrieval_config=B1RetrievalConfig())
+    assert m_orig["manifestSha256"] != m_mut["manifestSha256"]
+
+    # 6. Override exceeding max_context_chars is bounded by B1RetrievalConfig
+    real_bundle = retrieve_b1_evidence(case)
+    run_b1_baseline(
+        cases=[case], config=cfg, output_dir=tmp_path, run_id="b1-budget-cap",
+        retrieval_config=B1RetrievalConfig(top_k=1, max_context_chars=500),
+        override_bundles={"CASE-01": real_bundle.model_copy(update={
+            "legal_items": real_bundle.legal_items * 4,
+        })},
+    )
+    ev_logged = json.loads((tmp_path / "b1-budget-cap" / "retrieved_evidence.jsonl").read_text().splitlines()[0])
+    assert len(ev_logged["legal_items"]) <= 1 and ev_logged["rejected_budget_count"] >= 1
+
+    # 7. Valid structured response saves verdict, rationale, citedEvidenceIds, and retrievalArtifact in trace
+    run_b1_baseline(
+        cases=[case], config=cfg, output_dir=tmp_path, run_id="b1-valid-trace",
+        model_factory=lambda _c, _p, b: _fake_model_returning(
+            B1ModelResponse(
+                verdict="APPLICABLE_COMPLIANT",
+                cited_evidence_ids=(b.repo_items[0].evidence_id,),
+                rationale="Explicit opt-in enforced.",
+            ).model_dump_json()
+        ),
+    )
+    t_ok = TrialOutcome.model_validate_json((tmp_path / "b1-valid-trace" / "trials.jsonl").read_text().splitlines()[0])
+    assert t_ok.passed is True
+    trace_doc = json.loads((tmp_path / "b1-valid-trace" / t_ok.trace_path).read_text())
+    assert trace_doc["modelResponse"]["rawVerdict"] == "APPLICABLE_COMPLIANT"
+    assert trace_doc["modelResponse"]["rationale"] == "Explicit opt-in enforced."
+    assert trace_doc["modelResponse"]["citedEvidenceIds"] == [real_bundle.repo_items[0].evidence_id]
+    assert trace_doc["retrievalArtifact"]["path"] == "retrieved_evidence.jsonl"

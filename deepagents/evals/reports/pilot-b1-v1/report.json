@@ -48,7 +48,7 @@
     "outOfScopeRuleRejection": "NOT_TESTED",
     "unverifiedReferenceRejection": "NOT_TESTED"
   },
-  "manifestSha256": "7f4a96ce54503de35bfae833deca1fd6d18c50784ae3b361140f67524e62f401",
+  "manifestSha256": "337fbc1cd06056d7f80700e3c425a96183e749353a0d49715fd2f2b08be1ab9c",
   "manualSemanticReviewP15": {
     "expertVerified": {
       "authorityRespectedRate": null,
@@ -76,11 +76,11 @@
         "RUBRIC_MISMATCH": 9
       },
       "latency": {
-        "maxMs": 432.906,
-        "meanMs": 8.117,
-        "minMs": 0.486,
-        "p50Ms": 0.525,
-        "p95Ms": 0.623
+        "maxMs": 493.87,
+        "meanMs": 9.2,
+        "minMs": 0.498,
+        "p50Ms": 0.543,
+        "p95Ms": 0.59
       },
       "passPowK": {
         "pass^1": {
@@ -120,11 +120,11 @@
         "RUBRIC_MISMATCH": 3
       },
       "latency": {
-        "maxMs": 1.135,
-        "meanMs": 0.53,
-        "minMs": 0.481,
-        "p50Ms": 0.516,
-        "p95Ms": 0.547
+        "maxMs": 1.258,
+        "meanMs": 0.543,
+        "minMs": 0.49,
+        "p50Ms": 0.526,
+        "p95Ms": 0.569
       },
       "passPowK": {
         "pass^1": {
@@ -162,11 +162,11 @@
       "failedTrials": 0,
       "failuresByCode": {},
       "latency": {
-        "maxMs": 1.135,
-        "meanMs": 0.536,
-        "minMs": 0.481,
-        "p50Ms": 0.52,
-        "p95Ms": 0.566
+        "maxMs": 1.258,
+        "meanMs": 0.55,
+        "minMs": 0.498,
+        "p50Ms": 0.535,
+        "p95Ms": 0.577
       },
       "passPowK": {
         "pass^1": {
@@ -206,11 +206,11 @@
         "RUBRIC_MISMATCH": 12
       },
       "latency": {
-        "maxMs": 432.906,
-        "meanMs": 5.035,
-        "minMs": 0.481,
-        "p50Ms": 0.52,
-        "p95Ms": 0.596
+        "maxMs": 493.87,
+        "meanMs": 5.683,
+        "minMs": 0.49,
+        "p50Ms": 0.536,
+        "p95Ms": 0.587
       },
       "passPowK": {
         "pass^1": {

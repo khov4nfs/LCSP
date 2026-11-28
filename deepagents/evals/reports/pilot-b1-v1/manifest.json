@@ -657,7 +657,7 @@
       "tools.schema-guidance": "r4-fact-need-provenance-2026-11-16"
     }
   },
-  "manifestSha256": "7f4a96ce54503de35bfae833deca1fd6d18c50784ae3b361140f67524e62f401",
+  "manifestSha256": "337fbc1cd06056d7f80700e3c425a96183e749353a0d49715fd2f2b08be1ab9c",
   "model": {
     "adapterClass": "SimpleNamespace",
     "configuredModelId": "offline-scripted"
@@ -675,6 +675,7 @@
     "casesDatasetSha256": "31377fcd82a23ae51ccb37b5811c373e5e5f3783531008f4989bfe94551609d5",
     "corpusPinsSha256": "06fadf0494cd7f14688ba9ad9dd237c8e2e83845e8e72911859e051d26db8fab",
     "expectedInventorySha256": "b47f8b4bd419579ba160276cb9e5e76349f22a19a96964a9d781ef98f4ea82ee",
+    "repoPinsSha256": "38450cde2d2230d38d5362361e81a1010ca963fe2bde4bc74f84fc62e82e0913",
     "ruleSetPinsSha256": "f03e0b9ab2636ce9d36790fc123961950a61e64ef8662834e34771ea23f5e2ba",
     "runConfigSha256": "f4fe70cc3a193963654900263cb9cc1d4e8e56a64ce083dc74f00c7bff8bd29f"
   },
