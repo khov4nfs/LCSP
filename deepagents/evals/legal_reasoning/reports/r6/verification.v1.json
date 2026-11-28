@@ -90,6 +90,22 @@
         "B1 valid trace evidence_match false"
       ],
       "classification": "Same four failures reproduced on develop export; no production fix or fixture pin changes."
+    },
+    "combinedNineSuiteRegression": {
+      "passed": 117,
+      "failed": 0,
+      "note": "Run started at report head 2702a5ed7; portable lookup added afterward and independently verified."
+    },
+    "portableLookupPmSuite": {
+      "passed": 14,
+      "failed": 0,
+      "commit": "2d60d204ec217291a669475f80c20ecd2bd25aca"
+    },
+    "committedByteAndPortablePathRegression": {
+      "passed": 2,
+      "failed": 0,
+      "deselected": 13,
+      "result": "Exact source/evidence bytes read by the evaluator equal the committed Git blobs; Windows paths resolve on POSIX without changing pin identity."
     }
   },
   "runs": [
@@ -1219,5 +1235,6 @@
         }
       ]
     }
-  ]
+  ],
+  "bytePackagingPolicy": "11 evaluation JSON source/receipt/selector/evidence files retain their originally pinned CRLF bytes on every checkout. JSON values, PDFs and existing hashes unchanged; byte equality is checked, not normalized away."
 }

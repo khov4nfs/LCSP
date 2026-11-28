@@ -7,3 +7,11 @@ deepagents/assessment_root/*.vi.md text eol=lf
 deepagents/skills/**/SKILL.vi.md text eol=lf
 deepagents/evals/reports/pilot-v1/traces/** -text
 deepagents/tests/fixtures/compliance_rule_set_context/*.txt -text
+
+# These exact evaluation bytes are already pinned by the LCSP-400 source/cohort
+# snapshots and retained SCRIPTED manifests. Do not rewrite their CRLF bytes on
+# checkout; PDF/source contents and JSON semantics remain unchanged.
+/deepagents/evals/fixtures/policy-baseline/*/release-evidence.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/deepagents/evals/fixtures/policy-baseline/legal-context.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/deepagents/evals/corpora/lcsp-402-vn-cong-bao-v1/manifest.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/deepagents/evals/corpora/lcsp-402-vn-cong-bao-v1/ingestion-receipt.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

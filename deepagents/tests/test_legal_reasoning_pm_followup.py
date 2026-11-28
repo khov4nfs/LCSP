@@ -159,7 +159,7 @@ def test_actor_temporal_and_original_source_mismatch_fail_even_with_valid_digest
 ):
     changed = deepcopy(frames)
     if mutation == "actor":
-        changed["frames"][0]["expectedActor"] = "Bên triển khai"
+        changed["frames"][0]["expectedActor"] = "BÃªn triá»ƒn khai"
     elif mutation == "provision":
         changed["frames"][0]["source"]["content"] = "Modified original"
     else:
@@ -425,3 +425,21 @@ def test_windows_fixture_pin_is_portable_without_changing_serialized_identity():
     )
     assert pin.model_dump() == original
     assert pin.model_dump()["fixture_dir"] == r"evals\fixtures\sample"
+
+
+def test_pinned_source_and_evidence_bytes_survive_git_checkout():
+    from evals.policy_baseline import CORPUS, FIXTURES
+
+    repo = PACKAGE_ROOT.parents[2]
+    paths = [
+        CORPUS / "manifest.json",
+        CORPUS / "ingestion-receipt.json",
+        FIXTURES / "legal-context.json",
+        *sorted(FIXTURES.glob("*/release-evidence.json")),
+    ]
+    for path in paths:
+        relative = path.relative_to(repo).as_posix()
+        committed = subprocess.check_output(
+            ["git", "show", f"HEAD:{relative}"], cwd=repo
+        )
+        assert path.read_bytes() == committed, relative

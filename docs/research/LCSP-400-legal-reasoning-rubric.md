@@ -68,6 +68,8 @@ Standalone `score_dataset()` remains diagnostic/unverified. Adapter artifact val
 
 Repository fixture lookup normalizes Windows separators for POSIX runners while preserving the exact serialized repository pin and its digest. This also permits retained Windows-generated artifacts to be validated on Linux. A POSIX-path regression confirms that lookup normalization does not rewrite artifact identity.
 
+The source/cohort snapshots were originally pinned against Windows CRLF packaging bytes. Scoped Git attributes now preserve those exact bytes for the 11 hashed evaluation metadata/evidence files, instead of converting them into different LF bytes on Linux checkout. This is a packaging-only change: JSON values, PDF originals, legal text, review labels and all existing pin values remain unchanged. The original ingestion receipt's manifest reference remains its historical ingestion reference. A regression compares committed Git blob bytes with the files actually read by the evaluator; byte pin validation is never replaced with newline-insensitive hashing.
+
 ```powershell
 $base = "evals/legal_reasoning/proposals.v2"
 $work = Join-Path $env:TEMP "lcsp400-current-splits"
@@ -90,6 +92,8 @@ Raw SCRIPTED fixture verdict mismatches are retained: ALL 24/30, DEV 18/22, HOLD
 Final PM regression: 13 passed. Relevant earlier combined evaluation regression: 74 passed; rubric/hardening/manifest regression: 41 passed. Additional RSP/Discovery/Root completion checks: 11 passed, one pre-existing `scannerSignature mismatch`. That same Discovery failure was reproduced from develop `fa90c435`; canonical develop RSP fixtures passed all four tests. The historical 1,205 versus 1,185 source-length failure was reproduced as Windows archive CRLF conversion: the original Git blob and branch file are both 1,185 LF bytes with the pinned SHA-256. Restoring exact Git blob bytes in the temporary develop test export made all RSP tests pass. No fixture hash, expected length or production scanner was changed. CI for the final pushed head must be checked separately.
 
 Fixture-path compatibility regression: one additional POSIX-path test passed. RAG/retrieval compatibility suites had 11 passed and four failed on both branch and develop export (repository/tree pin mismatches and B1 evidence-span matching). These failures are recorded in the receipt, not concealed as passing checks; no unrelated production or pinned-fixture change was made.
+
+The combined nine-suite run subsequently passed **117 tests**. After the portable lookup change, the complete PM regression passed **14 tests**. The byte-packaging correction adds a committed-byte regression; its result and exact-head CI status are published on the PR.
 
 ```powershell
 uv run pytest tests/test_legal_reasoning_pm_followup.py tests/test_legal_reasoning_p14_integration.py tests/test_legal_reasoning_vietnam_p14_integration.py tests/test_reviewed_eval_gate.py tests/test_preparation_semantic_eval_oracle.py tests/test_evals_benchmark.py -q
