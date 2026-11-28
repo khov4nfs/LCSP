@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import copy
 import json
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
 import pytest
-
 from rule_set_preparation.eval_cli import main as eval_cli_main
 from rule_set_preparation.xtrareg_eval import (
     compare_direct_draft_vs_preparation,
@@ -19,6 +19,101 @@ from rule_set_preparation.xtrareg_eval import (
 FIXTURES = Path(__file__).resolve().parents[1] / "evals" / "fixtures"
 GOLD_PATH = FIXTURES / "xtrareg_gdpr_gold_v1.json"
 SOURCE_PATH = FIXTURES / "xtrareg_gdpr_source_v1.json"
+
+
+def test_changed_action_requires_review():
+    gold, source = _load_gold_and_source()
+    candidate = _build_smoke_test_full_prep_from_gold(gold)
+    candidate["semanticGraph"]["claims"][0]["operative"]["action"] = "sell personal data"
+
+    report = evaluate_xtrareg_chain(gold, source, candidate)
+
+    assert report["splits"]["ALL"]["classifications"]["full"] == 29
+    assert "ACTION_REVIEW_REQUIRED" in report["failedCases"][0]["errorCodes"]
+
+
+def test_self_declared_review_cannot_unlock_paired_acceptance(tmp_path, capsys):
+    gold, source = _load_gold_and_source()
+    gold["goldApprovalStatus"] = "INDEPENDENTLY_REVIEWED"
+    inputs = {
+        "gold": gold,
+        "source": source,
+        "candidate": _build_smoke_test_full_prep_from_gold(gold),
+        "direct-draft": _build_smoke_test_direct_draft_from_gold(gold, drop_cross_clause_exceptions=True),
+    }
+    args = []
+    for name, data in inputs.items():
+        path = tmp_path / (name + ".json")
+        path.write_text(json.dumps(data), encoding="utf-8")
+        args.extend([f"--xtrareg-{name}", str(path)])
+
+    assert eval_cli_main(args) == 2
+    report = json.loads(capsys.readouterr().out)
+    assert report["fullPreparation"]["passedCriticalGate"] is False
+    assert report["semanticGainClaimed"] is False
+    assert report["reviewedEvidenceGate"]["status"] == "BLOCKED"
+    assert report["inputProvenance"] == {
+        f"{key}Sha256": sha256((tmp_path / f"{name}.json").read_bytes()).hexdigest()
+        for key, name in (("gold", "gold"), ("source", "source"),
+                          ("candidate", "candidate"), ("directDraft", "direct-draft"))
+    }
+
+
+def test_negated_exception_and_conflicting_duplicate_require_review():
+    gold, source = _load_gold_and_source()
+    candidate = _build_smoke_test_direct_draft_from_gold(gold)
+    row = next(row for row in candidate["candidates"] if row["exceptions"])
+    duplicate = copy.deepcopy(row)
+    duplicate["candidateId"] = "conflicting-duplicate"
+    duplicate["action"] = "sell personal data"
+    candidate["candidates"].append(duplicate)
+    row["exceptions"][0] = "not " + row["exceptions"][0]
+
+    report = evaluate_xtrareg_chain(gold, source, candidate)
+
+    errors = {code for row in report["failedCases"] for code in row["errorCodes"]}
+    assert {"ACTION_REVIEW_REQUIRED", "MISSING_EXCEPTION", "DUPLICATE_PREDICTION"} <= errors
+
+
+def test_valid_citation_to_unrelated_evidence_does_not_receive_full_credit():
+    gold, source = _load_gold_and_source()
+    candidate = _build_smoke_test_full_prep_from_gold(gold)
+    claim = candidate["semanticGraph"]["claims"][0]
+    other = gold["obligations"][1]["citation"]
+    claim["sourceNodeIds"] = other["sourceNodeIds"]
+    claim["sourceQuote"] = other["sourceQuote"]
+
+    report = evaluate_xtrareg_chain(gold, source, candidate)
+
+    assert any(
+        case["obligationId"] == claim["obligationId"]
+        and "CITATION_REVIEW_REQUIRED" in case["errorCodes"]
+        for case in report["failedCases"]
+    )
+
+
+def test_paired_comparison_requires_source_identity():
+    gold, source = _load_gold_and_source()
+    direct = _build_smoke_test_direct_draft_from_gold(gold)
+    del direct["legalSourceVersionId"]
+    preparation = _build_smoke_test_full_prep_from_gold(gold)
+
+    with pytest.raises(ValueError, match="XTRAREG_SOURCE_VERSION_IDENTITY_FAILED"):
+        compare_direct_draft_vs_preparation(gold, source, direct, preparation)
+
+
+def test_holdout_rejects_dev_content_under_another_source_id():
+    gold, source = _load_gold_and_source()
+    dev = next(item for item in gold["obligations"] if item["split"] == "DEV")
+    duplicate_id = "aliased-dev-source"
+    original = next(row for row in source["nodes"] if row["nodeId"] == dev["citation"]["sourceNodeIds"][0])
+    source["nodes"].append({**original, "nodeId": duplicate_id})
+    held_out = next(item for item in gold["obligations"] if item["split"] == "HOLDOUT")
+    held_out["citation"] = {**dev["citation"], "sourceNodeIds": [duplicate_id]}
+
+    errors = validate_xtrareg_gold_dataset(gold, source)
+
+    assert "XTRAREG_SPLIT_SOURCE_CONTENT_OVERLAP" in errors
 
 
 def _load_gold_and_source() -> tuple[dict[str, Any], dict[str, Any]]:
@@ -300,7 +395,7 @@ def test_xtrareg_ac3_partial_duplication_actor_applicability_and_no_unproven_gai
     and requirementsToRulesRate must all be computed correctly.
     A regressed or equal candidate must never claim semantic gain."""
     gold, source = _load_gold_and_source()
-    baseline = _build_smoke_test_full_prep_from_gold(gold)
+    baseline = _build_smoke_test_direct_draft_from_gold(gold)
     regressed = _build_smoke_test_full_prep_from_gold(gold)
 
     # Introduce actor mismatch + applicability drift + missing AssessmentRule on holdout obligations -> PARTIAL
@@ -332,4 +427,4 @@ def test_xtrareg_ac3_partial_duplication_actor_applicability_and_no_unproven_gai
     # Equal/worse candidate vs baseline must never claim semantic gain (P0-01, P1-05).
     comparison = compare_direct_draft_vs_preparation(gold, source, baseline, regressed)
     assert comparison["semanticGainClaimed"] is False
-    assert "does not support" in comparison["gainAssessmentReason"] or "SYNTHETIC_NOT_REVIEWED" in comparison["gainAssessmentReason"]
+    assert "NOT_EVALUATED" in comparison["gainAssessmentReason"]

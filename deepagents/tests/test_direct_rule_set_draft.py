@@ -1,16 +1,15 @@
 """Direct candidates: bounded structural context, exact evidence and durable recovery."""
+import json
 from copy import deepcopy
 from hashlib import sha256
-import json
 
 import pytest
-
 from langchain_core.utils.function_calling import convert_to_openai_tool
-
 from rule_set_preparation.claim_inventory import ClaimInventory, fingerprint
 from rule_set_preparation.direct_draft import DirectDraft
 from rule_set_preparation.source_graph import PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from rule_set_preparation.xtrareg_eval import _normalize_predictions
 from test_claim_files import fixture_bundle
 
 
@@ -128,6 +127,32 @@ def test_direct_candidate_persists_requirement_rule_and_source_evidence_together
     assert recovered.draft["assessmentRules"] == api.saved["assessmentRules"]
     assert not {n["nodeId"] for n in following["sourceUnits"]} & {n["nodeId"] for n in package["sourceUnits"]}
     assert resumed.candidate("protect-data")["candidate"] == {**value, "repositoryObservableAspect": None, "externalFulfillmentAspect": None}
+
+
+def test_xtrareg_projects_a_workflow_generated_direct_draft_packet(tmp_path):
+    context, state, _ = context_for(tmp_path)
+    package = state.next_package()
+    node = next(n for n in package["sourceUnits"] if "phải" in n["content"])
+    payload = submission(package, [candidate(node["nodeId"], "phải bảo vệ dữ liệu.")])
+    assert state.submit(payload)["outcome"] == "PASSED"
+
+    packet = context.draft_packet()
+    mode, predictions = _normalize_predictions({"mode": "DIRECT_DRAFT", "packet": packet})
+    assert mode == "DIRECT_DRAFT"
+    assert len(predictions) == 1
+    [row] = predictions
+    assert row["action"] == "protect data"
+    assert row["hasRequirement"] and row["hasAssessmentRule"]
+    assert row["chainErrors"] == []
+
+    changed_rule = deepcopy(packet)
+    changed_rule["assessmentRules"][0]["criteria"][0]["statement"] = "Sell data."
+    _, [rule_drift] = _normalize_predictions({"mode": "DIRECT_DRAFT", "packet": changed_rule})
+    assert "CHAIN_RULE_SEMANTICS_REVIEW_REQUIRED" in rule_drift["chainErrors"]
+
+    packet["legalRequirements"][0]["operativePropositions"][0]["action"] = "sell data"
+    _, [drifted] = _normalize_predictions({"mode": "DIRECT_DRAFT", "packet": packet})
+    assert "CHAIN_PROPOSITION_DRIFT" in drifted["chainErrors"]
 
 
 @pytest.mark.parametrize("corrupt", ["quote", "identity", "applicability", "fabricated-rule", "database-rejection"])

@@ -9,11 +9,22 @@ against an independently reviewed gold annotation set (>= 30 obligations).
 from __future__ import annotations
 
 import re
+from types import SimpleNamespace
 from typing import Any
+
+from rule_set_preparation.claim_inventory import (
+    ROLE_FIELDS,
+    canonical_support,
+    utf16_slice,
+)
+from rule_set_preparation.semantic_closure import operative, semantic_closure
 
 XTRAREG_GOLD_SCHEMA = "XTRAREG_PREPARATION_GOLD_V1"
 XTRAREG_SOURCE_SCHEMA = "XTRAREG_PINNED_LEGAL_SOURCE_V1"
 CRITICAL_ERROR_CODES = frozenset({
+    "ACTION_REVIEW_REQUIRED",
+    "CITATION_REVIEW_REQUIRED",
+    "DUPLICATE_PREDICTION",
     "UNGROUNDED_OBLIGATION",
     "MISSING_EXCEPTION",
     "MODALITY_INVERSION",
@@ -80,7 +91,7 @@ def validate_xtrareg_gold_dataset(
     Execution flow:
     1. Validate top-level schemas, source version alignment, and approval status.
     2. Validate minimum count (>= 30), unique IDs, and presence of both DEV and HOLDOUT splits.
-    3. Validate per-obligation citation grounding, actor, applicability, and reviewer provenance.
+    3. Validate per-obligation citations, reviewer provenance and source leakage across splits.
 
     Failure cases:
     - Returns explicit validation error strings for every missing or ungrounded gold field.
@@ -115,6 +126,7 @@ def validate_xtrareg_gold_dataset(
         if isinstance(n, dict) and isinstance(n.get("nodeId"), str)
     }
     seen_ids: set[str] = set()
+    split_content: dict[str, set[str]] = {"DEV": set(), "HOLDOUT": set()}
     splits: set[str] = set()
     for idx, item in enumerate(obligations):
         oid = item.get("obligationId") if isinstance(item, dict) else None
@@ -144,6 +156,10 @@ def validate_xtrareg_gold_dataset(
                 combined_text = " ".join(_norm_text(source_nodes[nid].get("text")) for nid in node_ids)
                 if _norm_text(quote) not in combined_text:
                     errors.append(f"XTRAREG_GOLD_QUOTE_NOT_IN_SOURCE:{oid}")
+                if split in split_content:
+                    # Source IDs can differ while exposing the same legal text.
+                    split_content[split].update(_norm_text(source_nodes[nid]["text"]) for nid in node_ids)
+                    split_content[split].add(_norm_text(quote))
 
         if not isinstance(item.get("actor"), str) or not item["actor"].strip():
             errors.append(f"XTRAREG_GOLD_MISSING_ACTOR:{oid}")
@@ -159,7 +175,116 @@ def validate_xtrareg_gold_dataset(
 
     if not {"DEV", "HOLDOUT"}.issubset(splits):
         errors.append("XTRAREG_GOLD_DEV_AND_HOLDOUT_SPLITS_REQUIRED")
+    if split_content["DEV"] & split_content["HOLDOUT"]:
+        errors.append("XTRAREG_SPLIT_SOURCE_CONTENT_OVERLAP")
     return errors
+
+
+def _project_packet(packet: dict[str, Any]) -> list[dict[str, Any]]:
+    """Business purpose: Score the chain emitted by Rule Set Preparation and Direct Draft.
+
+    Business rules:
+    - Only canonical operative claims anchor an obligation.
+    - Requirement bindings must preserve propositions and the typed claim closure.
+    - AssessmentRule linkage uses the canonical plural parent IDs.
+
+    Execution flow:
+    1. Index operative owners and rule parents.
+    2. Project each operative claim, its conditions and exceptions, and its chain evidence.
+
+    Failure cases:
+    - Missing, duplicate and inconsistent bindings remain visible as chain errors.
+    - An invalid typed graph fails projection through the canonical closure validator.
+
+    Side effects:
+    - Read-only projection of the supplied packet.
+    """
+    graph = packet["semanticGraph"]
+    claims = {claim["claimId"]: claim for claim in graph["claims"]}
+    owners: dict[str, list[tuple[dict[str, Any], int]]] = {}
+    for requirement in packet.get("legalRequirements", []):
+        for binding in requirement["claimBindings"]:
+            if binding["role"] == "OPERATIVE_PROPOSITION":
+                owners.setdefault(binding["claimId"], []).append((requirement, binding["index"]))
+    rules: dict[str, list[dict[str, Any]]] = {}
+    for rule in packet.get("assessmentRules", []):
+        for requirement_id in rule["legalRequirementIds"]:
+            rules.setdefault(requirement_id, []).append(rule)
+
+    # The canonical closure keeps typed context distinct from free-text modifiers.
+    predictions = []
+    for claim_id, claim in claims.items():
+        if not operative(claim):
+            continue
+        frame = claim.get("frame") or claim.get("semanticFrame") or {}
+        proposition = claim.get("operative") or frame
+        bindings = owners.get(claim_id, [])
+        requirement, index = bindings[0] if bindings else ({}, 0)
+        coverage = requirement.get("coverage", {})
+        related_rules = rules.get(requirement.get("legalRequirementId"), [])
+        closure = semantic_closure(graph, claim_id)
+        chain_errors = []
+        if not bindings:
+            chain_errors.append("CHAIN_MISSING_REQUIREMENT")
+        if len(bindings) > 1:
+            chain_errors.append("CHAIN_MULTIPLE_REQUIREMENTS")
+        if requirement:
+            propositions = requirement["operativePropositions"]
+            bound = propositions[index] if 0 <= index < len(propositions) else {}
+            if any(bound.get(key) != proposition.get(key) for key in ("actor", "modality", "action")):
+                chain_errors.append("CHAIN_PROPOSITION_DRIFT")
+            for entry in closure["claims"]:
+                role = entry["role"]
+                if role == "OPERATIVE_PROPOSITION":
+                    continue
+                context_id = entry["claimId"]
+                matches = [
+                    binding for binding in requirement["claimBindings"]
+                    if binding["claimId"] == context_id and binding["role"] == role
+                ]
+                rows = requirement.get(ROLE_FIELDS[role], [])
+                if len(matches) != 1 or not 0 <= matches[0]["index"] < len(rows) or rows[matches[0]["index"]] != claims[context_id]["statement"]:
+                    chain_errors.append("CHAIN_CONTEXT_DRIFT")
+                    break
+
+        conditions = requirement.get("applicabilityConditions", [])
+        applicability = {
+            "mode": requirement.get("applicabilityMode") or frame.get("applicabilityMode")
+                    or ("CONDITIONAL" if conditions else "UNCONDITIONAL"),
+            "conditions": conditions,
+        }
+        if requirement.get("applicabilityLogic") is not None:
+            applicability["logic"] = requirement["applicabilityLogic"]
+        if coverage.get("state") not in {None, "COVERED_BY_ASSESSMENT_RULES", "NON_ASSESSABLE"}:
+            chain_errors.append("CHAIN_COVERAGE_REVIEW_REQUIRED")
+        # Rule criteria inherit their meaning from legal parents. An explicit
+        # rendering needs semantic verification against the canonical parent set.
+        for rule in related_rules:
+            criteria = rule.get("criteria", [])
+            parent_ids = set(rule["legalRequirementIds"])
+            criterion_parents = [set(criterion.get("legalRequirementIds", [])) for criterion in criteria]
+            if not any(requirement["legalRequirementId"] in parents for parents in criterion_parents) or any(
+                not parents or not parents <= parent_ids for parents in criterion_parents
+            ):
+                chain_errors.append("CHAIN_RULE_CRITERION_BINDING_INVALID")
+            if rule.get("applicabilityGuidance") or any(criterion.get("statement") for criterion in criteria):
+                chain_errors.append("CHAIN_RULE_SEMANTICS_REVIEW_REQUIRED")
+        predictions.append({
+            "predId": claim_id,
+            "sourceNodeIds": claim["sourceNodeIds"],
+            "sourceSupport": claim.get("sourceSupport"),
+            "actor": proposition.get("actor"),
+            "action": proposition.get("action"),
+            "modality": proposition.get("modality") or claim["claimType"],
+            "applicability": applicability,
+            "exceptions": requirement.get("exceptions", []),
+            "hasClaim": True,
+            "hasRequirement": bool(bindings),
+            "hasAssessmentRule": bool(related_rules),
+            "coverageState": coverage.get("state"),
+            "chainErrors": sorted(set(chain_errors)),
+        })
+    return predictions
 
 
 def _normalize_predictions(candidate: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
@@ -182,7 +307,13 @@ def _normalize_predictions(candidate: dict[str, Any]) -> tuple[str, list[dict[st
     if not isinstance(candidate, dict):
         raise ValueError("XTRAREG_CANDIDATE_MUST_BE_DICT")
 
-    mode = candidate.get("mode")
+    # Both production workflows share the packet shape. Legacy flattened
+    # diagnostic fixtures remain readable for historical metric comparisons.
+    packet = candidate.get("packet", candidate)
+    mode = candidate.get("mode") or packet.get("mode")
+    graph = packet.get("semanticGraph")
+    if isinstance(graph, dict) and (packet is not candidate or graph.get("contractVersion") == "LEGAL_GRAPH_V3"):
+        return mode or "FULL_PREPARATION", _project_packet(packet)
     if mode == "DIRECT_DRAFT" or ("candidates" in candidate and "semanticGraph" not in candidate):
         raw_items = candidate.get("candidates")
         if not isinstance(raw_items, list):
@@ -240,9 +371,9 @@ def _normalize_predictions(candidate: dict[str, Any]) -> tuple[str, list[dict[st
                 "obligationId": claim.get("obligationId"),
                 "sourceNodeIds": list(claim.get("sourceNodeIds") or []),
                 "sourceQuote": claim.get("sourceQuote") or "",
-                "actor": op.get("actor") or claim.get("actor") or "",
+                "actor": op.get("actor") or frame.get("actor") or claim.get("actor") or "",
                 "modality": claim.get("claimType") or op.get("modality") or "",
-                "action": op.get("action") or claim.get("action") or "",
+                "action": op.get("action") or frame.get("action") or claim.get("action") or "",
                 "applicability": (
                     (req.get("applicability") if req else None)
                     or claim.get("applicability")
@@ -266,11 +397,11 @@ def _is_grounded(pred: dict[str, Any], source_nodes: dict[str, dict[str, Any]]) 
 
     Business rules:
     - Empty sourceNodeIds or unknown nodeIds fail grounding immediately.
-    - When sourceQuote is supplied, it must match the pinned text of the cited node(s).
+    - Evidence requires canonical source spans or a quote matching the pinned source.
 
     Execution flow:
     1. Check non-empty sourceNodeIds and existence in pinned source.
-    2. If sourceQuote is non-empty, verify normalized substring containment.
+    2. Validate exact production spans or verify containment of the legacy quote.
 
     Failure cases:
     - Returns False for missing, fabricated, or misquoted citations.
@@ -281,12 +412,67 @@ def _is_grounded(pred: dict[str, Any], source_nodes: dict[str, dict[str, Any]]) 
     node_ids = pred.get("sourceNodeIds") or []
     if not node_ids or any(nid not in source_nodes for nid in node_ids):
         return False
-    quote = _norm_text(pred.get("sourceQuote"))
-    if quote:
-        combined = " ".join(_norm_text(source_nodes[nid].get("text")) for nid in node_ids)
-        if quote not in combined:
+    # Production claims carry exact UTF-16 spans rather than a joined quote.
+    if "sourceSupport" in pred:
+        spans = pred["sourceSupport"]
+        try:
+            source = SimpleNamespace(nodes={nid: {"content": source_nodes[nid]["text"]} for nid in node_ids})
+            verified = canonical_support(source, node_ids, spans)
+            return sorted(spans, key=lambda span: (span["nodeId"], span["startOffset"], span["endOffset"])) == verified
+        except (AttributeError, KeyError, TypeError, ValueError):
             return False
-    return True
+    quote = _norm_text(pred.get("sourceQuote"))
+    if not quote:
+        return False
+    combined = " ".join(_norm_text(source_nodes[nid].get("text")) for nid in node_ids)
+    return quote in combined
+
+
+def _meaning_differences(
+    gold: dict[str, Any], prediction: dict[str, Any], source_nodes: dict[str, dict[str, Any]],
+) -> tuple[list[str], int]:
+    """Business purpose: Detect unresolved changes to an aligned legal proposition.
+
+    Business rules:
+    - Diagnostic agreement requires exact action, applicability and exception fields.
+    - Extra conditions and exceptions can change who is subject to the obligation.
+
+    Execution flow:
+    1. Compare the action and complete applicability structure.
+    2. Count exactly retained exception conditions and flag missing or extra ones.
+    3. Require the annotated citation to be supported by the prediction's validated evidence.
+
+    Failure cases:
+    - Unresolved action text requires review, including empty predictions.
+
+    Side effects:
+    - None. The comparison does not adjudicate legal paraphrases.
+    """
+    errors = []
+    action = " ".join((prediction.get("action") or "").split())
+    if not action or action != " ".join(gold["action"].split()):
+        errors.append("ACTION_REVIEW_REQUIRED")
+    if prediction.get("applicability") != gold["applicability"]:
+        errors.append("APPLICABILITY_MISMATCH")
+    expected = set(gold["exceptions"])
+    observed = set(prediction.get("exceptions") or [])
+    if expected - observed:
+        errors.append("MISSING_EXCEPTION")
+    if observed - expected:
+        errors.append("EXCEPTION_REVIEW_REQUIRED")
+    # An existing node establishes reference integrity. The annotated quote
+    # must also be present in the supplied evidence before it receives credit.
+    citation = gold["citation"]
+    expected_nodes = set(citation["sourceNodeIds"])
+    support_quote = prediction.get("sourceQuote", "")
+    if "sourceSupport" in prediction:
+        support_quote = " ".join(
+            utf16_slice(source_nodes[span["nodeId"]]["text"], span["startOffset"], span["endOffset"])
+            for span in prediction["sourceSupport"] if span["nodeId"] in expected_nodes
+        )
+    if not expected_nodes.issubset(prediction["sourceNodeIds"]) or _norm_text(citation["sourceQuote"]) not in _norm_text(support_quote):
+        errors.append("CITATION_REVIEW_REQUIRED")
+    return errors, len(expected & observed)
 
 
 def _score_subset(
@@ -351,6 +537,8 @@ def _score_subset(
     matches: dict[str, list[dict[str, Any]]] = {oid: [] for oid in gold_by_id}
     for pred in grounded_preds:
         explicit_oid = pred.get("obligationId")
+        # Explicit alignment is only a scoring hint. Evidence is verified
+        # against this obligation's annotated citation before awarding credit.
         if explicit_oid in gold_by_id:
             matches[explicit_oid].append(pred)
             continue
@@ -403,8 +591,7 @@ def _score_subset(
 
     for item in obligations:
         oid = item["obligationId"]
-        gold_exceptions = [_norm_text(e) for e in item.get("exceptions", []) if _norm_text(e)]
-        gold_exception_total += len(gold_exceptions)
+        gold_exception_total += len(set(item["exceptions"]))
 
         preds = matches[oid]
         if not preds:
@@ -427,7 +614,7 @@ def _score_subset(
         matched_count += 1
         covered_nodes.update(set(item["citation"]["sourceNodeIds"]) & set(primary.get("sourceNodeIds") or []))
 
-        case_errors: list[str] = []
+        case_errors = list(primary.get("chainErrors", []))
         modality_match = _norm_text(primary.get("modality")) == _norm_text(item["modality"])
         if not modality_match:
             case_errors.append("MODALITY_INVERSION")
@@ -439,36 +626,35 @@ def _score_subset(
         else:
             case_errors.append("ACTOR_MISMATCH")
 
-        # P0-05: Use structured field comparison instead of lexical similarity for FULL/PARTIAL/INCORRECT.
-        # Token Jaccard is kept only for alignment (candidate-to-gold matching above), never for scoring.
-        # FULL requires: modality match AND actor match AND applicability match AND ALL exceptions covered.
-        # PARTIAL: modality match AND actor match AND at least one structural field partially off.
-        # INCORRECT: modality mismatch OR actor mismatch (normalized exact match).
-        g_app = item["applicability"]
-        p_app = primary.get("applicability") or {}
-        g_conds = {_norm_text(c) for c in g_app.get("conditions", []) if _norm_text(c)}
-        p_conds = {_norm_text(c) for c in p_app.get("conditions", []) if _norm_text(c)}
-        # Applicability matches when mode matches and all gold conditions are covered
-        # (allowing a 0.4 token-Jaccard or substring match against predicted conditions).
-        app_match = _norm_text(p_app.get("mode")) == _norm_text(g_app.get("mode")) and (
-            not g_conds or all(any(_token_jaccard(gc, pc) >= 0.4 or gc in pc or pc in gc for pc in p_conds) for gc in g_conds)
-        )
-        if app_match:
+        # Lexical overlap aligns candidates only. Exact field agreement is a
+        # conservative diagnostic; any unresolved action blocks a FULL result.
+        semantic_errors, preserved_here = _meaning_differences(item, primary, source_nodes)
+        case_errors.extend(semantic_errors)
+        if "APPLICABILITY_MISMATCH" not in semantic_errors:
             applicability_correct += 1
-        else:
-            case_errors.append("APPLICABILITY_MISMATCH")
-
-        p_exceptions = [_norm_text(e) for e in primary.get("exceptions", []) if _norm_text(e)]
-        preserved_here = sum(
-            1 for ge in gold_exceptions
-            # Require >= 0.5 token Jaccard for structured exception matching (raised from 0.35
-            # to prevent spurious matches between semantically distinct legal clauses).
-            if any(_token_jaccard(ge, pe) >= 0.5 or ge in pe or pe in ge for pe in p_exceptions)
-        )
         preserved_exception_total += preserved_here
-        if preserved_here < len(gold_exceptions):
-            case_errors.append("MISSING_EXCEPTION")
-            critical_counts["MISSING_EXCEPTION"] += 1
+        for code in CRITICAL_ERROR_CODES.intersection(semantic_errors):
+            critical_counts[code] += 1
+
+        # Score every duplicate for review while retaining one metric row per
+        # atomic obligation. A duplicate cannot hide a contradictory proposition.
+        for duplicate in preds[1:]:
+            duplicate_errors, _ = _meaning_differences(item, duplicate, source_nodes)
+            duplicate_errors.extend(["DUPLICATE_PREDICTION", *duplicate.get("chainErrors", [])])
+            if _norm_text(duplicate.get("actor")) != _norm_text(item["actor"]):
+                duplicate_errors.append("ACTOR_MISMATCH")
+            if _norm_text(duplicate.get("modality")) != _norm_text(item["modality"]):
+                duplicate_errors.append("MODALITY_INVERSION")
+            for code in CRITICAL_ERROR_CODES.intersection(duplicate_errors):
+                critical_counts[code] += 1
+            failed_cases.append({
+                "obligationId": oid,
+                "predictionId": duplicate["predId"],
+                "split": item["split"],
+                "classification": "REVIEW_REQUIRED",
+                "errorCodes": sorted(duplicate_errors),
+                "details": "Additional prediction aligned to the same atomic obligation.",
+            })
 
         # Chain integrity: semanticClaim -> LegalRequirement -> AssessmentRule
         if primary.get("hasClaim") and primary.get("hasRequirement"):
@@ -486,16 +672,12 @@ def _score_subset(
             elif primary.get("hasAssessmentRule"):
                 case_errors.append("CHAIN_SPURIOUS_ASSESSMENT_RULE")
 
-        # P0-05: Structured FULL/PARTIAL/INCORRECT classification.
-        # INCORRECT when modality is wrong OR actor is wrong (the two invariants that cannot be partially right).
-        # PARTIAL when both modality and actor match but at least one structural field (action,
-        #   applicability, exceptions, chain) differs.
-        # FULL when every structural field matches.
-        if not modality_match or not actor_match:
+        # An unverified action does not receive lenient recall credit.
+        if not modality_match or not actor_match or any(
+            code in case_errors for code in ("ACTION_REVIEW_REQUIRED", "CITATION_REVIEW_REQUIRED")
+        ):
             incorrect_count += 1
             classification = "INCORRECT"
-            if not actor_match:
-                case_errors.append("ACTION_MISMATCH")  # kept for backward-compat label; structural mismatch
         elif case_errors:
             partial_count += 1
             classification = "PARTIAL"
@@ -518,9 +700,9 @@ def _score_subset(
 
     # P1-03: Report grounded predictions that were not matched to any gold obligation.
     # These are NOT errors (gold may be incomplete), but must appear in analysis for transparency.
-    matched_pred_ids: set[str] = {p["predId"] for oid_preds in matches.values() for p in oid_preds}
+    matched_predictions = {id(p) for oid_preds in matches.values() for p in oid_preds}
     for pred in grounded_preds:
-        if pred["predId"] not in matched_pred_ids:
+        if id(pred) not in matched_predictions:
             failed_cases.append({
                 "obligationId": pred.get("obligationId") or pred["predId"],
                 "split": split_name,
@@ -580,14 +762,14 @@ def evaluate_xtrareg_chain(
     """Business purpose: Evaluate a Preparation or Direct-Draft output across the full XTRAREG semantic chain.
 
     Business rules:
-    - Enforces AC1 gold validity before scoring any predictions.
+    - Enforces diagnostic gold structure before scoring predictions.
     - Reports ALL, DEV, and HOLDOUT splits separately with explicit denominators (AC3).
     - Fails closed on critical regressions such as ungrounded obligations or dropped exceptions (AC2).
 
     Execution flow:
     1. Validate gold dataset and pinned source provenance (AC1).
     2. Normalize candidate predictions (FULL_PREPARATION or DIRECT_DRAFT).
-    3. Score ALL, DEV, and HOLDOUT splits and compute critical regression gate status.
+    3. Score ALL, DEV, and HOLDOUT splits and keep reviewed acceptance blocked.
 
     Failure cases:
     - Invalid gold/source raises ValueError; semantic or chain errors are reported in criticalErrorCounts and failedCases.
@@ -615,16 +797,15 @@ def evaluate_xtrareg_chain(
     dev_report = _score_subset(dev_obligations, predictions, source_nodes, "DEV")
     holdout_report = _score_subset(holdout_obligations, predictions, source_nodes, "HOLDOUT")
 
-    critical_total = sum(all_report["criticalErrorCounts"].values())
     return {
         "schemaVersion": "XTRAREG_EVAL_REPORT_V1",
         "legalSourceVersionId": gold["legalSourceVersionId"],
         "annotationVersion": gold["annotationVersion"],
         "mode": mode,
-        # passedCriticalGate is False when any critical regression is present OR when the
-        # gold corpus is synthetic (acceptance cannot be claimed for smoke-test datasets).
-        "passedCriticalGate": critical_total == 0 and not acceptance_warnings,
-        "acceptanceWarnings": acceptance_warnings,
+        # XTRAREG's annotation label is caller data. No verified XTRAREG
+        # evidence package currently authorizes this scorer to grant acceptance.
+        "passedCriticalGate": False,
+        "acceptanceWarnings": [*acceptance_warnings, "XTRAREG_REVIEWED_EVIDENCE_REQUIRED"],
         "splits": {
             "ALL": all_report,
             "DEV": dev_report,
@@ -645,16 +826,14 @@ def compare_direct_draft_vs_preparation(
     Business rules:
     - Evaluates both modes using identical gold and pinned source definitions.
     - P1-05: Requires both candidates share the same legalSourceVersionId as gold.
-    - Warns when candidates were produced by different model versions (may confound comparison).
-    - Never claims semantic gain unless ALL of: holdout strictRecall non-negative delta,
-      exceptionPreservation non-negative delta, criticalErrorDelta <= 0, AND at least one metric
-      strictly positive (AC3). Synthetic corpora (SYNTHETIC_NOT_REVIEWED) always block gain claims.
+    - Warns when model identity is missing or differs between the candidates.
+    - Deltas are diagnostic until an independently verified paired execution is available.
 
     Execution flow:
     1. Verify source version identity and optional model version parity.
     2. Run evaluate_xtrareg_chain on both DIRECT_DRAFT and FULL_PREPARATION outputs.
     3. Compute holdout metric deltas (strictRecall, groundingRate, exceptionPreservationRate, duplicationRate).
-    4. Emit an evidence-bound semanticGainClaimed boolean and explicit assessment reason.
+    4. Emit deltas with an explicit diagnostic status.
 
     Failure cases:
     - Mismatched legalSourceVersionId raises ValueError to prevent cross-corpus comparisons.
@@ -663,30 +842,31 @@ def compare_direct_draft_vs_preparation(
     Side effects:
     - None: pure comparison report.
     """
-    # P1-05: Verify that both candidates and gold all share the same legal source version.
+    # Compare graph pins in both packet formats. Missing identity cannot
+    # establish that both executions used the same reviewed text.
     gold_source_version = gold.get("legalSourceVersionId")
-    dd_source_version = direct_draft_candidate.get("legalSourceVersionId")
-    prep_source_version = preparation_candidate.get("semanticGraph", {}).get("legalSourceVersionId")
-    source_mismatch_errors: list[str] = []
-    if dd_source_version and dd_source_version != gold_source_version:
-        source_mismatch_errors.append(f"DIRECT_DRAFT_SOURCE_VERSION_MISMATCH:{dd_source_version}!={gold_source_version}")
-    if prep_source_version and prep_source_version != gold_source_version:
-        source_mismatch_errors.append(f"PREPARATION_SOURCE_VERSION_MISMATCH:{prep_source_version}!={gold_source_version}")
-    if source_mismatch_errors:
-        raise ValueError("XTRAREG_SOURCE_VERSION_IDENTITY_FAILED:" + ",".join(source_mismatch_errors))
+    for label, candidate in (("DIRECT_DRAFT", direct_draft_candidate), ("FULL_PREPARATION", preparation_candidate)):
+        packet = candidate.get("packet", candidate)
+        version = packet.get("semanticGraph", packet).get("legalSourceVersionId")
+        if not version or version != gold_source_version:
+            raise ValueError(f"XTRAREG_SOURCE_VERSION_IDENTITY_FAILED:{label}:{version}!={gold_source_version}")
 
-    # P1-05: Warn when candidates report different modelIds (comparison validity concern, not a blocker).
     dd_model = direct_draft_candidate.get("modelId")
     prep_model = preparation_candidate.get("modelId")
-    model_parity_warning: str | None = None
-    if dd_model and prep_model and dd_model != prep_model:
-        model_parity_warning = (
-            f"MODEL_ID_MISMATCH: direct_draft={dd_model}, preparation={prep_model}. "
-            "Comparison may be confounded by different model versions."
-        )
+    model_parity_warning = None
+    if not dd_model or not prep_model:
+        model_parity_warning = "MODEL_ID_MISSING"
+    elif dd_model != prep_model:
+        model_parity_warning = "MODEL_ID_MISMATCH"
 
-    direct_report = evaluate_xtrareg_chain(gold, pinned_source, direct_draft_candidate)
+    # Production packets share one schema, so the paired slot supplies the
+    # diagnostic role when the Direct Draft artifact has no outer mode label.
+    direct_report = evaluate_xtrareg_chain(
+        gold, pinned_source, {"mode": "DIRECT_DRAFT", **direct_draft_candidate},
+    )
     prep_report = evaluate_xtrareg_chain(gold, pinned_source, preparation_candidate)
+    if direct_report["mode"] != "DIRECT_DRAFT" or prep_report["mode"] != "FULL_PREPARATION":
+        raise ValueError("XTRAREG_PAIRED_MODE_MISMATCH")
 
     d_hold = direct_report["splits"]["HOLDOUT"]["metrics"]
     p_hold = prep_report["splits"]["HOLDOUT"]["metrics"]
@@ -702,44 +882,16 @@ def compare_direct_draft_vs_preparation(
         "criticalErrorDelta": p_crit - d_crit,
     }
 
-    # P1-05 / P0-01: Semantic gain requires ALL of these conditions (not just one positive delta):
-    # 1. Zero critical errors in FULL_PREPARATION holdout.
-    # 2. strictRecallDelta >= 0 (no regression in recall).
-    # 3. exceptionPreservationDelta >= 0 (no regression in exception coverage).
-    # 4. criticalErrorDelta <= 0 (no new critical errors introduced).
-    # 5. At least one metric strictly improved (> 0).
-    # 6. The gold corpus is independently reviewed (synthetic corpora always block gain claims).
-    is_accepted_corpus = not prep_report.get("acceptanceWarnings")
-    gain_supported = (
-        is_accepted_corpus
-        and p_crit == 0
-        and deltas["criticalErrorDelta"] <= 0
-        and deltas["strictRecallDelta"] >= 0
-        and deltas["exceptionPreservationDelta"] >= 0
-        and (
-            deltas["strictRecallDelta"] > 0
-            or deltas["exceptionPreservationDelta"] > 0
-            or deltas["groundingRateDelta"] > 0
-        )
-    )
-    if not is_accepted_corpus:
-        reason = (
-            "Semantic gain NOT claimed: gold corpus is SYNTHETIC_NOT_REVIEWED — "
-            "only an independently reviewed corpus can support acceptance claims. "
-            "Scorer arithmetic is valid for diagnostic purposes only."
-        )
-    elif not gain_supported:
-        reason = "Holdout data does not support claiming a semantic gain (equal or negative delta, or critical errors present)."
-    else:
-        reason = "Holdout metrics show positive semantic gain with zero critical errors."
-
+    # Deltas describe the supplied artifacts. A diagnostic comparison cannot
+    # promote them to an independently reviewed result.
+    reason = "NOT_EVALUATED: independently verified XTRAREG paired execution evidence is required."
     return {
         "schemaVersion": "XTRAREG_MODE_COMPARISON_V1",
         "legalSourceVersionId": gold_source_version,
         "directDraft": direct_report,
         "fullPreparation": prep_report,
         "holdoutDeltas": deltas,
-        "semanticGainClaimed": gain_supported,
+        "semanticGainClaimed": False,
         "gainAssessmentReason": reason,
         **({"modelParityWarning": model_parity_warning} if model_parity_warning else {}),
     }

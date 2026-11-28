@@ -1,12 +1,9 @@
-# XTRAREG Semantic Evaluation & Regression Report (`gdpr-pinned-v1.0.0`)
+# XTRAREG GDPR diagnostic evaluation
 
-- **Reference:** *LLM-assisted Extraction of Regulatory Requirements: A Case Study on the GDPR (XTRAREG)*, IEEE RE 2025
-- **Scope:** `semanticClaims → LegalRequirements → AssessmentRules` across `FULL_PREPARATION` (discovery + authoring) and `DIRECT_DRAFT`
-- **Pinned Legal Source:** `deepagents/evals/fixtures/xtrareg_gdpr_source_v1.json` (`gdpr-pinned-v1.0.0`, 24 source nodes)
-- **Gold Annotation:** `deepagents/evals/fixtures/xtrareg_gdpr_gold_v1.json` (`30` atomic obligations/conditions/exceptions: `14 DEV`, `16 HOLDOUT`, dual-reviewer adjudication + disagreement log)
-- **Scorer & CLI:** `deepagents/rule_set_preparation/xtrareg_eval.py` and `python -m rule_set_preparation.eval_cli --xtrareg-gold ... --xtrareg-source ... --xtrareg-candidate ... [--xtrareg-direct-draft ...]`
+The pinned synthetic fixture contains 25 source nodes and 30 annotations (14 DEV and 16 HOLDOUT). Its approval status is `SYNTHETIC_NOT_REVIEWED`. Reviewer IDs and adjudication fields are fixture values. The fixture exercises scorer behavior offline.
 
-## Acceptance Criteria Verification
-- **AC1 (Gold Provenance & Size):** `>= 30` atomic obligations/conditions/exceptions, `DEV` and `HOLDOUT` splits, pinned `sourceNodeIds` + verbatim `sourceQuote`, `actor`, `modality`, `applicability`, `exceptions`, and dual-reviewer provenance (`reviewerId`, `secondReviewerId`, `annotationVersion`, `adjudicationStatus`, `disagreementLog`).
-- **AC2 (Critical Regression Gate):** Enforces zero `UNGROUNDED_OBLIGATION`, `MISSING_EXCEPTION`, `MODALITY_INVERSION`, and `MISSING_OBLIGATION` errors, listing every failing case in `failedCases`.
-- **AC3 (Holdout Metrics & Honest Gain Assessment):** Reports `full` / `partial` / `incorrect` / `missed`, `strictPrecision`, `lenientPrecision`, `strictRecall`, `lenientRecall`, `sourceUnitCoverage`, `obligationCoverage`, `groundingRate`, `duplicateCount` / `duplicationRate`, `actorAccuracy`, `applicabilityAccuracy`, `exceptionPreservationRate`, and `chainIntegrity` (`claimsToRequirementsRate`, `requirementsToRulesRate`, `nonAssessableAccuracy`) with explicit denominators. `semanticGainClaimed` is `True` only when holdout metrics improve with zero critical errors.
+The scorer reports obligation coverage, citation checks, duplicates, and structural Claim → LegalRequirement → AssessmentRule checks. It uses token similarity for candidate alignment and exact comparisons for diagnostic scoring. Differences in action, applicability, exceptions, or citations require review. A diagnostic score does not establish legal equivalence.
+
+Run the diagnostic from `deepagents/` with `python -m rule_set_preparation.eval_cli --xtrareg-gold GOLD.json --xtrareg-source SOURCE.json --xtrareg-candidate PREPARATION.json --xtrareg-direct-draft DIRECT_DRAFT.json`. The report records SHA-256 digests of the bytes scored. Exit code 2 and `reviewedEvidenceGate.status=BLOCKED` indicate that release acceptance is unavailable.
+
+Semantic quality and gain remain unevaluated. Acceptance requires a pinned verbatim legal source, independently reviewed gold, and frozen outputs and paired execution manifests from both workflows on the same holdout.
