@@ -33,6 +33,7 @@ import {
 } from "../../ports/persistence/repository-connection.repository.js";
 import {
   REPOSITORY_SNAPSHOT_REPOSITORY,
+  RepositorySnapshotAuthorityChangedError,
   type RepositorySnapshotRepository,
 } from "../../ports/persistence/repository-snapshot.repository.js";
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
@@ -227,30 +228,26 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       actorId: command.actorId,
     });
 
-    await this.snapshotRepository.saveWithCreatedEvent(
-      snapshot,
-      buildOutboxMessageInput({
-        aggregateType: OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
-        aggregateId: snapshot.id,
-        eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+    const createdEvent = buildOutboxMessageInput({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
+      aggregateId: snapshot.id,
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+      assessmentId: snapshot.assessmentId,
+      correlationId: command.correlationId,
+      causationId: command.correlationId,
+      actor: { id: command.actorId, type: AUDIT_ACTOR_TYPES.user },
+      result: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,
+      redactionStatus: AUDIT_REDACTION_STATUSES.none,
+      idempotencyKey: `${snapshot.id}:${GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated}`,
+      payload: {
+        snapshotId: snapshot.id,
         assessmentId: snapshot.assessmentId,
+        commitSha: snapshot.commitSha,
+        connectionId: snapshot.connectionId,
         correlationId: command.correlationId,
-        causationId: command.correlationId,
-        actor: { id: command.actorId, type: AUDIT_ACTOR_TYPES.user },
-        result: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,
-        redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        idempotencyKey: `${snapshot.id}:${GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated}`,
-        payload: {
-          snapshotId: snapshot.id,
-          assessmentId: snapshot.assessmentId,
-          commitSha: snapshot.commitSha,
-          connectionId: snapshot.connectionId,
-          correlationId: command.correlationId,
-        },
-      }),
-    );
-
-    await this.auditWriter.write({
+      },
+    });
+    const createdAudit = {
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,
       actorId: command.actorId,
       assessmentId: snapshot.assessmentId,
@@ -268,7 +265,26 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         connectionId: snapshot.connectionId,
         correlationId: command.correlationId,
       },
-    });
+    } as const;
+
+    try {
+      // Why: The repository owns the single transaction for snapshot, outbox
+      // and audit, and rechecks authority after the external provider lookup.
+      await this.snapshotRepository.saveWithCreatedEvent(
+        snapshot,
+        createdEvent,
+        createdAudit,
+      );
+    } catch (error: unknown) {
+      if (error instanceof RepositorySnapshotAuthorityChangedError) {
+        throw problemException(
+          GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,
+          command.correlationId,
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+      throw error;
+    }
 
     return {
       snapshot_id: snapshot.id,

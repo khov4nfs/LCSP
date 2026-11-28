@@ -40,6 +40,11 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  legalLifecycle: {
+    [
+      K in keyof typeof import("./locales/en/legal-lifecycle.ts").enLegalLifecycle
+    ]: string;
+  };
   legalRuleCatalog: LegalRuleCatalogMessages;
   preparationOps: {
     persistedCoverage: string;

@@ -1,6 +1,8 @@
 import type { PagesMessages } from "../../types.ts";
 import { enLegalRuleCatalog } from "./legal-rule-catalog.ts";
+import { enLegalLifecycle } from "./legal-lifecycle.ts";
 export const enPages = {
+  legalLifecycle: enLegalLifecycle,
   legalRuleCatalog: enLegalRuleCatalog,
   preparationOps: {
     persistedCoverage: "Persisted source coverage",

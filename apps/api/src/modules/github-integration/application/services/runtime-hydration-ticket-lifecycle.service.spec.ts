@@ -64,6 +64,12 @@ describe("RuntimeHydrationTicketLifecycle", () => {
         state: options?.turnState ?? AssessmentRuntimeControlState.COMPLETED,
       });
     const prisma = {
+      $transaction: jest.fn(async (work: (tx: unknown) => Promise<unknown>) =>
+        work(prisma),
+      ),
+      $queryRaw: jest.fn(() =>
+        Promise.resolve([{ assessmentId: ticket.assessmentId }]),
+      ),
       repositoryScanJob: { findUnique: findTicket, updateMany: updateTicket },
       assessmentRuntime: { findUnique: findRuntime },
       assessmentCase: {
@@ -246,8 +252,35 @@ describe("RuntimeHydrationTicketLifecycle", () => {
         }),
       }),
     );
-    expect(findRuntime).toHaveBeenCalledTimes(1);
+    expect(findRuntime).toHaveBeenCalledTimes(2);
     expect(findTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reconcile a ticket after a new Root lease starts during validation", async () => {
+    const { lifecycle, runtime, findRuntime, findTurn, updateTicket } = setup({
+      runtimeState: AGENT_EXECUTION_STATES.SUCCEEDED,
+    });
+    // Why: Terminal runtime checks and the ticket update need one authority
+    // boundary; a new lease acquired between the reads must stop reconciliation.
+    findRuntime.mockImplementationOnce(() => Promise.resolve({ ...runtime }));
+    findTurn.mockImplementationOnce(() => {
+      runtime.leaseToken = "new-root-lease";
+      runtime.executionState = AGENT_EXECUTION_STATES.RUNNING;
+      return Promise.resolve({
+        assessmentId: ticket.assessmentId,
+        threadId: runtime.threadId,
+        boundary: ASSESSMENT_ROOT_BOUNDARY,
+        state: AssessmentRuntimeControlState.COMPLETED,
+      });
+    });
+
+    await expect(
+      lifecycle.reconcileTerminalRuntime({
+        ticketId: ticket.id,
+        snapshotId: ticket.snapshotId,
+      }),
+    ).rejects.toBeDefined();
+    expect(updateTicket).not.toHaveBeenCalled();
   });
 
   it.each([AGENT_EXECUTION_STATES.FAILED, AGENT_EXECUTION_STATES.SUCCEEDED])(

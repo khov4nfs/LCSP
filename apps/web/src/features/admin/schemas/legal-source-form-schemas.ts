@@ -1,5 +1,6 @@
 import {
   LEGAL_SOURCE_LIMITS,
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES,
   LEGAL_SOURCE_STRUCTURE_PROFILES,
   legalSourceProvisionStatusesSchema,
   type LegalSourceStructureProfile,
@@ -114,10 +115,19 @@ export const startLegalSourceVersionFormSchema = z.object({
 
 export const uploadLegalSourceDocumentFormSchema = z
   .object({
-    file: z.custom<File>(
-      (value) => typeof File !== "undefined" && value instanceof File,
-      messages.fileRequired,
-    ),
+    file: z
+      .custom<File>(
+        (value) => typeof File !== "undefined" && value instanceof File,
+        messages.fileRequired,
+      )
+      .refine(
+        (file) =>
+          file.size > 0 && file.size <= LEGAL_SOURCE_LIMITS.maxDocumentBytes,
+        "pages.legalLifecycle.fileInvalid",
+      ),
+    corpusRole: z
+      .enum(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES)
+      .default(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE),
     title: titleSchema,
     structureProfile: structureProfileSchema,
     sourceEffectStatus: effectStatusSchema,
@@ -136,6 +146,9 @@ export const importLegalSourceDocumentFormSchema = z
       .trim()
       .min(1, messages.urlRequired)
       .max(LEGAL_SOURCE_LIMITS.maxUrlLength, messages.urlTooLong),
+    corpusRole: z
+      .enum(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES)
+      .default(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE),
     title: titleSchema,
     structureProfile: structureProfileSchema,
     sourceEffectStatus: effectStatusSchema,

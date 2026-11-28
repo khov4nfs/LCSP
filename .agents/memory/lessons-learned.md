@@ -45,6 +45,8 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 
 ## Other focused lessons
 
+- Audit export bearer links require a configured high-entropy signing key at startup; count and measure payload bytes in PostgreSQL before transferring JSON, then read bounded keyset pages. Allocate versions under a database lock, commit export plus audit together, and verify canonical JSON digests before bytes. Signed downloads must durably audit before release. [AUDIT/EXPORT-INTEGRITY]
+
 - Parse untrusted DOCX XML with `defusedxml` and test entity rejection. [SECURITY/PYTHON]
 - Rootless archive fixtures use repository-relative paths; strip only a verified wrapper. [PYTHON/ARCHIVES]
 - Discovery questions describe intended AI use; reuse accepted answers and pinned code after rule selection. [STACK: deepagents]
@@ -74,8 +76,24 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 - **Context / Symptom**: A reused activation or index key accepted changed evidence; official-source worker payloads accepted malformed URLs or missing boolean identity; malformed URL escapes emitted raw URIError.
 - **Root Cause**: Replay compared only a subset of immutable fields, worker request TypeScript types vanished at runtime, and filename decoding lacked a typed rejection path.
 - **Resolution & Invariant**: Compare every persisted business-authority field on replay; validate required provenance URL and boolean at the service boundary before persistence; translate malformed URL decoding into the established import rejection. Preserve exact replay success plus mismatched replay and malformed input regression tests.
+
+### [2026-11-28] [AUDIT/EXPORT-INTEGRITY] Export Proof Must Be Bounded And Atomic
+- **Context / Symptom**: A valid Admin export could read an unbounded year of events, commit READY before its audit event, and issue signed download links with a public fallback key; the download path did not check the persisted digest or record its own audit.
+- **Root Cause**: Export construction, version allocation, audit persistence, and signed download were implemented as separate happy-path operations without a shared durability or integrity boundary.
+- **Resolution & Invariant**: Reject missing signing keys at startup; count and measure bytes in PostgreSQL before fetching JSON, read keyset pages under a frozen time boundary, and cap output bytes; allocate version under a PostgreSQL advisory lock and commit export plus audit together; verify a canonical digest and record download audit before bytes. Preserve RED/GREEN tests and run the gated PostgreSQL race/rollback test in CI.
+
 ### [2026-11-28] [ADMIN/OVERVIEW-ACTIVITY-AUTHORITY] Dashboard Metrics Need Bounded Durable Facts
 - **Context / Symptom**: Admin overview loaded every Assessment in a 90-day period, counted a later `updatedAt` as a new completion, and the web chart replaced real zero counts with fixture numbers.
 - **Root Cause**: The handler projected records into Node.js and derived completion from mutable Assessment state; the consumer used truthy fallbacks for valid zeros.
 - **Resolution & Invariant**: Aggregate fixed activity buckets in PostgreSQL from Assessment creation and durable COMPLETE lifecycle events; return zero as zero without sample bars. Session creation is labelled as last sign in, not last activity. Preserve RED/GREEN unit and PostgreSQL regressions.
+
+### [2026-11-28] [GITHUB-INTEGRATION/POST-PROVIDER-AUTHORITY] External I/O Does Not Preserve Commit Authority
+- **Context / Symptom**: A repository connection or immutable snapshot could be published after the assessment changed state, the credential was rotated, or audit persistence failed; two cache instances could also delete each other's files.
+- **Root Cause**: Provider calls separated the first authorization read from the write transaction, audit ran after commit, and cache cleanup owned a shared root instead of the failed attempt's files.
+- **Resolution & Invariant**: Revalidate and lock owner, lifecycle, credential and connection rows inside the write transaction after provider I/O; commit required audit with the domain write and outbox. Give each cache instance its own directory and delete only its temporary capture on failure. PostgreSQL tests must prove rollback and lock ordering, including a writer that commits while the contender waits; worker/API crash rehearsals remain separate from unit tests.
+
+### [2026-11-28] [GITHUB-INTEGRATION/HYDRATION-DELIVERY-ACK] HTTP Bytes Do Not Prove Ticket Finalization
+- **Context / Symptom**: An archive response could finish while the server's subsequent ticket update failed, leaving a worker with usable bytes and a `RUNNING` hydration ticket.
+- **Root Cause**: HTTP response completion and PostgreSQL finalization cannot share one atomic commit; retrying only inside the server cannot cover a later process failure.
+- **Resolution & Invariant**: Include the exact trusted ticket ID in the archive response and require the worker to validate the archive then perform an idempotent, worker-authenticated completion ACK before returning bytes to hydration. A failed ACK never becomes a successful worker download. On a later archive GET, only verified terminal-Root reconciliation may change an abandoned `RUNNING` ticket to retryable `FAILED`; an active Root keeps it blocked. Test API command dispatch, worker fail-closed behavior, and the PostgreSQL runtime-row race.
 

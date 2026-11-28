@@ -8,6 +8,7 @@ import {
   LEGAL_SOURCE_CHUNK_STATUSES,
   LEGAL_SOURCE_MANAGEMENT_ERROR_CODES,
   LEGAL_SOURCE_STRUCTURE_PROFILES,
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES,
   legalSourceVersionDetailSchema,
   updateLegalSourceDocumentEffectSchema,
 } from "@lcsp/contracts/legal-source";
@@ -36,6 +37,7 @@ function uploadRequest(input: { file?: File; authenticated?: boolean }) {
   const form = new FormData();
   if (input.file) form.set("file", input.file);
   form.set("title", "Synthetic document title");
+  form.set("corpusRole", LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY);
   form.set("structureProfile", LEGAL_SOURCE_STRUCTURE_PROFILES.ARTICLES);
   form.set("sourceEffectStatus", "EFFECTIVE");
   form.set("effectiveDate", "2026-10-01");
@@ -92,6 +94,7 @@ test("upload BFF forwards raw file bytes and validated metadata in the query", a
       `/admin/legal-source-versions/${versionId}/documents/upload`,
     );
     assert.equal(target.searchParams.get("fileName"), "neutral.txt");
+    assert.equal(target.searchParams.get("corpusRole"), LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.REFERENCE_ONLY);
     assert.equal(target.searchParams.get("title"), "Synthetic document title");
     assert.equal(
       target.searchParams.get("structureProfile"),

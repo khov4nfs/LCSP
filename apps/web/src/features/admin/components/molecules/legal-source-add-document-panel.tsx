@@ -1,21 +1,17 @@
 "use client";
 
+import type { LegalSourceAddDocumentProps } from "../../types/legal-source-lifecycle.types";
+
 import { useState } from "react";
-import type { MessageKey } from "@lcsp/i18n";
-
+import { resolveAppMessage as t } from "@/lib/i18n";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { resolveAppMessage } from "@/lib/i18n";
-import { LegalSourceImportForm } from "./legal-source-import-form";
-import { LegalSourceUploadForm } from "./legal-source-upload-form";
-
-const t = (key: string) => resolveAppMessage(key as MessageKey);
+import { LegalSourceDocumentDialog } from "./legal-source-document-dialog";
 
 export function LegalSourceAddDocumentPanel({
   versionId,
-}: {
-  versionId: string;
-}) {
-  const [importMode, setImportMode] = useState(false);
+}: LegalSourceAddDocumentProps) {
+  const [submitted, setSubmitted] = useState(false);
   return (
     <Card>
       <CardHeader>
@@ -24,38 +20,25 @@ export function LegalSourceAddDocumentPanel({
           {t("pages.legalSources.addDocumentDescription")}
         </p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        <div
-          role="tablist"
-          aria-label={t("pages.legalSources.addDocument")}
-          className="flex gap-2 border-b"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!importMode}
-            className="border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-primary aria-selected:text-primary"
-            onClick={() => setImportMode(false)}
-          >
-            {t("pages.legalSources.uploadTab")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={importMode}
-            className="border-b-2 border-transparent px-3 py-2 text-sm aria-selected:border-primary aria-selected:text-primary"
-            onClick={() => setImportMode(true)}
-          >
-            {t("pages.legalSources.importTab")}
-          </button>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-3">
+          <LegalSourceDocumentDialog
+            versionId={versionId}
+            onSuccess={() => setSubmitted(true)}
+          />
+          <LegalSourceDocumentDialog
+            versionId={versionId}
+            importFromUrl
+            onSuccess={() => setSubmitted(true)}
+          />
         </div>
-        <div role="tabpanel">
-          {importMode ? (
-            <LegalSourceImportForm versionId={versionId} />
-          ) : (
-            <LegalSourceUploadForm versionId={versionId} />
-          )}
-        </div>
+        {submitted ? (
+          <Alert>
+            <AlertDescription role="status">
+              {t("pages.legalLifecycle.submitted")}
+            </AlertDescription>
+          </Alert>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -13,6 +13,7 @@ import {
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
   LEGAL_SOURCE_CHUNK_STATUSES,
+  LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES,
   LEGAL_SOURCE_EVENT_TYPES,
   type UpdateLegalSourceDocumentCorpusRole,
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
@@ -28,6 +29,7 @@ import {
   type LegalSourceChunkPage,
   type LegalSourceChunkQuery,
   type LegalSourceDocumentView,
+  type LegalSourceDocumentCorpusRole,
   type LegalSourceIngestionResult,
   type UpdateLegalSourceDocumentEffect,
   type UploadLegalSourceDocumentMetadata,
@@ -84,6 +86,7 @@ interface LockedVersion {
 }
 
 interface NewDocument {
+  corpusRole?: LegalSourceDocumentCorpusRole;
   versionId: string;
   actorId: string;
   correlationId: string;
@@ -152,6 +155,7 @@ export class LegalSourceDocumentService {
         uploadedFileName: fileName,
         provisionStatuses: input.metadata.provisionStatuses ?? {},
       },
+      corpusRole: input.metadata.corpusRole,
       title: input.metadata.title,
       structureProfile: input.metadata.structureProfile,
       sourceEffectStatus: input.metadata.sourceEffectStatus,
@@ -233,6 +237,7 @@ export class LegalSourceDocumentService {
         declaredContentType: fetched.contentType,
         provisionStatuses: input.request.provisionStatuses ?? {},
       },
+      corpusRole: input.request.corpusRole,
       title: input.request.title,
       structureProfile: input.request.structureProfile,
       sourceEffectStatus: input.request.sourceEffectStatus,
@@ -1092,7 +1097,7 @@ export class LegalSourceDocumentService {
    * - Document validation yields the shared empty/too-large/unsupported/limit/duplicate errors; missing or immutable version rejects; all transaction writes roll back together on failure.
    *
    * Side effects:
-   * - Creates blob/document metadata, discards stale graphs/index and writes ingestion outbox plus audit records transactionally.
+   * - Creates blob/document metadata including the requested corpus role (legacy omission defaults to OPERATIVE), discards stale graphs/index and writes ingestion outbox plus audit records transactionally. Purpose is not official-source admission.
    */
   private async addDocument(
     input: NewDocument,
@@ -1171,6 +1176,9 @@ export class LegalSourceDocumentService {
         data: {
           legalSourceVersionId: version.id,
           documentId,
+          corpusRole: toPrismaLegalSourceDocumentCorpusRole(
+            input.corpusRole ?? LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE,
+          ),
           title,
           sourceUrl: official?.sourcePage ?? input.sourceUrl,
           sourceSha256: `sha256:${sha256}`,
@@ -1220,6 +1228,8 @@ export class LegalSourceDocumentService {
           documentRowId: created.id,
           documentId,
           mediaType,
+          corpusRole:
+            input.corpusRole ?? LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES.OPERATIVE,
           byteLength: input.bytes.byteLength,
           sourceSha256: `sha256:${sha256}`,
         },

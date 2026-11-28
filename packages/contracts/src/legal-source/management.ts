@@ -289,6 +289,7 @@ const provisionStatusesInputSchema = z.preprocess((value) => {
 }, legalSourceProvisionStatusesSchema.optional());
 
 const documentMetadataShape = {
+  corpusRole: z.enum(LEGAL_SOURCE_DOCUMENT_CORPUS_ROLES).optional(),
   title: optionalText(LEGAL_SOURCE_LIMITS.maxTitleLength),
   structureProfile: z
     .enum(

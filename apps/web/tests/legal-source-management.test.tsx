@@ -319,50 +319,23 @@ test("ACTIVE version is read-only and hides controls the API disallows", async (
   }
 });
 
-test("activation confirmation sends explicit activation and contains no review step", async () => {
+test("activation review refuses missing official admission even when technical readiness passes", async () => {
   const versionId = fixtures.versionActivatable.id;
   const stub = installFetch({
-    [`GET /api/admin/legal-source-versions/${versionId}`]:
-      fixtures.versionActivatable,
-    [`POST /api/admin/legal-source-versions/${versionId}/activate`]:
-      fixtures.versionActivatable,
+    [`GET /api/admin/legal-source-versions/${versionId}`]: fixtures.versionActivatable,
+    [`GET /api/admin/legal-sources/${fixtures.source.id}`]: fixtures.source,
   });
   try {
-    const { container } = renderWithClient(
-      <LegalSourceVersionPage versionId={versionId} />,
-    );
+    const { container } = renderWithClient(<LegalSourceVersionPage versionId={versionId} />);
     await settle();
-    click(buttonByText(container, "Activate version"));
+    click(buttonByText(container, "Review activation"));
     await settle();
-    assert.match(
-      document.body.textContent ?? "",
-      /currently active version will be superseded/i,
-    );
-    assert.match(
-      document.body.textContent ?? "",
-      /new Rule Set Preparation will start/i,
-    );
-    assert.doesNotMatch(
-      document.body.textContent ?? "",
-      /review|approval|publish/i,
-    );
-    const confirms = buttons(document.body).filter(
-      (button) => button.textContent?.trim() === "Activate version",
-    );
-    click(confirms.at(-1) ?? null);
-    await settle();
-    assert.ok(
-      stub.calls.some(
-        (call) =>
-          call.method === "POST" &&
-          call.url.endsWith(
-            `/api/admin/legal-source-versions/${versionId}/activate`,
-          ),
-      ),
-    );
-  } finally {
-    stub.restore();
-  }
+    assert.match(document.body.textContent ?? "", /LCSP-424\/425 admission/);
+    const confirm = buttons(document.body).find(button => button.textContent?.trim() === "Activate version");
+    assert.ok(confirm);
+    assert.equal(confirm.disabled, true);
+    assert.equal(stub.calls.some(call => call.method === "POST" && call.url.endsWith("/activate")), false);
+  } finally { stub.restore(); }
 });
 
 test("upload form sends multipart fields and raw API call is validated by the client schema", async () => {

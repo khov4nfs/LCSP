@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import type { DeleteLegalSourceResponse } from "@lcsp/contracts/legal-source";
+import { LegalSourceDeletionResult } from "../molecules/legal-source-deletion-result";
 import type { MessageKey } from "@lcsp/i18n";
 
 import {
@@ -36,6 +39,10 @@ const t = (key: string) => resolveAppMessage(key as MessageKey);
  */
 export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
   const sourceQuery = useLegalSourceQuery(sourceId);
+  const [receipt, setReceipt] = useState<DeleteLegalSourceResponse | null>(
+    null,
+  );
+  if (receipt) return <LegalSourceDeletionResult receipt={receipt} />;
   if (sourceQuery.isPending) {
     return (
       <PanelState
@@ -94,7 +101,7 @@ export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
           tone={COLLECTION_METRIC_TONES.success}
           label={t("pages.legalSources.statuses.ACTIVE")}
           value={activeVersion ? `v${activeVersion.version}` : "—"}
-          context={t("pages.legalSources.activeVersionLabel")}
+          context={t("pages.legalLifecycle.activeVersion")}
         />
         <CollectionMetricCard
           variant={COLLECTION_METRIC_VARIANTS.indicator}
@@ -114,11 +121,12 @@ export function LegalSourceDetailPage({ sourceId }: { sourceId: string }) {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <p className="font-mono text-sm text-muted-foreground">
-            {source.slug}
+            {t("pages.legalLifecycle.sourceId")}: {source.id}
+            <span className="mt-1 block">{source.slug}</span>
           </p>
           <LegalSourceEditForm source={source} />
           <div className="flex justify-end border-t pt-4">
-            <LegalSourceDeleteDialog source={source} />
+            <LegalSourceDeleteDialog source={source} onDeleted={setReceipt} />
           </div>
         </CardContent>
       </Card>

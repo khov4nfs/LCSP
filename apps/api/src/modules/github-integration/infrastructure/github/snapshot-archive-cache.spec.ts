@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "@jest/globals";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
@@ -30,6 +30,69 @@ afterEach(async () => {
 });
 
 describe("SnapshotArchiveCache", () => {
+  it("does not let one instance shutdown erase another instance's published archive", async () => {
+    process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR = await mkdtemp(
+      join(tmpdir(), "lcsp-snapshot-cache-shared-"),
+    );
+    const first = new SnapshotArchiveCache();
+    const second = new SnapshotArchiveCache();
+    cache = second;
+    await first.onModuleInit();
+    await second.onModuleInit();
+    const input = { snapshotId: "shared-snapshot", commitSha: "a".repeat(40) };
+    const capture = await second.capture({
+      ...input,
+      contentType: "application/gzip",
+      resolvedUrl: "https://codeload.github.com/acme/repo/tar.gz/a",
+      source: Readable.from([Buffer.from("second-instance-archive")]),
+    });
+    await readStream(capture.stream);
+    await capture.completion;
+
+    // Why: Shutdown cleanup must only delete files owned by the stopping
+    // instance; an active peer still needs its exact pinned archive.
+    await first.onModuleDestroy();
+    const hit = await second.get(input);
+    expect(hit).not.toBeNull();
+    expect(await readStream(hit!.stream)).toEqual(
+      Buffer.from("second-instance-archive"),
+    );
+  });
+
+  it("keeps a valid archive when a later capture of the same key fails", async () => {
+    process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR = await mkdtemp(
+      join(tmpdir(), "lcsp-snapshot-cache-race-"),
+    );
+    cache = new SnapshotArchiveCache();
+    await cache.onModuleInit();
+    const input = { snapshotId: "same-key", commitSha: "b".repeat(40) };
+    const successful = await cache.capture({
+      ...input,
+      contentType: "application/gzip",
+      resolvedUrl: "https://codeload.github.com/acme/repo/tar.gz/b",
+      source: Readable.from([Buffer.from("valid-archive")]),
+    });
+    await readStream(successful.stream);
+    await successful.completion;
+
+    // Why: A failed second attempt owns only its temporary file. Removing the
+    // canonical key would destroy an already committed entry from another attempt.
+    const failing = await cache.capture({
+      ...input,
+      contentType: "application/gzip",
+      resolvedUrl: "https://codeload.github.com/acme/repo/tar.gz/b",
+      source: new Readable({
+        read() {
+          this.destroy(new Error("provider stream failed"));
+        },
+      }),
+    });
+    await expect(failing.completion).rejects.toThrow("provider stream failed");
+    const hit = await cache.get(input);
+    expect(hit).not.toBeNull();
+    expect(await readStream(hit!.stream)).toEqual(Buffer.from("valid-archive"));
+  });
+
   it("reuses bytes only for the exact snapshot and commit identity", async () => {
     process.env.LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR = await mkdtemp(
       join(tmpdir(), "lcsp-snapshot-cache-test-"),
@@ -127,7 +190,8 @@ describe("SnapshotArchiveCache", () => {
     const key = createHash("sha256")
       .update(`${snapshotId}:${commitSha}`)
       .digest("hex");
-    const metadataPath = join(directory, `${key}.json`);
+    const [instanceDirectory] = await readdir(directory);
+    const metadataPath = join(directory, instanceDirectory, `${key}.json`);
     const metadata = JSON.parse(await readFile(metadataPath, "utf8")) as Record<
       string,
       unknown

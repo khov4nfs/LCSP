@@ -9,6 +9,7 @@ import {
 import { ConflictException, Injectable } from "@nestjs/common";
 import {
   AssessmentRuntimeControlState as PrismaTurnState,
+  Prisma,
   RepositoryScanJobStatus as PrismaScanStatus,
   RepositoryScanTriggerSource as PrismaTriggerSource,
 } from "@prisma/client";
@@ -238,15 +239,15 @@ export class RuntimeHydrationTicketLifecycle {
    * Execution flow:
    * 1. Reject an active delivery, load the ticket, and verify its trusted identity.
    * 2. Return the current status unchanged when the ticket is no longer RUNNING.
-   * 3. Verify runtime lease, pinned case, completed Root turn, and terminal execution state.
-   * 4. Conditionally persist the explicit outcome-unproven failure and accept a concurrent update only when it matches that outcome.
+   * 3. Lock the runtime row in the write transaction; verify lease, pinned case, completed Root turn, and terminal execution state.
+   * 4. Recheck runtime authority under the lock, then conditionally persist the outcome-unproven failure.
    *
    * Failure cases:
    * - Active delivery, mismatched pin/thread/boundary, a live lease, nonterminal execution, or conflicting update raises a conflict.
    * - Database errors propagate; no successful archive-delivery outcome is inferred from runtime termination alone.
    *
    * Side effects:
-   * - May transition the RepositoryScanJob to FAILED with the outcome-unproven reason; otherwise returns the verified current status without mutation.
+   * - Holds the runtime lock and may transition the RepositoryScanJob to FAILED with the outcome-unproven reason; otherwise returns the verified current status without mutation.
    */
   async reconcileTerminalRuntime(input: {
     ticketId: string;
@@ -255,124 +256,158 @@ export class RuntimeHydrationTicketLifecycle {
     if (this.activeDeliveries.has(input.ticketId)) {
       throw new ConflictException("Runtime hydration delivery is still active");
     }
-    const ticket = await this.prisma.repositoryScanJob.findUnique({
-      where: { id: input.ticketId },
-      select: {
-        id: true,
-        assessmentId: true,
-        snapshotId: true,
-        status: true,
-        triggerSource: true,
-        idempotencyKey: true,
-      },
-    });
-    if (
-      !ticket ||
-      ticket.snapshotId !== input.snapshotId ||
-      !this.isHydrationTicket(ticket)
-    ) {
-      throw new ConflictException("Runtime hydration ticket identity mismatch");
-    }
-    if (ticket.status !== PrismaScanStatus.RUNNING) {
-      return {
-        status: fromPrismaRepositoryScanJobStatus(ticket.status),
-        changed: false,
-      };
-    }
+    // Why: Hold the Root runtime row through validation and ticket mutation;
+    // lease acquisition must wait rather than change authority between reads.
+    return this.prisma.$transaction(async (tx) => {
+      const ticket = await tx.repositoryScanJob.findUnique({
+        where: { id: input.ticketId },
+        select: {
+          id: true,
+          assessmentId: true,
+          snapshotId: true,
+          status: true,
+          triggerSource: true,
+          idempotencyKey: true,
+        },
+      });
+      if (
+        !ticket ||
+        ticket.snapshotId !== input.snapshotId ||
+        !this.isHydrationTicket(ticket)
+      ) {
+        throw new ConflictException(
+          "Runtime hydration ticket identity mismatch",
+        );
+      }
+      if (ticket.status !== PrismaScanStatus.RUNNING) {
+        return {
+          status: fromPrismaRepositoryScanJobStatus(ticket.status),
+          changed: false,
+        };
+      }
 
-    const [runtime, pinnedCase] = await Promise.all([
-      this.prisma.assessmentRuntime.findUnique({
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "assessmentId" FROM "AssessmentRuntime" WHERE "assessmentId" = ${ticket.assessmentId} FOR UPDATE`,
+      );
+
+      const [runtime, pinnedCase] = await Promise.all([
+        tx.assessmentRuntime.findUnique({
+          where: { assessmentId: ticket.assessmentId },
+          select: {
+            threadId: true,
+            currentExecutionId: true,
+            executionState: true,
+            leaseToken: true,
+            leaseExpiresAt: true,
+          },
+        }),
+        tx.assessmentCase.findUnique({
+          where: { assessmentId: ticket.assessmentId },
+          select: { repositoryScanJobId: true, repositorySnapshotId: true },
+        }),
+      ]);
+      if (
+        !runtime?.currentExecutionId ||
+        runtime.leaseToken !== null ||
+        runtime.leaseExpiresAt !== null ||
+        !pinnedCase ||
+        pinnedCase.repositoryScanJobId !== ticket.id ||
+        pinnedCase.repositorySnapshotId !== ticket.snapshotId
+      ) {
+        throw new ConflictException(
+          "Runtime hydration outcome is not safely reconcilable",
+        );
+      }
+
+      const turn = await tx.assessmentRuntimeTurn.findUnique({
+        where: { id: runtime.currentExecutionId },
+        select: {
+          assessmentId: true,
+          threadId: true,
+          boundary: true,
+          state: true,
+        },
+      });
+      if (
+        !turn ||
+        turn.assessmentId !== ticket.assessmentId ||
+        turn.threadId !== runtime.threadId ||
+        turn.boundary !== ASSESSMENT_ROOT_BOUNDARY ||
+        turn.state !== PrismaTurnState.COMPLETED
+      ) {
+        throw new ConflictException(
+          "Runtime hydration outcome is not safely reconcilable",
+        );
+      }
+
+      const terminalStates = new Set<string>([
+        AGENT_EXECUTION_STATES.SUCCEEDED,
+        AGENT_EXECUTION_STATES.FAILED,
+        AGENT_EXECUTION_STATES.CANCELLED,
+        AGENT_EXECUTION_STATES.INTERRUPTED,
+      ]);
+      const terminalRuntime = terminalStates.has(runtime.executionState);
+      if (!terminalRuntime) {
+        throw new ConflictException(
+          "Assessment Root execution is not terminal",
+        );
+      }
+
+      // Why: A Root lease may be acquired while the turn is read. Revalidate
+      // the runtime immediately before changing the ticket's terminal state.
+      const currentRuntime = await tx.assessmentRuntime.findUnique({
         where: { assessmentId: ticket.assessmentId },
         select: {
-          threadId: true,
           currentExecutionId: true,
           executionState: true,
           leaseToken: true,
           leaseExpiresAt: true,
         },
-      }),
-      this.prisma.assessmentCase.findUnique({
-        where: { assessmentId: ticket.assessmentId },
-        select: { repositoryScanJobId: true, repositorySnapshotId: true },
-      }),
-    ]);
-    if (
-      !runtime?.currentExecutionId ||
-      runtime.leaseToken !== null ||
-      runtime.leaseExpiresAt !== null ||
-      !pinnedCase ||
-      pinnedCase.repositoryScanJobId !== ticket.id ||
-      pinnedCase.repositorySnapshotId !== ticket.snapshotId
-    ) {
-      throw new ConflictException(
-        "Runtime hydration outcome is not safely reconcilable",
-      );
-    }
-
-    const turn = await this.prisma.assessmentRuntimeTurn.findUnique({
-      where: { id: runtime.currentExecutionId },
-      select: {
-        assessmentId: true,
-        threadId: true,
-        boundary: true,
-        state: true,
-      },
-    });
-    if (
-      !turn ||
-      turn.assessmentId !== ticket.assessmentId ||
-      turn.threadId !== runtime.threadId ||
-      turn.boundary !== ASSESSMENT_ROOT_BOUNDARY ||
-      turn.state !== PrismaTurnState.COMPLETED
-    ) {
-      throw new ConflictException(
-        "Runtime hydration outcome is not safely reconcilable",
-      );
-    }
-
-    const terminalStates = new Set<string>([
-      AGENT_EXECUTION_STATES.SUCCEEDED,
-      AGENT_EXECUTION_STATES.FAILED,
-      AGENT_EXECUTION_STATES.CANCELLED,
-      AGENT_EXECUTION_STATES.INTERRUPTED,
-    ]);
-    const terminalRuntime = terminalStates.has(runtime.executionState);
-    if (!terminalRuntime) {
-      throw new ConflictException("Assessment Root execution is not terminal");
-    }
-
-    // A terminal Root proves it is safe to recover the ticket, but not that this ticket's
-    // archive was fetched: the sandbox may already have contained the pinned snapshot.
-    const outcome = REPOSITORY_SCAN_JOB_STATUSES.failed;
-    const reason = OUTCOME_UNPROVEN_REASON;
-    const reconciled = await this.prisma.repositoryScanJob.updateMany({
-      where: {
-        id: ticket.id,
-        assessmentId: ticket.assessmentId,
-        snapshotId: ticket.snapshotId,
-        triggerSource: PrismaTriggerSource.TRUSTED,
-        idempotencyKey: `${HYDRATION_KEY_PREFIX}${ticket.assessmentId}:${ticket.snapshotId}`,
-        status: PrismaScanStatus.RUNNING,
-      },
-      data: {
-        status: toPrismaRepositoryScanJobStatus(outcome),
-        blockedReason: reason,
-      },
-    });
-    if (reconciled.count !== 1) {
-      const current = await this.prisma.repositoryScanJob.findUnique({
-        where: { id: ticket.id },
-        select: { status: true, blockedReason: true },
       });
       if (
-        current?.status !== toPrismaRepositoryScanJobStatus(outcome) ||
-        current.blockedReason !== reason
+        currentRuntime?.currentExecutionId !== runtime.currentExecutionId ||
+        currentRuntime.leaseToken !== null ||
+        currentRuntime.leaseExpiresAt !== null ||
+        !terminalStates.has(currentRuntime.executionState)
       ) {
         throw new ConflictException(
-          "Runtime hydration reconciliation raced with another outcome",
+          "Assessment Root changed during reconciliation",
         );
       }
-    }
-    return { status: outcome, changed: reconciled.count === 1 };
+
+      // A terminal Root proves it is safe to recover the ticket, but not that this ticket's
+      // archive was fetched: the sandbox may already have contained the pinned snapshot.
+      const outcome = REPOSITORY_SCAN_JOB_STATUSES.failed;
+      const reason = OUTCOME_UNPROVEN_REASON;
+      const reconciled = await tx.repositoryScanJob.updateMany({
+        where: {
+          id: ticket.id,
+          assessmentId: ticket.assessmentId,
+          snapshotId: ticket.snapshotId,
+          triggerSource: PrismaTriggerSource.TRUSTED,
+          idempotencyKey: `${HYDRATION_KEY_PREFIX}${ticket.assessmentId}:${ticket.snapshotId}`,
+          status: PrismaScanStatus.RUNNING,
+        },
+        data: {
+          status: toPrismaRepositoryScanJobStatus(outcome),
+          blockedReason: reason,
+        },
+      });
+      if (reconciled.count !== 1) {
+        const current = await tx.repositoryScanJob.findUnique({
+          where: { id: ticket.id },
+          select: { status: true, blockedReason: true },
+        });
+        if (
+          current?.status !== toPrismaRepositoryScanJobStatus(outcome) ||
+          current.blockedReason !== reason
+        ) {
+          throw new ConflictException(
+            "Runtime hydration reconciliation raced with another outcome",
+          );
+        }
+      }
+      return { status: outcome, changed: reconciled.count === 1 };
+    });
   }
 }

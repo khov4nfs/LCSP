@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import type { LegalSourceDetail } from "@lcsp/contracts/legal-source";
 import type { MessageKey } from "@lcsp/i18n";
@@ -34,6 +35,7 @@ export function LegalSourceStartVersionDialog({
   source: LegalSourceDetail;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const start = useCreateLegalSourceVersionMutation(source.id);
   const latestVersionId = source.latestVersion?.id ?? "";
   const form = useForm<
@@ -50,10 +52,23 @@ export function LegalSourceStartVersionDialog({
     reset({ basedOnVersionId: latestVersionId });
   }, [latestVersionId, reset]);
 
+  /**
+   * Business purpose: Create an eligible draft and open its server-assigned identity.
+   * Business rules: Respect canCreateVersion; the server selects the label and rechecks authorization and same-source lineage.
+   * Execution flow:
+   * 1. Submit the selected base version while draft creation is eligible.
+   * 2. Navigate to the returned draft after validated server success.
+   * Failure cases: Rejection leaves the dialog open with input and a localized error.
+   * Side effects: Creates an audited draft, invalidates source cache and navigates to its version route.
+   */
   async function submit(values: StartLegalSourceVersionSubmission) {
+    if (!source.canCreateVersion || start.isPending) return;
     try {
-      await start.mutateAsync(values);
+      const created = await start.mutateAsync(values);
       setOpen(false);
+      router.push(
+        `/admin/legal-source-versions/${encodeURIComponent(created.id)}`,
+      );
     } catch (error) {
       form.setError("root.server", {
         message: legalSourceErrorMessageKey(error),
@@ -83,7 +98,12 @@ export function LegalSourceStartVersionDialog({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!start.isPending) setOpen(next);
+      }}
+    >
       <Button type="button" onClick={() => setOpen(true)}>
         {t("pages.legalSources.startNewVersion")}
       </Button>
@@ -117,7 +137,10 @@ export function LegalSourceStartVersionDialog({
                 >
                   {t("pages.legalSources.cancel")}
                 </Button>
-                <Button type="submit" disabled={start.isPending}>
+                <Button
+                  type="submit"
+                  disabled={start.isPending || !source.canCreateVersion}
+                >
                   {t(
                     start.isPending
                       ? "pages.legalSources.startingVersion"
