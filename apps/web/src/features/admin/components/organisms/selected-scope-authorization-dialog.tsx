@@ -35,6 +35,7 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   preparationRuleBatchSchema,
+  legalRuleRegenerateSchema,
   SELECTED_SCOPE_AUTHORIZATION_STATES,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { useState } from "react";
@@ -178,18 +179,26 @@ export function SelectedScopeAuthorizationDialog({
 
   /**
    * Business purpose: Trigger single-rule regeneration after Legal Review approval.
-   * Business rules: Uses an idempotent request key and closes the review dialog once queued.
+   * Business rules: Regeneration pins the latest result identity and its original inputs; only an approved review may initiate it.
    * Execution flow: 1. POST /rules/:ruleId/regenerate. 2. Forward batch ID and close.
    * Failure cases: API errors surface in the dialog alert.
    * Side effects: Queues a selected-rule regeneration batch.
    */
   async function handleRegenerate() {
+    if (
+      !history.data?.latestResultId ||
+      detail.data?.state !== SELECTED_SCOPE_AUTHORIZATION_STATES.APPROVED
+    ) return;
     setStatusMessage(null);
-    const batch = await regenerate.mutateAsync({
-      idempotencyKey: crypto.randomUUID(),
-      expectedCatalogRevision: catalogRevision,
-      useLatestSources: false,
-    });
+    // Why: The endpoint rejects stale result identities and unexpected fields.
+    // Keep original inputs pinned; a review must never silently switch sources.
+    const batch = await regenerate.mutateAsync(
+      legalRuleRegenerateSchema.parse({
+        idempotencyKey: crypto.randomUUID(),
+        expectedResultId: history.data.latestResultId,
+        useLatestInputs: false,
+      }),
+    );
     onOpenChange(false);
     onRegenerated?.(batch.id);
   }
@@ -202,7 +211,7 @@ export function SelectedScopeAuthorizationDialog({
    * Side effects: Persists APPROVED state and refreshes detail.
    */
   async function handleApprove() {
-    if (!detail.data || !confirmsLegalReview) return;
+    if (!detail.data || !confirmsLegalReview || unresolvedReview) return;
     setStatusMessage(null);
     await approve.mutateAsync({
       ruleId: detail.data.ruleId || ruleId,
@@ -237,6 +246,17 @@ export function SelectedScopeAuthorizationDialog({
     void detail.refetch();
   }
 
+  // A retained unresolved candidate is not yet eligible for approval.
+  const unresolvedReview = Boolean(
+    detail.data?.decisions.some(
+      (decision) => decision.stage === PREPARATION_SCOPE_STAGES[2],
+    ) ||
+      detail.data?.output.legalRequirements.some((req) =>
+        req.coverage.nonAssessableReason?.startsWith(
+          PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+        ),
+      ),
+  );
   const busy =
     approve.isPending ||
     revoke.isPending ||
@@ -465,7 +485,7 @@ export function SelectedScopeAuthorizationDialog({
                   </div>
                   <Button
                     type="button"
-                    disabled={busy || !confirmsLegalReview}
+                    disabled={busy || !confirmsLegalReview || unresolvedReview}
                     onClick={() => void handleApprove()}
                   >
                     {t("scopeAuthApproveAction")}
@@ -512,7 +532,7 @@ export function SelectedScopeAuthorizationDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={busy}
+                    disabled={busy || !history.data?.latestResultId}
                     onClick={() => void handleRegenerate()}
                   >
                     {t("scopeAuthRegenerateAction")}
