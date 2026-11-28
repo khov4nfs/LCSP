@@ -4272,7 +4272,12 @@ export const viPages = {
       assessmentActivity: {
         title: "Hoạt động đánh giá",
         subtitle: "Số đánh giá bắt đầu mỗi ngày · {days} ngày qua",
+        started: "Bắt đầu",
         completed: "đã hoàn thành",
+        userAccounts: "Tài khoản người dùng",
+        userAccountsContext: "Tài khoản đang hoạt động",
+        assessmentsStarted: "Đánh giá đã bắt đầu",
+        completedInCohort: "{count} hoàn thành trong nhóm",
         emptyTitle: "Không có hoạt động đánh giá",
         emptyDescription:
           "Chưa có hoạt động đánh giá nào được ghi nhận trong khoảng thời gian đã chọn.",
@@ -4424,7 +4429,8 @@ export const viPages = {
         role: "Vai trò",
         status: "Trạng thái",
         created: "Ngày tạo",
-        lastActive: "Hoạt động gần nhất",
+        // Admin chỉ lưu thời điểm tạo phiên đăng nhập, không phải hoạt động gần nhất.
+        lastActive: "Đăng nhập gần nhất",
         assessments: "Assessment",
         actions: "Thao tác",
       },
@@ -4463,7 +4469,8 @@ export const viPages = {
         email: "Email",
         role: "Vai trò",
         created: "Ngày tạo",
-        lastActive: "Hoạt động gần nhất",
+        // Chi tiết tài khoản dùng cùng chỉ số thời điểm tạo phiên.
+        lastActive: "Đăng nhập gần nhất",
       },
       administrativeActionsCard: {
         title: "Thao tác quản trị",

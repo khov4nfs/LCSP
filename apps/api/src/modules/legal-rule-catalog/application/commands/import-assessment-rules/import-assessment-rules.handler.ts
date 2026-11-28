@@ -153,7 +153,6 @@ export class ImportAssessmentRulesHandler implements ICommandHandler<ImportAsses
         // Validate semantic approval before the first write in both dry run and import.
         for (const { input, output } of prepared)
           await requireSelectedScopeAuthorization(tx, input, output, cid, this.authority);
-
         if (request.dryRun) {
           // Preview only: report what an import would record, using reads alone.
           const preview: AssessmentRuleImportResult["imported"] = [];

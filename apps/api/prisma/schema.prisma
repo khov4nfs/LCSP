@@ -460,6 +460,8 @@ model Assessment {
   @@index([ownerId])
   @@index([ownerId, updatedAt(sort: Desc), id])
   @@index([ownerId, lifecycleState, id])
+  // Admin overview counts creation events across all owners without hydrating rows.
+  @@index([createdAt])
   // ADMIN metadata reads have no owner predicate; these indexes preserve stable list ordering
   // for both the unfiltered path and the optional lifecycle-state filter.
   @@index([updatedAt(sort: Desc), id])
@@ -735,6 +737,8 @@ model AssessmentEvent {
   // Ordered history/SSE cursor and publisher predecessor lookup; eventId is replay identity.
   @@unique([assessmentId, sequence])
   @@unique([outboxMessageId, assessmentId])
+  // Admin overview bounds lifecycle transition counts by event type and timestamp.
+  @@index([eventType, timestamp])
 }
 
 model AuditExportRequest {

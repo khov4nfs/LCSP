@@ -21,10 +21,8 @@ import {
   preparationRuleOutputSchema,
   type AssessmentRuleImportRequest,
 } from "@lcsp/contracts/legal-rule-catalog";
-import {
-  PreparationRuleService,
-  normalizeImportItem,
-} from "./preparation-rule.service.js";
+import { PreparationRuleService } from "./preparation-rule.service.js";
+import { normalizeImportItem } from "./selected-output-validation.js";
 import {
   selectedScopeKey,
   validateSelectedScopeDecisions,
@@ -343,6 +341,22 @@ describe("PreparationRuleService.importAssessmentRules", () => {
       },
     });
     expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an import above the bounded batch limit before opening a transaction", () => {
+    const many = Array.from({ length: 101 }, (_, index) => ({
+      ...request().items[0],
+      ruleId: `${String(index + 1).padStart(8, "0")}-1111-4111-8111-111111111111`,
+    }));
+    // Why: A 101-item import can monopolize the interactive DB connection and row locks.
+    // How: The transport contract must reject it before command dispatch or transaction start.
+    // Invariant: The request maximum is shared by every caller, including dry runs.
+    expect(
+      assessmentRuleImportRequestSchema.safeParse({
+        ...request(),
+        items: many,
+      }).success,
+    ).toBe(false);
   });
 
   it("records a SUCCEEDED prepared revision without dispatching any agent work", async () => {
@@ -680,86 +694,29 @@ describe("PreparationRuleService.importAssessmentRules", () => {
     expect(catalogs.record).not.toHaveBeenCalled();
   });
 
-  it("records pinned exclusion evidence even without an imported result", async () => {
-    const { subject, tx, catalogs, enqueue } = setup();
-    const exclusion = {
-      ruleId: excludedRuleId,
-      reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE,
-      reason: "Operator-only activity",
-    };
-    const document = request({ items: [], excludedItems: [exclusion] });
-    await subject.importAssessmentRules(catalogId, document, "admin-1", "cid");
-    const args = catalogs.record.mock.calls[0];
-    expect(args).toEqual([
-      tx,
-      LEGAL_RULE_CATALOG_EVENTS.IMPORT_EXCLUSIONS_RECORDED,
-      catalogId,
-      "admin-1",
-      "cid",
-      expect.objectContaining({
-        catalogRevision: 3,
-        legalSourceVersionId: sourceId,
-        exclusions: [
-          expect.objectContaining({
-            ...exclusion,
-            citations: [{ ...ref, chunkId: "chunk-1" }],
-          }),
-        ],
-        imported: [],
-      }),
-      expect.any(String),
-    ]);
-    await subject.importAssessmentRules(catalogId, document, "admin-1", "retry");
-    expect(catalogs.record.mock.calls[1][6]).toBe(args[6]);
-    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
-    expect(tx.ruleSetPreparationRun.create).not.toHaveBeenCalled();
-    expect(enqueue).not.toHaveBeenCalled();
-  });
-
-  it("previews exclusions without recording audit evidence", async () => {
-    const { subject, catalogs, enqueue } = setup();
-    await subject.importAssessmentRules(
-      catalogId,
-      request({
-        dryRun: true,
-        items: [],
-        excludedItems: [
-          {
-            ruleId: excludedRuleId,
-            reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.CONTEXT_ONLY,
-            reason: "Context only",
-          },
-        ],
-      }),
-      "admin-1",
-      "cid",
-    );
-    expect(catalogs.record).not.toHaveBeenCalled();
-    expect(enqueue).not.toHaveBeenCalled();
-  });
-
-  it("rejects a rule that is both included and excluded", async () => {
-    const { subject, tx, catalogs } = setup();
-    await expect(
-      subject.importAssessmentRules(
-        catalogId,
-        request({
-          excludedItems: [
-            {
-              ruleId,
-              reasonCode: ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.OUT_OF_SCOPE,
-              reason: "Contradictory declaration",
-            },
-          ],
-        }),
-        "admin-1",
-        "cid",
-      ),
-    ).rejects.toMatchObject({
-      response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.INVALID } },
-    });
-    expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
-    expect(catalogs.record).not.toHaveBeenCalled();
+  it("holds a selected-rule revision while native cancellation is pending", async () => {
+    for (const dryRun of [true, false]) {
+      const { subject, tx } = setup({
+        id: uuid(7),
+        revision: 1,
+        inputFingerprint: "x",
+        output: null,
+        preparationRun: {
+          executionState: AgentExecutionState.CANCEL_REQUESTED,
+        },
+      });
+      await expect(
+        subject.importAssessmentRules(
+          catalogId,
+          request({ dryRun }),
+          "admin-1",
+          "cancel-pending-test",
+        ),
+      ).rejects.toMatchObject({
+        response: { problem: { code: LEGAL_RULE_CATALOG_ERRORS.CONFLICT } },
+      });
+      expect(tx.preparationRuleResult.create).not.toHaveBeenCalled();
+    }
   });
 
   it("rejects an excluded item that is not in the catalog", async () => {

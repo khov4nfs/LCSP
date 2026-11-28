@@ -74,4 +74,8 @@ This is the concise pre-task lookup. The [incident archive](./lessons-learned.ar
 - **Context / Symptom**: A reused activation or index key accepted changed evidence; official-source worker payloads accepted malformed URLs or missing boolean identity; malformed URL escapes emitted raw URIError.
 - **Root Cause**: Replay compared only a subset of immutable fields, worker request TypeScript types vanished at runtime, and filename decoding lacked a typed rejection path.
 - **Resolution & Invariant**: Compare every persisted business-authority field on replay; validate required provenance URL and boolean at the service boundary before persistence; translate malformed URL decoding into the established import rejection. Preserve exact replay success plus mismatched replay and malformed input regression tests.
+### [2026-11-28] [ADMIN/OVERVIEW-ACTIVITY-AUTHORITY] Dashboard Metrics Need Bounded Durable Facts
+- **Context / Symptom**: Admin overview loaded every Assessment in a 90-day period, counted a later `updatedAt` as a new completion, and the web chart replaced real zero counts with fixture numbers.
+- **Root Cause**: The handler projected records into Node.js and derived completion from mutable Assessment state; the consumer used truthy fallbacks for valid zeros.
+- **Resolution & Invariant**: Aggregate fixed activity buckets in PostgreSQL from Assessment creation and durable COMPLETE lifecycle events; return zero as zero without sample bars. Session creation is labelled as last sign in, not last activity. Preserve RED/GREEN unit and PostgreSQL regressions.
 

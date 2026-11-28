@@ -12,6 +12,7 @@ import {
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
   declaresApplicabilityScope,
 } from "@lcsp/contracts/compliance-rule-set";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
@@ -33,7 +34,19 @@ import { validateAssessmentRuleBindings } from "../../../compliance-rule-set/dom
  * Side effects:
  * - Throws a typed problem without changing run state.
  */
-function rejectSelectedOutput(cid: string, issues: string): never {
+export function rejectSelectedOutput(
+  cid: string,
+  issues: string,
+  code:
+    | typeof E.RESULT_INVALID
+    | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
+): never {
+  if (code === E.SCOPE_REVIEW_REQUIRED) {
+    throw problemException(code, cid, {
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      meta: { issues },
+    });
+  }
   // Why: Nested paths reveal the shape and positions of internal AI output collections.
   // How: Collapse field paths into stable, allowlisted contract categories before creating the problem.
   // Invariant: The response never includes the raw path, array index, or submitted value.
@@ -48,7 +61,7 @@ function rejectSelectedOutput(cid: string, issues: string): never {
         : /legalRequirementId|assessmentRuleId|relationId/u.test(issues)
           ? ISSUE.IDENTITY_INVALID
           : ISSUE.OUTPUT_INVALID;
-  throw problemException(E.RESULT_INVALID, cid, {
+  throw problemException(code, cid, {
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     meta: { issueCode },
   });
@@ -142,11 +155,31 @@ export function isIdenticalCurrentResult(
  */
 export function validateSelectedOutput(
   input: PreparationRuleInput,
-  output: z.infer<typeof preparationRuleOutputSchema>,
+  rawOutput: z.infer<typeof preparationRuleOutputSchema>,
   cid: string,
+  retainUnresolvedDraft = false,
 ): void {
-  const parsed = preparationRuleOutputSchema.safeParse(output);
+  const parsed = preparationRuleOutputSchema.safeParse(rawOutput);
   if (!parsed.success) rejectSelectedOutput(cid, "output");
+  // The schema trims coverage reasons; all guards must inspect the same canonical
+  // values, including callers that invoke this validator without a parsed DTO.
+  const output = parsed.data;
+  // Check ambiguity before other structural defects can route the draft into repair.
+  const unresolvedIndex = output.legalRequirements.findIndex((rule) =>
+    rule.coverage.nonAssessableReason?.startsWith(
+      PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+    ),
+  );
+  if (unresolvedIndex !== -1 && !retainUnresolvedDraft)
+    rejectSelectedOutput(
+      cid,
+      `output.legalRequirements.${unresolvedIndex}.coverage.nonAssessableReason`,
+      E.SCOPE_REVIEW_REQUIRED,
+    );
+  // A structurally valid but unauthorized normative candidate may be retained as a failed
+  // review draft, even when the model did not emit its own ambiguity marker.
+  if (retainUnresolvedDraft && !output.legalRequirements.length)
+    rejectSelectedOutput(cid, "output.legalRequirements");
   const requirements = new Map(
     output.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
   );

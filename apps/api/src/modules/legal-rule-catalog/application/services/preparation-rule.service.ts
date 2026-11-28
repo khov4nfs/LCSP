@@ -13,9 +13,6 @@ import {
   LEGAL_RULE_CATALOG_ERRORS as E,
   LEGAL_RULE_CATALOG_EVENTS as EVENTS,
   LEGAL_RULE_SELECTION_MODES,
-  ASSESSMENT_RULE_IMPORT_DEFAULT_ANALYSIS,
-  ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS,
-  legalRuleActivationResultSchema,
   preparationRuleInputSchema,
   preparationRuleOutputSchema,
   preparationInstructionReceiptSchema,
@@ -40,6 +37,7 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   declaresApplicabilityScope,
   PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
 } from "@lcsp/contracts/compliance-rule-set";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
@@ -114,6 +112,8 @@ export class PreparationRuleService {
     private readonly sourceSnapshot: LegalSourceSnapshotLoader,
     private readonly activation: ComplianceRuleSetActivation,
     private readonly scopeSourceAuthority: LegalSourceAuthorityService = new LegalSourceAuthorityService(),
+    @Optional() private readonly activateHandler?: ActivatePreparedRulesHandler,
+    @Optional() private readonly importHandler?: ImportAssessmentRulesHandler,
   ) {}
 
   /**
@@ -441,162 +441,15 @@ export class PreparationRuleService {
     request: LegalRuleActivationRequest,
     actor: string,
     cid: string,
-  ) {
-    const requested = [...request.results].sort((left, right) =>
-      left.ruleId.localeCompare(right.ruleId),
-    );
-    const requestDigest = sha256Hex(
-      canonicalJson({
-        catalogId,
-        expectedRevision: request.expectedRevision,
-        results: requested,
-      }),
-    );
-
-    return this.prisma.$transaction(
-      async (tx) => {
-        await this.catalogs.lock(tx, catalogId, request.expectedRevision, cid);
-        const first = await this.catalogs.entries(tx, catalogId, cid);
-        for (const selection of requested) {
-          const item = first.items.find(
-            (candidate) => candidate.id === selection.ruleId,
-          );
-          if (
-            !item ||
-            item.state !== S.PREPARED ||
-            item.assessmentRuleCount === 0 ||
-            item.lastResultId !== selection.resultId ||
-            item.lastResultRevision !== selection.revision
-          )
-            catalogFailure(E.RESULT_INVALID, cid, 422);
-        }
-        const results = await tx.preparationRuleResult.findMany({
-          where: { id: { in: requested.map((item) => item.resultId) } },
-          include: { preparationRule: true, preparationRun: true },
-        });
-        if (results.length !== requested.length)
-          catalogFailure(E.RESULT_INVALID, cid, 422);
-        const artifacts = [
-          ...new Set(results.map((result) => result.preparationRuleId)),
-        ];
-        await tx.$queryRaw(
-          Prisma.sql`SELECT "id" FROM "PreparationRule" WHERE "id" IN (${Prisma.join(artifacts)}) ORDER BY "id" FOR UPDATE`,
-        );
-
-        const current = await this.catalogs.entries(tx, catalogId, cid);
-        const currentItems = new Map(
-          current.items.map((item) => [item.id, item]),
-        );
-        const resultById = new Map(
-          results.map((result) => [result.id, result]),
-        );
-        const inputs = [] as PreparationRuleInput[];
-        const outputs: PreparationRuleOutput[] = [];
-        const manifest: SelectedActivationContext["selectedPreparationResults"] =
-          [];
-
-        for (const selection of requested) {
-          const item = currentItems.get(selection.ruleId);
-          const result = resultById.get(selection.resultId);
-          if (
-            !item ||
-            item.state !== S.PREPARED ||
-            !item.input ||
-            item.lastResultId !== selection.resultId ||
-            item.lastResultRevision !== selection.revision ||
-            item.assessmentRuleCount <= 0 ||
-            !result ||
-            result.revision !== selection.revision ||
-            result.preparationRule.legalRuleId !== selection.ruleId ||
-            result.preparationRun.executionState !== A.SUCCEEDED ||
-            result.preparationRun.legalSourceVersionId !==
-              first.catalog.legalSourceVersionId ||
-            result.inputFingerprint !==
-              preparationInputFingerprint(item.input) ||
-            !result.output
-          )
-            catalogFailure(E.RESULT_INVALID, cid, 422);
-          const input = preparationRuleInputSchema.parse(result.inputSnapshot);
-          const output = preparationRuleOutputSchema.parse(result.output);
-          if (
-            input.ruleId !== selection.ruleId ||
-            preparationInputFingerprint(input) !== result.inputFingerprint ||
-            input.legalSourceVersionId !== first.catalog.legalSourceVersionId ||
-            output.assessmentRules.length === 0
-          )
-            catalogFailure(E.RESULT_INVALID, cid, 422);
-          validateSelectedOutput(input, output, cid);
-          inputs.push(input);
-          outputs.push(output);
-          manifest.push({
-            ruleId: selection.ruleId,
-            resultId: result.id,
-            revision: result.revision,
-            inputFingerprint: result.inputFingerprint,
-            outputDigest: sha256Hex(canonicalJson(output)),
-          });
-        }
-
-        // Reuse the independent reviewed source authority, never a caller-provided scope flag.
-        const hydrated = await this.catalogs.hydrate(tx, inputs, cid);
-        for (let index = 0; index < hydrated.length; index++) {
-          const scopeKey = await requireSelectedScopeAuthorization(
-            tx,
-            hydrated[index],
-            outputs[index],
-            cid,
-            this.scopeSourceAuthority,
-          );
-          if (!scopeKey) catalogFailure(E.SCOPE_REVIEW_REQUIRED, cid, 422);
-          manifest[index].scopeAuthorizationKey = scopeKey;
-        }
-        const packet = complianceRuleSetPacketSchema.parse({
-          legalRequirements: outputs.flatMap(
-            (output) => output.legalRequirements,
-          ),
-          assessmentRules: outputs.flatMap((output) => output.assessmentRules),
-          contextRelations: outputs.flatMap(
-            (output) => output.contextRelations,
-          ),
-        });
-        const source = await this.sourceSnapshot.loadSelected(
-          tx,
-          first.catalog.legalSourceVersionId,
-          packet,
-        );
-        const validation = validateComplianceRuleSetPacket(
-          packet,
-          source.snapshot,
-          (claim) =>
-            source.foreignHashes.has(
-              `${sourceClaimKey(claim)}|${claim.contentSha256}`,
-            ),
-          { requireSemanticGraph: false },
-        );
-        if (validation.failures.length || !packet.assessmentRules.length)
-          catalogFailure(E.RESULT_INVALID, cid, 422);
-
-        return legalRuleActivationResultSchema.parse(
-          await this.activation.commitSelected(
-            tx,
-            {
-              idempotencyKey: request.idempotencyKey,
-              requestDigest,
-              ruleSetDigest: sha256Hex(canonicalJson(packet)),
-              packet,
-              resolved: validation.resolved,
-              legalSource: {
-                id: first.catalog.legalSourceVersionId,
-                version: first.catalog.legalSourceVersion.version,
-              },
-              selectedPreparationResults: manifest,
-              correlationId: cid,
-            },
-            actor,
-          ),
-        );
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+  ): Promise<LegalRuleActivationResult> {
+    // Why: Existing callers and direct-instantiation tests use this service facade; the handler owns publication decisions.
+    // How: Dispatch through CommandBus when Nest injected the handler; direct service tests construct the same handler.
+    // Invariant: The request stays in one transaction owned by the handler.
+    const command = new ActivatePreparedRulesCommand(
+      catalogId,
+      request,
+      actor,
+      cid,
     );
     if (this.activateHandler)
       return this.commands.execute<
@@ -608,6 +461,7 @@ export class PreparationRuleService {
       this.catalogs,
       this.sourceSnapshot,
       this.activation,
+      this.scopeSourceAuthority,
     ).execute(command);
   }
 
@@ -842,23 +696,12 @@ export class PreparationRuleService {
   }
 
   /**
-   * Business purpose: Let an Admin load externally authored Assessment Rules for catalog Legal Rules as prepared results, without running the Preparation agent.
-   *
+   * Business purpose: Import externally authored assessment rules as prepared revisions.
    * Business rules:
-   * - Only Admin callers reach this path; the document must name this catalog, its current revision and its pinned Legal Source Version.
-   * - Every item must target an eligible catalog Legal Rule and pass the same selected-output validation as agent output: identities carry the rule prefix, and every citation exactly matches the pinned source (document, locator, content hash).
-   * - An imported result is only a prepared revision; it becomes ACTIVE solely through explicit activation. Exclusions retain a source-pinned audit receipt without creating prepared revisions.
-   * - An exclusion explicitly requiring legal review blocks the atomic import until resolved; a caller exclusion is never proof of legal scope eligibility.
-   * - A rule with a queued or running Preparation run cannot be replaced; an identical prepared result is acknowledged as a replay without a new revision.
-   *
+   * - Preserve catalog ownership, pinned source, replay and dry-run decisions in the handler.
    * Execution flow:
-   * 1. Lock the catalog at the expected revision and verify the pinned source.
-   * 2. Resolve each item and excluded item to catalog entries and hydrate the exact source content.
-   * 3. Normalize every item into the selected-output contract and validate all of them before writing anything.
-   * 4. In a dry run, report per rule the revision an import would record (or a replay) from reads alone and stop.
-   * 5. Otherwise, for each item, lock its PreparationRule, skip an identical current result, otherwise record the next revision under one import selection and batch with a SUCCEEDED run.
-   * 6. Audit each revision and persist an idempotent exclusion receipt before returning acknowledgements.
-   *
+   * 1. Dispatch the typed import command through CQRS in Nest; direct service tests use the same handler as fallback.
+   * 2. Execute the request.
    * Failure cases:
    * - Validation and transaction errors propagate with their canonical problem codes.
    * Side effects:
@@ -870,325 +713,25 @@ export class PreparationRuleService {
     actor: string,
     cid: string,
   ): Promise<AssessmentRuleImportResult> {
-    if (request.catalogVersionId !== catalogId)
-      catalogFailure(E.INVALID, cid, 422);
-    return this.prisma.$transaction(
-      async (tx) => {
-        await this.catalogs.lock(
-          tx,
-          catalogId,
-          request.expectedCatalogRevision,
-          cid,
-        );
-        const { catalog, items } = await this.catalogs.entries(
-          tx,
-          catalogId,
-          cid,
-        );
-        if (catalog.legalSourceVersionId !== request.legalSourceVersionId)
-          catalogFailure(E.STALE, cid);
-        const entries = new Map(items.map((entry) => [entry.id, entry]));
-        if (request.excludedItems.some((item) => !entries.has(item.ruleId)))
-          catalogFailure(E.INVALID, cid, 422);
-        // An acknowledged unresolved proposition cannot be silently excluded to make a document pass.
-        // This rejects known ambiguity only; it is not positive semantic scope authorization.
-        const reviewRequiredIndex = request.excludedItems.findIndex(
-          (item) =>
-            item.reasonCode ===
-            ASSESSMENT_RULE_IMPORT_EXCLUSION_REASONS.NEEDS_REVIEW,
-        );
-        if (reviewRequiredIndex !== -1)
-          rejectSelectedOutput(
-            cid,
-            `excludedItems.${reviewRequiredIndex}.reasonCode`,
-            E.SCOPE_REVIEW_REQUIRED,
-          );
-        // An exclusion cannot contradict an imported item or another decision.
-        const importedIds = new Set(request.items.map((item) => item.ruleId));
-        const excludedIds = new Set(
-          request.excludedItems.map((item) => item.ruleId),
-        );
-        if (
-          excludedIds.size !== request.excludedItems.length ||
-          request.excludedItems.some((item) => importedIds.has(item.ruleId))
-        )
-          catalogFailure(E.INVALID, cid, 422);
-        // Bind every exclusion to the same eligible, content-verified source
-        // snapshot as an included rule. The client reason is not legal approval.
-        const excludedInputs = request.excludedItems.map((item) => {
-          const input = entries.get(item.ruleId)?.input;
-          if (!input) catalogFailure(E.INELIGIBLE, cid);
-          return input;
-        });
-        const hydratedExclusions = excludedInputs.length
-          ? await this.catalogs.hydrate(tx, excludedInputs, cid)
-          : [];
-        const selected = request.items.map((item) => {
-          const entry = entries.get(item.ruleId);
-          if (!entry) catalogFailure(E.NOT_FOUND, cid, 404);
-          if (!entry.input) catalogFailure(E.INELIGIBLE, cid);
-          return { item, input: entry.input };
-        });
-        const hydrated = selected.length
-          ? await this.catalogs.hydrate(
-              tx,
-              selected.map((entry) => entry.input),
-              cid,
-            )
-          : [];
-        // Validate every item before the first write so a bad item cannot leave a partial import.
-        const prepared = selected.map(({ item }, index) => {
-          const output = normalizeImportItem(item, index, cid);
-          validateSelectedOutput(hydrated[index], output, cid);
-          return { input: hydrated[index], output };
-        });
-
-        // Even a dry-run must establish positive scope authority before claiming eligibility.
-        for (const { input, output } of prepared)
-          await requireSelectedScopeAuthorization(
-            tx,
-            input,
-            output,
-            cid,
-            this.scopeSourceAuthority,
-          );
-
-        if (request.dryRun) {
-          // Preview only: report what an import would record, using reads alone.
-          const preview: AssessmentRuleImportResult["imported"] = [];
-          for (const { input, output } of prepared) {
-            const artifact = await tx.preparationRule.findUnique({
-              where: { legalRuleId: input.ruleId },
-            });
-            const last = artifact
-              ? await tx.preparationRuleResult.findFirst({
-                  where: { preparationRuleId: artifact.id },
-                  orderBy: { revision: "desc" },
-                  include: { preparationRun: true },
-                })
-              : null;
-            if (
-              last &&
-              unresolvedPreparationStates.has(
-                last.preparationRun.executionState,
-              )
-            )
-              catalogFailure(E.CONFLICT, cid);
-            const replayed =
-              last !== null &&
-              isIdenticalCurrentResult(
-                last,
-                preparationInputFingerprint(input),
-                output,
-              );
-            preview.push({
-              ruleId: input.ruleId,
-              resultId: null,
-              revision:
-                last && replayed ? last.revision : (last?.revision ?? 0) + 1,
-              assessmentRuleCount: output.assessmentRules.length,
-              replayed,
-            });
-          }
-          return {
-            catalogVersionId: catalog.id,
-            catalogRevision: catalog.revision,
-            legalSourceVersionId: catalog.legalSourceVersionId,
-            dryRun: true,
-            imported: preview,
-            excludedItems: request.excludedItems,
-          };
-        }
-
-        // Why: Prevent deadlocks during bulk import by sorting and locking all PreparationRule rows upfront in canonical ID order.
-        // How: Upsert preparation rule artifacts, sort their IDs alphabetically, and lock via a single ordered SELECT ... FOR UPDATE.
-        // Invariant: Row lock ordering is strictly deterministic regardless of the order of items in the import payload.
-        const importArtifactMap = new Map<string, { id: string }>();
-        for (const { input } of prepared) {
-          const artifact = await tx.preparationRule.upsert({
-            where: { legalRuleId: input.ruleId },
-            create: { legalRuleId: input.ruleId },
-            update: {},
-          });
-          importArtifactMap.set(input.ruleId, artifact);
-        }
-        const sortedImportArtifactIds = [
-          ...new Set([...importArtifactMap.values()].map((a) => a.id)),
-        ].sort();
-        if (sortedImportArtifactIds.length > 0) {
-          await tx.$queryRaw(
-            Prisma.sql`SELECT "id" FROM "PreparationRule" WHERE "id" IN (${Prisma.join(sortedImportArtifactIds)}) ORDER BY "id" FOR UPDATE`,
-          );
-        }
-
-        const imported: AssessmentRuleImportResult["imported"] = [];
-        let batchId: string | null = null;
-        for (const { input, output } of prepared) {
-          const artifact = importArtifactMap.get(input.ruleId)!;
-          const last = await tx.preparationRuleResult.findFirst({
-            where: { preparationRuleId: artifact.id },
-            orderBy: { revision: "desc" },
-            include: { preparationRun: true },
-          });
-          const fingerprint = preparationInputFingerprint(input);
-          if (
-            last &&
-            unresolvedPreparationStates.has(last.preparationRun.executionState)
-          )
-            catalogFailure(E.CONFLICT, cid);
-          if (last && isIdenticalCurrentResult(last, fingerprint, output)) {
-            imported.push({
-              ruleId: input.ruleId,
-              resultId: last.id,
-              revision: last.revision,
-              assessmentRuleCount: output.assessmentRules.length,
-              replayed: true,
-            });
-            continue;
-          }
-          if (!batchId) {
-            const pending = prepared.map((entry) => entry.input);
-            const selection = await tx.preparationRuleSelection.create({
-              data: {
-                catalogVersionId: catalog.id,
-                catalogRevision: catalog.revision,
-                createdBy: actor,
-                scope: {
-                  catalogVersionId: catalog.id,
-                  expectedRevision: catalog.revision,
-                  mode: LEGAL_RULE_SELECTION_MODES.EXPLICIT,
-                  filters: { search: "" },
-                  ruleIds: pending.map((entry) => entry.ruleId),
-                },
-                inputs: pending,
-                fingerprint: sha256Hex(
-                  canonicalJson(pending.map(preparationInputFingerprint)),
-                ),
-              },
-            });
-            const batch = await tx.preparationRuleBatch.create({
-              data: {
-                selectionId: selection.id,
-                requestedBy: actor,
-                idempotencyKey: `import:${randomUUID()}`,
-                requestHash: sha256Hex(canonicalJson(request)),
-              },
-            });
-            batchId = batch.id;
-          }
-          const revision = (last?.revision ?? 0) + 1;
-          const now = new Date();
-          const run = await tx.ruleSetPreparationRun.create({
-            data: {
-              idempotencyKey: `imported-rule:${artifact.id}:${revision}`,
-              executionContract: PreparationExecutionContract.SELECTED_RULE_V1,
-              legalSourceVersionId: input.legalSourceVersionId,
-              requestedBy: actor,
-              correlationId: randomUUID(),
-              executionState: A.SUCCEEDED,
-              startedAt: now,
-              completedAt: now,
-            },
-          });
-          const result = await tx.preparationRuleResult.create({
-            data: {
-              preparationRuleId: artifact.id,
-              batchId,
-              preparationRunId: run.id,
-              revision,
-              inputSnapshot: input,
-              inputFingerprint: fingerprint,
-              output,
-            },
-          });
-          await this.catalogs.record(
-            tx,
-            EVENTS.RESULT_IMPORTED,
-            result.id,
-            actor,
-            cid,
-            {
-              preparationRunId: run.id,
-              inputFingerprint: fingerprint,
-              outputDigest: sha256Hex(canonicalJson(output)),
-              revision,
-            },
-          );
-          imported.push({
-            ruleId: input.ruleId,
-            resultId: result.id,
-            revision,
-            assessmentRuleCount: output.assessmentRules.length,
-            replayed: false,
-          });
-        }
-        if (batchId)
-          await tx.preparationRuleBatch.update({
-            where: { id: batchId },
-            data: {
-              items: imported
-                .filter((entry) => !entry.replayed)
-                .map((entry) => ({
-                  ruleId: entry.ruleId,
-                  resultId: entry.resultId,
-                  skipped: false,
-                })),
-            },
-          });
-        // Keep an idempotent receipt even for exclusion-only or replay-only
-        // imports. Do not manufacture a prepared revision or dispatch a model.
-        if (hydratedExclusions.length) {
-          const exclusions = request.excludedItems.map((item, index) => {
-            const input = hydratedExclusions[index];
-            return {
-              ...item,
-              legalRuleId: input.legalRuleId,
-              inputFingerprint: preparationInputFingerprint(input),
-              indexId: input.indexId,
-              indexContentDigest: input.indexContentHash,
-              citations: input.citations.map(
-                ({ chunkId, documentId, locator, contentSha256 }) => ({
-                  chunkId,
-                  documentId,
-                  locator,
-                  contentSha256,
-                }),
-              ),
-            };
-          });
-          const receipt = {
-            catalogVersionId: catalog.id,
-            catalogRevision: catalog.revision,
-            legalSourceVersionId: catalog.legalSourceVersionId,
-            exclusions,
-            imported: imported.map(({ ruleId, resultId, revision }) => ({
-              ruleId,
-              resultId,
-              revision,
-            })),
-          };
-          const receiptDigest = sha256Hex(canonicalJson(receipt));
-          await this.catalogs.record(
-            tx,
-            EVENTS.IMPORT_EXCLUSIONS_RECORDED,
-            catalog.id,
-            actor,
-            cid,
-            { ...receipt, receiptDigest },
-            `${EVENTS.IMPORT_EXCLUSIONS_RECORDED}:${actor}:${receiptDigest}`,
-          );
-        }
-        return {
-          catalogVersionId: catalog.id,
-          catalogRevision: catalog.revision,
-          legalSourceVersionId: catalog.legalSourceVersionId,
-          dryRun: false,
-          imported,
-          excludedItems: request.excludedItems,
-        };
-      },
-      { timeout: 60000 },
+    // Why: Maintain the existing service API while relocating the transaction-heavy use case.
+    // How: Dispatch through CommandBus when Nest injected the handler; direct service tests construct the same handler.
+    // Invariant: Dry-run and replay behavior remain identical for existing callers.
+    const command = new ImportAssessmentRulesCommand(
+      catalogId,
+      request,
+      actor,
+      cid,
     );
+    if (this.importHandler)
+      return this.commands.execute<
+        ImportAssessmentRulesCommand,
+        AssessmentRuleImportResult
+      >(command);
+    return new ImportAssessmentRulesHandler(
+      this.prisma,
+      this.catalogs,
+      this.scopeSourceAuthority,
+    ).execute(command);
   }
 
   /**
@@ -1740,237 +1283,4 @@ export class PreparationRuleService {
     );
     return { preparationRunId: runId };
   }
-}
-
-/**
- * Business purpose: Identify the structural field that prevented a selected result from being recorded.
- * Business rules:
- * - Report only schema field paths supplied by the validation code; authored data and citation values stay private.
- * Execution flow:
- * 1. Return the catalog result rejection with the field path and request correlation.
- * Failure cases:
- * - Always rejects settlement with HTTP 422 so the worker can record a failed attempt.
- * Side effects:
- * - Throws a typed problem without changing run state.
- */
-function rejectSelectedOutput(
-  cid: string,
-  issues: string,
-  code:
-    typeof E.RESULT_INVALID | typeof E.SCOPE_REVIEW_REQUIRED = E.RESULT_INVALID,
-): never {
-  throw problemException(code, cid, {
-    status: HttpStatus.UNPROCESSABLE_ENTITY,
-    meta: { issues },
-  });
-}
-
-/**
- * Business purpose: Turn one externally authored import item into the same selected-rule output an agent would have produced.
- * Business rules:
- * - Investigation hints the import does not carry are stored empty; server-derived prose is never supplied by the author.
- * - The shared selected-output contract decides validity; the import adds no legal interpretation.
- * Execution flow:
- * 1. Fill the fixed analysis note and empty investigation hints.
- * 2. Parse through the shared output contract, which derives intent, guidance and context relations.
- * Failure cases:
- * - A contract violation is rejected as RESULT_INVALID with the item index and structural field path only; authored values are never echoed.
- * Side effects:
- * - Pure normalization; nothing is persisted.
- */
-export function normalizeImportItem(
-  item: AssessmentRuleImportItem,
-  index: number,
-  cid: string,
-): PreparationRuleOutput {
-  const parsed = preparationRuleOutputSchema.safeParse({
-    analysis: item.analysis ?? ASSESSMENT_RULE_IMPORT_DEFAULT_ANALYSIS,
-    legalRequirements: item.legalRequirements,
-    contextRelations: item.contextRelations,
-    assessmentRules: item.assessmentRules.map((rule) => ({
-      investigationGoals: [],
-      startingNodeTypes: [],
-      targetNodeTypes: [],
-      edgeStrategies: [],
-      graphQueries: [],
-      keywords: [],
-      commonApis: [],
-      commonLibraries: [],
-      patterns: [],
-      supportingEvidence: [],
-      negativeEvidence: [],
-      ...rule,
-    })),
-  });
-  if (!parsed.success)
-    rejectSelectedOutput(
-      cid,
-      `items.${index}.${parsed.error.issues[0]?.path.join(".") ?? "output"}`,
-    );
-  return parsed.data;
-}
-
-/**
- * Business purpose: Recognize an import that would only repeat the rule's current prepared result, so re-running an import never creates noise revisions.
- * Business rules:
- * - Only a SUCCEEDED current result built from the same pinned input and carrying exactly the same output counts as identical.
- * Execution flow:
- * 1. Compare the current result's input fingerprint and run state.
- * 2. Compare the canonical form of its stored output with the incoming output.
- * Failure cases:
- * - No current result, a different input, a non-succeeded run or different output is not identical.
- * Side effects:
- * - Pure comparison; nothing is persisted.
- */
-function isIdenticalCurrentResult(
-  last: {
-    inputFingerprint: string;
-    output: Prisma.JsonValue | null;
-    preparationRun: { executionState: A };
-  },
-  fingerprint: string,
-  output: PreparationRuleOutput,
-): boolean {
-  return Boolean(
-    last.inputFingerprint === fingerprint &&
-    last.preparationRun.executionState === A.SUCCEEDED &&
-    last.output &&
-    canonicalJson(last.output) === canonicalJson(output),
-  );
-}
-
-/**
- * Business purpose: Validate selected preparation structure and provenance without deciding legal applicability.
- * Business rules:
- * - References stay within pinned chunks; AssessmentRule parents must be present, assessable and uniquely identified.
- * - Explicit unresolved legal scope blocks validation, import and selected activation; absence of the signal is not semantic approval.
- * - Failure settlement and explicit scope review may retain an unresolved draft, after validating its complete structure and provenance.
- * Execution flow:
- * 1. Parse canonical downstream contracts
- * 2. Verify unique identities, source allowlist and parent links.
- * Failure cases:
- * - Invalid structure, duplicates, foreign sources or missing/non-assessable parents return RESULT_INVALID with a safe field path.
- * Side effects:
- * - Pure validation; no semantic decision, publication or model work.
- */
-export function validateSelectedOutput(
-  input: PreparationRuleInput,
-  rawOutput: z.infer<typeof preparationRuleOutputSchema>,
-  cid: string,
-  retainUnresolvedDraft = false,
-): void {
-  const parsed = preparationRuleOutputSchema.safeParse(rawOutput);
-  if (!parsed.success) rejectSelectedOutput(cid, "output");
-  // The schema trims coverage reasons; all guards must inspect the same canonical
-  // values, including callers that invoke this validator without a parsed DTO.
-  const output = parsed.data;
-  // Check ambiguity before other structural defects can route the draft into repair.
-  const unresolvedIndex = output.legalRequirements.findIndex((rule) =>
-    rule.coverage.nonAssessableReason?.startsWith(
-      PREPARATION_SCOPE_REVIEW_REQUIRED_REASON_PREFIX,
-    ),
-  );
-  if (unresolvedIndex !== -1 && !retainUnresolvedDraft)
-    rejectSelectedOutput(
-      cid,
-      `output.legalRequirements.${unresolvedIndex}.coverage.nonAssessableReason`,
-      E.SCOPE_REVIEW_REQUIRED,
-    );
-  // A structurally valid but unauthorized normative candidate may be retained as a failed
-  // review draft, even when the model did not emit its own ambiguity marker.
-  if (retainUnresolvedDraft && !output.legalRequirements.length)
-    rejectSelectedOutput(cid, "output.legalRequirements");
-  const requirements = new Map(
-    output.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
-  );
-  const assessmentIds = new Set(
-    output.assessmentRules.map((rule) => rule.assessmentRuleId),
-  );
-  const relationIds = new Set(
-    output.contextRelations.map((edge) => edge.relationId),
-  );
-  if (requirements.size !== output.legalRequirements.length)
-    rejectSelectedOutput(cid, "output.legalRequirements.legalRequirementId");
-  if (assessmentIds.size !== output.assessmentRules.length)
-    rejectSelectedOutput(cid, "output.assessmentRules.assessmentRuleId");
-  if (relationIds.size !== output.contextRelations.length)
-    rejectSelectedOutput(cid, "output.contextRelations.relationId");
-  const allowed = new Set(
-    input.citations.map((ref) =>
-      canonicalJson([ref.documentId, ref.locator, ref.contentSha256]),
-    ),
-  );
-  const prefix = `${input.ruleId}:`;
-  for (const [index, rule] of output.legalRequirements.entries()) {
-    const path = `output.legalRequirements.${index}`;
-    if (!rule.legalRequirementId.startsWith(prefix))
-      rejectSelectedOutput(cid, `${path}.legalRequirementId`);
-    if (!rule.operativePropositions?.length)
-      rejectSelectedOutput(cid, `${path}.operativePropositions`);
-    if (
-      !declaresApplicabilityScope(
-        rule.coverage.state,
-        rule.applicabilityConditions,
-        rule.applicabilityMode,
-      )
-    )
-      rejectSelectedOutput(
-        cid,
-        `${path}.applicabilityConditions,${path}.applicabilityMode`,
-      );
-    const own = new Set(rule.sourceRefs.map((ref) => canonicalJson(ref)));
-    if (
-      rule.operativePropositions.some((proposition) =>
-        proposition.sourceRefs.some((ref) => !own.has(canonicalJson(ref))),
-      )
-    )
-      rejectSelectedOutput(cid, `${path}.operativePropositions.sourceRefs`);
-  }
-  for (const collection of ["legalRequirements", "assessmentRules"] as const) {
-    for (const [index, rule] of output[collection].entries()) {
-      if (
-        !rule.sourceRefs.length ||
-        rule.sourceRefs.some(
-          (ref) =>
-            !allowed.has(
-              canonicalJson([ref.documentId, ref.locator, ref.contentSha256]),
-            ),
-        )
-      )
-        rejectSelectedOutput(cid, `output.${collection}.${index}.sourceRefs`);
-    }
-  }
-  for (const [index, edge] of output.contextRelations.entries()) {
-    if (
-      !edge.relationId.startsWith(prefix) ||
-      !requirements.has(edge.fromLegalRequirementId) ||
-      (edge.toLegalRequirementId &&
-        !requirements.has(edge.toLegalRequirementId)) ||
-      (edge.toSourceRef &&
-        !allowed.has(
-          canonicalJson([
-            edge.toSourceRef.documentId,
-            edge.toSourceRef.locator,
-            edge.toSourceRef.contentSha256,
-          ]),
-        ))
-    )
-      rejectSelectedOutput(cid, `output.contextRelations.${index}`);
-  }
-  for (const [index, rule] of output.assessmentRules.entries()) {
-    const path = `output.assessmentRules.${index}`;
-    if (!rule.assessmentRuleId.startsWith(prefix))
-      rejectSelectedOutput(cid, `${path}.assessmentRuleId`);
-    if (
-      rule.legalRequirementIds.some(
-        (id) =>
-          !requirements.has(id) ||
-          requirements.get(id)!.coverage.state ===
-            LEGAL_REQUIREMENT_COVERAGE_STATES.NON_ASSESSABLE,
-      )
-    )
-      rejectSelectedOutput(cid, `${path}.legalRequirementIds`);
-  }
-  if (validateAssessmentRuleBindings(output).length)
-    rejectSelectedOutput(cid, "output.assessmentRules");
 }
