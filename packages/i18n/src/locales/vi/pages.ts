@@ -1558,6 +1558,7 @@ export const viPages = {
     runtimePanelCanonicalExecutionStates: {
       QUEUED: "Đang xếp hàng",
       RUNNING: "Đang chạy",
+      CANCEL_REQUESTED: "Đang yêu cầu hủy",
       INTERRUPTED: "Bị gián đoạn",
       PAUSED: "Đã tạm dừng",
       SUCCEEDED: "Thành công",

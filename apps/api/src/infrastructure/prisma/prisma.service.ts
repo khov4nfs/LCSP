@@ -80,6 +80,8 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  readonly databaseTarget: Readonly<{ hostname: string; pathname: string }>;
+
   /**
    * Creates the Prisma client with UTC sessions while resolving configuration from ConfigService.
    *
@@ -94,11 +96,18 @@ export class PrismaService
       process.env.DATABASE_URL ||
       "";
     const inheritedOptions = process.env.PGOPTIONS ?? "";
+    const connection = prismaConnectionConfig(databaseUrl, inheritedOptions);
+    const target = new URL(connection.connectionString);
 
     super({
-      adapter: new PrismaPg(
-        prismaConnectionConfig(databaseUrl, inheritedOptions),
-      ),
+      adapter: new PrismaPg(connection),
+    });
+    // Why: Isolated diagnostic guards must inspect the database actually bound to this Prisma client.
+    // How: Retain only non-secret host/name fields from the adapter's resolved connection URL.
+    // Invariant: Neither credentials nor the raw DATABASE_URL are exposed to callers or logs.
+    this.databaseTarget = Object.freeze({
+      hostname: target.hostname,
+      pathname: target.pathname,
     });
   }
 

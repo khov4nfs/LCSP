@@ -30,6 +30,7 @@ import {
   type LegalRuleSourceProvisionQuery,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { AUDIT_RESOURCE_TYPES, AUDIT_DECISIONS } from "@lcsp/contracts/audit";
+import { RULE_SET_PREPARATION_UNRESOLVED_STATES } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
@@ -879,6 +880,13 @@ export class LegalRuleCatalogService {
    */
   async deleteCatalog(catalogId: string, actor: string, cid: string) {
     return this.prisma.$transaction(async (tx) => {
+      // Why: A selected-rule submit can create a run after an unlocked deletion check.
+      // How: Serialize deletion with the same catalog row lock taken by submit/import.
+      // Invariant: The unresolved-run query observes all earlier creators before deleting descendants.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "LegalRuleCatalogVersion" WHERE "id" = ${catalogId} FOR UPDATE
+      `;
+      if (!locked.length) catalogFailure(E.NOT_FOUND, cid, 404);
       const catalog = await tx.legalRuleCatalogVersion.findUnique({
         where: { id: catalogId },
       });
@@ -893,7 +901,12 @@ export class LegalRuleCatalogService {
           },
           preparationRun: {
             executionState: {
-              in: [AgentExecutionState.QUEUED, AgentExecutionState.RUNNING],
+              // Why: Native cancellation can remain in progress after the Admin request commits.
+              // How: Use the canonical unresolved set for the deletion fence.
+              // Invariant: Catalog rows cannot be removed while a selected-rule run may still publish.
+              in: RULE_SET_PREPARATION_UNRESOLVED_STATES.map(
+                (state) => state as AgentExecutionState,
+              ),
             },
           },
         },
@@ -1215,12 +1228,17 @@ export class LegalRuleCatalogService {
         last.inputFingerprint === preparationInputFingerprint(input) &&
         preparationInputFingerprint(resultInput.data) === last.inputFingerprint,
       );
+      // Why: Pending native cancellation is an unresolved run, not a failed/stale catalog result.
+      // How: Project every canonical unresolved execution state to the existing in-progress UI state.
+      // Invariant: Admin status remains pending until durable cancellation reaches a terminal state.
       const state = reason
         ? S.INELIGIBLE
         : !last
           ? S.NOT_PREPARED
-          : last.preparationRun.executionState === AgentExecutionState.QUEUED ||
-              last.preparationRun.executionState === AgentExecutionState.RUNNING
+          : RULE_SET_PREPARATION_UNRESOLVED_STATES.some(
+                (unresolved) =>
+                  unresolved === last.preparationRun.executionState,
+              )
             ? S.RUNNING
             : !currentResult
               ? S.STALE

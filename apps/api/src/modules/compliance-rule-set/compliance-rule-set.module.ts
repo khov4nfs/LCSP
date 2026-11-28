@@ -1,8 +1,7 @@
 import { ResumeRuleSetPreparationHandler } from "./application/commands/resume-rule-set-preparation/resume-rule-set-preparation.handler.js";
-import {
-  SourceReviewHandler,
-  StartClaimDiscoveryDiagnosticHandler,
-} from "./application/commands/source-review/source-review.handler.js";
+import { SourceReviewHandler } from "./application/commands/source-review/source-review.handler.js";
+// Diagnostic startup is a separate command lifecycle from source review mutations.
+import { StartClaimDiscoveryDiagnosticHandler } from "./application/commands/source-review/start-claim-discovery-diagnostic.handler.js";
 import { Module } from "@nestjs/common";
 import { AuthoredLocalizationModule } from "../../platform/localization/localization.module.js";
 import { ClaimInventoryHandler } from "./application/commands/claim-inventory/claim-inventory.handler.js";
@@ -35,6 +34,7 @@ import { ComplianceRuleSetReadModelLoader } from "./infrastructure/persistence/c
 import { LegalSourceActivatedConsumer } from "./infrastructure/messaging/legal-source-activated.consumer.js";
 import { ComplianceRuleSetController } from "./presentation/http/compliance-rule-set.controller.js";
 import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-server-preparation-control.js";
+import { PreparationCancellationService } from "./infrastructure/runtime/preparation-cancellation.service.js";
 import { ReactivateComplianceRuleSetHandler } from "./application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.handler.js";
 
 /**
@@ -74,6 +74,10 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
     SubmitComplianceRuleSetHandler,
     CancelRuleSetPreparationHandler,
     AgentServerPreparationControl,
+    // Why: Pending cancellation must survive API restarts and be retried outside DB transactions.
+    // How: This provider polls committed CANCEL_REQUESTED runs and closes them after native acknowledgement.
+    // Invariant: RUNNING work is never marked CANCELLED before the runtime stop is known.
+    PreparationCancellationService,
     ValidateComplianceRuleSetHandler,
     GetActiveComplianceRuleSetHandler,
     GetComplianceRuleSetVersionHandler,

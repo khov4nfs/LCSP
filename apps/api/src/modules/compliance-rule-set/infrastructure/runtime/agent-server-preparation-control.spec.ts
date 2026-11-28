@@ -21,7 +21,7 @@ describe("Agent Server preparation cancellation", () => {
       .mockResolvedValueOnce(
         Response.json([{ run_id: "native-run-1", status: "running" }]),
       )
-      .mockResolvedValueOnce(Response.json({ status: "running" }));
+      .mockResolvedValueOnce(Response.json({ status: "interrupted" }));
 
     await new AgentServerPreparationControl().cancel("correlation-a");
 
@@ -54,6 +54,59 @@ describe("Agent Server preparation cancellation", () => {
     await new AgentServerPreparationControl().cancel("correlation-a");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not confirm cancellation while Agent Server still reports running", async () => {
+    process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json([{ run_id: "native-run-1", status: "running" }]),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ run_id: "native-run-1", status: "running" }),
+      );
+
+    await expect(
+      new AgentServerPreparationControl().cancel("correlation-a"),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it("rejects an unrecognized native status instead of declaring cancellation complete", async () => {
+    process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json([{ run_id: "native-run-1", status: "running" }]),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ run_id: "native-run-1", status: "mystery" }),
+      );
+    await expect(
+      new AgentServerPreparationControl().cancel("correlation-a"),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it("rejects an unrecognized listed status rather than treating the run as stopped", async () => {
+    process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        Response.json([{ run_id: "native-run-1", status: "mystery" }]),
+      );
+    await expect(
+      new AgentServerPreparationControl().cancel("correlation-a"),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it("does not treat an HTTP 404 route failure as proof that no native run exists", async () => {
+    process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    await expect(
+      new AgentServerPreparationControl().cancel("correlation-a"),
+    ).rejects.toMatchObject({ status: 503 });
   });
 
   it("refuses ambiguous active native runs instead of cancelling an arbitrary one", async () => {

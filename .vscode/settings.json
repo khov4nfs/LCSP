@@ -52,11 +52,12 @@
   "editor.detectIndentation": false,
   "editor.formatOnSave": true,
   "eslint.useFlatConfig": true,
+  // Why: API and web each own their typed ESLint configuration.
+  // How: Resolve editor diagnostics from the workspace containing the edited file.
+  // Invariant: VS Code and CLI lint use the same workspace configuration.
   "eslint.workingDirectories": [
-    {
-      "directory": "./webapp",
-      "changeProcessCWD": true
-    }
+    { "directory": "./apps/api", "changeProcessCWD": true },
+    { "directory": "./apps/web", "changeProcessCWD": true }
   ],
   "eslint.validate": [
     "javascript",
@@ -69,6 +70,10 @@
   "python.analysis.extraPaths": ["${workspaceFolder}/deepagents"],
   "python.terminal.activateEnvironment": true,
   "js/ts.tsserver.maxMemory": 2048,
+  // Why: The bundled TypeScript 6 produced false editor errors with this repo's TypeScript 5.9.3.
+  // How: Use the installed compiler for editor analysis.
+  // Invariant: Editor and CLI type diagnostics resolve the same Prisma types.
+  "typescript.tsdk": "node_modules/typescript/lib",
   "search.exclude": {
     "**/dist": true,
     "**/.turbo": true,

@@ -20,6 +20,7 @@ import {
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
+  RULE_SET_PREPARATION_UNRESOLVED_STATES,
   RULE_SET_REACTIVATION_ERROR_CODES as Errors,
   RULE_SET_REACTIVATION_REASONS,
   complianceRuleSetReactivationResultSchema,
@@ -172,7 +173,12 @@ export class ReactivateComplianceRuleSetHandler implements ICommandHandler<React
             await tx.ruleSetPreparationRun.count({
               where: {
                 executionState: {
-                  in: [AgentExecutionState.QUEUED, AgentExecutionState.RUNNING],
+                  // Why: Paused, interrupted and cancelling runs can still affect shared authority.
+                  // How: Match the availability loader's canonical unresolved state set.
+                  // Invariant: Reactivation never races a resumable or pending-cancel preparation.
+                  in: RULE_SET_PREPARATION_UNRESOLVED_STATES.map(
+                    (state) => state as AgentExecutionState,
+                  ),
                 },
               },
             })

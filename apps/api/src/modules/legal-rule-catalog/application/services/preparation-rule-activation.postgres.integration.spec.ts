@@ -861,6 +861,117 @@ describeDatabase(
         }),
       ).toEqual([{ id: replacement.ruleSetVersionId }]);
     });
+
+    it("serializes catalog deletion with a newly created unresolved selected-rule run", async () => {
+      // Why: A delete check made before a concurrent submit commits can erase its selected rule.
+      // How: Hold the catalog row lock while creating a cancellation-pending result, then release deletion.
+      // Invariant: The delete transaction must observe the committed run and reject without removing its catalog.
+      const raceCatalog = await prisma.legalRuleCatalogVersion.create({
+        data: {
+          version: `race-${randomUUID()}`,
+          legalSourceVersionId: sourceVersionId,
+          createdBy: actorId,
+          updatedBy: actorId,
+        },
+      });
+      const rule = await prisma.legalRule.create({
+        data: {
+          catalogVersionId: raceCatalog.id,
+          legalRuleId: `race-rule-${randomUUID()}`,
+          title: "Race fixture rule",
+          description: "Selected rule used to verify catalog deletion locking.",
+          citationLocatorRefs: [],
+          authoredBy: actorId,
+          updatedBy: actorId,
+        },
+      });
+      const preparationRule = await prisma.preparationRule.create({
+        data: { legalRuleId: rule.id },
+      });
+      const selection = await prisma.preparationRuleSelection.create({
+        data: {
+          catalogVersionId: raceCatalog.id,
+          catalogRevision: raceCatalog.revision,
+          createdBy: actorId,
+          scope: { mode: LEGAL_RULE_SELECTION_MODES.ALL_MATCHING },
+          inputs: [],
+          fingerprint: "a".repeat(64),
+        },
+      });
+      const batch = await prisma.preparationRuleBatch.create({
+        data: {
+          selectionId: selection.id,
+          requestedBy: actorId,
+          idempotencyKey: randomUUID(),
+          requestHash: "b".repeat(64),
+          items: [],
+        },
+      });
+      let releaseCreator!: () => void;
+      const creatorMayCommit = new Promise<void>((resolve) => {
+        releaseCreator = resolve;
+      });
+      let notifyLocked!: () => void;
+      const creatorLocked = new Promise<void>((resolve) => {
+        notifyLocked = resolve;
+      });
+      const creator = prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "LegalRuleCatalogVersion" WHERE "id" = ${raceCatalog.id} FOR UPDATE`;
+        notifyLocked();
+        await creatorMayCommit;
+        const run = await tx.ruleSetPreparationRun.create({
+          data: {
+            idempotencyKey: randomUUID(),
+            legalSourceVersionId: sourceVersionId,
+            requestedBy: actorId,
+            correlationId: randomUUID(),
+            executionContract: PreparationExecutionContract.SELECTED_RULE_V1,
+            executionState: AgentExecutionState.CANCEL_REQUESTED,
+          },
+        });
+        await tx.preparationRuleResult.create({
+          data: {
+            preparationRuleId: preparationRule.id,
+            preparationRunId: run.id,
+            batchId: batch.id,
+            revision: 1,
+            inputSnapshot: {},
+            inputFingerprint: "c".repeat(64),
+          },
+        });
+      });
+      await creatorLocked;
+      const deletion = catalogs.deleteCatalog(
+        raceCatalog.id,
+        actorId,
+        randomUUID(),
+      );
+      let deletionFinished = false;
+      void deletion
+        .finally(() => {
+          deletionFinished = true;
+        })
+        .catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      // Why: A 409 after the creator commits alone would not prove the delete waited on its lock.
+      // How: Assert the delete transaction remains pending while the creator holds the catalog row.
+      // Invariant: Deletion cannot inspect or remove children before the earlier writer commits.
+      const deletionWasBlocked = !deletionFinished;
+      releaseCreator();
+      await creator;
+      await expect(deletion).rejects.toBeDefined();
+      expect(deletionWasBlocked).toBe(true);
+      expect(
+        await prisma.legalRuleCatalogVersion.findUnique({
+          where: { id: raceCatalog.id },
+        }),
+      ).not.toBeNull();
+      expect(
+        await prisma.preparationRuleResult.count({
+          where: { preparationRuleId: preparationRule.id },
+        }),
+      ).toBe(1);
+    });
   },
 );
 
