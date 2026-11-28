@@ -501,9 +501,7 @@ test("canonical report corruption rejects before localized artifacts are created
   const original = f.db.assessmentArtifact.findFirst;
   f.db.assessmentArtifact.findFirst = async (...args) => {
     const row = await original(...args);
-    return row
-      ? { ...row, contentSha256: `sha256:${"0".repeat(64)}` }
-      : null;
+    return row ? { ...row, contentSha256: `sha256:${"0".repeat(64)}` } : null;
   };
   await assert.rejects(f.createLoader().load({ ...f.input, locale: "vi" }));
   assert.equal(f.artifacts.size, 0);
